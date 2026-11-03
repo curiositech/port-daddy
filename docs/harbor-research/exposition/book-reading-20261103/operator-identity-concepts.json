@@ -64,8 +64,8 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "41302532942ef66ea8288343f17b02f1e4ca89f043862ded9a4634ccc1895cdf",
-      "edited_source_lines": 4516
+      "edited_sha256": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
+      "edited_source_lines": 4552
     },
     {
       "chapter": "stp",
@@ -124,8 +124,8 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "eb8c2e3091d43668cae29c65fcb1ca9ed2e5b9c9e2af8827bc6855de41533a7e",
-      "edited_source_lines": 3808
+      "edited_sha256": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32",
+      "edited_source_lines": 3818
     }
   ],
   "concept_lifecycles": [
@@ -136,7 +136,7 @@
       "later_substantive_use": "sec:landing",
       "first_anchor_line": 476,
       "later_anchor_line": 1209,
-      "teaching_or_repair": "Mira\u2019s scoped grant; committed effects remain outside revocation"
+      "teaching_or_repair": "Mira’s scoped grant; committed effects remain outside revocation"
     },
     {
       "chapter": "ls",
@@ -153,7 +153,7 @@
       "first_teaching_anchor": "sec:flatten",
       "later_substantive_use": "sec:consent-canon",
       "first_anchor_line": 671,
-      "later_anchor_line": 3169,
+      "later_anchor_line": 3174,
       "teaching_or_repair": "Artifact access does not exhaust practitioner knowledge"
     },
     {
@@ -162,7 +162,7 @@
       "first_teaching_anchor": "sec:sole-roles",
       "later_substantive_use": "ex:ls-b8-specialization-run",
       "first_anchor_line": 886,
-      "later_anchor_line": 3466,
+      "later_anchor_line": 3471,
       "teaching_or_repair": "One arrival/hour, two servers, response4/3; specialist1.75 boundary"
     },
     {
@@ -171,7 +171,7 @@
       "first_teaching_anchor": "sec:succession-corner",
       "later_substantive_use": "ex:ls-succession-corner",
       "first_anchor_line": 1073,
-      "later_anchor_line": 3435,
+      "later_anchor_line": 3440,
       "teaching_or_repair": "K has response-time units; failure model and eta K<1 retained"
     },
     {
@@ -180,7 +180,7 @@
       "first_teaching_anchor": "thm:escalation-threshold",
       "later_substantive_use": "ex:ls-b7-escalation-run",
       "first_anchor_line": 1292,
-      "later_anchor_line": 3476,
+      "later_anchor_line": 3481,
       "teaching_or_repair": "Linear b=V=u now stated before .05/1.05 calculation"
     },
     {
@@ -189,7 +189,7 @@
       "first_teaching_anchor": "def:sdt",
       "later_substantive_use": "ex:ls-sdt-limits",
       "first_anchor_line": 1457,
-      "later_anchor_line": 3487,
+      "later_anchor_line": 3492,
       "teaching_or_repair": "Perfect inspection, conditional error probabilities, common cost units, and per-inspection cost. Fixed-score threshold changes errors, not sensitivity. Ratio divergence counterexample separates varying costs."
     },
     {
@@ -197,8 +197,8 @@
       "concept": "Coverage versus addressability",
       "first_teaching_anchor": "thm:lowerbound",
       "later_substantive_use": "ex:ls-adversarial-critical-set",
-      "first_anchor_line": 1909,
-      "later_anchor_line": 3584,
+      "first_anchor_line": 1910,
+      "later_anchor_line": 3589,
       "teaching_or_repair": "Four artifacts/one critical/two opens gives one bit; adversarial estimator not certified"
     },
     {
@@ -206,8 +206,8 @@
       "concept": "Critical rate, flag rate, miss mass",
       "first_teaching_anchor": "thm:pinned-joint",
       "later_substantive_use": "ex:ls-b1-frontier-run",
-      "first_anchor_line": 2055,
-      "later_anchor_line": 3593,
+      "first_anchor_line": 2056,
+      "later_anchor_line": 3598,
       "teaching_or_repair": "H(p) only exact-identification corner; sparse regime gives sufficient saving certificate"
     },
     {
@@ -215,8 +215,8 @@
       "concept": "Fit versus inspection benefit",
       "first_teaching_anchor": "thm:split-ranker",
       "later_substantive_use": "ex:ls-split-ranker-statement",
-      "first_anchor_line": 2496,
-      "later_anchor_line": 3652,
+      "first_anchor_line": 2497,
+      "later_anchor_line": 3670,
       "teaching_or_repair": "Crossing order does not prove every general codec incompatible"
     },
     {
@@ -224,8 +224,8 @@
       "concept": "Staleness and lease authority",
       "first_teaching_anchor": "prop:decay",
       "later_substantive_use": "ex:ls-dead-claim-replay",
-      "first_anchor_line": 2792,
-      "later_anchor_line": 3676,
+      "first_anchor_line": 2797,
+      "later_anchor_line": 3701,
       "teaching_or_repair": "Decay can leave old high score ahead; hard expiry and fencing remove authority"
     },
     {
@@ -233,8 +233,8 @@
       "concept": "Extractive summary budget",
       "first_teaching_anchor": "thm:split-digest",
       "later_substantive_use": "ex:ls-digest-is-compaction",
-      "first_anchor_line": 2897,
-      "later_anchor_line": 3710,
+      "first_anchor_line": 2902,
+      "later_anchor_line": 3744,
       "teaching_or_repair": "Three feasible summaries exhaustively yield losses(1,10),(0,10),(1,0)"
     },
     {
@@ -242,8 +242,8 @@
       "concept": "Competitive cache comparator",
       "first_teaching_anchor": "thm:paging",
       "later_substantive_use": "ex:ls-paging-ratio-hand",
-      "first_anchor_line": 3050,
-      "later_anchor_line": 3777,
+      "first_anchor_line": 3055,
+      "later_anchor_line": 3811,
       "teaching_or_repair": "h is offline capacity; fixed common pins reduce both capacities"
     },
     {
@@ -251,8 +251,8 @@
       "concept": "Role, incarnation, accountable person",
       "first_teaching_anchor": "def:role",
       "later_substantive_use": "ex:stp-reputation-attachment",
-      "first_anchor_line": 515,
-      "later_anchor_line": 2856,
+      "first_anchor_line": 499,
+      "later_anchor_line": 2859,
       "teaching_or_repair": "Current role can change without fresh identity/history; no consciousness assertion"
     },
     {
@@ -260,17 +260,17 @@
       "concept": "Succession and directed ancestry",
       "first_teaching_anchor": "inv:parfit-lineage",
       "later_substantive_use": "ex:stp-connected-vs-continuous",
-      "first_anchor_line": 689,
-      "later_anchor_line": 2889,
-      "teaching_or_repair": "a\u2192b\u2192c supplies reachability, not psychological identity or an equivalence relation"
+      "first_anchor_line": 674,
+      "later_anchor_line": 2892,
+      "teaching_or_repair": "a→b→c supplies reachability, not psychological identity or an equivalence relation"
     },
     {
       "chapter": "stp",
       "concept": "No-mint transfer",
       "first_teaching_anchor": "sec:continuity",
       "later_substantive_use": "ex:stp-nomint-sweep",
-      "first_anchor_line": 604,
-      "later_anchor_line": 2930,
+      "first_anchor_line": 589,
+      "later_anchor_line": 2933,
       "teaching_or_repair": "Debit source; .9+.81+.729 copy versus .9^3 live transfer"
     },
     {
@@ -278,8 +278,8 @@
       "concept": "Memory, capsule, execution snapshot",
       "first_teaching_anchor": "sec:organs",
       "later_substantive_use": "ex:stp-three-organs-trace",
-      "first_anchor_line": 840,
-      "later_anchor_line": 2961,
+      "first_anchor_line": 825,
+      "later_anchor_line": 2964,
       "teaching_or_repair": "Closure record and exact commit; reputation does not require exact inference restoration"
     },
     {
@@ -287,8 +287,8 @@
       "concept": "Credential authenticity and abandonment",
       "first_teaching_anchor": "thm:necessity",
       "later_substantive_use": "ex:newcomer-floor",
-      "first_anchor_line": 1068,
-      "later_anchor_line": 1079,
+      "first_anchor_line": 1053,
+      "later_anchor_line": 1064,
       "teaching_or_repair": "r0 baseline and all reset/access assumptions explicit; established-score loss survives"
     },
     {
@@ -296,8 +296,8 @@
       "concept": "Whitewashing opportunity cost",
       "first_teaching_anchor": "thm:whitewash-cost",
       "later_substantive_use": "ex:maturation-cost",
-      "first_anchor_line": 1198,
-      "later_anchor_line": 1238,
+      "first_anchor_line": 1183,
+      "later_anchor_line": 1223,
       "teaching_or_repair": "Fixed attainable continuation payoffs; detection and discount factors separate"
     },
     {
@@ -305,8 +305,8 @@
       "concept": "Front-loaded holdbacks",
       "first_teaching_anchor": "thm:probation-dominance",
       "later_substantive_use": "ex:binding-probation",
-      "first_anchor_line": 1298,
-      "later_anchor_line": 1426,
+      "first_anchor_line": 1283,
+      "later_anchor_line": 1411,
       "teaching_or_repair": "Equal-deterrence .60 now versus1 tomorrow; cap may preclude pure spike"
     },
     {
@@ -314,8 +314,8 @@
       "concept": "Engine value and cost",
       "first_teaching_anchor": "thm:engine-swap",
       "later_substantive_use": "sec:body-behind-name",
-      "first_anchor_line": 1597,
-      "later_anchor_line": 1560,
+      "first_anchor_line": 1584,
+      "later_anchor_line": 1546,
       "teaching_or_repair": "One-delivery model and full price pass-through; not endogenous adoption or dynamic market proof"
     },
     {
@@ -323,8 +323,8 @@
       "concept": "Estimator input contract",
       "first_teaching_anchor": "sec:substrate",
       "later_substantive_use": "ex:stp-estimator-fit",
-      "first_anchor_line": 1934,
-      "later_anchor_line": 3141,
+      "first_anchor_line": 1926,
+      "later_anchor_line": 3151,
       "teaching_or_repair": "Three of four pairwise wins imply log3 strength gap in two-player BT, not a pass-rate model"
     },
     {
@@ -332,8 +332,8 @@
       "concept": "Routing policy versus reputation evidence",
       "first_teaching_anchor": "sec:not-bandit",
       "later_substantive_use": "ex:stp-bandit-survives-where",
-      "first_anchor_line": 2009,
-      "later_anchor_line": 3180,
+      "first_anchor_line": 2003,
+      "later_anchor_line": 3190,
       "teaching_or_repair": "Bandit extensions acknowledged; learned selection cannot authenticate a receipt"
     },
     {
@@ -341,8 +341,8 @@
       "concept": "Quality vector scales",
       "first_teaching_anchor": "def:qvec",
       "later_substantive_use": "proto:judge",
-      "first_anchor_line": 2072,
-      "later_anchor_line": 2136,
+      "first_anchor_line": 2066,
+      "later_anchor_line": 2130,
       "teaching_or_repair": "Declare [0,1] scales and hard acceptance predicate before weighted tradeoff"
     },
     {
@@ -350,8 +350,8 @@
       "concept": "Exposure and causal helpfulness",
       "first_teaching_anchor": "proto:skill",
       "later_substantive_use": "ex:stp-skill-helpfulness-schema",
-      "first_anchor_line": 2238,
-      "later_anchor_line": 3232,
+      "first_anchor_line": 2232,
+      "later_anchor_line": 3242,
       "teaching_or_repair": "Graft records verify exposure; causal claim needs assignment/confounding model"
     },
     {
@@ -359,8 +359,8 @@
       "concept": "Audit detection and clique sampling",
       "first_teaching_anchor": "thm:tower-imported",
       "later_substantive_use": "ex:audit-depth",
-      "first_anchor_line": 2366,
-      "later_anchor_line": 2410,
+      "first_anchor_line": 2360,
+      "later_anchor_line": 2404,
       "teaching_or_repair": "Uniform sealed selection and prepaid bribes; conditional detection; pool capital separate"
     },
     {
@@ -368,8 +368,8 @@
       "concept": "Continuation value and audit spending",
       "first_teaching_anchor": "sec:oracle",
       "later_substantive_use": "ex:stp-tower-amortization",
-      "first_anchor_line": 2271,
-      "later_anchor_line": 3324,
+      "first_anchor_line": 2265,
+      "later_anchor_line": 3334,
       "teaching_or_repair": "t0-based sums; Model B firstzero334 and sum41.79175; integrals identified"
     },
     {
@@ -377,8 +377,8 @@
       "concept": "Tombstone and score projection",
       "first_teaching_anchor": "prop:tombstone",
       "later_substantive_use": "ex:stp-tombstone-walk",
-      "first_anchor_line": 2553,
-      "later_anchor_line": 3356,
+      "first_anchor_line": 2548,
+      "later_anchor_line": 3366,
       "teaching_or_repair": "Append-only evidence versus nonmonotone estimate; pre-detection and propagation delays separate"
     },
     {
@@ -396,7 +396,7 @@
       "first_teaching_anchor": "sec:calibration",
       "later_substantive_use": "ex:ls-global-trust-knob",
       "first_anchor_line": 1550,
-      "later_anchor_line": 3506,
+      "later_anchor_line": 3511,
       "teaching_or_repair": "Common randomized inspection q cannot simultaneously minimize formatting and migration losses; global UI setting is not necessarily common q."
     },
     {
@@ -405,7 +405,7 @@
       "first_teaching_anchor": "sec:calibration",
       "later_substantive_use": "ex:ls-canary-campbell",
       "first_anchor_line": 1550,
-      "later_anchor_line": 3521,
+      "later_anchor_line": 3526,
       "teaching_or_repair": "Catch rate can respond to task conditions and recognizable probes; refreshed holdouts are proposals to evaluate, not guaranteed cures."
     },
     {
@@ -413,15 +413,15 @@
       "concept": "Registry, ranking, and reputation",
       "first_teaching_anchor": "sec:value-curve",
       "later_substantive_use": "ex:ls-value-curve-n1",
-      "first_anchor_line": 1871,
-      "later_anchor_line": 3569,
+      "first_anchor_line": 1872,
+      "later_anchor_line": 3574,
       "teaching_or_repair": "One-agent surfaces can aid locating evidence; ranking is not prerequisite for identity-linked reputation; population thresholds are not established."
     }
   ],
   "not_claimed": [
     "Every external reference fully verified",
     "Every implementation status re-proven against runtime",
-    "Rendered spread acceptance",
+    "Visual review of every rendered page or global acceptance by this worker alone",
     "Global novelty proof",
     "Lint output as semantic reading evidence"
   ],
@@ -449,7 +449,7 @@
     "scope": "Complete bounded second semantic read of sec:operator through the following recitation, plus sec:value-curve and dependent exercise/solution/bibliography retellings. No claim to have read every external work.",
     "first_section": "sec:operator",
     "last_section": "sec:cooperation-modes",
-    "source_sha256": "41302532942ef66ea8288343f17b02f1e4ca89f043862ded9a4634ccc1895cdf",
+    "source_sha256": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
     "verified_numeric_examples": {
       "formatting": {
         "none": 0.005,
@@ -502,5 +502,158 @@
       "Score as telemetry; gate on predicates"
     ],
     "scope": "Bounded reread of summaries dependent on the repaired identity, attestation, tower and checkpoint claims; not a fresh whole-chapter read."
+  },
+  "final_spread_followthrough": {
+    "candidate": "19",
+    "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+    "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+    "manifest_sha256": "eb7c3746e5002d069e79bbaf81e7bcbed802ee96f514dbbdf090d8b7ade619f3",
+    "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-19.json",
+    "receipt_sha256": "97b833acce25994e54abbcd561d5da52a0184e111d75a95e42f8506bc3acb057",
+    "covered_unique_spreads": 58,
+    "fresh_views": 4,
+    "identical_reuses": 54,
+    "source_repairs_pending_render": false,
+    "source_hashes": {
+      "whitepaper/legible-swarm.tex": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
+      "website-v2/public/whitepaper/spawn-to-person.tex": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32"
+    },
+    "scope_status": "Accepted assigned sample; no remaining concrete owned-source defect. Full sequential source-read evidence remains distinct from selected rendered review.",
+    "independent_source_review": "Machine accepted complete bounded final mathematical corrections, including the full-Q0 union bound and endpoint domains."
+  },
+  "historical_spread_followthrough": [
+    {
+      "candidate": "14",
+      "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-14.json",
+      "covered_unique_spreads": 41,
+      "fresh_views": 39,
+      "identical_reuses": 2,
+      "source_repairs_pending_render": true,
+      "primary_sources": [
+        {
+          "url": "https://web.stanford.edu/~skrz/Liu_Skrzypacz.pdf",
+          "inspected": "Abstract, section2.3 stationary equilibrium restrictions, section3.2 Theorem1; no general welfare optimum established."
+        },
+        {
+          "url": "https://www.ambuehler.ethz.ch/CDstore/www2003/papers/refereed/p446/p446-kamvar/eigentrust.html",
+          "inspected": "Modified trust propagation and malicious-collectives experiment; role of pretrusted peers."
+        }
+      ]
+    },
+    {
+      "candidate": "15",
+      "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-15.json",
+      "receipt_sha256": "dce07c05580b4fc5ee755b42e3d062f561728ae974e127c91c265220f3afccce",
+      "covered_unique_spreads": 45,
+      "fresh_views": 27,
+      "identical_reuses": 18,
+      "source_repairs_pending_render": true,
+      "source_hashes": {
+        "whitepaper/legible-swarm.tex": "0e70f58658f054f315db677accc93e4e061b4076743818986b06a81867912a54",
+        "website-v2/public/whitepaper/spawn-to-person.tex": "cf790bfc5618875d4e44bd6ac0f4d4e6ae483e3d39b66e6695c207eb88f1ee5c"
+      },
+      "primary_sources": [
+        {
+          "url": "https://supreme.justia.com/cases/federal/us/17/518/",
+          "inspected": "Original opinion p636, corporation created by law and endowed with charter properties; no founding/priority claim or software legal status."
+        },
+        {
+          "url": "https://www.microsoft.com/en-us/research/publication/trueskilltm-a-bayesian-skill-rating-system/",
+          "inspected": "Original authors publication abstract: Bayesian skill uncertainty, teams/draws, approximate message passing; no automatic calibration for new agent tasks."
+        }
+      ]
+    },
+    {
+      "candidate": "16",
+      "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-16.json",
+      "receipt_sha256": "87913ee03842ed46f2b87b6aa64cb44cb95f019db7028581ca8568e5606e4eaf",
+      "covered_unique_spreads": 45,
+      "fresh_views": 16,
+      "identical_reuses": 29,
+      "source_repairs_pending_render": true,
+      "source_hashes": {
+        "whitepaper/legible-swarm.tex": "9a3898f80cb81bedee3ee383ba41730b62958c97df356ae368df3ae17ebe7495",
+        "website-v2/public/whitepaper/spawn-to-person.tex": "c39af4931a82dcfd839b42e008b3a9c47363c510af591af81bbf7e9ed1567ba0"
+      },
+      "verified_ratio_counterexample": {
+        "attention_cost": 1,
+        "case1": {
+          "miss": 100,
+          "false_alarm": 5,
+          "ratio": 20,
+          "threshold": "2/35"
+        },
+        "case2": {
+          "miss": 10,
+          "false_alarm": "2/5",
+          "ratio": 25,
+          "threshold": "7/52"
+        },
+        "conclusion": "Increasing the ratio alone can raise the threshold; fixing attention and false-alarm costs gives the stated monotonicity in miss cost."
+      },
+      "clinical_source": {
+        "url": "https://doi.org/10.2345/0899-8205-46.4.268",
+        "evidence": "Original journal search-indexed text reports cited studies with80–99% false or clinically insignificant alarms. Direct DOI reopen403; PubMed original abstract separately inspected. No full-paper read claimed.",
+        "scope": "Motivation for measuring agent-supervision alert burden; no rate or timescale transferred."
+      }
+    },
+    {
+      "candidate": "17",
+      "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-17.json",
+      "receipt_sha256": "a788e652664b656dd641a24802a6dff45a9af19260ae280da5e9cc2fd49c391e",
+      "covered_unique_spreads": 53,
+      "fresh_views": 23,
+      "identical_reuses": 30,
+      "source_repairs_pending_render": true,
+      "source_hashes": {
+        "whitepaper/legible-swarm.tex": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
+        "website-v2/public/whitepaper/spawn-to-person.tex": "4e59ea9dd18053696d699776eec10812b57c11b51d211052f9a28a0d592f036f"
+      },
+      "scope_status": "All assigned17 images inspected or exact-hash reused. Three dependent exercise/solution defects corrected in source for18;17 remains diagnostic. No new clipping or caption collision found in this sample.",
+      "correction_anchors": [
+        "ex:ls-noisy-zoom-oracle",
+        "ex:stp-bt-vs-elo-regime",
+        "ex:stp-resurrection-soundness"
+      ],
+      "verified_independence_example": {
+        "single_call_miss_probability": "1/10",
+        "three_conditionally_independent_misses": "1/1000",
+        "three_shared_errors_miss_probability": "1/10",
+        "conclusion": "Tool count does not identify joint error probability; overhead bound does not establish exact advantage."
+      },
+      "checks": {
+        "decompressed_blocks": "8 passed",
+        "margin_object_source": "2 passed,1 compiled-fixture skip",
+        "diff_check": "passed"
+      },
+      "dense_case_verification": {
+        "scope": "F=1..32, all1<=k<=F, alpha in{.1,.5,.9}, epsilon=.01",
+        "cases": 1584,
+        "method": "Exact Fraction arithmetic checks Q0 alpha^r <= epsilon at the least positive integer r. Includes k=F and F=1.",
+        "not_claimed": "A finite sweep is not a proof; union-bound reasoning is stated in the solution."
+      }
+    },
+    {
+      "candidate": "18",
+      "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+      "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+      "covered_unique_spreads": 58,
+      "fresh_views": 13,
+      "identical_reuses": 45,
+      "source_repairs_pending_render": true,
+      "source_hashes": {
+        "whitepaper/legible-swarm.tex": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
+        "website-v2/public/whitepaper/spawn-to-person.tex": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32"
+      },
+      "scope_status": "All prior corrections render cleanly. One neighboring exercise prompt quotes a removed sentence; its opening is replaced with the current provenance premise. No clipping/caption collision found.",
+      "correction_anchors": [
+        "ex:stp-rotten-substrate"
+      ],
+      "retracted_visual_suspicion": "Solution4.49 uses Exercise4.8 correctly; AUX and PDF text confirm the colon was misread at spread scale. No reference repair performed."
+    }
+  ],
+  "pending_render_checkpoint": {
+    "head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+    "status": "Complete: candidate19 assigned rendered sample accepted, no owned-source repairs pending."
   }
 }

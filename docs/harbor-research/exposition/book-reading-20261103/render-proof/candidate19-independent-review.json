@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T17:27:59.779577+00:00",
+  "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+  "compared_from": "7565d20ddd9a9938bf9d9e930c8538dc3cdbbb4b",
+  "status": "bounded_independent_source_review_pass",
+  "scope": "Read the exact two-line diff, the five-row related-work table and surrounding classification paragraphs, and the STP exercise prompt/solution with its matching substrate premise. No source edits. No broad new research review, external-platform revalidation, or whole-Book reading is claimed.",
+  "input_sources": [
+    {
+      "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "c1bd4ca86e4005f619ac4ccbf1f3f57a2475ec5a8ec527c7ec40d8fffe46d764",
+      "changed_since_18": true,
+      "delta_sha256": "60714b0bcfe650ca95455c9a88bd7492c53f4d71a613b12c5a730d5792abaa65"
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32",
+      "changed_since_18": true,
+      "delta_sha256": "aacd03f085decadb1ee77243f4585599df4e2c39b70b8d24081cb215dde77977"
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/tab-fh-related-borrow-depart.tex",
+      "sha256": "3639e0d52875415a8ef822ab4a8147ce62e4a2cb370f262c0c5388b699b4862e",
+      "changed_since_18": false,
+      "delta_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "findings_verified": [
+    {
+      "topic": "FH lineage count",
+      "location": "sec:fh-related and tab:fh-related-borrow-depart",
+      "resolution": "Five matches the table: federated identity, capability federation, transparency logs, cross-domain settlement, and agentic commerce. The production-protocol comparison paragraph remains contextual discussion; no table row or substantive claim changed."
+    },
+    {
+      "topic": "STP Exercise5.24 provenance premise",
+      "location": "ex:stp-rotten-substrate and sec:substrate",
+      "resolution": "The prompt now states that an estimator summarizes evidence without establishing its provenance, consistent with the chapter premise and unchanged solution about disposable identities and agent-authored labels. It no longer quotes the removed cheap-and-last characterization."
+    }
+  ],
+  "suspected_reference_issue": {
+    "provenance": "Parent relayed the read-only explorer verdict that the apparent4.8.8 was a visual colon misread; exact AUX/PDF are4.8.",
+    "action": "No reference edit was made. This receipt does not claim an additional independent PDF diagnosis of that dismissed suspicion."
+  },
+  "change_scope": "Exactly two source lines replaced in two files. No theorem, mathematical model, figure geometry, shared macro, or test change.",
+  "source_checks_receipt": "source-checks.json",
+  "global_acceptance": "Pending final19 PDF convergence, rendered checks, navigation/page-turn audits and parent editorial acceptance."
+}

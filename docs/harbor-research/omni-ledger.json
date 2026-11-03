@@ -132670,7 +132670,7 @@
         "Book"
       ],
       "kind": "publication repair",
-      "status": "local source and PDF accepted; hosted publication blocked by App authority and payload limits",
+      "status": "historical artifact-bound repair receipt; current source delivery and render acceptance tracked by BOOK-TEXTBOOK-CRAFT-20261103",
       "result": "Corrected the identified probability, concurrency, mechanism-design and source-attribution defects; replaced local-I/O necessity with guard sufficiency and exact-language controllability; derived inspection allocation by net expected benefit; reconciled whitewashing, insurance collateral, truthful reporting and equal-information residual claims. Native-width figures, registered captions and a converged-build gate support publication. This receipt covers the named changed passages and their dependent summaries and exercises, not the entire 81-role review program.",
       "assumptions": "Explicit event and observation models, calibrated decision probabilities, stated payoff conventions, and finite fixture scopes. Local Port Daddy remains halted; hosted Register authentication was unavailable.",
       "evidence": [
@@ -132695,7 +132695,7 @@
         "Every chapter opener and changed/flagged spread inspected at placed size; no editorial-only pages in publication.",
         "Publication metadata agrees with final PDF; source commit and hosted publication receipts are separate."
       ],
-      "next": "Repository publisher/Relay administrator must establish the authorized App route and a reviewed transfer capable of the canonical ledger, then publish source and dispatch the non-main Book refresh. Verify the resulting PDF, metadata, review threads and CI on the exact hosted head. Standalone research-paper retellings remain a separate parity-preserving follow-up.",
+      "next": "Use BOOK-TEXTBOOK-CRAFT-20261103 for current source delivery and the separately reviewed Book PDF refresh. The dated App-route and payload-limit evidence below records the historical attempt; it is not a current GitHub publication blocker.",
       "depends_on": [
         "BOOK-CANON",
         "BOOK-DEFECT-1.5",
@@ -132748,7 +132748,8 @@
         "PR #10336 remains OPEN at e512336cd04deefae2529c5d736e02cf50ae3442, based on aba51f424d73027403e75e151ea519e86813a35a: 34 successful checks, 9 skipped, 2 failed (Ubuntu unit tests and dependent gate), with the only review thread resolved/outdated. Local test repair `320cd5411b91122ecd8472b5cff770bdfe7e8f67` is unpublished and awaits hosted verification.",
         "No new source PR, merge or deployment is established. AGENTS.md requires the Fleetbot actuator; the available route cannot adopt/merge the operator-owned PR or carry the complete canonical ledger. The scoped personal-identity exception question remains unanswered. Local runtime and hooks remain halted.",
         "Final fetch discovered parallel PR #10339 for the four lifecycle fixtures and PR #10338 for Fleetbot GitHub request compatibility. Neither is part of this Book branch or proof of its delivery. Reconcile the parallel fixture change before pushing local `320cd`; its independent hooks-barrier repair is still relevant.",
-        "2026-11-03 refresh: original PR10336 still open; source work rebased on origin/main in codex/book-textbook-craft-20261103. Current AGENTS authorized existing GitHub login. Its historical artifact acceptance does not cover the new textbook edits."
+        "2026-11-03 refresh: original PR10336 still open; source work rebased on origin/main in codex/book-textbook-craft-20261103. Current AGENTS authorized existing GitHub login. Its historical artifact acceptance does not cover the new textbook edits.",
+        "2026-11-03 current delivery reconciliation: PR10336 merged at0bd6a38fa3b6020c16ed060a256e45ce4f169561 after38successful and7skipped checks, with no unresolved review threads; the Book source branch was rebased onto that commit. Earlier open-PR and personal-identity blockers in this historical record no longer apply."
       ],
       "verification": {
         "as_of_utc": "2026-10-26T23:11:56.506738+00:00",
@@ -132788,12 +132789,12 @@
         "ignored_evidence_is_hosted": false,
         "public_delivery": {
           "source_pr": null,
-          "pr10336_merged": false,
+          "pr10336_merged": true,
           "local_ci_fix": "320cd5411b91122ecd8472b5cff770bdfe7e8f67",
-          "hosted_ci_fix_verified": false,
+          "hosted_ci_fix_verified": true,
           "published_pdf_refreshed": false,
           "deployed": false,
-          "permission": "scoped identity exception unanswered",
+          "permission": "Current repository instructions authorize existing GitHub login and protected rebase; local runtime and hooks remain halted.",
           "concurrent_pull_requests": [
             {
               "number": 10339,
@@ -132809,7 +132810,9 @@
               "state": "OPEN at readback",
               "scope": "Fleetbot GitHub no-follow request compatibility; no authority or delivery inferred."
             }
-          ]
+          ],
+          "pr10336_merge_sha": "0bd6a38fa3b6020c16ed060a256e45ce4f169561",
+          "pr10336_checked_head": "1102db1ec373602dd882123d2d5508051b5f653b"
         },
         "heading_audit_reproduction": {
           "runtime": "Python3 with PyMuPDF1.26.7",
@@ -132824,7 +132827,7 @@
         "Hosted delivery requires authorized writes, exact-head CI/review verdicts and separate merge/refresh/public-byte receipts.",
         "Full figure-family standardization and final-PDF atlas review remain separate incomplete work."
       ],
-      "next": "Continue BOOK-TEXTBOOK-CRAFT-20261103. PR10336 remains open at e512336 with Ubuntu unit and gate failures as checked2026-11-03. Current main now permits authorized ordinary GitHub publication; the former identity-policy blocker no longer applies. Reconcile exact-head checks before protected landing.",
+      "next": "PR10336 landed by protected rebase on2026-11-03 at0bd6a38fa3b6020c16ed060a256e45ce4f169561. Follow BOOK-TEXTBOOK-CRAFT-20261103 for current source/render delivery. The817-page receipt above remains historical and does not certify the new candidate.",
       "depends_on": [
         "BOOK-PUBLICATION-20261015",
         "BOOK-CANON"
@@ -132968,8 +132971,8 @@
       "queue_state": "current_work",
       "priority": "P1",
       "owner": "codex:paper-eight",
-      "status": "complete sequential source read; substantive repairs saved; rendered acceptance and delivery in progress",
-      "result": "All nine authored chapters and their exercises/solutions have been read in source order across four reviewers. The reader route, definitions, examples, nonexamples, theorem assumptions and later retellings were reconciled.148 substantive concept clusters have explicit treatment/use records. This is not a certification of every external citation or deployed runtime claim.",
+      "status": "complete sequential source read and locally accepted rendered Book; source delivery in progress",
+      "result": "All nine authored chapters and their exercises/solutions have been read in source order across four reviewers. The reader route, definitions, examples, nonexamples, theorem assumptions and later retellings were reconciled. 152 substantive concept records have explicit treatment/use records. This is not a certification of every external citation or deployed runtime claim.",
       "assumptions": "Canonical Book authority is textbook.json plus authored Chapter0 and volume appendices. A later mention is not sufficient concept development. Source reading, finite computation, rendered review and hosted publication are distinct evidence.",
       "evidence": [
         "docs/harbor-research/exposition/book-reading-20261103/reading-plan.json",
@@ -132978,10 +132981,17 @@
         "docs/harbor-research/exposition/book-reading-20261103/operator-identity.md",
         "docs/harbor-research/exposition/book-reading-20261103/markets-federation.md",
         "Four accompanying concept JSON files record original read coverage and source hashes.",
-        "Generator56/56 passed after authored Chapter0 solution integration and Dwork citation reconciliation.",
-        "Mathematical-boundary26/26 passed; propagated corrections14/14; library index including Markdown freshness passed. Render and final full suite remain pending."
+        "docs/harbor-research/exposition/book-reading-20261103/README.md",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/figures/figure-debt-triage.json",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/source-checks.json",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/operator-delta-independent-review.json",
+        "Full source gates at 81a867d979e037458f6884b99bca3d3b0e9277c8: generator 73/73; Book 119 passed and 45 fixture-only skips; mathematical-boundary 26/26; citations zero issues; index clean; propagation 14/14; 597 input hashes stable.",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/reading-coverage.json",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/visual-coverage.json",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate19-independent-review.json"
       ],
-      "next": "Converge the Book, repair layout regressions, inspect opener and repaired two-page spreads, run final source gates, publish the source PR and follow exact-head reviews/CI. Keep the frozen publication PDF unchanged until separately reviewed refresh.",
+      "next": "Publish the source PR, own exact-head hosted checks and review resolution, then complete the separately reviewed publication-artifact refresh. Preserve local Suisse acceptance separately from hosted open-font proofs.",
       "acceptance": "All chapter sources read; foundational concepts have concrete first treatment and substantive reuse; examples and solutions agree with stated hypotheses; exact candidate passes PDF gates and facing-spread inspection; source delivery is separately evidenced.",
       "depends_on": [
         "BOOK-INTEGRATION-20261026",
@@ -133002,9 +133012,16 @@
         "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
         "branch": "codex/book-textbook-craft-20261103",
         "base": "4db6612e945a7c0555e5a1f6c6e8892d7d7b1fbd",
-        "scope": "sequential canonical-source read plus scoped primary-source and finite arithmetic verification; no live runtime proof"
+        "scope": "sequential canonical-source read plus scoped primary-source and finite arithmetic verification; no live runtime proof",
+        "source_checkpoint": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+        "current_base": "0bd6a38fa3b6020c16ed060a256e45ce4f169561",
+        "rendered_acceptance": "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
+        "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+        "pages": 844,
+        "selected_spreads": 133,
+        "semantic_targets": 96
       },
-      "delivery": "uncommitted source repairs; no new PR or publication yet"
+      "delivery": "Local 844-page Book accepted at source 81a867d979e037458f6884b99bca3d3b0e9277c8, with complete source reading and 133 selected spread views. Branch descends from protected-rebase merged PR #10336. Source PR is being delivered; no published-PDF refresh is claimed."
     }
   ],
   "coverage": {

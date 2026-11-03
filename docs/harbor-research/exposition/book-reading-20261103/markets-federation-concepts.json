@@ -47,8 +47,8 @@
           3431
         ]
       ],
-      "after_sha256": "eec7a39223fa2b3aaad8c1430c731adcb900b27c18db324af48d9ad03c315aa6",
-      "after_lines": 3513,
+      "after_sha256": "9e712ff7d460bc24ee0b584abcf4763b0acc22b193f83b0ee19e7cad385d96ec",
+      "after_lines": 3519,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
       "note": "Initial truncated combined preview was not counted."
@@ -92,8 +92,8 @@
           2434
         ]
       ],
-      "after_sha256": "6f3968391d4146f7325d1148bfa5221036ad0181fa5164162c7ce61c296b916e",
-      "after_lines": 2549,
+      "after_sha256": "04701b2cf32a3c1d0cb2c5c791bb729aca8c19c3be3cedb59e3bb5740a9d8510",
+      "after_lines": 2550,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
       "note": "Initial truncated combined preview was not counted."
@@ -133,8 +133,8 @@
           1911
         ]
       ],
-      "after_sha256": "94cfccc46152812969628b40a67f619502dd77c43b59b8dd2e652a3ccaf807e1",
-      "after_lines": 2023,
+      "after_sha256": "c1bd4ca86e4005f619ac4ccbf1f3f57a2475ec5a8ec527c7ec40d8fffe46d764",
+      "after_lines": 2014,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
       "note": "Range 1391-1700 was truncated once; the missing middle was reread in 1510-1605."
@@ -685,6 +685,124 @@
         2
       ],
       "same_cycle_syndrome": true
+    },
+    "candidate14_visual_findings": {
+      "directly_viewed_spreads": 42,
+      "acceptance": "Diagnostic only; corrected exact sentence-interrupting Landmark09/10/11 floats, hardcoded Merkle section reference, and two Chapter8 margin claims. Final rebuild and selected-spread review required."
+    },
+    "candidate15_visual_findings": {
+      "selected_spreads": 43,
+      "directly_viewed_spreads": 42,
+      "byte_identical_to_directly_viewed_14": 1,
+      "acceptance": "Diagnostic at capture; final placed validation is recorded under integrated_candidate. Interlock caption and following pair explicitly inspected."
+    },
+    "candidate16_visual_findings": {
+      "pdf_sha256": "7c3001eab645214ba313df75812403a7b158660944d8b69b7cffe4f578b55175",
+      "selected_spreads": 43,
+      "directly_inspected": 41,
+      "exact_byte_reused": 2,
+      "acceptance": "Diagnostic at capture; federation-history and page-turn corrections are resolved in integrated_candidate.",
+      "receipt": ".scratch/textbook-craft-20261103/visual-reviewed-16.json"
+    },
+    "federation_centralization_scope_audit": {
+      "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "review_scope": "Failure-modes introduction and centralization subsection; bounded citation support check, not a full external-reference audit.",
+      "unsupported_claims": [
+        "Federated identity systems centralize within five to ten years",
+        "SAML/PGP/Sigstore adoption trajectories as asserted",
+        "in-toto mostly consumed by SLSA with Google as de facto center",
+        "Replicable witness logs make centralizing hubs more expensive"
+      ],
+      "primary_sources": [
+        {
+          "url": "https://css.csail.mit.edu/6.858/2012/readings/identity.pdf",
+          "support": "Maler and Reed2008 p21 describes both IdP-hub SAML circles and InCommon multiple institutional IdPs; this is a topology comparison, not a concentration timeline."
+        },
+        {
+          "url": "https://tailscale.com/blog/how-tailscale-works",
+          "support": "Centralized coordination/control plane with mesh data plane."
+        },
+        {
+          "url": "https://github.com/juanfont/headscale",
+          "support": "Open-source self-hosted implementation of Tailscale control server."
+        },
+        {
+          "url": "https://docs.sigstore.dev/cosign/system_config/custom_components/",
+          "support": "Custom Fulcio/Rekor/CT components supported; no deployment-concentration history proved."
+        }
+      ],
+      "proposed_scope": "Describe configurable trust topology and measure actual operator diversity; remove unsupported historical numerical/adoption generalizations and unsupported economic cost claim.",
+      "source_edits": "Removed unsupported five-to-ten-year concentration claim and deployment/adoption generalizations; replaced with cited topology contrast, explicit control-versus-data-plane example, and measurement obligations. Aligned admission and related-work retellings. No new theorem or deployment result."
+    },
+    "candidate17_visual_findings": {
+      "pdf_sha256": "a9f1c5a295797f2e58a6825e84b602c88acc53d945306d00819413e9043d95e1",
+      "selected_spreads": 46,
+      "directly_inspected": 6,
+      "exact_byte_reused": 40,
+      "acceptance": "diagnostic: all mechanical gates pass, but sponsor-figure retelling required the precise bounded correction recorded above",
+      "receipt": ".scratch/textbook-craft-20261103/visual-reviewed-17.json"
+    },
+    "integrated_candidate": {
+      "source_commit": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+      "source_input_count": 278,
+      "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+      "bytes": 17652598,
+      "pages": 844,
+      "xelatex_passes": 3,
+      "log_checks": {
+        "overfull_hbox": 0,
+        "overfull_vbox": 0,
+        "undefined_reference": 0,
+        "undefined_references_summary": 0,
+        "missing_character": 0,
+        "headheight_warning": 0
+      },
+      "rendered_tests": {
+        "run": 94,
+        "passed": 89,
+        "skipped": 5,
+        "skip_scope": "Fixture-only assertions with their environment unset; rendered candidate tests and source guards ran."
+      },
+      "registered_gates": {
+        "per_pdf": 5,
+        "per_directory": 1,
+        "status": "all clean",
+        "captions_checked": 263,
+        "caption_failures": 0,
+        "exercise_labels": 212,
+        "exercise_headings": 212,
+        "exercise_navigation_issues": 0,
+        "margin_objects": 1465,
+        "margin_issues": 0,
+        "offpaper_loss_rows": 0,
+        "safety_net_picture_advisories": 74,
+        "whitespace_review_pages": 95
+      },
+      "gallery": {
+        "targets": 96,
+        "spreads": 133,
+        "dpi": 150,
+        "opener_source_matches": true
+      },
+      "all_font_sizes_compound_audit": {
+        "schema": 1,
+        "created_at": "2026-11-03T17:31:34.504758+00:00",
+        "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+        "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+        "pages": 844,
+        "method": "All font sizes; text lines inside Book body band (odd57.6–381.6pt/even122.4–446.4pt,3pt tolerance),55<y0<660pt. Final body line ends letter+ASCII/U2010/U2011/soft hyphen. Includes small protocol prose omitted by the older10pt minimum.",
+        "status": "no_candidates",
+        "candidate_count": 0,
+        "findings": [],
+        "script_sha256": "99a9797b3c5d20628df2ea98b8c659a20f2fe4673a45259aa5424f12a8f61909",
+        "limits": [
+          "Geometric candidate detector; any figure/code ending requires contextual judgment.",
+          "This covers body-column page-turn endings, not every mid-page word break or all margin lines."
+        ]
+      },
+      "all_font_sizes_compound_receipt_sha256": "da163bba8cd8e1738ac94ab379c678709d8a2a2f753c099122621f61205c7a96",
+      "receipt": ".scratch/textbook-craft-20261103/candidate-acceptance-19.json",
+      "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-19.json"
     }
   },
   "figure_followthrough": {
@@ -695,7 +813,9 @@
       "website-v2/public/whitepaper/figures/fig-fh-revocation-gossip.tex",
       "website-v2/public/whitepaper/figures/fig-bonded-session-lifecycle.tex",
       "website-v2/public/whitepaper/figures/fig-he-float-plan.tex",
-      "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex"
+      "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex",
+      "website-v2/public/whitepaper/figures/fig-he-conflict-witness.tex",
+      "website-v2/public/whitepaper/figures/fig-fh-sponsor-lifecycle.tex"
     ],
     "mirror_check": "No same-name whitepaper/figures mirrors for the four delegated semantic fragments.",
     "actions": [
@@ -703,13 +823,61 @@
       "Verification uses pk_B rather than sk_B; parent revocation must be enforced.",
       "Gossip traces are illustrative, without an expected three-round claim.",
       "Lifecycle arrows do not imply eventual salvage or a recovery deadline.",
-      "Two figure labels widened after candidate overfull warnings."
+      "Two figure labels widened after candidate overfull warnings.",
+      "Conflict witness: only Horn-derived obligation is conditional; prohibition remains unconditional. False trigger arrow and all figure retellings corrected.",
+      "Sponsor lifecycle graduation requires declared criteria and funded replacement; cost row names the replacement bond and caption scopes itself to depicted paths."
     ],
-    "render_status": "Candidate build running; final visual inspection not yet complete."
+    "render_status": "Final candidate 19: all eight delegated fragments compiled; 46 assigned selected spreads visually accepted at150dpi by direct view or exact byte comparison with direct-view receipts. Includes the assigned Ch6–8 sequences and Landmarks09–12; not every Book page.",
+    "source_hashes": {
+      "website-v2/public/whitepaper/figures/fig-he-conflict-witness.tex": "50b19c5ec18ead7b6e6c1616a56b9bc1933353f61fb2da37e806ade784799a57",
+      "website-v2/public/whitepaper/figures/fig-fh-sponsor-lifecycle.tex": "460f4cf30e27ebc20c61ab2b5f228880761cbe7d369c2b87ac3fa91cb2e35727"
+    },
+    "conflict_witness_fragment": {
+      "source_sha256": "50b19c5ec18ead7b6e6c1616a56b9bc1933353f61fb2da37e806ade784799a57",
+      "pdf_sha256": "1df9a266c392015dc237fd914761c9a4d7ff65001e39faa76d488deff3620b7b",
+      "preamble": "Book",
+      "edition": "swiss",
+      "font_profile": "suisse",
+      "figcheck": "passed",
+      "actual_png_inspection": "Completed at150dpi; conditional obligation/unconditional prohibition distinct, no collision. Final placed image accepted under final_book_placement.",
+      "proof_directory": ".cache/conflict-witness-final-qa",
+      "final_book_placement": {
+        "candidate": "19",
+        "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+        "status": "Registered caption gate and assigned actual spread review passed."
+      }
+    },
+    "sponsor_lifecycle_fragment": {
+      "schema": 1,
+      "source": "website-v2/public/whitepaper/figures/fig-fh-sponsor-lifecycle.tex",
+      "source_sha256": "460f4cf30e27ebc20c61ab2b5f228880761cbe7d369c2b87ac3fa91cb2e35727",
+      "edition": "swiss",
+      "preamble": "book",
+      "png": "fig-fh-sponsor-lifecycle.png",
+      "png_sha256": "50d5b335ff1f4f13b1f9451d736011651675c75081010b12569672b314d5409e",
+      "pdf_sha256": "72578c756b30b8dd732f78115070ba359e914cf53304365752ef52d5da0a58fd",
+      "figcheck_sha256": "a7a2b65dc6d5fb52353f8e789a87b2c7a40607931ec82516da0caaad283dae59",
+      "mechanical_summary": {
+        "result": "pass",
+        "failed_checks": [],
+        "warned_checks": [
+          "T7"
+        ]
+      },
+      "advisory": "T7 measures drawing and separate margin caption against body-only width; actual figure fits Book body.",
+      "semantic_scope": "Graduation requires declared criteria, funded replacement bond and permitted sponsor release. Caption names depicted paths without excluding extended probation or other exit.",
+      "visual_review": "Original-resolution150dpi PNG actually viewed; two-line transition guard and cost row fit, no clipping or collision.",
+      "full_document_scope": "Fragment evidence is separate from full Book placement; final_book_placement records the passed caption gate and actual selected-spread review.",
+      "final_book_placement": {
+        "candidate": "19",
+        "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+        "status": "Registered caption gate and assigned actual spread review passed."
+      }
+    }
   },
   "additional_handoff_repairs": [
-    "Chapter4 specialization command: explicit path-piece breaks in both mirrors.",
-    "Chapter5 tombstone top timeline: label width1.7cm in both mirrors."
+    "Chapter4 specialization command: script name and breakable directory path in the sole canonical whitepaper/legible-swarm.tex source.",
+    "Chapter5 tombstone top timeline: label width 1.7cm in both figure mirrors."
   ],
   "verification_status_scope": "Ch7 verification table distinguishes row-specific completed checks from deployed/runtime proof; passkey model completion does not complete its missing runtime."
 }

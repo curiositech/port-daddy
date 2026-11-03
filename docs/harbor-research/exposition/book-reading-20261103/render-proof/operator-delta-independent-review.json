@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T15:33:59.308813+00:00",
+  "source_head": "03f72477cfc85fefe8f1f7ce3c4e50af251dd7aa",
+  "base_head": "ee20d6d34d6ddebc4526e618c6e8cfe04cee68ba",
+  "reviewer": "craft_machine; did not author this delta",
+  "verdict": "accepted within the stated bounded source-review scope; no blocking mathematical regression found",
+  "inputs": [
+    {
+      "path": "../../../../../whitepaper/legible-swarm.tex",
+      "sha256": "6dd1e0631fa5747d34c9735a63e5c15040c9debeb1464b24a032a70376542446"
+    },
+    {
+      "path": "../../../../../whitepaper/figures/legible-swarm-sdt.tex",
+      "sha256": "d99d39977705861b49b54015a6017cd23edea8fdbbfacaa40854e10b4028fc5c"
+    },
+    {
+      "path": "../../../../../whitepaper/figures/legible-swarm-inception-canary.tex",
+      "sha256": "74914541958a59f0ee936e544eb566711dfdbd1906b6a1a6c907db6586677700"
+    },
+    {
+      "path": "../../../../../website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex",
+      "sha256": "6c9e23df44fc314c89161095a03ed6c20c2e706d679b8ea52903bb8a43cf4ceb"
+    }
+  ],
+  "scope": "Read complete LS delta, affected surrounding SDT/calibration/canary/value/exercise prose, both complete figure sources, and the complete C0 speech-act paragraph/table. Independent source consistency and arithmetic review; not a new empirical study, external literature audit or rendered spread review.",
+  "checks": [
+    {
+      "topic": "SDT conditional probabilities and cost accounting",
+      "derivation": "Inspection probability = pi*(1-P_miss)+(1-pi)*P_fa. Miss harm occurs on uninspected dangers; additional false-alarm burden occurs on inspected safe items; attention cost occurs on every inspected item. C_fa is explicitly additional, so attention is not counted twice. Perfect detection/prevention and at most one inspection are stated; imperfect inspection requires residual harm."
+    },
+    {
+      "topic": "Worked arithmetic",
+      "values": {
+        "migration_never": 100.0,
+        "migration_always": 1.0,
+        "formatting_never": 0.005,
+        "formatting_always": 1.199,
+        "refactor_never": 1.2,
+        "refactor_always": 1.17,
+        "crossing_pi": 0.023529411764705882
+      },
+      "assessment": "All displayed values and rounding agree with the stated two-policy model."
+    },
+    {
+      "topic": "Limit exercise",
+      "assessment": "With fixed positive pi and finite fixed inspection costs, pi*C_miss diverges while all-inspection cost stays finite. Ratio-only counterexample correctly lets C_fa decrease to zero while miss cost stays fixed; no-inspection cost .001 remains below inspection cost at least1. Reputation has no consequence without a calibrated model connecting it to risk."
+    },
+    {
+      "topic": "Calibration common-q counterexample",
+      "values": {
+        "formatting_slope": 1.1940000000000002,
+        "migration_slope": -99
+      },
+      "assessment": "Opposite strict slopes establish minima q=0 and q=1. No common q achieves both. Text explicitly limits the counterexample to a common randomized inspection probability and permits class-aware interface settings."
+    },
+    {
+      "topic": "SDT graphic",
+      "assessment": "Functions 5*exp(-(x-mu)^2/1.4) have common variance .7 and means3,6. Raw separation arrow is3, not d-prime; standardized separation is3/sqrt(.7). Relative-density axis and arbitrary-scale caption avoid normalized-probability claims. Threshold5 is illustrative; the filled regions are on the correct sides."
+    },
+    {
+      "topic": "Canary scope",
+      "assessment": "Protocol and figure identify two illustrative outcomes, not an exhaustive controller. Other responses need rules; grants remain within independent policy authority. Sandbox prevents direct production mutation, while interruption and future grant effects remain explicitly evaluable. No benefit or ungameability theorem is asserted."
+    },
+    {
+      "topic": "C0 delta",
+      "assessment": "Sentence separates Austin, Searle and FIPA without claiming a direct derivation. Table remains explicitly illustrative, distinguishes request/report/acceptance/completion evidence, and the column change only controls alignment."
+    }
+  ],
+  "remaining_limits": [
+    "The source review does not establish real operator capacity, calibration improvement, deployment correctness or canary-controller completeness.",
+    "Operator agent owns the fresh two-fragment visual evidence; builder owns assembled Book layout gates."
+  ],
+  "post_review_typographic_resolution": {
+    "created_at": "2026-11-03T15:35:48.011810+00:00",
+    "observed_head": "03f72477cfc85fefe8f1f7ce3c4e50af251dd7aa",
+    "path": "whitepaper/legible-swarm.tex",
+    "sha256": "e95e185b61c71a2bc30a2f689aa2bd257e94983d6712f700ae58bdb29398451b",
+    "change": "Only Leroy citation separator inserted; mathematical verdict unchanged."
+  },
+  "final_intro_review": {
+    "source_head": "0c4a68d305021deb531e0c0af131ddc70ec52df2",
+    "path": "whitepaper/legible-swarm.tex",
+    "sha256": "8ce11681ec4ff1f339edb70922cafa6ef2c0a5c173ecac216231507d302dbf33",
+    "verdict": "Accepted: decoder review set covers each critical set assigned to its message; message and review budgets constrain coverage. Introductory prose and portrait caption do not claim an entropy identity or a new group-testing theorem. Formal statement/proof untouched."
+  },
+  "dependent_delta_review": {
+    "source_head": "f353a754c04bde1fc2600fd394bbfd95232054ec",
+    "created_at": "2026-11-03T15:50:09.517852+00:00",
+    "inputs": [
+      {
+        "path": "../../../../../whitepaper/legible-swarm.tex",
+        "sha256": "e3222ca1e77809e6ea575c4acc4805230ac464ef4abda167b52944ed628e1208"
+      },
+      {
+        "path": "../../../../../whitepaper/figures/legible-swarm-hayek-scott.tex",
+        "sha256": "1967daa1c01619e72e5eebfddbfe6a1d24744621eb57b7c81840701a681b98ea"
+      },
+      {
+        "path": "../../../../../website-v2/public/whitepaper/spawn-to-person.tex",
+        "sha256": "eb8c2e3091d43668cae29c65fcb1ca9ed2e5b9c9e2af8827bc6855de41533a7e"
+      }
+    ],
+    "read_evidence": "Read complete149-line LS delta, complete Hayek-Scott figure, complete46-line STP delta and affected dependency exercise/solution; rechecked final inline risk-label correction.",
+    "verdict": "Accepted within bounded mathematical/interpretive source scope. No new blocking regression found.",
+    "checks": [
+      "Strict priority reversal is conditional; compatible priorities may share an ordering.",
+      "Perfect evidence is distinguished from the costs of inspection and prevented harm.",
+      "Ambient visual indicators are not falsely treated as independent sensory modalities; alert benefits require evaluation.",
+      "Hayek-Scott arrows are interpretive motivation, not proof of universal bottleneck or effective intervention.",
+      "Exact computation checkpoints are not asserted as universal market prerequisites; accountable outcomes and task resumption are distinct.",
+      "STP summary retains prepaid bribes, sealed uniform sampling, conditional detection, low-gain geometric contraction and separate trustworthy root.",
+      "Identity multiplication failures depend on admission/voting/settlement rules; attestation is not the only remedy for engine substitution."
+    ],
+    "finding_and_resolution": {
+      "finding": "Inline dependency diagram still asserted disposable reset as automatic when the prose correctly made it policy-dependent.",
+      "resolution": "Parent changed label to risk: disposable sybil reset; independently verified at this source hash."
+    },
+    "limits": [
+      "Not a new external-literature audit or runtime verification.",
+      "Operator owns fresh HS fragment render; builder owns final assembled PDF checks."
+    ]
+  }
+}

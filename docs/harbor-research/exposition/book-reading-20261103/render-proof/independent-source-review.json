@@ -1,0 +1,38 @@
+{
+  "reviewer": "final_source_adversary",
+  "created_at": "2026-11-03T14:57:44.618528+00:00",
+  "worktree": "repository linked feature worktree",
+  "branch": "codex/book-textbook-craft-20261103",
+  "head": "379f2cd48efb5f976b2b3562dc1d549eda55a97a",
+  "base": "0bd6a38fa3b6020c16ed060a256e45ce4f169561",
+  "scope": "Independent bounded source review only: new exercise navigation auditor/macro/tests/hosted wiring; Chapter 0 preservation and recovery argument plus five exercise solutions; README and Omni evidence/publication boundaries. Not a whole-book read, external-citation audit, or final rendered acceptance.",
+  "skill": "skills/textbook-craft/SKILL.md",
+  "material_findings": [],
+  "verdict": "No material correctness or regression finding in the reviewed scope. Final08 rendered verification remains pending.",
+  "evidence": [
+    "Chapter0 lines 1356-1368: invariant preservation assumes atomic current-state admission and all transitions; lost-update trace and indistinguishable recovery histories support the three stated conclusions. Architecture uniqueness is explicitly disclaimed.",
+    "Chapter0 lines 1404-1466: all five prompts and solutions checked; 10(1-p)-100p <= 0 yields p >= 1/11; timeout solution preserves in-flight ambiguity and requires deduplication or terminal exclusion.",
+    "pd-pedagogy lines 1120-1127: counter and label move into the heading horizontal list; solution macro already uses the same paragraph-before-anchor ordering.",
+    "Navigation auditor lines 16-69: AUX inventory and rendered number sets are checked, duplicate headings and missing destinations fail, folio/page/vertical destination placement are checked.",
+    "Six independent file-free probes passed using /opt/anaconda3/bin/python3 and PyMuPDF 1.26.7: valid, wrong folio, duplicate heading, missing destination, wrong vertical location, wrong page.",
+    "Hosted registry invokes the new checker and workflow transports the matching AUX alongside the fresh PDF."
+  ],
+  "limitations": [
+    "The pre-existing hosted PDF step remains continue-on-error:true at .github/workflows/whitepaper-build.yml:505-507. Review its advisory verdict explicitly; overall green workflow alone is not PDF acceptance.",
+    "The checker certifies exercise heading destinations and folios, not every solution destination or every clickable link annotation. Its current stated contract is appropriately narrower.",
+    "README source counts and Omni pending status are historical/interim and should be refreshed from final receipts; they currently do not assert completed final rendering or publication.",
+    "Local probes used PyMuPDF 1.26.7; hosted requirements pin 1.28.2. Hosted evidence remains distinct.",
+    "No final08 PDF or whole-book facing-spread inspection performed by this reviewer."
+  ],
+  "input_sha256": {
+    "scripts/harbor-research/check_book_exercise_navigation.py": "76d608e95b09ffd150851148c93c37dd08dca3913697867cba2603333554aca9",
+    "tests/harbor-research/test_book_exercise_navigation.py": "f04bdaca4eb9f4b8189eefe5751ba922e79a3a8198892dc534234b1f5af4c2a3",
+    "whitepaper/figures/pd-pedagogy.tex": "08f7b0804e17632ad9c137d90ad419584852eaa3035e13ad8cf638c5e2cdd127",
+    "website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex": "c3f237467acd9fb4659eccf65f44db931550a8a4bf1be2a7e7989fcef8b32512",
+    ".github/workflows/whitepaper-build.yml": "e351270a5148d71eab35ea0adbc692f3764626768b5d4c7c7d3e7ddc3a640d96",
+    "docs/harbor-research/exposition/book-reading-20261103/README.md": "6699c94f396674c6021cb500e019855d561e6f2173529d3c11ef5ccf5b57b548",
+    "docs/harbor-research/OMNI-LEDGER.md": "c21ded301619e025ac87c9b981056b7f3bfa2feacb1e24881ecc666e9517c1c2"
+  },
+  "source_edits": [],
+  "runtime_started": false
+}

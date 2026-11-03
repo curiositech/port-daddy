@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "source": "website-v2/public/whitepaper/figures/fig-fh-sponsor-lifecycle.tex",
+  "source_sha256": "460f4cf30e27ebc20c61ab2b5f228880761cbe7d369c2b87ac3fa91cb2e35727",
+  "edition": "swiss",
+  "preamble": "book",
+  "png": "fig-fh-sponsor-lifecycle.png",
+  "png_sha256": "50d5b335ff1f4f13b1f9451d736011651675c75081010b12569672b314d5409e",
+  "pdf_sha256": "72578c756b30b8dd732f78115070ba359e914cf53304365752ef52d5da0a58fd",
+  "figcheck_sha256": "a7a2b65dc6d5fb52353f8e789a87b2c7a40607931ec82516da0caaad283dae59",
+  "mechanical_summary": {
+    "result": "pass",
+    "failed_checks": [],
+    "warned_checks": [
+      "T7"
+    ]
+  },
+  "advisory": "T7 measures drawing and separate margin caption against body-only width; actual figure fits Book body.",
+  "semantic_scope": "Graduation requires declared criteria, funded replacement bond and permitted sponsor release. Caption names depicted paths without excluding extended probation or other exit.",
+  "visual_review": "Original-resolution150dpi PNG actually viewed; two-line transition guard and cost row fit, no clipping or collision.",
+  "full_document_scope": "Final18 placement still requires registered caption gate and actual selected-spread review."
+}

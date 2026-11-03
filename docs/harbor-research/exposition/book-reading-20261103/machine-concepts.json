@@ -50,9 +50,28 @@
           3514
         ]
       ],
-      "after_sha256": "c8de37f8be0f3c4c95666df63d56a9e85c48b92acc0b1254e065ba3944555e65",
-      "after_lines": 3605,
-      "read_complete": true
+      "after_sha256": "e50e9e5d8c3d30fa38f0bfd097f028819a421899af7bf0a83e1886ccf82e675a",
+      "after_lines": 3608,
+      "read_complete": true,
+      "layout_followups": [
+        {
+          "source_head_before_edit": "296bfdfd7c62fec5d10c8da9657bba3926f67c52",
+          "before_sha256": "c8de37f8be0f3c4c95666df63d56a9e85c48b92acc0b1254e065ba3944555e65",
+          "after_sha256": "627cec5727480a2fce293bc00305cf10d1efcc9fa03d3b1e5c0a0848f629fd57",
+          "anchor": "pdswisslandmarkplate{12}",
+          "change": "Flush full-page plate at its logical boundary via conditional pdmarginpagebreak, the existing clearpage wrapper preserved by the Book generator.",
+          "evidence": "Candidate14 physical114/115/116 split one sentence around the plate; final assembled placement pending rebuild.",
+          "source_verification": "Generator strips literal clearpage; existing generator regression confirms pdmarginpagebreak survives and shared macro expands to clearpage."
+        },
+        {
+          "source_head_before_edit": "296bfdfd7c62fec5d10c8da9657bba3926f67c52",
+          "before_sha256": "627cec5727480a2fce293bc00305cf10d1efcc9fa03d3b1e5c0a0848f629fd57",
+          "after_sha256": "e50e9e5d8c3d30fa38f0bfd097f028819a421899af7bf0a83e1886ccf82e675a",
+          "anchor": "pdswisslandmarkplate{05}",
+          "change": "Flush this full-page plate at its existing logical source boundary using generator-preserved pdmarginpagebreak.",
+          "evidence": "Operator actual14 spread review found the floating plate interrupting subsequent prose/invariant; next build must verify the repaired flow."
+        }
+      ]
     },
     {
       "chapter": 2,
@@ -93,9 +112,19 @@
           2053
         ]
       ],
-      "after_sha256": "2ec5cf84adab1915c8cd53f1e48be170255f7bb8a7387ee796ee35789794057f",
-      "after_lines": 2092,
-      "read_complete": true
+      "after_sha256": "4ad9a825977546400f78e1355af115f0953864e973223bf390819cdef5ba2078",
+      "after_lines": 2093,
+      "read_complete": true,
+      "layout_followups": [
+        {
+          "source_head_before_edit": "296bfdfd7c62fec5d10c8da9657bba3926f67c52",
+          "before_sha256": "2ec5cf84adab1915c8cd53f1e48be170255f7bb8a7387ee796ee35789794057f",
+          "after_sha256": "4ad9a825977546400f78e1355af115f0953864e973223bf390819cdef5ba2078",
+          "anchor": "pdswisslandmarkplate{06}",
+          "change": "Flush this full-page plate at its existing logical source boundary using generator-preserved pdmarginpagebreak.",
+          "evidence": "Operator actual14 spread review found the floating plate interrupting subsequent prose/invariant; next build must verify the repaired flow."
+        }
+      ]
     },
     {
       "chapter": 3,
@@ -136,9 +165,19 @@
           1874
         ]
       ],
-      "after_sha256": "ad243d84c13ad926d05128a3a500a60c295391532ac789709270295ebaa1d331",
-      "after_lines": 1927,
-      "read_complete": true
+      "after_sha256": "995f3c86a085dcdb0364352e8ca6453968986a4ddda398a4b4e061ab1760ffa1",
+      "after_lines": 1928,
+      "read_complete": true,
+      "layout_followups": [
+        {
+          "source_head_before_edit": "296bfdfd7c62fec5d10c8da9657bba3926f67c52",
+          "before_sha256": "ad243d84c13ad926d05128a3a500a60c295391532ac789709270295ebaa1d331",
+          "after_sha256": "995f3c86a085dcdb0364352e8ca6453968986a4ddda398a4b4e061ab1760ffa1",
+          "anchor": "pdswisslandmarkplate{07}",
+          "change": "Flush this full-page plate at its existing logical source boundary using generator-preserved pdmarginpagebreak.",
+          "evidence": "Operator actual14 spread review found the floating plate interrupting subsequent prose/invariant; next build must verify the repaired flow."
+        }
+      ]
     }
   ],
   "concepts": [

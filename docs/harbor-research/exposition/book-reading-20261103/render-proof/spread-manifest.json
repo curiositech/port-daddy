@@ -1,0 +1,1052 @@
+{
+  "pdf": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf",
+  "sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+  "pages": 844,
+  "bytes": 17652598,
+  "editorial_only_pages": [],
+  "records": [
+    {
+      "kind": "chapter-opener",
+      "chapter": 0,
+      "title": "Foundations and Prerequisites",
+      "physical_page": 26,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-026-027.png",
+        "spread-028-029.png"
+      ]
+    },
+    {
+      "kind": "chapter-opener",
+      "chapter": 1,
+      "title": "The Single-Writer Kernel",
+      "physical_page": 92,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-092-093.png",
+        "spread-094-095.png"
+      ]
+    },
+    {
+      "kind": "chapter-opener",
+      "chapter": 2,
+      "title": "The Anchor Protocol",
+      "physical_page": 190,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-190-191.png",
+        "spread-192-193.png"
+      ]
+    },
+    {
+      "kind": "chapter-opener",
+      "chapter": 3,
+      "title": "The Sealed Harbor",
+      "physical_page": 250,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-250-251.png",
+        "spread-252-253.png"
+      ]
+    },
+    {
+      "kind": "chapter-opener",
+      "chapter": 4,
+      "title": "The Legible Swarm",
+      "physical_page": 302,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-302-303.png",
+        "spread-304-305.png"
+      ]
+    },
+    {
+      "kind": "chapter-opener",
+      "chapter": 5,
+      "title": "From Spawn to Person",
+      "physical_page": 412,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-412-413.png",
+        "spread-414-415.png"
+      ]
+    },
+    {
+      "kind": "chapter-opener",
+      "chapter": 6,
+      "title": "The Harbor Economy",
+      "physical_page": 506,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-506-507.png",
+        "spread-508-509.png"
+      ]
+    },
+    {
+      "kind": "chapter-opener",
+      "chapter": 7,
+      "title": "The Bonded Commons",
+      "physical_page": 580,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-580-581.png",
+        "spread-582-583.png"
+      ]
+    },
+    {
+      "kind": "chapter-opener",
+      "chapter": 8,
+      "title": "The Federated Harbor",
+      "physical_page": 668,
+      "quote_matches": true,
+      "question_matches": true,
+      "images": [
+        "spread-668-669.png",
+        "spread-670-671.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ex:prereq-timeout",
+      "number": "0.3",
+      "folio": "63",
+      "physical_page": 87,
+      "images": [
+        "spread-086-087.png",
+        "spread-088-089.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ex:prereq-knowledge",
+      "number": "0.4",
+      "folio": "63",
+      "physical_page": 87,
+      "images": [
+        "spread-086-087.png",
+        "spread-088-089.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:ex:prereq-timeout",
+      "number": "8.C",
+      "folio": "714",
+      "physical_page": 738,
+      "images": [
+        "spread-738-739.png",
+        "spread-740-741.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:ex:prereq-knowledge",
+      "number": "8.C",
+      "folio": "714",
+      "physical_page": 738,
+      "images": [
+        "spread-738-739.png",
+        "spread-740-741.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sealed:fig:sealed-composition-crossover",
+      "number": "3.11",
+      "folio": "260",
+      "physical_page": 284,
+      "images": [
+        "spread-284-285.png",
+        "spread-286-287.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sealed:thm:sealed-power",
+      "number": "3.6.1",
+      "folio": "262",
+      "physical_page": 286,
+      "images": [
+        "spread-286-287.png",
+        "spread-288-289.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:thm:split-digest",
+      "number": "4.8.1",
+      "folio": "354",
+      "physical_page": 378,
+      "images": [
+        "spread-378-379.png",
+        "spread-380-381.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:context-paging",
+      "number": "4.8.3",
+      "folio": "358",
+      "physical_page": 382,
+      "images": [
+        "spread-382-383.png",
+        "spread-384-385.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:thm:tower-imported",
+      "number": "5.11.1",
+      "folio": "454",
+      "physical_page": 478,
+      "images": [
+        "spread-478-479.png",
+        "spread-480-481.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:fig:stp-audit-amortization",
+      "number": "5.14",
+      "folio": "458",
+      "physical_page": 482,
+      "images": [
+        "spread-482-483.png",
+        "spread-484-485.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "he:sec:three-sides",
+      "number": "6.1",
+      "folio": "485",
+      "physical_page": 509,
+      "images": [
+        "spread-508-509.png",
+        "spread-510-511.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "he:def:lc-fragment",
+      "number": "6.3.1",
+      "folio": "501",
+      "physical_page": 525,
+      "images": [
+        "spread-524-525.png",
+        "spread-526-527.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "he:sec:one-settlement",
+      "number": "6.3.1",
+      "folio": "509",
+      "physical_page": 533,
+      "images": [
+        "spread-532-533.png",
+        "spread-534-535.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "he:sec:adversarial-tests",
+      "number": "6.13",
+      "folio": "530",
+      "physical_page": 554,
+      "images": [
+        "spread-554-555.png",
+        "spread-556-557.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "he:ex:he-assurance-budget",
+      "number": "6.35",
+      "folio": "544",
+      "physical_page": 568,
+      "images": [
+        "spread-568-569.png",
+        "spread-570-571.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "bonded:sec:correlating-device",
+      "number": "7.1.1",
+      "folio": "563",
+      "physical_page": 587,
+      "images": [
+        "spread-586-587.png",
+        "spread-588-589.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "bonded:sec:pheromones",
+      "number": "7.3.3",
+      "folio": "574",
+      "physical_page": 598,
+      "images": [
+        "spread-598-599.png",
+        "spread-600-601.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "bonded:sec:cleanup-bound",
+      "number": "7.6.5.1",
+      "folio": "595",
+      "physical_page": 619,
+      "images": [
+        "spread-618-619.png",
+        "spread-620-621.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "bonded:sec:tlaplus",
+      "number": "7.9",
+      "folio": "613",
+      "physical_page": 637,
+      "images": [
+        "spread-636-637.png",
+        "spread-638-639.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "bonded:fig:bonded-session-lifecycle",
+      "number": "7.13",
+      "folio": "614",
+      "physical_page": 638,
+      "images": [
+        "spread-638-639.png",
+        "spread-640-641.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:sec:fh-sheaf",
+      "number": "8.3.4",
+      "folio": "665",
+      "physical_page": 689,
+      "images": [
+        "spread-688-689.png",
+        "spread-690-691.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:thm:categorical-certificate",
+      "number": "8.3.11",
+      "folio": "680",
+      "physical_page": 704,
+      "images": [
+        "spread-704-705.png",
+        "spread-706-707.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:fig:fh-xfer",
+      "number": "8.3",
+      "folio": "656",
+      "physical_page": 680,
+      "images": [
+        "spread-680-681.png",
+        "spread-682-683.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:fig:fh-revocation",
+      "number": "8.4",
+      "folio": "660",
+      "physical_page": 684,
+      "images": [
+        "spread-684-685.png",
+        "spread-686-687.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:fig:fh-worked-example",
+      "number": "8.13",
+      "folio": "691",
+      "physical_page": 715,
+      "images": [
+        "spread-714-715.png",
+        "spread-716-717.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:operator",
+      "number": "4.5",
+      "folio": "313",
+      "physical_page": 337,
+      "images": [
+        "spread-336-337.png",
+        "spread-338-339.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:sdt",
+      "number": "4.5.1",
+      "folio": "314",
+      "physical_page": 338,
+      "images": [
+        "spread-338-339.png",
+        "spread-340-341.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:def:sdt",
+      "number": "4.5.2",
+      "folio": "316",
+      "physical_page": 340,
+      "images": [
+        "spread-340-341.png",
+        "spread-342-343.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:fig:sdt",
+      "number": "4.9",
+      "folio": "317",
+      "physical_page": 341,
+      "images": [
+        "spread-340-341.png",
+        "spread-342-343.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:calibration",
+      "number": "4.5.2",
+      "folio": "318",
+      "physical_page": 342,
+      "images": [
+        "spread-342-343.png",
+        "spread-344-345.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:prot:canary",
+      "number": "4.5.1",
+      "folio": "321",
+      "physical_page": 345,
+      "images": [
+        "spread-344-345.png",
+        "spread-346-347.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:cooperation-modes",
+      "number": "4.5.6",
+      "folio": "324",
+      "physical_page": 348,
+      "images": [
+        "spread-348-349.png",
+        "spread-350-351.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:value-curve",
+      "number": "4.6.1",
+      "folio": "328",
+      "physical_page": 352,
+      "images": [
+        "spread-352-353.png",
+        "spread-354-355.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:ex:ls-sdt-limits",
+      "number": "4.20",
+      "folio": "370",
+      "physical_page": 394,
+      "images": [
+        "spread-394-395.png",
+        "spread-396-397.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:ls:ex:ls-sdt-limits",
+      "number": "8.C",
+      "folio": "739",
+      "physical_page": 763,
+      "images": [
+        "spread-762-763.png",
+        "spread-764-765.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "tab:fipa-performatives",
+      "number": "0.3",
+      "folio": "26",
+      "physical_page": 50,
+      "images": [
+        "spread-050-051.png",
+        "spread-052-053.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:lowerbound",
+      "number": "4.6.2",
+      "folio": "328",
+      "physical_page": 352,
+      "images": [
+        "spread-352-353.png",
+        "spread-354-355.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:readpoverty",
+      "number": "4.6",
+      "folio": "325",
+      "physical_page": 349,
+      "images": [
+        "spread-348-349.png",
+        "spread-350-351.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:ambient",
+      "number": "4.7.5",
+      "folio": "351",
+      "physical_page": 375,
+      "images": [
+        "spread-374-375.png",
+        "spread-376-377.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:hayek",
+      "number": "4.9.3",
+      "folio": "366",
+      "physical_page": 390,
+      "images": [
+        "spread-390-391.png",
+        "spread-392-393.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:fig:hayek-scott",
+      "number": "4.19",
+      "folio": "366",
+      "physical_page": 390,
+      "images": [
+        "spread-390-391.png",
+        "spread-392-393.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:handoff",
+      "number": "4.12.2",
+      "folio": "378",
+      "physical_page": 402,
+      "images": [
+        "spread-402-403.png",
+        "spread-404-405.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:ex:stp-dependency-chain",
+      "number": "5.2",
+      "folio": "468",
+      "physical_page": 492,
+      "images": [
+        "spread-492-493.png",
+        "spread-494-495.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:stp:ex:stp-dependency-chain",
+      "number": "8.C",
+      "folio": "748",
+      "physical_page": 772,
+      "images": [
+        "spread-772-773.png",
+        "spread-774-775.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "Chapter0 hidden bit",
+      "physical_page": 55,
+      "images": [
+        "spread-054-055.png",
+        "spread-056-057.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "Chapter0 uncertain timeout",
+      "physical_page": 69,
+      "images": [
+        "spread-068-069.png",
+        "spread-070-071.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "Chapter6 licensing rationale",
+      "physical_page": 532,
+      "images": [
+        "spread-532-533.png",
+        "spread-534-535.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "Chapter5 key-idea summary",
+      "physical_page": 491,
+      "images": [
+        "spread-490-491.png",
+        "spread-492-493.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 1,
+      "title": "Landmark 01",
+      "physical_page": 28,
+      "images": [
+        "spread-028-029.png",
+        "spread-030-031.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 2,
+      "title": "Landmark 02",
+      "physical_page": 419,
+      "images": [
+        "spread-418-419.png",
+        "spread-420-421.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 3,
+      "title": "Landmark 03",
+      "physical_page": 454,
+      "images": [
+        "spread-454-455.png",
+        "spread-456-457.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 4,
+      "title": "Landmark 04",
+      "physical_page": 484,
+      "images": [
+        "spread-484-485.png",
+        "spread-486-487.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 5,
+      "title": "Landmark 05",
+      "physical_page": 96,
+      "images": [
+        "spread-096-097.png",
+        "spread-098-099.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 6,
+      "title": "Landmark 06",
+      "physical_page": 197,
+      "images": [
+        "spread-196-197.png",
+        "spread-198-199.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 7,
+      "title": "Landmark 07",
+      "physical_page": 264,
+      "images": [
+        "spread-264-265.png",
+        "spread-266-267.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 8,
+      "title": "Landmark 08",
+      "physical_page": 351,
+      "images": [
+        "spread-350-351.png",
+        "spread-352-353.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 9,
+      "title": "Landmark 09",
+      "physical_page": 512,
+      "images": [
+        "spread-512-513.png",
+        "spread-514-515.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 10,
+      "title": "Landmark 10",
+      "physical_page": 634,
+      "images": [
+        "spread-634-635.png",
+        "spread-636-637.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 11,
+      "title": "Landmark 11",
+      "physical_page": 694,
+      "images": [
+        "spread-694-695.png",
+        "spread-696-697.png"
+      ]
+    },
+    {
+      "kind": "landmark",
+      "number": 12,
+      "title": "Landmark 12",
+      "physical_page": 116,
+      "images": [
+        "spread-116-117.png",
+        "spread-118-119.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:tab:estimators",
+      "number": "5.1",
+      "folio": "394",
+      "physical_page": 418,
+      "images": [
+        "spread-418-419.png",
+        "spread-420-421.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:tab:contributions",
+      "number": "5.2",
+      "folio": "396",
+      "physical_page": 420,
+      "images": [
+        "spread-420-421.png",
+        "spread-422-423.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:sec:body-behind-name",
+      "number": "5.6.4",
+      "folio": "431",
+      "physical_page": 455,
+      "images": [
+        "spread-454-455.png",
+        "spread-456-457.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:thm:engine-swap",
+      "number": "5.6.8",
+      "folio": "432",
+      "physical_page": 456,
+      "images": [
+        "spread-456-457.png",
+        "spread-458-459.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:fig:tombstone",
+      "number": "5.16",
+      "folio": "463",
+      "physical_page": 487,
+      "images": [
+        "spread-486-487.png",
+        "spread-488-489.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "Chapter5 bounded memory horizon",
+      "physical_page": 488,
+      "images": [
+        "spread-488-489.png",
+        "spread-490-491.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:ex:ls-two-llms-not-independent",
+      "number": "4.10",
+      "folio": "369",
+      "physical_page": 393,
+      "images": [
+        "spread-392-393.png",
+        "spread-394-395.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:ls:ex:ls-two-llms-not-independent",
+      "number": "8.C",
+      "folio": "736",
+      "physical_page": 760,
+      "images": [
+        "spread-760-761.png",
+        "spread-762-763.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:tab:open",
+      "number": "4.15",
+      "folio": "380",
+      "physical_page": 404,
+      "images": [
+        "spread-404-405.png",
+        "spread-406-407.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:ls:ex:ls-b7-escalation-run",
+      "number": "8.C",
+      "folio": "738",
+      "physical_page": 762,
+      "images": [
+        "spread-762-763.png",
+        "spread-764-765.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:sec:fh-ex-shows",
+      "number": "8.6.7",
+      "folio": "694",
+      "physical_page": 718,
+      "images": [
+        "spread-718-719.png",
+        "spread-720-721.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:sec:substrate",
+      "number": "5.8",
+      "folio": "441",
+      "physical_page": 465,
+      "images": [
+        "spread-464-465.png",
+        "spread-466-467.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:sec:gates",
+      "number": "4.7.3",
+      "folio": "350",
+      "physical_page": 374,
+      "images": [
+        "spread-374-375.png",
+        "spread-376-377.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:sec:fh-cold-start",
+      "number": "8.5.2",
+      "folio": "689",
+      "physical_page": 713,
+      "images": [
+        "spread-712-713.png",
+        "spread-714-715.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:sec:fh-centralization",
+      "number": "8.8.1",
+      "folio": "697",
+      "physical_page": 721,
+      "images": [
+        "spread-720-721.png",
+        "spread-722-723.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:sec:fh-related",
+      "number": "8.9",
+      "folio": "699",
+      "physical_page": 723,
+      "images": [
+        "spread-722-723.png",
+        "spread-724-725.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:thm:regret-head",
+      "number": "4.7.3",
+      "folio": "347",
+      "physical_page": 371,
+      "images": [
+        "spread-370-371.png",
+        "spread-372-373.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:thm:resurrection-soundness",
+      "number": "5.6.10",
+      "folio": "435",
+      "physical_page": 459,
+      "images": [
+        "spread-458-459.png",
+        "spread-460-461.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:ls:ex:ls-costly-signal-debit",
+      "number": "8.C",
+      "folio": "744",
+      "physical_page": 768,
+      "images": [
+        "spread-768-769.png",
+        "spread-770-771.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "ls:ex:ls-noisy-zoom-oracle",
+      "number": "4.31",
+      "folio": "372",
+      "physical_page": 396,
+      "images": [
+        "spread-396-397.png",
+        "spread-398-399.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:ls:ex:ls-noisy-zoom-oracle",
+      "number": "8.C",
+      "folio": "742",
+      "physical_page": 766,
+      "images": [
+        "spread-766-767.png",
+        "spread-768-769.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:ex:stp-bt-vs-elo-regime",
+      "number": "5.22",
+      "folio": "471",
+      "physical_page": 495,
+      "images": [
+        "spread-494-495.png",
+        "spread-496-497.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:stp:ex:stp-bt-vs-elo-regime",
+      "number": "8.C",
+      "folio": "753",
+      "physical_page": 777,
+      "images": [
+        "spread-776-777.png",
+        "spread-778-779.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:ex:stp-resurrection-soundness",
+      "number": "5.18",
+      "folio": "471",
+      "physical_page": 495,
+      "images": [
+        "spread-494-495.png",
+        "spread-496-497.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:stp:ex:stp-resurrection-soundness",
+      "number": "8.C",
+      "folio": "752",
+      "physical_page": 776,
+      "images": [
+        "spread-776-777.png",
+        "spread-778-779.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:fig:fh-sponsor-lifecycle",
+      "number": "8.12",
+      "folio": "689",
+      "physical_page": 713,
+      "images": [
+        "spread-712-713.png",
+        "spread-714-715.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:ex:stp-rotten-substrate",
+      "number": "5.24",
+      "folio": "471",
+      "physical_page": 495,
+      "images": [
+        "spread-494-495.png",
+        "spread-496-497.png"
+      ]
+    }
+  ]
+}

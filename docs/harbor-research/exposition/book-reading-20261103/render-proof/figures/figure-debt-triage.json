@@ -1,0 +1,4295 @@
+{
+  "schema": 2,
+  "created_at": "2026-11-03T14:05:34.663524+00:00",
+  "branch": "codex/book-textbook-craft-20261103",
+  "head_at_report": "58b13305aff411819921566ac1659df757bbdd6c",
+  "ledger_path": "../../../figures/blockers.json",
+  "ledger_sha256": "cc400ea378696c06acb36d307bbbb5fed342ea34b100abf702ed980cc7d30582",
+  "scope": "Bounded triage of all23 inherited blockers plus five parent-authorized active figure repairs. All23 now have fresh Swiss Book fragment renders and visual inspection; no full three-edition corpus or completed spread review claimed.",
+  "summary": {
+    "records": 23,
+    "fresh_swiss_fragments": 23,
+    "automated_failure_checks_clear": 22,
+    "explicit_manual_math_bbox_false_positive": 1,
+    "source_only_unverified": 0,
+    "expired_waivers": 22,
+    "missing_waivers": 1,
+    "all_original_records_first_seen": "2026-09-07",
+    "source_commits_all_postdate_first_seen": true
+  },
+  "historical_evidence_limits": [
+    "Records contain neither source hash nor rendered PDF hash; every source changed after the first-seen date.",
+    "Historical fragment snapshots used 16.3cm width; this triage used the current Swiss Book 11.43cm body-width wrapper.",
+    "T4 checker now handles later-painted fill knockouts; old line-crossing diagnoses cannot be imported without current rendering.",
+    "Twenty-two waivers expired 2026-10-31 and one is absent. None is current approval.",
+    "All23 now have current fragment evidence. Full-document caption fit, floats, spread rhythm, references and all-edition output remain separate final-build gates."
+  ],
+  "publication_boundary": "All23 inherited records now have current Swiss fragment evidence:22 clear automated failure checks, and the remaining FH transfer ceremony has manually verified mathematical-attachment bbox false positives. This closes source-only uncertainty for these23 fragments, not the complete Book or other editions. The final Book build and spread/caption gates remain owned by the parent/build agent. Expired waivers were not used as approval.",
+  "additional_authorized_fix": {
+    "id": "fig-anchor-four-phases",
+    "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-anchor-four-phases.tex",
+    "source_sha256": "d3838292b0a59ec8b7e1903d7ef6363a822c9ff112852f354083e0d9e0388fe5",
+    "change": "x-unit .79cm\u2192.78cm; label width remains1.7cm, no text shrink.",
+    "qa_result": {
+      "figure": "fig-anchor-four-phases",
+      "edition": "swiss",
+      "hue": "pdcobalt",
+      "compiled": true,
+      "design_review": "unreviewed",
+      "beauty_fail": [],
+      "beauty_warn": [
+        "B7"
+      ],
+      "figcheck_fail": [],
+      "ink_width_in": 3.99,
+      "too_wide": false,
+      "png": "fig-anchor-four-phases.png",
+      "pass": true
+    },
+    "render_sha256": "d0aec0e5866039a3414c8dd78caa54f7b3d5eed3e7aca7ef75a94747063187f4",
+    "visual_review": "Final render viewed; standalone unresolved chapter-table cross-reference is expected in fragment-only wrapper; full Book must resolve it.",
+    "render_file": "fig-anchor-four-phases.png",
+    "render_bytes": 71137,
+    "figcheck": {
+      "figure": "fig-anchor-four-phases",
+      "page_count": 1,
+      "params": {
+        "min_font_pt": 7.0,
+        "textwidth_cm": 11.43
+      },
+      "checks": {
+        "T1": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T2": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T3": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T4": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T5": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T8": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T9": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T10": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T6": {
+          "status": "pass",
+          "count": 0,
+          "findings": []
+        },
+        "T7": {
+          "status": "warn",
+          "count": 1,
+          "findings": [
+            {
+              "check": "T7",
+              "severity": "warn",
+              "page": 0,
+              "content_width_pt": 402.7,
+              "textwidth_pt": 324.0,
+              "message": "drawn content is 14.21cm wide, wider than the 11.43cm chapter textwidth"
+            }
+          ]
+        }
+      },
+      "ink": [
+        {
+          "page": 0,
+          "ink_fraction": 0.1146,
+          "edge_density": 0.0897,
+          "distinct_colors": 1227,
+          "flags": [
+            "edge_density=0.090 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+          ]
+        }
+      ],
+      "summary": {
+        "result": "pass",
+        "failed_checks": [],
+        "warned_checks": [
+          "T7"
+        ]
+      }
+    },
+    "beauty": {
+      "figure": "fig-anchor-four-phases",
+      "findings": [
+        {
+          "id": "B7",
+          "level": "warn",
+          "message": "2 near-aligned pairs, e.g. centre of 'checks accumulate;' and 'assumptions' differ by 0.32 pt",
+          "count": 2,
+          "examples": [
+            [
+              "centre",
+              "checks accumulate;",
+              "assumptions",
+              0.32
+            ],
+            [
+              "centre",
+              "checks accumulate;",
+              "still apply",
+              0.33
+            ]
+          ]
+        }
+      ],
+      "summary": {
+        "result": "warn",
+        "fail": 0,
+        "warn": 1
+      }
+    },
+    "figcheck_sha256": "74bb9dac6465600c1fc82fb6b04a924a5bceeae28b64d1d8ee1c0afbf3837776",
+    "beauty_sha256": "540e5231918c47f41f31ac96e98a61f45740397540c143f77539e097c92c52c3"
+  },
+  "records": [
+    {
+      "id": "fig-anchor-card-lifecycle",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
+      "chapter": 2,
+      "checks_failed": [
+        "T2",
+        "T3"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-anchor-card-lifecycle",
+          "edition": "swiss",
+          "hue": "pdcobalt",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B1",
+            "B4",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.21,
+          "too_wide": false,
+          "png": "fig-anchor-card-lifecycle.png",
+          "pass": true
+        },
+        "render_sha256": "8e1a92f95fb95c641c3b03b34ec385e4a4fe6f7c0d5c1930f172979e4e80b7e8",
+        "figcheck_sha256": "cb8bb44d4af88a809e0d31390b47a726a399fb3d3d89a0e7256774f596868fc4",
+        "beauty_sha256": "41e16ab3eb1d678c3f8cf81bc7c44b50ed3698ca79979906f3f6ae14453386ad",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-anchor-card-lifecycle.png",
+        "render_bytes": 57763,
+        "figcheck": {
+          "figure": "fig-anchor-card-lifecycle",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 423.9,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.95cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1535,
+              "edge_density": 0.089,
+              "distinct_colors": 1446,
+              "flags": [
+                "edge_density=0.089 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-anchor-card-lifecycle",
+          "findings": [
+            {
+              "id": "B1",
+              "level": "warn",
+              "message": "'1' sits 2.4 pt from its box edge (moat 2.5 pt)",
+              "gap_pt": 2.39
+            },
+            {
+              "id": "B1",
+              "level": "warn",
+              "message": "'2' sits 2.4 pt from its box edge (moat 2.5 pt)",
+              "gap_pt": 2.39
+            },
+            {
+              "id": "B1",
+              "level": "warn",
+              "message": "'1' sits 2.4 pt from its box edge (moat 2.5 pt)",
+              "gap_pt": 2.39
+            },
+            {
+              "id": "B1",
+              "level": "warn",
+              "message": "'2' sits 2.4 pt from its box edge (moat 2.5 pt)",
+              "gap_pt": 2.39
+            },
+            {
+              "id": "B4",
+              "level": "warn",
+              "message": "9 stroke weights [0.5, 0.8, 0.9, 1.0, 1.2, 1.59, 1.99, 2.09, 3.19] (ladder: .5/.9/1.6 plus marks)",
+              "weights": [
+                0.5,
+                0.8,
+                0.9,
+                1.0,
+                1.2,
+                1.59,
+                1.99,
+                2.09,
+                3.19
+              ]
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "2 near-aligned pairs, e.g. x0 of 'a new lifecycle,' and 'of the old card' differ by 0.57 pt",
+              "count": 2,
+              "examples": [
+                [
+                  "x0",
+                  "a new lifecycle,",
+                  "of the old card",
+                  0.57
+                ],
+                [
+                  "centre",
+                  "a new lifecycle,",
+                  "of the old card",
+                  0.54
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 6
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "300dfbebd29e4fc266c209ad3a076f807682e1f982ad89a8e9008bdb68c7e5f5"
+    },
+    {
+      "id": "fig-bonded-key-custody",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
+      "chapter": 7,
+      "checks_failed": [
+        "T2",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-bonded-key-custody",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [],
+          "figcheck_fail": [],
+          "ink_width_in": 4.36,
+          "too_wide": false,
+          "png": "fig-bonded-key-custody.png",
+          "pass": true
+        },
+        "render_sha256": "10bbfe047803299b7ccab4055711748020ea9cfb778cf89b570af4830eda7fcf",
+        "figcheck_sha256": "4961443a143c945b89b9bc8e093c16c78b15f87b96ff613d076b47e1454d2e3b",
+        "beauty_sha256": "7acb263e9d762f9645434707a35f1db3c4c1d38fa60f9aa23149fbe2bcbf7b5e",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-bonded-key-custody.png",
+        "render_bytes": 44165,
+        "figcheck": {
+          "figure": "fig-bonded-key-custody",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 429.1,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 15.14cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1608,
+              "edge_density": 0.1286,
+              "distinct_colors": 494,
+              "flags": [
+                "edge_density=0.129 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-bonded-key-custody",
+          "findings": [],
+          "summary": {
+            "result": "pass",
+            "fail": 0,
+            "warn": 0
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "fa8fdb66946682c7dc69bb9ba28fc53c4f75e4eec2411ac9a6108e262feea3e7"
+    },
+    {
+      "id": "fig-cartel-game-inline",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex",
+      "chapter": 6,
+      "checks_failed": [
+        "T1"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-cartel-game-inline",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [],
+          "figcheck_fail": [],
+          "ink_width_in": 4.04,
+          "too_wide": false,
+          "png": "fig-cartel-game-inline.png",
+          "pass": true
+        },
+        "render_sha256": "7eabad3f45538f5a9b37e358d8a0dc7db5b5f38adfac4f6f587ee8cb6ef409f9",
+        "figcheck_sha256": "5077ca44ee527e48ad9a3b45563bc70936937cdc2353d313d9602af4601d343e",
+        "beauty_sha256": "8c8d450d42c7b2f99009833e0ac956ec132960ae479a601be833cafb1e78b027",
+        "visual_review": "Final single-figure render viewed",
+        "render_file": "fig-cartel-game-inline.png",
+        "render_bytes": 69844,
+        "figcheck": {
+          "figure": "fig-cartel-game-inline",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 417.8,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.74cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.3756,
+              "edge_density": 0.0613,
+              "distinct_colors": 1397,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-cartel-game-inline",
+          "findings": [],
+          "summary": {
+            "result": "pass",
+            "fail": 0,
+            "warn": 0
+          }
+        }
+      },
+      "classification": "repaired_and_current_fragment_checks_clear",
+      "assessment": "Replaced inconsistent concave schematic with the exact convex analytical boundary for documented chapter assumptions: delta=.95, margin x>0, pi_C=x/3, negligible undercutting pi_D\u2192x. L/x=(17/60)/p_d\u221219/20; model points at .025 and .10. Caption labels analytic model, not measurements. Final render viewed. Historical chapter6 placement is stale for Book, where active figure is in chapter7.",
+      "source_sha256": "bae3e9fc55c38a5b0c6c3a194f73ddeb94105cf5455d583c720f46db308a7c73"
+    },
+    {
+      "id": "fig-fh-settlement",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+      "chapter": 8,
+      "checks_failed": [
+        "T3"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-fh-settlement",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B2",
+            "B4",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.16,
+          "too_wide": false,
+          "png": "fig-fh-settlement.png",
+          "pass": true
+        },
+        "render_sha256": "aab97c02acae8168139ec7553faaae82c02e224c1622842f0b356a343148a183",
+        "figcheck_sha256": "5a67a8a9b29588921de537f28591a8c8097c14a6e8bcfd2cbc39198bfa1e3993",
+        "beauty_sha256": "b27138475dd47c586a37f820594e0eeab969cfdbc458656aea81e1e2fa24cb3a",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-fh-settlement.png",
+        "render_bytes": 76971,
+        "figcheck": {
+          "figure": "fig-fh-settlement",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 427.0,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 15.06cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.0769,
+              "edge_density": 0.0625,
+              "distinct_colors": 1468,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-fh-settlement",
+          "findings": [
+            {
+              "id": "B2",
+              "level": "warn",
+              "message": "'criteria' is 1.1 pt from a stroke (1.5 pt clear)",
+              "gap_pt": 1.13
+            },
+            {
+              "id": "B2",
+              "level": "warn",
+              "message": "'funded' is 0.0 pt from a stroke (1.5 pt clear) (touching)",
+              "gap_pt": 0
+            },
+            {
+              "id": "B2",
+              "level": "warn",
+              "message": "'criteria' is 1.1 pt from a stroke (1.5 pt clear)",
+              "gap_pt": 1.13
+            },
+            {
+              "id": "B4",
+              "level": "warn",
+              "message": "7 stroke weights [0.8, 0.9, 1.0, 1.08, 1.25, 1.41, 1.99] (ladder: .5/.9/1.6 plus marks)",
+              "weights": [
+                0.8,
+                0.9,
+                1.0,
+                1.08,
+                1.25,
+                1.41,
+                1.99
+              ]
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "1 near-aligned pairs, e.g. centre of 'redirect / second close:' and 'full balance exposed' differ by 0.53 pt",
+              "count": 1,
+              "examples": [
+                [
+                  "centre",
+                  "redirect / second close:",
+                  "full balance exposed",
+                  0.53
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 5
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "6c60ad7fc29217f099aa829e30cfa88094463f0555a2c366f9fb90e8ad4d4ebd"
+    },
+    {
+      "id": "fig-fh-threat-bands",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex",
+      "chapter": 8,
+      "checks_failed": [
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "58b13305aff411819921566ac1659df757bbdd6c 2026-11-03",
+      "changed_in_candidate_at_triage_start": true,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-fh-threat-bands",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.26,
+          "too_wide": false,
+          "png": "fig-fh-threat-bands.png",
+          "pass": true
+        },
+        "render_sha256": "2fd3bfae340bf75e9989735c56d02b19b313bf7cf9d3706dff166fd48e0ff56d",
+        "figcheck_sha256": "cd271cd440e676e23db1369f055b5cdbae49f880beef8162105c0a8df383caa9",
+        "beauty_sha256": "de103728ed595330d44b9bb99095b664c2ae40e59aa7ff83703d255a77dd7d71",
+        "visual_review": "Fresh final source render individually viewed after builder width corrections; no collision/clipping observed.",
+        "render_file": "fig-fh-threat-bands.png",
+        "render_bytes": 111075,
+        "figcheck": {
+          "figure": "fig-fh-threat-bands",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 420.8,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.84cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.093,
+              "edge_density": 0.0771,
+              "distinct_colors": 1096,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-fh-threat-bands",
+          "findings": [
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "2 near-aligned pairs, e.g. centre of 'reliable rounds' and 'proof after' differ by 0.85 pt",
+              "count": 2,
+              "examples": [
+                [
+                  "centre",
+                  "reliable rounds",
+                  "proof after",
+                  0.85
+                ],
+                [
+                  "x0",
+                  "position, not colour, carries the claim: each row advances only",
+                  "when the missing artifact or theorem exists",
+                  0.32
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 1
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this fresh final-source Swiss fragment. Render refreshed after builder width corrections and individually inspected. Beauty warnings remain recorded; this is not blanket design approval.",
+      "source_sha256": "1f295655dc1f02c6b14c8228a982bb0333d8056a1dc6724eec53b4598bd804af"
+    },
+    {
+      "id": "fig-fh-xfer-ceremony",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
+      "chapter": 8,
+      "checks_failed": [
+        "T3",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "58b13305aff411819921566ac1659df757bbdd6c 2026-11-03",
+      "changed_in_candidate_at_triage_start": true,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-fh-xfer-ceremony",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [
+            "B3"
+          ],
+          "beauty_warn": [
+            "B3",
+            "B7"
+          ],
+          "figcheck_fail": [
+            "T3"
+          ],
+          "ink_width_in": 4.17,
+          "too_wide": false,
+          "png": "fig-fh-xfer-ceremony.png",
+          "pass": false
+        },
+        "render_sha256": "3bac1e328805c058b1bed21c7f8712abbe0ec2ee1fe7990b64ae7a2273435768",
+        "figcheck_sha256": "c65f7de7d7091631fdac9ca474add357ecff3fb1152922084d1da92676c8ca2a",
+        "beauty_sha256": "b1d53577b374a354f6f00de9632aa6433bc9ed1c1c7d4181a23c3a39eb29c74c",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-fh-xfer-ceremony.png",
+        "render_bytes": 66204,
+        "figcheck": {
+          "figure": "fig-fh-xfer-ceremony",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "fail",
+              "count": 4,
+              "findings": [
+                {
+                  "check": "T3",
+                  "severity": "fail",
+                  "page": 0,
+                  "bbox": [
+                    170.56500244140625,
+                    168.4424591064453,
+                    263.2225036621094,
+                    180.5950164794922
+                  ],
+                  "other_bbox": [
+                    255.83432006835938,
+                    176.30657958984375,
+                    260.42889404296875,
+                    182.6702423095703
+                  ],
+                  "text": "signed epoch root \ud835\udc45(\ud835\udc52)",
+                  "other_text": "\ud835\udc34",
+                  "overlap_fraction": 0.674,
+                  "message": "text 'signed epoch root \ud835\udc45(\ud835\udc52)' overlaps '\ud835\udc34' by 67.4% of the smaller bbox"
+                },
+                {
+                  "check": "T3",
+                  "severity": "fail",
+                  "page": 0,
+                  "bbox": [
+                    214.78335571289062,
+                    209.09312438964844,
+                    286.3165588378906,
+                    223.32089233398438
+                  ],
+                  "other_bbox": [
+                    278.9283447265625,
+                    216.9572296142578,
+                    282.8165283203125,
+                    223.32089233398438
+                  ],
+                  "text": "\ud835\udc35, epoch root \ud835\udc45(\ud835\udc52)",
+                  "other_text": "\ud835\udc35",
+                  "overlap_fraction": 1.0,
+                  "message": "text '\ud835\udc35, epoch root \ud835\udc45(\ud835\udc52)' overlaps '\ud835\udc35' by 100.0% of the smaller bbox"
+                },
+                {
+                  "check": "T3",
+                  "severity": "fail",
+                  "page": 0,
+                  "bbox": [
+                    162.23931884765625,
+                    220.806396484375,
+                    170.77235412597656,
+                    230.86973571777344
+                  ],
+                  "other_bbox": [
+                    168.35546875,
+                    220.31292724609375,
+                    271.6589660644531,
+                    233.69464111328125
+                  ],
+                  "text": "\ud835\udc36\u2032",
+                  "other_text": "\ud835\udc35= att\ud835\udc35(att\ud835\udc34(\ud835\udc36\ud835\udc34)) \u2286\ud835\udc36\ud835\udc34",
+                  "overlap_fraction": 0.283,
+                  "message": "text '\ud835\udc36\u2032' overlaps '\ud835\udc35= att\ud835\udc35(att\ud835\udc34(\ud835\udc36\ud835\udc34)) \u2286\ud835\udc36\ud835\udc34' by 28.3% of the smaller bbox"
+                },
+                {
+                  "check": "T3",
+                  "severity": "fail",
+                  "page": 0,
+                  "bbox": [
+                    277.24200439453125,
+                    238.22747802734375,
+                    316.52392578125,
+                    249.53396606445312
+                  ],
+                  "other_bbox": [
+                    314.1070556640625,
+                    245.24551391601562,
+                    317.9952392578125,
+                    251.6091766357422
+                  ],
+                  "text": "deliver \ud835\udc36\u2032",
+                  "other_text": "\ud835\udc35",
+                  "overlap_fraction": 0.419,
+                  "message": "text 'deliver \ud835\udc36\u2032' overlaps '\ud835\udc35' by 41.9% of the smaller bbox"
+                }
+              ]
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 421.4,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.87cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.0789,
+              "edge_density": 0.0654,
+              "distinct_colors": 1153,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "fail",
+            "failed_checks": [
+              "T3"
+            ],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-fh-xfer-ceremony",
+          "findings": [
+            {
+              "id": "B3",
+              "level": "fail",
+              "message": "'\ud835\udc45' and '\ud835\udc34' are 0.4 pt apart (2 pt clear)",
+              "gap_pt": 0.39
+            },
+            {
+              "id": "B3",
+              "level": "warn",
+              "message": "'acknowledge:' and '\u2032' are 1.1 pt apart (2 pt clear)",
+              "gap_pt": 1.1
+            },
+            {
+              "id": "B3",
+              "level": "fail",
+              "message": "'\ud835\udc36' and '\ud835\udc35' are 0.3 pt apart (2 pt clear)",
+              "gap_pt": 0.3
+            },
+            {
+              "id": "B3",
+              "level": "warn",
+              "message": "'\u2032' and '\ud835\udc35' are 0.9 pt apart (2 pt clear)",
+              "gap_pt": 0.89
+            },
+            {
+              "id": "B3",
+              "level": "fail",
+              "message": "'\ud835\udc35' and 'att' are 0.0 pt apart (2 pt clear)",
+              "gap_pt": 0.0
+            },
+            {
+              "id": "B3",
+              "level": "fail",
+              "message": "'\ud835\udc45' and '\ud835\udc35' are 0.4 pt apart (2 pt clear)",
+              "gap_pt": 0.39
+            },
+            {
+              "id": "B3",
+              "level": "fail",
+              "message": "'\ud835\udc36' and '\ud835\udc35' are 0.3 pt apart (2 pt clear)",
+              "gap_pt": 0.3
+            },
+            {
+              "id": "B3",
+              "level": "warn",
+              "message": "'\u2032' and '\ud835\udc35' are 0.9 pt apart (2 pt clear)",
+              "gap_pt": 0.89
+            },
+            {
+              "id": "B3",
+              "level": "fail",
+              "message": "'\ud835\udc36' and '\ud835\udc35' are 0.3 pt apart (2 pt clear)",
+              "gap_pt": 0.3
+            },
+            {
+              "id": "B3",
+              "level": "warn",
+              "message": "'\u2032' and '\ud835\udc35' are 0.9 pt apart (2 pt clear)",
+              "gap_pt": 0.89
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "6 near-aligned pairs, e.g. centre of 'Harbor' and 'agent' differ by 1.28 pt",
+              "count": 6,
+              "examples": [
+                [
+                  "centre",
+                  "Harbor",
+                  "agent",
+                  1.28
+                ],
+                [
+                  "centre",
+                  "Harbor",
+                  "daemon",
+                  1.44
+                ],
+                [
+                  "centre",
+                  "offer:",
+                  "signed epoch root",
+                  0.79
+                ],
+                [
+                  "x0",
+                  "\ud835\udc35",
+                  "deliver",
+                  1.69
+                ],
+                [
+                  "centre",
+                  "deliver",
+                  "verify locally",
+                  1.04
+                ],
+                [
+                  "centre",
+                  "verify locally",
+                  "under pk",
+                  0.31
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "fail",
+            "fail": 6,
+            "warn": 5
+          }
+        }
+      },
+      "classification": "manual_false_positive_math_attachments",
+      "assessment": "Current T3/B3 findings concern normal mathematical subscript/superscript attachment in R_A^(e), R_B^(e), and C-prime_B. Visual inspection found readable notation and no separate-node collision. Automated result remains fail; this is an explicit manual interpretation, not a green machine check.",
+      "source_sha256": "c0d22268bd93e7b892beca6e0bd3e2aa4ee0f96104e45bbaac9bf62b1cc365fe"
+    },
+    {
+      "id": "fig-governance-flow",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-governance-flow.tex",
+      "chapter": 7,
+      "checks_failed": [
+        "T3",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-governance-flow",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B1"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.04,
+          "too_wide": false,
+          "png": "fig-governance-flow.png",
+          "pass": true
+        },
+        "render_sha256": "8bc185670b6a33e65dec810567117f9383b4dba41d0c307faafb4040482a6bde",
+        "figcheck_sha256": "57ff1849c8998308a33b8e71f30ca813bec2d3054dbd1636c43b2fc84aabc15d",
+        "beauty_sha256": "55f398bfaabb51e548586f3151b856782f8fd4a6b2bf7cc872649c87fd89ccb8",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-governance-flow.png",
+        "render_bytes": 96205,
+        "figcheck": {
+          "figure": "fig-governance-flow",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 421.0,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.85cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1204,
+              "edge_density": 0.0932,
+              "distinct_colors": 931,
+              "flags": [
+                "edge_density=0.093 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-governance-flow",
+          "findings": [
+            {
+              "id": "B1",
+              "level": "warn",
+              "message": "'1' sits 2.4 pt from its box edge (moat 2.5 pt)",
+              "gap_pt": 2.39
+            },
+            {
+              "id": "B1",
+              "level": "warn",
+              "message": "'2' sits 2.4 pt from its box edge (moat 2.5 pt)",
+              "gap_pt": 2.39
+            },
+            {
+              "id": "B1",
+              "level": "warn",
+              "message": "'3' sits 2.4 pt from its box edge (moat 2.5 pt)",
+              "gap_pt": 2.39
+            },
+            {
+              "id": "B1",
+              "level": "warn",
+              "message": "'4' sits 2.4 pt from its box edge (moat 2.5 pt)",
+              "gap_pt": 2.39
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 4
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "32ddf21d4ddfe849647ac9ffc9cfb8a05e4281742fef30164f4286e2bc11f946"
+    },
+    {
+      "id": "fig-he-assurance",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-he-assurance.tex",
+      "chapter": 6,
+      "checks_failed": [
+        "T1"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "c61dc7a644daeab738c4e34aa3135c177c677834 2026-11-03",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "classification": "current_fragment_checks_clear",
+      "assessment": "The two aligned panels remain readable: independent miss probability falls geometrically while a shared error stays flat; budget rises linearly. Assumption, series and target labels clear their lines. No current T1 failure.",
+      "source_only_assessment_superseded_by_render": "Source uses the SGMeasuredFigure axis grammar, unlike the historical small-math snapshot. Long math subscripts can trigger T1; no current-size rendering was performed in this bounded triage.",
+      "current_evidence": {
+        "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-he-assurance",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B10"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.27,
+          "too_wide": false,
+          "png": "fig-he-assurance.png",
+          "pass": true
+        },
+        "render_sha256": "888b4f37a2538724a975c9ab8238e4aaa969cd76341f8c63ee3a7fa625395532",
+        "figcheck_sha256": "c3bcf27485a7a50e5ec2f7a066bb649dfa5a4fa3e6e41dba863857d66abb0fc3",
+        "beauty_sha256": "fe5dec5dea1743f8cb02a8bc0f2bf3ecb0f2731b5bbfce64f53afe61c6015f46",
+        "visual_review": "Final single-figure render individually viewed at current source; no unresolved print defect observed.",
+        "render_file": "fig-he-assurance.png",
+        "render_bytes": 73360,
+        "figcheck": {
+          "figure": "fig-he-assurance",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 423.8,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.95cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.079,
+              "edge_density": 0.0583,
+              "distinct_colors": 864,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-he-assurance",
+          "findings": [
+            {
+              "id": "B10",
+              "level": "warn",
+              "message": "caption does not end with a [provenance] bracket"
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 1
+          }
+        }
+      },
+      "source_sha256": "44e03cc84a951439512c9a0983415757a1c7d94c28f660faa627c51659041545"
+    },
+    {
+      "id": "fig-he-cold-start",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-he-cold-start.tex",
+      "chapter": 6,
+      "checks_failed": [
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "classification": "current_fragment_checks_clear",
+      "assessment": "The threshold label clears its horizontal guide. The aligned depth trigger is intentional and does not cross text. Both panel labels and caption remain readable. No current T4 failure.",
+      "source_only_assessment_superseded_by_render": "The lambda annotation is positioned outside the guide in current source. The old T4 crossing is not enough to establish a current collision; no fresh rendering in this triage.",
+      "current_evidence": {
+        "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-he-cold-start",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B2"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.32,
+          "too_wide": false,
+          "png": "fig-he-cold-start.png",
+          "pass": true
+        },
+        "render_sha256": "4dcd081f980bc471ded7e4058d2c1f168fb6c169c20107f54bb17c755b2796cc",
+        "figcheck_sha256": "f130f00ec601391c283607d010a01486475b01346f6cb131fa8d29c82082cff4",
+        "beauty_sha256": "89c4781eb4239214edf907513fbc8ae2f3b87663ed1900242555c907f1f36847",
+        "visual_review": "Final single-figure render individually viewed at current source; no unresolved print defect observed.",
+        "render_file": "fig-he-cold-start.png",
+        "render_bytes": 62219,
+        "figcheck": {
+          "figure": "fig-he-cold-start",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 424.7,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.98cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.0619,
+              "edge_density": 0.0476,
+              "distinct_colors": 760,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-he-cold-start",
+          "findings": [
+            {
+              "id": "B2",
+              "level": "warn",
+              "message": "'Seed' is 0.3 pt from a stroke (1.5 pt clear)",
+              "gap_pt": 0.33
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 1
+          }
+        }
+      },
+      "source_sha256": "ab695d560edafce8714c8f5138e94a74a1d58c344ef51c7d1d207562f66c8ef7"
+    },
+    {
+      "id": "fig-he-conservation-functor",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-he-conservation-functor.tex",
+      "chapter": 6,
+      "checks_failed": [
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "0b4fc785acfa63462755551885954ecda4921d6a 2026-10-17",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Account deltas and the quoted-conversion example are legible; arrows clear amounts and account labels. The 2-unit quote shortfall is explicitly not a ledger account. No current T4 failure.",
+      "source_only_assessment_superseded_by_render": "The diagram was structurally replaced in the Oct 17 source. Old T4 text targets are absent from this construction; that old crossing record is structurally stale. Current print rendering remains unverified here.",
+      "current_evidence": {
+        "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-he-conservation-functor",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B2",
+            "B3",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.35,
+          "too_wide": false,
+          "png": "fig-he-conservation-functor.png",
+          "pass": true
+        },
+        "render_sha256": "e61b091417abe3b4b84d0d332d8b8d591d20a91126a08956a85329175986e143",
+        "figcheck_sha256": "cc6ad29da61dc01e7e385d6031a5af46b6a9d110173f8932e1a45c666d0fc651",
+        "beauty_sha256": "6d6772b680fce906601b5b75ab953553ba37a81546d9827d912a82199749053b",
+        "visual_review": "Final single-figure render individually viewed at current source; no unresolved print defect observed.",
+        "render_file": "fig-he-conservation-functor.png",
+        "render_bytes": 91651,
+        "figcheck": {
+          "figure": "fig-he-conservation-functor",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 427.7,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 15.09cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.3108,
+              "edge_density": 0.0682,
+              "distinct_colors": 2769,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-he-conservation-functor",
+          "findings": [
+            {
+              "id": "B2",
+              "level": "warn",
+              "message": "'\ud835\udc34' is 1.4 pt from a stroke (1.5 pt clear)",
+              "gap_pt": 1.4
+            },
+            {
+              "id": "B3",
+              "level": "warn",
+              "message": "'\ud835\udc35' and 'execution shortfall vs quote' are 1.8 pt apart (2 pt clear)",
+              "gap_pt": 1.82
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "1 near-aligned pairs, e.g. centre of 'fee account' and '+' differ by 0.32 pt",
+              "count": 1,
+              "examples": [
+                [
+                  "centre",
+                  "fee account",
+                  "+",
+                  0.32
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 3
+          }
+        }
+      },
+      "source_sha256": "45b813e92bf2a29c67e289c50c1713554aa0353eb02fe8d8620ea826d103436f"
+    },
+    {
+      "id": "fig-he-float-plan",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-he-float-plan.tex",
+      "chapter": 6,
+      "checks_failed": [
+        "T2",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "58b13305aff411819921566ac1659df757bbdd6c 2026-11-03",
+      "changed_in_candidate_at_triage_start": true,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-he-float-plan",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B2",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.37,
+          "too_wide": false,
+          "png": "fig-he-float-plan.png",
+          "pass": true
+        },
+        "render_sha256": "0fbd87a601472752c9ea8ada0e78fda656ee0f06eaf60bca05a0c5780e8cb81f",
+        "figcheck_sha256": "f91bbe7fba631b3dbcffa4cbb79de06971a7b738ce3bcdef17086150beb7a13f",
+        "beauty_sha256": "9b64bc15646f75dcd79a7ec372053452c7a4e5eb4cb1847a20728053bb34b441",
+        "visual_review": "Fresh final source render individually viewed after builder width corrections; no collision/clipping observed.",
+        "render_file": "fig-he-float-plan.png",
+        "render_bytes": 62578,
+        "figcheck": {
+          "figure": "fig-he-float-plan",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 424.7,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.98cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.0798,
+              "edge_density": 0.0633,
+              "distinct_colors": 981,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-he-float-plan",
+          "findings": [
+            {
+              "id": "B2",
+              "level": "warn",
+              "message": "'signed row check' is 0.0 pt from a stroke (1.5 pt clear) (touching)",
+              "gap_pt": 0
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "2 near-aligned pairs, e.g. centre of 'their prior state' and 'transaction' differ by 2.02 pt",
+              "count": 2,
+              "examples": [
+                [
+                  "centre",
+                  "their prior state",
+                  "transaction",
+                  2.02
+                ],
+                [
+                  "centre",
+                  "their prior state",
+                  "begins",
+                  2.03
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 2
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this fresh final-source Swiss fragment. Render refreshed after builder width corrections and individually inspected. Beauty warnings remain recorded; this is not blanket design approval.",
+      "source_sha256": "ba22273dea793d1dd17d391b1f76c0ca6f93ce39ee31c528e584bece40cbb778"
+    },
+    {
+      "id": "fig-magic-link-inline",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-magic-link-inline.tex",
+      "chapter": 7,
+      "checks_failed": [
+        "T2",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-magic-link-inline",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B10",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.38,
+          "too_wide": false,
+          "png": "fig-magic-link-inline.png",
+          "pass": true
+        },
+        "render_sha256": "d6466a6de4326293887690d7af639d6ca4c32d933a592502a0dc32db8213fcd4",
+        "figcheck_sha256": "3c967d0dd964398508fd46b1ac86856221e6a85f2087b8cb498a0cb8e3d7b6ca",
+        "beauty_sha256": "3a666725322168ef6d89e7a4fac16cc7ff8150e1fccf6159d3a2bc0b18005b92",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-magic-link-inline.png",
+        "render_bytes": 66297,
+        "figcheck": {
+          "figure": "fig-magic-link-inline",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 426.8,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 15.06cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.2302,
+              "edge_density": 0.0487,
+              "distinct_colors": 2073,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-magic-link-inline",
+          "findings": [
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "1 near-aligned pairs, e.g. centre of 'Conditional update' and 'WHERE token = :tk' differ by 2.26 pt",
+              "count": 1,
+              "examples": [
+                [
+                  "centre",
+                  "Conditional update",
+                  "WHERE token = :tk",
+                  2.26
+                ]
+              ]
+            },
+            {
+              "id": "B10",
+              "level": "warn",
+              "message": "caption does not end with a [provenance] bracket"
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 2
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "e15a57f2c446e197de679abfaaf74742d44c367eccd8f05dfc3ad8799cbcb494"
+    },
+    {
+      "id": "fig-stp-deterrence-regime",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex",
+      "chapter": 5,
+      "checks_failed": [
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": null,
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Regime labels and the worked point clear the convex frontier. Recomputed rho*d*B=.25*.8*50=10; the marked threshold agrees with the caption. No current T4 failure.",
+      "source_only_assessment_superseded_by_render": "The current short regime label differs from the historical long text struck by T4. This record has no waiver. No current rendering in this triage, so absence of a present crossing is unverified.",
+      "current_evidence": {
+        "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-stp-deterrence-regime",
+          "edition": "swiss",
+          "hue": "pdviolet",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [],
+          "figcheck_fail": [],
+          "ink_width_in": 4.34,
+          "too_wide": false,
+          "png": "fig-stp-deterrence-regime.png",
+          "pass": true
+        },
+        "render_sha256": "36d365b53d87aa9c7bc3b4cf809e45d907452c59bd9b093249fafb99abd6619c",
+        "figcheck_sha256": "55c2506d2aa1b994c3440f1e5b6189999d1c8d859e768995b2f282d7f9756c2b",
+        "beauty_sha256": "6bf598eacc68dab9b9d6e78efa2a85aafe15c4fa241669eb21a86eb660b1c509",
+        "visual_review": "Fresh exact-source Swiss fragment individually reopened and inspected. Threshold, convex frontier, worked point, labels and caption clear; full Book float/caption adjacency remains a separate candidate16 check.",
+        "render_file": "fig-stp-deterrence-regime.png",
+        "render_bytes": 51817,
+        "figcheck": {
+          "figure": "fig-stp-deterrence-regime",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 423.8,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.95cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.322,
+              "edge_density": 0.0558,
+              "distinct_colors": 1223,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-stp-deterrence-regime",
+          "findings": [],
+          "summary": {
+            "result": "pass",
+            "fail": 0,
+            "warn": 0
+          }
+        }
+      },
+      "source_sha256": "26a9fb820aae9ba1d66fbe91747befe5ac9512695e6025613d7b6041a2b0243a",
+      "history": [
+        {
+          "source_sha256": "a2511a0fefc8513fa6ce83328dc97904f3a93e5e70ebd4527d6dab638bea3582",
+          "evidence": {
+            "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+            "qa_result": {
+              "figure": "fig-stp-deterrence-regime",
+              "edition": "swiss",
+              "hue": "pdviolet",
+              "compiled": true,
+              "design_review": "unreviewed",
+              "beauty_fail": [],
+              "beauty_warn": [],
+              "figcheck_fail": [],
+              "ink_width_in": 4.34,
+              "too_wide": false,
+              "png": "fig-stp-deterrence-regime.png",
+              "pass": true
+            },
+            "render_sha256": "36d365b53d87aa9c7bc3b4cf809e45d907452c59bd9b093249fafb99abd6619c",
+            "figcheck_sha256": "55c2506d2aa1b994c3440f1e5b6189999d1c8d859e768995b2f282d7f9756c2b",
+            "beauty_sha256": "6bf598eacc68dab9b9d6e78efa2a85aafe15c4fa241669eb21a86eb660b1c509",
+            "visual_review": "Final single-figure render individually viewed at current source; no unresolved print defect observed.",
+            "render_file": "fig-stp-deterrence-regime.png",
+            "render_bytes": 51817,
+            "figcheck": {
+              "figure": "fig-stp-deterrence-regime",
+              "page_count": 1,
+              "params": {
+                "min_font_pt": 7.0,
+                "textwidth_cm": 11.43
+              },
+              "checks": {
+                "T1": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T2": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T3": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T4": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T5": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T8": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T9": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T10": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T6": {
+                  "status": "pass",
+                  "count": 0,
+                  "findings": []
+                },
+                "T7": {
+                  "status": "warn",
+                  "count": 1,
+                  "findings": [
+                    {
+                      "check": "T7",
+                      "severity": "warn",
+                      "page": 0,
+                      "content_width_pt": 423.8,
+                      "textwidth_pt": 324.0,
+                      "message": "drawn content is 14.95cm wide, wider than the 11.43cm chapter textwidth"
+                    }
+                  ]
+                }
+              },
+              "ink": [
+                {
+                  "page": 0,
+                  "ink_fraction": 0.322,
+                  "edge_density": 0.0558,
+                  "distinct_colors": 1223,
+                  "flags": [
+                    "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+                  ]
+                }
+              ],
+              "summary": {
+                "result": "pass",
+                "failed_checks": [],
+                "warned_checks": [
+                  "T7"
+                ]
+              }
+            },
+            "beauty": {
+              "figure": "fig-stp-deterrence-regime",
+              "findings": [],
+              "summary": {
+                "result": "pass",
+                "fail": 0,
+                "warn": 0
+              }
+            }
+          },
+          "superseded_by": "Current source rerender after only [H] to [tp] float-placement change."
+        }
+      ],
+      "source_refresh": {
+        "created_at": "2026-11-03T16:36:15.205975+00:00",
+        "repository_head": "010d3a8f2a96f99f69b140f673c5722fa1ac6416",
+        "delta": "Only figure placement [H] to [tp]; no drawing or caption changes.",
+        "exact_render_byte_reuse": true,
+        "rendered_again": true,
+        "visual_review": true
+      }
+    },
+    {
+      "id": "fig-stp-judge-market",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-stp-judge-market.tex",
+      "chapter": 5,
+      "checks_failed": [
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Red exclusion crosses sit outside the judge labels. Selection, grading and re-audit stages are legible; exposed-bond interval is distinct from the process rail. No current T4 failure.",
+      "source_only_assessment_superseded_by_render": "Current cross-out marks lie outside the judge circles rather than through the labels. An intentional strike/crossing can be semantic, but this source observation is not a print pass.",
+      "current_evidence": {
+        "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-stp-judge-market",
+          "edition": "swiss",
+          "hue": "pdviolet",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.1,
+          "too_wide": false,
+          "png": "fig-stp-judge-market.png",
+          "pass": true
+        },
+        "render_sha256": "ff9c7d982a332ac33f2bed57617bb1e9e7735a82066c2c2c92d0251457c513c3",
+        "figcheck_sha256": "6b5bdb9c7f409c24b03a6cd4777edbbcbecdcd9e53f7575324e4d0741e6e0430",
+        "beauty_sha256": "540ed3b20480a3ea7ede0abdced9a56c95d963adc29420991f214c6ed3b94188",
+        "visual_review": "Final single-figure render individually viewed at current source; no unresolved print defect observed.",
+        "render_file": "fig-stp-judge-market.png",
+        "render_bytes": 79229,
+        "figcheck": {
+          "figure": "fig-stp-judge-market",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 415.8,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.67cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1005,
+              "edge_density": 0.0684,
+              "distinct_colors": 1577,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-stp-judge-market",
+          "findings": [
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "8 near-aligned pairs, e.g. x0 of 'excluded:' and 'shares a' differ by 1.62 pt",
+              "count": 8,
+              "examples": [
+                [
+                  "x0",
+                  "excluded:",
+                  "shares a",
+                  1.62
+                ],
+                [
+                  "centre",
+                  "excluded:",
+                  "shares a",
+                  0.53
+                ],
+                [
+                  "centre",
+                  "excluded:",
+                  "stake, or model",
+                  0.53
+                ],
+                [
+                  "x0",
+                  "shares a",
+                  "principal,",
+                  0.64
+                ],
+                [
+                  "centre",
+                  "shares a",
+                  "principal,",
+                  0.54
+                ],
+                [
+                  "centre",
+                  "principal,",
+                  "stake, or model",
+                  0.54
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 1
+          }
+        }
+      },
+      "source_sha256": "cacfa1037ea2344478135a083e7630643c7a9492b10d537f0c37caefbc9e2fa9"
+    },
+    {
+      "id": "fig-stp-multidim-reputation",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-stp-multidim-reputation.tex",
+      "chapter": 5,
+      "checks_failed": [
+        "T1",
+        "T2",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-stp-multidim-reputation",
+          "edition": "swiss",
+          "hue": "pdviolet",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [],
+          "figcheck_fail": [],
+          "ink_width_in": 4.26,
+          "too_wide": false,
+          "png": "fig-stp-multidim-reputation.png",
+          "pass": true
+        },
+        "render_sha256": "874c04766f99049df1f2f505d8787efb08ec9bff8fac590fc3e1977d308adcab",
+        "figcheck_sha256": "aebcf34d99a11d1590c3a2095a67f9b609f6ca832f11ca47f9258093cc1433dd",
+        "beauty_sha256": "e51944e749e78630a056ead23bc4f1ad3ade358da0f51489cfb41f873cb93090",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-stp-multidim-reputation.png",
+        "render_bytes": 67472,
+        "figcheck": {
+          "figure": "fig-stp-multidim-reputation",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 421.2,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.86cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.0782,
+              "edge_density": 0.0618,
+              "distinct_colors": 1416,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-stp-multidim-reputation",
+          "findings": [],
+          "summary": {
+            "result": "pass",
+            "fail": 0,
+            "warn": 0
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "d9e3f803cdb008c1d2f35f7b7d7d74dd5e6bc6961892c4432a6df2e1ec9b9ac2"
+    },
+    {
+      "id": "fig-stp-parfit-chain",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-stp-parfit-chain.tex",
+      "chapter": 5,
+      "checks_failed": [
+        "T1",
+        "T3",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "58b13305aff411819921566ac1659df757bbdd6c 2026-11-03",
+      "changed_in_candidate_at_triage_start": true,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-stp-parfit-chain",
+          "edition": "swiss",
+          "hue": "pdviolet",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 3.85,
+          "too_wide": false,
+          "png": "fig-stp-parfit-chain.png",
+          "pass": true
+        },
+        "render_sha256": "b4d3d2fc115999faa044e71387f844e8fecfa27cec23399a9d9cca5783034b65",
+        "figcheck_sha256": "487a063927f4fa16eae51965904870a55178028d14478ef81c5cc4437d3abbe9",
+        "beauty_sha256": "52db539031a4ad9c0525d69576c3203da878cf71af1cf87af72772909232a46f",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-stp-parfit-chain.png",
+        "render_bytes": 84749,
+        "figcheck": {
+          "figure": "fig-stp-parfit-chain",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 407.0,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.36cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1025,
+              "edge_density": 0.0753,
+              "distinct_colors": 1168,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-stp-parfit-chain",
+          "findings": [
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "2 near-aligned pairs, e.g. centre of 'shared witness' and 'shared' differ by 2.38 pt",
+              "count": 2,
+              "examples": [
+                [
+                  "centre",
+                  "shared witness",
+                  "shared",
+                  2.38
+                ],
+                [
+                  "base",
+                  "witness",
+                  "\ud835\udc5c",
+                  1.78
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 1
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "f7df877954eec2849fa0411fc0aa30ed62d7d07f8c23202d463c39f90dc13cce"
+    },
+    {
+      "id": "fig-stp-rate-the-raters",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex",
+      "chapter": 5,
+      "checks_failed": [
+        "T1",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "58b13305aff411819921566ac1659df757bbdd6c 2026-11-03",
+      "changed_in_candidate_at_triage_start": true,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-stp-rate-the-raters",
+          "edition": "swiss",
+          "hue": "pdviolet",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B10"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.14,
+          "too_wide": false,
+          "png": "fig-stp-rate-the-raters.png",
+          "pass": true
+        },
+        "render_sha256": "b5a1c2fc30ee871e1de05b8222287e64965a9fcedc29954f95a5e7e66b34fdf0",
+        "figcheck_sha256": "b1c55624d1a53ab24c93a7bbc7025d3ce3d8c105b03ec4ec8815a9d0c1084a3e",
+        "beauty_sha256": "7e223dd2693c4e384473ade41aeda74ab7609d06dc55f3331eec62801e1281eb",
+        "visual_review": "Final single-figure render viewed",
+        "render_file": "fig-stp-rate-the-raters.png",
+        "render_bytes": 75558,
+        "figcheck": {
+          "figure": "fig-stp-rate-the-raters",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 418.4,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.76cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.0653,
+              "edge_density": 0.0555,
+              "distinct_colors": 718,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-stp-rate-the-raters",
+          "findings": [
+            {
+              "id": "B10",
+              "level": "warn",
+              "message": "caption does not end with a [provenance] bracket"
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 1
+          }
+        }
+      },
+      "classification": "repaired_and_current_fragment_checks_clear",
+      "assessment": "Confirmed actual print issues: dashed curve crossed the legend and solid curve escaped below axes. Enabled individual axis clipping and moved legend above plotting region. Existing model coordinates preserved. Final render viewed.",
+      "source_sha256": "20b91cc643f2025b329fd3dfb7b21558d49c306c63d48ff1027a40a49ff51a4a"
+    },
+    {
+      "id": "fig-stp-role-vs-person",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-stp-role-vs-person.tex",
+      "chapter": 5,
+      "checks_failed": [
+        "T1",
+        "T2",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "58b13305aff411819921566ac1659df757bbdd6c 2026-11-03",
+      "changed_in_candidate_at_triage_start": true,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-stp-role-vs-person",
+          "edition": "swiss",
+          "hue": "pdviolet",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B2",
+            "B3",
+            "B4",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 3.78,
+          "too_wide": false,
+          "png": "fig-stp-role-vs-person.png",
+          "pass": true
+        },
+        "render_sha256": "9e5353725dc2c69423fee5f95eca02553602603cb5504c276ab8997f9edc9fc1",
+        "figcheck_sha256": "26735b6370b09e2c8c9ee642cc5f0c29c25f05a9048e71ea97e97e47876d8dd3",
+        "beauty_sha256": "a1924b4495a717209a37d83b03af87f4bf82b538eddb89e70e74fbde244d128f",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-stp-role-vs-person.png",
+        "render_bytes": 68761,
+        "figcheck": {
+          "figure": "fig-stp-role-vs-person",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 407.1,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 14.36cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1011,
+              "edge_density": 0.0721,
+              "distinct_colors": 941,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-stp-role-vs-person",
+          "findings": [
+            {
+              "id": "B2",
+              "level": "warn",
+              "message": "'cartographer' is 0.0 pt from a stroke (1.5 pt clear) (touching)",
+              "gap_pt": 0
+            },
+            {
+              "id": "B3",
+              "level": "warn",
+              "message": "'7' and 'verified' are 1.7 pt apart (2 pt clear)",
+              "gap_pt": 1.75
+            },
+            {
+              "id": "B4",
+              "level": "warn",
+              "message": "6 stroke weights [0.7, 0.8, 0.91, 1.0, 1.99, 2.39] (ladder: .5/.9/1.6 plus marks)",
+              "weights": [
+                0.7,
+                0.8,
+                0.91,
+                1.0,
+                1.99,
+                2.39
+              ]
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "5 near-aligned pairs, e.g. x0 of 'role: one slot, replaceable fillers' and 'reviewer role' differ by 1.17 pt",
+              "count": 5,
+              "examples": [
+                [
+                  "x0",
+                  "role: one slot, replaceable fillers",
+                  "reviewer role",
+                  1.17
+                ],
+                [
+                  "centre",
+                  "obligation,",
+                  "authority",
+                  2.37
+                ],
+                [
+                  "centre",
+                  "capability,",
+                  "authority",
+                  1.43
+                ],
+                [
+                  "x0",
+                  "navigator",
+                  "\ud835\udc5c",
+                  1.44
+                ],
+                [
+                  "x0",
+                  "lookout",
+                  "\ud835\udc5c",
+                  2.48
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 4
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "6f49a83812d2f39b7ef32f3cbbd52bddbf20f4f3534518033623b885be92881f"
+    },
+    {
+      "id": "fig-stp-sybil-whitewash",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+      "chapter": 5,
+      "checks_failed": [
+        "T3",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "58b13305aff411819921566ac1659df757bbdd6c 2026-11-03",
+      "changed_in_candidate_at_triage_start": true,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-stp-sybil-whitewash",
+          "edition": "swiss",
+          "hue": "pdviolet",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B10",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.4,
+          "too_wide": false,
+          "png": "fig-stp-sybil-whitewash.png",
+          "pass": true
+        },
+        "render_sha256": "2be9dbd31b0525d353dd19d3d00ad0e8f44afa1c08d2dc2f02ea14dea07031ab",
+        "figcheck_sha256": "5faec0521f689e31b7a60bb99711f7668d1f10f24ea4e6f199010015c84e7822",
+        "beauty_sha256": "ed1b50b139d90881e4b005c1c6b2ca4d3a69ac8cbc438712cfa860889347e2eb",
+        "visual_review": "Final single-figure render viewed",
+        "render_file": "fig-stp-sybil-whitewash.png",
+        "render_bytes": 92157,
+        "figcheck": {
+          "figure": "fig-stp-sybil-whitewash",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 428.2,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 15.10cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1069,
+              "edge_density": 0.0886,
+              "distinct_colors": 1417,
+              "flags": [
+                "edge_density=0.089 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-stp-sybil-whitewash",
+          "findings": [
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "1 near-aligned pairs, e.g. centre of 'B. quorum inflation' and 'one label' differ by 0.77 pt",
+              "count": 1,
+              "examples": [
+                [
+                  "centre",
+                  "B. quorum inflation",
+                  "one label",
+                  0.77
+                ]
+              ]
+            },
+            {
+              "id": "B10",
+              "level": "warn",
+              "message": "caption does not end with a [provenance] bracket"
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 2
+          }
+        }
+      },
+      "classification": "repaired_and_current_fragment_checks_clear",
+      "assessment": "Confirmed actual overlap: principal-bound label collided with subtitle. Moved it into panel A; narrowed and moved the fresh-label annotation to clear panel B axis text. No font reduction. Final render viewed.",
+      "source_sha256": "92b3c037c91bf9aea65381749a2a5978c904b242038b14594d689595ce035082"
+    },
+    {
+      "id": "fig-stp-tombstone",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-stp-tombstone.tex",
+      "chapter": 5,
+      "checks_failed": [
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "58b13305aff411819921566ac1659df757bbdd6c 2026-11-03",
+      "changed_in_candidate_at_triage_start": true,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-stp-tombstone",
+          "edition": "swiss",
+          "hue": "pdviolet",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B3",
+            "B4",
+            "B7",
+            "B8"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.32,
+          "too_wide": false,
+          "png": "fig-stp-tombstone.png",
+          "pass": true
+        },
+        "render_sha256": "32696c5c5b7ce55a93ffadba32cb7c85a6e31c1277c1a637f55fcff051424b2c",
+        "figcheck_sha256": "ba3c52963780bcba8c24f4354fe5181cddc56fb52a6bfd0744f0597e5cd95155",
+        "beauty_sha256": "f7c140a7063312bf8b20dc93bfa5acc1c29cf51b0584c93274ce7a9a111939c0",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-stp-tombstone.png",
+        "render_bytes": 75145,
+        "figcheck": {
+          "figure": "fig-stp-tombstone",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 426.6,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 15.05cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.0595,
+              "edge_density": 0.0484,
+              "distinct_colors": 1163,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-stp-tombstone",
+          "findings": [
+            {
+              "id": "B3",
+              "level": "warn",
+              "message": "'3' and 'fraudulent' are 1.7 pt apart (2 pt clear)",
+              "gap_pt": 1.66
+            },
+            {
+              "id": "B4",
+              "level": "warn",
+              "message": "6 stroke weights [0.6, 0.7, 0.86, 1.0, 1.49, 1.99] (ladder: .5/.9/1.6 plus marks)",
+              "weights": [
+                0.6,
+                0.7,
+                0.86,
+                1.0,
+                1.49,
+                1.99
+              ]
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "2 near-aligned pairs, e.g. base of '\ud835\udc5c' and 'fraudulent' differ by 1.03 pt",
+              "count": 2,
+              "examples": [
+                [
+                  "base",
+                  "\ud835\udc5c",
+                  "fraudulent",
+                  1.03
+                ],
+                [
+                  "base",
+                  "\ud835\udc61",
+                  "imported",
+                  0.66
+                ]
+              ]
+            },
+            {
+              "id": "B8",
+              "level": "warn",
+              "message": "picture is 5.20 in tall (> 5.2 in)"
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 4
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "4f997818ed9c39a1c796380afd9f32bd71da9b31b347186463e9a806d13678b8"
+    },
+    {
+      "id": "fig-swk-controllability-quadrant",
+      "fragment": "../../../../../../whitepaper/figures/fig-swk-controllability-quadrant.tex",
+      "chapter": 1,
+      "checks_failed": [
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-swk-controllability-quadrant",
+          "edition": "swiss",
+          "hue": "pdcobalt",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B3",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 4.34,
+          "too_wide": false,
+          "png": "fig-swk-controllability-quadrant.png",
+          "pass": true
+        },
+        "render_sha256": "b9bed7c957cb465a6e9842f1449ac37d038110fa0db4f7a806d6c2cdd3fc33af",
+        "figcheck_sha256": "841580513777a171e2f48d6c9e977a3addd9d3c5a13a80aacd4977e6108d4f5d",
+        "beauty_sha256": "a9fc26d22ee46090b8bc8dc55b386f97f364ab3c962e5fb31acf7816b0146157",
+        "visual_review": "Final single-figure render viewed",
+        "render_file": "fig-swk-controllability-quadrant.png",
+        "render_bytes": 82688,
+        "figcheck": {
+          "figure": "fig-swk-controllability-quadrant",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 427.5,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 15.08cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.2049,
+              "edge_density": 0.1037,
+              "distinct_colors": 738,
+              "flags": [
+                "edge_density=0.104 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-swk-controllability-quadrant",
+          "findings": [
+            {
+              "id": "B3",
+              "level": "warn",
+              "message": "'the event is controllable: it' and 'passes through the daemon' are 1.0 pt apart (2 pt clear)",
+              "gap_pt": 1.0
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "1 near-aligned pairs, e.g. centre of 'prevention possible' and 'witnessed authorization' differ by 0.33 pt",
+              "count": 1,
+              "examples": [
+                [
+                  "centre",
+                  "prevention possible",
+                  "witnessed authorization",
+                  0.33
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 2
+          }
+        }
+      },
+      "classification": "repaired_and_current_fragment_checks_clear",
+      "assessment": "Caption repaired to distinguish exact realization of the specified guard from stricter safety-preserving restriction; detection is not automatic outside the shaded cell. Final render viewed.",
+      "source_sha256": "84f01e4684406bdfe0ddb21b0d5c2a108c923ac72e738490e445b504bf4e772c"
+    },
+    {
+      "id": "fig-sybil-inline",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-sybil-inline.tex",
+      "chapter": 7,
+      "checks_failed": [
+        "T4",
+        "T5"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "c61dc7a644daeab738c4e34aa3135c177c677834 2026-11-03",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Identity fan-out and the capped-slash curve are legible; guides terminate at the threshold without crossing labels, and no page-edge overflow appears. The unresolved figure reference is normal in the isolated fragment and must resolve in the full Book. No current T4/T5 failure.",
+      "source_only_assessment_superseded_by_render": "Historical T5 was a tiny page-corner stroke in an A4 render, plausibly wrapper/page furniture, not proof of a current figure overflow. Current geometry differs and no fresh rendering was performed here.",
+      "current_evidence": {
+        "scope": "Swiss Book fragment at11.43cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-sybil-inline",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [
+            "B2",
+            "B4",
+            "B7"
+          ],
+          "figcheck_fail": [],
+          "ink_width_in": 3.35,
+          "too_wide": false,
+          "png": "fig-sybil-inline.png",
+          "pass": true
+        },
+        "render_sha256": "6b95b0e59e8ad6961fcfd12ef1cd47b4ae00f5f4c4c4cdf99b12c10d2e144fd9",
+        "figcheck_sha256": "a0da70270de72e523a7cb8af6e405c39c1a9e66a12661b5a85c1044f0707dffd",
+        "beauty_sha256": "a69367ddcd5d3a071f5950d253e45ecb6f12eada63e424ead52642b1c8e8631c",
+        "visual_review": "Final single-figure render individually viewed at current source; no unresolved print defect observed.",
+        "render_file": "fig-sybil-inline.png",
+        "render_bytes": 61786,
+        "figcheck": {
+          "figure": "fig-sybil-inline",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 386.4,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 13.63cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1461,
+              "edge_density": 0.0889,
+              "distinct_colors": 1116,
+              "flags": [
+                "edge_density=0.089 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-sybil-inline",
+          "findings": [
+            {
+              "id": "B2",
+              "level": "warn",
+              "message": "'. . .' is 1.2 pt from a stroke (1.5 pt clear)",
+              "gap_pt": 1.16
+            },
+            {
+              "id": "B4",
+              "level": "warn",
+              "message": "6 stroke weights [0.6, 0.7, 1.0, 1.2, 1.74, 1.99] (ladder: .5/.9/1.6 plus marks)",
+              "weights": [
+                0.6,
+                0.7,
+                1.0,
+                1.2,
+                1.74,
+                1.99
+              ]
+            },
+            {
+              "id": "B7",
+              "level": "warn",
+              "message": "2 near-aligned pairs, e.g. x0 of 'more identities require' and '\ud835\udc3e' differ by 0.79 pt",
+              "count": 2,
+              "examples": [
+                [
+                  "x0",
+                  "more identities require",
+                  "\ud835\udc3e",
+                  0.79
+                ],
+                [
+                  "centre",
+                  "extra deposit returns",
+                  "intact past",
+                  0.45
+                ]
+              ]
+            }
+          ],
+          "summary": {
+            "result": "warn",
+            "fail": 0,
+            "warn": 3
+          }
+        }
+      },
+      "source_sha256": "4bc163eab58ac35ff88f3a25647bf43532341bd8b2fcdd2aeb231cd76a16cea0"
+    },
+    {
+      "id": "fig-worked-example",
+      "fragment": "../../../../../../website-v2/public/whitepaper/figures/fig-worked-example.tex",
+      "chapter": 7,
+      "checks_failed": [
+        "T1",
+        "T2",
+        "T4"
+      ],
+      "first_seen": "2026-09-07",
+      "waiver": {
+        "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+        "expires": "2026-10-31"
+      },
+      "historical_status": "unbound_historical_snapshot_not_current_failure_evidence",
+      "source_last_commit": "b1cfb456f430f9a2707f0371f8728a5968fab1fb 2026-10-07",
+      "changed_in_candidate_at_triage_start": false,
+      "waiver_currently_valid": false,
+      "current_evidence": {
+        "scope": "Swiss Book fragment at 11.43 cm body width; not full-page spread or all editions",
+        "qa_result": {
+          "figure": "fig-worked-example",
+          "edition": "swiss",
+          "hue": "pdgold",
+          "compiled": true,
+          "design_review": "unreviewed",
+          "beauty_fail": [],
+          "beauty_warn": [],
+          "figcheck_fail": [],
+          "ink_width_in": 4.29,
+          "too_wide": false,
+          "png": "fig-worked-example.png",
+          "pass": true
+        },
+        "render_sha256": "01e8e776a5225b760427eb7663ffc672172d823b3908f57b1566b38a33a1370a",
+        "figcheck_sha256": "0e40bad9740627d8507dcf535e7079e0439a1c1d9279159d21b06184a1784f96",
+        "beauty_sha256": "b211fd0a3c0366eeb0eabd428b819015ee3d75f795b132eae2694cf55d1c97db",
+        "visual_review": "Rendered contact sheet reviewed; ceremony also inspected individually",
+        "render_file": "fig-worked-example.png",
+        "render_bytes": 76164,
+        "figcheck": {
+          "figure": "fig-worked-example",
+          "page_count": 1,
+          "params": {
+            "min_font_pt": 7.0,
+            "textwidth_cm": 11.43
+          },
+          "checks": {
+            "T1": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T2": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T3": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T4": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T5": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T8": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T9": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T10": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T6": {
+              "status": "pass",
+              "count": 0,
+              "findings": []
+            },
+            "T7": {
+              "status": "warn",
+              "count": 1,
+              "findings": [
+                {
+                  "check": "T7",
+                  "severity": "warn",
+                  "page": 0,
+                  "content_width_pt": 426.9,
+                  "textwidth_pt": 324.0,
+                  "message": "drawn content is 15.06cm wide, wider than the 11.43cm chapter textwidth"
+                }
+              ]
+            }
+          },
+          "ink": [
+            {
+              "page": 0,
+              "ink_fraction": 0.1062,
+              "edge_density": 0.0754,
+              "distinct_colors": 1336,
+              "flags": [
+                "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+              ]
+            }
+          ],
+          "summary": {
+            "result": "pass",
+            "failed_checks": [],
+            "warned_checks": [
+              "T7"
+            ]
+          }
+        },
+        "beauty": {
+          "figure": "fig-worked-example",
+          "findings": [],
+          "summary": {
+            "result": "pass",
+            "fail": 0,
+            "warn": 0
+          }
+        }
+      },
+      "classification": "current_fragment_checks_clear",
+      "assessment": "Historical hard failure does not reproduce in this current Swiss fragment. Beauty warnings, if any, remain recorded; this is not blanket design approval.",
+      "source_sha256": "bfb5ea8edc620f9cf6d5d98c99e4bab83461041917178a03e3c7a5917fb201a2"
+    }
+  ],
+  "updated_at": "2026-11-03T16:36:15.228681+00:00",
+  "head_at_final_report": "58b13305aff411819921566ac1659df757bbdd6c",
+  "repository_root": "../../../../../..",
+  "promoted_at": "2026-11-03T14:36:27.139487+00:00",
+  "source_report_sha256": "8cb01dee977651b7e61d1a554dcd2608d6d362ba9ecaaf246c9a9f9e90919934",
+  "current_head_at_promotion": "5170150e492a08aec44640edaf87dc7606248082",
+  "portable_evidence": {
+    "images": 24,
+    "png_bytes": 1764995,
+    "paths": "All file paths are relative to this JSON file. PNGs and embedded check results are self-contained; manuscript fragments and historical ledger resolve within this repository.",
+    "renderer": "../../../../../../skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+    "binding": "Every promoted source hash and PNG hash was rechecked before copying. These bind figure fragments to the reviewed renders, not every transitive renderer/style dependency or any complete Book PDF.",
+    "scope": "23 inherited-blocker Swiss Book fragments plus the separately authorized Anchor four-phases width repair. Automated tests and individual/contact-sheet visual inspection are stated per item. No final07 or all-edition spread approval is implied."
+  }
+}

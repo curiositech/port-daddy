@@ -1,0 +1,68 @@
+{
+  "candidate": "19",
+  "created_at": "2026-11-03T17:32:36.919164+00:00",
+  "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+  "source_pdf": {
+    "name": "coordination-papers-mega-volume.pdf",
+    "sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+    "pages": 844
+  },
+  "facing_pdf": {
+    "name": "book-facing-spreads-20261103-56ec6015.pdf",
+    "relative_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-56ec6015.pdf",
+    "standard_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.pdf",
+    "sha256": "56ec601511e045b0df6b318612d57258a3e0c9730bb0813d5d919b90d7047b16",
+    "pages": 423,
+    "bytes": 18580705
+  },
+  "verification": {
+    "status": "pass",
+    "halves_checked": 846,
+    "character_stream_exact_equal_for_every_half": true,
+    "characters_checked": 1341604,
+    "every_character_position_checked": true,
+    "maximum_coordinate_error_pt": 9.1552734375e-05,
+    "coordinate_tolerance_pt": 0.025,
+    "plain_text_extraction_difference_count": 1,
+    "plain_text_difference_physical_pages": [
+      105
+    ],
+    "links": 3565,
+    "link_target_kinds": {
+      "uri": 95,
+      "goto": 3470
+    },
+    "bookmarks": 475,
+    "named_destinations": 4202,
+    "unsupported_items": [],
+    "exercise_destinations": 212,
+    "solution_destinations": 212
+  },
+  "representative_visual_review": {
+    "status": "pass",
+    "scope": "Two actual candidate19 facing spreads individually opened and inspected: exercise0.2 folio63 points to solution714, whose margin points back to63. Both PNGs also byte-match the independently viewed candidate18 navigation images. This spot view is separate from exhaustive destination checks.",
+    "images": [
+      {
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate19-facing-exercise.png",
+        "sha256": "651bd8ef038bfc3bb0df716900fb6d85155f2b827b5a4b712092db8ca66e6637",
+        "spread_index": 43,
+        "folio": "63"
+      },
+      {
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate19-facing-solution.png",
+        "sha256": "dc59a6cb6e90eb8d69e2167d387b39e2e86b6824ae9f361ffe7e74ba4b97304a",
+        "spread_index": 369,
+        "folio": "714"
+      }
+    ]
+  },
+  "full_facing_receipt_sha256": "2b5fc640915064260a54799b3890191d91a738d03a4be63ac4104f337dbb55c7",
+  "full_facing_receipt_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.receipt.json",
+  "builder_sha256": "f9e04b3f7135116ff0b6496085dceccbede2f47aca95dafc13d1a7ba1d9ff855",
+  "publication_status": "Locally accepted navigation-preserving facing copy of the reviewed Book; hosted publication is separate.",
+  "regular_copy_receipt": "regular-copy.json",
+  "limits": [
+    "Facing conversion checks preserve glyphs and navigation; they do not certify global appearance or mathematical content.",
+    "Detailed plain-extractor whitespace differences are retained in the full receipt; every ordered PDF character stream and position matched."
+  ]
+}

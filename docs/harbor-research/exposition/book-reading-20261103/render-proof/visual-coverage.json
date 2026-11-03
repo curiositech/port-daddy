@@ -1,0 +1,817 @@
+{
+  "source_commit": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+  "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+  "status": "all selected spreads covered",
+  "targets": 96,
+  "unique_spreads": 133,
+  "dpi": 150,
+  "inspection": "Actual image views, or exact byte identity with recorded actual views. Complete source reading is separate from selected rendered inspection.",
+  "all_chapter_openers": true,
+  "images": {
+    "spread-026-027.png": {
+      "sha256": "a4473df97833e75a3ae9d2df3bb180f635b2cc31915583f7ab72ca4a9a7e723a",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-028-029.png": {
+      "sha256": "5d48eef7d4a26118116840369eae802efb02ebb345ca9d7b1a75ed8b60d061b4",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-030-031.png": {
+      "sha256": "3140a5d10937877377eefd6eff880645e6db82ec4dbbaf80ae32f5ae1161d4d7",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-050-051.png": {
+      "sha256": "5f647898ac8318af28eff4d70567418fc7661142b869b103fd94d3f30944f3f7",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-052-053.png": {
+      "sha256": "ae5013c8a7f9b6a8b17d5582acdb7326d176d37134d064d492c591cf2376a9bc",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-054-055.png": {
+      "sha256": "b22c724d703e0e955a81ae375ddc5634b4ebb7594e252ed522cd7b1fa63ced0f",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-056-057.png": {
+      "sha256": "fbc0ec4a32abd560dc80cf34391a7e1cd9ea9b5efdf67336daffe0c782af9966",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-068-069.png": {
+      "sha256": "ad8edc50cd630cbbb8a222de76470a4b89a1a2085dbec285ff65244412b2ad0e",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-070-071.png": {
+      "sha256": "51680e57b6d0052f0ff55244b6ee0dea93ff38ff4117c74a899a014f39b4bd67",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-086-087.png": {
+      "sha256": "4244965e42fe82af21c4459648f15a73bab67971aa2999932216aaa481b4c7fb",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-088-089.png": {
+      "sha256": "970e6c60b70f850db0567e57790cd5d16f05e68bcec396d8e6cc1901caca1316",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-092-093.png": {
+      "sha256": "07f1e149b13d6d83da4beae988b6a81262eaf3698f7a0c18861f0e428ad77be1",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-094-095.png": {
+      "sha256": "12441023620232879f6348b90594df500fa285a8be2b9d9e0f3cccfc833e8b35",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-096-097.png": {
+      "sha256": "ad4dddd212dc26f2bfc2347a9859d1b685e4f3bba30ce8c1c965cd1f9ed3fa87",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-098-099.png": {
+      "sha256": "67c2fe342ac83fbff57c96490d8827cda1434bdaa2a31329b4fc7caa2cb395d1",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-116-117.png": {
+      "sha256": "02ead7159596d2331e1df4127ee2fd06b4ab784b1ee09733220fb858a4190af3",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-118-119.png": {
+      "sha256": "31710036d9bcb27298427738e5dd445be12945aebe84eab9dcd43c16675f7cc4",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-190-191.png": {
+      "sha256": "94d18c3a0cdc2db12c78472c49300a4b3a1a72747d0a60c2fc5d78c69d4308b6",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-192-193.png": {
+      "sha256": "6f6e9f1e9d0b84d77f4a14080f392a381ab412c112dd9dddee4d491f9beb950a",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-196-197.png": {
+      "sha256": "794a451ac7ba0e89912bd4e566c18be134c406a1539b20cc10e431999e928f76",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-198-199.png": {
+      "sha256": "bb5fdbcec82a83dc86bc732f028bc7e130c8cf552544cde72193c12f2d16a974",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-250-251.png": {
+      "sha256": "e04b509306e545d6c387bb7cf19716d5e5d6ed69311b481e7713c5bdf2897fdb",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-252-253.png": {
+      "sha256": "d74c4fd2b44f79731dd9b6823349b2637acf28c61c9d495d2ede06591d5a0e18",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-264-265.png": {
+      "sha256": "45aefcd176d71e2dbd6e2caccc2385d549d33fc1d885d7ce57aea3fcb0e8d014",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-266-267.png": {
+      "sha256": "c506fbdb8f6e38f6ed6267d3c922b269cbc86aaa43fb29b18bf37eae318b176a",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-284-285.png": {
+      "sha256": "aa4e23c189423190dfab16c6df9e03b67e502502ba5bd7b5341bef114354c6cb",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-286-287.png": {
+      "sha256": "a4e2b9d9be0835744f1b528b2009dec8686dbf6ceee40c590982e06d31e5d01b",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-288-289.png": {
+      "sha256": "971c3a440d98b9024ea8e706a8068ff662db58ecef54ed3c017e4d69ea03436a",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-302-303.png": {
+      "sha256": "66a062b3ce816589d95d33e95fd55a2d25f056486b77c1bb758b00bf346d9d20",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-304-305.png": {
+      "sha256": "78d37f7df4b39932a1f8f0cc407ad53c5b2f76cb6265aa537e953d513d865f33",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-336-337.png": {
+      "sha256": "18703ced60a2d9b6076de4ce4835d7835cde85aa985e6d0742075656aa8366d6",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-338-339.png": {
+      "sha256": "904255aac1ba8edc57ce802376750be368e5057eff6c1c7f67e177bbbc7d5a08",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-340-341.png": {
+      "sha256": "1918d869dddfc3f03867cd41f4b590b4cbfd055ed9ea307a5a7257bc790a3ac8",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-342-343.png": {
+      "sha256": "8a990f09c5a4ca3fa551043f1304540ac080dfd1787855ac2e754f987351fd73",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-344-345.png": {
+      "sha256": "ec329835c54d97de3a63abf99ab26aa3b2b66b8d58ee859279da0edb2d4d7383",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-346-347.png": {
+      "sha256": "f3ad84d26a3a13f0a7ccd98aa39179bcee69386fe61c104c0152c45df5a57589",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-348-349.png": {
+      "sha256": "aa7db28696a0b65b579283b41509b85e79f5c1dc3c3e262d405a21306da45249",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-350-351.png": {
+      "sha256": "0013144628cccf93588ea8c262754141340100bc1660a03fbcdef16f6ea6cb55",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-352-353.png": {
+      "sha256": "db1930737bbaa96b61f1108058c58752435144ae4258f341bbd5f289f7c05c5c",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-354-355.png": {
+      "sha256": "3d3ed945c5b764ac2e1deb6241cb3a160a7e3287e6e740e19311a39a4437e3bb",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-370-371.png": {
+      "sha256": "2a1a38323682ab297d9fa9ea98ab4d1496b45ab892c630e4e9258da1651969dc",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-372-373.png": {
+      "sha256": "5bd14382d6a68b80633c7343b457b20a0fdb4f67c44034c5532b7f0949bd7663",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-374-375.png": {
+      "sha256": "fb071b7cd4ab86647bba304b79d15fbced4694bbde1c1ab3840ffb0ecc77651c",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-376-377.png": {
+      "sha256": "97a1efffebf1b37057e9c8bd4e5347940a4072fbbbb9d9e71fe2ce4bc8ced519",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-378-379.png": {
+      "sha256": "b07d5e9143289ebf10c99f57efd295cff08cedfb58f8be4fc48f3b4d453f6350",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-380-381.png": {
+      "sha256": "9205f63211a892c588292a5e81a2db927eb66a50f6b4d8223e2e6c8dca7239e6",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-382-383.png": {
+      "sha256": "9f7f4298861ddc0c082ca9eb677f7c65b49732a38c6b9a476c3d73759349db21",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-384-385.png": {
+      "sha256": "d979ec5e833a3703b17aa2649fe0793fd6248f34be421ce88c1935a8a03a5c81",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-390-391.png": {
+      "sha256": "2b9bc046b1f88df4cf29e5dd3418c1a445c3ede2d900057506160537f088eddd",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-392-393.png": {
+      "sha256": "5725e125cf9b5ed6494fccdbede8fecea0d53e27be10f6a6c278fa6208f0fc70",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-394-395.png": {
+      "sha256": "3940b83b24954361ee11cf72ff3d864f8438cbabe8ab538c6d29bab171efe150",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-396-397.png": {
+      "sha256": "31a8f69b075989f23ad59904df9bed6f82d2a560a93e28d6d34541b9b7f3d3f4",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-398-399.png": {
+      "sha256": "598dd02041c348d21569f56d966a980b0dc09d8b606552d8206dfdd597490958",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-402-403.png": {
+      "sha256": "78b65f089518c5f1c009f9e48128f16e4ca351cb8849cc1b124cece67c343dfc",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-404-405.png": {
+      "sha256": "c6c43c9fe1d1ec5c65b2851359455cc14b3379f21b0140fa4619ef12a2e08d61",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-406-407.png": {
+      "sha256": "daba7c2b7fb9612ff5f60b3ae28c77dd87047aaac0958a27f854ed4fdc513e28",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-412-413.png": {
+      "sha256": "ad36725cc3e7552eeaa6b614ff784d81443c7ba0ff134be58f38699446d17f61",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-414-415.png": {
+      "sha256": "c49988e856658ffc066e3afb5216a2e3b0a22c5c0dcf9536ebee2a4e2ccae5b3",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-418-419.png": {
+      "sha256": "fac5fdc1cd730f87fbc234884769990aeba3338ec5c30ca5193a45f1950e10b5",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-420-421.png": {
+      "sha256": "ba7dea6ebb7b8cdc632b7aed6f102080fdbcdaea7c22a5e14c145f2dabea38a6",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-422-423.png": {
+      "sha256": "7a2f962cdcb45a133322f675149a8e862f21906c898b0b81a117e506edca4158",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-454-455.png": {
+      "sha256": "c80e896a69cb436d48559938ad8f81b644dcbbbf9a597c1d0b3a939f76df1249",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-456-457.png": {
+      "sha256": "0f2a0349308ecf799c960710d67fa6d5f5ec78b7c5a4ea2e31b687892f1d7228",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-458-459.png": {
+      "sha256": "30ea929c9b370c84a467beed23aac0de00d6dcef187355f4c99ec6d2cf33e2dc",
+      "readers": [
+        "root",
+        "operator"
+      ]
+    },
+    "spread-460-461.png": {
+      "sha256": "b7198e742400ad9c509299a032a2eff0336a336f86dcc15d8d06d36b68bb6207",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-464-465.png": {
+      "sha256": "3d253e7e83535c9a56037bcf0af545b83144587dfb251bc1be2287cb825cf07b",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-466-467.png": {
+      "sha256": "eb02b2c54ee7177644436b66dee2f3b90ae29985cf8bcb157848f10b5598a445",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-478-479.png": {
+      "sha256": "66ac55e0c0b02bf7aefa71b6307a1bc5125795f744c6ad1e6bd4b92cc020b087",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-480-481.png": {
+      "sha256": "c42c7fed5337ea2942905c1d0438be00c9d37f2be6af6cc063ba46eec7ee3f28",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-482-483.png": {
+      "sha256": "d11d15933dcee46dc4b98a77db3593e8ea7405e5bd90a242a355c31ff0e1393f",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-484-485.png": {
+      "sha256": "25ec16d0eb15b56a413ef0730a5ad63018ea07ced244c095e109f688114d3cfa",
+      "readers": [
+        "root",
+        "operator"
+      ]
+    },
+    "spread-486-487.png": {
+      "sha256": "cfded704e50af09780b1e68a1df8cad85a448e981a2f3abc576a754b94c3ba32",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-488-489.png": {
+      "sha256": "25f87c5a265cb8c1b3a04627612dfa06dc3917972a9b9cd9cf1ee44fe18358b0",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-490-491.png": {
+      "sha256": "ed5c355cb7aa4917e996e2de8115f1f4fa12fae681acea6e69f48161385d0030",
+      "readers": [
+        "root",
+        "operator"
+      ]
+    },
+    "spread-492-493.png": {
+      "sha256": "0afd13414cb52087c31cb5a9df022a5b7cc592198af6ac4720472e4ddfb9ebf1",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-494-495.png": {
+      "sha256": "6af19169c66e8ad930f3b5cfe37f35860de33a346e4e6a346be4b85a0abf9df5",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-496-497.png": {
+      "sha256": "40d7299ab6d1826d6b119ec962d5865fbbbcfe74ea00bc2db190a934184d10e7",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-506-507.png": {
+      "sha256": "4549d9043a01b4a363db250aa47bee8dd6a13b859d0430dd77523d562d9c5f00",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-508-509.png": {
+      "sha256": "4d39f1c270b7269d0270e159b5c122933a76e503329269c52f6b7e886af18e8f",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-510-511.png": {
+      "sha256": "a07f76035995c5c839be594067bbe636679ff46754d60cc7ffb8f41ed123ec19",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-512-513.png": {
+      "sha256": "734df14ba485897c678e55950900663be951a9f9425725270fc437649c25fc2f",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-514-515.png": {
+      "sha256": "ad8d330ee620bd776a8fdd2f2e34065c395973bb98f6cd67f4dbd2f53ad01873",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-524-525.png": {
+      "sha256": "aedd5999f6df99a7000486b4c752451da59c0aedef290e72151b737308b43666",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-526-527.png": {
+      "sha256": "45479ac420a7b26f25bab4d71a9f0a101814e3cdf83c4170e70bf06b343b452d",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-532-533.png": {
+      "sha256": "53c65ed47f43392cddebc13d7f1fcdc76ac2b24fcbe5af88dabb296c47b5712f",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-534-535.png": {
+      "sha256": "d7cee3909b34e9b99c6861f4b18182ee20d7f4f2891c78e677626207ed14f4f8",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-554-555.png": {
+      "sha256": "52cb23e28c21427fb8cd70305ede6ae13739d6f4122e35e025e482ad72a2dce0",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-556-557.png": {
+      "sha256": "cd2656cc22350d17b916efd58fa5e75f600331012a37b6f3289e222970833275",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-568-569.png": {
+      "sha256": "db5312e3a6e8b85711506117e58da0c94d08998a69e14a16418313163f645063",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-570-571.png": {
+      "sha256": "dd40886f4d16f38cdc2da3d3666c2587c1bed44a7a8f1310286510bd36af0c0b",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-580-581.png": {
+      "sha256": "7b73f8d0a932351ce9f7d5e09c5c9e4e247d62536055951e74049a163f93d161",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-582-583.png": {
+      "sha256": "b193ab506a91b0e4ea4cc4ebe5dcc43b0a00fbbdf3438551be06699c2bdedb9a",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-586-587.png": {
+      "sha256": "d5fe4540df7ccc69d3acd145b64e9e758d9bb4170727500b86c83d3887831002",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-588-589.png": {
+      "sha256": "369d3f8c89f1cff7e3c7d4b49be13c5a9cdd190d5112ebe5437874b9ab8ecf8f",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-598-599.png": {
+      "sha256": "9f07e27f23024ef2d517b76005f27db3359ca863eca19afa6550d8a72b6404da",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-600-601.png": {
+      "sha256": "c00246278b80614c29184277e16be8343fd5f33cdc8cd04b095a5f885ec129f9",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-618-619.png": {
+      "sha256": "5e3d539688ebb7124388dbca9aa553b33a6e66f4a36666a26efa2a91a273dbc3",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-620-621.png": {
+      "sha256": "7a17994598468a1cdf9e4031c83209eeaf2296ff7b25caf6df11ff084425b546",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-634-635.png": {
+      "sha256": "a5dc5b16b334dd2454565d192268fef07a0660786c5351a582ee29334514e126",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-636-637.png": {
+      "sha256": "97cab9a5689dcd1a9e8c01928b28533a85e585fcd4dfbb847a16d7641c6755fb",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-638-639.png": {
+      "sha256": "3e3aed60ca1cedbd02f5808b5fac70a9d2b7c2d3f237fb141abac3cc3e40da55",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-640-641.png": {
+      "sha256": "d41fc26ab6fb2c0d98d574f39cb58816d995eeca1e6c8f5f0c45dc4895f67450",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-668-669.png": {
+      "sha256": "8951a63dabb36443f7d7f372c2c0ad1d86826413220896400e1eda3e426c25cd",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-670-671.png": {
+      "sha256": "c51af1ea6934ea8617432dfc29ce53d4095465f9ef163371753b149a4ab9f212",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-680-681.png": {
+      "sha256": "a8fca6b46a64a527ba443d20a313ee1143735e97d54f65437460e36ae13d7a3d",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-682-683.png": {
+      "sha256": "332401a8934a004f45f6fcc26a3b0199afd6d074048bba8dee34f947148f7fdf",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-684-685.png": {
+      "sha256": "9ae4921a1462040eca84071210649b7a31ed15c5ede506982087feb475a9ed96",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-686-687.png": {
+      "sha256": "05ec7b25f9a8528ff36a022a06086686e9521d781044d74b4641d880811c4109",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-688-689.png": {
+      "sha256": "2d61af944a223543ec4d544591cf856a9dc7f0b77cdfadc360ff49f2cb69d9cf",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-690-691.png": {
+      "sha256": "8290cc2e4706b0d432f3790593c4fac78203a3e6b0fa51be8d4b74bf689faf56",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-694-695.png": {
+      "sha256": "04fe814bd835f8d5d690c6f120fe1b22df3f5055c80e358632a11f4f899e78d9",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-696-697.png": {
+      "sha256": "18692b51808614db6b462a7fdcf5cbebfc7cd0ff6860eec9f18686c7e0ee95b1",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-704-705.png": {
+      "sha256": "ca864a55879eb6140dd6ebd4fb3efa28b7081d87e0c7abfdc5a87e557fc90f82",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-706-707.png": {
+      "sha256": "a7ff21791bcba7d0bba90439bc11a8ea2086151153b0a032a7337682bd93a598",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-712-713.png": {
+      "sha256": "e8c173a4087f0e6b972980b8a821004668eaa3f55e9a94be8fe76a1ce8a879ab",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-714-715.png": {
+      "sha256": "ee7f0913b733eb1ea2d5c7e304cf4a9fd2c7963b4656ff720c2a6b08eec17549",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-716-717.png": {
+      "sha256": "b95b97f9ddd6e28b3357f476cb523a388d2c404a6d8f5258863e75a10f727f53",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-718-719.png": {
+      "sha256": "fefaa3de7c889660ab9ad44b7e3a649a4df554a8a7e1c168aff97e1044525e63",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-720-721.png": {
+      "sha256": "5c51d6619686f4e9622c757b302850bbd5c9524b1d671ecbdc8f826b6ec92c90",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-722-723.png": {
+      "sha256": "f5be482aba3d07168697b4c51b770abe84be1538192ba5169dea9ccc8914b532",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-724-725.png": {
+      "sha256": "0992d06d738c80828e6cb83af0009f4afe53db5950b0e77063d9a44d01cb45c1",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-738-739.png": {
+      "sha256": "8cdc945430da84b80a4f853d620ae522e9c1496bbb21caf762244b46272791c9",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-740-741.png": {
+      "sha256": "2d5cda24f8bc098a2f059c1c6ef1d729c565b0b4322669e75033a3d1eb0e8152",
+      "readers": [
+        "root"
+      ]
+    },
+    "spread-760-761.png": {
+      "sha256": "ed0389469b6f55cd1620b35b3ae6e7ae43302fefb40952f74a8b73decd58dcc3",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-762-763.png": {
+      "sha256": "860c11e318a31bc546e638ad91f27be274662fadf562d809b6c71675040472a3",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-764-765.png": {
+      "sha256": "c8c55b07d6a1766c162f58eeb81a4d6f5cab2b319cb38ea8131402bfedb4f5ed",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-766-767.png": {
+      "sha256": "ed559c8bec2b32c66edbc5d87edc5b315755bb94cdbe2724b4cf5fab7afec6f1",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-768-769.png": {
+      "sha256": "c17b260ea92112b3c83c34f53d72398f29b063d3ea07b2571071bc59d606ce79",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-770-771.png": {
+      "sha256": "565d64de5a402dbb1b13c17eaf9d5ae773fc018e27aca76f7ab8eaceca393689",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-772-773.png": {
+      "sha256": "124dc837cf11e70950c8136c8aae939860c7c95888193039cc3a136ba4a92b84",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-774-775.png": {
+      "sha256": "bd6024719833e94ae55e2ce4b0f0cd0e8cdf448ae66a20ffb44b7007e68b0340",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-776-777.png": {
+      "sha256": "34866810bd594d3208eef1abbe21a8a3af47e4008a91239d44105683de1650e6",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-778-779.png": {
+      "sha256": "74821943893d835b3d6a7dc72515ac5e77209eb491b3f02bd95002419c96d1f4",
+      "readers": [
+        "operator"
+      ]
+    }
+  },
+  "limits": [
+    "Not an all-page aesthetic certification.",
+    "Visual atlas inventory is separately bound to its historical812-pagePDF."
+  ]
+}

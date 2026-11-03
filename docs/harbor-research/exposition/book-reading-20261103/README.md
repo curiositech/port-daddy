@@ -2,7 +2,7 @@
 
 The book is organized around one question: how can autonomous work remain accountable when processes fail, authority is delegated, and operators cannot inspect everything? A reader should encounter each abstraction as an answer to a concrete problem, then use it in a calculation, argument, or later mechanism.
 
-Four readers completed contiguous readings of all nine authored chapters, their exercises and deferred solutions, plus the volume front matter and concordance. The reports below record source hashes and reading intervals. They are evidence of the actual source pass; lint counts are only supporting checks. The 148 concept records describe substantive clusters, not every technical word or bibliographic name.
+Four readers completed contiguous readings of all nine authored chapters, their exercises and deferred solutions, plus the volume front matter and concordance. The reports below record source hashes and reading intervals. They are evidence of the actual source pass; lint counts are only supporting checks. The 152 concept records describe substantive clusters, not every technical word or bibliographic name.
 
 | Reading | The thread a reader follows | Where it is used again |
 |---|---|---|
@@ -30,6 +30,10 @@ Independent checks include exact finite arithmetic for the audit, extractive-sum
 
 ## Acceptance boundary
 
-Initial source checkpoint rebased onto merged PR#10336: `5170150e492a08aec44640edaf87dc7606248082`. Final render receipts identify their exact source snapshot. Generator regressions: 56 passed. Source book regressions: 160 collected, 117 passed and 43 correctly skipped without their rendered fixtures. Mathematical-boundary regressions: 26 passed. Citation/index consistency and all 14 propagation checks pass. Rendered checks, actual facing-spread inspection and publication receipts are recorded separately when completed.
+The locally accepted Book is 844 pages, built from source checkpoint `81a867d979e037458f6884b99bca3d3b0e9277c8` with the private Suisse profile. All 278 captured build inputs remained unchanged. The PDF hash is `977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212`. The [acceptance receipt](render-proof/acceptance.json) binds the source, fonts, rendered checks, navigation checks and selected visual reviews.
 
-The frozen published PDF is not replaced by a local candidate. Historical figure-blocker snapshots are neither current render verdicts nor permission to waive visual review. The family-design program and a complete external-citation/runtime audit remain separately scoped work. The authoritative status entry is `BOOK-TEXTBOOK-CRAFT-20261103` in the [Omni ledger](../../omni-ledger.json).
+Generator regressions: 73 passed. Book source regressions: 119 passed and 45 named fixture-only checks skipped; the separate rendered run passed 89 checks with five fixture-only skips. Mathematical-boundary regressions: 26 passed. Citation/index consistency and all 14 propagation checks pass. There are zero overfull boxes, unresolved references or detected page-turn split words. Every one of the 212 exercise destinations and 212 solution destinations matches its heading. These are separate suites, not additive claims of unique tests.
+
+Actual facing-spread inspection covers 133 selected spreads across 96 semantic targets, including every chapter opener and the changed teaching sequences. Exact image-byte matches permit reuse of recorded actual inspections; changed images were opened again. The [visual coverage record](render-proof/visual-coverage.json) enumerates that sample. Complete source reading is not an assertion that every rendered page received an aesthetic certification.
+
+The frozen published PDF is not replaced by this local candidate. Source review, hosted checks, source merge and the separately reviewed publication refresh have distinct receipts. Historical figure-blocker snapshots do not waive visual review. The family-design program and a complete external-citation/runtime audit remain separate work. The authoritative status entry is `BOOK-TEXTBOOK-CRAFT-20261103` in the [Omni ledger](../../omni-ledger.json).

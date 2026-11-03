@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T17:16:38.115724+00:00",
+  "source_head": "7565d20ddd9a9938bf9d9e930c8538dc3cdbbb4b",
+  "status": "bounded_independent_source_review_pass",
+  "scope": "Read the complete candidate18 deltas plus the unchanged Zoom Advantage theorem and proof, estimator-choice prose, and funded sponsor ceremony. No manuscript edits by this reviewer. This is bounded follow-through verification, not a new whole-Book read or final PDF acceptance.",
+  "input_sources": [
+    {
+      "path": "whitepaper/legible-swarm.tex",
+      "sha256": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
+      "delta_from_17_sha256": "fb10f3d7ca4f4c30189bc2a53c0b3d391e1928d9ab067ec7f151de9a4150905f",
+      "changed_since_17": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "4e59ea9dd18053696d699776eec10812b57c11b51d211052f9a28a0d592f036f",
+      "delta_from_17_sha256": "b992358b1b4e02f959120a1ae792f6ed7cca1ed4b8b63fa437de5957c2618751",
+      "changed_since_17": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-fh-sponsor-lifecycle.tex",
+      "sha256": "460f4cf30e27ebc20c61ab2b5f228880761cbe7d369c2b87ac3fa91cb2e35727",
+      "delta_from_17_sha256": "85341fa5e46fd4705bf5f01be66ef2ca944a86ada63a2da1fdaa800d420cb099",
+      "changed_since_17": true
+    },
+    {
+      "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "82db8d10d241fc0953083297d7714a22304c309cf7d4db77ff18b490ebca4549",
+      "delta_from_17_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "changed_since_17": false
+    }
+  ],
+  "findings_verified": [
+    {
+      "topic": "Sponsor graduation coverage",
+      "locations": [
+        "fh:sec:fh-sponsor",
+        "fig-fh-sponsor-lifecycle.tex"
+      ],
+      "resolution": "Diagram guard and cost row retain declared criteria, funded replacement bond, and permitted sponsor release. Caption describes shown paths without excluding extended probation or other exits. Read ceremony1190-1227 and viewed final fragment at150dpi.",
+      "portable_fragment_receipt": "sponsor-lifecycle/receipt.json",
+      "portable_fragment_receipt_sha256": "77f2e6ee901afcaba22479f34988f63d0ecf10da86adc94620f045f32eb40a04",
+      "png_sha256": "50d5b335ff1f4f13b1f9451d736011651675c75081010b12569672b314d5409e",
+      "remaining_scope": "Full-Book placement and caption adjacency require final18 rendered checks."
+    },
+    {
+      "topic": "Estimator exercise",
+      "locations": [
+        "ex:stp-bt-vs-elo-regime",
+        "sec:substrate"
+      ],
+      "resolution": "Retaining comparison history does not force batch Bradley-Terry or prove superiority over Elo. Stationarity, data separation, drift, refitting cost, latency and intended-task predictive performance govern the choice. Prompt and solution agree with unchanged chapter exposition."
+    },
+    {
+      "topic": "Live definition reference",
+      "locations": [
+        "ex:stp-resurrection-soundness",
+        "def:sanction-respecting"
+      ],
+      "resolution": "Removed stale chapter-number literals from prose; solution faithfully paraphrases script result with live reference. The747 enumerated states and mutant lengths1,2,2,2 are unchanged; no new model-checking execution is claimed here."
+    },
+    {
+      "topic": "Noisy zoom independence and cost",
+      "locations": [
+        "ex:ls-noisy-zoom-oracle",
+        "thm:zoom-advantage"
+      ],
+      "resolution": "Independent query errors, not distinct tool names, supply the repetition guarantee. No false positives means noisy traversal can only prune the deterministic noiseless tree; calls are bounded by rQ0. At-most-r cost overhead replaces the unsupported exact advantage ratio."
+    },
+    {
+      "topic": "Noisy zoom dense case and endpoints",
+      "locations": [
+        "ex:ls-noisy-zoom-oracle",
+        "thm:zoom-advantage"
+      ],
+      "resolution": "The theorem permits1<=k<=F. Full Q0=2k ceil(log2(F/k))+4k prevents the union-bound factor from vanishing at k=F. P(any loss)<=Q0 alpha^r, with r=ceil(log(Q0/epsilon)/log(1/alpha)) for0<alpha<1 and0<epsilon<1. Unknown k can use2F-1. Alpha0 requires one exact call; alpha1 supplies no finite guarantee. Per-group eta is explicitly in(0,1).",
+      "proof_scope": "Union bound is over a subset of the fixed noiseless query tree, bounded by Q0; independence bounds each positive-group false discard by alpha^r. No independent-node-events assumption is needed for the union bound.",
+      "exact_fraction_examples": [
+        {
+          "F": 1,
+          "k": 1,
+          "alpha": "1/10",
+          "epsilon": "1/100",
+          "Q0": 4,
+          "r": 3,
+          "whole_run_bound": "1/250",
+          "one_fewer_does_not_certify_this_bound": true
+        },
+        {
+          "F": 8,
+          "k": 8,
+          "alpha": "1/10",
+          "epsilon": "1/100",
+          "Q0": 32,
+          "r": 4,
+          "whole_run_bound": "2/625",
+          "one_fewer_does_not_certify_this_bound": true
+        },
+        {
+          "F": 2500,
+          "k": 10,
+          "alpha": "1/10",
+          "epsilon": "1/1000",
+          "Q0": 200,
+          "r": 6,
+          "whole_run_bound": "1/5000",
+          "one_fewer_does_not_certify_this_bound": true
+        }
+      ],
+      "arithmetic_scope": "Three independently recomputed parameter cases, including F=k. These illustrate the formula; they are not an exhaustive proof or an empirical agent experiment."
+    },
+    {
+      "topic": "Adjacent sparsity wording",
+      "locations": [
+        "ex:ls-b1-frontier-run"
+      ],
+      "resolution": "Sparsity is needed for the displayed guaranteed speedup, not for validity of the theorem itself."
+    }
+  ],
+  "source_checks_receipt": "source-checks.json",
+  "global_acceptance": "Pending final18 PDF convergence, registered rendered checks, navigation/page-turn audits and root editorial acceptance."
+}
