@@ -1,0 +1,185 @@
+{
+  "schema": "portable-ci-evidence/v1",
+  "created_utc": "2026-11-03T19:35:20.827824+00:00",
+  "source_checkpoint": "a6d91e18bacdb6d87d1cc888967ca996853a91e8",
+  "scope": "Archive of the pre-checkpoint full library run bound to607 exact input hashes, plus focused crop regression. Original receipts/logs are byte-preserved. Their historical base heads and absolute diagnostic paths are provenance, not current-head claims. Relative file entries here locate the portable copies.",
+  "counts": {
+    "library": {
+      "collected": 939,
+      "passed": 818,
+      "skipped": 121,
+      "failed": 0
+    },
+    "crop_skill_tests": {
+      "ran": 4,
+      "passed": 4
+    },
+    "negative_control": {
+      "tests": 1,
+      "expected_failure": 1
+    },
+    "skill_mirrors": {
+      "targets": 16,
+      "drift": 0
+    }
+  },
+  "files": [
+    {
+      "file": "library-full-receipt.json",
+      "sha256": "2ab3ce7f5e81cb05bc55ea8a2c97d71241a0e419653bdd8e6d737d3882130fa8",
+      "bytes": 3808,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/library-full-receipt.json"
+    },
+    {
+      "file": "input-manifest.json",
+      "sha256": "a714926bda3c09ee3b23ef1268e44d4e737f743312c60d9f783959a3ff098181",
+      "bytes": 78285,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/input-manifest.json"
+    },
+    {
+      "file": "library-full.log",
+      "sha256": "20f8a2e5900edd7d95879c13c671141091fa03eda2e40330310ef247600bbef8",
+      "bytes": 1769,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/library-full.log"
+    },
+    {
+      "file": "desk-freshness.json",
+      "sha256": "c62de4499d9924ac1c64f15144fe9ff950f90acd4ce21e7984d130bb6be96dab",
+      "bytes": 917,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/desk-freshness.json"
+    },
+    {
+      "file": "desk-write.log",
+      "sha256": "17e54d926b5a7f9241c01656bd92f14c425190e82fcb9fcbaa6ff278cba6465b",
+      "bytes": 724,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/desk-write.log"
+    },
+    {
+      "file": "desk-check.log",
+      "sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b",
+      "bytes": 40,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/desk-check.log"
+    },
+    {
+      "file": "crop/receipt.json",
+      "sha256": "a25f4688f72b18073f78ab64b0943d20a464e7b3ac1580b25e7ed0af853b83e0",
+      "bytes": 1839,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/figure-whitewash-crop-regression/receipt.json"
+    },
+    {
+      "file": "crop/rules.pdf",
+      "sha256": "2f20772bb5ef56747216a12876190d9e2519dd7f014c6b9d2d4d7209908913f1",
+      "bytes": 1171,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/figure-whitewash-crop-regression/rules.pdf"
+    },
+    {
+      "file": "crop/expected.png",
+      "sha256": "43e5bce20fafbd37b5a332cbebb1d86fabdfd716f0215ca6b591ead798073786",
+      "bytes": 535,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/figure-whitewash-crop-regression/expected.png"
+    },
+    {
+      "file": "crop/actual.png",
+      "sha256": "43e5bce20fafbd37b5a332cbebb1d86fabdfd716f0215ca6b591ead798073786",
+      "bytes": 535,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/figure-whitewash-crop-regression/actual.png"
+    },
+    {
+      "file": "crop/old-crop.png",
+      "sha256": "913e8dff6791224648738df1bb8742ba9222066fdcaa3a344039ae0f27e0415e",
+      "bytes": 357,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/figure-whitewash-crop-regression/old-crop.png"
+    },
+    {
+      "file": "crop/test.log",
+      "sha256": "6a128f07ba1f1c5637ab7a1b0fda294170412c1aad4b0a4b72f7e20a4bd7fe9a",
+      "bytes": 667,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/figure-whitewash-crop-regression/test.log"
+    },
+    {
+      "file": "crop/old-implementation-test.log",
+      "sha256": "65d07a83d412c170c1e654e66395853715a93ad77cafa63c544dfdd6f668fade",
+      "bytes": 834,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/figure-whitewash-crop-regression/old-implementation-test.log"
+    },
+    {
+      "file": "crop/skill-mirrors.log",
+      "sha256": "203b1af707548fbb09cfc5874fc22ee8754227cf1d48e154ad1246aa1e5fb13c",
+      "bytes": 1460,
+      "source_path_at_run": ".scratch/textbook-craft-20261103/figure-whitewash-crop-regression/skill-mirrors.log"
+    }
+  ],
+  "publication_boundary": "Source verification and synthetic/fragment evidence only. Candidate24 production PDF checks remain pending.",
+  "working_tree_input_equivalence": {
+    "matched": 607,
+    "changed": []
+  },
+  "committed_checkpoint_equivalence": {
+    "matched": 604,
+    "uncommitted_selected_inputs": [
+      "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+      "docs/harbor-research/exposition/figures/desk/data/FIGS.js",
+      "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js"
+    ],
+    "scope": "Only the three already-reviewed derived figure-desk outputs differ from committed a6d91e18. Library run binds their exact working-tree bytes; no claim all607 were committed."
+  },
+  "post_build_targeted_check": {
+    "receipt": "post-build-desk-receipt.json",
+    "sha256": "3c7169d69e51789a4366ef04386e3c898485fd96d45de7c6e5e16aaff8c57c9c",
+    "tests": 53,
+    "passed": 53,
+    "generator_inputs": "Committed publication PDF stays frozen; current candidate24 locator is recorded separately.",
+    "files": [
+      {
+        "file": "post-build-desk-0.log",
+        "sha256": "17e54d926b5a7f9241c01656bd92f14c425190e82fcb9fcbaa6ff278cba6465b",
+        "bytes": 724
+      },
+      {
+        "file": "post-build-desk-1.log",
+        "sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b",
+        "bytes": 40
+      },
+      {
+        "file": "post-build-desk-2.log",
+        "sha256": "476339fe7934990fc633c1382de6dd7e0c16f20cc7ea38a8af427e8dee4b774d",
+        "bytes": 7787
+      },
+      {
+        "file": "post-build-desk-receipt.json",
+        "sha256": "3c7169d69e51789a4366ef04386e3c898485fd96d45de7c6e5e16aaff8c57c9c",
+        "bytes": 2379
+      }
+    ]
+  },
+  "candidate25_targeted_desk_check": {
+    "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+    "receipt": "candidate25-desk/desk-receipt.json",
+    "sha256": "62ec1d076376e9de63cebba9ae1418a2da804fcd966dfb44c314def3345cf4d9",
+    "ran": 53,
+    "passed": 53,
+    "scope": "Layout-only source delta, derived metadata refreshed against frozen committed publication PDF; no full-suite rerun or locator override.",
+    "files": [
+      {
+        "file": "candidate25-desk/desk-0.log",
+        "sha256": "0ffd0ff7fb50641c1aef53a9e26833989fc18a753b5c64ae18c2d1b7f07281a1",
+        "bytes": 724
+      },
+      {
+        "file": "candidate25-desk/desk-1.log",
+        "sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b",
+        "bytes": 40
+      },
+      {
+        "file": "candidate25-desk/desk-2.log",
+        "sha256": "92d8cc2b8d991b83ac8663c63e9b64b9f3122bcc680c75acb2be314d3e32bcd8",
+        "bytes": 7788
+      },
+      {
+        "file": "candidate25-desk/desk-receipt.json",
+        "sha256": "62ec1d076376e9de63cebba9ae1418a2da804fcd966dfb44c314def3345cf4d9",
+        "bytes": 2258
+      }
+    ]
+  }
+}

@@ -92,8 +92,8 @@
           2434
         ]
       ],
-      "after_sha256": "04701b2cf32a3c1d0cb2c5c791bb729aca8c19c3be3cedb59e3bb5740a9d8510",
-      "after_lines": 2550,
+      "after_sha256": "945ece55bc2567eedc0d679bd88b2203709d62f4d145d27a17f9a531f76a14ee",
+      "after_lines": 2566,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
       "note": "Initial truncated combined preview was not counted."
@@ -743,10 +743,10 @@
       "receipt": ".scratch/textbook-craft-20261103/visual-reviewed-17.json"
     },
     "integrated_candidate": {
-      "source_commit": "81a867d979e037458f6884b99bca3d3b0e9277c8",
-      "source_input_count": 278,
-      "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
-      "bytes": 17652598,
+      "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
+      "source_input_count": 282,
+      "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+      "bytes": 17652139,
       "pages": 844,
       "xelatex_passes": 3,
       "log_checks": {
@@ -758,10 +758,10 @@
         "headheight_warning": 0
       },
       "rendered_tests": {
-        "run": 94,
-        "passed": 89,
-        "skipped": 5,
-        "skip_scope": "Fixture-only assertions with their environment unset; rendered candidate tests and source guards ran."
+        "run": 122,
+        "passed": 115,
+        "skipped": 7,
+        "skip_scope": "Fixture-only and before-comparison assertions with their environment unset; rendered candidate tests and source guards ran."
       },
       "registered_gates": {
         "per_pdf": 5,
@@ -772,23 +772,23 @@
         "exercise_labels": 212,
         "exercise_headings": 212,
         "exercise_navigation_issues": 0,
-        "margin_objects": 1465,
+        "margin_objects": 1464,
         "margin_issues": 0,
         "offpaper_loss_rows": 0,
         "safety_net_picture_advisories": 74,
-        "whitespace_review_pages": 95
+        "whitespace_review_pages": 96
       },
       "gallery": {
-        "targets": 96,
-        "spreads": 133,
+        "targets": 109,
+        "spreads": 148,
         "dpi": 150,
         "opener_source_matches": true
       },
       "all_font_sizes_compound_audit": {
         "schema": 1,
-        "created_at": "2026-11-03T17:31:34.504758+00:00",
-        "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
-        "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+        "created_at": "2026-11-03T19:56:49.133243+00:00",
+        "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+        "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
         "pages": 844,
         "method": "All font sizes; text lines inside Book body band (odd57.6–381.6pt/even122.4–446.4pt,3pt tolerance),55<y0<660pt. Final body line ends letter+ASCII/U2010/U2011/soft hyphen. Includes small protocol prose omitted by the older10pt minimum.",
         "status": "no_candidates",
@@ -800,9 +800,9 @@
           "This covers body-column page-turn endings, not every mid-page word break or all margin lines."
         ]
       },
-      "all_font_sizes_compound_receipt_sha256": "da163bba8cd8e1738ac94ab379c678709d8a2a2f753c099122621f61205c7a96",
-      "receipt": ".scratch/textbook-craft-20261103/candidate-acceptance-19.json",
-      "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-19.json"
+      "all_font_sizes_compound_receipt_sha256": "9f9b3b6cc46f313c3ced755fa56a7bbc10344246f70758914b287bc6ed6e1f42",
+      "receipt": ".scratch/textbook-craft-20261103/candidate-acceptance-25.json",
+      "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-25.json"
     },
     "admission_metrics_source_review": {
       "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
@@ -816,7 +816,7 @@
         1231
       ],
       "prompt_and_solution_label": "ex:fh-cold-start-admission",
-      "verdict": "Accepted within the explicitly stated data and identification limits. Rendered candidate20 verification pending.",
+      "verdict": "Accepted within the explicitly stated data and identification limits; exact prompt and solution spread targets accepted in candidate 25.",
       "checks": [
         "Complete-window, one-sponsor admission counts define shares and HHI only for n>0.",
         "Identical ten-admission log permits either ten requests/no refusals or one thousand requests/990 refusals.",
@@ -861,6 +861,11 @@
         "table_reference_types": {
           "thm:fh-conv": "Theorem",
           "thm:fh-escrow-bound": "Design invariant"
+        },
+        "final_render_verification": {
+          "candidate": "25",
+          "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+          "status": "Exact prompt, solution and status-table targets accepted in the owned visual receipt."
         }
       }
     },
@@ -875,8 +880,42 @@
         "label": "app:fh-tla",
         "source_sha256": "7871f858514a754c75a72f79ff700d0bd6be67688be2ee3057301af290ce9843",
         "line": 2062,
-        "scope": "Separate model filename, directory and configuration filename; every numerical and model-scope assertion is unchanged."
+        "scope": "Separate model filename, directory and configuration filename; every numerical and model-scope assertion is unchanged.",
+        "final_render_verification": {
+          "candidate": "25",
+          "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+          "status": "Actual artifact paragraph target and following pair accepted."
+        }
       }
+    },
+    "suisse_profile_hook_contexts": {
+      "receipt": "docs/harbor-research/exposition/book-reading-20261103/render-proof/suisse-hook-inertness.json",
+      "receipt_sha256": "073ad9193b7fa0a67fac20e7970c7218d6ace6804d2908f4bfccf874c6a1a0de",
+      "source_commit": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+      "pdf_sha256": "f656602b68bcfea855703c7704d28fef4d52bf198da102933ef98877799d6be0",
+      "hook_introduction_comparison": "8 of 8 context images identical in candidate22 relative to21; all eight actually inspected in22.",
+      "final_context_comparison": "7 identical images; the intentional SWK OP-5 teaching-summary revision is the single changed image and was directly inspected in23.",
+      "current_hook_snippets": "All four unchanged from the hook-introduction source.",
+      "coverage": "Four selected contexts and following pairs, not every page or the Source Sans proof."
+    },
+    "candidate22_visual_findings": {
+      "image": "spread-144-145.png",
+      "finding": "The SWK OP-5 summary omitted the conditional detection premise and trustworthy terminal adjudicator and conflated geometric contraction with bribery incentives.",
+      "source_repair": {
+        "owner": "craft_machine",
+        "source": "whitepaper/single-writer-kernel.tex",
+        "sha256": "27c1bbff970f1efd2a4a7fa869fd79538c8240ad9d7099c2c61d89926ef9315d",
+        "final_render_verification": {
+          "candidate": "23",
+          "pdf_sha256": "f656602b68bcfea855703c7704d28fef4d52bf198da102933ef98877799d6be0",
+          "status": "Changed following spread directly inspected and accepted; theorem reference, premise distinctions and layout are clear."
+        }
+      }
+    },
+    "paired_plot_repair": {
+      "receipt": "docs/harbor-research/exposition/book-reading-20261103/render-proof/paired-plot-pareto-repair.json",
+      "receipt_sha256": "4142c0dd338aead35cecd62e6291b35ce6e17127b64f90667762efd69a41858a",
+      "status": "source, simulation reproduction, three fragment editions and final Book placement accepted"
     }
   },
   "figure_followthrough": {
@@ -901,7 +940,7 @@
       "Conflict witness: only Horn-derived obligation is conditional; prohibition remains unconditional. False trigger arrow and all figure retellings corrected.",
       "Sponsor lifecycle graduation requires declared criteria and funded replacement; cost row names the replacement bond and caption scopes itself to depicted paths."
     ],
-    "render_status": "Final candidate 19: all eight delegated fragments compiled; 46 assigned selected spreads visually accepted at150dpi by direct view or exact byte comparison with direct-view receipts. Includes the assigned Ch6–8 sequences and Landmarks09–12; not every Book page.",
+    "render_status": "Final candidate 25: all eight delegated fragments compiled; 65 assigned selected spreads visually accepted at150dpi by direct view or exact byte comparison with direct-view receipts. Includes the assigned Ch6–8 sequences and Landmarks09–12; not every Book page.",
     "source_hashes": {
       "website-v2/public/whitepaper/figures/fig-he-conflict-witness.tex": "50b19c5ec18ead7b6e6c1616a56b9bc1933353f61fb2da37e806ade784799a57",
       "website-v2/public/whitepaper/figures/fig-fh-sponsor-lifecycle.tex": "460f4cf30e27ebc20c61ab2b5f228880761cbe7d369c2b87ac3fa91cb2e35727"
@@ -916,8 +955,8 @@
       "actual_png_inspection": "Completed at150dpi; conditional obligation/unconditional prohibition distinct, no collision. Final placed image accepted under final_book_placement.",
       "proof_directory": ".cache/conflict-witness-final-qa",
       "final_book_placement": {
-        "candidate": "19",
-        "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+        "candidate": "25",
+        "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
         "status": "Registered caption gate and assigned actual spread review passed."
       }
     },
@@ -943,8 +982,8 @@
       "visual_review": "Original-resolution150dpi PNG actually viewed; two-line transition guard and cost row fit, no clipping or collision.",
       "full_document_scope": "Fragment evidence is separate from full Book placement; final_book_placement records the passed caption gate and actual selected-spread review.",
       "final_book_placement": {
-        "candidate": "19",
-        "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+        "candidate": "25",
+        "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
         "status": "Registered caption gate and assigned actual spread review passed."
       }
     }

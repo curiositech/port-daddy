@@ -1,0 +1,65 @@
+{
+  "candidate": 25,
+  "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "created_at": "2026-11-03T19:56:15.453535+00:00",
+  "scope": "Derived figure metadata freshness for three local layout edits; committed publication PDF remains authoritative for bookPage.53 targeted tests, no full939-suite repeat.",
+  "changes": [
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/FIGS.js",
+      "before_sha256": "7e9bd27a65435d7a7b47389623d9b844cc0dadc2486d7781f4bc6d4a1c8f83ab",
+      "after_sha256": "f0247963a9a200d81adfd1ad3ff2280b8f5c4eedaa424c4ba18cba9c0111e963"
+    },
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+      "before_sha256": "dff4713b4858e772eba964e350a14346c8525a91b6ac9cb6bd7570adb7ebb750",
+      "after_sha256": "1bf3466563222fd3f848026c5a3ffee1996a1381b608af8634d23d6f113927f1"
+    }
+  ],
+  "results": [
+    {
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "scripts/harbor-research/build_figure_desk.py",
+        "--write"
+      ],
+      "exit_code": 0,
+      "seconds": 11.72,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate25/desk-0.log",
+      "sha256": "0ffd0ff7fb50641c1aef53a9e26833989fc18a753b5c64ae18c2d1b7f07281a1"
+    },
+    {
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "scripts/harbor-research/build_figure_desk.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 9.453,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate25/desk-1.log",
+      "sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b"
+    },
+    {
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/harbor-research",
+        "-p",
+        "test_build_figure_desk.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "seconds": 15.017,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate25/desk-2.log",
+      "sha256": "92d8cc2b8d991b83ac8663c63e9b64b9f3122bcc680c75acb2be314d3e32bcd8"
+    }
+  ],
+  "tests": {
+    "ran": 53,
+    "passed": 53
+  },
+  "published_pdf_sha256": "209a3e1fe3ebbb42a3879784bd751add43f543bfa00194b4053f5c6545efa6ae",
+  "pass": true
+}

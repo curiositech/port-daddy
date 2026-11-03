@@ -1,0 +1,71 @@
+{
+  "head_before": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+  "head_after": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+  "created_at": "2026-11-03T19:33:17.286962+00:00",
+  "scope": "Complete research-library discovery after two figure/prose corrections, reporting-only simulation footer and bounded crop repair. BOOK_* unset.607 selected inputs expand prior603 by crophelper/test and simulation/log; not a hermetic dependency declaration. Skill crop tests separately recorded, not summed.",
+  "input_files": 607,
+  "input_manifest": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/input-manifest.json",
+  "input_manifest_sha256": "a714926bda3c09ee3b23ef1268e44d4e737f743312c60d9f783959a3ff098181",
+  "changed_since_prior_run": [
+    "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+    "docs/harbor-research/exposition/figures/desk/data/FIGS.js",
+    "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js",
+    "proofs/bonded/pareto/simulation.mjs",
+    "proofs/bonded/pareto/simulation.run.log",
+    "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+    "skills/tikz-diagram-craft/tests/test_review_status.py",
+    "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+    "website-v2/public/whitepaper/figures/fig-pareto-dominance-tikz.tex",
+    "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+    "whitepaper/single-writer-kernel.tex"
+  ],
+  "changed_inputs_during_run": [],
+  "generated_desk_changes": [
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js",
+      "before_sha256": "b42bbc378c7256b593bf41b8b1126550cca48bd2cedd28f6736834e76d5b78cb",
+      "after_sha256": "12787d0e1d56159953797219ca5060c853289023954e9b341b6960c56b7edd9c"
+    },
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/FIGS.js",
+      "before_sha256": "226e3dc037a2661541155f08edd945eee0b2b1eecdc8269b7f0276c4b4cb19c9",
+      "after_sha256": "7e9bd27a65435d7a7b47389623d9b844cc0dadc2486d7781f4bc6d4a1c8f83ab"
+    },
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+      "before_sha256": "025b61f482481e2195bad61746ea8cf07d3273d23761f5333ea3cb7220a4b865",
+      "after_sha256": "dff4713b4858e772eba964e350a14346c8525a91b6ac9cb6bd7570adb7ebb750"
+    }
+  ],
+  "command": [
+    "/opt/anaconda3/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests/harbor-research"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 32.614,
+  "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/library-full.log",
+  "log_sha256": "20f8a2e5900edd7d95879c13c671141091fa03eda2e40330310ef247600bbef8",
+  "summary": [
+    "Fresh reproduction (NOT run-02): /Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/receipt-gap-tests/reproduction-qkad93ku/matrix/experiment-results.json",
+    "Fresh result SHA256: 23d54f61ec0f9999afc53fb4a4c90ee764061c1382ea9ed0729d76898bc278d3",
+    "...................s...s.................................................................ss....sssss........sss...sssssss..........sss..ssss...........ss...sss....sssssssss....s..s.......sss.sss........................",
+    "----------------------------------------------------------------------",
+    "Ran 939 tests in 32.141s",
+    "",
+    "OK (skipped=121)"
+  ],
+  "prior_passing_full_receipt": ".scratch/textbook-craft-20261103/pr10345/machine/candidate22/library-full-receipt.json",
+  "independent_review": "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate24-independent-review.json",
+  "pass": true,
+  "runner_note": "An initial inline-helper syntax error occurred before execution or file writes; corrected before this run.",
+  "counts": {
+    "collected": 939,
+    "passed": 818,
+    "skipped": 121,
+    "failed": 0
+  }
+}

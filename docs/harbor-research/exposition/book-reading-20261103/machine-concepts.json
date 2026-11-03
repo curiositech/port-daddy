@@ -101,7 +101,7 @@
           "scope": "Reread only the OP-5 paragraph and neighboring oracle-vocabulary prose, then the cited STP tower theorem/context and companion paper3 theorem/proof. Initial full-reading evidence remains unchanged.",
           "correction": "Distinguish conditional bribery and detection claims, name separately bribable candidate groups rather than levels, retain the detection bound after every history of misses and the trustworthy terminal adjudicator, and preserve oracle expressiveness as an open obligation.",
           "cross_reference": "stp:thm:tower-imported; Book-only numbered reference, standalone chapter-title fallback.",
-          "independent_patch_review": "Pending second reader; this agent authored the paragraph."
+          "independent_patch_review": "Passed by craft_operator_identity; exact source hashes, checks and limits are embedded in render-proof/candidate23-op5-review.json. Final rendered typography remains separate."
         }
       ]
     },

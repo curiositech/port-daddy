@@ -14,7 +14,7 @@ Primary checks used:
 - MCP specification2025-11-25 tools/resources/prompts: https://modelcontextprotocol.io/specification/2025-11-25/server/tools . Checked interface scope; no confinement guarantee inferred.
 - Claude Code hooks: https://code.claude.com/docs/en/hooks , accessed2026-11-03. PreToolUse exit2 is an explicit refusal; other errors depend on failure policy. StopFailure is notification, not a veto.
 
-Remaining acceptance: final rendered chapter pacing, examples/solutions back-links, cross-chapter consistency, exact-head source checks and hosted publication. Sequential source reading does not certify deployed runtime assertions or every external empirical claim. The canonical Omni ledger records this pass and the separate publication boundary.
+Local acceptance is recorded in render-proof/acceptance.json: the selected chapter pacing and examples were inspected, all exercise/solution destinations were checked, and exact source checks are bound to the recorded input hashes. Hosted source checks and publication remain separately tracked in PR #10345 and the canonical Omni ledger. Sequential source reading does not certify deployed runtime assertions or every external empirical claim.
 
 Independent second-reader findings resolved: authorized withdrawal is an explicit commitment release; an absent timeout receipt does not exclude an in-flight request; VCG report/allocation symbols are defined; full observation is an explicit control premise; qualitative scenes use ordinary paragraphs rather than numeric-example boxes; audit selection and conditional detection have separate meanings.
 

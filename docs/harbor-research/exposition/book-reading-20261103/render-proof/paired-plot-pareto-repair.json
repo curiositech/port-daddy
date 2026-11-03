@@ -1,0 +1,407 @@
+{
+  "status": "source, simulation reproduction, three fragment editions and final Book placement accepted",
+  "source_head_before_commit": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+  "owned_sources": {
+    "website-v2/public/whitepaper/agent-transactions-whitepaper.tex": {
+      "sha256": "945ece55bc2567eedc0d679bd88b2203709d62f4d145d27a17f9a531f76a14ee",
+      "lines": 2566
+    },
+    "website-v2/public/whitepaper/figures/fig-pareto-dominance-tikz.tex": {
+      "sha256": "f349a8b98dac1b896eb619ee4a28772e886c1c83cb1fc258779dc93f1fce9a89",
+      "lines": 62
+    }
+  },
+  "model_source": {
+    "path": "proofs/bonded/pareto/simulation.mjs",
+    "sha256": "0e49c27eaaab6d6f1041071a366245bb13e21f8315e60f9704b37faea34666e5",
+    "definition_lines": [
+      204,
+      207
+    ],
+    "rate_definition": [
+      "aggregate competitive principal cost < aggregate static cost",
+      "competitive commons receipts >=0.97 times static commons receipts",
+      "aggregate competitive insurer profit >=-0.05 times static principal cost"
+    ],
+    "interpretation": "Tolerance-based success; not exact Pareto dominance."
+  },
+  "reproduction": {
+    "command": "node proofs/bonded/pareto/simulation.mjs > .scratch/textbook-craft-20261103/paired-plot-audit/pareto-final-report.run.log",
+    "committed_log": "proofs/bonded/pareto/simulation.run.log",
+    "committed_log_sha256": "028e5f81c2d0528cdb864ad18687bb6f2221858ffbee8d6e90a959fc121895c0",
+    "fresh_log_sha256": "028e5f81c2d0528cdb864ad18687bb6f2221858ffbee8d6e90a959fc121895c0",
+    "byte_identical": true,
+    "configurations": 36,
+    "trials_per_configuration": 2000,
+    "transactions_per_trial": 50,
+    "rate_rounding_decimals": 3,
+    "initial_committed_log_sha256": "75f686a81199ab4d648551e6496735be231a69fff18de191f31b78baf815a7db",
+    "initial_fresh_log_sha256": "75f686a81199ab4d648551e6496735be231a69fff18de191f31b78baf815a7db"
+  },
+  "observed_slices": {
+    "n5_no_colluders": [
+      [
+        0,
+        0.861
+      ],
+      [
+        0.1,
+        0.675
+      ],
+      [
+        0.3,
+        0.006
+      ],
+      [
+        0.5,
+        0.002
+      ]
+    ],
+    "n5_noise_point3_by_colluders": [
+      [
+        0,
+        0.006
+      ],
+      [
+        1,
+        0.175
+      ],
+      [
+        3,
+        0.208
+      ]
+    ],
+    "zero_noise_zero_colluders_by_n": [
+      [
+        3,
+        0.906
+      ],
+      [
+        5,
+        0.861
+      ],
+      [
+        10,
+        0.739
+      ]
+    ]
+  },
+  "plotted_data_unchanged": {
+    "coordinate_sequences": 4,
+    "identical": true
+  },
+  "removed_interval_claim": {
+    "claim": "All Wilson95% intervals within\u00b10.02",
+    "counterexample_p": 0.675,
+    "n": 2000,
+    "z": 1.96,
+    "lower": 0.6541540136676932,
+    "upper": 0.6951749951721274,
+    "max_distance": 0.02084598633230683,
+    "disposition": "Removed from caption; intervals are not drawn and the stated envelope is false."
+  },
+  "removed_reference_line": "Unjustified0.5 threshold omitted; no pre-registered decision criterion is asserted.",
+  "fragment_command": "python3 skills/tikz-diagram-craft/scripts/book_figure_qa.py website-v2/public/whitepaper/figures/fig-pareto-dominance-tikz.tex website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex --editions swiss,maritime,technical --out .scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa --jobs 3",
+  "fragment_profiles": [
+    {
+      "edition": "swiss",
+      "pdf_sha256": "3d11136b6ac49d2eb523d86de423b57869d848538194952285e37f978e0c8da3",
+      "png_sha256": "ae83c9ac6712e5e2c127f306734ae5e74bce4bdebe221f399281cec406899b9f",
+      "figcheck_sha256": "98386a126bd9706c30b943e12174ce512bb547c6fc10c1d36cad2a17f4f0eadf",
+      "beauty_sha256": "c9a5e558c3ef2055af3f5bc082aebe8e272921142919957d8acaadc89a765c93",
+      "actual_view": "accepted",
+      "dpi": 150,
+      "actual_findings": "Actual final PNG opened: labels, plot marks and caption clear; no collisions or clipping. Pareto key includes both rules and correctly identifies all three series.",
+      "png": "docs/harbor-research/exposition/book-reading-20261103/render-proof/figures/fig-pareto-dominance-tikz-swiss.png",
+      "crop": {
+        "dpi": 150,
+        "method": "Fixed book_figure_qa.crop pipeline: expand degenerate drawing bounds by at least half the stroke width before Rect union, preserve furniture filters and6pt padding.",
+        "pipeline_source": "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+        "pipeline_sha256": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+        "includes_bottom_rule": true
+      },
+      "warning_disposition": "Maritime B7 compares labels with different semantic roles; actual view confirms separation. Other two profiles have no beauty warnings."
+    },
+    {
+      "edition": "maritime",
+      "pdf_sha256": "3a0ea847ad35c839ddd667770b45c341bc2e280b71355f30c2aa6f0693453d8a",
+      "png_sha256": "09c0d04046d32caec32401719a25a7460d11f21c0d73b6eec062cc9ba97d036c",
+      "figcheck_sha256": "872e2adcccae4e13057af32ab8e572d6b0fd61247369295b74e6915e803167fb",
+      "beauty_sha256": "e9e18d15b47a00532639cf8a44a9b64eaeb8c99079c43fe185ecdf0809421bb9",
+      "actual_view": "accepted",
+      "dpi": 150,
+      "actual_findings": "Actual final PNG opened: labels, plot marks and caption clear; no collisions or clipping. Pareto key includes both rules and correctly identifies all three series.",
+      "png": "docs/harbor-research/exposition/book-reading-20261103/render-proof/figures/fig-pareto-dominance-tikz-maritime.png",
+      "crop": {
+        "dpi": 150,
+        "method": "Fixed book_figure_qa.crop pipeline: expand degenerate drawing bounds by at least half the stroke width before Rect union, preserve furniture filters and6pt padding.",
+        "pipeline_source": "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+        "pipeline_sha256": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+        "includes_bottom_rule": true
+      },
+      "warning_disposition": "Maritime B7 compares labels with different semantic roles; actual view confirms separation. Other two profiles have no beauty warnings."
+    },
+    {
+      "edition": "technical",
+      "pdf_sha256": "2e491e52b74a30bae8e40c81ce713e542a8291b80f0422fb632a034d86410944",
+      "png_sha256": "1bb57e708f1920650fe5ddca0fa8c341fbe08af9973e8c5fc35797cf99af4286",
+      "figcheck_sha256": "2c5dd0e5e3b3ff3d832b1d2f4147c454834ab74caec4b30d1b7e7098193418ec",
+      "beauty_sha256": "c9a5e558c3ef2055af3f5bc082aebe8e272921142919957d8acaadc89a765c93",
+      "actual_view": "accepted",
+      "dpi": 150,
+      "actual_findings": "Actual final PNG opened: labels, plot marks and caption clear; no collisions or clipping. Pareto key includes both rules and correctly identifies all three series.",
+      "png": "docs/harbor-research/exposition/book-reading-20261103/render-proof/figures/fig-pareto-dominance-tikz-technical.png",
+      "crop": {
+        "dpi": 150,
+        "method": "Fixed book_figure_qa.crop pipeline: expand degenerate drawing bounds by at least half the stroke width before Rect union, preserve furniture filters and6pt padding.",
+        "pipeline_source": "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+        "pipeline_sha256": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+        "includes_bottom_rule": true
+      },
+      "warning_disposition": "Maritime B7 compares labels with different semantic roles; actual view confirms separation. Other two profiles have no beauty warnings."
+    }
+  ],
+  "scope": "Bounded paired-plot data/prose, labeling and dependent artifact-reporting repair. No simulation algorithm, input, plotted value, shared figure-language file or tracked publication PDF changed.",
+  "crop_finding": "The shared QA crop ignored zero-height horizontal-path rectangles during Rect union, omitting the bottom key rule from its PNG. The PDF contains both rules. Final exposed PNGs are regenerated through the fixed shared crop pipeline; original crop hashes are retained. No figure source change was needed.",
+  "reporting_footer_repair": {
+    "scope": "Only console reporting and a report-only baseline summary accumulator; no simulation inputs, seeds, trial computation, rates or data rows changed.",
+    "script_before_sha256": "0363a8612260bd752cce04229094cbcb4133d94f0479e8a709a2ead699aa7b6a",
+    "script_after_sha256": "0e49c27eaaab6d6f1041071a366245bb13e21f8315e60f9704b37faea34666e5",
+    "log_before_sha256": "75f686a81199ab4d648551e6496735be231a69fff18de191f31b78baf815a7db",
+    "log_after_sha256": "028e5f81c2d0528cdb864ad18687bb6f2221858ffbee8d6e90a959fc121895c0",
+    "numeric_rows_identical": true,
+    "numeric_row_count": 36,
+    "scientific_functions_and_trial_loop_byte_identical": true,
+    "baseline_summary": "n=3:0.906; n=5:0.861; n=10:0.739, computed from observed accumulated counts.",
+    "footer_interpretation": "Tolerance-based frequencies; no theorem confirmation or general Pareto guarantee.",
+    "regeneration_command": "node proofs/bonded/pareto/simulation.mjs > .scratch/textbook-craft-20261103/paired-plot-audit/pareto-final-report.run.log; verified all numeric rows, then copied to proofs/bonded/pareto/simulation.run.log",
+    "parameter_glosses": "sigma_r is simulated reputation noise; cartelSize counts simulated colluding insurers. No untested deployment mechanism is asserted."
+  },
+  "layout_followthrough": {
+    "diagnostic_candidate": "24",
+    "source_commit": "a6d91e18bacdb6d87d1cc888967ca996853a91e8",
+    "pdf_sha256": "f7c077d4b36c80ee7c0694d6083a8497d1d9578190d2e12a3b08054bd45fb314",
+    "observed_defects": [
+      {
+        "figure": "7.8",
+        "pdf_page": 629,
+        "owner_width_pt": 328.34,
+        "body_width_pt": 324,
+        "repair": "Each panel width4.3\u21924.2cm; fonts, gap, key and data retained."
+      },
+      {
+        "figure": "7.11",
+        "pdf_page": 631,
+        "caption_top_pt": 409.74,
+        "owner_top_pt": 436.03,
+        "repair": "Concise caption preserves all premises, V_C=pi_D, equation, region labels, sample values and model-only limitation; placement remainsH."
+      }
+    ],
+    "prior_figure_sha256": "2104fd6472a73cea4b2070816e61a2b84573ce4c84679f4e093db84f9d9fa367",
+    "prior_fragment_profiles": [
+      {
+        "edition": "swiss",
+        "pdf_sha256": "d15bf1544df0fbdfb36e98fbe54bbbad7451ffecbd7c65432645bd706c864a25",
+        "png": "docs/harbor-research/exposition/book-reading-20261103/render-proof/figures/fig-pareto-dominance-tikz-swiss.png",
+        "png_sha256": "1ef3f5a21f4caa120b8a5dcaeeb7b38a4180b1b7730172ac14d4d36d730ac914",
+        "figcheck_sha256": "55c9f327eeaf6ca8e78a20b307dd2162b9552f93aa9cca7f173d292055f26f86",
+        "beauty_sha256": "65311f57e9cdb06ae41ab21865176e24255c32afc5c74f4da05d028037535732",
+        "actual_view": "accepted",
+        "actual_findings": "Distinct A/B panels, no text collision, all three series labeled; shared key matches each plotted hue and mark; caption is compact.",
+        "warning_disposition": "B7 compares an axis-label center with a legend entry on a different row; those roles do not share a required alignment and remain visibly separated.",
+        "original_qa_crop_sha256": "3fc9b5164104336fab13a0bc3caba512f5a531a56bbb1872465d6fa185d01f74",
+        "crop": {
+          "dpi": 150,
+          "method": "Fixed book_figure_qa.crop pipeline: expand degenerate drawing bounds by at least half the stroke width before Rect union, preserve furniture filters and6pt padding.",
+          "pipeline_source": "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+          "pipeline_sha256": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+          "includes_bottom_rule": true
+        }
+      },
+      {
+        "edition": "maritime",
+        "pdf_sha256": "3b03e5e27d1baff1253314b46fec9daa0bcbc837c4a275db48b6f42561b1f0a8",
+        "png": "docs/harbor-research/exposition/book-reading-20261103/render-proof/figures/fig-pareto-dominance-tikz-maritime.png",
+        "png_sha256": "7fa0482bf916b8a80963f331f4f0f9a1d7633a72d970369187698a814bb158e2",
+        "figcheck_sha256": "93f85571a0739ed8d9002ccad0c1eaacf89bbf6ade259e37d7b599dd972f8e27",
+        "beauty_sha256": "d7d0c9aa48b011d1a652c485e2560afc0323bda113d72ac1d0e10e6e4fcc04a5",
+        "actual_view": "accepted",
+        "actual_findings": "Distinct A/B panels, no text collision, all three series labeled; shared key matches each plotted hue and mark; caption is compact.",
+        "warning_disposition": "B7 compares an axis-label center with a legend entry on a different row; those roles do not share a required alignment and remain visibly separated.",
+        "original_qa_crop_sha256": "dd920337f9fefe317b276e2dc057c4ecf0a8ae53aea1fff7f246bb1e0a1e9c90",
+        "crop": {
+          "dpi": 150,
+          "method": "Fixed book_figure_qa.crop pipeline: expand degenerate drawing bounds by at least half the stroke width before Rect union, preserve furniture filters and6pt padding.",
+          "pipeline_source": "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+          "pipeline_sha256": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+          "includes_bottom_rule": true
+        }
+      },
+      {
+        "edition": "technical",
+        "pdf_sha256": "16e824b09e4217a1a0e1d904c7f88cc5cd92d994f8e71ea7653afc924c2d1420",
+        "png": "docs/harbor-research/exposition/book-reading-20261103/render-proof/figures/fig-pareto-dominance-tikz-technical.png",
+        "png_sha256": "e0b1f46fe887a6df03a66460a904ff4666d6b014278020360fd6c6c3576ee818",
+        "figcheck_sha256": "56822c345edc76aab60eae3e9912a9069b24b3ad101c1b076d8dd9ed538693c3",
+        "beauty_sha256": "aff904919d8ef90841d104506e765b53937f4685900f8dd7980aba827f104cf5",
+        "actual_view": "accepted",
+        "actual_findings": "Distinct A/B panels, no text collision, all three series labeled; shared key matches each plotted hue and mark; caption is compact.",
+        "warning_disposition": "B7 compares an axis-label center with a legend entry on a different row; those roles do not share a required alignment and remain visibly separated.",
+        "original_qa_crop_sha256": "149f5d027900df3007b6660ce8279863e8109468d1ca1d3db5530ff74cf2202c",
+        "crop": {
+          "dpi": 150,
+          "method": "Fixed book_figure_qa.crop pipeline: expand degenerate drawing bounds by at least half the stroke width before Rect union, preserve furniture filters and6pt padding.",
+          "pipeline_source": "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+          "pipeline_sha256": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+          "includes_bottom_rule": true
+        }
+      }
+    ],
+    "production_verdict": "Resolved and accepted in candidate25; exact geometry and actual spread hashes recorded under production_placement.",
+    "cartel_figure": {
+      "source": "website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex",
+      "sha256": "63d34caa977d04727a1c0baa459c08451a743eb3ec5117db1254f4b4409f6415",
+      "profiles": [
+        {
+          "edition": "swiss",
+          "pdf_sha256": "d6badc19e18f4e08049f35084bed38c7b9ed792445cab5a1073cb196474760da",
+          "png_sha256": "a896ebefa510e4152750b7dbdf543f95fcf396e250fb6597883848be34d09199",
+          "figcheck_sha256": "84390a9c5a185f539c7be5969940ba51f9e731b7a505c828997cb2620c00e37e",
+          "beauty_sha256": "8c8d450d42c7b2f99009833e0ac956ec132960ae479a601be833cafb1e78b027",
+          "actual_view": "accepted",
+          "dpi": 150,
+          "actual_findings": "Actual final PNG opened: labels, plot marks and caption clear; no collisions or clipping. Pareto key includes both rules and correctly identifies all three series.",
+          "png": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/swiss/fig-cartel-game-inline/fig-cartel-game-inline.png"
+        },
+        {
+          "edition": "maritime",
+          "pdf_sha256": "7ac1961e95993d997e5c0511081f9cc015432cbf2641a11ece80a5c6b15ac2f7",
+          "png_sha256": "7b88021935d6eb73994acd3999071c6b73160d5d8cd73c6a0b7d159afa639105",
+          "figcheck_sha256": "0314b8ffce29452e7d3c7d2e81ef4a0c77ec91ace0546b2fb56ee2e667f624a1",
+          "beauty_sha256": "8c8d450d42c7b2f99009833e0ac956ec132960ae479a601be833cafb1e78b027",
+          "actual_view": "accepted",
+          "dpi": 150,
+          "actual_findings": "Actual final PNG opened: labels, plot marks and caption clear; no collisions or clipping. Pareto key includes both rules and correctly identifies all three series.",
+          "png": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/maritime/fig-cartel-game-inline/fig-cartel-game-inline.png"
+        },
+        {
+          "edition": "technical",
+          "pdf_sha256": "2a0732e4777574a35a952b34c0b90f8076b7c24705af8aa22bc8bcce1c4b456b",
+          "png_sha256": "cae5db54a6d4645e24b5ac57c6cb9dc31154ed4b0225776e5ac15bfd4d24f3a2",
+          "figcheck_sha256": "fb6818b9ba92d43ad03afee6ae766332f12ad337ec9bec110d2ce681aa866914",
+          "beauty_sha256": "8c8d450d42c7b2f99009833e0ac956ec132960ae479a601be833cafb1e78b027",
+          "actual_view": "accepted",
+          "dpi": 150,
+          "actual_findings": "Actual final PNG opened: labels, plot marks and caption clear; no collisions or clipping. Pareto key includes both rules and correctly identifies all three series.",
+          "png": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/technical/fig-cartel-game-inline/fig-cartel-game-inline.png"
+        }
+      ]
+    }
+  },
+  "production_placement": {
+    "candidate": "25",
+    "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
+    "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+    "pdf_pages": [
+      628,
+      629,
+      630,
+      631,
+      632,
+      633
+    ],
+    "dpi": 150,
+    "spreads": [
+      {
+        "image": "spread-628-629.png",
+        "sha256": "043641ce6b87de777566d463dbe0589deecdce9daa627d63a14401b31efca5d4",
+        "prior_direct_view": null,
+        "status": "directly-inspected-accepted",
+        "review": "Tolerance-based metric and finite trial scope agree with plotted rates; all three series keyed; paired plot fits body column with clear margin caption."
+      },
+      {
+        "image": "spread-630-631.png",
+        "sha256": "31f1d03337d11b4d26e5cf0e7fc93b8cf3c263d4c35971c702d3f333c9a20a0a",
+        "prior_direct_view": null,
+        "status": "directly-inspected-accepted",
+        "review": "Cartel caption aligns exactly with its owner; all premises, boundary identity, formula and model-only limits retained. Adjacent deposit model and plot remain clear."
+      },
+      {
+        "image": "spread-632-633.png",
+        "sha256": "1b9b3c063c0bdc0d6a02d68c67406643609e2f7e952354b482df937296d6f533",
+        "prior_direct_view": null,
+        "status": "directly-inspected-accepted",
+        "review": "Following recurrence, threshold table and grid align with their stated model; caption and next taxonomy heading read clearly."
+      }
+    ],
+    "registered_geometry": [
+      {
+        "kind": "figure",
+        "number": "7.8",
+        "pdf_page": 629,
+        "folio": "605",
+        "side": "R",
+        "labels": [
+          "bonded:fig:pareto-mc-inline"
+        ],
+        "rects": [
+          [
+            396.0,
+            61.2,
+            488.1,
+            205.99
+          ]
+        ],
+        "exhibit_rect": [
+          57.6,
+          61.2,
+          381.6,
+          266.59
+        ],
+        "registered_caption_rect": [
+          396.0,
+          61.2,
+          489.6,
+          205.99
+        ],
+        "adjacency_checked": true,
+        "issues": []
+      },
+      {
+        "kind": "figure",
+        "number": "7.11",
+        "pdf_page": 631,
+        "folio": "607",
+        "side": "R",
+        "labels": [
+          "bonded:fig:cartel-game-inline"
+        ],
+        "rects": [
+          [
+            396.0,
+            436.03,
+            488.56,
+            617.22
+          ]
+        ],
+        "exhibit_rect": [
+          57.6,
+          436.03,
+          381.6,
+          615.41
+        ],
+        "registered_caption_rect": [
+          396.0,
+          436.03,
+          489.6,
+          617.22
+        ],
+        "adjacency_checked": true,
+        "issues": []
+      }
+    ],
+    "verdict": "All three full production spreads actually inspected; data/prose/key match, width and caption adjacency gates pass; following model exposition remains coherent.",
+    "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-25.json",
+    "visual_receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+  }
+}

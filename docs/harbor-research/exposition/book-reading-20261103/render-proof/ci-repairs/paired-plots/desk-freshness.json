@@ -1,0 +1,21 @@
+{
+  "base_head": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+  "changed": [
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js",
+      "before_sha256": "b42bbc378c7256b593bf41b8b1126550cca48bd2cedd28f6736834e76d5b78cb",
+      "after_sha256": "12787d0e1d56159953797219ca5060c853289023954e9b341b6960c56b7edd9c"
+    },
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/FIGS.js",
+      "before_sha256": "226e3dc037a2661541155f08edd945eee0b2b1eecdc8269b7f0276c4b4cb19c9",
+      "after_sha256": "7e9bd27a65435d7a7b47389623d9b844cc0dadc2486d7781f4bc6d4a1c8f83ab"
+    },
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+      "before_sha256": "025b61f482481e2195bad61746ea8cf07d3273d23761f5333ea3cb7220a4b865",
+      "after_sha256": "dff4713b4858e772eba964e350a14346c8525a91b6ac9cb6bd7570adb7ebb750"
+    }
+  ],
+  "check_exit_code": 0
+}

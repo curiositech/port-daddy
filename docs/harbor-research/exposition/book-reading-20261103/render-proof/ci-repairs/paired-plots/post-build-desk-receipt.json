@@ -1,0 +1,64 @@
+{
+  "source_head": "a6d91e18bacdb6d87d1cc888967ca996853a91e8",
+  "pdf_sha256": "f7c077d4b36c80ee7c0694d6083a8497d1d9578190d2e12a3b08054bd45fb314",
+  "scope": "Post-build derived figure-desk page/caption refresh and targeted builder tests. Prior complete939-test receipt remains bound to its pre-build607-input manifest; no broad suite repeated.",
+  "changes": [],
+  "results": [
+    {
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "scripts/harbor-research/build_figure_desk.py",
+        "--write"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 4.96,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/final24-desk-0.log",
+      "sha256": "17e54d926b5a7f9241c01656bd92f14c425190e82fcb9fcbaa6ff278cba6465b"
+    },
+    {
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "scripts/harbor-research/build_figure_desk.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 3.951,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/final24-desk-1.log",
+      "sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b"
+    },
+    {
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/harbor-research",
+        "-p",
+        "test_build_figure_desk.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 7.842,
+      "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate24/final24-desk-2.log",
+      "sha256": "476339fe7934990fc633c1382de6dd7e0c16f20cc7ea38a8af427e8dee4b774d"
+    }
+  ],
+  "pass": true,
+  "targeted_tests": {
+    "ran": 53,
+    "passed": 53
+  },
+  "locator_boundary": {
+    "generator_pdf": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+    "book_page": null,
+    "why": "Generator reads committed publication PDF, which remains frozen; changing local cache does not update that artifact. Root directs preserving truthful null until publication artifact worktree promotion.",
+    "candidate24_verified_locator": {
+      "figure": "7.8",
+      "physical_page": 629,
+      "folio": "605",
+      "pdf_sha256": "f7c077d4b36c80ee7c0694d6083a8497d1d9578190d2e12a3b08054bd45fb314"
+    },
+    "next_action": "Regenerate after accepted PDF is promoted in the separate publication artifact worktree."
+  }
+}

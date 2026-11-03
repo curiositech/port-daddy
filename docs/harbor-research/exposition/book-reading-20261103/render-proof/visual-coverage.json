@@ -1,9 +1,9 @@
 {
-  "source_commit": "81a867d979e037458f6884b99bca3d3b0e9277c8",
-  "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+  "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
   "status": "all selected spreads covered",
-  "targets": 96,
-  "unique_spreads": 133,
+  "targets": 109,
+  "unique_spreads": 148,
   "dpi": 150,
   "inspection": "Actual image views, or exact byte identity with recorded actual views. Complete source reading is separate from selected rendered inspection.",
   "all_chapter_openers": true,
@@ -110,6 +110,18 @@
         "markets"
       ]
     },
+    "spread-142-143.png": {
+      "sha256": "4a11b31fd6da523792088e400d058a4e7688d883ea027665e53705e8f3696537",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-144-145.png": {
+      "sha256": "fbe1cdb795b9edb5ab42cd6aeaa12d98fe134d0efb65f28ea02895a01beb3616",
+      "readers": [
+        "markets"
+      ]
+    },
     "spread-190-191.png": {
       "sha256": "94d18c3a0cdc2db12c78472c49300a4b3a1a72747d0a60c2fc5d78c69d4308b6",
       "readers": [
@@ -143,7 +155,14 @@
     "spread-252-253.png": {
       "sha256": "d74c4fd2b44f79731dd9b6823349b2637acf28c61c9d495d2ede06591d5a0e18",
       "readers": [
-        "root"
+        "root",
+        "markets"
+      ]
+    },
+    "spread-254-255.png": {
+      "sha256": "c3bf2b0faf6fb95bb9726d980bf2ad663e6e714f1f5465b7b09d88e4f9e55283",
+      "readers": [
+        "markets"
       ]
     },
     "spread-264-265.png": {
@@ -155,7 +174,14 @@
     "spread-266-267.png": {
       "sha256": "c506fbdb8f6e38f6ed6267d3c922b269cbc86aaa43fb29b18bf37eae318b176a",
       "readers": [
-        "operator"
+        "operator",
+        "markets"
+      ]
+    },
+    "spread-268-269.png": {
+      "sha256": "6e1cde47bb07caf4650f95598e1b680577e305ad16544f7e79bc0609d6873cc9",
+      "readers": [
+        "markets"
       ]
     },
     "spread-284-285.png": {
@@ -374,10 +400,32 @@
         "root"
       ]
     },
+    "spread-444-445.png": {
+      "sha256": "bf49533ec036e54077cfc4b8996584ba37fb46c3fa49fc14cd916f35f25263d0",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-446-447.png": {
+      "sha256": "84c4cec77237db4b7af7b8ef3cad824dde6f097f12d08fcc2ef1ee1cf0488b81",
+      "readers": [
+        "markets"
+      ]
+    },
+    "spread-452-453.png": {
+      "sha256": "387c2f21d9940d9b8f0083ffe138e710f21822c3a9ee1d3b042c309e1f6122a8",
+      "readers": [
+        "root",
+        "operator",
+        "markets"
+      ]
+    },
     "spread-454-455.png": {
       "sha256": "c80e896a69cb436d48559938ad8f81b644dcbbbf9a597c1d0b3a939f76df1249",
       "readers": [
-        "root"
+        "root",
+        "operator",
+        "markets"
       ]
     },
     "spread-456-457.png": {
@@ -588,7 +636,7 @@
       ]
     },
     "spread-618-619.png": {
-      "sha256": "5e3d539688ebb7124388dbca9aa553b33a6e66f4a36666a26efa2a91a273dbc3",
+      "sha256": "5e4293e4e554d432d459c8a598b4243d91373634098e4b0e7aba35d6424770f5",
       "readers": [
         "markets"
       ]
@@ -599,26 +647,46 @@
         "markets"
       ]
     },
+    "spread-628-629.png": {
+      "sha256": "043641ce6b87de777566d463dbe0589deecdce9daa627d63a14401b31efca5d4",
+      "readers": [
+        "root",
+        "markets"
+      ]
+    },
+    "spread-630-631.png": {
+      "sha256": "31f1d03337d11b4d26e5cf0e7fc93b8cf3c263d4c35971c702d3f333c9a20a0a",
+      "readers": [
+        "root",
+        "markets"
+      ]
+    },
+    "spread-632-633.png": {
+      "sha256": "1b9b3c063c0bdc0d6a02d68c67406643609e2f7e952354b482df937296d6f533",
+      "readers": [
+        "markets"
+      ]
+    },
     "spread-634-635.png": {
-      "sha256": "a5dc5b16b334dd2454565d192268fef07a0660786c5351a582ee29334514e126",
+      "sha256": "695f59e320afaf05a27fc6941244f9d28f29c884af32438a87c0a03d2e3b6915",
       "readers": [
         "markets"
       ]
     },
     "spread-636-637.png": {
-      "sha256": "97cab9a5689dcd1a9e8c01928b28533a85e585fcd4dfbb847a16d7641c6755fb",
+      "sha256": "423ad4437a4b4d3e9bd4906b04d177645628d74fc7576cb0b3a6882aed7005b6",
       "readers": [
         "markets"
       ]
     },
     "spread-638-639.png": {
-      "sha256": "3e3aed60ca1cedbd02f5808b5fac70a9d2b7c2d3f237fb141abac3cc3e40da55",
+      "sha256": "9a083b4675eaa2578c03b511f39c157543edfb1405a3a77a7c03d4920f9607fd",
       "readers": [
         "markets"
       ]
     },
     "spread-640-641.png": {
-      "sha256": "d41fc26ab6fb2c0d98d574f39cb58816d995eeca1e6c8f5f0c45dc4895f67450",
+      "sha256": "bf8496285fa8d8fcd2164ef284a097da39c12a3de7f7cdf01efdb5130907680e",
       "readers": [
         "markets"
       ]
@@ -737,10 +805,32 @@
         "markets"
       ]
     },
+    "spread-732-733.png": {
+      "sha256": "0ad2a85aed1ddb55ddd9ba088e1772a554b691a380a7e81b3d37036bc562bb87",
+      "readers": [
+        "root",
+        "markets"
+      ]
+    },
+    "spread-734-735.png": {
+      "sha256": "bd3d729705355091dd7d800151731f7cc5f4c91dbb1c94027fff73e49a5e1e55",
+      "readers": [
+        "root",
+        "markets"
+      ]
+    },
+    "spread-736-737.png": {
+      "sha256": "ea6b35652e0a10f02ed395ff74f51d401c1e8ca173bcc680a2b5fe44686ccb1d",
+      "readers": [
+        "root",
+        "markets"
+      ]
+    },
     "spread-738-739.png": {
       "sha256": "8cdc945430da84b80a4f853d620ae522e9c1496bbb21caf762244b46272791c9",
       "readers": [
-        "root"
+        "root",
+        "markets"
       ]
     },
     "spread-740-741.png": {
@@ -805,6 +895,28 @@
     },
     "spread-778-779.png": {
       "sha256": "74821943893d835b3d6a7dc72515ac5e77209eb491b3f02bd95002419c96d1f4",
+      "readers": [
+        "operator"
+      ]
+    },
+    "spread-808-809.png": {
+      "sha256": "f14a0fdafca63c4a311a987b6302c6f6ac2492ea5c1049f9b676ce79284c7517",
+      "readers": [
+        "root",
+        "markets"
+      ]
+    },
+    "spread-810-811.png": {
+      "sha256": "59322cf28d80080421f8f948bf03231efd712c9e91155ec545af1d02c4e88b64",
+      "readers": [
+        "root",
+        "markets"
+      ]
+    }
+  },
+  "supplementary_images": {
+    "candidate25-context-450-451.png": {
+      "sha256": "7891a3eff399deb27564fc7e6998f7c5552a9fa63fdbd857ef0b1b77033a97cf",
       "readers": [
         "operator"
       ]
