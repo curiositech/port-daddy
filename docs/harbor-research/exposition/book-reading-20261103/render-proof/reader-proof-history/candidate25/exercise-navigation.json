@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T19:56:48.563414+00:00",
+  "status": "pass",
+  "build_source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "observed_repository_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "pdf": {
+    "name": "coordination-papers-mega-volume.pdf",
+    "sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+    "pages": 844,
+    "bytes": 17652139,
+    "aux_sha256": "cbd6d375af0e71454c699107f97ca18b0f93bb4f0d3bbfb07ebb9ded100cd2e9"
+  },
+  "input_sources": [
+    {
+      "path": "../../../../../whitepaper/figures/pd-pedagogy.tex",
+      "sha256": "08f7b0804e17632ad9c137d90ad419584852eaa3035e13ad8cf638c5e2cdd127"
+    },
+    {
+      "path": "../../../../../website-v2/public/whitepaper/figures/pd-pedagogy.tex",
+      "sha256": "08f7b0804e17632ad9c137d90ad419584852eaa3035e13ad8cf638c5e2cdd127"
+    },
+    {
+      "path": "../../../../../scripts/harbor-research/check_book_exercise_navigation.py",
+      "sha256": "76d608e95b09ffd150851148c93c37dd08dca3913697867cba2603333554aca9"
+    },
+    {
+      "path": "../../../../../tests/harbor-research/test_book_exercise_navigation.py",
+      "sha256": "f04bdaca4eb9f4b8189eefe5751ba922e79a3a8198892dc534234b1f5af4c2a3"
+    }
+  ],
+  "exercise_audit": {
+    "rendered_headings": 212,
+    "aux_labels": 212,
+    "resolved_pdf_destinations": 212,
+    "unique_number_matching": true,
+    "folio_mismatches": 0,
+    "destination_page_mismatches": 0,
+    "destination_position_mismatches": 0,
+    "issues": []
+  },
+  "inverse_solution_audit": {
+    "scope": "Read-only bounded symmetric endpoint check, using the finalized PDF and matching AUX; no additional macro or checker changes.",
+    "rendered_headings": 212,
+    "solution_aux_labels": 212,
+    "resolved_pdf_destinations": 212,
+    "unique_number_matching": true,
+    "folio_mismatches": 0,
+    "destination_page_mismatches": 0,
+    "destination_position_mismatches": 0,
+    "issues": [],
+    "method": "Within the Solutions to the exercises bookmark range, enumerate lines containing only an exercise number and a bold span. Match each sol:<exercise-label> AUX entry to its originating exercise number and unique rendered solution heading, then resolve its named destination."
+  },
+  "comparison_rules": {
+    "folio": "AUX page field equals rendered page label exactly",
+    "page": "Resolved named destination page equals the rendered heading page",
+    "vertical_position": "Convert destination PDF coordinates through page.transformation_matrix; y must lie from24pt above heading top to2pt below heading bottom",
+    "inventory": "Exactly one rendered heading and one corresponding AUX label per exercise number; all212 exercised in each direction"
+  },
+  "prior_failure": {
+    "pdf_sha256": "2e68c49ec2313cb6120d9942bbb662c7100998f91bf9b78c70a7459d8205fb53",
+    "exercise_headings": 212,
+    "misplaced_destinations": 14,
+    "issues": [
+      "ex:prereq-risk (0.2): AUX p.62, destination physical 86; heading physical 87 / p.63",
+      "swk:ex:swk-seventh-invariant (1.26): AUX p.151, destination physical 175; heading physical 176 / p.152",
+      "sealed:ex:sealed-m1-trace (3.2): AUX p.270, destination physical 294; heading physical 295 / p.271",
+      "sealed:ex:sealed-power (3.9): AUX p.271, destination physical 295; heading physical 296 / p.272",
+      "ls:ex:ls-consent-lifecycle (4.7): AUX p.367, destination physical 391; heading physical 392 / p.368",
+      "ls:ex:ls-regiment-vs-detect (4.14): AUX p.368, destination physical 392; heading physical 393 / p.369",
+      "ls:ex:ls-global-trust-knob (4.21): AUX p.369, destination physical 393; heading physical 394 / p.370",
+      "ls:ex:ls-adversarial-critical-set (4.29): AUX p.370, destination physical 394; heading physical 395 / p.371",
+      "ls:ex:ls-costly-signal-debit (4.35): AUX p.371, destination physical 395; heading physical 396 / p.372",
+      "ls:ex:ls-dag-token-budget (4.43): AUX p.372, destination physical 396; heading physical 397 / p.373",
+      "stp:ex:stp-four-broken-assumptions (5.25): AUX p.466, destination physical 490; heading physical 491 / p.467",
+      "stp:ex:stp-tombstone-walk (5.38): AUX p.468, destination physical 492; heading physical 493 / p.469",
+      "he:ex:he-reputation-disclosure (6.6): AUX p.534, destination physical 558; heading physical 559 / p.535",
+      "fh:ex:fh-cartel-formation (8.9): AUX p.701, destination physical 725; heading physical 726 / p.702"
+    ],
+    "cause": "Exercise counter/anchor/label emitted in vertical mode before the heading paragraph could move to the next page.",
+    "repair": "Both shared macro mirrors now emit counter/anchor/label in the heading horizontal list after the existing paragraph spacing/noindent."
+  },
+  "limits": [
+    "This verifies exercise/solution navigation against the observed rendered headings, not mathematical correctness of their text.",
+    "The inverse solution audit is a bounded exact-PDF check; only the exercise audit is currently registered as a reusable hosted gate.",
+    "This receipt identifies the PDF by hash; it does not include or replace the PDF artifact."
+  ],
+  "candidate": "25"
+}

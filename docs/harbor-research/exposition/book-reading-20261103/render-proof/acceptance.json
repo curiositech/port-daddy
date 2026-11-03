@@ -1,8 +1,8 @@
 {
-  "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
-  "source_input_count": 282,
+  "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+  "source_input_count": 280,
   "source_snapshot_scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
-  "source_snapshot_sha256": "6721fea84081ba92fcaf08d61def81ffdb454334b5cf0c789d30ffea54d64777",
+  "source_snapshot_sha256": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7",
   "source_drift": [],
   "pdf": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf",
   "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
@@ -22,7 +22,7 @@
       "SuisseIntl-SemiboldItalic.otf": "cd766b525e050424d1f026278a98367439b84201850dff4ca21cb4491a60a876"
     }
   },
-  "xelatex_passes": 3,
+  "xelatex_passes": 2,
   "margin_convergence": "complete",
   "log_checks": {
     "overfull_hbox": 0,
@@ -65,7 +65,7 @@
     "schema": 1,
     "created_at": "2026-11-03T19:56:49.133243+00:00",
     "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
-    "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+    "source_head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
     "pages": 844,
     "method": "All font sizes; text lines inside Book body band (odd57.6\u2013381.6pt/even122.4\u2013446.4pt,3pt tolerance),55<y0<660pt. Final body line ends letter+ASCII/U2010/U2011/soft hyphen. Includes small protocol prose omitted by the older10pt minimum.",
     "status": "no_candidates",
@@ -75,9 +75,53 @@
     "limits": [
       "Geometric candidate detector; any figure/code ending requires contextual judgment.",
       "This covers body-column page-turn endings, not every mid-page word break or all margin lines."
-    ]
+    ],
+    "candidate": "26",
+    "reconciled_at": "2026-11-03T20:22:55.728514+00:00",
+    "evidence_reuse": {
+      "method": "Reconciled candidate26 source and actual byte identity with candidate25; no re-execution of candidate25 PDF navigation/compound/conversion checks or rendering.",
+      "evidence_executed_for_candidate": "25",
+      "evidence_source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+      "reconciled_at": "2026-11-03T20:22:55.728514+00:00",
+      "new_source_head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+      "pdf_bytes_equal": true,
+      "aux_bytes_equal_by_sha256": true,
+      "regular_copy_retained": ".scratch/textbook-craft-20261103/book-20261103-b589f090.pdf",
+      "facing_copy_retained": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-879d1a08.pdf",
+      "source_inventory": {
+        "prior_count": 282,
+        "current_count": 280,
+        "removed": [
+          "website-v2/public/whitepaper/figures/pd-robot-glyphs.tex",
+          "whitepaper/figures/pd-robot-glyphs.tex"
+        ],
+        "added": [],
+        "changed_surviving_hashes": [],
+        "font_profile_hashes_unchanged": true,
+        "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
+        "current_snapshot_sha256": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7"
+      },
+      "historical_receipts": {
+        "exercise-navigation.json": {
+          "path": "reader-proof-history/candidate25/exercise-navigation.json",
+          "sha256": "4a479f5d24e8b3a4f86ba24fe9e99bc70346804c9e5264641db94c088cd77d37"
+        },
+        "compound-page-turns.json": {
+          "path": "reader-proof-history/candidate25/compound-page-turns.json",
+          "sha256": "9f9b3b6cc46f313c3ced755fa56a7bbc10344246f70758914b287bc6ed6e1f42"
+        },
+        "regular-copy.json": {
+          "path": "reader-proof-history/candidate25/regular-copy.json",
+          "sha256": "1133a1db210205831e428bc6023940035ac86dd088a704a75f1dab928525d604"
+        },
+        "facing-copy.json": {
+          "path": "reader-proof-history/candidate25/facing-copy.json",
+          "sha256": "758c7d720b58259d2f850b5d5fd6927ac37f1a7239489993c30caec34b68f482"
+        }
+      }
+    }
   },
-  "all_font_sizes_compound_receipt_sha256": "9f9b3b6cc46f313c3ced755fa56a7bbc10344246f70758914b287bc6ed6e1f42",
+  "all_font_sizes_compound_receipt_sha256": "0f40aa5422ed40a38158a787dd7d8b023103bbcd556128efccbb7f877214b11f",
   "gallery": {
     "targets": 109,
     "spreads": 148,
@@ -89,7 +133,7 @@
   "publication_scope": "Cache-only candidate; no tracked publication PDF or metadata. Full canonical reading differs from selected rendered-spread inspection. No runtime or hosted deployment claim.",
   "scope": "Local source, private-Suisse rendered checks, independent navigation/page-turn checks and all selected spread views accepted. Hosted checks, source merge and published PDF refresh are separate.",
   "visual_coverage": {
-    "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
+    "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
     "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
     "status": "all selected spreads covered",
     "targets": 109,
@@ -111,34 +155,34 @@
     ],
     "images_receipt": "visual-coverage.json"
   },
-  "proof_created_at": "2026-11-03T20:01:59.102648+00:00",
+  "proof_created_at": "2026-11-03T20:24:40.395453+00:00",
   "companion_receipts": {
-    "visual-coverage.json": "3f8ce05316c5c641fe3c9574828ff089c406b6dad76cab2c7ee14a88a5fc3ee7",
-    "exercise-navigation.json": "4a479f5d24e8b3a4f86ba24fe9e99bc70346804c9e5264641db94c088cd77d37",
-    "compound-page-turns.json": "9f9b3b6cc46f313c3ced755fa56a7bbc10344246f70758914b287bc6ed6e1f42",
-    "facing-copy.json": "758c7d720b58259d2f850b5d5fd6927ac37f1a7239489993c30caec34b68f482",
-    "candidate25-independent-review.json": "8ff1100b54c28ced7a7a2fd1b144e0735a75f65260ac048cd3630df80b5656f4",
-    "source-checks.json": "044cd63db85352994c8df791e1b16ee827aaddf7a5e1dab8ae3d632ee09e59b2",
-    "sybil-redraw/receipt.json": "62219063622a4f8f22b444febd04516af24f0d4ee1af144a98251f86675b4f75",
-    "paired-plot-pareto-repair.json": "4142c0dd338aead35cecd62e6291b35ce6e17127b64f90667762efd69a41858a"
+    "visual-coverage.json": "56e0fe5c9309c3fd84bd47ec99511748784c3f285c02ca612cca38639faead86",
+    "exercise-navigation.json": "5fc9bd590e96d9168673a0a4435595d3ae930813984135925a0dcc96e1d65203",
+    "compound-page-turns.json": "0f40aa5422ed40a38158a787dd7d8b023103bbcd556128efccbb7f877214b11f",
+    "facing-copy.json": "275fc75db02ac0b1e7103f0511b250476c39caf65ce6b88af66c7bc3dde59a0e",
+    "candidate26-independent-review.json": "f867639b8b050e286df1c0831c728fde5efd4b0b126d531b0a9665120b37098a",
+    "source-checks.json": "e91876adf87dc1fb877487a72296c85521caa6be35e2adac503cac9f15f555ba",
+    "sybil-redraw/receipt.json": "6832ae66ecd2abe4849fc66c11552b5e524cd0597d8e12748ebcc8d370ae3c35",
+    "paired-plot-pareto-repair.json": "be97a399669d2022a257ad2d185db420dca2057f65e456ed23eef5a6496aee38"
   },
   "local_evidence_hashes": {
-    "candidate-build-25.log": "9fc34acfba3e33954f0eb9e7a87c88e674c8bfedbd2d3e5fd0adccde30c02937",
-    "rendered-tests-25.log": "bea01dcab22e490f15afd73d3fae24a3648ff58519977a343e4409855911a6b4",
-    "pdf-gates-25.log": "99d0e0f7ad8f8edc12e3bc24e073f4eb30b5276a010cae066770eee713fe0040",
-    "page-end-hyphens-25.json": "4f06e40388617ecf29d3d15289fdb24c6dff33311a7d4f5cbe2cdf741207b4e5",
-    "visual-reviewed-25.json": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9",
+    "candidate-build-26.log": "0526efe3c93d2fef063fe112683b4a5a684ec595e428836128676b3e2b1d7668",
+    "rendered-tests-26.log": "afa24b21eed9dfecd9a8bf75dfa59ce9d81c9a45a2c82f3fd76aac3145a96f60",
+    "pdf-gates-26.log": "99d0e0f7ad8f8edc12e3bc24e073f4eb30b5276a010cae066770eee713fe0040",
+    "page-end-hyphens-26.json": "4f06e40388617ecf29d3d15289fdb24c6dff33311a7d4f5cbe2cdf741207b4e5",
+    "visual-reviewed-26.json": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01",
     "spreads/manifest.json": "9347df21f9a546ad4831dd29769c3d7407745c7708c61115100553cbf3969f60"
   },
   "portable_evidence_hashes": {
-    "rendered-checks.log": "bea01dcab22e490f15afd73d3fae24a3648ff58519977a343e4409855911a6b4",
+    "rendered-checks.log": "afa24b21eed9dfecd9a8bf75dfa59ce9d81c9a45a2c82f3fd76aac3145a96f60",
     "pdf-checks.log": "0686544d3ea79883af219f38882f435161b27d6de5d720f975497e82e9ca08db",
-    "validation-logs-original.json": "bb28c72e7a98772a0410f274dd31632dc149cc585db32e2869eb7ac3925d0c6f",
-    "spread-review-root.json": "c7c3c029086070cd5920e3d7185b5231bcce210f509460301c848ab6095f93ff",
-    "spread-review-operator.json": "834de94cef0ba12a393ce47802bd5bcf6b9829adbeff6e2b578760b4552c2136",
-    "spread-review-markets.json": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9",
+    "validation-logs-original.json": "293af12a93625f725b503032ac6647f9f8b1e08fef4b61ac71468cd27441d536",
+    "spread-review-root.json": "2c698379c310dc33f112be583d78b87d311ebd3c3a1d20c73abf9ac33f9998a7",
+    "spread-review-operator.json": "86300c3b03efd70ee52f68c523b974dc5cafe07244c6a43b9f543ad226b94aae",
+    "spread-review-markets.json": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01",
     "spread-manifest.json": "9347df21f9a546ad4831dd29769c3d7407745c7708c61115100553cbf3969f60",
-    "source-snapshot.json": "6721fea84081ba92fcaf08d61def81ffdb454334b5cf0c789d30ffea54d64777",
+    "source-snapshot.json": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7",
     "inspection-provenance.json": "4c36a88d712d85fa779cb1a37ffa6343afea60df7133dea56977e2bf44f186e1"
   }
 }

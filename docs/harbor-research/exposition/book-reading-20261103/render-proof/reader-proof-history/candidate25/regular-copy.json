@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "candidate": "25",
+  "created_at": "2026-11-03T19:57:27.539160+00:00",
+  "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "name": "book-20261103-b589f090.pdf",
+  "relative_local_path": ".scratch/textbook-craft-20261103/book-20261103-b589f090.pdf",
+  "sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+  "bytes": 17652139,
+  "pages": 844,
+  "bookmarks": 475,
+  "named_destinations": 4203,
+  "links": 3562,
+  "method": "Independent byte copy of stable converged PDF; hashes verified before/after, distinct inode from mutable cache.",
+  "copy_verification": "pass",
+  "publication_status": "Locally accepted exact reviewed Book; hosted publication is separate."
+}

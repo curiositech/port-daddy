@@ -1,0 +1,97 @@
+{
+  "candidate": "26",
+  "created_at": "2026-11-03T20:22:55.728514+00:00",
+  "verdict": "pass_for_exact_byte_reuse_and_recorded_source_reconciliation",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/book-textbook-craft-20261103",
+  "source_head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+  "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+  "pages": 844,
+  "bytes": 17652139,
+  "aux_sha256": "cbd6d375af0e71454c699107f97ca18b0f93bb4f0d3bbfb07ebb9ded100cd2e9",
+  "facing_sha256": "879d1a083733e6cc1a6e2ebdcaeddcd8e59d48717c1cbb8b21aa257b6e4089a8",
+  "reuse": {
+    "method": "Reconciled candidate26 source and actual byte identity with candidate25; no re-execution of candidate25 PDF navigation/compound/conversion checks or rendering.",
+    "evidence_executed_for_candidate": "25",
+    "evidence_source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+    "reconciled_at": "2026-11-03T20:22:55.728514+00:00",
+    "new_source_head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+    "pdf_bytes_equal": true,
+    "aux_bytes_equal_by_sha256": true,
+    "regular_copy_retained": ".scratch/textbook-craft-20261103/book-20261103-b589f090.pdf",
+    "facing_copy_retained": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-879d1a08.pdf",
+    "source_inventory": {
+      "prior_count": 282,
+      "current_count": 280,
+      "removed": [
+        "website-v2/public/whitepaper/figures/pd-robot-glyphs.tex",
+        "whitepaper/figures/pd-robot-glyphs.tex"
+      ],
+      "added": [],
+      "changed_surviving_hashes": [],
+      "font_profile_hashes_unchanged": true,
+      "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
+      "current_snapshot_sha256": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7"
+    },
+    "historical_receipts": {
+      "exercise-navigation.json": {
+        "path": "reader-proof-history/candidate25/exercise-navigation.json",
+        "sha256": "4a479f5d24e8b3a4f86ba24fe9e99bc70346804c9e5264641db94c088cd77d37"
+      },
+      "compound-page-turns.json": {
+        "path": "reader-proof-history/candidate25/compound-page-turns.json",
+        "sha256": "9f9b3b6cc46f313c3ced755fa56a7bbc10344246f70758914b287bc6ed6e1f42"
+      },
+      "regular-copy.json": {
+        "path": "reader-proof-history/candidate25/regular-copy.json",
+        "sha256": "1133a1db210205831e428bc6023940035ac86dd088a704a75f1dab928525d604"
+      },
+      "facing-copy.json": {
+        "path": "reader-proof-history/candidate25/facing-copy.json",
+        "sha256": "758c7d720b58259d2f850b5d5fd6927ac37f1a7239489993c30caec34b68f482"
+      }
+    }
+  },
+  "reuse_checks": {
+    "exercise_destinations": 212,
+    "solution_destinations": 212,
+    "all_font_body_page_turn_candidates": 0,
+    "facing_halves": 846,
+    "ordered_characters": 1342171,
+    "links": 3562,
+    "bookmarks": 475,
+    "named_destinations": 4203,
+    "unsupported_navigation": [],
+    "scoped_actual_candidate25_visual_views": 5
+  },
+  "independent_work_this_pass": [
+    "Verified boundary, source head, actual PDF byte equality and PDF/AUX/facing hashes.",
+    "Compared280 current recorded inputs with282 prior entries: only two removed glyph files, all survivors and font profile unchanged.",
+    "Verified navigation checker/macro hashes, compound-scan helper, facing builder and retained five PNG hashes.",
+    "Preserved exact candidate25 compact receipts before rebinding current receipts with explicit evidence-reuse fields."
+  ],
+  "current_receipts": {
+    "exercise-navigation.json": {
+      "path": "exercise-navigation.json",
+      "sha256": "5fc9bd590e96d9168673a0a4435595d3ae930813984135925a0dcc96e1d65203"
+    },
+    "compound-page-turns.json": {
+      "path": "compound-page-turns.json",
+      "sha256": "0f40aa5422ed40a38158a787dd7d8b023103bbcd556128efccbb7f877214b11f"
+    },
+    "regular-copy.json": {
+      "path": "regular-copy.json",
+      "sha256": "0dea1974048a4f5259e057a3fcef8f1fbdc6e5d978b24644e2020bd1a922f1d1"
+    },
+    "facing-copy.json": {
+      "path": "facing-copy.json",
+      "sha256": "b4f6c7d80d7baa60f62f97ef09044d0dea611a8d4a28d2219fe0558f0391236e"
+    }
+  },
+  "limits": [
+    "This is exact-artifact evidence reuse, not a fresh whole-Book read, fresh pixel view, or new execution of the reused audits.",
+    "The280-input inventory is not a complete transitive image/toolchain inventory; its stated scope is retained.",
+    "Fresh rendered gates and final whole-Book acceptance remain builder/root-owned. Publication worktree, hosted CI, merge and deployment were not mutated."
+  ]
+}

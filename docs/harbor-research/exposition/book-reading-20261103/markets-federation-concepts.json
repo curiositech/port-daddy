@@ -743,12 +743,12 @@
       "receipt": ".scratch/textbook-craft-20261103/visual-reviewed-17.json"
     },
     "integrated_candidate": {
-      "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
-      "source_input_count": 282,
+      "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+      "source_input_count": 280,
       "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
       "bytes": 17652139,
       "pages": 844,
-      "xelatex_passes": 3,
+      "xelatex_passes": 2,
       "log_checks": {
         "overfull_hbox": 0,
         "overfull_vbox": 0,
@@ -788,7 +788,7 @@
         "schema": 1,
         "created_at": "2026-11-03T19:56:49.133243+00:00",
         "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
-        "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+        "source_head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
         "pages": 844,
         "method": "All font sizes; text lines inside Book body band (odd57.6–381.6pt/even122.4–446.4pt,3pt tolerance),55<y0<660pt. Final body line ends letter+ASCII/U2010/U2011/soft hyphen. Includes small protocol prose omitted by the older10pt minimum.",
         "status": "no_candidates",
@@ -798,11 +798,55 @@
         "limits": [
           "Geometric candidate detector; any figure/code ending requires contextual judgment.",
           "This covers body-column page-turn endings, not every mid-page word break or all margin lines."
-        ]
+        ],
+        "candidate": "26",
+        "reconciled_at": "2026-11-03T20:22:55.728514+00:00",
+        "evidence_reuse": {
+          "method": "Reconciled candidate26 source and actual byte identity with candidate25; no re-execution of candidate25 PDF navigation/compound/conversion checks or rendering.",
+          "evidence_executed_for_candidate": "25",
+          "evidence_source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+          "reconciled_at": "2026-11-03T20:22:55.728514+00:00",
+          "new_source_head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+          "pdf_bytes_equal": true,
+          "aux_bytes_equal_by_sha256": true,
+          "regular_copy_retained": ".scratch/textbook-craft-20261103/book-20261103-b589f090.pdf",
+          "facing_copy_retained": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-879d1a08.pdf",
+          "source_inventory": {
+            "prior_count": 282,
+            "current_count": 280,
+            "removed": [
+              "website-v2/public/whitepaper/figures/pd-robot-glyphs.tex",
+              "whitepaper/figures/pd-robot-glyphs.tex"
+            ],
+            "added": [],
+            "changed_surviving_hashes": [],
+            "font_profile_hashes_unchanged": true,
+            "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
+            "current_snapshot_sha256": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7"
+          },
+          "historical_receipts": {
+            "exercise-navigation.json": {
+              "path": "reader-proof-history/candidate25/exercise-navigation.json",
+              "sha256": "4a479f5d24e8b3a4f86ba24fe9e99bc70346804c9e5264641db94c088cd77d37"
+            },
+            "compound-page-turns.json": {
+              "path": "reader-proof-history/candidate25/compound-page-turns.json",
+              "sha256": "9f9b3b6cc46f313c3ced755fa56a7bbc10344246f70758914b287bc6ed6e1f42"
+            },
+            "regular-copy.json": {
+              "path": "reader-proof-history/candidate25/regular-copy.json",
+              "sha256": "1133a1db210205831e428bc6023940035ac86dd088a704a75f1dab928525d604"
+            },
+            "facing-copy.json": {
+              "path": "reader-proof-history/candidate25/facing-copy.json",
+              "sha256": "758c7d720b58259d2f850b5d5fd6927ac37f1a7239489993c30caec34b68f482"
+            }
+          }
+        }
       },
-      "all_font_sizes_compound_receipt_sha256": "9f9b3b6cc46f313c3ced755fa56a7bbc10344246f70758914b287bc6ed6e1f42",
-      "receipt": ".scratch/textbook-craft-20261103/candidate-acceptance-25.json",
-      "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-25.json"
+      "all_font_sizes_compound_receipt_sha256": "0f40aa5422ed40a38158a787dd7d8b023103bbcd556128efccbb7f877214b11f",
+      "receipt": ".scratch/textbook-craft-20261103/candidate-acceptance-26.json",
+      "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-26.json"
     },
     "admission_metrics_source_review": {
       "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
@@ -816,7 +860,7 @@
         1231
       ],
       "prompt_and_solution_label": "ex:fh-cold-start-admission",
-      "verdict": "Accepted within the explicitly stated data and identification limits; exact prompt and solution spread targets accepted in candidate 25.",
+      "verdict": "Accepted within the explicitly stated data and identification limits; exact prompt and solution spread targets accepted in candidate 26.",
       "checks": [
         "Complete-window, one-sponsor admission counts define shares and HHI only for n>0.",
         "Identical ten-admission log permits either ten requests/no refusals or one thousand requests/990 refusals.",
@@ -863,7 +907,7 @@
           "thm:fh-escrow-bound": "Design invariant"
         },
         "final_render_verification": {
-          "candidate": "25",
+          "candidate": "26",
           "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
           "status": "Exact prompt, solution and status-table targets accepted in the owned visual receipt."
         }
@@ -882,7 +926,7 @@
         "line": 2062,
         "scope": "Separate model filename, directory and configuration filename; every numerical and model-scope assertion is unchanged.",
         "final_render_verification": {
-          "candidate": "25",
+          "candidate": "26",
           "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
           "status": "Actual artifact paragraph target and following pair accepted."
         }
@@ -914,8 +958,21 @@
     },
     "paired_plot_repair": {
       "receipt": "docs/harbor-research/exposition/book-reading-20261103/render-proof/paired-plot-pareto-repair.json",
-      "receipt_sha256": "4142c0dd338aead35cecd62e6291b35ce6e17127b64f90667762efd69a41858a",
+      "receipt_sha256": "be97a399669d2022a257ad2d185db420dca2057f65e456ed23eef5a6496aee38",
       "status": "source, simulation reproduction, three fragment editions and final Book placement accepted"
+    },
+    "unused_glyph_cleanup": {
+      "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+      "removed_inputs": [
+        "website-v2/public/whitepaper/figures/pd-robot-glyphs.tex",
+        "whitepaper/figures/pd-robot-glyphs.tex"
+      ],
+      "retained_inputs": 280,
+      "changed_retained_inputs": [],
+      "build": "Fresh two-pass candidate26; PDF and AUX byte-identical to accepted25.",
+      "gallery_comparison": ".scratch/textbook-craft-20261103/candidate26-image-comparison.json",
+      "gallery_comparison_sha256": "8d10d1fa36cd69a6348b132171820053d8e2c4860aa89f126d1c28db343db408",
+      "verification_scope": "Rendered122-test suite and registered PDF gates rerun; independent navigation/facing/page-turn audits reused only against identical PDF/AUX bytes. All65 owned images reuse recorded actual inspections; zero new actual views."
     }
   },
   "figure_followthrough": {
@@ -940,7 +997,7 @@
       "Conflict witness: only Horn-derived obligation is conditional; prohibition remains unconditional. False trigger arrow and all figure retellings corrected.",
       "Sponsor lifecycle graduation requires declared criteria and funded replacement; cost row names the replacement bond and caption scopes itself to depicted paths."
     ],
-    "render_status": "Final candidate 25: all eight delegated fragments compiled; 65 assigned selected spreads visually accepted at150dpi by direct view or exact byte comparison with direct-view receipts. Includes the assigned Ch6–8 sequences and Landmarks09–12; not every Book page.",
+    "render_status": "Final candidate 26: all eight delegated fragments compiled; 65 assigned selected spreads visually accepted at150dpi by direct view or exact byte comparison with direct-view receipts. Includes the assigned Ch6–8 sequences and Landmarks09–12; not every Book page.",
     "source_hashes": {
       "website-v2/public/whitepaper/figures/fig-he-conflict-witness.tex": "50b19c5ec18ead7b6e6c1616a56b9bc1933353f61fb2da37e806ade784799a57",
       "website-v2/public/whitepaper/figures/fig-fh-sponsor-lifecycle.tex": "460f4cf30e27ebc20c61ab2b5f228880761cbe7d369c2b87ac3fa91cb2e35727"
@@ -955,7 +1012,7 @@
       "actual_png_inspection": "Completed at150dpi; conditional obligation/unconditional prohibition distinct, no collision. Final placed image accepted under final_book_placement.",
       "proof_directory": ".cache/conflict-witness-final-qa",
       "final_book_placement": {
-        "candidate": "25",
+        "candidate": "26",
         "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
         "status": "Registered caption gate and assigned actual spread review passed."
       }
@@ -982,7 +1039,7 @@
       "visual_review": "Original-resolution150dpi PNG actually viewed; two-line transition guard and cost row fit, no clipping or collision.",
       "full_document_scope": "Fragment evidence is separate from full Book placement; final_book_placement records the passed caption gate and actual selected-spread review.",
       "final_book_placement": {
-        "candidate": "25",
+        "candidate": "26",
         "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
         "status": "Registered caption gate and assigned actual spread review passed."
       }

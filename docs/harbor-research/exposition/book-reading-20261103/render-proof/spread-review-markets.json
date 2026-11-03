@@ -1,14 +1,19 @@
 {
-  "candidate": "25",
-  "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "candidate": "26",
+  "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
   "source_pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
   "gallery_manifest_sha256": "9347df21f9a546ad4831dd29769c3d7407745c7708c61115100553cbf3969f60",
   "acceptance": "accepted",
-  "scope": "Owned Chapters6\u20138 teaching/opening sequences, four Suisse hook contexts, both new paired-plot targets, cartel caption and following context. Selected images, not every Book page.",
+  "scope": "Owned Chapters6\u20138 teaching/opening sequences, four Suisse hook contexts, paired-plot targets, cartel caption and following context. All accepted by exact bytes against recorded actual views; not every Book page.",
   "dpi": 150,
-  "directly_inspected": 4,
-  "exact_prior_view_reuses": 61,
+  "directly_inspected": 0,
+  "exact_prior_view_reuses": 65,
   "remaining_findings": [],
+  "full_gallery_comparison": {
+    "receipt": ".scratch/textbook-craft-20261103/candidate26-image-comparison.json",
+    "sha256": "8d10d1fa36cd69a6348b132171820053d8e2c4860aa89f126d1c28db343db408",
+    "all148_pngs_identical_to25": true
+  },
   "spreads": [
     {
       "image": "spread-116-117.png",
@@ -17,8 +22,8 @@
         "candidate": "15",
         "image": "spread-116-117.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-15"
@@ -30,8 +35,8 @@
         "candidate": "15",
         "image": "spread-118-119.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-15"
@@ -43,8 +48,8 @@
         "candidate": "22",
         "image": "spread-142-143.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -56,8 +61,8 @@
         "candidate": "23",
         "image": "spread-144-145.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-23"
@@ -69,8 +74,8 @@
         "candidate": "22",
         "image": "spread-252-253.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -82,8 +87,8 @@
         "candidate": "22",
         "image": "spread-254-255.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -95,8 +100,8 @@
         "candidate": "22",
         "image": "spread-266-267.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -108,8 +113,8 @@
         "candidate": "22",
         "image": "spread-268-269.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -121,8 +126,8 @@
         "candidate": "22",
         "image": "spread-444-445.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -134,8 +139,8 @@
         "candidate": "22",
         "image": "spread-446-447.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -143,9 +148,15 @@
     {
       "image": "spread-452-453.png",
       "sha256": "387c2f21d9940d9b8f0083ffe138e710f21822c3a9ee1d3b042c309e1f6122a8",
-      "prior_direct_view": null,
-      "status": "directly-inspected-accepted",
-      "review": "Complete explanatory paragraph precedes Figure5.8; discrete axes, full series key, marks, caption and following principal definition are clear."
+      "prior_direct_view": {
+        "candidate": "25",
+        "image": "spread-452-453.png",
+        "acceptance": {
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+        }
+      },
+      "status": "byte-identical-to-directly-inspected-25"
     },
     {
       "image": "spread-454-455.png",
@@ -154,8 +165,8 @@
         "candidate": "24",
         "image": "spread-454-455.png",
         "acceptance": {
-          "candidate": "24",
-          "receipt_sha256": "70bd3faa1d47ea91b0378eca776e88f1ec6b368cd07263d5cc5f89123a85cd89"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-24"
@@ -167,8 +178,8 @@
         "candidate": "16",
         "image": "spread-506-507.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -180,8 +191,8 @@
         "candidate": "16",
         "image": "spread-508-509.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -193,8 +204,8 @@
         "candidate": "16",
         "image": "spread-510-511.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -206,8 +217,8 @@
         "candidate": "16",
         "image": "spread-512-513.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -219,8 +230,8 @@
         "candidate": "16",
         "image": "spread-514-515.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -232,8 +243,8 @@
         "candidate": "16",
         "image": "spread-524-525.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -245,8 +256,8 @@
         "candidate": "16",
         "image": "spread-526-527.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -258,8 +269,8 @@
         "candidate": "16",
         "image": "spread-532-533.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -271,8 +282,8 @@
         "candidate": "17",
         "image": "spread-534-535.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-17"
@@ -284,8 +295,8 @@
         "candidate": "16",
         "image": "spread-554-555.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -297,8 +308,8 @@
         "candidate": "16",
         "image": "spread-556-557.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -310,8 +321,8 @@
         "candidate": "18",
         "image": "spread-568-569.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-18"
@@ -323,8 +334,8 @@
         "candidate": "16",
         "image": "spread-570-571.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -336,8 +347,8 @@
         "candidate": "16",
         "image": "spread-580-581.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -349,8 +360,8 @@
         "candidate": "16",
         "image": "spread-582-583.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -362,8 +373,8 @@
         "candidate": "16",
         "image": "spread-586-587.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -375,8 +386,8 @@
         "candidate": "16",
         "image": "spread-588-589.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -388,8 +399,8 @@
         "candidate": "16",
         "image": "spread-598-599.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -401,8 +412,8 @@
         "candidate": "16",
         "image": "spread-600-601.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -414,8 +425,8 @@
         "candidate": "24",
         "image": "spread-618-619.png",
         "acceptance": {
-          "candidate": "24",
-          "receipt_sha256": "70bd3faa1d47ea91b0378eca776e88f1ec6b368cd07263d5cc5f89123a85cd89"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-24"
@@ -427,8 +438,8 @@
         "candidate": "16",
         "image": "spread-620-621.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -436,23 +447,41 @@
     {
       "image": "spread-628-629.png",
       "sha256": "043641ce6b87de777566d463dbe0589deecdce9daa627d63a14401b31efca5d4",
-      "prior_direct_view": null,
-      "status": "directly-inspected-accepted",
-      "review": "Tolerance-based metric and finite trial scope agree with plotted rates; all three series keyed; paired plot fits body column with clear margin caption."
+      "prior_direct_view": {
+        "candidate": "25",
+        "image": "spread-628-629.png",
+        "acceptance": {
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+        }
+      },
+      "status": "byte-identical-to-directly-inspected-25"
     },
     {
       "image": "spread-630-631.png",
       "sha256": "31f1d03337d11b4d26e5cf0e7fc93b8cf3c263d4c35971c702d3f333c9a20a0a",
-      "prior_direct_view": null,
-      "status": "directly-inspected-accepted",
-      "review": "Cartel caption aligns exactly with its owner; all premises, boundary identity, formula and model-only limits retained. Adjacent deposit model and plot remain clear."
+      "prior_direct_view": {
+        "candidate": "25",
+        "image": "spread-630-631.png",
+        "acceptance": {
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+        }
+      },
+      "status": "byte-identical-to-directly-inspected-25"
     },
     {
       "image": "spread-632-633.png",
       "sha256": "1b9b3c063c0bdc0d6a02d68c67406643609e2f7e952354b482df937296d6f533",
-      "prior_direct_view": null,
-      "status": "directly-inspected-accepted",
-      "review": "Following recurrence, threshold table and grid align with their stated model; caption and next taxonomy heading read clearly."
+      "prior_direct_view": {
+        "candidate": "25",
+        "image": "spread-632-633.png",
+        "acceptance": {
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+        }
+      },
+      "status": "byte-identical-to-directly-inspected-25"
     },
     {
       "image": "spread-634-635.png",
@@ -461,8 +490,8 @@
         "candidate": "24",
         "image": "spread-634-635.png",
         "acceptance": {
-          "candidate": "24",
-          "receipt_sha256": "70bd3faa1d47ea91b0378eca776e88f1ec6b368cd07263d5cc5f89123a85cd89"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-24"
@@ -474,8 +503,8 @@
         "candidate": "24",
         "image": "spread-636-637.png",
         "acceptance": {
-          "candidate": "24",
-          "receipt_sha256": "70bd3faa1d47ea91b0378eca776e88f1ec6b368cd07263d5cc5f89123a85cd89"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-24"
@@ -487,8 +516,8 @@
         "candidate": "24",
         "image": "spread-638-639.png",
         "acceptance": {
-          "candidate": "24",
-          "receipt_sha256": "70bd3faa1d47ea91b0378eca776e88f1ec6b368cd07263d5cc5f89123a85cd89"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-24"
@@ -500,8 +529,8 @@
         "candidate": "24",
         "image": "spread-640-641.png",
         "acceptance": {
-          "candidate": "24",
-          "receipt_sha256": "70bd3faa1d47ea91b0378eca776e88f1ec6b368cd07263d5cc5f89123a85cd89"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-24"
@@ -513,8 +542,8 @@
         "candidate": "16",
         "image": "spread-668-669.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -526,8 +555,8 @@
         "candidate": "16",
         "image": "spread-670-671.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -539,8 +568,8 @@
         "candidate": "16",
         "image": "spread-680-681.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -552,8 +581,8 @@
         "candidate": "16",
         "image": "spread-682-683.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -565,8 +594,8 @@
         "candidate": "16",
         "image": "spread-684-685.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -578,8 +607,8 @@
         "candidate": "16",
         "image": "spread-686-687.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -591,8 +620,8 @@
         "candidate": "16",
         "image": "spread-688-689.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -604,8 +633,8 @@
         "candidate": "16",
         "image": "spread-690-691.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -617,8 +646,8 @@
         "candidate": "16",
         "image": "spread-694-695.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -630,8 +659,8 @@
         "candidate": "16",
         "image": "spread-696-697.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -643,8 +672,8 @@
         "candidate": "16",
         "image": "spread-704-705.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -656,8 +685,8 @@
         "candidate": "16",
         "image": "spread-706-707.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -669,8 +698,8 @@
         "candidate": "18",
         "image": "spread-712-713.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-18"
@@ -682,8 +711,8 @@
         "candidate": "17",
         "image": "spread-714-715.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-17"
@@ -695,8 +724,8 @@
         "candidate": "16",
         "image": "spread-716-717.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -708,8 +737,8 @@
         "candidate": "16",
         "image": "spread-718-719.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-16"
@@ -721,8 +750,8 @@
         "candidate": "17",
         "image": "spread-720-721.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-17"
@@ -734,8 +763,8 @@
         "candidate": "19",
         "image": "spread-722-723.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-19"
@@ -747,8 +776,8 @@
         "candidate": "17",
         "image": "spread-724-725.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-17"
@@ -760,8 +789,8 @@
         "candidate": "21",
         "image": "spread-732-733.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-21"
@@ -773,8 +802,8 @@
         "candidate": "21",
         "image": "spread-734-735.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-21"
@@ -786,8 +815,8 @@
         "candidate": "22",
         "image": "spread-736-737.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -799,8 +828,8 @@
         "candidate": "22",
         "image": "spread-738-739.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-22"
@@ -812,8 +841,8 @@
         "candidate": "21",
         "image": "spread-808-809.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-21"
@@ -825,8 +854,8 @@
         "candidate": "20",
         "image": "spread-810-811.png",
         "acceptance": {
-          "candidate": "23",
-          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+          "candidate": "25",
+          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
         }
       },
       "status": "byte-identical-to-directly-inspected-20"
