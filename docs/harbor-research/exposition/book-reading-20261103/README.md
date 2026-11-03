@@ -37,3 +37,5 @@ Generator regressions: 73 passed. Book source regressions: 119 passed and 45 nam
 Actual facing-spread inspection covers 133 selected spreads across 96 semantic targets, including every chapter opener and the changed teaching sequences. Exact image-byte matches permit reuse of recorded actual inspections; changed images were opened again. The [visual coverage record](render-proof/visual-coverage.json) enumerates that sample. Complete source reading is not an assertion that every rendered page received an aesthetic certification.
 
 The frozen published PDF is not replaced by this local candidate. Source review, hosted checks, source merge and the separately reviewed publication refresh have distinct receipts. Historical figure-blocker snapshots do not waive visual review. The family-design program and a complete external-citation/runtime audit remain separate work. The authoritative status entry is `BOOK-TEXTBOOK-CRAFT-20261103` in the [Omni ledger](../../omni-ledger.json).
+
+Source and review-evidence delivery: [PR #10345](https://github.com/curiositech/port-daddy/pull/10345). Hosted checks, review threads and merge status are recorded on that PR.
