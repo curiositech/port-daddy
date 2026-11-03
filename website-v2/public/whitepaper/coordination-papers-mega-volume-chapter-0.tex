@@ -119,6 +119,8 @@ refusal, a timeout and a restart. The final result assembles these cases.
 Read the examples before the formalism. The literature comparisons identify
 obligations that return in the later chapters, not a vocabulary to memorize.
 
+% Keep the first definition with its headings across the opening art plate.
+\Needspace{13\baselineskip}
 \section{Introduction: The Unit of Account, Agency, and the Kernel Gap}
 
 \subsection{The Unit of Account is the Work}
@@ -1061,9 +1063,9 @@ Modern agents employ structured search and planning algorithms across candidate 
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
   \item \textbf{ReAct (Reasoning and Acting)~\pdcite{yao2022react}:}\enspace Interleaves natural language reasoning traces (``Thoughts'') with structured tool executions (``Actions'') and environment feedback (``Observations''). An action can gather evidence that changes the next reasoning step. This interleaving permits inquiry; it does not guarantee that every uncertainty triggers a tool call.
   
-  \item \textbf{Tree of Thoughts (ToT)~\pdcite{yao2023tree}:}\enspace Generalizes chain-of-thought prompting to tree-search algorithms (BFS, DFS, A*). The agent generates candidate reasoning steps, evaluates node value via self-critique heuristics, and backtracks upon exploring unviable subtrees.
+  \item \textbf{Tree of Thoughts (ToT)~\pdcite{yao2023tree}:}\enspace Explores alternative intermediate reasoning steps in a tree. The studied searches proceed breadth-first (comparing a frontier of candidates) or depth-first (following a candidate and backtracking). Model evaluations guide exploration; they are heuristics, not proofs that a branch is correct.
   
-  \item \textbf{Reflexion~\pdcite{shinn2023reflexion}:}\enspace Implements verbal reinforcement learning. Upon test failure or verification rejection, the model generates an explicit post-mortem reflection analyzing the cause of error, which is persisted in an episodic memory buffer and injected into future prompt turns.
+  \item \textbf{Reflexion~\pdcite{shinn2023reflexion}:}\enspace Uses linguistic feedback without updating the model weights. The agent reflects on task feedback, retains that reflection in an episodic memory buffer, and consults it in later attempts. For example, a failed test can prompt a reminder to check the precondition that was missed.
 
   \item \textbf{Voyager Lifelong Skill Learning~\pdcite{wang2023voyager}:}\enspace In Minecraft, an agent accumulates an \textbf{executable skill library}: code for behaviors that later tasks can retrieve and compose. Environment feedback, execution errors and self-verification guide program improvement. The example shows how procedural memory can outlast a prompt; using the pattern for software work still requires checking dependencies, permitted effects and task-specific correctness.
 
