@@ -1,0 +1,246 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T15:33:27.653385+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "head_at_capture": "03f72477cfc85fefe8f1f7ce3c4e50af251dd7aa",
+  "dirty_source_binding": "Exact source hashes below; fragments include uncommitted parent-approved edits at capture.",
+  "edition": "swiss",
+  "tool": "skills/tikz-diagram-craft/scripts/book_figure_qa.py",
+  "command": "/opt/anaconda3/bin/python3 skills/tikz-diagram-craft/scripts/book_figure_qa.py whitepaper/figures/legible-swarm-sdt.tex whitepaper/figures/legible-swarm-inception-canary.tex --editions swiss --jobs 2 --out .scratch/textbook-craft-20261103/operator-fragment-qa-final --hue pdteal",
+  "rerun": "SDT alone rerendered after moving criterion label off the curve; final per-fragment outputs promoted.",
+  "inputs": {
+    "../../../../../../website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex": "7bd81641515502122f76a31d905e711aac6a7fe946728adda552a7b396599ddb",
+    "../../../../../../website-v2/public/whitepaper/figures/pd-figure-language.tex": "f20734af70d8b9bc1525ef98c7623c778682797374931eb7bd0eee03ddc20047",
+    "../../../../../../skills/harbor-chartwork/scripts/compile_fragment.sh": "c4e09d9344bc6597da41512a79b8cb4803ebee7647e3d756bbc0d7b143694ec3"
+  },
+  "figures": [
+    {
+      "source": "../../../../../../whitepaper/figures/legible-swarm-sdt.tex",
+      "source_sha256": "fa63613b7e8c36cbc0cd4cb0737b049de3859ebb937c91f66c601edafd2332b3",
+      "png": "legible-swarm-sdt.png",
+      "png_sha256": "6091207d8699d038da42354842e9fac723e6619dd9330dede4b6718b7818d55f",
+      "png_bytes": 60879,
+      "fragment_pdf_sha256": "1b4bb8facfbd773fec79ff61e86e623faccf4a928523c6ba52a004469b30ab8a",
+      "mechanical_summary": {
+        "result": "pass",
+        "failed_checks": [],
+        "warned_checks": [
+          "T7"
+        ]
+      },
+      "beauty": {
+        "figure": "legible-swarm-sdt",
+        "findings": [
+          {
+            "id": "B2",
+            "level": "warn",
+            "message": "'false alarm' is 1.4 pt from a stroke (1.5 pt clear)",
+            "gap_pt": 1.36
+          }
+        ],
+        "summary": {
+          "result": "warn",
+          "fail": 0,
+          "warn": 1
+        }
+      },
+      "visual_review": "Viewed final PNG: correct raw mean separation and common-scale Gaussian interpretation; criterion beta=5 clear of curves, two error regions identified; no text collision or clipping. B2 records false-alarm label 1.36pt from a stroke, a close-clearance advisory retained for the final spread judgment.",
+      "width_advisory_interpretation": "T7 measures artwork plus separate Book margin caption against body-only width; actual illustration fits body (SDT2.87in/canary4.28in). Final whole-page placement remains to check.",
+      "final_wrapper_refresh": {
+        "head": "296bfdfd7c62fec5d10c8da9657bba3926f67c52",
+        "at": "2026-11-03T16:02:13.303626+00:00",
+        "delta": "Local figure placement [H]\u2192[tp]; no text/style/model change. Fresh Swiss fragment compiled and actual PNG viewed.",
+        "png_matches_prior": true,
+        "whole_book_placement": "Candidate14 still required to verify caption adjacency; fragment render alone does not verify page placement."
+      }
+    },
+    {
+      "source": "../../../../../../whitepaper/figures/legible-swarm-inception-canary.tex",
+      "source_sha256": "74914541958a59f0ee936e544eb566711dfdbd1906b6a1a6c907db6586677700",
+      "png": "legible-swarm-inception-canary.png",
+      "png_sha256": "4104c1e6dd90d9d6e3333f5ce154fe101b76af380b5a5fb5573f81c27568c7ab",
+      "png_bytes": 67382,
+      "fragment_pdf_sha256": "020bf41c070bc6efcc48d5946bcabfb6898e60e27dace7a5b0ca9d06e79cb8ab",
+      "mechanical_summary": {
+        "result": "pass",
+        "failed_checks": [],
+        "warned_checks": [
+          "T7"
+        ]
+      },
+      "beauty": {
+        "figure": "legible-swarm-inception-canary",
+        "findings": [
+          {
+            "id": "B4",
+            "level": "warn",
+            "message": "8 stroke weights [0.43, 0.8, 0.96, 1.2, 1.49, 1.59, 1.74, 1.99] (ladder: .5/.9/1.6 plus marks)",
+            "weights": [
+              0.43,
+              0.8,
+              0.96,
+              1.2,
+              1.49,
+              1.59,
+              1.74,
+              1.99
+            ]
+          },
+          {
+            "id": "B7",
+            "level": "warn",
+            "message": "9 near-aligned pairs, e.g. centre of 'queue' and 'approves;' differ by 1.87 pt",
+            "count": 9,
+            "examples": [
+              [
+                "centre",
+                "queue",
+                "approves;",
+                1.87
+              ],
+              [
+                "centre",
+                "rubber\u2011stamp failure",
+                "halt pre\u2011commit;",
+                0.32
+              ],
+              [
+                "x0",
+                "approves;",
+                "expanded",
+                1.42
+              ],
+              [
+                "centre",
+                "approves;",
+                "expanded",
+                1.04
+              ],
+              [
+                "centre",
+                "halt pre\u2011commit;",
+                "tighten",
+                0.32
+              ],
+              [
+                "x0",
+                "halt pre\u2011commit;",
+                "autonomy lease",
+                1.22
+              ]
+            ]
+          }
+        ],
+        "summary": {
+          "result": "warn",
+          "fail": 0,
+          "warn": 2
+        }
+      },
+      "visual_review": "Viewed final PNG: three steps and two illustrative responses legible, no clipping or collision. Caption separates sandbox isolation from consequences of future grant changes; no exhaustive controller claimed. B4 stroke-ladder and B7 near-alignment advisories remain visible, no new family redesign claimed.",
+      "width_advisory_interpretation": "T7 measures artwork plus separate Book margin caption against body-only width; actual illustration fits body (SDT2.87in/canary4.28in). Final whole-page placement remains to check."
+    },
+    {
+      "source": "../../../../../../whitepaper/figures/legible-swarm-hayek-scott.tex",
+      "source_sha256": "1967daa1c01619e72e5eebfddbfe6a1d24744621eb57b7c81840701a681b98ea",
+      "png": "legible-swarm-hayek-scott.png",
+      "png_sha256": "51ccc530861d551282db51db246a2563180469dfb67fd478396510d3283be09a",
+      "png_bytes": 63172,
+      "fragment_pdf_sha256": "450dc42776a6062fc0a04cfa92e65619edd5d89f6ba5762938651b4ace9479c9",
+      "mechanical_summary": {
+        "result": "pass",
+        "failed_checks": [],
+        "warned_checks": [
+          "T7"
+        ]
+      },
+      "beauty": {
+        "figure": "legible-swarm-hayek-scott",
+        "findings": [
+          {
+            "id": "B4",
+            "level": "warn",
+            "message": "6 stroke weights [0.8, 1.2, 1.29, 1.44, 1.59, 1.99] (ladder: .5/.9/1.6 plus marks)",
+            "weights": [
+              0.8,
+              1.2,
+              1.29,
+              1.44,
+              1.59,
+              1.99
+            ]
+          },
+          {
+            "id": "B7",
+            "level": "warn",
+            "message": "2 near-aligned pairs, e.g. centre of 'Scott 1998:' and 'simplification can erase' differ by 0.53 pt",
+            "count": 2,
+            "examples": [
+              [
+                "centre",
+                "Scott 1998:",
+                "simplification can erase",
+                0.53
+              ],
+              [
+                "centre",
+                "Scott 1998:",
+                "practical knowledge",
+                0.53
+              ]
+            ]
+          }
+        ],
+        "summary": {
+          "result": "warn",
+          "fail": 0,
+          "warn": 2
+        }
+      },
+      "visual_review": "Viewed actual final PNG: all four boxes and directional links legible, no clipping or collision. Source cautions feed an explicitly labeled design concern and proposal, not a universal theorem. Caption names interpretive synthesis. B4/B7 style/alignment warnings retained.",
+      "width_advisory_interpretation": "Current Book wrapper uses separate margin caption; illustration itself3.43in within4.5in body. Full-page placement remains to check."
+    }
+  ],
+  "limits": [
+    "Isolated current-Book-preamble fragments, not whole-Book spread acceptance.",
+    "SDT Definition ?? cross-reference is intentionally unresolved in the isolated wrapper; final Book must resolve it.",
+    "No advisory waiver was added or extended."
+  ],
+  "additional_compile": "Same Book QA command with whitepaper/figures/legible-swarm-hayek-scott.tex alone, --editions swiss --jobs1 --hue pdteal; manually inspected after final semantic retelling correction.",
+  "superseded_exact_source_entries": [
+    {
+      "source": "../../../../../../whitepaper/figures/legible-swarm-sdt.tex",
+      "source_sha256": "d99d39977705861b49b54015a6017cd23edea8fdbbfacaa40854e10b4028fc5c",
+      "png": "legible-swarm-sdt.png",
+      "png_sha256": "6091207d8699d038da42354842e9fac723e6619dd9330dede4b6718b7818d55f",
+      "png_bytes": 60879,
+      "fragment_pdf_sha256": "e038e30a43105109c247152a8d639f5af16a1b282691ad027e822696f3d0d3d8",
+      "mechanical_summary": {
+        "result": "pass",
+        "failed_checks": [],
+        "warned_checks": [
+          "T7"
+        ]
+      },
+      "beauty": {
+        "figure": "legible-swarm-sdt",
+        "findings": [
+          {
+            "id": "B2",
+            "level": "warn",
+            "message": "'false alarm' is 1.4 pt from a stroke (1.5 pt clear)",
+            "gap_pt": 1.36
+          }
+        ],
+        "summary": {
+          "result": "warn",
+          "fail": 0,
+          "warn": 1
+        }
+      },
+      "visual_review": "Viewed final PNG: correct raw mean separation and common-scale Gaussian interpretation; criterion beta=5 clear of curves, two error regions identified; no text collision or clipping. B2 records false-alarm label 1.36pt from a stroke, a close-clearance advisory retained for the final spread judgment.",
+      "width_advisory_interpretation": "T7 measures artwork plus separate Book margin caption against body-only width; actual illustration fits body (SDT2.87in/canary4.28in). Final whole-page placement remains to check."
+    }
+  ]
+}

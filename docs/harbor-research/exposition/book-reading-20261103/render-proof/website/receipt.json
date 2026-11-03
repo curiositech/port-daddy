@@ -1,0 +1,106 @@
+{
+  "head": "fed32d9a01a288cf3b2f6f0cdf807f62a12dd0d1",
+  "branch": "codex/book-textbook-craft-20261103",
+  "recordedAt": "2026-11-03T14:43:21.851Z",
+  "capture": "Genuine Playwright Chromium browser recording of local Vite navigation and scroll actions; not a screenshot loop, production deployment, or Porthole recording.",
+  "porthole": "No Porthole recording tool exposed; existing browser video used, accepted by PR gate WebM extension.",
+  "origin": "http://127.0.0.1:4179",
+  "scope": "Regression navigation of the actual research and book consumers. Changed harborResearchProgram fields are not imported by a production component; changed textbook epigraph fields are not rendered by current production components. This video does not claim those hidden fields became visible.",
+  "environment": "Isolated scratch Vite root symlinks exact worktree src/public/index/package; dependencies read from existing checkout node_modules; all writable Vite caches inside this scratch directory. No local Port Daddy runtime invoked.",
+  "sourceHashes": {
+    "website-v2/src/data/harborResearchProgram.json": "bdb0d2810a1fb22cbc8e342b2498f7ad11e5c6681b329d37cfad7a8bf3f9c74d",
+    "website-v2/src/data/textbook.json": "ce0092787f504e8bfe311867bf06336d8fce15728184c131ab29abe759bea68a",
+    "website-v2/src/pages/research/index.tsx": "eeff9b15eb09f25532cc3aace1d231c392a8ca3604bcea4978a78ec3b0086460",
+    "website-v2/src/pages/whitepaper/index.tsx": "2d325b582e595e901fbeadf763b9d3e74fa470f0729511eba3eb0356cb9e2dc8",
+    "website-v2/src/data/researchPapers.ts": "c2cf529419c887994bb9e5a707336b5e7fa3c7e20c5c68d0adefdca320a9e8bb"
+  },
+  "actions": [
+    {
+      "time": "2026-11-03T14:43:10.513Z",
+      "action": "Open research papers panel at desktop viewport",
+      "url": "http://127.0.0.1:4179/research"
+    },
+    {
+      "time": "2026-11-03T14:43:12.069Z",
+      "action": "Select Method tab",
+      "url": "http://127.0.0.1:4179/research?panel=method"
+    },
+    {
+      "time": "2026-11-03T14:43:13.076Z",
+      "action": "Return to The papers tab",
+      "url": "http://127.0.0.1:4179/research?panel=papers"
+    },
+    {
+      "time": "2026-11-03T14:43:14.307Z",
+      "action": "Scroll through published research paper claims",
+      "url": "http://127.0.0.1:4179/research?panel=papers"
+    },
+    {
+      "time": "2026-11-03T14:43:16.239Z",
+      "action": "Follow Read the Book instead link",
+      "url": "http://127.0.0.1:4179/whitepaper"
+    },
+    {
+      "time": "2026-11-03T14:43:17.357Z",
+      "action": "Scroll to chapter contents",
+      "url": "http://127.0.0.1:4179/whitepaper"
+    },
+    {
+      "time": "2026-11-03T14:43:18.785Z",
+      "action": "Open first chapter overview",
+      "url": "http://127.0.0.1:4179/whitepaper/single-writer-kernel"
+    },
+    {
+      "time": "2026-11-03T14:43:19.489Z",
+      "action": "Return to Book contents",
+      "url": "http://127.0.0.1:4179/whitepaper"
+    }
+  ],
+  "artifacts": {
+    "research-desktop.png": {
+      "sha256": "cbf600e4e85772f2b1b50779053889b124f210e624de16b02d66a2a2ec846132",
+      "bytes": 310906,
+      "path": "research-desktop.png"
+    },
+    "book-desktop.png": {
+      "sha256": "e1b3ff1a54dd6a6fa570664368075dca6add5a19fb5735358fb69294de60d24f",
+      "bytes": 286752,
+      "path": "book-desktop.png"
+    },
+    "research-mobile.png": {
+      "sha256": "ded6a5b7d3fca5cf400c8f3e3a0662d6b8b02fa1dfbdc2f5103ba6db3edabed3",
+      "bytes": 80077,
+      "path": "research-mobile.png"
+    },
+    "book-mobile.png": {
+      "sha256": "11daa72eef1adf624e24cb4528f64369e8a5bc8f2fdace9c13547d7a554f38e2",
+      "bytes": 212523,
+      "path": "book-mobile.png"
+    },
+    "research-book-navigation.webm": {
+      "sha256": "3d7e478bdcdfa0f7637d0e244ff7cdae82056d47948c45e535bbf9616e4fc3d8",
+      "bytes": 1441496,
+      "path": "research-book-navigation.webm"
+    }
+  },
+  "pageErrors": [],
+  "blockedExternalRequests": [
+    "https://fonts.googleapis.com/css2",
+    "https://relay.portdaddy.dev/auth/status"
+  ],
+  "bookTextContainsChangedEpigraph": false,
+  "mediaValidation": {
+    "ffprobe": "VP8 video, 1440x1000, 11.64 seconds; actual browser capture with completed click/navigation/scroll actions.",
+    "screenshotsViewed": [
+      "research-desktop.png",
+      "book-desktop.png",
+      "research-mobile.png",
+      "book-mobile.png"
+    ],
+    "visualScope": "Desktop and mobile route regression proof only. Published Book page-count metadata remains 836 while local candidate is 837 because the collated PDF publication is intentionally separate. Research uses a fixed-height scrollable panel; mobile screenshot shows its viewport, not all panel contents."
+  },
+  "capture_receipt_sha256": "2e1828d42f76219ee9f72224a069cff7e420d6747fee4c25178e9f7c937f396b",
+  "portable_evidence_root": ".",
+  "capture_worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "publication_note": "These are local route-regression artifacts bound to the captured source hashes. They are not a production deployment or evidence that changed hidden JSON fields are rendered."
+}

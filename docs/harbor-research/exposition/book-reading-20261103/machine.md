@@ -144,3 +144,12 @@ Standalone validation uses pdflatex from `docs/harbor-research/tex`, with figure
 Final read-only adversarial acceptance: all six Chapter 0 findings listed above were corrected in source. The replay manifest now explicitly states non-injective correspondence, the unchecked consumed-nonce table and the absence of at-most-once evidence. The changed generator includes chapter-zero deferred solutions and its test matches authored exercise/solution identifiers. No additional defect found in that bounded source/test diff review; this is not a new ProVerif execution or a full generator correctness proof.
 
 No known mathematical counterexample remains open from the assigned chapter pass. Separately unverified claims remain deployment/runtime conformance, the missing duplicate-replay guard/model, and complete mediation outside the bounded models. Those are evidence obligations rather than newly proved guarantees. The parent owns final Book compilation, facing-spread acceptance, integration tests and publication.
+
+
+## Final plate-flow repair
+
+Candidate14 placed Landmark12 between the two halves of the ticket-lock design sentence (physical114–116). At the existing `pdswisslandmarkplate{12}` invocation in Chapter1, a conditional `pdmarginpagebreak` now flushes that queued full-page plate before the next paragraph begins. The paragraph and mathematical content are unchanged; no tracked single-writer-kernel manuscript mirror exists. Final assembled spread placement remains the builder's check. The refreshed Chapter1 source hash is `627cec5727480a2fce293bc00305cf10d1efcc9fa03d3b1e5c0a0848f629fd57`.
+
+The existing Book generator deliberately removes literal `clearpage`; this repair uses the preserved `pdmarginpagebreak` wrapper, whose expansion is covered by the generator regression.
+
+The same actual14 review found Landmarks05,06,07 interrupting a reference-monitor sentence, the Algorithmic Pinning invariant, and a release-validity sentence. Each existing conditional figure now flushes through `pdmarginpagebreak` before following prose. No prose or formulas changed. Current source hashes and line counts for all three chapters are recorded in machine-concepts.json; assembled flow remains to be verified in the next build.

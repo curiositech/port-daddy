@@ -40,6 +40,11 @@ The build must converge before copying its PDF. Run
 spreads for all chapter openers and repaired pages, and record its hash. Publication
 uses `\pdcopyreviewfalse`; editorial review sheets must not appear. Source review,
 local rendered acceptance, and the authorized hosted PDF refresh are distinct gates.
+Full-page plates must not interrupt a sentence or definition. In chapters
+assembled by the generator, use `\pdmarginpagebreak` at a paragraph boundary:
+chapter transformation strips literal `\clearpage` but preserves this macro.
+Page-turn word checks must include
+protocol and solution text below 10 pt, including literal compound-word hyphens.
 
 ## Recently Shipped Surfaces (verify before you depend on them)
 

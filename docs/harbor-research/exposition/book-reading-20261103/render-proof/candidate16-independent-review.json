@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T16:38:38.769526+00:00",
+  "observed_head": "7d3b19e784faff18ac65d718ca13ffb1100c2cd5",
+  "branch": "codex/book-textbook-craft-20261103",
+  "candidate": "16",
+  "status": "bounded_independent_source_review_pass",
+  "scope": "Read all current deltas versus010d3 for LS, STP, HE, Bonded and the two changed figures; read surrounding dependencies. Searched all eight canonical Book chapters and Chapter0 for the corrected memory-horizon, model-scope, estimator and trade-necessity retellings; this is bounded propagation review, not a fresh whole-Book read. No manuscript edits by this reviewer.",
+  "sources": [
+    {
+      "path": "whitepaper/legible-swarm.tex",
+      "sha256": "0e70f58658f054f315db677accc93e4e061b4076743818986b06a81867912a54",
+      "diff_sha256": "26f582bf1ef0460d51971f038e3a36c8451fcc73183f85d5a3b2227b4440f565"
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "cf790bfc5618875d4e44bd6ac0f4d4e6ae483e3d39b66e6695c207eb88f1ee5c",
+      "diff_sha256": "8b636fd1a3ad68fc8ee81a40d382f1430886738717eac411b086708f6762a328"
+    },
+    {
+      "path": "website-v2/public/whitepaper/harbor-economy.tex",
+      "sha256": "05454a332005073fcf0b6fa80f6e534e03c354228ab74e77307a6f0936422676",
+      "diff_sha256": "2e22054cd723eaad2bba2e3c93a40ec01119cd81d1f04aefdf90b980b437a5d7"
+    },
+    {
+      "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "sha256": "04701b2cf32a3c1d0cb2c5c791bb729aca8c19c3be3cedb59e3bb5740a9d8510",
+      "diff_sha256": "a33caaef7cb66e56d7c6d4e06ac6f16fe63614c53553585b15f7b9ccadeaf3db"
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-he-conflict-witness.tex",
+      "sha256": "50b19c5ec18ead7b6e6c1616a56b9bc1933353f61fb2da37e806ade784799a57",
+      "diff_sha256": "731b491f6d642487f0be356acb502d33ad7929a22acadb235664e74b87a346dc"
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex",
+      "sha256": "26a9fb820aae9ba1d66fbe91747befe5ac9512695e6025613d7b6041a2b0243a",
+      "diff_sha256": "e35e8dd23b6dee33a53068a6ce8bad6e7c0108d0c37174a79abcb80ea7718a14"
+    }
+  ],
+  "accepted_changes": [
+    {
+      "topic": "Landmark03,04,08 boundaries",
+      "evidence": "03 follows complete principal definition;08 follows complete directory/zoom paragraph;04 moved after completed recitation and before revocation section. All flush via generator-preserved pdmarginpagebreak inside conditional plate branch. Final page placement still needs next PDF."
+    },
+    {
+      "topic": "Estimator interpretation",
+      "evidence": "STP intro and estimator section now distinguish BT likelihood fit/data conditions, sequential Elo, modeled TrueSkill uncertainty requiring calibration, anchored EigenTrust attack scope, and eBay evidence that does not establish an agent-market side. No claim of uniformly superior BT or universal EigenTrust collusion resistance remains in these passages."
+    },
+    {
+      "topic": "Trade/identity/grading handoff",
+      "evidence": "STP handoff describes attributable histories rather than a third market side; grading honesty is an obligation. STP and HE theses now scope continuity/reputation requirements to the proposed history-dependent market, with prepaid known-content trade counterexample retained."
+    },
+    {
+      "topic": "Memory horizon",
+      "evidence": "Both HE Liu retellings now concern finite recent records under the cited equilibrium assumptions and do not infer infinite memory is generally inferior. They agree with STP2630ff; retained evidence and current weighting remain separate."
+    },
+    {
+      "topic": "Formal model scope",
+      "evidence": "Bonded lifecycle summaries identify excerpt and missing fairness, not verified liveness. Active-session note monotonicity explicitly excludes destructive Dismiss. HE federation pitfall/status row identify unexecuted cross-harbor sketch, consistent with FH1380ff and2018ff; bounded single-harbor accounting is separate."
+    },
+    {
+      "topic": "HE deontic witness",
+      "evidence": "Figure, adjacent lead-in, worked example and solution agree with b4_deontic_fragment.py484\u2013488: Horn closure activates conditional O against unconditional F; overlap [5,10]. Figure arrow to unconditional F removed. No new run of unchanged arithmetic script claimed."
+    },
+    {
+      "topic": "LS escalation trust scope",
+      "evidence": "A sanction for adjudicated false escalation is distinguished from EigenTrust anchoring; mere dismissal is not falsity. No general Sybil guarantee inferred from aggregate score."
+    },
+    {
+      "topic": "Dartmouth analogy",
+      "evidence": "Precise continuing legal-entity analogy at U.S. Reports17:636 supported by primary text; no legal personhood for software or definition proof claimed."
+    },
+    {
+      "topic": "Rendered findings addressed in source",
+      "evidence": "Nonbreaking assumption removes the observed assump-/tion split; maturity labels top-aligned; deterrence figure H\u2192tp. Render/layout acceptance remains pending candidate16."
+    }
+  ],
+  "primary_sources_checked": [
+    {
+      "url": "https://tile.loc.gov/storage-services/service/ll/usrep/usrep017/usrep017518/usrep017518.pdf",
+      "scope": "U.S. Reports p636 corporate entity created by law and properties conferred by charter."
+    },
+    {
+      "url": "https://web.stanford.edu/~skrz/Liu_Skrzypacz.pdf",
+      "scope": "Previously read primary abstract, finite-record stationary-equilibrium assumptions and Theorem1; applied to both HE retellings."
+    },
+    {
+      "url": "https://www.ambuehler.ethz.ch/CDstore/www2003/papers/refereed/p446/p446-kamvar/eigentrust.html",
+      "scope": "Previously read primary pretrusted-peer modification and malicious-collective experiment; applied to LS/STP qualifications."
+    }
+  ],
+  "figure_proofs": {
+    "inherited_corpus_intersection": [
+      "website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex"
+    ],
+    "deterrence_receipt": "figures/figure-debt-triage.json",
+    "deterrence_actual_rerender": true,
+    "deterrence_png_identical": true,
+    "new_conflict_figure_outside_inherited_corpus": "website-v2/public/whitepaper/figures/fig-he-conflict-witness.tex",
+    "new_conflict_fragment_owner": "craft_markets_federation"
+  },
+  "remaining_findings": [],
+  "limits": [
+    "No claim that future candidate16 PDF passes whole-document gates.",
+    "No fresh verification of runtime/deployment claims.",
+    "No inference of new mathematical theorems from editorial corrections."
+  ],
+  "integrated_source_head": "7d3b19e784faff18ac65d718ca13ffb1100c2cd5",
+  "hashes_rechecked_after_integration": true
+}

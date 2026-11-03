@@ -1,0 +1,85 @@
+{
+  "source_commit": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+  "concept_records": 152,
+  "source_records": [
+    {
+      "reader": "foundations",
+      "source": "website-v2/public/whitepaper/coordination-papers-mega-volume.tex",
+      "saved_sha256": "67ddac3ba8baffcb69a663bf8b895ccfef5dce7bc7dc4369343fbe9ce3fc97ff",
+      "reading_record": "foundations-concepts.json"
+    },
+    {
+      "reader": "foundations",
+      "source": "website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex",
+      "saved_sha256": "6c9e23df44fc314c89161095a03ed6c20c2e706d679b8ea52903bb8a43cf4ceb",
+      "reading_record": "foundations-concepts.json"
+    },
+    {
+      "reader": "foundations",
+      "source": "website-v2/public/whitepaper/coordination-papers-mega-volume-appendices.tex",
+      "saved_sha256": "f763cff78b8205dcc8f51c9dc62ddec7edb04f1c9f4ddafed6916eb45d18f0be",
+      "reading_record": "foundations-concepts.json"
+    },
+    {
+      "reader": "foundations",
+      "source": "website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex",
+      "saved_sha256": "e90ede5f674687b29abb15c950029ba03c6a7af7a022cfa250fd12aba490ea69",
+      "reading_record": "foundations-concepts.json"
+    },
+    {
+      "reader": "foundations",
+      "source": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex",
+      "saved_sha256": "9b1ee580ccf95831ab5d662582443676a6eb8fe15f7a0dc3bda99d9c38b5d293",
+      "reading_record": "foundations-concepts.json"
+    },
+    {
+      "reader": "machine",
+      "source": "whitepaper/single-writer-kernel.tex",
+      "saved_sha256": "e50e9e5d8c3d30fa38f0bfd097f028819a421899af7bf0a83e1886ccf82e675a",
+      "reading_record": "machine-concepts.json"
+    },
+    {
+      "reader": "machine",
+      "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "saved_sha256": "4ad9a825977546400f78e1355af115f0953864e973223bf390819cdef5ba2078",
+      "reading_record": "machine-concepts.json"
+    },
+    {
+      "reader": "machine",
+      "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "saved_sha256": "995f3c86a085dcdb0364352e8ca6453968986a4ddda398a4b4e061ab1760ffa1",
+      "reading_record": "machine-concepts.json"
+    },
+    {
+      "reader": "operator-identity",
+      "source": "whitepaper/legible-swarm.tex",
+      "saved_sha256": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
+      "reading_record": "operator-identity-concepts.json"
+    },
+    {
+      "reader": "operator-identity",
+      "source": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "saved_sha256": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32",
+      "reading_record": "operator-identity-concepts.json"
+    },
+    {
+      "reader": "markets-federation",
+      "source": "website-v2/public/whitepaper/harbor-economy.tex",
+      "saved_sha256": "9e712ff7d460bc24ee0b584abcf4763b0acc22b193f83b0ee19e7cad385d96ec",
+      "reading_record": "markets-federation-concepts.json"
+    },
+    {
+      "reader": "markets-federation",
+      "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "saved_sha256": "04701b2cf32a3c1d0cb2c5c791bb729aca8c19c3be3cedb59e3bb5740a9d8510",
+      "reading_record": "markets-federation-concepts.json"
+    },
+    {
+      "reader": "markets-federation",
+      "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "saved_sha256": "c1bd4ca86e4005f619ac4ccbf1f3f57a2475ec5a8ec527c7ec40d8fffe46d764",
+      "reading_record": "markets-federation-concepts.json"
+    }
+  ],
+  "scope": "Hash reconciliation of the four sequential-reading records, not an automated proof of comprehension."
+}

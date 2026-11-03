@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "source": "website-v2/public/whitepaper/figures/fig-he-conflict-witness.tex",
+  "source_sha256": "50b19c5ec18ead7b6e6c1616a56b9bc1933353f61fb2da37e806ade784799a57",
+  "source_head_at_receipt": "35268bffbe91d5e3937efd62737ef41e212d2794",
+  "edition": "swiss",
+  "preamble": "book",
+  "command": "PD_EDITION=swiss PD_CHAPTER_HUE=pdgold CHARTWORK_FORCE_LOCAL_TEX=1 bash skills/harbor-chartwork/scripts/compile_fragment.sh website-v2/public/whitepaper/figures/fig-he-conflict-witness.tex --preamble book --out .cache/conflict-witness-final-qa",
+  "png": "fig-he-conflict-witness.png",
+  "png_sha256": "26eb83ba29448107217e61c7228c59dd49dcbd7efc7f71d0165d76e91cc2a129",
+  "fragment_pdf_sha256": "1df9a266c392015dc237fd914761c9a4d7ff65001e39faa76d488deff3620b7b",
+  "fragment_log_sha256": "9ef2d4ef9d0883e95bfcb4752aad1a5e19874c4d2308034607974b207f00331f",
+  "figcheck_sha256": "0be0829e206784cdcdbca5d35e2cff13e81e835fbf061cbebb743e52006b3662",
+  "mechanical_summary": {
+    "result": "pass",
+    "failed_checks": [],
+    "warned_checks": [
+      "T7"
+    ]
+  },
+  "advisories": "T7 measures artwork plus separate Book margin caption against body-only width; edge-density advisory retained. Actual fragment and placed candidate16 render inspected.",
+  "semantic_scope": "agent_deployed derives prod_access, activating only the obligation; the prohibition is unconditional. Both overlap on [5,10]. Source witness inspected at b4_deontic_fragment.py484\u2013488. The 100/885 figure is a supplied seeded sweep result, not a newly executed proof in this fragment compilation.",
+  "visual_review": "Actual PNG reopened at original resolution: labels, unconditional branch, overlap marker and footer legible without collisions. Candidate16 spread524\u2013525 separately directly inspected and agrees with body witness.",
+  "full_document_scope": "Fragment is not whole-book placement acceptance. Final candidate17 caption geometry and actual selected-spread review remain separate gates."
+}

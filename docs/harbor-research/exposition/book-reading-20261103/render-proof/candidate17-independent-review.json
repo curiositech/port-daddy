@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T16:56:25.675059+00:00",
+  "source_head": "9309ddbf148b89ae1e3408e19fde6118a0270811",
+  "status": "bounded_independent_source_review_pass",
+  "scope": "Read all four-chapter deltas from7d3 plus exact nearby theorem, proof, recap and exercise contexts. Verified final three-cost decision wording. No manuscript edits by this reviewer; no new full-Book read claimed.",
+  "input_sources": [
+    {
+      "path": "whitepaper/legible-swarm.tex",
+      "sha256": "9a3898f80cb81bedee3ee383ba41730b62958c97df356ae368df3ae17ebe7495",
+      "delta_sha256": "2d0358cd14e9a2a55cd0d1dd351e0787dd9d59c8a4cab73d1e77b28a957f58ad",
+      "substantive_review_sha256": "9a3898f80cb81bedee3ee383ba41730b62958c97df356ae368df3ae17ebe7495"
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "c39af4931a82dcfd839b42e008b3a9c47363c510af591af81bbf7e9ed1567ba0",
+      "delta_sha256": "56c21d17b173e57dc8ca1413f6186a7a7cf98ac198cc7d374dc462afa25c16bd",
+      "substantive_review_sha256": "c39af4931a82dcfd839b42e008b3a9c47363c510af591af81bbf7e9ed1567ba0"
+    },
+    {
+      "path": "website-v2/public/whitepaper/harbor-economy.tex",
+      "sha256": "9e712ff7d460bc24ee0b584abcf4763b0acc22b193f83b0ee19e7cad385d96ec",
+      "delta_sha256": "dd9fd08296758e0a45ed5ebfd7b1cbb48932e0221677e400a725361148361437",
+      "substantive_review_sha256": "9e712ff7d460bc24ee0b584abcf4763b0acc22b193f83b0ee19e7cad385d96ec"
+    },
+    {
+      "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "82db8d10d241fc0953083297d7714a22304c309cf7d4db77ff18b490ebca4549",
+      "delta_sha256": "ba7eefa72a36c53f042a7e5e599a915d9102993b948cf5f42d53c4195360235c",
+      "substantive_review_sha256": "48f07680fc3405c9743506c57d028a650a4eb19ffe3114ab0b79fac8d9ae51eb"
+    }
+  ],
+  "fresh_adversarial_review": {
+    "provenance": "Fresh delivery_adversary review summary received by root and relayed to craft_machine; not a direct quotation or independent external-review artifact.",
+    "reviewed_range_as_reported": "379f2cd48efb5f976b2b3562dc1d549eda55a97a through7d3b19e784faff18ac65d718ca13ffb1100c2cd5",
+    "reported_scope": "Bounded source/context review; no PDF or external theorem checks. No additional concrete defect reported in inspected SDT, counting, comonotonicity, engine payoff, conflict-witness or lifecycle passages.",
+    "findings": [
+      {
+        "priority": "P2",
+        "topic": "LS ratio-only threshold monotonicity",
+        "independently_reproduced": true,
+        "status": "fixed_and_independently_verified",
+        "resolution": "Recap and worked example hold attention and false-alarm costs fixed; strictness condition stated. Smoke-detector analogy now makes the decision depend on posterior and three costs, not the posterior threshold itself.",
+        "counterexample": {
+          "attention": "1",
+          "case1": {
+            "miss": "100",
+            "false_alarm": "5",
+            "ratio": "20",
+            "threshold": "2/35"
+          },
+          "case2": {
+            "miss": "10",
+            "false_alarm": "2/5",
+            "ratio": "25",
+            "threshold": "7/52"
+          },
+          "finding": "Larger cost ratio can accompany a larger threshold; both are within[0,1]."
+        }
+      },
+      {
+        "priority": "P2",
+        "topic": "STP same-provider resurrection collapses hypotheses",
+        "independently_reproduced": true,
+        "status": "fixed_and_independently_verified",
+        "resolution": "Same-provider paragraph retains authenticated lineage, engine attestations and commitment cutover checks; recap separately retains principal-scoped sanctions and distinguishes no-mint accounting."
+      }
+    ]
+  },
+  "other_verified_deltas": [
+    {
+      "topic": "Clinical alarm evidence",
+      "resolution": "80\u201399 percent applies to false or clinically insignificant alarms in studies summarized by Cvach. Agent-supervision rates and timescales remain unmeasured."
+    },
+    {
+      "topic": "Costly-signal exercises",
+      "resolution": "Dismissal alone no longer establishes falsity; relative Goodhart harm is task/authority dependent. Validation errors and suppressed genuine warnings require measurement."
+    },
+    {
+      "topic": "Federation centralization",
+      "resolution": "Removed unsupported five-to-ten-year concentration/adoption claims and fee-implies-sponsor-supply inference. Replication, administrative independence and switchability distinguished; primary topology comparison supports only stated architecture."
+    },
+    {
+      "topic": "HE local identity maturity",
+      "resolution": "Design invariant distinguished from partial implementation, with full write boundary still an explicit condition."
+    },
+    {
+      "topic": "Lineage page-turn split",
+      "resolution": "Source keeps lineage together; final rendered all-font scan remains required."
+    }
+  ],
+  "primary_sources_checked": [
+    {
+      "url": "https://doi.org/10.2345/0899-8205-46.4.268",
+      "scope": "Publisher primary article text confirms80\u201399 clinical-study range; no transfer of measured rate/timescale to agent supervision."
+    },
+    {
+      "url": "https://css.csail.mit.edu/6.858/2012/readings/identity.pdf",
+      "scope": "Maler/Reed printedp21, PDFpage6: hub-centered SAML circles and InCommon institutional IdPs. No numerical concentration law."
+    },
+    {
+      "url": "https://tailscale.com/blog/how-tailscale-works",
+      "scope": "Official description of centralized coordination and mesh data plane."
+    },
+    {
+      "url": "https://headscale.net/0.24.2/",
+      "scope": "Official description of self-hosted Tailscale control-server implementation."
+    }
+  ],
+  "shared_style_boundary": "No shared style edit. Root retained intentional brokenpenalty9000 inside breakable boxes; local word protection used for the observed page-turn defect. No independent claim about box-layout internals added.",
+  "remaining_findings": [],
+  "limits": [
+    "Source review does not certify final PDF placement or runtime deployment.",
+    "Final navigation, page-turn scan and facing-copy checks must bind the converged PDF separately."
+  ],
+  "substantive_review_source_head": "35268bffbe91d5e3937efd62737ef41e212d2794",
+  "bibliography_cleanup": {
+    "change": "Removed only two unreferenced FH entries,10 lines.",
+    "keys": [
+      "zimmermann1995pgp",
+      "abdulrahman1997pgp"
+    ],
+    "verified_exact_deletion": true,
+    "citations_exit_code": 0
+  }
+}

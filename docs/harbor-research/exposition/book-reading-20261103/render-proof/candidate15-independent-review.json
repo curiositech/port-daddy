@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T16:19:59.930959+00:00",
+  "observed_head_before_integration": "010d3a8f2a96f99f69b140f673c5722fa1ac6416",
+  "base_review_head": "296bfdfd7c62fec5d10c8da9657bba3926f67c52",
+  "scope": "Independent read of the complete frozen operator LS/STP and markets Ch6\u20138 source deltas against296, plus their affected nearby claims/exercises. These files were authored by other agents. Exact hashes bind uncommitted changes; next integration checkpoint is recorded separately by parent.",
+  "inputs": [
+    {
+      "path": "../../../../../whitepaper/legible-swarm.tex",
+      "sha256": "bb5ef45d0a2044007711c713cfd3db8f215be5869a19a0945902d14c839ccc80"
+    },
+    {
+      "path": "../../../../../website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "f5fbe045d9756da0531ef8b5762582eb05792bab5ce74c02976b98be1d9ec6f4"
+    },
+    {
+      "path": "../../../../../website-v2/public/whitepaper/harbor-economy.tex",
+      "sha256": "600088db7ba005601a7344d7fe393b8d26aa9554ec5cbe265bc68af479901b97"
+    },
+    {
+      "path": "../../../../../website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "sha256": "e11a9a05fd34f3c9a1b43efb406e55fd5dcad24b60a555537cbcb7d54e80ecdb"
+    },
+    {
+      "path": "../../../../../website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "e177cda5fce0c2341eb9c6e7e5cea231a1aac2579ad073cb40026117b7cd5e0a"
+    }
+  ],
+  "verdict": "accepted; no new blocking regression found in this bounded source delta",
+  "checks": [
+    "LS agreement no longer implies either independence or perfect correlation; revised exercise distinguishes separate control from independent errors.",
+    "Nonbreaking pre-commit and decimal wrappers preserve text/numbers; removing explicit qed avoids duplicating the proof-environment end mark.",
+    "STP estimator table states data/model requirements without claiming guaranteed calibration or universal collusion resistance.",
+    "One-delivery engine substitution is scoped to equal payment, no later reputation payoff and no quality-contingent withholding; a market exit spiral requires additional dynamics.",
+    "Evidence retention, estimator aging and invalidation are distinct; append-only outcome history does not imply monotone reputation estimates.",
+    "Merkle checks are against authenticated roots and do not prove event completeness or claim truth. The symbolic Book section reference has a standalone textual fallback.",
+    "FH local admission and residual consistency do not imply cross-harbor resource locking or dishonesty attribution. The adjacent Anchor end-to-end overclaim was removed.",
+    "Existing generator-preserved plate-flush commands do not alter prose or mathematics. Final placement remains a rendered check."
+  ],
+  "primary_sources_checked": [
+    {
+      "url": "https://web.stanford.edu/~skrz/Liu_Skrzypacz.pdf",
+      "locations": [
+        "abstract",
+        "Section2.3",
+        "Theorem1"
+      ],
+      "supported_scope": "Finite records and stationary equilibrium can produce rising trust even when an opportunistic type is known. This does not establish a generally optimal memory horizon."
+    },
+    {
+      "url": "https://www.ambuehler.ethz.ch/CDstore/www2003/papers/refereed/p446/p446-kamvar/eigentrust.html",
+      "locations": [
+        "Section4.4 practical issues",
+        "malicious-collectives simulation"
+      ],
+      "supported_scope": "Pre-trusted peers anchor the modified method and matter to the stated malicious-collective result; robustness depends on seed choice and attack assumptions."
+    }
+  ],
+  "compound_scan": {
+    "pdf_sha256": "30aacb0a5791ca3cee0b49dabbb79b4a788c4c3e1b7563f0a53f20ef36b98d8c",
+    "pages_checked": 839,
+    "minimum_font_size": "none; geometric body-column filter",
+    "true_candidates": 1,
+    "candidate": "pre-/commit at physical345/346, folio321/322,9.545pt protocol text",
+    "other_candidates": 0,
+    "source_disposition": "Operator wrapped pre-commit in mbox; next final PDF scan must verify repair.",
+    "local_receipt": ".scratch/textbook-craft-20261103/literal-compound-page-turns-14.json",
+    "receipt_sha256": "70b1dab2755f56e61ed175f1585623170f34c2f88a1ef32d2841701b12898a9e"
+  },
+  "reviewer_owned_changes": {
+    "files": [
+      "whitepaper/single-writer-kernel.tex",
+      "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "website-v2/public/whitepaper/sealed-harbor.tex"
+    ],
+    "scope": "Four conditional generator-preserved plate flushes only; source hashes recorded in machine-concepts.json. Independent operator review is separate from this agent\u2019s verdict on others."
+  },
+  "limits": [
+    "No new full external-literature audit, runtime proof or deployed behavior verification.",
+    "This is source-level review plus the explicitly identified14 compound scan; next candidate\u2019s rendered/global acceptance remains separate."
+  ],
+  "integrated_source_head": "010d3a8f2a96f99f69b140f673c5722fa1ac6416",
+  "source_hashes_rechecked_at_integration": true
+}
