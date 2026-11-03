@@ -1445,7 +1445,7 @@ Table~\ref{tab:fh-partition} lays out all three protocols side by side.
 \section{Related Work}\label{sec:fh-related}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The Federated Harbor sits at the intersection of four bodies of work. We are concrete about where we draw on each and where we depart.
+The Federated Harbor sits at the intersection of five bodies of work. We are concrete about where we draw on each and where we depart.
 
 \paragraph{Federated identity.} The OpenID Federation 1.0 specification~\pdcite{hedberg2024openidfed} is the closest existing analogue: each entity publishes a signed Entity Statement, trust chains assemble by walking up to a Trust Anchor, trust marks express property claims. The Federated Harbor is structurally similar in the trust-anchor pattern but differs in two places: (a) we add a capability/attenuation layer (OpenID Federation is identity-only), and (b) we do not assume HTTP-based fetching of entity statements, since Port Daddy daemons cannot reliably expose HTTP endpoints (NAT, sleep, etc.). SAML/Shibboleth also exposes identity-provider discovery and trust-topology choices~\pdcite{maler2008venn}; these motivate the distinction between multiple endpoints and independent control in \S\ref{sec:fh-centralization}.
 
