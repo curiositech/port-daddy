@@ -1,48 +1,34 @@
 {
+  "schema_version": 2,
+  "checked_at": "2026-11-03T21:31:50.731848+00:00",
   "worktree": "/Users/erichowens/coding/tmp/book-publication-20261103",
   "branch": "codex/book-publication-20261103",
-  "head": "69e6c96365a1babe9b7a3b7b59a4b29a02993eca",
-  "book_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+  "head": "08de158cd9344021aa3c2e8f80aa48dbf70a77a9",
+  "book_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
   "before": {
-    "FINDINGS.js": "12787d0e1d56159953797219ca5060c853289023954e9b341b6960c56b7edd9c",
-    "FIGS.js": "f0247963a9a200d81adfd1ad3ff2280b8f5c4eedaa424c4ba18cba9c0111e963",
     "CHAPTERS.js": "d6df4c87409c8c56117a1447299d0ea6c2e8cb67c0f9d2e91a33c85f196eecd0",
-    "RESEARCH.js": "244a3f5d1731a8736671dbb865dba57fcc9cffac2bac285f74e66a6b825c0dd9",
+    "FIGS.js": "6bdb2c2c794f47e278802bf041ba5a89716fae8bfd03a0684b12226cfe515ac9",
+    "TRIAGE.js": "32627ee4da234e7531a7613f923b73f374aea7928df9be4b05531523c71162f7",
     "UNDRAWN.js": "9469892fad3d40c0bc2f48822347238ad89cf46be8e5449447bdb9ad99d428ce",
     "PIXEL.js": "abec498492799c647814722e378518f36e1739d725d800c242b69c0bda8ecaf7",
-    "TRIAGE.js": "32627ee4da234e7531a7613f923b73f374aea7928df9be4b05531523c71162f7",
+    "FINDINGS.js": "9edf175617ebeed2e6a9b47bdf6bcb56a761f5717f80c5e2acc12d8b528bd56d",
+    "DOCTRINE.js": "1bf3466563222fd3f848026c5a3ffee1996a1381b608af8634d23d6f113927f1",
     "CRIT.js": "9f71cb116f99acdf86109fa3035aedb6c2e5324bbe2996599445655cf77851b2",
-    "DOCTRINE.js": "1bf3466563222fd3f848026c5a3ffee1996a1381b608af8634d23d6f113927f1"
+    "RESEARCH.js": "244a3f5d1731a8736671dbb865dba57fcc9cffac2bac285f74e66a6b825c0dd9"
   },
   "after": {
-    "FINDINGS.js": "9edf175617ebeed2e6a9b47bdf6bcb56a761f5717f80c5e2acc12d8b528bd56d",
-    "FIGS.js": "6bdb2c2c794f47e278802bf041ba5a89716fae8bfd03a0684b12226cfe515ac9",
     "CHAPTERS.js": "d6df4c87409c8c56117a1447299d0ea6c2e8cb67c0f9d2e91a33c85f196eecd0",
-    "RESEARCH.js": "244a3f5d1731a8736671dbb865dba57fcc9cffac2bac285f74e66a6b825c0dd9",
+    "FIGS.js": "6bdb2c2c794f47e278802bf041ba5a89716fae8bfd03a0684b12226cfe515ac9",
+    "TRIAGE.js": "32627ee4da234e7531a7613f923b73f374aea7928df9be4b05531523c71162f7",
     "UNDRAWN.js": "9469892fad3d40c0bc2f48822347238ad89cf46be8e5449447bdb9ad99d428ce",
     "PIXEL.js": "abec498492799c647814722e378518f36e1739d725d800c242b69c0bda8ecaf7",
-    "TRIAGE.js": "32627ee4da234e7531a7613f923b73f374aea7928df9be4b05531523c71162f7",
+    "FINDINGS.js": "9edf175617ebeed2e6a9b47bdf6bcb56a761f5717f80c5e2acc12d8b528bd56d",
+    "DOCTRINE.js": "1bf3466563222fd3f848026c5a3ffee1996a1381b608af8634d23d6f113927f1",
     "CRIT.js": "9f71cb116f99acdf86109fa3035aedb6c2e5324bbe2996599445655cf77851b2",
-    "DOCTRINE.js": "1bf3466563222fd3f848026c5a3ffee1996a1381b608af8634d23d6f113927f1"
+    "RESEARCH.js": "244a3f5d1731a8736671dbb865dba57fcc9cffac2bac285f74e66a6b825c0dd9"
   },
-  "changed_files": [
-    "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js",
-    "docs/harbor-research/exposition/figures/desk/data/FIGS.js"
-  ],
+  "changed_files": [],
   "runs": [
-    {
-      "name": "write",
-      "command": [
-        "/opt/anaconda3/bin/python3",
-        "scripts/harbor-research/build_figure_desk.py",
-        "--write",
-        "--report"
-      ],
-      "exit_code": 0,
-      "seconds": 3.83,
-      "log": ".scratch/publication-20261103/figure-desk/write.log",
-      "log_sha256": "8bf20ed477e7023472d85aaea4444eef7611f6fdaeeeaf63401701c90dd470ef"
-    },
     {
       "name": "check",
       "command": [
@@ -51,8 +37,8 @@
         "--check"
       ],
       "exit_code": 0,
-      "seconds": 3.75,
-      "log": ".scratch/publication-20261103/figure-desk/check.log",
+      "seconds": 3.89,
+      "log": ".scratch/publication-20261103/figure-desk-accepted28/check.log",
       "log_sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b"
     },
     {
@@ -69,13 +55,13 @@
         "-v"
       ],
       "exit_code": 0,
-      "seconds": 15.6,
-      "log": ".scratch/publication-20261103/figure-desk/tests.log",
-      "log_sha256": "3818f6cbf70373c62be486b4d567e2ffac6c75b7c1dd13a2689b5e2792b861a6"
+      "seconds": 8.18,
+      "log": ".scratch/publication-20261103/figure-desk-accepted28/tests.log",
+      "log_sha256": "e0c4e63bc3b48da11128f35c80fe35f39b75efa007d0a648c38a6d6340641503"
     }
   ],
   "pass": true,
-  "scope": "Derived figure-desk regeneration and focused tests against exact accepted Book PDF; no whole-book, hosted CI, deployment or global publication claim.",
+  "scope": "Fresh generation in memory and focused 53-test validation against accepted candidate28 bytes. Only FIGS/FINDINGS eligible for writes; other seven outputs verified byte-fresh. No hosted, deployment or whole-book reread claim.",
   "reader_versions": {
     "pymupdf": "1.26.7",
     "pillow": "12.1.0"
@@ -119,16 +105,150 @@
         "historical_render_page": 375
       }
     ],
-    "cartel_diagnosis": "The source caption parser removes inline mathematics. Its initial 7/10/14 normalized prose words are therefore not contiguous in the actual PDF, where mathematical glyphs intervene. Figure7.11 is confirmed on physical631, but generator leaves bookPage=null. No hand override was made.",
-    "historical_page_policy": "The page field remains the curated page of the old desk JPG, separate from bookPage for the published Book. No old annotated JPG coordinates changed."
-  },
-  "diff_check": {
-    "exit_code": 0,
-    "output": ""
+    "historical_page_policy": "page remains the curated historical JPG page; bookPage uses the promoted accepted PDF. Unknown caption matches remain null.",
+    "cartel_diagnosis": "The source caption parser removes inline mathematics. Its initial 7/10/14 normalized prose words are therefore not contiguous in the actual PDF, where mathematical glyphs intervene. Figure7.11 is confirmed on physical631, but generator leaves bookPage=null. No hand override was made."
   },
   "source_files": {
     "scripts/harbor-research/build_figure_desk.py": "56e59632836288525a5a040d03c4c7daecf965c13dcb599a34ef9a2608edefb9",
     "tests/harbor-research/test_build_figure_desk.py": "28ea82c0f4f15c027818e5523c506623724af76e9095717fff00d5d24708c4db",
     "whitepaper/textbook.json": "ce0092787f504e8bfe311867bf06336d8fce15728184c131ab29abe759bea68a"
+  },
+  "historical_record": {
+    "worktree": "/Users/erichowens/coding/tmp/book-publication-20261103",
+    "branch": "codex/book-publication-20261103",
+    "head": "69e6c96365a1babe9b7a3b7b59a4b29a02993eca",
+    "book_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+    "before": {
+      "FINDINGS.js": "12787d0e1d56159953797219ca5060c853289023954e9b341b6960c56b7edd9c",
+      "FIGS.js": "f0247963a9a200d81adfd1ad3ff2280b8f5c4eedaa424c4ba18cba9c0111e963",
+      "CHAPTERS.js": "d6df4c87409c8c56117a1447299d0ea6c2e8cb67c0f9d2e91a33c85f196eecd0",
+      "RESEARCH.js": "244a3f5d1731a8736671dbb865dba57fcc9cffac2bac285f74e66a6b825c0dd9",
+      "UNDRAWN.js": "9469892fad3d40c0bc2f48822347238ad89cf46be8e5449447bdb9ad99d428ce",
+      "PIXEL.js": "abec498492799c647814722e378518f36e1739d725d800c242b69c0bda8ecaf7",
+      "TRIAGE.js": "32627ee4da234e7531a7613f923b73f374aea7928df9be4b05531523c71162f7",
+      "CRIT.js": "9f71cb116f99acdf86109fa3035aedb6c2e5324bbe2996599445655cf77851b2",
+      "DOCTRINE.js": "1bf3466563222fd3f848026c5a3ffee1996a1381b608af8634d23d6f113927f1"
+    },
+    "after": {
+      "FINDINGS.js": "9edf175617ebeed2e6a9b47bdf6bcb56a761f5717f80c5e2acc12d8b528bd56d",
+      "FIGS.js": "6bdb2c2c794f47e278802bf041ba5a89716fae8bfd03a0684b12226cfe515ac9",
+      "CHAPTERS.js": "d6df4c87409c8c56117a1447299d0ea6c2e8cb67c0f9d2e91a33c85f196eecd0",
+      "RESEARCH.js": "244a3f5d1731a8736671dbb865dba57fcc9cffac2bac285f74e66a6b825c0dd9",
+      "UNDRAWN.js": "9469892fad3d40c0bc2f48822347238ad89cf46be8e5449447bdb9ad99d428ce",
+      "PIXEL.js": "abec498492799c647814722e378518f36e1739d725d800c242b69c0bda8ecaf7",
+      "TRIAGE.js": "32627ee4da234e7531a7613f923b73f374aea7928df9be4b05531523c71162f7",
+      "CRIT.js": "9f71cb116f99acdf86109fa3035aedb6c2e5324bbe2996599445655cf77851b2",
+      "DOCTRINE.js": "1bf3466563222fd3f848026c5a3ffee1996a1381b608af8634d23d6f113927f1"
+    },
+    "changed_files": [
+      "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js",
+      "docs/harbor-research/exposition/figures/desk/data/FIGS.js"
+    ],
+    "runs": [
+      {
+        "name": "write",
+        "command": [
+          "/opt/anaconda3/bin/python3",
+          "scripts/harbor-research/build_figure_desk.py",
+          "--write",
+          "--report"
+        ],
+        "exit_code": 0,
+        "seconds": 3.83,
+        "log": ".scratch/publication-20261103/figure-desk/write.log",
+        "log_sha256": "8bf20ed477e7023472d85aaea4444eef7611f6fdaeeeaf63401701c90dd470ef"
+      },
+      {
+        "name": "check",
+        "command": [
+          "/opt/anaconda3/bin/python3",
+          "scripts/harbor-research/build_figure_desk.py",
+          "--check"
+        ],
+        "exit_code": 0,
+        "seconds": 3.75,
+        "log": ".scratch/publication-20261103/figure-desk/check.log",
+        "log_sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b"
+      },
+      {
+        "name": "tests",
+        "command": [
+          "/opt/anaconda3/bin/python3",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "tests/harbor-research",
+          "-p",
+          "test_build_figure_desk.py",
+          "-v"
+        ],
+        "exit_code": 0,
+        "seconds": 15.6,
+        "log": ".scratch/publication-20261103/figure-desk/tests.log",
+        "log_sha256": "3818f6cbf70373c62be486b4d567e2ffac6c75b7c1dd13a2689b5e2792b861a6"
+      }
+    ],
+    "pass": true,
+    "scope": "Derived figure-desk regeneration and focused tests against exact accepted Book PDF; no whole-book, hosted CI, deployment or global publication claim.",
+    "reader_versions": {
+      "pymupdf": "1.26.7",
+      "pillow": "12.1.0"
+    },
+    "locator_audit": {
+      "total": 133,
+      "resolved": 116,
+      "unresolved_ids": [
+        "fig-swk-marker-decay",
+        "fig-sealed-composition-crossover",
+        "legible-swarm-rate-regime",
+        "legible-swarm-specialization",
+        "legible-swarm-split-penalty",
+        "legible-swarm-zoom-advantage",
+        "fig-stp-deterrence-regime",
+        "fig-stp-probation-cliff",
+        "fig-stp-rate-the-raters",
+        "fig-he-deterrence-convention",
+        "fig-he-ms-wedge",
+        "fig-he-succession-price",
+        "fig-bonded-trust-collision",
+        "fig-cartel-game-inline",
+        "fig-fh-cochain-hand",
+        "tab-fh-sheaf-harness",
+        "tab-fh-topology"
+      ],
+      "selected": [
+        {
+          "id": "fig-stp-sybil-whitewash",
+          "bookPage": 452,
+          "historical_render_page": 253
+        },
+        {
+          "id": "fig-cartel-game-inline",
+          "bookPage": null,
+          "historical_render_page": 377
+        },
+        {
+          "id": "fig-pareto-dominance-tikz",
+          "bookPage": 629,
+          "historical_render_page": 375
+        }
+      ],
+      "cartel_diagnosis": "The source caption parser removes inline mathematics. Its initial 7/10/14 normalized prose words are therefore not contiguous in the actual PDF, where mathematical glyphs intervene. Figure7.11 is confirmed on physical631, but generator leaves bookPage=null. No hand override was made.",
+      "historical_page_policy": "The page field remains the curated page of the old desk JPG, separate from bookPage for the published Book. No old annotated JPG coordinates changed."
+    },
+    "diff_check": {
+      "exit_code": 0,
+      "output": ""
+    },
+    "source_files": {
+      "scripts/harbor-research/build_figure_desk.py": "56e59632836288525a5a040d03c4c7daecf965c13dcb599a34ef9a2608edefb9",
+      "tests/harbor-research/test_build_figure_desk.py": "28ea82c0f4f15c027818e5523c506623724af76e9095717fff00d5d24708c4db",
+      "whitepaper/textbook.json": "ce0092787f504e8bfe311867bf06336d8fce15728184c131ab29abe759bea68a"
+    }
+  },
+  "diff_check": {
+    "exit_code": 0,
+    "output": ""
   }
 }

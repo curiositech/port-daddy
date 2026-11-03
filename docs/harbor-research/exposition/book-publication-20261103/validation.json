@@ -1,52 +1,157 @@
 {
-  "scope": "Local artifact integration checks; separate suites with overlapping coverage. Hosted CI and deployment are not claimed.",
+  "schema_version": 2,
+  "recorded_at": "2026-11-03T21:31:34.514487+00:00",
+  "scope": "Current local artifact integration checks. Separate suites have overlapping coverage and their counts are not added. Hosted CI, merge, deployment, live artifact fetch and runtime behavior are not claimed.",
+  "worktree": "/Users/erichowens/coding/tmp/book-publication-20261103",
+  "branch": "codex/book-publication-20261103",
+  "integration_head": "08de158cd9344021aa3c2e8f80aa48dbf70a77a9",
+  "pdf": {
+    "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+    "sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+    "pages": 844,
+    "bytes": 17652261,
+    "accepted_source_commit": "90aeef0b2171bf86793a023132025f20e1723a33",
+    "accepted_proof": "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
+    "accepted_proof_sha256": "1bd08c3b0c1bb479d69f360970e569a8d705eeffb33cd4abc8bb246170104ab0",
+    "byte_identity": "Exact reviewed candidate28 bytes; no Book recompilation performed by this validation lane."
+  },
+  "input_snapshot": {
+    "path": ".scratch/publication-20261103/final-publication-validation-inputs.json",
+    "sha256": "b0ec0bba900ec308c2b32f68269c4ced41f1cf6c4b400e849c261136033e47ef",
+    "count": 462,
+    "scope": "Listed website source/config inputs, publication artifacts and focused test/check helpers; not a full transitive runtime/dependency inventory.",
+    "changed_during_checks": []
+  },
+  "current_artifacts": {
+    "website-v2/public/whitepaper/publication-digests.json": "eb75eafa878bd5269500eb19104dbbfb8775603654bcd424be929b9583e8d61f",
+    "website-v2/src/data/whitePapers.ts": "5035697f86fd311c2e80d8d2e65ac85f3027f6fa5a110624e5a6c9dae3fb0e2d",
+    "website-v2/public/whitepaper/plates/cover-swiss.jpg": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
+    "website-v2/public/whitepaper/plates/PROVENANCE.json": "affbfc3a8eedd60948fc742a89bb12050c507c4669ea1b2d848a7554ff1cba30"
+  },
+  "checks": {
+    "website_whitepapers": {
+      "tests": 27,
+      "passed": 27,
+      "failed": 0,
+      "log": "final-website-tests.log"
+    },
+    "website_typescript": {
+      "command": "tsc -b",
+      "status": "pass",
+      "scope": "Both referenced TypeScript projects, no emitted JavaScript; normal incremental build metadata is ignored cache.",
+      "log": "final-typescript.log"
+    },
+    "focused_publication_and_plates": {
+      "tests": 42,
+      "passed": 42,
+      "failed": 0,
+      "warnings": 5,
+      "scope": {
+        "test_book_publication_math.py": 3,
+        "test_check_plate_provenance.py": 15,
+        "test_plate_checks.py": 24
+      },
+      "warning_scope": "Existing PyMuPDF/SWIG deprecation warnings; no test failure.",
+      "log": "final-publication-tests.log"
+    },
+    "figure_desk": "Separate 53-test suite and freshness receipt owned by craft_machine; not counted or asserted by this record."
+  },
   "logs": {
-    "metadata-check.log": {
+    "final-print-metadata-fix.log": {
+      "path": ".scratch/publication-20261103/final-print-metadata-fix.log",
+      "sha256": "a423a07ff8ede3f3cd3917262c88e48c22f6867112ee5c09c06076d1f4dabef6",
+      "command": "CI=true node node_modules/tsx/dist/cli.mjs scripts/check-whitepaper-metadata.ts --fix",
+      "working_directory": "website-v2",
+      "executed_by": "root",
+      "exit_code": 0,
+      "status": "pass",
+      "text": "Publication digests drift (1):\n\n  website-v2/public/whitepaper/coordination-papers-mega-volume.pdf: expected 844pp/17652139B/b589f090130f\u2026, got 844pp/17652261B/786155328b3c\u2026\n\nRun `npx tsx scripts/check-whitepaper-metadata.ts --fix` to resync.\nRewrote /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/public/whitepaper/publication-digests.json for 1 drifted digest(s).\nRewrote /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/src/data/whitePapers.ts with corrected pages/sizeKb for 1 paper(s).\n",
+      "execution_evidence": "Fresh parent-run log read and hashed by this validator; parent reported successful exit. No rerun or regeneration claimed here."
+    },
+    "final-print-metadata-check.log": {
+      "path": ".scratch/publication-20261103/final-print-metadata-check.log",
       "sha256": "0498aff30c753b051145b76c88cbaa75aff876b011bd45373d131370264e50ac",
-      "text": "Whitepaper metadata in sync (the Book (8 chapters) + 8 research papers checked; publication digests match).\n"
-    },
-    "cover-check.log": {
-      "sha256": "0816dc6046aea8cde6b745287d00b5ff415c0f75b96e3f5c340891917c038a3b",
-      "text": "ok: cover plate matches the committed Book (b589f090130f\u2026) and its record (d455ae0bbe42\u2026)\n"
-    },
-    "plate-provenance.log": {
-      "sha256": "e6515d26925748c22d0c669fa5c8da711395dfb91517329c2ca541102e05e0a2",
-      "text": "checked plate provenance and TeX plate paths: 0 provenance failure(s), 0 TeX path failure(s)\n"
-    },
-    "metadata-tests.log": {
-      "sha256": "d3c6a55c842e8a1bc84120e9de9d3613a45f47c49c17389995ddcecb1d5c27c7",
-      "text": "\n RUN  v4.1.2 /Users/erichowens/coding/tmp/book-publication-20261103/website-v2\n\n\n Test Files  1 passed (1)\n      Tests  27 passed (27)\n   Start at  12:05:34\n   Duration  706ms (transform 109ms, setup 0ms, import 370ms, tests 224ms, environment 0ms)\n\n"
-    },
-    "publication-tests.log": {
-      "sha256": "e26ab8f0b5a4f50f0634328b0e05ca5715144db04c525bb8680ff1bfdc510cbb",
-      "text": "..........................................                               [100%]\n=============================== warnings summary ===============================\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute\n\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute\n\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n42 passed, 5 warnings in 5.90s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
-    },
-    "metadata-fix.log": {
-      "sha256": "7f56eb426daf30e68587b019dbcb38e0ef00f4811efce9f1d95f3503d480cc7b",
-      "text": "Whitepaper metadata drift detected:\n\n  - coordination-papers-mega-volume (/whitepaper/coordination-papers-mega-volume.pdf)\n      sizeKb: metadata=17988  pdf=17238 (tolerance max(2%, 4KB) = \u00b1359.8KB)\n\nRun `npx tsx scripts/check-whitepaper-metadata.ts --fix` to resync.\nWhitepaper metadata drift detected:\n\n  - reputation-is-amortized-verification (/research/paper3.pdf)\n      sizeKb: metadata=345  pdf=325 (tolerance max(2%, 4KB) = \u00b16.9KB)\n\nRun `npx tsx scripts/check-whitepaper-metadata.ts --fix` to resync.\nPublication digests drift (1):\n\n  website-v2/public/whitepaper/coordination-papers-mega-volume.pdf: expected 836pp/18419743B/209a3e1fe3eb\u2026, got 844pp/17652139B/b589f090130f\u2026\n\nRun `npx tsx scripts/check-whitepaper-metadata.ts --fix` to resync.\nRewrote /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/public/whitepaper/publication-digests.json for 1 drifted digest(s).\nRewrote /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/src/data/whitePapers.ts with corrected pages/sizeKb for 1 paper(s).\nRewrote /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/src/data/researchPapers.ts with corrected pages/sizeKb for 4 paper(s).\n"
-    },
-    "print-weight.log": {
-      "sha256": "9b57b2d0da58529b428cdaf6e320bf1504534f86e51354d6f2a49d4738e6d62d",
-      "text": "plates/swiss              34 files    6.6 MB\nplates/technical          14 files    4.7 MB\nplates                    15 files    4.5 MB\nplates/marginalia         16 files    1.0 MB\nplates/margin-evidence    39 files    5.8 MB\nplates/interstitial        4 files    1.3 MB\nfigures                   17 files    4.4 MB\n\nOK: every governed plate is at print weight\n"
-    },
-    "cover-write.log": {
-      "sha256": "b9c6098df80ac7ff896fc787202e6616f071dcd28e6cf9a2168f6b2bc702f550",
-      "text": "wrote website-v2/public/whitepaper/plates/cover-swiss.jpg (239 KB) from /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf (b589f090130f\u2026)\n"
-    },
-    "metadata-final-check.log": {
-      "sha256": "0498aff30c753b051145b76c88cbaa75aff876b011bd45373d131370264e50ac",
+      "command": "CI=true node node_modules/tsx/dist/cli.mjs scripts/check-whitepaper-metadata.ts",
+      "working_directory": "website-v2",
+      "executed_by": "root",
+      "exit_code": 0,
+      "status": "pass",
       "text": "Whitepaper metadata in sync (the Book (8 chapters) + 8 research papers checked; publication digests match).\n",
-      "exit_code": 0
+      "execution_evidence": "Fresh parent-run log read and hashed by this validator; parent reported successful exit. No rerun or regeneration claimed here."
     },
-    "metadata-final-tests.log": {
-      "sha256": "286fb6a58d360ef0f7613eaaadb833cf8a85eb3276d5e48c1ea3a0716f5fe05c",
-      "text": "\n RUN  v4.1.2 /Users/erichowens/coding/tmp/book-publication-20261103/website-v2\n\n\n Test Files  1 passed (1)\n      Tests  27 passed (27)\n   Start at  12:40:57\n   Duration  520ms (transform 74ms, setup 0ms, import 266ms, tests 169ms, environment 0ms)\n\n",
-      "exit_code": 0
+    "final-print-cover-write.log": {
+      "path": ".scratch/publication-20261103/final-print-cover-write.log",
+      "sha256": "e18afbbebaaccb001174b0328935452fa97cec6231e9ee40540391b990cd8e78",
+      "command": "python3 scripts/whitepaper-plates/render_cover_plate.py --write",
+      "working_directory": ".",
+      "executed_by": "root",
+      "exit_code": 0,
+      "status": "pass",
+      "text": "wrote website-v2/public/whitepaper/plates/cover-swiss.jpg (239 KB) from /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf (786155328b3c\u2026)\n",
+      "execution_evidence": "Fresh parent-run log read and hashed by this validator; parent reported successful exit. No rerun or regeneration claimed here."
     },
-    "typescript-check.log": {
+    "final-print-cover-check.log": {
+      "path": ".scratch/publication-20261103/final-print-cover-check.log",
+      "sha256": "44e94a29d71857672c4989047fa2d5b36119088616546a5ab335b5e167ea2f63",
+      "command": "python3 scripts/whitepaper-plates/render_cover_plate.py --check",
+      "working_directory": ".",
+      "executed_by": "root",
+      "exit_code": 0,
+      "status": "pass",
+      "text": "ok: cover plate matches the committed Book (786155328b3c\u2026) and its record (d455ae0bbe42\u2026)\n",
+      "execution_evidence": "Fresh parent-run log read and hashed by this validator; parent reported successful exit. No rerun or regeneration claimed here."
+    },
+    "final-print-plate-provenance.log": {
+      "path": ".scratch/publication-20261103/final-print-plate-provenance.log",
+      "sha256": "e6515d26925748c22d0c669fa5c8da711395dfb91517329c2ca541102e05e0a2",
+      "command": "python3 scripts/harbor-research/check_plate_provenance.py",
+      "working_directory": ".",
+      "executed_by": "root",
+      "exit_code": 0,
+      "status": "pass",
+      "text": "checked plate provenance and TeX plate paths: 0 provenance failure(s), 0 TeX path failure(s)\n",
+      "execution_evidence": "Fresh parent-run log read and hashed by this validator; parent reported successful exit. No rerun or regeneration claimed here."
+    },
+    "final-print-weight.log": {
+      "path": ".scratch/publication-20261103/final-print-weight.log",
+      "sha256": "9b57b2d0da58529b428cdaf6e320bf1504534f86e51354d6f2a49d4738e6d62d",
+      "command": "python3 scripts/whitepaper-plates/print_weight.py --check",
+      "working_directory": ".",
+      "executed_by": "root",
+      "exit_code": 0,
+      "status": "pass",
+      "text": "plates/swiss              34 files    6.6 MB\nplates/technical          14 files    4.7 MB\nplates                    15 files    4.5 MB\nplates/marginalia         16 files    1.0 MB\nplates/margin-evidence    39 files    5.8 MB\nplates/interstitial        4 files    1.3 MB\nfigures                   17 files    4.4 MB\n\nOK: every governed plate is at print weight\n",
+      "execution_evidence": "Fresh parent-run log read and hashed by this validator; parent reported successful exit. No rerun or regeneration claimed here."
+    },
+    "final-website-tests.log": {
+      "path": ".scratch/publication-20261103/final-website-tests.log",
+      "sha256": "f6d42cde1639c1ec77e8204b54d1e493c0cbce49744dec8d0e3622da81dfbf1f",
+      "command": "./node_modules/.bin/vitest run src/data/whitePapers.test.ts",
+      "working_directory": "website-v2",
+      "executed_by": "craft_markets_federation",
+      "exit_code": 0,
+      "status": "pass",
+      "text": "\n RUN  v4.1.2 /Users/erichowens/coding/tmp/book-publication-20261103/website-v2\n\n\n Test Files  1 passed (1)\n      Tests  27 passed (27)\n   Start at  13:30:14\n   Duration  1.16s (transform 118ms, setup 0ms, import 349ms, tests 700ms, environment 0ms)\n\n"
+    },
+    "final-typescript.log": {
+      "path": ".scratch/publication-20261103/final-typescript.log",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "text": "",
-      "exit_code": 0
+      "command": "./node_modules/.bin/tsc -b",
+      "working_directory": "website-v2",
+      "executed_by": "craft_markets_federation",
+      "exit_code": 0,
+      "status": "pass",
+      "text": ""
+    },
+    "final-publication-tests.log": {
+      "path": ".scratch/publication-20261103/final-publication-tests.log",
+      "sha256": "b0fa6a8f06f79dae9e00a73608e55cc4295f388e040cc15af62fe81410721c00",
+      "command": "python3 -m pytest -q -p no:cacheprovider tests/harbor-research/test_book_publication_math.py tests/harbor-research/test_check_plate_provenance.py tests/whitepaper-plates/test_plate_checks.py",
+      "working_directory": ".",
+      "executed_by": "craft_markets_federation",
+      "exit_code": 0,
+      "status": "pass",
+      "text": "..........................................                               [100%]\n=============================== warnings summary ===============================\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute\n\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute\n\ntests/whitepaper-plates/test_plate_checks.py::PageCheckTests::test_a_line_on_bare_paper_passes_however_far_down_it_sits\n  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n42 passed, 5 warnings in 2.56s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
     }
   },
   "reference_count_audit": {
@@ -90,5 +195,19 @@
     ],
     "scope": "Registry and generator counts, not a count of distinct works across the whole Book. The unused unsupported references:221 metadata is removed.",
     "consumer_verification": "Read-only JS/TS consumer search found no read of CollectedVolume.references; 27 metadata tests and full website tsc -b pass after two-line removal."
+  },
+  "historical_validation": {
+    "sha256": "ef2c24049c2111d01c3cdf4814b60d7770d07bcca7354ea0b3249ee0958f3652",
+    "archive": ".scratch/publication-20261103/validation-historical-ef2c24049c21.json",
+    "committed_path": "docs/harbor-research/exposition/book-publication-20261103/validation.json",
+    "git_commit": "08de158cd9344021aa3c2e8f80aa48dbf70a77a9",
+    "scope": "Preserved prior checks of the PDF with SHA prefix b589f090. They are historical only and are not the current verdict. Git commit/path and the scratch archive retain exact prior bytes."
+  },
+  "environment": {
+    "python": "Python 3.12.7",
+    "node": "v22.17.1",
+    "pymupdf": "1.26.7",
+    "fixture_tmpdir": "/Users/erichowens/coding/tmp/book-publication-20261103/.scratch/publication-20261103/tmp",
+    "no_runtime_started": true
   }
 }

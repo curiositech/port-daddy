@@ -1,70 +1,124 @@
 {
-  "reviewed_at": "2026-11-03T20:10:32.131934+00:00",
+  "schema_version": 2,
+  "reviewed_at": "2026-11-03T21:34:07.922455+00:00",
   "verdict": "bounded_acceptance",
   "blockers": [],
   "worktree": "/Users/erichowens/coding/tmp/book-publication-20261103",
   "branch": "codex/book-publication-20261103",
   "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/book-publication-20261103",
-  "head": "69e6c96365a1babe9b7a3b7b59a4b29a02993eca",
-  "review_scope": "Read-only artifact-integration review of the dirty publication diff and portable receipts. No fresh whole-Book mathematical or visual review, no new hosted CI or deployment assertion. Only this scratch receipt was written.",
+  "head": "08de158cd9344021aa3c2e8f80aa48dbf70a77a9",
+  "diff_base": "e0daa29fdb27629f226f804887d22875e155fae9",
+  "review_scope": "Independent artifact-integration review of the current publication diff, exact accepted candidate28 bytes, source inventory, derived metadata, cover and desk, plus the refreshed validation receipts. No new whole-Book reading or global visual review; no hosted CI, merge, deployment or live-download assertion.",
   "files_at_review": {
-    "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
-    "website-v2/public/whitepaper/publication-digests.json": "8366dc148b0b0e7bd4f4be9f994254eaa21d7a1e33780249112eefd34f549513",
-    "website-v2/src/data/whitePapers.ts": "f437e239ca4dd69e7a3001e39958d5defd08aff53fcbc8f1c8ddba449693fd3e",
+    "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+    "website-v2/public/whitepaper/publication-digests.json": "eb75eafa878bd5269500eb19104dbbfb8775603654bcd424be929b9583e8d61f",
+    "website-v2/src/data/whitePapers.ts": "5035697f86fd311c2e80d8d2e65ac85f3027f6fa5a110624e5a6c9dae3fb0e2d",
     "website-v2/src/data/researchPapers.ts": "076cb1e343d476487b6a04aefd47f7b4be16d29fffad9d7b6d15bf3959b2a4d4",
     "website-v2/public/whitepaper/plates/cover-swiss.jpg": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
-    "website-v2/public/whitepaper/plates/PROVENANCE.json": "749d01db8a0c0c7c26537e2f438eee389e86f709de5f37c64481695aabf5cbc3",
+    "website-v2/public/whitepaper/plates/PROVENANCE.json": "affbfc3a8eedd60948fc742a89bb12050c507c4669ea1b2d848a7554ff1cba30",
     "docs/harbor-research/exposition/figures/desk/data/FIGS.js": "6bdb2c2c794f47e278802bf041ba5a89716fae8bfd03a0684b12226cfe515ac9",
     "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js": "9edf175617ebeed2e6a9b47bdf6bcb56a761f5717f80c5e2acc12d8b528bd56d",
+    ".github/workflows/whitepaper-build.yml": "179674110f816f791a863dac0b76d4b8188b9ae35c22d7be10df9e8c3efe8423",
     "AGENTS.md": "3e99d6c60e64ee7cd0e79fb4ebac76045f8cf6e598942d1d2892143f74879ffc",
-    ".github/workflows/whitepaper-build.yml": "7271640db3495131ac9d8c7b1fc152dc5ed0b1f8c03d59fbf3ed6fa10e63bed3",
     "changelog.d/draft-reviewed-book-publication.md": "795138f4283b79f4b6f6d031b1c8b0a0381a818a4bfb2e61bd27a488c9b8fef5",
-    "docs/harbor-research/exposition/book-publication-20261103/receipt.json": "7d46360b1ced67e1caae56144857115caacbf4e04c4153052b627f68463c3a8e",
-    "docs/harbor-research/exposition/book-publication-20261103/validation.json": "5d720fb091e82f42a15d0a5de75ff033168f10ba62409f81d992b4411612be27",
-    "docs/harbor-research/exposition/book-publication-20261103/figure-desk.json": "0e48886d405f8b290ce76fb975465c6ead39d4339272f565296899708a429ad1",
-    "docs/harbor-research/exposition/book-reading-20261103/render-proof/source-snapshot.json": "6721fea84081ba92fcaf08d61def81ffdb454334b5cf0c789d30ffea54d64777",
-    "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json": "fbdf345595a8d11e8b26f4dc93f6b9322009daea4d1cfbf21d16e75afe93b874"
+    "docs/harbor-research/exposition/book-publication-20261103/README.md": "86269ee1071f53f07d3ee103bcbe8d24d24bc1c1e3fa6e454eb2d274b3c58346",
+    "docs/harbor-research/exposition/book-publication-20261103/validation.json": "d87cb778963fc2eb68ec810b6d2d1b6ebb6023af98bec508c654d680114a058c",
+    "docs/harbor-research/exposition/book-publication-20261103/figure-desk.json": "6a4ac77e51a6ea22fcd31438f6d4f931970e54f0e1daf23987fabf61ca7ca1b5",
+    "docs/harbor-research/exposition/book-reading-20261103/render-proof/source-snapshot.json": "47ea3989793e05a6bd804156984503ce6e889bb1d4752f7bd6ff92f803d460f8",
+    "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json": "1bd08c3b0c1bb479d69f360970e569a8d705eeffb33cd4abc8bb246170104ab0",
+    "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate28-independent-review.json": "d26d8464ad4d19500b2d5dbf4589378ecb607cd91ffdc3be215a7326e507695a"
+  },
+  "receipt_binding": {
+    "path": "docs/harbor-research/exposition/book-publication-20261103/receipt.json",
+    "normalization": "Parse JSON; remove only evidence.independent-review.json; serialize UTF-8 with sort_keys=True,separators=(comma,colon),ensure_ascii=False. This explicitly excludes the circular review hash slot.",
+    "normalized_sha256": "5adca25e1f39572d15cbf353aaeb9b0a1c08872b3cade8e343d332e4efab1240",
+    "raw_sha256_before_review_slot_refresh": "566ad9a30ae34c60707c7ac8f756477d30d5c338a484de901f35631de6cf740f"
   },
   "independent_checks": {
     "accepted_pdf": {
-      "sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
-      "bytes": 17652139,
+      "sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+      "bytes": 17652261,
       "pages": 844,
-      "byte_equal_to_preserved_accepted_reader_copy": true,
-      "acceptance_receipt_hash_valid": true
+      "byte_equal_to_preserved_accepted_candidate28": true
     },
     "build_inputs": {
-      "count": 282,
+      "count": 280,
       "mismatches": [],
+      "source_checkpoint": "90aeef0b2171bf86793a023132025f20e1723a33",
       "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
-      "private_font_profile": "suisse, accepted receipt hashes retained; no font files imported"
+      "private_fonts": "Accepted Suisse font hashes retained in proof; no private font file imported."
     },
     "book_metadata": {
       "pages": 844,
-      "sizeKb": 17238,
+      "sizeKb": 17239,
       "publication_digest_exact": true,
-      "single_canonical_book_only": true
+      "single_canonical_book_only": true,
+      "references_field": "Unsupported unused221 count removed; no replacement total invented. Read-only CollectedVolume/COLLECTED_VOLUME consumer search found no references-property read. Current27 metadata tests and website tsc-b receipts independently inspected; not rerun here."
     },
     "research_metadata": {
-      "all_8_page_and_rounded_KiB_fields_checked_against_actual_PDFs": true,
-      "all_8_actual_PDF_bytes_equal_HEAD_and_docs_mirror": true,
-      "changed_registry_records": [
-        "paper1",
-        "paper2",
-        "paper3",
-        "paper5"
-      ],
-      "verdict": "Legitimate synchronization to existing source-PR artifacts, with no research PDF changes in this diff."
+      "artifact_diff_vs_source_base": "none",
+      "all8_PDFs_equal_source_base_and_docs_mirrors": true,
+      "pdfs": [
+        {
+          "paper": 1,
+          "sha256": "9e41c07f762fde3278e0ae94f0f784a9d9af903fb5751f6b6cc808d5f745c86d",
+          "bytes": 451034,
+          "pages": 16
+        },
+        {
+          "paper": 2,
+          "sha256": "0d900f7ee5171107e5fbfb7e6ecdb3056a68af17eabb08ce5294092920c9154a",
+          "bytes": 370836,
+          "pages": 13
+        },
+        {
+          "paper": 3,
+          "sha256": "041d404052bbbe833d8067948749e41551c63b52051c112c53f51173dd7f4734",
+          "bytes": 333077,
+          "pages": 11
+        },
+        {
+          "paper": 4,
+          "sha256": "a7feb252a6f54b062156538d9ff0b5b4edcb4301d24ba45051a4016dc1a08cb6",
+          "bytes": 416859,
+          "pages": 17
+        },
+        {
+          "paper": 5,
+          "sha256": "45d5a3b6c9674d1257aa4ec43c0800895eef7ccd525b428859f3b05187a9b781",
+          "bytes": 343942,
+          "pages": 16
+        },
+        {
+          "paper": 6,
+          "sha256": "7bd3d45f0d9440d28f912f4901ac3d2e1f0d752479293acaddf6bd57717955c0",
+          "bytes": 442968,
+          "pages": 15
+        },
+        {
+          "paper": 7,
+          "sha256": "ed5a94b9c0d98960ba8b4ad7b31698afaee7f6b13a99abb09f846e2109d24d8c",
+          "bytes": 433494,
+          "pages": 11
+        },
+        {
+          "paper": 8,
+          "sha256": "8fdbb5c468dc8a062510839a0e20eec3a349eaf8cf8969d790a7252da1308a45",
+          "bytes": 298220,
+          "pages": 14
+        }
+      ]
     },
     "cover": {
       "sha256": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
-      "rendered_in_memory_from_accepted_PDF_equals_current_and_HEAD_cover": true,
-      "provenance_diff_only": "source_sha256 binds unchanged cover to accepted new Book"
+      "in_memory_render_equals_current_and_source_base_bytes": true,
+      "provenance_only_changed_field": "plates.cover-swiss.source_sha256"
     },
     "workflow": {
-      "all_nonblank_noncomment_lines_identical_to_HEAD": true,
-      "documentation_checked_against_restore_and_dispatch_conditions": true,
-      "runtime_behavior_change": false
+      "yaml_semantically_identical_to_source_base": true,
+      "all_nonblank_noncomment_lines_identical": true,
+      "filter_blob_none": "Already in source e0daa, not an artifact behavior change.",
+      "documentation": "Comments accurately describe ordinary committed-Book restoration, explicit hosted refresh and absence of auto-PR/schedule."
     },
     "figure_desk": {
       "rows": 133,
@@ -73,29 +127,149 @@
       "sybil_bookPage": 452,
       "pareto_bookPage": 629,
       "cartel_bookPage": null,
-      "cartel_present_at_physical_page": 631,
-      "null_cause": "Existing caption-matcher strips TeX math, leaving prose tokens that are not contiguous in the actual rendered caption. No handwritten override.",
+      "FIGS_leaf_change_count_vs_source_base": 107,
       "FIGS_changed_leaf_fields": [
         "bookPage"
       ],
-      "FIGS_changed_leaf_count": 107,
-      "FINDINGS_changes": "Derived renderDrift reconciliation and parseGaps lists only; curated coordinates and historical render-page fields retained."
+      "FINDINGS_changed_paths": [
+        "/parseGaps",
+        "/reconciliation/renderDrift"
+      ],
+      "fresh_accepted28_regeneration": "All9 outputs reproduce exactly; no JS mutation necessary.",
+      "historical_images": "Curated desk JPGs and their page fields are historical. Publication locators are separate; this review does not refresh or certify every old desk image."
     },
     "receipt_integrity": {
-      "all_artifact_hashes_verified": true,
-      "all_embedded_validation_log_hashes_verified": true,
-      "all_named_evidence_hashes_verified": true
+      "all_current_artifact_hashes_verified": true,
+      "validation_logs_disk_and_embedded_hashes_verified": true,
+      "validation462_input_hashes_match_current_files": true,
+      "named_evidence_hashes_except_deliberately_self_referential_review_slot_verified": true
     },
     "diff_check": "pass"
   },
   "test_evidence_scope": {
-    "publication_27_and_42": "Reviewed saved passing output and hashes; not rerun by this independent review. Counts overlap and are not summed.",
-    "figure_desk_53": "This agent executed the focused suite on this exact publication PDF earlier; all53 passed and output/inputs are bound in figure-desk.json.",
-    "fresh_independent_executable_checks": "Hash/input reconciliation, PDF page/size facts, eight research PDF equality and metadata checks, in-memory cover reproduction, workflow executable-line identity, derived JSON field-delta check, diff whitespace check."
+    "figure_desk_53": "Executed fresh in this task against accepted78615532 PDF; all53 pass. Fresh generator check confirms all9 files.",
+    "publication_27_and_42_and_typescript": "Reviewed current saved passing logs and hashes; not rerun by this agent and not added into one unique-coverage count.",
+    "environment": {
+      "pymupdf": "1.26.7",
+      "pillow": "12.1.0",
+      "version_scope": "Actual local versions recorded; no assertion of checked-in dependency-pin parity."
+    }
+  },
+  "visual_evidence_reuse": {
+    "method": "Exact canonical PDF byte equality permits reuse of the accepted candidate28 rendered evidence.",
+    "direct_views_from_this_agent": "Candidate28 Exercise5.18 physical495 and Solution5.18 physical776 facing contexts were actually viewed in the navigation lane; final punctuation and margin provenance were clean. This artifact review reuses those byte-identical pages and does not claim another fresh complete read.",
+    "broader_scope": "Complete source-reading and selected-spread scope remains in the accepted print receipt and its companion records."
   },
   "remaining_delivery_gates": [
-    "Reconcile and rebase on the actual merged source, rechecking recorded consumed-input hashes.",
-    "Exact artifact PR head checks and reviews, protected merge and deployment remain parent-owned.",
-    "After deployment independently verify public PDF SHA256 and served cover/metadata."
-  ]
+    "Rebase artifact branch after source merge and recheck the280 captured source inputs.",
+    "Parent owns exact-head artifact CI/reviews, protected merge and deployment.",
+    "After deployment verify public PDF SHA256, cover and metadata."
+  ],
+  "historical_review": {
+    "original_sha256": "f72c13316b83d06033bb4a42a08766a86bcc4e302cc6e554b529ba33181ef300",
+    "git_commit": "08de158cd9344021aa3c2e8f80aa48dbf70a77a9",
+    "path": "docs/harbor-research/exposition/book-publication-20261103/independent-review.json",
+    "scope": "Historical b589f090 integration review, preserved below; not the current verdict.",
+    "record": {
+      "reviewed_at": "2026-11-03T20:10:32.131934+00:00",
+      "verdict": "bounded_acceptance",
+      "blockers": [],
+      "worktree": "/Users/erichowens/coding/tmp/book-publication-20261103",
+      "branch": "codex/book-publication-20261103",
+      "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/book-publication-20261103",
+      "head": "69e6c96365a1babe9b7a3b7b59a4b29a02993eca",
+      "review_scope": "Read-only artifact-integration review of the dirty publication diff and portable receipts. No fresh whole-Book mathematical or visual review, no new hosted CI or deployment assertion. Only this scratch receipt was written.",
+      "files_at_review": {
+        "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+        "website-v2/public/whitepaper/publication-digests.json": "8366dc148b0b0e7bd4f4be9f994254eaa21d7a1e33780249112eefd34f549513",
+        "website-v2/src/data/whitePapers.ts": "f437e239ca4dd69e7a3001e39958d5defd08aff53fcbc8f1c8ddba449693fd3e",
+        "website-v2/src/data/researchPapers.ts": "076cb1e343d476487b6a04aefd47f7b4be16d29fffad9d7b6d15bf3959b2a4d4",
+        "website-v2/public/whitepaper/plates/cover-swiss.jpg": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
+        "website-v2/public/whitepaper/plates/PROVENANCE.json": "749d01db8a0c0c7c26537e2f438eee389e86f709de5f37c64481695aabf5cbc3",
+        "docs/harbor-research/exposition/figures/desk/data/FIGS.js": "6bdb2c2c794f47e278802bf041ba5a89716fae8bfd03a0684b12226cfe515ac9",
+        "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js": "9edf175617ebeed2e6a9b47bdf6bcb56a761f5717f80c5e2acc12d8b528bd56d",
+        "AGENTS.md": "3e99d6c60e64ee7cd0e79fb4ebac76045f8cf6e598942d1d2892143f74879ffc",
+        ".github/workflows/whitepaper-build.yml": "7271640db3495131ac9d8c7b1fc152dc5ed0b1f8c03d59fbf3ed6fa10e63bed3",
+        "changelog.d/draft-reviewed-book-publication.md": "795138f4283b79f4b6f6d031b1c8b0a0381a818a4bfb2e61bd27a488c9b8fef5",
+        "docs/harbor-research/exposition/book-publication-20261103/receipt.json": "7d46360b1ced67e1caae56144857115caacbf4e04c4153052b627f68463c3a8e",
+        "docs/harbor-research/exposition/book-publication-20261103/validation.json": "5d720fb091e82f42a15d0a5de75ff033168f10ba62409f81d992b4411612be27",
+        "docs/harbor-research/exposition/book-publication-20261103/figure-desk.json": "0e48886d405f8b290ce76fb975465c6ead39d4339272f565296899708a429ad1",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/source-snapshot.json": "6721fea84081ba92fcaf08d61def81ffdb454334b5cf0c789d30ffea54d64777",
+        "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json": "fbdf345595a8d11e8b26f4dc93f6b9322009daea4d1cfbf21d16e75afe93b874"
+      },
+      "independent_checks": {
+        "accepted_pdf": {
+          "sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+          "bytes": 17652139,
+          "pages": 844,
+          "byte_equal_to_preserved_accepted_reader_copy": true,
+          "acceptance_receipt_hash_valid": true
+        },
+        "build_inputs": {
+          "count": 282,
+          "mismatches": [],
+          "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
+          "private_font_profile": "suisse, accepted receipt hashes retained; no font files imported"
+        },
+        "book_metadata": {
+          "pages": 844,
+          "sizeKb": 17238,
+          "publication_digest_exact": true,
+          "single_canonical_book_only": true
+        },
+        "research_metadata": {
+          "all_8_page_and_rounded_KiB_fields_checked_against_actual_PDFs": true,
+          "all_8_actual_PDF_bytes_equal_HEAD_and_docs_mirror": true,
+          "changed_registry_records": [
+            "paper1",
+            "paper2",
+            "paper3",
+            "paper5"
+          ],
+          "verdict": "Legitimate synchronization to existing source-PR artifacts, with no research PDF changes in this diff."
+        },
+        "cover": {
+          "sha256": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
+          "rendered_in_memory_from_accepted_PDF_equals_current_and_HEAD_cover": true,
+          "provenance_diff_only": "source_sha256 binds unchanged cover to accepted new Book"
+        },
+        "workflow": {
+          "all_nonblank_noncomment_lines_identical_to_HEAD": true,
+          "documentation_checked_against_restore_and_dispatch_conditions": true,
+          "runtime_behavior_change": false
+        },
+        "figure_desk": {
+          "rows": 133,
+          "resolved": 116,
+          "unknowns": 17,
+          "sybil_bookPage": 452,
+          "pareto_bookPage": 629,
+          "cartel_bookPage": null,
+          "cartel_present_at_physical_page": 631,
+          "null_cause": "Existing caption-matcher strips TeX math, leaving prose tokens that are not contiguous in the actual rendered caption. No handwritten override.",
+          "FIGS_changed_leaf_fields": [
+            "bookPage"
+          ],
+          "FIGS_changed_leaf_count": 107,
+          "FINDINGS_changes": "Derived renderDrift reconciliation and parseGaps lists only; curated coordinates and historical render-page fields retained."
+        },
+        "receipt_integrity": {
+          "all_artifact_hashes_verified": true,
+          "all_embedded_validation_log_hashes_verified": true,
+          "all_named_evidence_hashes_verified": true
+        },
+        "diff_check": "pass"
+      },
+      "test_evidence_scope": {
+        "publication_27_and_42": "Reviewed saved passing output and hashes; not rerun by this independent review. Counts overlap and are not summed.",
+        "figure_desk_53": "This agent executed the focused suite on this exact publication PDF earlier; all53 passed and output/inputs are bound in figure-desk.json.",
+        "fresh_independent_executable_checks": "Hash/input reconciliation, PDF page/size facts, eight research PDF equality and metadata checks, in-memory cover reproduction, workflow executable-line identity, derived JSON field-delta check, diff whitespace check."
+      },
+      "remaining_delivery_gates": [
+        "Reconcile and rebase on the actual merged source, rechecking recorded consumed-input hashes.",
+        "Exact artifact PR head checks and reviews, protected merge and deployment remain parent-owned.",
+        "After deployment independently verify public PDF SHA256 and served cover/metadata."
+      ]
+    }
+  }
 }
