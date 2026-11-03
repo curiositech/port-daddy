@@ -124,7 +124,7 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+      "edited_sha256": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028",
       "edited_source_lines": 3823
     }
   ],
@@ -655,5 +655,32 @@
   "pending_render_checkpoint": {
     "head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
     "status": "Complete: candidate19 assigned rendered sample accepted, no owned-source repairs pending."
+  },
+  "provenance_only_reread_27": {
+    "source": "website-v2/public/whitepaper/spawn-to-person.tex",
+    "before_sha256": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+    "after_sha256": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028",
+    "read_lines": [
+      3072,
+      3095
+    ],
+    "anchor": "ex:stp-resurrection-soundness",
+    "scope": "Scoped reread of existing prompt and solution while promoting a bare internal tag to the configured pdprov margin note. Original full sequential-read evidence remains unchanged; no new whole-chapter read claimed.",
+    "script": "skills/harbor-results/scripts/b5_engine_substitution.py",
+    "seed": 20260816,
+    "observed_result": {
+      "states": 747,
+      "post_migration": 467,
+      "open_sanction_window": 693,
+      "mutant_shortest_lengths": [
+        1,
+        2,
+        2,
+        2
+      ]
+    },
+    "state_scope": "Depth7, at most2migrations, delta3, window4, scorecap3; no general proof inferred from enumeration.",
+    "source_math_changed": false,
+    "render_status": "Pending candidate27; candidate25/26 passing records retained with their original hashes."
   }
 }

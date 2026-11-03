@@ -1,0 +1,31 @@
+{
+  "recorded_at": "2026-11-03T20:44:10.003092+00:00",
+  "head": "e82955ac863132dcf6c6254f0b7048a3fc4bdd13",
+  "scope": "Regenerate only the two shortform twins to remove entries whose chapter bibliography records were removed. No surviving citation text changed.",
+  "files": [
+    {
+      "path": "whitepaper/figures/pd-cite-shortforms.tex",
+      "before_sha256": "3f9dddb37cdb77e1c5bec5e9afbc8ea80090de9f984960588f05dc8bbb53c2e2",
+      "after_sha256": "c74ca5eea043121d61688d1b14db9f66a7943a54f7fa2c85490779d7d36f14cc",
+      "removed_keys": [
+        "abdulrahman1997pgp",
+        "zimmermann1995pgp"
+      ],
+      "surviving_entry_changes": 0
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex",
+      "before_sha256": "3f9dddb37cdb77e1c5bec5e9afbc8ea80090de9f984960588f05dc8bbb53c2e2",
+      "after_sha256": "c74ca5eea043121d61688d1b14db9f66a7943a54f7fa2c85490779d7d36f14cc",
+      "removed_keys": [
+        "abdulrahman1997pgp",
+        "zimmermann1995pgp"
+      ],
+      "surviving_entry_changes": 0
+    }
+  ],
+  "remaining_tex_references": [],
+  "freshness_check": "pass",
+  "diff": "diff --git a/website-v2/public/whitepaper/figures/pd-cite-shortforms.tex b/website-v2/public/whitepaper/figures/pd-cite-shortforms.tex\nindex d5d1e81e68..a6cddce392 100644\n--- a/website-v2/public/whitepaper/figures/pd-cite-shortforms.tex\n+++ b/website-v2/public/whitepaper/figures/pd-cite-shortforms.tex\n@@ -11,7 +11,6 @@\n % figures/pd-pedagogy.tex).\n \n \\pdciteshort{aacp11}{Alvim et al. 2011, \\textit{On the relation between\\ldots}}\n-\\pdciteshort{abdulrahman1997pgp}{Abdul-Rahman 1997, \\textit{The PGP Trust Model}}\n \\pdciteshort{abramsky2011operational}{Abramsky \\& Brandenburger 2011}\n \\pdciteshort{acp2025}{OpenAI \\& Stripe 2025, \\textit{Agentic Commerce Protocol}}\n \\pdciteshort{activitypub2018}{Lemmer-Webber et al. 2018, \\textit{ActivityPub}}\n@@ -345,4 +344,3 @@\n \\pdciteshort{zheng2023}{Zheng et al. 2023, \\textit{Judging LLM-as-a-Judge\\ldots}}\n \\pdciteshort{zheng2023judging}{Zheng et al. 2023, \\textit{Judging LLM-as-a-Judge\\ldots}}\n \\pdciteshort{zhou2026formaljudge}{Zhou et al. 2026, \\textit{FormalJudge: A\\ldots}}\n-\\pdciteshort{zimmermann1995pgp}{Zimmermann 1995, \\textit{The Official PGP User's\\ldots}}\ndiff --git a/whitepaper/figures/pd-cite-shortforms.tex b/whitepaper/figures/pd-cite-shortforms.tex\nindex d5d1e81e68..a6cddce392 100644\n--- a/whitepaper/figures/pd-cite-shortforms.tex\n+++ b/whitepaper/figures/pd-cite-shortforms.tex\n@@ -11,7 +11,6 @@\n % figures/pd-pedagogy.tex).\n \n \\pdciteshort{aacp11}{Alvim et al. 2011, \\textit{On the relation between\\ldots}}\n-\\pdciteshort{abdulrahman1997pgp}{Abdul-Rahman 1997, \\textit{The PGP Trust Model}}\n \\pdciteshort{abramsky2011operational}{Abramsky \\& Brandenburger 2011}\n \\pdciteshort{acp2025}{OpenAI \\& Stripe 2025, \\textit{Agentic Commerce Protocol}}\n \\pdciteshort{activitypub2018}{Lemmer-Webber et al. 2018, \\textit{ActivityPub}}\n@@ -345,4 +344,3 @@\n \\pdciteshort{zheng2023}{Zheng et al. 2023, \\textit{Judging LLM-as-a-Judge\\ldots}}\n \\pdciteshort{zheng2023judging}{Zheng et al. 2023, \\textit{Judging LLM-as-a-Judge\\ldots}}\n \\pdciteshort{zhou2026formaljudge}{Zhou et al. 2026, \\textit{FormalJudge: A\\ldots}}\n-\\pdciteshort{zimmermann1995pgp}{Zimmermann 1995, \\textit{The Official PGP User's\\ldots}}\n",
+  "book_input_change": "Two of280 recorded inputs changed; next accepted build/reconciliation is owned by root. No commit/push/build performed."
+}

@@ -1,0 +1,20 @@
+{
+  "source": "website-v2/public/whitepaper/spawn-to-person.tex",
+  "after_sha256": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028",
+  "exact_delta": "diff --git a/website-v2/public/whitepaper/spawn-to-person.tex b/website-v2/public/whitepaper/spawn-to-person.tex\nindex 9b277ba264..040e68bffd 100644\n--- a/website-v2/public/whitepaper/spawn-to-person.tex\n+++ b/website-v2/public/whitepaper/spawn-to-person.tex\n@@ -3081,7 +3081,7 @@ migration at all?\n The script prints ``\\texttt{reachable states to depth 7: 747 (467\n post-migration, 693 with an open sanction window)}'' and reports zero\n violations of Def.~\\ref{def:sanction-respecting} among those enumerated\n-states [internal];\n+states \\pdprov{b5\\_engine\\_substitution.py}{20260816}{internal};\n the four mutants (drop scope, drop clause (i), drop clause (ii), drop clause\n (iii)) are each caught with shortest counterexamples $1, 2, 2, 2$ steps. The\n one-step break is the scope mutant \\texttt{m0}: keying sanctions by\n",
+  "script": "skills/harbor-results/scripts/b5_engine_substitution.py",
+  "script_sha256": "dc1599833b5ae5b55330a7497174b00993bee6f48ad8808348efd781212bff40",
+  "seed": 20260816,
+  "checks": [
+    "    reachable states to depth 7: 747 (467 post-migration, 693 with an open sanction window)",
+    "  ok    intact: ZERO Def-III.6.1 violations over all reachable states [internal]",
+    "  ok    m0 scope: sanctions keyed per (id,engine), no clause dropped: caught in 1 step(s) (expected 1)",
+    "  ok    m1 drop (i): lineage unverified -> MIGRATE_FRESH available: caught in 2 step(s) (expected 2)",
+    "  ok    m2 drop (ii): successor outcomes unattested: caught in 2 step(s) (expected 2)",
+    "  ok    m3 drop (iii): open commitments strandable: caught in 2 step(s) (expected 2)"
+  ],
+  "scope": "Provenance markup only for the existing bounded enumeration: depth7,at most2migrations,delta3,window4,scorecap3. The sentence still says among those enumerated states; no general theorem is inferred from the fixture.",
+  "script_exit": 0,
+  "promoter_check_exit": 0,
+  "math_changes": false
+}
