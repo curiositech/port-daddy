@@ -1778,37 +1778,29 @@ the study named in the front matter is where they will be measured.
 
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Read-poverty: the binding constraint at scale}\label{sec:readpoverty}
+\section{Read-poverty: when inspection falls behind}\label{sec:readpoverty}
 % ═════════════════════════════════════════════════════════════════════════════
 
 \pdmarginanalogy{ls-attention-annunciator}{}{ch04-selective-attention-annunciator}{Like a shipboard annunciator dropping a signal flag only when a monitored circuit faults, selective attention suppresses routine traffic to present only actionable exceptions.}%
-A single operator can hold two coding agents in their head. They cannot hold two
-hundred. Spin up two agents and coordination is free: you read both their notes,
-eyeball both their claims, route a question by recognition. Spin up fifty and an
-agent that wants to ask ``who owns the OAuth refactor?'' has no move except to dump
-the session roster and scroll. It guesses, cold-DMs the wrong agent, and re-derives
-from scratch a design decision another agent settled an hour ago and wrote into a
-note nobody will ever read again.
+Suppose an operator can inspect six short updates per minute. Two workers each
+producing one update per minute leave room to spare. Fifty workers at the same
+rate produce fifty updates per minute, so an unfiltered queue grows by forty-four
+updates per minute. This calculation assumes fixed update size and inspection
+cost; it illustrates a workload, not a measured limit on human attention.
 
-The swarm has not run out of information. It has drowned in it. Every agent emits
-sessions, claims, notes, diffs, skill tags, and --- eventually --- reputations, far
-faster than any single participant can read them.
+Reading every record is not the only possible task. If the operator needs to
+identify the owner of an OAuth repair, a maintained directory may answer that
+question without presenting every worker's history. If the operator must decide
+whether the repair is safe to admit, an ownership label alone is inadequate:
+the relevant revision, checks and authority must remain accessible.
 
-Say what kind of problem that is, because the whole chapter turns on the answer.
-The operator is not a bottleneck in the sense of a slow worker who could be told
-to hurry; the operator is a \emph{channel}, with a capacity, and the swarm is a
-source emitting at a rate. Everything that follows is what information theory
-says about a source whose rate exceeds its channel's capacity: some of it must
-be discarded, the only question is which, and the discarding has to happen
-somewhere. A digest is a lossy encoder choosing what crosses. That framing is
-not an analogy borrowed for colour --- it is why the chapter's results are rate
-results and why its central bound is in bits rather than in seconds or in
-dollars, and it is what makes ``the operator cannot keep up'' into a quantity a
-system can be designed against instead of a complaint. It also fixes what would
-otherwise be a tempting mistake: raising the operator's throughput (more
-dashboards, faster scrolling, a bigger team) moves the capacity, and the results
-below hold at every capacity. Read-poverty is the name this chapter gives to the
-regime where the source rate exceeds it.
+The chapter models this mismatch using a limited observation budget. A digest
+selects what crosses that boundary, and its adequacy depends on the decision
+to be made. The finite counting arguments below specify their own source,
+encoding and error assumptions. The update-count example does not measure a
+Shannon channel capacity or derive a universal human throughput in bits.
+Increasing the inspection budget changes the model's parameters; it does not
+remove the need to say which distinctions a summary must preserve.
 
 \begin{pdclaim}{Empirical hypothesis}{Read-Poverty}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1827,20 +1819,19 @@ proves that; the lower bound of \S\ref{sec:lowerbound} prices what a digest must
 spend \emph{given} the regime, which is a different question.
 \end{pdclaim}
 
-\pdthesis{Read-poverty, not write-contention, is the binding constraint on swarm
-scale. The write side has known fixes --- claims, locks, merge queues, and anomaly
-detection --- which mature coordination systems already provide. The read side has
-been left implicit, and it is where the next order of magnitude is won or lost.}
+\pdthesis{The hypothesis is that inspection can become the limiting resource
+while the write side still has capacity. Testing it requires measuring both
+sides on the same workload. The results below describe consequences of a
+specified inspection model; they do not establish which bottleneck dominates
+an arbitrary swarm.}
 
-The cure is the move every database made when table scans stopped scaling: build an
-\textbf{index}. A \emph{directory} is to agents what an index is to rows --- it pays a
-write-time cost (maintaining the structure) to buy read-time speed (answer a query in
-$O(\text{query})$ instead of scanning $O(n)$ participants). Read-poverty is also a
-human constraint (Miller's $7\pm2$, \S\ref{sec:operator}) and a legibility argument
-in Scott's sense: a directory is a state-like act of legibility over the swarm, and a
-directory entry over-flattened into a verdict that hides what mattered (``this agent
-owns auth,'' omitting that its last three auth pull requests were reverted) is the
-failure. Every directory entry must therefore be a lens that zooms
+A \textbf{directory} pays a maintenance cost to make a class of lookup cheaper.
+Its query cost depends on its representation, the query and the result size;
+indexing alone supplies no universal complexity bound. Nor does a fast answer
+necessarily preserve what matters. ``This agent owns auth'' omits relevant
+evidence if its last three auth pull requests were reverted. The directory
+must support inspection of that evidence, rather than turn an entry into an
+unqualified verdict. This motivates the zoom requirement
 (Invariant~\ref{def:zoom}).
 
 \ifdefined\pdswisslandmarkplate
