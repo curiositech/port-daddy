@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T18:07:18.332616+00:00",
+  "source_head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+  "status": "bounded_independent_source_review_pass",
+  "scope": "Independent operator reader reviewed admission metrics and its observation model, plus two solver-runner pins and corpus wording; markets reader separately read the admission prompt/solution and its cited admission section. This records their actual bounded source reviews, not a new whole-book read or final rendered acceptance.",
+  "independent_raw_receipt": "ci-repairs/independent-root-repair.json",
+  "independent_raw_receipt_sha256": "3370e24a451752eb3f9ffa3f935ced4bfe8e42dd46d57fe10c66ade265a89ec8",
+  "input_sha256": {
+    "website-v2/public/whitepaper/federated-harbor-whitepaper.tex": "970a53d1e93ff3352d09220dfd836cdb78ca48fcb9807babd2d526220a75853b",
+    ".github/workflows/proofs.yml": "630211c81f99866fd6207ec65769faaa39a353c7de17a1f1df669d92d0559aee",
+    "whitepaper/corpus.json": "9b55d10b61b1b593bc34d332e0ae8ec102f7e2f92a6dda00d1c28a4ee6de2e5d"
+  },
+  "source_hashes_match_committed_checkpoint": true,
+  "findings": [],
+  "markets_reading_record": "../markets-federation-concepts.json",
+  "source_checks_receipt": "source-checks.json",
+  "global_acceptance": "Requires final PDF convergence, expanded rendered checks, navigation/page-turn audits and selected visual inspection."
+}

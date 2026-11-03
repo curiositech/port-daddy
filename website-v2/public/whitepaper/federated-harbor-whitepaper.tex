@@ -1740,10 +1740,33 @@ measurements support the engineering discipline of
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-equivocation-speed}
-\S\ref{sec:fh-lim-equiv} names two unresolved gaps side by side: a deployment-specific tail bound for equivocation propagation, and the unreconciled relationship between epidemic dissemination (Theorem~\ref{thm:fh-conv}) and sheaf-Laplacian diffusion (\S\ref{sec:fh-sheaf}'s closing paragraph). Explain why these are two \emph{different} open problems rather than one problem stated twice, and name one measurement that would be needed before either could be closed.
+\S\ref{sec:fh-lim-equiv} distinguishes a deployment-specific propagation-tail question from the relationship between epidemic dissemination (Theorem~\ref{thm:fh-conv}) and sheaf-Laplacian diffusion (\S\ref{sec:fh-sheaf}'s closing paragraph). State what must be specified to compare the two processes mathematically, and give one measurement needed to assess propagation risk in a particular deployment. Which parts can be resolved without deployment traces?
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-equivocation-speed}
-They are different problems because they sit on different sides of the same boundary. The deployment-specific tail bound is an \emph{empirical} gap: Theorem~\ref{thm:fh-conv} already gives an expected $\Theta(\log m)$ result under a stated model (a complete overlay, reliable synchronous rounds), and what is missing is fitting that model's parameters --- or a weaker model's --- against a real peer graph's loss rates, fan-out, and partition frequency, exactly as \S\ref{sec:fh-lim-equiv}'s solution direction calls for instrumenting real peer graphs and fitting tail quantiles before pricing a bond from propagation risk. The sheaf-Laplacian question is a \emph{mathematical} gap: \S\ref{sec:fh-sheaf}'s closing paragraph is explicit that no relaxation-time bound has been derived or checked, because the Hansen--Ghrist rate governs continuous-time \emph{linear} diffusion over real stalks, while anti-entropy gossip over signed append-only logs under a Byzantine equivocator is discrete, asynchronous, adversarial, and monotone-join rather than linear-averaging --- closing it means either proving the two convergence stories are secretly the same rate, or proving they are provably different and explaining why the sheaf spectral gap is the wrong handle. Even a complete answer to one gap would not touch the other: a perfectly fitted empirical tail bound says nothing about whether $\lambda_{\min}^{+}(\Delta_{\mathcal F})$ predicts it, and a proved reconciliation of the two convergence models would still need real peer-graph data to become a number an operator can price a bond against. The measurement needed before either can be closed is the same first step: real anti-entropy round traces from an actual multi-harbor deployment, since \S\ref{sec:fh-lim-equiv}'s empirical gap needs them directly and any attempt to validate a sheaf-diffusion reconciliation against gossip behavior needs the same trace data to compare against.
+The mathematical task needs specified processes and comparable observables.
+Gossip tracks the delivery of signed records; linear diffusion tracks the
+change of a real-valued state. Specify the packet scheduler, loss and adversary
+model, a proposed correspondence between those states, and the quantity to
+compare. A time-to-alarm claim also needs a visible signal, noise assumptions,
+a detection threshold and a stopping rule. A proof may establish a conditional
+relation, or a counterexample may refute a proposed one. Neither requires
+deployment traces as a logical prerequisite.
+
+For a particular deployment, record timestamped sends, receipts and alarms
+alongside topology, fan-out, losses and partitions. State the observation
+window and retain runs with no delivery or alarm by its end. Such traces can
+estimate delay distributions and test whether the chosen model describes
+operation. An observed tail quantile is not by itself a guaranteed tail bound
+or a hard deadline; pricing propagation risk also requires justified
+assumptions and an account of estimation uncertainty.
+
+Theorem~\ref{thm:fh-conv}'s expected $\Theta(\log m)$ round count belongs to
+its complete-overlay, reliable synchronous model with independently uniform
+peer contacts. It supplies neither the proposed diffusion correspondence nor
+a deployment-specific tail guarantee. A model-based bound can be proved
+without field data, while using it operationally requires evidence that its
+hypotheses and parameters apply. The chapter establishes no transfer of the
+sheaf spectral-gap rate to signed append-only gossip.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-synthesis}
@@ -2014,9 +2037,9 @@ Gabriele Farina.
 Single-harbor capability authenticity (inherited) & ProVerif 2.05 & \Closed & Anchor \path{harbor_card_v*.pv} \\
 Cross-realm authenticity (\S\ref{sec:fh-xfer}) & ProVerif query sketch & \Partial\ no executable model or verification run & \S\ref{sec:fh-proverif-ext} \\
 Attenuation monotonicity across boundary (Lem.~\ref{lem:fh-att}) & Set-inclusion argument & \Partial\ requires shared resource universe; protocol unmechanized & \S\ref{sec:fh-xfer-att} \\
-Federated revocation dissemination (Prop.~\ref{thm:fh-conv}) & Conditional epidemic model~\pdcite{demers1987epidemic} & \Partial\ expected asymptotic result; no partition deadline & \S\ref{sec:fh-revocation} (argument) \\
+Federated revocation dissemination (Theorem~\ref{thm:fh-conv}) & Conditional epidemic model~\pdcite{demers1987epidemic} & \Partial\ expected asymptotic result; no partition deadline & \S\ref{sec:fh-revocation} (argument) \\
 Cross-witness equivocation evidence & Signed-root comparison; dissemination model & \Partial\ verification immediate once views meet; no hard delivery bound & --- \\
-Escrow extraction bound (Prop.~\ref{thm:fh-escrow-bound}) & Transition-system case analysis & \Partial\ conditional on non-bypassable custody; no runtime conformance & \S\ref{sec:fh-settlement} \\
+Escrow extraction bound (Design invariant~\ref{thm:fh-escrow-bound}) & Transition-system case analysis & \Partial\ conditional on non-bypassable custody; no runtime conformance & \S\ref{sec:fh-settlement} \\
 Cross-harbor Conservation (\S\ref{sec:fh-tla-ext}) & Lifecycle-accounting sketch & \Partial\ no executable specification or verification run & \S\ref{sec:fh-cross-conservation} \\
 Sheaf detection of equivocation (Thm.~\ref{thm:sheaf-equivocation}) & Pre-registered statistical harness, 200 trials/arm & \Partial\ gates pass at the stated scope (single equivocator, real stalks, prefix restrictions); not mechanized & \path{sheaf_harness_v2.py} \\
 \midrule
@@ -2026,7 +2049,7 @@ Multi-principal correlated-equilibrium extension & --- & \Open & --- \\
 Cross-federation cartel-resistance bound & --- & \Open & --- \\
 \end{xltabular}}
 
-\paragraph{What this table means.} Every row in the \Partial\ band is committed to and on the active workplan. Every row in the \Open\ band is a research question we cannot resolve from the desk; the proposal~\pdcite{owens2026proposal} names collaborators whose contributions are necessary to close them. We err toward listing fewer items as closed rather than more, in the same posture as Anchor and Bonded.
+\paragraph{What this table means.} A \Partial\ row reports a conditional argument, an empirical check, or an incomplete artifact; the limitation remains part of the claim. An \Open\ row names a result or construction not established here. The remaining obligation depends on the row: a mathematical proof or counterexample, an executable model and verification run, deployment measurements, or runtime conformance evidence. Completion must be assessed against that obligation.
 
 \section{ProVerif Artifacts and Proof Obligations}\label{app:fh-proverif}
 
