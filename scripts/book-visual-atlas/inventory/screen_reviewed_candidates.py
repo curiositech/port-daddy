@@ -1,7 +1,7 @@
 import json,hashlib,re,sys
 from pathlib import Path
 import fitz
-base=Path('.scratch/visual-atlas/inventory');p=json.load(open(base/'atlas.json'));doc=fitz.open(p['book']['path']);items=p['items'];lookup={i['id']:i for i in items}
+base=Path('.scratch/visual-atlas/inventory');p=json.loads((base/'atlas.json').read_text());doc=fitz.open(p['book']['path']);items=p['items'];lookup={i['id']:i for i in items}
 true={311:'WAL commit and sync timeline',312:'WAL timing bracket',329:'Possible sampling pulses',365:'Gossip convergence sketch',410:'Canary detection power',413:'Sequential likelihood-ratio trace',414:'Canary operating curve',435:'Consent admissibility region',451:'Survival comparison',458:'Escalation threshold',515:'Parent reputation split',516:'Reputation outcome A',517:'Reputation outcome B',554:'Auditor tower C=8',555:'Auditor tower C=2',556:'Auditor tower C=1',574:'Naive succession allocation',575:'Corrected succession allocation',588:'Partial settlement ledger',634:'Leak probability curve',640:'Discount threshold curve',676:'Consistency radius curve',689:'Escrow payout split',692:'Card epoch and policy clocks',697:'Two-source contradiction certificate',698:'Path offsets counterexample',699:'Unsynced WAL vulnerability window',700:'Two-agent SQL admission sequence',701:'Continuity evidence pipeline'}
 banners={286,304,345,383,422,505,565,622,655};wrappers={267,302,303,420,421,503,504,563,564};records=[]
 for i in items:
@@ -19,7 +19,7 @@ for i in items:
   i['type']='text-callout-frame';i['rankingEligibility']='exclude';rec.update(excluded=True,rationale='Visually inspected prose, theorem/example/invariant/protocol frame, quotation rule or text-page furniture; not an independent illustration.')
  i['screening']=rec;records.append(rec)
 # Capture the three uncaptions tables proven to ship; the first already has a crop.
-census=json.load(open(base/'environment-census.json'))
+census=json.loads((base/'environment-census.json').read_text())
 for line,page,title,existing in [(20111,503,'Partial settlement ledger','v00588'),(20156,504,'Leasing control rights and exposure',None),(20678,513,'Successful multi-party settlement ledger',None)]:
  e=next(e for e in census if e['source']['path'].endswith('mega-volume-body.tex') and e['source']['lineStart']==line);s=e['source']
  if existing:i=lookup[existing]

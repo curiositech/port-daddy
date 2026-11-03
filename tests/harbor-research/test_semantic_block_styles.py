@@ -170,16 +170,24 @@ class SemanticBlocks(unittest.TestCase):
         generated = ROOT / ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex"
         if not generated.exists():
             self.skipTest("run Book generator first")
-        self.assertRegex(generated.read_text(),
-                         r"\\pagebreak\[4\]\s+Nor is the pattern new in normative conflict")
+        body = generated.read_text()
+        normative = r"\\pagebreak\[4\]\s+Nor is the pattern new in normative conflict"
+        self.assertIsNotNone(re.search(normative, body),
+                             "Normative-conflict citation break lost in generation")
         # Reserve body space for the long VRF first-use source. Do not defer
         # the source independently or weaken the measured margin-capacity gate.
-        self.assertRegex(generated.read_text(),
-                         r"\\Needspace\{14\\baselineskip\}\s+Second, the system injects")
+        opening = "Second, the proposed system uses"
+        reservation = r"\\Needspace\{14\\baselineskip\}\s+" + re.escape(opening)
+        self.assertEqual(body.count(opening), 1)
+        self.assertIsNotNone(re.search(reservation, body),
+                             "VRF citation-capacity reservation lost in generation")
+        missing_reservation = re.sub(reservation, opening, body, count=1)
+        self.assertNotEqual(missing_reservation, body)
+        self.assertIsNone(re.search(reservation, missing_reservation))
         spawn = (ROOT / "website-v2/public/whitepaper/spawn-to-person.tex").read_text()
-        self.assertIn("where the two mechanisms arrest it.\n\n``Who audits", spawn)
+        self.assertIn("shows the resulting model calculation.\n\n``Who audits", spawn)
         self.assertIn("to answer, reached from the other side.\n\nAnd applied", spawn)
-        vrf = spawn.index("Second, the system injects")
+        vrf = spawn.index(opening)
         diagram = spawn.index(r"\input{figures/fig-stp-rate-the-raters}")
         bound = spawn.index("Let $G_k$ bound the judge's total one-shot gain")
         self.assertLess(vrf, diagram)

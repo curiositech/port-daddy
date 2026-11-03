@@ -1,0 +1,68 @@
+[
+  {
+    "file": "scripts/book-visual-atlas/inventory/add_main_listings_and_diagram_sources.py",
+    "line": 5,
+    "before": "json.load(open(b/'atlas.json'))",
+    "after": "json.loads((b/'atlas.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/add_main_listings_and_diagram_sources.py",
+    "line": 6,
+    "before": "json.load(open('.scratch/visual-atlas/verification/five_main_listing_gaps.json'))",
+    "after": "json.loads(Path('.scratch/visual-atlas/verification/five_main_listing_gaps.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/add_main_listings_and_diagram_sources.py",
+    "line": 18,
+    "before": "json.load(open('.scratch/visual-atlas/verification/layer-macro-dependencies.json'))",
+    "after": "json.loads(Path('.scratch/visual-atlas/verification/layer-macro-dependencies.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/add_main_listings_and_diagram_sources.py",
+    "line": 20,
+    "before": "json.load(open('.scratch/visual-atlas/verification/all-uncaptioned-diagram-source-map.json'))",
+    "after": "json.loads(Path('.scratch/visual-atlas/verification/all-uncaptioned-diagram-source-map.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/add_margin_tables_and_solution_listings.py",
+    "line": 5,
+    "before": "json.load(open(b/'atlas.json'))",
+    "after": "json.loads((b/'atlas.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/add_margin_tables_and_solution_listings.py",
+    "line": 28,
+    "before": "json.load(open('.scratch/visual-atlas/verification/inlined-upstream-map.json'))",
+    "after": "json.loads(Path('.scratch/visual-atlas/verification/inlined-upstream-map.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/audit_source_candidates.py",
+    "line": 3,
+    "before": "json.load(open(b/'atlas.json'))",
+    "after": "json.loads((b/'atlas.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/bind_caption_sources.py",
+    "line": 5,
+    "before": "json.load(open(b/'atlas.json'))",
+    "after": "json.loads((b/'atlas.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/crop_shipped_listings.py",
+    "line": 4,
+    "before": "json.load(open(b/'atlas.json'))",
+    "after": "json.loads((b/'atlas.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/screen_reviewed_candidates.py",
+    "line": 4,
+    "before": "json.load(open(base/'atlas.json'))",
+    "after": "json.loads((base/'atlas.json').read_text())"
+  },
+  {
+    "file": "scripts/book-visual-atlas/inventory/screen_reviewed_candidates.py",
+    "line": 22,
+    "before": "json.load(open(base/'environment-census.json'))",
+    "after": "json.loads((base/'environment-census.json').read_text())"
+  }
+]

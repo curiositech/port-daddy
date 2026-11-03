@@ -133,8 +133,8 @@
           1911
         ]
       ],
-      "after_sha256": "c1bd4ca86e4005f619ac4ccbf1f3f57a2475ec5a8ec527c7ec40d8fffe46d764",
-      "after_lines": 2014,
+      "after_sha256": "970a53d1e93ff3352d09220dfd836cdb78ca48fcb9807babd2d526220a75853b",
+      "after_lines": 2043,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
       "note": "Range 1391-1700 was truncated once; the missing middle was reread in 1510-1605."
@@ -624,8 +624,8 @@
       "first_anchor": "sec:fh-sponsor",
       "concrete_example": "Beta six-month constructed probation",
       "later_anchor": "ex:fh-cold-start-admission",
-      "substantive_reuse": "Entry/concentration/selection metrics",
-      "action": "Graduation requires criteria and funded replacement, not elapsed time alone"
+      "substantive_reuse": "Successful-sponsorship concentration versus request-cohort acceptance, selected waits, and unidentifiable cartel membership",
+      "action": "Graduation requires criteria and funded replacement. Admission metrics explicitly name observable records, denominators and selection limits; successful-admission logs alone cannot establish openness or collusion."
     },
     {
       "chapter": 8,
@@ -803,6 +803,39 @@
       "all_font_sizes_compound_receipt_sha256": "da163bba8cd8e1738ac94ab379c678709d8a2a2f753c099122621f61205c7a96",
       "receipt": ".scratch/textbook-craft-20261103/candidate-acceptance-19.json",
       "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-19.json"
+    },
+    "admission_metrics_source_review": {
+      "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "sha256": "970a53d1e93ff3352d09220dfd836cdb78ca48fcb9807babd2d526220a75853b",
+      "read_range": [
+        1706,
+        1740
+      ],
+      "context_read_range": [
+        1186,
+        1231
+      ],
+      "prompt_and_solution_label": "ex:fh-cold-start-admission",
+      "verdict": "Accepted within the explicitly stated data and identification limits. Rendered candidate20 verification pending.",
+      "checks": [
+        "Complete-window, one-sponsor admission counts define shares and HHI only for n>0.",
+        "Identical ten-admission log permits either ten requests/no refusals or one thousand requests/990 refusals.",
+        "Acceptance and waits require linked request/outcome records, cohort and cutoff; pending is not refused and admitted-only waits are selected.",
+        "Later successful reapplication is not a measured false-rejection rate without follow-up and comparable terms.",
+        "Concentration and entry disparities do not identify collusion; capacity, risk and policy remain competing explanations."
+      ],
+      "arithmetic": {
+        "successful_admissions": 10,
+        "alternative_request_counts": [
+          10,
+          1000
+        ],
+        "implied_refusal_counts_if_all_other_requests_are_refused": [
+          0,
+          990
+        ]
+      },
+      "new_empirical_or_theorem_claim": false
     }
   },
   "figure_followthrough": {

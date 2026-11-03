@@ -1,0 +1,37 @@
+{
+  "observed_at": "2026-11-03T18:04:01.043271+00:00",
+  "scope": "Bounded PR10345 Purser stale-cap CI repair; production fallback unchanged",
+  "source_head": "c612d9b808507fc6ba649916e3118974fc45ed42",
+  "branch": "codex/book-textbook-craft-20261103",
+  "inputs_sha256": {
+    "tests/purser/test-basictex-fallback.js": "50766c67a9871753ebf4ff6401aff4a301692ff31b155c3c6353c9bb4ff71d1d",
+    "tests/purser/mega-volume-test-helpers.js": "1616571cb9cd6ffae6dd220a89e55a8a8b0ed929e377f5275edc594afa73b368",
+    "scripts/build-whitepapers.sh": "af076a943b916c5a16594c218215520966740a259e6f27fa702d95d99c2c92d5"
+  },
+  "failure": "Fallback succeeded in exactly2calls but test expected old /4 suffix; current bounded loop prints /8.",
+  "repair": "Update three log assertions to /8 and helper description; retain exactly2engine calls, no third pass, generated PDF presence,4other authored adversarial contracts.",
+  "validation": [
+    {
+      "command": "node --test tests/purser/test-missing-paper-source.js tests/purser/test-cyclic-imports.js tests/purser/test-missing-citation.js tests/purser/test-basictex-fallback.js tests/purser/test-namespace-conflicts.js",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "log": "purser-repaired.tap",
+      "log_sha256": "3c6f3e96cf4f9194ec7d681e266104ea207a0c0ed1e5c041d461b09f10f8a3ba"
+    },
+    {
+      "command": "node scripts/check-whitepaper-corpus.mjs",
+      "result": "pass:36formal artifacts,8research program artifacts"
+    },
+    {
+      "command": "node scripts/sync-skill-mirrors.mjs --check --json",
+      "driftCount": 0
+    }
+  ],
+  "limitations": [
+    "Jest wrapper was not locally run: linked worktree has no node_modules/jest/bin/jest.js. The exact five child node:test tests invoked by that wrapper passed directly. Hosted current-head Jest remains required.",
+    "Fake TeX engine validates build orchestration, not a rendered publication."
+  ],
+  "original_hosted_failure": "https://github.com/curiositech/port-daddy/actions/runs/41686485239/job/126094731369"
+}

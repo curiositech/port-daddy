@@ -1,0 +1,49 @@
+{
+  "reviewed_at": "2026-11-03T17:58:14.405263+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "head": "c612d9b808507fc6ba649916e3118974fc45ed42",
+  "input_sha256": {
+    "website-v2/public/whitepaper/federated-harbor-whitepaper.tex": "970a53d1e93ff3352d09220dfd836cdb78ca48fcb9807babd2d526220a75853b",
+    ".github/workflows/proofs.yml": "630211c81f99866fd6207ec65769faaa39a353c7de17a1f1df669d92d0559aee",
+    "whitepaper/corpus.json": "9b55d10b61b1b593bc34d332e0ae8ec102f7e2f92a6dda00d1c28a4ee6de2e5d"
+  },
+  "verdict": "pass for bounded uncommitted delta; hosted rerun and final Book render still required",
+  "findings": [],
+  "checks": [
+    {
+      "surface": "FH exercise ex:fh-cold-start-admission and solution",
+      "finding": "Complete log and one sponsor per admission hypotheses stated. HHI conditional on n>0; n=0 undefined. Admission counts cannot identify request/refusal denominators:10/10 versus10/1000 example arithmetic verified. Stable request records and cutoff required; pending is not refusal; admitted waiting times are selected; no-incident follow-up does not label earlier refusal false. Confounding and audit-only inference explicit. No unsupported cartel identification remains in this delta."
+    },
+    {
+      "surface": ".github/workflows/proofs.yml",
+      "finding": "Only Z3 and ProVerif jobs change executable runner labels to ubuntu-24.04; all solver/model commands and pinned Z3, opam, OCaml and ProVerif versions unchanged. Comments narrowed accordingly. Official package indexes list opam2.1.5-1 and z3 4.8.12-3.1build1 in noble; explicit runner label documented. Hosted installation/proofs still pending."
+    },
+    {
+      "surface": "whitepaper/corpus.json",
+      "finding": "Only evidencePolicy wording shortened from against a real, pinned to with a pinned.497characters meets500limit. Non-injective correspondence scope, unchecked consumed table and no replay/at-most-once conclusion all retained. node scripts/check-whitepaper-corpus.mjs passed36formal artifacts plus8research program artifacts."
+    }
+  ],
+  "primary_sources": [
+    "https://docs.github.com/en/actions/reference/runners/github-hosted-runners",
+    "https://packages.ubuntu.com/noble/amd64/opam",
+    "https://packages.ubuntu.com/en/noble/z3"
+  ],
+  "numeric_checks": {
+    "HHI_10": 1,
+    "HHI_5_5": "1/2",
+    "HHI_6_3_1": "23/50",
+    "request_histories": [
+      {
+        "requests": 10,
+        "refusals": 0,
+        "admitted": 10
+      },
+      {
+        "requests": 1000,
+        "refusals": 990,
+        "admitted": 10
+      }
+    ]
+  }
+}

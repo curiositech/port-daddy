@@ -1,0 +1,16 @@
+{
+  "files": 6,
+  "json_reads_repaired": 11,
+  "codeql_review_threads": 10,
+  "expression_checks_passed": 33,
+  "cases_per_read": [
+    "JSON value equivalence including Unicode and nested schema",
+    "file closed on JSONDecodeError",
+    "file closed on read OSError; exception preserved"
+  ],
+  "only_intended_text_replacements": true,
+  "all_six_scripts_compile": true,
+  "default_encoding_unchanged": true,
+  "book_pdf_sha256_unchanged": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+  "scope": "Focused read-expression verification; full stateful atlas mutation/cropping scripts intentionally not executed."
+}

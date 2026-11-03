@@ -384,7 +384,7 @@ jobs:
           python3 scripts/harbor-research/check_delegation_chain_vocabulary.py
           --allow 'whitepaper/single-writer-kernel.tex:attenuation-monotonic delegation chain of digital signatures'
           --allow 'whitepaper/legible-swarm.tex:attenuation-monotonic delegation chain (a security object'
-          --allow 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:Delegation chain replay (\S\ref{sec:delegation}'
+          --allow 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:Delegation chain authenticity (\S\ref{sec:delegation}'
           --allow 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex:Delegation chain replay & ProVerif at depth 3'
 
       - name: Margin citation short-forms are a fresh render of the bibliographies

@@ -1,0 +1,27 @@
+{
+  "head_before": "c612d9b808507fc6ba649916e3118974fc45ed42",
+  "head_after": "c612d9b808507fc6ba649916e3118974fc45ed42",
+  "created_at": "2026-11-03T17:57:46.725053+00:00",
+  "scope": "Complete harbor-research unittest discovery, including dirty reviewed test/source changes after the recorded commit. BOOK_* variables unset. Snapshot covers597 prior declared Book inputs plus all current research test/script text fixtures and explicitly changed workflow/corpus/desk files; it is not a complete hermetic dependency declaration.",
+  "input_files": 603,
+  "input_manifest": ".scratch/textbook-craft-20261103/pr10345/machine/library-input-manifest.json",
+  "input_manifest_sha256": "712c74b367e1fdd7ddff321a0991440a2486bae0b91bfaa749a53fe6d3da1768",
+  "git_status_at_start": ".scratch/textbook-craft-20261103/pr10345/machine/library-input-status.txt",
+  "changed_inputs_during_run": [],
+  "exit_code": 1,
+  "elapsed_seconds": 30.514,
+  "log": ".scratch/textbook-craft-20261103/pr10345/machine/library-full.log",
+  "log_sha256": "e69f4cd29f8dec591824b0addd37a485f6c4708800cc384c842aa05504341c18",
+  "summary": [
+    "    self.assertRegex(generated.read_text(),",
+    "AssertionError: Regex didn't match: '\\\\\\\\Needspace\\\\{14\\\\\\\\baselineskip\\\\}\\\\s+Second, the system injects' not found in '\\\\pdpart{I}{Ground Truth}{pdcobalt}{The first three chapters examine a local writer, delegated permissions, and a confined execution environment. They distinguish what the software",
+    "",
+    "----------------------------------------------------------------------",
+    "Ran 939 tests in 30.130s",
+    "",
+    "FAILED (failures=1, skipped=121)"
+  ],
+  "failures": [
+    "FAIL: test_citation_capacity_break_survives_generation (test_semantic_block_styles.SemanticBlocks.test_citation_capacity_break_survives_generation)"
+  ]
+}

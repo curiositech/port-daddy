@@ -1,6 +1,6 @@
 import json,re,hashlib
 from pathlib import Path
-b=Path('.scratch/visual-atlas/inventory');a=json.load(open(b/'atlas.json'));out=Path('.scratch/visual-atlas/verification');body=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');text=body.read_text();lines=text.splitlines();stack=[];spans=[]
+b=Path('.scratch/visual-atlas/inventory');a=json.loads((b/'atlas.json').read_text());out=Path('.scratch/visual-atlas/verification');body=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');text=body.read_text();lines=text.splitlines();stack=[];spans=[]
 for line,t in enumerate(lines,1):
  m=re.search(r'% BEGIN INLINED ([^\s]+)',t)
  if m:stack.append((m[1],line))

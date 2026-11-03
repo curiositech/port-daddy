@@ -22,6 +22,8 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 PUB = Path("website-v2/public/whitepaper")
 PREAMBLE = PUB / "coordination-papers-mega-volume-preamble.tex"
+HISTORICAL_SNAPSHOT = "0bd6a38fa3b6020c16ed060a256e45ce4f169561"
+CURRENT_INPUTS = Path("tests/harbor-research/fixtures/protocol-style-inputs.json")
 HELPER_SHA = "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1"
 BLOCK_INKS = {'Proof': 'B33F35', 'Property': '7048A5', 'Hypothesis': '427A26', 'Calculation': '946000', 'Invariant': '233A76', 'Definition': '3D454B', 'Checked': '006EA0', 'Protocol': '007D73', 'Neutral': '363B40'}
 ICONS = ("book-open", "calculator", "file-text", "flask-conical", "key-round",
@@ -191,7 +193,7 @@ def list_heading_layout(bbox: str, records: dict, starts: dict = LIST_STARTS) ->
 
 
 def ordinary_heading_layout(bbox: str) -> dict:
-    """Unrelated theorem/proof bodies must still share their heading's line."""
+    """Unrelated families retain the Book's separate heading/body paragraphs."""
     result = {}
     for head, body in (("Theorem", "OrdinarySentinel"), ("Proof.", "ProofSentinel"),
                        ("Remark", "NestedSentinel")):
@@ -199,29 +201,41 @@ def ordinary_heading_layout(bbox: str) -> dict:
                    for i, word in enumerate(words) if word.text == body]
         assert len(matches) == 1, body
         page, words, i = matches[0]
-        previous = [word for word in words[:i] if word.text == head]
+        previous = [j for j, word in enumerate(words[:i]) if word.text == head]
         assert previous, (head, body)
-        head_top, body_top = float(previous[-1].attrib["yMin"]), float(words[i].attrib["yMin"])
-        assert abs(head_top - body_top) < 0.5, (head, "unrelated heading changed", head_top, body_top)
-        result[body] = {"page": page, "heading_top_pt": head_top, "body_top_pt": body_top}
+        heading = words[previous[-1]:i]
+        bottom = max(float(word.attrib["yMax"]) for word in heading)
+        body_top = float(words[i].attrib["yMin"])
+        assert body_top > bottom, (head, "run-in or overlapping unrelated heading", bottom, body_top)
+        result[body] = {"page": page, "heading_bottom_pt": bottom, "body_top_pt": body_top}
     return result
 
 
 class ProtocolSourceTests(unittest.TestCase):
-    def test_exact_source_and_repository_dependency_manifest(self):
-        manifest_path = ROOT / "docs/harbor-research/exposition/PROTOCOL-CHECKPOINT-20260920.json"
-        manifest = json.loads(manifest_path.read_text())
+    def test_historical_source_and_repository_dependency_manifest(self):
+        # This receipt attests a historical render. Do not rewrite its hashes
+        # when shared Book inputs evolve; verify the immutable snapshot instead.
+        manifest_path = "docs/harbor-research/exposition/PROTOCOL-CHECKPOINT-20260920.json"
+        manifest_raw = (ROOT / manifest_path).read_bytes()
+        historical_manifest = subprocess.check_output(
+            ["git", "show", f"{HISTORICAL_SNAPSHOT}:{manifest_path}"], cwd=ROOT)
+        self.assertEqual(manifest_raw, historical_manifest)
+        manifest = json.loads(manifest_raw)
         self.assertEqual(manifest["base_commit"], "73d8ce4ec38d1f1125d32401888984a7f5ee1936")
-        ancestry = subprocess.run(
-            ["git", "merge-base", "--is-ancestor", manifest["base_commit"], "HEAD"],
-            cwd=ROOT, text=True, capture_output=True, check=False)
-        self.assertEqual(ancestry.returncode, 0, ancestry.stderr)
+        for ancestor, descendant in ((manifest["base_commit"], HISTORICAL_SNAPSHOT),
+                                     (HISTORICAL_SNAPSHOT, "HEAD")):
+            ancestry = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+                cwd=ROOT, text=True, capture_output=True, check=False)
+            self.assertEqual(ancestry.returncode, 0, ancestry.stderr)
         for group in ("source_files", "fixture_repository_inputs"):
             for entry in manifest[group]:
                 with self.subTest(path=entry["path"]):
-                    source = ROOT / entry["path"]
-                    if source.is_file():
-                        raw = source.read_bytes()
+                    historical = subprocess.run(
+                        ["git", "show", f"{HISTORICAL_SNAPSHOT}:{entry['path']}"],
+                        cwd=ROOT, capture_output=True, check=False)
+                    if historical.returncode == 0:
+                        raw = historical.stdout
                     else:
                         # Only explicitly retired sources may move from the
                         # loose tree to Omni's immutable source archive.
@@ -232,8 +246,21 @@ class ProtocolSourceTests(unittest.TestCase):
                         with zipfile.ZipFile(ROOT / "docs/harbor-research/omni-sources.zip") as archive:
                             raw = archive.read(entry["path"])
                         self.assertEqual(hashlib.sha256(raw).hexdigest(), retired[entry["path"]]["sha256"])
-                    actual = hashlib.sha256(raw).hexdigest()
-                    self.assertEqual(actual, entry["sha256"])
+                    self.assertEqual(len(raw), entry["bytes"])
+                    self.assertEqual(hashlib.sha256(raw).hexdigest(), entry["sha256"])
+
+    def test_current_fixture_dependencies_have_exact_reviewed_hashes(self):
+        current = json.loads((ROOT / CURRENT_INPUTS).read_text())
+        historical = json.loads((ROOT / "docs/harbor-research/exposition/PROTOCOL-CHECKPOINT-20260920.json").read_text())
+        expected = {entry["path"] for entry in historical["fixture_repository_inputs"]}
+        entries = current["fixture_repository_inputs"]
+        self.assertEqual(len(entries), len(expected))
+        self.assertEqual({entry["path"] for entry in entries}, expected)
+        for entry in entries:
+            with self.subTest(path=entry["path"]):
+                raw = (ROOT / entry["path"]).read_bytes()
+                self.assertEqual(len(raw), entry["bytes"])
+                self.assertEqual(hashlib.sha256(raw).hexdigest(), entry["sha256"])
 
     def test_protocol_contract(self):
         protocol_contract((ROOT / PREAMBLE).read_text())
@@ -271,6 +298,23 @@ class ProtocolSourceTests(unittest.TestCase):
         for body_top in (22, 31, 32):
             with self.subTest(body_top=body_top), self.assertRaises(AssertionError):
                 heading_layout(specimen(body_top), record, {"generic": "Body."})
+
+    def test_ordinary_geometry_rejects_runin_and_wrapped_heading_regressions(self):
+        def specimen(body_top):
+            pages = []
+            for head, body in (("Theorem", "OrdinarySentinel"),
+                               ("Proof.", "ProofSentinel"),
+                               ("Remark", "NestedSentinel")):
+                pages.append(f'''<page>
+                  <line xMin="10" yMin="10"><word yMin="10" yMax="20">{head}</word></line>
+                  <line xMin="10" yMin="22"><word yMin="22" yMax="32">Title).</word></line>
+                  <line xMin="10" yMin="{body_top}"><word yMin="{body_top}" yMax="45">{body}</word></line>
+                </page>''')
+            return "<doc>" + "".join(pages) + "</doc>"
+        self.assertEqual(len(ordinary_heading_layout(specimen(35))), 3)
+        for top in (10, 22, 31, 32):
+            with self.subTest(body_top=top), self.assertRaises(AssertionError):
+                ordinary_heading_layout(specimen(top))
 
     def test_frozen_helper_and_mirror(self):
         data = (ROOT / PUB / "figures/pd-semantic-blocks.tex").read_bytes()
@@ -350,6 +394,7 @@ class ProtocolSourceTests(unittest.TestCase):
         wrapper = (ROOT / "tests/harbor-research/fixtures/protocol-style-book.tex").read_text()
         self.assertIn(r"\providecommand{\pdprotocolroot}", wrapper)
         self.assertIn("main-open", wrapper)
+        self.assertIn(r"\def\pdedition{maritime}", wrapper)
 
     def test_mirror_pdfs_are_not_ignored(self):
         paths = [f"whitepaper/figures/lucide/{name}.pdf" for name in ICONS]
@@ -382,7 +427,7 @@ def render(root: Path, output: Path, engine: str, profile: str) -> None:
     subprocess.run(["git", "merge-base", "--is-ancestor", base_commit, source_head],
                    cwd=root, check=True)
     input_hashes = {entry["path"]: hashlib.sha256((root / entry["path"]).read_bytes()).hexdigest()
-                    for entry in manifest["fixture_repository_inputs"]}
+                    for entry in json.loads((root / CURRENT_INPUTS).read_text())["fixture_repository_inputs"]}
     runner_sha = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     output.mkdir(parents=True)
     driver = output / "protocol-style.tex"
@@ -458,7 +503,7 @@ def render(root: Path, output: Path, engine: str, profile: str) -> None:
                "engine": engine, "profile": profile, "command": command,
                "pdf_sha256": hashlib.sha256(pdf.read_bytes()).hexdigest(),
                "labels": records, "standalone_protocol_headings": len(headings),
-               "list_first_headings": len(lists), "ordinary_inline_controls": len(ordinary)}
+               "list_first_headings": len(lists), "ordinary_paragraph_controls": len(ordinary)}
     receipt["paragraph_entry_checks"] = log.count("PROTOCOL BODY PARAGRAPH")
     receipt["protocol_glyph_count"] = 18
     receipt["scope_restoration_checks"] = log.count("PROTOCOL SCOPE RESTORED")

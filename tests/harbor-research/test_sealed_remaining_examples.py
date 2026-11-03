@@ -22,7 +22,9 @@ def tokens(text):
 
 
 def check(meta, text):
-    assert tokens(meta['before']) == tokens(text), 'Changed content'
+    assert tokens(meta.get('accepted', meta['before'])) == tokens(text), 'Changed content'
+    for phrase in meta.get('requiredScope', []):
+        assert phrase in flat(text), 'Missing model scope: '+phrase
     assert text.count(SPACING) == 1, 'Missing/duplicated local paragraph spacing'
     assert text.startswith(meta['heading'] + '\n' + SPACING)
     assert not re.search(r'\\(?:Needspace|newpage|vspace|resizebox|scriptsize)\b', text)
@@ -81,6 +83,24 @@ class RemainingExamples(unittest.TestCase):
             for mutant in mutants:
                 self.assertNotEqual(mutant, text)
                 with self.assertRaises(AssertionError):
+                    check(meta, mutant)
+
+    def test_reviewed_model_hypotheses_cannot_be_removed(self):
+        cases = {0: [('secret is uniform on', 'secret is drawn from'),
+                     ('parity of committed $s$', 'parity of arbitrary $t$')],
+                 3: [('does not establish', 'establishes'),
+                     ('the read is observed', 'the read is unobserved'),
+                     ('safe but is no longer exact', 'safe and therefore exact')],
+                 4: [('$q>0$', '$q=0$'),
+                     ('cannot be transferred', 'can be transferred')]}
+        current = blocks()
+        for index, substitutions in cases.items():
+            meta, text = current[index]
+            for old, new in substitutions:
+                self.assertIn(old, flat(text))
+                mutant = text.replace(old, new)
+                self.assertNotEqual(mutant, text)
+                with self.subTest(example=index, change=new), self.assertRaises(AssertionError):
                     check(meta, mutant)
 
     def test_important_display_demotion_is_rejected(self):

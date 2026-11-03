@@ -71,7 +71,7 @@ jobs:
     # real proof ran at PR time and re-runs on push to main.
     if: github.event_name != 'merge_group'
     name: Z3 / delta-threshold cubic
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -81,9 +81,9 @@ jobs:
           sudo apt-get update
           # Pinned to the Ubuntu 24.04 (noble) universe archive build,
           # queried 2026-09-06 via Launchpad
-          # (getPublishedBinaries for z3/noble/amd64). If ubuntu-latest
-          # migrates to a newer Ubuntu release and this build string 404s,
-          # re-pin with: apt-cache madison z3
+          # (getPublishedBinaries for z3/noble/amd64). Keep the runner
+          # release aligned with this pinned archive build; a runner upgrade
+          # requires an explicit solver-version and proof-evidence review.
           sudo apt-get install -y z3=4.8.12-3.1build1
           z3 --version
 
@@ -436,7 +436,7 @@ jobs:
   proverif-estate:
     if: github.event_name != 'merge_group'
     name: ProVerif / model estate (2.05)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -465,7 +465,7 @@ jobs:
           # Pinned to 2.05 -- see https://bblanche.gitlabpages.inria.fr/proverif/
           # ("Install with OPAM: opam install proverif"; no Linux prebuilt
           # binary is offered, only a Windows one, so opam is the
-          # reproducible route on ubuntu-latest).
+          # reproducible route on the pinned Ubuntu 24.04 runner).
           opam install -y proverif.2.05
           eval "$(opam env)"
           echo "$(opam var bin)" >> "$GITHUB_PATH"

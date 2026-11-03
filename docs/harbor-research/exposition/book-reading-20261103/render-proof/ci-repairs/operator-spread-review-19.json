@@ -1,0 +1,1147 @@
+{
+  "schema_version": 2,
+  "reviewer": "craft_operator_identity",
+  "candidate": "candidate19",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "source_head": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+  "pdf": {
+    "pdf": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf",
+    "sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+    "pages": 844,
+    "bytes": 17652598
+  },
+  "manifest_sha256": "eb7c3746e5002d069e79bbaf81e7bcbed802ee96f514dbbdf090d8b7ade619f3",
+  "status": "Accepted within assigned scope: all58 selected facing-spread images inspected directly or reused only by exact passing image hashes. All identified owned-source defects are repaired and rendered. No remaining concrete defect found in this sample. Global acceptance belongs to the combined review.",
+  "counts": {
+    "unique_images": 58,
+    "fresh_actual_views": 4,
+    "identical_candidate18_reuses": 54
+  },
+  "records": [
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-096-097.png",
+      "sha256": "ad4dddd212dc26f2bfc2347a9859d1b685e4f3bba30ce8c1c965cd1f9ed3fa87",
+      "targets": [
+        "Landmark 05"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Landmark05 ends at a logical boundary; following reference-monitor subsection begins intact. Caption scope and art fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "ad4dddd212dc26f2bfc2347a9859d1b685e4f3bba30ce8c1c965cd1f9ed3fa87",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-096-097.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-098-099.png",
+      "sha256": "67c2fe342ac83fbff57c96490d8827cda1434bdaa2a31329b4fc7caa2cb395d1",
+      "targets": [
+        "Landmark 05"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Reference-monitor and maturity discussion flows into Table1.1; caption aligned, no clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "67c2fe342ac83fbff57c96490d8827cda1434bdaa2a31329b4fc7caa2cb395d1",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-098-099.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-196-197.png",
+      "sha256": "794a451ac7ba0e89912bd4e566c18be134c406a1539b20cc10e431999e928f76",
+      "targets": [
+        "Landmark 06"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Landmark06 follows completed symmetric-pinning paragraph; no formal statement is interrupted. Remaining white space is a deliberate boundary cost."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "794a451ac7ba0e89912bd4e566c18be134c406a1539b20cc10e431999e928f76",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-196-197.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-198-199.png",
+      "sha256": "bb5fdbcec82a83dc86bc732f028bc7e130c8cf552544cde72193c12f2d16a974",
+      "targets": [
+        "Landmark 06"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Pinning discussion and key hierarchy follow the plate coherently; no split sentence or caption collision."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "bb5fdbcec82a83dc86bc732f028bc7e130c8cf552544cde72193c12f2d16a974",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-198-199.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-264-265.png",
+      "sha256": "45aefcd176d71e2dbd6e2caccc2385d549d33fc1d885d7ce57aea3fcb0e8d014",
+      "targets": [
+        "Landmark 07"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Landmark07 is followed by a fresh side-properties block; scoped attestation caption fits."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "45aefcd176d71e2dbd6e2caccc2385d549d33fc1d885d7ce57aea3fcb0e8d014",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-264-265.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-266-267.png",
+      "sha256": "c506fbdb8f6e38f6ed6267d3c922b269cbc86aaa43fb29b18bf37eae318b176a",
+      "targets": [
+        "Landmark 07"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Tables3.3/3.4 and control-flow diagram fit their pages with adjacent captions."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "c506fbdb8f6e38f6ed6267d3c922b269cbc86aaa43fb29b18bf37eae318b176a",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-266-267.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-302-303.png",
+      "sha256": "66a062b3ce816589d95d33e95fd55a2d25f056486b77c1bb758b00bf346d9d20",
+      "targets": [
+        "The Legible Swarm"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "The chapter question and Simon quotation are distinct from Chapter 5. The opener, art, introductory prose, Table 4.1 and its margin caption are contained within the page.",
+        "The summary states the zero-miss model and extractive example scope. The route paragraph is dense but identifies the main argument and optional sections."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "66a062b3ce816589d95d33e95fd55a2d25f056486b77c1bb758b00bf346d9d20",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-302-303.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-304-305.png",
+      "sha256": "78d37f7df4b39932a1f8f0cc407ad53c5b2f76cb6265aa537e953d513d865f33",
+      "targets": [
+        "The Legible Swarm"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "The opening coding-swarm scene motivates the five failures before the taxonomy. Hobbes art/citations and running text do not collide.",
+        "Freshly viewed candidate07: Table 4.2 uses readable ragged-right cells and clean deliberate row-label breaks. No collisions or clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "78d37f7df4b39932a1f8f0cc407ad53c5b2f76cb6265aa537e953d513d865f33",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-304-305.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-336-337.png",
+      "sha256": "18703ced60a2d9b6076de4ce4835d7835cde85aa985e6d0742075656aa8366d6",
+      "targets": [
+        "ls:sec:operator"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Escalation proof, recall, and worked example remain clear. Figure4.8 and caption align. Operator section states fixed-staffing/workload scope; no clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "18703ced60a2d9b6076de4ce4835d7835cde85aa985e6d0742075656aa8366d6",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-336-337.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-338-339.png",
+      "sha256": "904255aac1ba8edc57ce802376750be368e5057eff6c1c7f67e177bbbc7d5a08",
+      "targets": [
+        "ls:sec:operator",
+        "ls:sec:sdt"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Miller/Wickens qualifications remain legible. SDT separates criterion from sensitivity. Action-class examples and cost assumptions fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "904255aac1ba8edc57ce802376750be368e5057eff6c1c7f67e177bbbc7d5a08",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-338-339.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-340-341.png",
+      "sha256": "1918d869dddfc3f03867cd41f4b590b4cbfd055ed9ea307a5a7257bc790a3ac8",
+      "targets": [
+        "ls:sec:sdt",
+        "ls:def:sdt",
+        "ls:fig:sdt"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Formal conditional probabilities and inspection assumptions face the SDT plot. The [tp] figure now begins at the top of317 with its caption aligned and no collision. Beta=5 label clears the curves; the figure follows its model and precedes interpretation."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "1918d869dddfc3f03867cd41f4b590b4cbfd055ed9ea307a5a7257bc790a3ac8",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-340-341.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-342-343.png",
+      "sha256": "8a990f09c5a4ca3fa551043f1304540ac080dfd1787855ac2e754f987351fd73",
+      "targets": [
+        "ls:def:sdt",
+        "ls:fig:sdt",
+        "ls:sec:calibration"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Both numerical and calibration tables are grouped at the top of318 with adjacent captions; the class-specific discussion follows. Lee/Warm/Mackworth citations fit without overlap. Campbell caveat closes the next page with deliberate whitespace before the next subsection."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "8a990f09c5a4ca3fa551043f1304540ac080dfd1787855ac2e754f987351fd73",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-342-343.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-344-345.png",
+      "sha256": "ec329835c54d97de3a63abf99ab26aa3b2b66b8d58ee859279da0edb2d4d7383",
+      "targets": [
+        "ls:sec:calibration",
+        "ls:prot:canary"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Canary protocol reaches the page boundary without a hyphenated pre-commit fragment; adjacent SA/citation text fits."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "ec329835c54d97de3a63abf99ab26aa3b2b66b8d58ee859279da0edb2d4d7383",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-344-345.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-346-347.png",
+      "sha256": "f3ad84d26a3a13f0a7ccd98aa39179bcee69386fe61c104c0152c45df5a57589",
+      "targets": [
+        "ls:prot:canary"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Next page starts with complete pre-commit; cooperation figure and pane table remain legible."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "f3ad84d26a3a13f0a7ccd98aa39179bcee69386fe61c104c0152c45df5a57589",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-346-347.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-348-349.png",
+      "sha256": "aa7db28696a0b65b579283b41509b85e79f5c1dc3c3e262d405a21306da45249",
+      "targets": [
+        "ls:sec:cooperation-modes",
+        "ls:sec:readpoverty"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Cooperation patterns remain distinct without an asserted cost ordering. Shortened recall prompts and the annunciator analogy both fit the325 margin; the six-updates/minute example is visible and explicitly workload-specific."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "aa7db28696a0b65b579283b41509b85e79f5c1dc3c3e262d405a21306da45249",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-348-349.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-350-351.png",
+      "sha256": "0013144628cccf93588ea8c262754141340100bc1660a03fbcdef16f6ea6cb55",
+      "targets": [
+        "ls:sec:cooperation-modes",
+        "ls:sec:readpoverty",
+        "Landmark 08"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Read-poverty is tagged empirical hypothesis, separated from the counting model. Landmark08 art is followed by an authored caption with finite-budget and decision-preservation scope; no clipping or invented quotation attribution."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "0013144628cccf93588ea8c262754141340100bc1660a03fbcdef16f6ea6cb55",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-350-351.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-352-353.png",
+      "sha256": "db1930737bbaa96b61f1108058c58752435144ae4258f341bbd5f289f7c05c5c",
+      "targets": [
+        "ls:sec:value-curve",
+        "ls:sec:lowerbound",
+        "Landmark 08"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Lower-bound proof has one end-of-proof square; worked four-artifact construction and model scope fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "db1930737bbaa96b61f1108058c58752435144ae4258f341bbd5f289f7c05c5c",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-352-353.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-354-355.png",
+      "sha256": "3d3ed945c5b764ac2e1deb6241cb3a160a7e3287e6e740e19311a39a4437e3bb",
+      "targets": [
+        "ls:sec:value-curve",
+        "ls:sec:lowerbound"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Counting-floor plot names different total opening budgets; the adjacent worked example rounds20.4 up to21 bits and distinguishes a lower bound from a construction. Historical simulation and its side-channel error are explained separately."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "3d3ed945c5b764ac2e1deb6241cb3a160a7e3287e6e740e19311a39a4437e3bb",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-354-355.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-370-371.png",
+      "sha256": "2a1a38323682ab297d9fa9ea98ab4d1496b45ab892c630e4e9258da1651969dc",
+      "targets": [
+        "ls:thm:regret-head"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Smoke-detector analogy now distinguishes decision from cost threshold and includes all three costs. Theorem assumptions, equation and fixed-other-cost direction fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "2a1a38323682ab297d9fa9ea98ab4d1496b45ab892c630e4e9258da1651969dc",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-370-371.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-372-373.png",
+      "sha256": "5bd14382d6a68b80633c7343b457b20a0fdb4f67c44034c5532b7f0949bd7663",
+      "targets": [
+        "ls:thm:regret-head"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Threshold recap explicitly rejects ratio-alone inference; worked example fixes attention and false-alarm costs. Reputation result follows coherently."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "5bd14382d6a68b80633c7343b457b20a0fdb4f67c44034c5532b7f0949bd7663",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-372-373.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-374-375.png",
+      "sha256": "fb071b7cd4ab86647bba304b79d15fbced4694bbde1c1ab3840ffb0ecc77651c",
+      "targets": [
+        "ls:sec:ambient",
+        "ls:sec:gates"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Corrected adjudication paragraph fits with the protocol and nearby citation; no caption collision or clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "fb071b7cd4ab86647bba304b79d15fbced4694bbde1c1ab3840ffb0ecc77651c",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-374-375.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-376-377.png",
+      "sha256": "97a1efffebf1b37057e9c8bd4e5347940a4072fbbbb9d9e71fe2ce4bc8ced519",
+      "targets": [
+        "ls:sec:ambient",
+        "ls:sec:gates"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Ambient-alert continuation scopes Treisman evidence and the UI hypothesis. Context/compaction explanation follows with citations, no label clipping or margin collisions."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "97a1efffebf1b37057e9c8bd4e5347940a4072fbbbb9d9e71fe2ce4bc8ced519",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-376-377.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-378-379.png",
+      "sha256": "b07d5e9143289ebf10c99f57efd295cff08cedfb58f8be4fc48f3b4d453f6350",
+      "targets": [
+        "ls:thm:split-digest"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Two-record, one-record-budget counterexample states feasible summaries and both losses; proof enumerates all three choices.",
+        "Facing bound states unequal total inspection budgets explicitly; no clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "b07d5e9143289ebf10c99f57efd295cff08cedfb58f8be4fc48f3b4d453f6350",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-378-379.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-380-381.png",
+      "sha256": "9205f63211a892c588292a5e81a2db927eb66a50f6b4d8223e2e6c8dca7239e6",
+      "targets": [
+        "ls:thm:split-digest"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Worked split-floor arithmetic and plot agree; caption distinguishes lower bounds from measured compression.",
+        "Sidecar prose separates syntactic provenance guarantees from empirical faithfulness; margins fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "9205f63211a892c588292a5e81a2db927eb66a50f6b4d8223e2e6c8dca7239e6",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-380-381.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-382-383.png",
+      "sha256": "9f7f4298861ddc0c082ca9eb677f7c65b49732a38c6b9a476c3d73759349db21",
+      "targets": [
+        "ls:sec:context-paging"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Third repaired float Table4.12 now top358 with aligned caption; preceding sidecar prose continues below it then introduces context paging coherently.",
+        "Paging theorem names classical Landlord, capacities k/h, empty caches, and common fixed pins; no margin collision."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "9f7f4298861ddc0c082ca9eb677f7c65b49732a38c6b9a476c3d73759349db21",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-382-383.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-384-385.png",
+      "sha256": "d979ec5e833a3703b17aa2649fe0793fd6248f34be421ce88c1935a8a03a5c81",
+      "targets": [
+        "ls:sec:context-paging"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Paging example distinguishes changed comparator from improvement; finite corruption sweep not universal bound.",
+        "Lazy decay O(1) per record versus O(n) whole map explicit; coverage figure distinguishes authorization and semantic completeness."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "d979ec5e833a3703b17aa2649fe0793fd6248f34be421ce88c1935a8a03a5c81",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-384-385.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-390-391.png",
+      "sha256": "2b9bc046b1f88df4cf29e5dd3418c1a445c3ede2d900057506160537f088eddd",
+      "targets": [
+        "ls:sec:hayek",
+        "ls:fig:hayek-scott"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Hayek/Scott diagram and prose explicitly interpretive; no universal bottleneck or intervention-efficacy claim.",
+        "Key summaries retain strict ranking reversal, extractive budget and classical cache assumptions; no clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "2b9bc046b1f88df4cf29e5dd3418c1a445c3ede2d900057506160537f088eddd",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-390-391.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-392-393.png",
+      "sha256": "5725e125cf9b5ed6494fccdbede8fecea0d53e27be10f6a6c278fa6208f0fc70",
+      "targets": [
+        "ls:sec:hayek",
+        "ls:fig:hayek-scott",
+        "ls:ex:ls-two-llms-not-independent"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Exercise4.10 and its neighboring prompts remain readable; solution pointers update after repagination."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "5725e125cf9b5ed6494fccdbede8fecea0d53e27be10f6a6c278fa6208f0fc70",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-392-393.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-394-395.png",
+      "sha256": "3940b83b24954361ee11cf72ff3d864f8438cbabe8ab538c6d29bab171efe150",
+      "targets": [
+        "ls:ex:ls-sdt-limits",
+        "ls:ex:ls-two-llms-not-independent"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Fixed-cost SDT question remains explicit and paths fit; no overflow."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "3940b83b24954361ee11cf72ff3d864f8438cbabe8ab538c6d29bab171efe150",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-394-395.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-396-397.png",
+      "sha256": "31a8f69b075989f23ad59904df9bed6f82d2a560a93e28d6d34541b9b7f3d3f4",
+      "targets": [
+        "ls:ex:ls-sdt-limits",
+        "ls:ex:ls-noisy-zoom-oracle"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Noisy-query prompt states independent false negatives and no false positives; hypothesis and full prompt fit. Corrected costly-warning and relative-risk prompts remain scoped and link to current solutions."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "31a8f69b075989f23ad59904df9bed6f82d2a560a93e28d6d34541b9b7f3d3f4",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-396-397.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-398-399.png",
+      "sha256": "598dd02041c348d21569f56d966a980b0dc09d8b606552d8206dfdd597490958",
+      "targets": [
+        "ls:ex:ls-noisy-zoom-oracle"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Exercise continuation and related-work opening fit; paging/digest denominator prompts remain explicit. No margin collision or clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "598dd02041c348d21569f56d966a980b0dc09d8b606552d8206dfdd597490958",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-398-399.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-402-403.png",
+      "sha256": "78b65f089518c5f1c009f9e48128f16e4ca351cb8849cc1b124cece67c343dfc",
+      "targets": [
+        "ls:sec:handoff"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Table4.14 and handoff distinguish execution restart from recorded history. No clipping or caption collision. Inherited narrow-column spacing is not a new blocker."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "78b65f089518c5f1c009f9e48128f16e4ca351cb8849cc1b124cece67c343dfc",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-402-403.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-404-405.png",
+      "sha256": "c6c43c9fe1d1ec5c65b2851359455cc14b3379f21b0140fa4619ef12a2e08d61",
+      "targets": [
+        "ls:sec:handoff",
+        "ls:tab:open"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Table4.15 ragged-right open problems and corrected reference fit. Closing paragraph continues before forced appendix start; whitespace is visible but no stranded caption or clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "c6c43c9fe1d1ec5c65b2851359455cc14b3379f21b0140fa4619ef12a2e08d61",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-404-405.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-406-407.png",
+      "sha256": "daba7c2b7fb9612ff5f60b3ae28c77dd87047aaac0958a27f854ed4fdc513e28",
+      "targets": [
+        "ls:tab:open"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Implementation appendix and continuing table fit, with repeat headers and readable continuation."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "daba7c2b7fb9612ff5f60b3ae28c77dd87047aaac0958a27f854ed4fdc513e28",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-406-407.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-412-413.png",
+      "sha256": "ad36725cc3e7552eeaa6b614ff784d81443c7ba0ff134be58f38699446d17f61",
+      "targets": [
+        "From Spawn to Person"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Chapter5 opener uses distinct question, image and Wiener epigraph; right-page motivation and architecture key fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "ad36725cc3e7552eeaa6b614ff784d81443c7ba0ff134be58f38699446d17f61",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-412-413.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-414-415.png",
+      "sha256": "c49988e856658ffc066e3afb5216a2e3b0a22c5c0dcf9536ebee2a4e2ccae5b3",
+      "targets": [
+        "From Spawn to Person"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Capability ladder labels T0–T4 distinctly from architecture L0–L3; saved context explicitly not execution state.",
+        "Sanction arithmetic begins after example-first motivation; diagram/caption clear."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "c49988e856658ffc066e3afb5216a2e3b0a22c5c0dcf9536ebee2a4e2ccae5b3",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-414-415.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-458-459.png",
+      "sha256": "30ea929c9b370c84a467beed23aac0de00d6dcef187355f4c99ec6d2cf33e2dc",
+      "targets": [
+        "stp:thm:resurrection-soundness"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Engine worked example and attestation caption fit. Resurrection property begins with explicit migration conditions."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "30ea929c9b370c84a467beed23aac0de00d6dcef187355f4c99ec6d2cf33e2dc",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-458-459.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-460-461.png",
+      "sha256": "b7198e742400ad9c509299a032a2eff0336a336f86dcc15d8d06d36b68bb6207",
+      "targets": [
+        "stp:thm:resurrection-soundness"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "All three migration checks and principal-scoped sanctions remain present. Same-provider paragraph preserves authentication, engine-attestation and settlement checks; no clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "b7198e742400ad9c509299a032a2eff0336a336f86dcc15d8d06d36b68bb6207",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-460-461.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-464-465.png",
+      "sha256": "3d253e7e83535c9a56037bcf0af545b83144587dfb251bc1be2287cb825cf07b",
+      "targets": [
+        "stp:sec:substrate"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Cross-operator boundary table and authorization-format versus identity distinction remain clear. Substrate/estimator introduction fits."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "3d253e7e83535c9a56037bcf0af545b83144587dfb251bc1be2287cb825cf07b",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-464-465.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-466-467.png",
+      "sha256": "eb02b2c54ee7177644436b66dee2f3b90ae29985cf8bcb157848f10b5598a445",
+      "targets": [
+        "stp:sec:substrate"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "TrueSkill calibration, EigenTrust anchors and limited marketplace inference are scoped. Pairwise example and routing/reputation distinction fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "eb02b2c54ee7177644436b66dee2f3b90ae29985cf8bcb157848f10b5598a445",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-466-467.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-478-479.png",
+      "sha256": "66ac55e0c0b02bf7aefa71b6307a1bc5125795f744c6ad1e6bd4b92cc020b087",
+      "targets": [
+        "stp:thm:tower-imported"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Figure5.13, tower hypotheses, conditional recurrence and added budget model remain explicit. Caption and theorem continuation fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "66ac55e0c0b02bf7aefa71b6307a1bc5125795f744c6ad1e6bd4b92cc020b087",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-478-479.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-480-481.png",
+      "sha256": "c42c7fed5337ea2942905c1d0438be00c9d37f2be6af6cc063ba46eec7ee3f28",
+      "targets": [
+        "stp:thm:tower-imported"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Diversity example distinguishes conditional from marginal detection. Amortization example states discrete versus integral totals and fits."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "c42c7fed5337ea2942905c1d0438be00c9d37f2be6af6cc063ba46eec7ee3f28",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-480-481.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-482-483.png",
+      "sha256": "d11d15933dcee46dc4b98a77db3593e8ea7405e5bd90a242a355c31ff0e1393f",
+      "targets": [
+        "stp:fig:stp-audit-amortization"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Figures5.14 and5.15 both have adjacent captions. Model conditions, discrete and integral quantities are readable; qualifications and recall fit without citation collision."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "d11d15933dcee46dc4b98a77db3593e8ea7405e5bd90a242a355c31ff0e1393f",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-482-483.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-484-485.png",
+      "sha256": "25ec16d0eb15b56a413ef0730a5ad63018ea07ced244c095e109f688114d3cfa",
+      "targets": [
+        "stp:fig:stp-audit-amortization"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Landmark04 caption remains conditional and ends before the next section. Retention, tombstone invalidation and estimator weighting are distinct; section begins intact."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "25ec16d0eb15b56a413ef0730a5ad63018ea07ced244c095e109f688114d3cfa",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-484-485.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-490-491.png",
+      "sha256": "ed5c355cb7aa4917e996e2de8115f1f4fa12fae681acea6e69f48161385d0030",
+      "targets": [
+        "Chapter5 key-idea summary"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Handoff continuation retains proposed-institution maturity. Key-idea summary preserves conditional whitewashing and all migration checks, separating no-mint accounting. No clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "ed5c355cb7aa4917e996e2de8115f1f4fa12fae681acea6e69f48161385d0030",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-490-491.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-492-493.png",
+      "sha256": "0afd13414cb52087c31cb5a9df022a5b7cc592198af6ac4720472e4ddfb9ebf1",
+      "targets": [
+        "stp:ex:stp-dependency-chain",
+        "Chapter5 key-idea summary"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Chapter5 summary and dependency prompts retain conditional tower, freshness and architectural scope. Updated solution page links fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "0afd13414cb52087c31cb5a9df022a5b7cc592198af6ac4720472e4ddfb9ebf1",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-492-493.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-494-495.png",
+      "sha256": "6af19169c66e8ad930f3b5cfe37f35860de33a346e4e6a346be4b85a0abf9df5",
+      "targets": [
+        "stp:ex:stp-dependency-chain",
+        "stp:ex:stp-bt-vs-elo-regime",
+        "stp:ex:stp-resurrection-soundness",
+        "stp:ex:stp-rotten-substrate"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Estimator-choice and migration prompts retain model scope and live references. Exercise5.24 now states the current provenance premise; its ordinary two-line continuation is readable across the page turn. Solution links and margins fit."
+      ],
+      "findings": [],
+      "review_method": "Fresh actual candidate19 facing-spread image inspection"
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-496-497.png",
+      "sha256": "40d7299ab6d1826d6b119ec962d5865fbbbcfe74ea00bc2db190a934184d10e7",
+      "targets": [
+        "stp:ex:stp-bt-vs-elo-regime",
+        "stp:ex:stp-resurrection-soundness",
+        "stp:ex:stp-rotten-substrate"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Exercise5.24 continuation completes the example task without the stale quotation. Following routing, audit, tombstone and evidence exercises fit with correct headings and no clipping."
+      ],
+      "findings": [],
+      "review_method": "Fresh actual candidate19 facing-spread image inspection"
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-760-761.png",
+      "sha256": "ed0389469b6f55cd1620b35b3ae6e7ae43302fefb40952f74a8b73decd58dcc3",
+      "targets": [
+        "sol:ls:ex:ls-two-llms-not-independent"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Two-model solution preserves agreement versus independence distinction; no clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "ed0389469b6f55cd1620b35b3ae6e7ae43302fefb40952f74a8b73decd58dcc3",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-760-761.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-762-763.png",
+      "sha256": "860c11e318a31bc546e638ad91f27be274662fadf562d809b6c71675040472a3",
+      "targets": [
+        "sol:ls:ex:ls-sdt-limits",
+        "sol:ls:ex:ls-two-llms-not-independent",
+        "sol:ls:ex:ls-b7-escalation-run"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "SDT ratio counterexample and full decimal remain legible; conditional cost scope is explicit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "860c11e318a31bc546e638ad91f27be274662fadf562d809b6c71675040472a3",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-762-763.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-764-765.png",
+      "sha256": "c8c55b07d6a1766c162f58eeb81a4d6f5cab2b319cb38ea8131402bfedb4f5ed",
+      "targets": [
+        "sol:ls:ex:ls-sdt-limits",
+        "sol:ls:ex:ls-b7-escalation-run"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Canary solution qualifications, digest objective and oracle-knowledge assumptions remain explicit. Trace-example continuation is coherent and no text clips."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "c8c55b07d6a1766c162f58eeb81a4d6f5cab2b319cb38ea8131402bfedb4f5ed",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-764-765.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-766-767.png",
+      "sha256": "ed559c8bec2b32c66edbc5d87edc5b315755bb94cdbe2724b4cf5fab7afec6f1",
+      "targets": [
+        "sol:ls:ex:ls-noisy-zoom-oracle"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Full noisy-query solution renders Q0, rQ0 overhead, union bound, whole-run epsilon, dense-case term, unknown-k bound and alpha endpoints legibly. Independence is about errors/sampling. Following risk comparison remains conditional; no clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "ed559c8bec2b32c66edbc5d87edc5b315755bb94cdbe2724b4cf5fab7afec6f1",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-766-767.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-768-769.png",
+      "sha256": "c17b260ea92112b3c83c34f53d72398f29b063d3ea07b2571071bc59d606ce79",
+      "targets": [
+        "sol:ls:ex:ls-costly-signal-debit",
+        "sol:ls:ex:ls-noisy-zoom-oracle"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Costly-warning solution retains adjudication and suppression/error measurement; compaction and handoff solutions remain readable with ordinary page continuation."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "c17b260ea92112b3c83c34f53d72398f29b063d3ea07b2571071bc59d606ce79",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-768-769.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-770-771.png",
+      "sha256": "565d64de5a402dbb1b13c17eaf9d5ae773fc018e27aca76f7ab8eaceca393689",
+      "targets": [
+        "sol:ls:ex:ls-costly-signal-debit"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Paging and digest arithmetic remain explicit. Ranker reference visually checked and independently confirmed by AUX and PDF extraction as Exercise4.8; initial colon misread was retracted, no defect. Chapter5 solution heading has body below it."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "565d64de5a402dbb1b13c17eaf9d5ae773fc018e27aca76f7ab8eaceca393689",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-770-771.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-772-773.png",
+      "sha256": "124dc837cf11e70950c8136c8aae939860c7c95888193039cc3a136ba4a92b84",
+      "targets": [
+        "sol:stp:ex:stp-dependency-chain"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Dependency diagram and solution retain conditional reset risk and distinguish checkpoint, witness and liability roles. Typed obligation/action sets and philosophical analogy fit."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "124dc837cf11e70950c8136c8aae939860c7c95888193039cc3a136ba4a92b84",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-772-773.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-774-775.png",
+      "sha256": "bd6024719833e94ae55e2ce4b0f0cd0e8cdf448ae66a20ffb44b7007e68b0340",
+      "targets": [
+        "sol:stp:ex:stp-dependency-chain"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Transfer-balance arithmetic and finite-sweep limit remain visible. Continuity taxonomy separates record, artifact, task capsule and execution state; probation conditions remain explicit. No clipping."
+      ],
+      "findings": [],
+      "review_method": "Exact candidate18 passing PNG hash reuse",
+      "reuse_from": {
+        "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-18.json",
+        "receipt_sha256": "72a1e0aa3b9dd25fd572929b1cefd059cb567041ae8ac5b5989cfadaf68a5d2e",
+        "sha256": "bd6024719833e94ae55e2ce4b0f0cd0e8cdf448ae66a20ffb44b7007e68b0340",
+        "prior_image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-774-775.png"
+      }
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-776-777.png",
+      "sha256": "34866810bd594d3208eef1abbe21a8a3af47e4008a91239d44105683de1650e6",
+      "targets": [
+        "sol:stp:ex:stp-bt-vs-elo-regime",
+        "sol:stp:ex:stp-resurrection-soundness"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Migration and estimator-choice solutions remain scoped and legible; Exercise5.24 solution link now points to471 and the explanation remains consistent with the revised prompt. No margin collision."
+      ],
+      "findings": [],
+      "review_method": "Fresh actual candidate19 facing-spread image inspection"
+    },
+    {
+      "image": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/spreads/spread-778-779.png",
+      "sha256": "74821943893d835b3d6a7dc72515ac5e77209eb491b3f02bd95002419c96d1f4",
+      "targets": [
+        "sol:stp:ex:stp-bt-vs-elo-regime",
+        "sol:stp:ex:stp-resurrection-soundness"
+      ],
+      "verdict": "pass",
+      "observations": [
+        "Following solutions retain routing-versus-reputation distinction, conditional measurement and deterrence assumptions. Updated page references fit; no clipping or caption collision."
+      ],
+      "findings": [],
+      "review_method": "Fresh actual candidate19 facing-spread image inspection"
+    }
+  ],
+  "not_claimed": [
+    "Visual review of every page of the844-page book",
+    "Global candidate acceptance from this worker alone",
+    "Unseen images as reviewed",
+    "Validation of every cited external work or implementation claim"
+  ]
+}

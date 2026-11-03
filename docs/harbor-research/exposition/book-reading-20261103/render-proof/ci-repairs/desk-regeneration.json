@@ -1,0 +1,23 @@
+[
+  {
+    "path": "docs/harbor-research/exposition/figures/desk/data/FIGS.js",
+    "before_sha256": "eac16b95bb4a280ea1f4af32850e064a0626b7614ce8cc8f78d24aea2b9a8a77",
+    "after_sha256": "226e3dc037a2661541155f08edd945eee0b2b1eecdc8269b7f0276c4b4cb19c9",
+    "bytes_before": 54132,
+    "bytes_after": 54918
+  },
+  {
+    "path": "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js",
+    "before_sha256": "20a76cfc930cba4aced6481c4dedc9e47e76944ba9512c3d79c9e6968bfda82e",
+    "after_sha256": "b42bbc378c7256b593bf41b8b1126550cca48bd2cedd28f6736834e76d5b78cb",
+    "bytes_before": 29352,
+    "bytes_after": 29978
+  },
+  {
+    "path": "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+    "before_sha256": "02c8dbb5c038c1fc57315448bcd69c62c823328d26658ba97c45090b0bbf3286",
+    "after_sha256": "173ad1dca2f65d57128ddf8984a638c41a2d486ea04337ab0a0bf38da84b45d3",
+    "bytes_before": 361734,
+    "bytes_after": 362271
+  }
+]
