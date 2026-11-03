@@ -1,0 +1,170 @@
+{
+  "task": "Figure5.8 sybil/whitewash discrete-policy redraw",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "base_head": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+  "source": "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+  "source_sha256": "06360763bfcc545951f7aefb340b1a8ca609ae2390ee7aa336f956e70e5769fa",
+  "prior_source_sha256": "92b3c037c91bf9aea65381749a2a5978c904b242038b14594d689595ce035082",
+  "source_scope": "Only this figure fragment changed; no shared style, font size, chapter flow, or theorem edits.",
+  "skills_applied": [
+    "skills/tikz-diagram-craft/SKILL.md",
+    "skills/tikz-diagram-craft/references/figure-standard.md",
+    "skills/tikz-diagram-craft/templates/tpl-before-after.tex",
+    "skills/tikz-diagram-craft/templates/tpl-small-multiples.tex"
+  ],
+  "data_provenance": {
+    "source": "website-v2/public/whitepaper/spawn-to-person.tex:1500",
+    "kind": "Illustrative policies, not measured attacks or authentication guarantee",
+    "x": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "panel_A": {
+      "units": "retained penalty in units of Delta",
+      "principal": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "free_unlinkable_reset": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    "panel_B": {
+      "units": "votes",
+      "principal": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "per_label": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "domain_check": "All16 coordinate pairs parsed from source match these values and lie strictly inside padded plot domains. The shared initial point is drawn once."
+  },
+  "baseline_findings": [
+    "User cache was stale and overlapped subtitle with policy label; its own B3/T3 had detected the overlap.",
+    "Candidate23 production Figure5.8 cleared that old collision but still had out-of-axis x=3.9 marks, marker/line slope mismatch, an unnumbered voting baseline, scattered labels, and long caption."
+  ],
+  "changes": [
+    "Two identical plot boxes and explicit n=0..3 ticks; geometric spacing and header alignment shared.",
+    "A compares a retained penalty with a free unlinkable reset at the first respawn.",
+    "B compares one principal vote with one plus n per-label votes; common starting baseline.",
+    "One aligned key uses the same semantic series colours, including the technical profile.",
+    "Concise caption retains one-admission-domain and authentication-versus-enforced-policy limits."
+  ],
+  "rendered": [
+    {
+      "edition": "swiss",
+      "png": "swiss/fig-stp-sybil-whitewash.png",
+      "png_sha256": "bb43b5ed1232d27f415313ec2645f6a10c41b631594357d2ba9f93934d51b2ca",
+      "pdf_sha256": "4f6b2d8d0f7cec70a43f50f75afeda6c22d3400ec9f295ab07472b53f420d538",
+      "plot_ink_width_in": 4.06,
+      "automated_failure_checks_clear": true,
+      "beauty_failures": [],
+      "beauty_warnings": [],
+      "figcheck_warnings": [
+        "T7"
+      ],
+      "warning_disposition": "T7 measures plot plus the intended Book margin caption; actual plot-only width is within the 4.5in column. No font shrinking or waiver was used.",
+      "actual_view": "Viewed individually after final key correction; labels/curves/key clear and aligned, marks within axes.",
+      "design_review": "accepted fragment; production spread pending"
+    },
+    {
+      "edition": "maritime",
+      "png": "maritime/fig-stp-sybil-whitewash.png",
+      "png_sha256": "350b1f1472b36603f354c33f790a9d216031fa2161a33e93ab5e73e397ea39f4",
+      "pdf_sha256": "66982fc43c9e81ef397d8fddd7076147d87fff4c646ac0191ed4c1a779006988",
+      "plot_ink_width_in": 4.01,
+      "automated_failure_checks_clear": true,
+      "beauty_failures": [],
+      "beauty_warnings": [],
+      "figcheck_warnings": [
+        "T7"
+      ],
+      "warning_disposition": "T7 measures plot plus the intended Book margin caption; actual plot-only width is within the 4.5in column. No font shrinking or waiver was used.",
+      "actual_view": "Viewed individually after final key correction; labels/curves/key clear and aligned, marks within axes.",
+      "design_review": "accepted fragment; production spread pending"
+    },
+    {
+      "edition": "technical",
+      "png": "technical/fig-stp-sybil-whitewash.png",
+      "png_sha256": "cbdc149ac1c80c17025ca408233b90b7983205074ca42bfe846d663f72f83474",
+      "pdf_sha256": "e95585156357d2372c61301ee69f78c73ce1342888bc8e3d23a59fa7531d6173",
+      "plot_ink_width_in": 4.02,
+      "automated_failure_checks_clear": true,
+      "beauty_failures": [],
+      "beauty_warnings": [],
+      "figcheck_warnings": [
+        "T7"
+      ],
+      "warning_disposition": "T7 measures plot plus the intended Book margin caption; actual plot-only width is within the 4.5in column. No font shrinking or waiver was used.",
+      "actual_view": "Viewed individually after final key correction; labels/curves/key clear and aligned, marks within axes.",
+      "design_review": "accepted fragment; production spread pending"
+    }
+  ],
+  "cache_refresh": {
+    "path": ".cache/figure-debt-qa/swiss/fig-stp-sybil-whitewash",
+    "method": "book_figure_qa.run_one invoked against current source; fresh compile, figcheck, beauty lint, crop. No PNG-only replacement.",
+    "png_sha256": "bb43b5ed1232d27f415313ec2645f6a10c41b631594357d2ba9f93934d51b2ca",
+    "receipt": ".scratch/textbook-craft-20261103/pr10345/sybil-redraw/cache-refresh-receipt.json",
+    "old_artifacts": "All5 prior cache artifacts archived in scratch/before-stale-cache with full hash manifest; unrelated corpus aggregate files unchanged."
+  },
+  "reviewers": {
+    "operator": "All3 final PNGs directly viewed; accepted fragment geometry, hierarchy and semantics.",
+    "machine": "Independent source06360763 and all3 actual stable PNGs accepted in tool-native message; production spread still pending."
+  },
+  "publication_boundary": "Publication remains held: candidate24 actual production diagram geometry passes, but a local introductory paragraph split needs correction and a subsequent rebuilt spread check.",
+  "production24": {
+    "source_head": "a6d91e18bacdb6d87d1cc888967ca996853a91e8",
+    "source_sha256": "06360763bfcc545951f7aefb340b1a8ca609ae2390ee7aa336f956e70e5769fa",
+    "pdf": {
+      "path": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf",
+      "sha256": "f7c077d4b36c80ee7c0694d6083a8497d1d9578190d2e12a3b08054bd45fb314",
+      "pages": 844
+    },
+    "review_receipt": ".scratch/textbook-craft-20261103/operator-spread-review-24.json",
+    "review_receipt_sha256": "bb227dffdb43245b1fa33d0b2638eda90b2703a8a50f755c348c9829c5aca628",
+    "views": [
+      {
+        "image": "production24/candidate24-context-450-451.png",
+        "sha256": "7891a3eff399deb27564fc7e6998f7c5552a9fa63fdbd857ef0b1b77033a97cf",
+        "verdict": "needs-local-flow-repair"
+      },
+      {
+        "image": "production24/spread-452-453.png",
+        "sha256": "33748b11ca740c2014e8ed99412bd4c74d742c126fab0cce7c25dfe621adf0cc",
+        "verdict": "needs-local-flow-repair"
+      },
+      {
+        "image": "production24/spread-454-455.png",
+        "sha256": "c80e896a69cb436d48559938ad8f81b644dcbbbf9a597c1d0b3a939f76df1249",
+        "verdict": "pass"
+      }
+    ],
+    "verdict": "Diagram and caption geometry accepted; surrounding introductory sentence split blocks production reading-flow acceptance.",
+    "finding": {
+      "id": "operator24-sybil-introduction-split",
+      "severity": "layout-flow",
+      "pages": [
+        451,
+        452
+      ],
+      "description": "The introduction ends physical451 with Retaining, then Figure5.8 intervenes at the top of452 before the body continues principal-level sanctions addresses the first. Preserve this paragraph at its logical boundary.",
+      "owner": "root to assign bounded STP placement correction",
+      "status": "open; source unchanged by reviewer"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "scope": "Focused rendered regression plus exact final Pareto PDFs recropped through fixed pipeline; no source/style edits beyond crop function and test.",
+  "source_head": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+  "script_sha256": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+  "test_sha256": "2dd46807fe64856a2ae2e98efe46e790beb5f711e886d60df1bae26f5ea7350e",
+  "focused_tests": {
+    "ran": 4,
+    "passed": 4
+  },
+  "negative_control": {
+    "implementation": "HEAD crop before fix",
+    "tests": 1,
+    "expected_failures": 1
+  },
+  "files": {
+    "rules.pdf": {
+      "sha256": "2f20772bb5ef56747216a12876190d9e2519dd7f014c6b9d2d4d7209908913f1",
+      "bytes": 1171
+    },
+    "expected.png": {
+      "sha256": "43e5bce20fafbd37b5a332cbebb1d86fabdfd716f0215ca6b591ead798073786",
+      "bytes": 535
+    },
+    "test.log": {
+      "sha256": "6a128f07ba1f1c5637ab7a1b0fda294170412c1aad4b0a4b72f7e20a4bd7fe9a",
+      "bytes": 667
+    },
+    "old-implementation-test.log": {
+      "sha256": "65d07a83d412c170c1e654e66395853715a93ad77cafa63c544dfdd6f668fade",
+      "bytes": 834
+    },
+    "skill-mirrors.log": {
+      "sha256": "203b1af707548fbb09cfc5874fc22ee8754227cf1d48e154ad1246aa1e5fb13c",
+      "bytes": 1460
+    },
+    "actual.png": {
+      "sha256": "43e5bce20fafbd37b5a332cbebb1d86fabdfd716f0215ca6b591ead798073786",
+      "bytes": 535
+    },
+    "old-crop.png": {
+      "sha256": "913e8dff6791224648738df1bb8742ba9222066fdcaa3a344039ae0f27e0415e",
+      "bytes": 357
+    }
+  },
+  "skill_mirrors": {
+    "command": "node scripts/sync-skill-mirrors.mjs --check",
+    "exit_code": 0,
+    "declared_targets": 16,
+    "drift": 0
+  },
+  "boundary": "Existing full-width furniture and sub-point speck exclusions retained; rendered regression explicitly covers both. No claim of full corpus rerender."
+}

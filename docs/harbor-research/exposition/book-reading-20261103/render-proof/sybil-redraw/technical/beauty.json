@@ -1,0 +1,9 @@
+{
+ "figure": "fig-stp-sybil-whitewash",
+ "findings": [],
+ "summary": {
+  "result": "pass",
+  "fail": 0,
+  "warn": 0
+ }
+}

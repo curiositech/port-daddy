@@ -1,0 +1,35 @@
+{
+  "reviewed_at": "2026-11-03T19:02:04.448930+00:00",
+  "reviewer": "craft_operator_identity",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "scope": "Independent review of machine-authored candidate23 SWK OP-5 tower retelling only",
+  "source_hashes": {
+    "whitepaper/single-writer-kernel.tex": "27c1bbff970f1efd2a4a7fa869fd79538c8240ad9d7099c2c61d89926ef9315d",
+    "website-v2/public/whitepaper/spawn-to-person.tex": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+    "docs/harbor-research/tex/paper3.tex": "45fbae56dc5ffd81c15cda53e6b0ac08ed1e69fa8fd881fcc20a5e075c133ffc"
+  },
+  "reviewed_anchors": {
+    "whitepaper/single-writer-kernel.tex": "1813\u20131828 complete replacement and adjacent OP-5 scope",
+    "website-v2/public/whitepaper/spawn-to-person.tex": [
+      "thm:tower-imported",
+      "terminal-root and key-idea paragraphs following ex:audit-depth"
+    ],
+    "docs/harbor-research/tex/paper3.tex": "thm:tower plus proof"
+  },
+  "verdict": "pass",
+  "findings": [],
+  "reasoning": [
+    "Candidate groups are no longer conflated with audit levels. The retelling states prepaid bribery, sealed uniform sampling and separate bribability before claiming below-threshold incentive protection, preserving the no-bribery tie convention.",
+    "Conditional detection is explicitly conditioned on every preceding level having missed. A positive lower bound gives geometric expected-value decay, matching paper3\u2019s inequality; no claim that marginal rates or vendor diversity supply the premise remains.",
+    "A trustworthy terminal adjudicator remains necessary. The paragraph no longer claims the tower removes trust in every grader.",
+    "Neither incentive nor detection result establishes expressiveness/oracle completeness; OP-5 remains open.",
+    "The Book-only theorem reference uses the existing ifpdbook flag, defined in imported pd-hyperlinks.tex. Standalone reading retains the chapter-title reference."
+  ],
+  "delta_check": "git diff contains only the specified prose paragraph replacement; no theorem, figure, numerical example or implementation claim elsewhere changed.",
+  "limitations": [
+    "No new proof of the underlying theorem, model implementation or deployment calibration is claimed.",
+    "Candidate23 must still verify the new paragraph typography and live cross-reference."
+  ],
+  "author_independence": "The replacement was authored by craft_machine; this reviewer made no source edits."
+}

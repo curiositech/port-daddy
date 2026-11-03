@@ -1,0 +1,148 @@
+{
+  "schema": "bounded-independent-review/v1",
+  "candidate": 25,
+  "created_utc": "2026-11-03T19:53:07.690152+00:00",
+  "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "base_head": "a6d91e18bacdb6d87d1cc888967ca996853a91e8",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "scope": "Exactly three local layout edits. Source25 comparison, complete cartel-caption/context reread, exact arithmetic recomputation and six fresh market-figure fragment views. Not a whole-book proof or global publication acceptance.",
+  "status": "pass_for_bounded_source_equivalence_and_fragment_scope",
+  "source_sha256": {
+    "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex": "33287b156bcc2965d16e88767b7e9b4434dccc29aba9eb3dfdc4f15288e6ea2e",
+    "website-v2/public/whitepaper/figures/fig-pareto-dominance-tikz.tex": "f349a8b98dac1b896eb619ee4a28772e886c1c83cb1fc258779dc93f1fce9a89",
+    "website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex": "63d34caa977d04727a1c0baa459c08451a743eb3ec5117db1254f4b4409f6415"
+  },
+  "edits": [
+    {
+      "file": "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+      "change": "Float[t] to[H] only.",
+      "finding": "Input follows a complete introductory paragraph; pins figure after that paragraph. Data, captions and style tokens unchanged. Production flow must be verified after rebuild."
+    },
+    {
+      "file": "website-v2/public/whitepaper/figures/fig-pareto-dominance-tikz.tex",
+      "change": "Panel width4.3cm to4.2cm only.",
+      "finding": "Fonts, height, horizontal gap, key, axis domains and all coordinates unchanged."
+    },
+    {
+      "file": "website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex",
+      "change": "Caption compression only; plot body byte-identical.",
+      "preserved": [
+        "x>0 collusive margin",
+        "pi_C=x/3",
+        "negligible-undercut limit pi_D→x",
+        "delta=.95",
+        "boundary V_C=pi_D",
+        "L/x=(17/60)/p_d−19/20",
+        "deviation above/collusion below",
+        "marked p_d=.025 and.10",
+        "model values, not measurements"
+      ]
+    }
+  ],
+  "mathematical_check": {
+    "context": "agent-transactions-whitepaper.tex1410–1414: V_C=pi_C−p_d L+delta(1−p_d)V_C.",
+    "derivation": "Set V_C=pi_D→x, divide by positive x: p_d L/x=1/3−(1−delta)−delta p_d. With delta19/20 this gives17/60−19p_d/20.",
+    "point_values_exact": {
+      "1/40": "623/60",
+      "1/10": "113/60"
+    },
+    "regions": "For p_d>0, increasing L decreases V_C while pi_D stays fixed; deviation is preferred above the boundary.",
+    "claim_scope": "No new theorem, empirical guarantee or parameter change."
+  },
+  "changed_tex_or_style_files": [
+    "website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex",
+    "website-v2/public/whitepaper/figures/fig-pareto-dominance-tikz.tex",
+    "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex"
+  ],
+  "shared_styles_or_font_edits": false,
+  "actual_fragment_views": [
+    {
+      "figure": "fig-pareto-dominance-tikz",
+      "edition": "swiss",
+      "path": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/swiss/fig-pareto-dominance-tikz/fig-pareto-dominance-tikz.png",
+      "sha256": "ae83c9ac6712e5e2c127f306734ae5e74bce4bdebe221f399281cec406899b9f",
+      "actual_view": "Individually viewed final fragment. Labels/key/formula readable; no collision or clipping found."
+    },
+    {
+      "figure": "fig-pareto-dominance-tikz",
+      "edition": "maritime",
+      "path": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/maritime/fig-pareto-dominance-tikz/fig-pareto-dominance-tikz.png",
+      "sha256": "09c0d04046d32caec32401719a25a7460d11f21c0d73b6eec062cc9ba97d036c",
+      "actual_view": "Individually viewed final fragment. Labels/key/formula readable; no collision or clipping found."
+    },
+    {
+      "figure": "fig-pareto-dominance-tikz",
+      "edition": "technical",
+      "path": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/technical/fig-pareto-dominance-tikz/fig-pareto-dominance-tikz.png",
+      "sha256": "1bb57e708f1920650fe5ddca0fa8c341fbe08af9973e8c5fc35797cf99af4286",
+      "actual_view": "Individually viewed final fragment. Labels/key/formula readable; no collision or clipping found."
+    },
+    {
+      "figure": "fig-cartel-game-inline",
+      "edition": "swiss",
+      "path": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/swiss/fig-cartel-game-inline/fig-cartel-game-inline.png",
+      "sha256": "a896ebefa510e4152750b7dbdf543f95fcf396e250fb6597883848be34d09199",
+      "actual_view": "Individually viewed final fragment. Labels/key/formula readable; no collision or clipping found."
+    },
+    {
+      "figure": "fig-cartel-game-inline",
+      "edition": "maritime",
+      "path": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/maritime/fig-cartel-game-inline/fig-cartel-game-inline.png",
+      "sha256": "7b88021935d6eb73994acd3999071c6b73160d5d8cd73c6a0b7d159afa639105",
+      "actual_view": "Individually viewed final fragment. Labels/key/formula readable; no collision or clipping found."
+    },
+    {
+      "figure": "fig-cartel-game-inline",
+      "edition": "technical",
+      "path": ".scratch/textbook-craft-20261103/paired-plot-audit/layout25-qa/technical/fig-cartel-game-inline/fig-cartel-game-inline.png",
+      "sha256": "cae5db54a6d4645e24b5ac57c6cb9dc31154ed4b0225776e5ac15bfd4d24f3a2",
+      "actual_view": "Individually viewed final fragment. Labels/key/formula readable; no collision or clipping found."
+    }
+  ],
+  "verification_policy": "No full939-test repeat for this layout-only delta. Root owns current source gates; builder owns production rendered gates. Source24 diagnostics remain separately preserved.",
+  "remaining_required": "Parent final whole-Book acceptance, hosted checks and publication are separate; no additional source repair found in this bounded review.",
+  "production_followthrough": {
+    "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+    "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+    "status": "pass_for_bounded_affected_spread_scope",
+    "images": [
+      {
+        "label": "sybil",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate25-facing-sybil.png",
+        "sha256": "92be3a2eb497488c0ce17910102c6c9b1152d2d8abdba6a618e3dfda6e43e24a",
+        "spread_index": 226,
+        "source_physical_page": 452,
+        "folio": "428",
+        "dpi": 150,
+        "review_method": "Fresh actual candidate25 facing spread individually viewed.",
+        "assessment": "Introductory paragraph is complete before Figure5.8; discrete axes, labels and full key are legible."
+      },
+      {
+        "label": "pareto",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate25-facing-pareto.png",
+        "sha256": "3c15557807637b8700b8dc4e97ea70f34dc0f5ba3bc4f0b53a1eab313fa8e2f3",
+        "spread_index": 314,
+        "source_physical_page": 629,
+        "folio": "605",
+        "dpi": 150,
+        "review_method": "Fresh actual candidate25 facing spread individually viewed.",
+        "assessment": "Narrowed plots and full key fit beside the caption; tolerance definition and reported values are adjacent on the facing page."
+      },
+      {
+        "label": "cartel",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate25-facing-cartel.png",
+        "sha256": "d9b810e0a1565dcabfe2398cfc15f27247bd2dee8806378aaa95571c4400bf28",
+        "spread_index": 315,
+        "source_physical_page": 631,
+        "folio": "607",
+        "dpi": 150,
+        "review_method": "Fresh actual candidate25 facing spread individually viewed.",
+        "assessment": "Caption top aligns with the diagram; all premises, boundary formula, marked probabilities and model-only qualification remain legible."
+      }
+    ],
+    "navigation_receipt": "exercise-navigation.json",
+    "page_turn_receipt": "compound-page-turns.json",
+    "facing_receipt": "facing-copy.json"
+  }
+}

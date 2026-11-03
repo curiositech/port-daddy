@@ -1,0 +1,2 @@
+# PDF proof artifacts retain exact bytes, including required xref padding.
+*.pdf binary

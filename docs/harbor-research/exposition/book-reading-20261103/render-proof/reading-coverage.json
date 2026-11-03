@@ -1,5 +1,5 @@
 {
-  "source_commit": "81a867d979e037458f6884b99bca3d3b0e9277c8",
+  "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
   "concept_records": 152,
   "source_records": [
     {
@@ -35,7 +35,7 @@
     {
       "reader": "machine",
       "source": "whitepaper/single-writer-kernel.tex",
-      "saved_sha256": "e50e9e5d8c3d30fa38f0bfd097f028819a421899af7bf0a83e1886ccf82e675a",
+      "saved_sha256": "27c1bbff970f1efd2a4a7fa869fd79538c8240ad9d7099c2c61d89926ef9315d",
       "reading_record": "machine-concepts.json"
     },
     {
@@ -47,7 +47,7 @@
     {
       "reader": "machine",
       "source": "website-v2/public/whitepaper/sealed-harbor.tex",
-      "saved_sha256": "995f3c86a085dcdb0364352e8ca6453968986a4ddda398a4b4e061ab1760ffa1",
+      "saved_sha256": "594794920d61c85096a7a5aa966c6416dba6b40be5ab41fcd0198e7346b4bd03",
       "reading_record": "machine-concepts.json"
     },
     {
@@ -59,7 +59,7 @@
     {
       "reader": "operator-identity",
       "source": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "saved_sha256": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32",
+      "saved_sha256": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
       "reading_record": "operator-identity-concepts.json"
     },
     {
@@ -71,13 +71,13 @@
     {
       "reader": "markets-federation",
       "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "saved_sha256": "04701b2cf32a3c1d0cb2c5c791bb729aca8c19c3be3cedb59e3bb5740a9d8510",
+      "saved_sha256": "945ece55bc2567eedc0d679bd88b2203709d62f4d145d27a17f9a531f76a14ee",
       "reading_record": "markets-federation-concepts.json"
     },
     {
       "reader": "markets-federation",
       "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "saved_sha256": "c1bd4ca86e4005f619ac4ccbf1f3f57a2475ec5a8ec527c7ec40d8fffe46d764",
+      "saved_sha256": "7871f858514a754c75a72f79ff700d0bd6be67688be2ee3057301af290ce9843",
       "reading_record": "markets-federation-concepts.json"
     }
   ],

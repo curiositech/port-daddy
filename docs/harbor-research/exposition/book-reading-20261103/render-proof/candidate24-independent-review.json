@@ -1,0 +1,197 @@
+{
+  "schema": "bounded-independent-review/v1",
+  "candidate": 24,
+  "created_utc": "2026-11-03T19:31:38.637304+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "base_head": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+  "scope": "Independent semantic and actual three-edition fragment review of two paired plots and the associated Bonded comparison paragraph; source23 production context used to diagnose defects. This is not a whole-book24 review or publication acceptance. The crop helper fix is reviewer-authored and regression-tested, not claimed independently authored.",
+  "source_sha256": {
+    "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex": "06360763bfcc545951f7aefb340b1a8ca609ae2390ee7aa336f956e70e5769fa",
+    "website-v2/public/whitepaper/figures/fig-pareto-dominance-tikz.tex": "2104fd6472a73cea4b2070816e61a2b84573ce4c84679f4e093db84f9d9fa367",
+    "website-v2/public/whitepaper/agent-transactions-whitepaper.tex": "945ece55bc2567eedc0d679bd88b2203709d62f4d145d27a17f9a531f76a14ee",
+    "website-v2/public/whitepaper/spawn-to-person.tex": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+    "proofs/bonded/pareto/simulation.mjs": "0e49c27eaaab6d6f1041071a366245bb13e21f8315e60f9704b37faea34666e5",
+    "proofs/bonded/pareto/simulation.run.log": "028e5f81c2d0528cdb864ad18687bb6f2221858ffbee8d6e90a959fc121895c0",
+    "skills/tikz-diagram-craft/scripts/book_figure_qa.py": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+    "skills/tikz-diagram-craft/tests/test_review_status.py": "2dd46807fe64856a2ae2e98efe46e790beb5f711e886d60df1bae26f5ea7350e"
+  },
+  "status": "pass_for_stated_fragment_and_reporting_scope",
+  "sybil": {
+    "model": "n=0,1,2,3; retained penalty/Delta=1,1,1,1; reset penalty/Delta=1,0,0,0; principal votes=1,1,1,1; per-label votes=1,2,3,4.",
+    "scope_check": "Matches adjacent chapter policy statement. Assumes principal linkage plus enforcement within one admission domain; authentication alone is insufficient.",
+    "fixed": "Removed stale caption collision, mismatched marker slope, out-of-domain marks and ambiguous starting vote count.",
+    "cache_provenance": "Original user cache PNG2f54ac8e predates source92b3 and portable PNG2be9dbd3. Its own T3 flagged the collision. Source23 production cleared that old collision but retained domain/data-geometry faults. Operator archived the stale cache and regenerated it from final source06360763."
+  },
+  "pareto": {
+    "denominator": {
+      "configurations": 36,
+      "trials_per_configuration": 2000,
+      "transactions_per_trial": 50,
+      "rate": "Number of trials passing all three tests divided by2000; printed to3decimal places."
+    },
+    "success_predicate": [
+      "competitive principal cost < static principal cost",
+      "competitive commons receipts >=0.97*static commons receipts",
+      "aggregate insurer profit >=-0.05*static principal cost"
+    ],
+    "interpretation": "Tolerance-based comparison, not exact Pareto dominance or an efficiency theorem.",
+    "reported_coordinates_match_log": true,
+    "all_36_numerical_rows_unchanged_from_base": true,
+    "final_script_rerun": {
+      "exit_code": 0,
+      "output_equals_committed_log_byte_for_byte": true,
+      "sha256": "028e5f81c2d0528cdb864ad18687bb6f2221858ffbee8d6e90a959fc121895c0"
+    },
+    "source_review": "Read final reporting-only delta. baselineComparison reads completed aggregates for console output; no numerical algorithm, random seed, inputs, trial counts or success predicate changed.",
+    "repairs": "Noise-sweep prose now agrees with values; every series is keyed; unsupported50%criterion and false\u00b10.02Wilson statement removed; footer no longer claims\u226590%or theorem confirmation.",
+    "wilson_counterexample": {
+      "p": 0.675,
+      "n": 2000,
+      "interval": [
+        0.6541544022367746,
+        0.695174631214787
+      ]
+    }
+  },
+  "actual_fragment_views": [
+    {
+      "figure": "sybil",
+      "edition": "swiss",
+      "file": "sybil-redraw/swiss/fig-stp-sybil-whitewash.png",
+      "sha256": "bb43b5ed1232d27f415313ec2645f6a10c41b631594357d2ba9f93934d51b2ca",
+      "actual_view": "Viewed final source-matched fragment, including full legend rules. No text or axis collision; numerical/domain interpretation checked separately."
+    },
+    {
+      "figure": "pareto",
+      "edition": "swiss",
+      "file": "figures/fig-pareto-dominance-tikz-swiss.png",
+      "sha256": "1ef3f5a21f4caa120b8a5dcaeeb7b38a4180b1b7730172ac14d4d36d730ac914",
+      "actual_view": "Viewed final source-matched fragment, including full legend rules. No text or axis collision; numerical/domain interpretation checked separately."
+    },
+    {
+      "figure": "sybil",
+      "edition": "maritime",
+      "file": "sybil-redraw/maritime/fig-stp-sybil-whitewash.png",
+      "sha256": "350b1f1472b36603f354c33f790a9d216031fa2161a33e93ab5e73e397ea39f4",
+      "actual_view": "Viewed final source-matched fragment, including full legend rules. No text or axis collision; numerical/domain interpretation checked separately."
+    },
+    {
+      "figure": "pareto",
+      "edition": "maritime",
+      "file": "figures/fig-pareto-dominance-tikz-maritime.png",
+      "sha256": "7fa0482bf916b8a80963f331f4f0f9a1d7633a72d970369187698a814bb158e2",
+      "actual_view": "Viewed final source-matched fragment, including full legend rules. No text or axis collision; numerical/domain interpretation checked separately."
+    },
+    {
+      "figure": "sybil",
+      "edition": "technical",
+      "file": "sybil-redraw/technical/fig-stp-sybil-whitewash.png",
+      "sha256": "cbdc149ac1c80c17025ca408233b90b7983205074ca42bfe846d663f72f83474",
+      "actual_view": "Viewed final source-matched fragment, including full legend rules. No text or axis collision; numerical/domain interpretation checked separately."
+    },
+    {
+      "figure": "pareto",
+      "edition": "technical",
+      "file": "figures/fig-pareto-dominance-tikz-technical.png",
+      "sha256": "e0b1f46fe887a6df03a66460a904ff4666d6b014278020360fd6c6c3576ee818",
+      "actual_view": "Viewed final source-matched fragment, including full legend rules. No text or axis collision; numerical/domain interpretation checked separately."
+    }
+  ],
+  "owner_receipts": [
+    {
+      "file": "sybil-redraw/receipt.json",
+      "sha256": "3f4be4de52b0a1fba0a8682f039f72488127c9dd368c650d58d4551806e15e8f"
+    },
+    {
+      "file": "paired-plot-pareto-repair.json",
+      "sha256": "a8c9bcd11f243ac66207495cba7bae066a76cf2ef88660e0516727f7d1c11497"
+    }
+  ],
+  "crop_regression": {
+    "scope": "Focused rendered regression plus exact final Pareto PDFs recropped through fixed pipeline; no source/style edits beyond crop function and test.",
+    "source_head": "0bb6c6898ca8d18a6aab972cf719973cfac3789e",
+    "script_sha256": "40349dd38dedaf9a0cb49f55ed9dfe2bbe982a0a3e01068ed5c812157399a74c",
+    "test_sha256": "2dd46807fe64856a2ae2e98efe46e790beb5f711e886d60df1bae26f5ea7350e",
+    "focused_tests": {
+      "ran": 4,
+      "passed": 4
+    },
+    "negative_control": {
+      "implementation": "HEAD crop before fix",
+      "tests": 1,
+      "expected_failures": 1
+    },
+    "files": {
+      "rules.pdf": {
+        "sha256": "2f20772bb5ef56747216a12876190d9e2519dd7f014c6b9d2d4d7209908913f1",
+        "bytes": 1171
+      },
+      "expected.png": {
+        "sha256": "43e5bce20fafbd37b5a332cbebb1d86fabdfd716f0215ca6b591ead798073786",
+        "bytes": 535
+      },
+      "test.log": {
+        "sha256": "6a128f07ba1f1c5637ab7a1b0fda294170412c1aad4b0a4b72f7e20a4bd7fe9a",
+        "bytes": 667
+      },
+      "old-implementation-test.log": {
+        "sha256": "65d07a83d412c170c1e654e66395853715a93ad77cafa63c544dfdd6f668fade",
+        "bytes": 834
+      },
+      "skill-mirrors.log": {
+        "sha256": "203b1af707548fbb09cfc5874fc22ee8754227cf1d48e154ad1246aa1e5fb13c",
+        "bytes": 1460
+      },
+      "actual.png": {
+        "sha256": "43e5bce20fafbd37b5a332cbebb1d86fabdfd716f0215ca6b591ead798073786",
+        "bytes": 535
+      },
+      "old-crop.png": {
+        "sha256": "913e8dff6791224648738df1bb8742ba9222066fdcaa3a344039ae0f27e0415e",
+        "bytes": 357
+      }
+    },
+    "skill_mirrors": {
+      "command": "node scripts/sync-skill-mirrors.mjs --check",
+      "exit_code": 0,
+      "declared_targets": 16,
+      "drift": 0
+    },
+    "boundary": "Existing full-width furniture and sub-point speck exclusions retained; rendered regression explicitly covers both. No claim of full corpus rerender."
+  },
+  "remaining_required": "New full Book build, actual production spreads for stp:fig:sybil and bonded:fig:pareto-mc-inline, normal source/render/navigation gates. Existing source23 reader receipts preserved; none relabeled24.",
+  "production24_followthrough": {
+    "created_utc": "2026-11-03T19:46:01.592836+00:00",
+    "source_head": "a6d91e18bacdb6d87d1cc888967ca996853a91e8",
+    "pdf_sha256": "f7c077d4b36c80ee7c0694d6083a8497d1d9578190d2e12a3b08054bd45fb314",
+    "status": "diagnostic_layout_repairs_required",
+    "views": [
+      {
+        "label": "sybil",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate24-facing-sybil.png",
+        "sha256": "fb56d75d82eeda769a18f39d2b05910483e127484a29cb52b15f582e7b32921a",
+        "spread_index": 226,
+        "source_physical_page": 452,
+        "folio": "428",
+        "dpi": 150
+      },
+      {
+        "label": "pareto",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate24-facing-pareto.png",
+        "sha256": "4a8e7a11f64c0ac882b1658cae728bb193fe03e2e24d3694f109b9db2096eedb",
+        "spread_index": 314,
+        "source_physical_page": 629,
+        "folio": "605",
+        "dpi": 150
+      }
+    ],
+    "independent_observation": "Both plots, scales, series keys and captions are legible in actual production spreads. This does not override wider flow/geometry gates.",
+    "parent_reported_blockers": [
+      "Figure5.8 floats between introductory Retaining and its sentence continuation.",
+      "Figure7.8 caption-width gate failure.",
+      "Adjacent Figure7.11 caption-top offset."
+    ],
+    "publication_boundary": "Production24 remains diagnostic. Fragment semantic acceptance is preserved at its original source hashes; authorized subsequent layout edits require a fresh Book build."
+  }
+}

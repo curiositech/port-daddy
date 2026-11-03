@@ -1,8 +1,8 @@
 {
   "pdf": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf",
-  "sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+  "sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
   "pages": 844,
-  "bytes": 17652598,
+  "bytes": 17652139,
   "editorial_only_pages": [],
   "records": [
     {
@@ -315,19 +315,19 @@
       "kind": "teaching-sequence",
       "title": "bonded:sec:tlaplus",
       "number": "7.9",
-      "folio": "613",
-      "physical_page": 637,
+      "folio": "614",
+      "physical_page": 638,
       "images": [
-        "spread-636-637.png",
-        "spread-638-639.png"
+        "spread-638-639.png",
+        "spread-640-641.png"
       ]
     },
     {
       "kind": "teaching-sequence",
       "title": "bonded:fig:bonded-session-lifecycle",
       "number": "7.13",
-      "folio": "614",
-      "physical_page": 638,
+      "folio": "615",
+      "physical_page": 639,
       "images": [
         "spread-638-639.png",
         "spread-640-641.png"
@@ -727,7 +727,7 @@
       "kind": "landmark",
       "number": 10,
       "title": "Landmark 10",
-      "physical_page": 634,
+      "physical_page": 635,
       "images": [
         "spread-634-635.png",
         "spread-636-637.png"
@@ -1046,6 +1046,149 @@
       "images": [
         "spread-494-495.png",
         "spread-496-497.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:ex:fh-cold-start-admission",
+      "number": "8.10",
+      "folio": "708",
+      "physical_page": 732,
+      "images": [
+        "spread-732-733.png",
+        "spread-734-735.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:fh:ex:fh-cold-start-admission",
+      "number": "8.C",
+      "folio": "784",
+      "physical_page": 808,
+      "images": [
+        "spread-808-809.png",
+        "spread-810-811.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:ex:fh-equivocation-speed",
+      "number": "8.11",
+      "folio": "708",
+      "physical_page": 732,
+      "images": [
+        "spread-732-733.png",
+        "spread-734-735.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sol:fh:ex:fh-equivocation-speed",
+      "number": "8.C",
+      "folio": "784",
+      "physical_page": 808,
+      "images": [
+        "spread-808-809.png",
+        "spread-810-811.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:tab:fh-status",
+      "number": "8.6",
+      "folio": "710",
+      "physical_page": 734,
+      "images": [
+        "spread-734-735.png",
+        "spread-736-737.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "fh:app:fh-tla",
+      "number": "8.C",
+      "folio": "712",
+      "physical_page": 736,
+      "images": [
+        "spread-736-737.png",
+        "spread-738-739.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "swk:fig:swk-commitment-oracle",
+      "number": "1.16",
+      "folio": "119",
+      "physical_page": 143,
+      "images": [
+        "spread-142-143.png",
+        "spread-144-145.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sealed:tab:sealed-ryoan",
+      "number": "3.1",
+      "folio": "229",
+      "physical_page": 253,
+      "images": [
+        "spread-252-253.png",
+        "spread-254-255.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "sealed:tab:sealed-side-invariants",
+      "number": "3.3",
+      "folio": "242",
+      "physical_page": 266,
+      "images": [
+        "spread-266-267.png",
+        "spread-268-269.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:tab:whitewash-numbers",
+      "number": "5.6",
+      "folio": "421",
+      "physical_page": 445,
+      "images": [
+        "spread-444-445.png",
+        "spread-446-447.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "stp:fig:sybil",
+      "number": "5.8",
+      "folio": "428",
+      "physical_page": 452,
+      "images": [
+        "spread-452-453.png",
+        "spread-454-455.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "bonded:fig:pareto-mc-inline",
+      "number": "7.8",
+      "folio": "605",
+      "physical_page": 629,
+      "images": [
+        "spread-628-629.png",
+        "spread-630-631.png"
+      ]
+    },
+    {
+      "kind": "teaching-sequence",
+      "title": "bonded:fig:cartel-game-inline",
+      "number": "7.11",
+      "folio": "607",
+      "physical_page": 631,
+      "images": [
+        "spread-630-631.png",
+        "spread-632-633.png"
       ]
     }
   ]

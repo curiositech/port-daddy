@@ -1,0 +1,330 @@
+{
+  "candidate": "25",
+  "source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+  "font_profile": "suisse",
+  "dpi": 150,
+  "hook_introduction_proof": {
+    "baseline_candidate": "21",
+    "baseline_source": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
+    "baseline_pdf_sha256": "d0fb8302d4521022dcc68b1a21d74cb252c153b485733e6935d0726ce1c6c049",
+    "candidate": "22",
+    "source_commit": "d06082b51603f0e8bdc0afc2246bd817b58bc501",
+    "candidate_pdf_sha256": "0ca5c938c759fc8fb5bd9c70fad869b9b5ed77d6459b22434b68d81e9c785552",
+    "font_profile": {
+      "profile": "suisse",
+      "sha256": {
+        "SuisseIntl-Regular.otf": "95312b39168b172604cc55369909e1090c675dcf0004c49e9f07730f4507e24b",
+        "SuisseIntl-RegularItalic.otf": "e583add43c9e859753b5feccff497d0ed492dbb1eae7783a6f16484bc56ebefa",
+        "SuisseIntl-Semibold.otf": "9b8bb1c5f778eda96e9b897438e9e1f6f0787816893d9bf6365a58376c761db7",
+        "SuisseIntl-SemiboldItalic.otf": "cd766b525e050424d1f026278a98367439b84201850dff4ca21cb4491a60a876"
+      }
+    },
+    "dpi": 150,
+    "contexts": [
+      {
+        "label": "swk:fig:swk-commitment-oracle",
+        "physical_page": 143,
+        "folio": "119",
+        "images": [
+          {
+            "image": "spread-142-143.png",
+            "baseline_sha256": "4a11b31fd6da523792088e400d058a4e7688d883ea027665e53705e8f3696537",
+            "candidate_sha256": "4a11b31fd6da523792088e400d058a4e7688d883ea027665e53705e8f3696537",
+            "byte_identical": true
+          },
+          {
+            "image": "spread-144-145.png",
+            "baseline_sha256": "c83a79645e1d758fddaa1642783eac0ae60a58bf4399da0d4df46880b3ebb085",
+            "candidate_sha256": "c83a79645e1d758fddaa1642783eac0ae60a58bf4399da0d4df46880b3ebb085",
+            "byte_identical": true
+          }
+        ]
+      },
+      {
+        "label": "sealed:tab:sealed-ryoan",
+        "physical_page": 253,
+        "folio": "229",
+        "images": [
+          {
+            "image": "spread-252-253.png",
+            "baseline_sha256": "d74c4fd2b44f79731dd9b6823349b2637acf28c61c9d495d2ede06591d5a0e18",
+            "candidate_sha256": "d74c4fd2b44f79731dd9b6823349b2637acf28c61c9d495d2ede06591d5a0e18",
+            "byte_identical": true
+          },
+          {
+            "image": "spread-254-255.png",
+            "baseline_sha256": "c3bf2b0faf6fb95bb9726d980bf2ad663e6e714f1f5465b7b09d88e4f9e55283",
+            "candidate_sha256": "c3bf2b0faf6fb95bb9726d980bf2ad663e6e714f1f5465b7b09d88e4f9e55283",
+            "byte_identical": true
+          }
+        ]
+      },
+      {
+        "label": "sealed:tab:sealed-side-invariants",
+        "physical_page": 266,
+        "folio": "242",
+        "images": [
+          {
+            "image": "spread-266-267.png",
+            "baseline_sha256": "c506fbdb8f6e38f6ed6267d3c922b269cbc86aaa43fb29b18bf37eae318b176a",
+            "candidate_sha256": "c506fbdb8f6e38f6ed6267d3c922b269cbc86aaa43fb29b18bf37eae318b176a",
+            "byte_identical": true
+          },
+          {
+            "image": "spread-268-269.png",
+            "baseline_sha256": "6e1cde47bb07caf4650f95598e1b680577e305ad16544f7e79bc0609d6873cc9",
+            "candidate_sha256": "6e1cde47bb07caf4650f95598e1b680577e305ad16544f7e79bc0609d6873cc9",
+            "byte_identical": true
+          }
+        ]
+      },
+      {
+        "label": "stp:tab:whitewash-numbers",
+        "physical_page": 445,
+        "folio": "421",
+        "images": [
+          {
+            "image": "spread-444-445.png",
+            "baseline_sha256": "bf49533ec036e54077cfc4b8996584ba37fb46c3fa49fc14cd916f35f25263d0",
+            "candidate_sha256": "bf49533ec036e54077cfc4b8996584ba37fb46c3fa49fc14cd916f35f25263d0",
+            "byte_identical": true
+          },
+          {
+            "image": "spread-446-447.png",
+            "baseline_sha256": "84c4cec77237db4b7af7b8ef3cad824dde6f097f12d08fcc2ef1ee1cf0488b81",
+            "candidate_sha256": "84c4cec77237db4b7af7b8ef3cad824dde6f097f12d08fcc2ef1ee1cf0488b81",
+            "byte_identical": true
+          }
+        ]
+      }
+    ],
+    "context_count": 4,
+    "images_compared": 8,
+    "byte_comparison": "all identical",
+    "scope": "Exact rendered context comparison for four open-proof-only layout hooks. Does not assert all Book pages are unchanged or certify the open-proof rendering.",
+    "actual_candidate_visual_review": {
+      "status": "all eight context images opened; no layout regression observed",
+      "images": [
+        "spread-142-143.png",
+        "spread-144-145.png",
+        "spread-252-253.png",
+        "spread-254-255.png",
+        "spread-266-267.png",
+        "spread-268-269.png",
+        "spread-444-445.png",
+        "spread-446-447.png"
+      ],
+      "receipt": ".scratch/textbook-craft-20261103/visual-reviewed-22.json",
+      "editorial_scope": "The adjacent SWK tower summary is a confirmed content defect, independent of the all-eight-identical profile-hook/layout result. Candidate22 is diagnostic."
+    }
+  },
+  "hook_introduction_proof_sha256": "23b8a2158dffa8f14ba434c0b03f4610f290097a1536468cb0f45c6604e916fa",
+  "unchanged_hook_sources": [
+    {
+      "source": "whitepaper/single-writer-kernel.tex",
+      "hook_count": 1,
+      "all_hook_snippets_unchanged": true,
+      "snippet_sha256": [
+        "e621a0098799c4a63ad5594b950a75b246c870650f336069a960cfaf8c5ffe8b"
+      ]
+    },
+    {
+      "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "hook_count": 2,
+      "all_hook_snippets_unchanged": true,
+      "snippet_sha256": [
+        "e621a0098799c4a63ad5594b950a75b246c870650f336069a960cfaf8c5ffe8b",
+        "e621a0098799c4a63ad5594b950a75b246c870650f336069a960cfaf8c5ffe8b"
+      ]
+    },
+    {
+      "source": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "hook_count": 1,
+      "all_hook_snippets_unchanged": true,
+      "snippet_sha256": [
+        "e621a0098799c4a63ad5594b950a75b246c870650f336069a960cfaf8c5ffe8b"
+      ]
+    }
+  ],
+  "current_contexts": [
+    {
+      "label": "swk:fig:swk-commitment-oracle",
+      "physical_page22": 143,
+      "physical_page_current": 143,
+      "images": [
+        {
+          "prior_image": "spread-142-143.png",
+          "current_image": "spread-142-143.png",
+          "candidate22_sha256": "4a11b31fd6da523792088e400d058a4e7688d883ea027665e53705e8f3696537",
+          "current_sha256": "4a11b31fd6da523792088e400d058a4e7688d883ea027665e53705e8f3696537",
+          "byte_identical_to22": true,
+          "visual_status": "byte-identical-to-directly-inspected-22",
+          "prior_direct_view": {
+            "candidate": "22",
+            "image": "spread-142-143.png",
+            "acceptance": {
+              "candidate": "23",
+              "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+            }
+          }
+        },
+        {
+          "prior_image": "spread-144-145.png",
+          "current_image": "spread-144-145.png",
+          "candidate22_sha256": "c83a79645e1d758fddaa1642783eac0ae60a58bf4399da0d4df46880b3ebb085",
+          "current_sha256": "fbe1cdb795b9edb5ab42cd6aeaa12d98fe134d0efb65f28ea02895a01beb3616",
+          "byte_identical_to22": false,
+          "visual_status": "byte-identical-to-directly-inspected-23",
+          "prior_direct_view": {
+            "candidate": "23",
+            "image": "spread-144-145.png",
+            "acceptance": {
+              "candidate": "23",
+              "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "sealed:tab:sealed-ryoan",
+      "physical_page22": 253,
+      "physical_page_current": 253,
+      "images": [
+        {
+          "prior_image": "spread-252-253.png",
+          "current_image": "spread-252-253.png",
+          "candidate22_sha256": "d74c4fd2b44f79731dd9b6823349b2637acf28c61c9d495d2ede06591d5a0e18",
+          "current_sha256": "d74c4fd2b44f79731dd9b6823349b2637acf28c61c9d495d2ede06591d5a0e18",
+          "byte_identical_to22": true,
+          "visual_status": "byte-identical-to-directly-inspected-22",
+          "prior_direct_view": {
+            "candidate": "22",
+            "image": "spread-252-253.png",
+            "acceptance": {
+              "candidate": "23",
+              "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+            }
+          }
+        },
+        {
+          "prior_image": "spread-254-255.png",
+          "current_image": "spread-254-255.png",
+          "candidate22_sha256": "c3bf2b0faf6fb95bb9726d980bf2ad663e6e714f1f5465b7b09d88e4f9e55283",
+          "current_sha256": "c3bf2b0faf6fb95bb9726d980bf2ad663e6e714f1f5465b7b09d88e4f9e55283",
+          "byte_identical_to22": true,
+          "visual_status": "byte-identical-to-directly-inspected-22",
+          "prior_direct_view": {
+            "candidate": "22",
+            "image": "spread-254-255.png",
+            "acceptance": {
+              "candidate": "23",
+              "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "sealed:tab:sealed-side-invariants",
+      "physical_page22": 266,
+      "physical_page_current": 266,
+      "images": [
+        {
+          "prior_image": "spread-266-267.png",
+          "current_image": "spread-266-267.png",
+          "candidate22_sha256": "c506fbdb8f6e38f6ed6267d3c922b269cbc86aaa43fb29b18bf37eae318b176a",
+          "current_sha256": "c506fbdb8f6e38f6ed6267d3c922b269cbc86aaa43fb29b18bf37eae318b176a",
+          "byte_identical_to22": true,
+          "visual_status": "byte-identical-to-directly-inspected-22",
+          "prior_direct_view": {
+            "candidate": "22",
+            "image": "spread-266-267.png",
+            "acceptance": {
+              "candidate": "23",
+              "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+            }
+          }
+        },
+        {
+          "prior_image": "spread-268-269.png",
+          "current_image": "spread-268-269.png",
+          "candidate22_sha256": "6e1cde47bb07caf4650f95598e1b680577e305ad16544f7e79bc0609d6873cc9",
+          "current_sha256": "6e1cde47bb07caf4650f95598e1b680577e305ad16544f7e79bc0609d6873cc9",
+          "byte_identical_to22": true,
+          "visual_status": "byte-identical-to-directly-inspected-22",
+          "prior_direct_view": {
+            "candidate": "22",
+            "image": "spread-268-269.png",
+            "acceptance": {
+              "candidate": "23",
+              "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "stp:tab:whitewash-numbers",
+      "physical_page22": 445,
+      "physical_page_current": 445,
+      "images": [
+        {
+          "prior_image": "spread-444-445.png",
+          "current_image": "spread-444-445.png",
+          "candidate22_sha256": "bf49533ec036e54077cfc4b8996584ba37fb46c3fa49fc14cd916f35f25263d0",
+          "current_sha256": "bf49533ec036e54077cfc4b8996584ba37fb46c3fa49fc14cd916f35f25263d0",
+          "byte_identical_to22": true,
+          "visual_status": "byte-identical-to-directly-inspected-22",
+          "prior_direct_view": {
+            "candidate": "22",
+            "image": "spread-444-445.png",
+            "acceptance": {
+              "candidate": "23",
+              "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+            }
+          }
+        },
+        {
+          "prior_image": "spread-446-447.png",
+          "current_image": "spread-446-447.png",
+          "candidate22_sha256": "84c4cec77237db4b7af7b8ef3cad824dde6f097f12d08fcc2ef1ee1cf0488b81",
+          "current_sha256": "84c4cec77237db4b7af7b8ef3cad824dde6f097f12d08fcc2ef1ee1cf0488b81",
+          "byte_identical_to22": true,
+          "visual_status": "byte-identical-to-directly-inspected-22",
+          "prior_direct_view": {
+            "candidate": "22",
+            "image": "spread-446-447.png",
+            "acceptance": {
+              "candidate": "23",
+              "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "compared_images": 8,
+  "identical_images": 7,
+  "changed_images": [
+    {
+      "prior_image": "spread-144-145.png",
+      "current_image": "spread-144-145.png",
+      "candidate22_sha256": "c83a79645e1d758fddaa1642783eac0ae60a58bf4399da0d4df46880b3ebb085",
+      "current_sha256": "fbe1cdb795b9edb5ab42cd6aeaa12d98fe134d0efb65f28ea02895a01beb3616",
+      "byte_identical_to22": false,
+      "visual_status": "byte-identical-to-directly-inspected-23",
+      "prior_direct_view": {
+        "candidate": "23",
+        "image": "spread-144-145.png",
+        "acceptance": {
+          "candidate": "23",
+          "receipt_sha256": "97bb4858dfd3f7b5920468367c65e3fb2bcde57fd0ef770b8289de193f2109ef"
+        }
+      }
+    }
+  ],
+  "visual_receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9",
+  "conclusion": "All eight Suisse context images were byte-identical when the open-proof-only hooks were introduced. Those four hook snippets are unchanged in this candidate. Seven context images remain byte-identical; the SWK following pair intentionally changes to state the tower theorem premises correctly and is accepted by direct inspection or exact byte reuse of a recorded direct inspection, as stated per image. This establishes the bounded profile-hook comparison, not invariance of every Book page or acceptance of the Source Sans profile."
+}

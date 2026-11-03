@@ -1,7 +1,7 @@
 {
   "reader": "root",
-  "source_checkpoint": "81a867d979e037458f6884b99bca3d3b0e9277c8",
-  "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+  "source_checkpoint": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
   "scope": "All root-assigned opening pairs and foundations, sealed-harbor, identity, estimator, memory, engine and Landmarks01\u201304 teaching sequences. Not every Book spread.",
   "status": "accepted",
   "findings": [],
@@ -9,164 +9,206 @@
     {
       "file": "spread-026-027.png",
       "sha256": "a4473df97833e75a3ae9d2df3bb180f635b2cc31915583f7ab72ca4a9a7e723a",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-028-029.png",
       "sha256": "5d48eef7d4a26118116840369eae802efb02ebb345ca9d7b1a75ed8b60d061b4",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-030-031.png",
       "sha256": "3140a5d10937877377eefd6eff880645e6db82ec4dbbaf80ae32f5ae1161d4d7",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-050-051.png",
       "sha256": "5f647898ac8318af28eff4d70567418fc7661142b869b103fd94d3f30944f3f7",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-052-053.png",
       "sha256": "ae5013c8a7f9b6a8b17d5582acdb7326d176d37134d064d492c591cf2376a9bc",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-054-055.png",
       "sha256": "b22c724d703e0e955a81ae375ddc5634b4ebb7594e252ed522cd7b1fa63ced0f",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-056-057.png",
       "sha256": "fbc0ec4a32abd560dc80cf34391a7e1cd9ea9b5efdf67336daffe0c782af9966",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-068-069.png",
       "sha256": "ad8edc50cd630cbbb8a222de76470a4b89a1a2085dbec285ff65244412b2ad0e",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-070-071.png",
       "sha256": "51680e57b6d0052f0ff55244b6ee0dea93ff38ff4117c74a899a014f39b4bd67",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-086-087.png",
       "sha256": "4244965e42fe82af21c4459648f15a73bab67971aa2999932216aaa481b4c7fb",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-088-089.png",
       "sha256": "970e6c60b70f850db0567e57790cd5d16f05e68bcec396d8e6cc1901caca1316",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-092-093.png",
       "sha256": "07f1e149b13d6d83da4beae988b6a81262eaf3698f7a0c18861f0e428ad77be1",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-094-095.png",
       "sha256": "12441023620232879f6348b90594df500fa285a8be2b9d9e0f3cccfc833e8b35",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-190-191.png",
       "sha256": "94d18c3a0cdc2db12c78472c49300a4b3a1a72747d0a60c2fc5d78c69d4308b6",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-192-193.png",
       "sha256": "6f6e9f1e9d0b84d77f4a14080f392a381ab412c112dd9dddee4d491f9beb950a",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-250-251.png",
       "sha256": "e04b509306e545d6c387bb7cf19716d5e5d6ed69311b481e7713c5bdf2897fdb",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-252-253.png",
       "sha256": "d74c4fd2b44f79731dd9b6823349b2637acf28c61c9d495d2ede06591d5a0e18",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-284-285.png",
       "sha256": "aa4e23c189423190dfab16c6df9e03b67e502502ba5bd7b5341bef114354c6cb",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-286-287.png",
       "sha256": "a4e2b9d9be0835744f1b528b2009dec8686dbf6ceee40c590982e06d31e5d01b",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-288-289.png",
       "sha256": "971c3a440d98b9024ea8e706a8068ff662db58ecef54ed3c017e4d69ea03436a",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-418-419.png",
       "sha256": "fac5fdc1cd730f87fbc234884769990aeba3338ec5c30ca5193a45f1950e10b5",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-420-421.png",
       "sha256": "ba7dea6ebb7b8cdc632b7aed6f102080fdbcdaea7c22a5e14c145f2dabea38a6",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-422-423.png",
       "sha256": "7a2f962cdcb45a133322f675149a8e862f21906c898b0b81a117e506edca4158",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
+    },
+    {
+      "file": "spread-452-453.png",
+      "sha256": "387c2f21d9940d9b8f0083ffe138e710f21822c3a9ee1d3b042c309e1f6122a8",
+      "method": "actual image view by root, candidate25",
+      "evaluation": "Both policy panels and caption legible; explanation completes above figure; following principal definition is coherent."
     },
     {
       "file": "spread-454-455.png",
       "sha256": "c80e896a69cb436d48559938ad8f81b644dcbbbf9a597c1d0b3a939f76df1249",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-456-457.png",
       "sha256": "0f2a0349308ecf799c960710d67fa6d5f5ec78b7c5a4ea2e31b687892f1d7228",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-458-459.png",
       "sha256": "30ea929c9b370c84a467beed23aac0de00d6dcef187355f4c99ec6d2cf33e2dc",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-484-485.png",
       "sha256": "25ec16d0eb15b56a413ef0730a5ad63018ea07ced244c095e109f688114d3cfa",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-486-487.png",
       "sha256": "cfded704e50af09780b1e68a1df8cad85a448e981a2f3abc576a754b94c3ba32",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-488-489.png",
       "sha256": "25f87c5a265cb8c1b3a04627612dfa06dc3917972a9b9cd9cf1ee44fe18358b0",
-      "method": "actual image view19"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-490-491.png",
       "sha256": "ed5c355cb7aa4917e996e2de8115f1f4fa12fae681acea6e69f48161385d0030",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
+    },
+    {
+      "file": "spread-628-629.png",
+      "sha256": "043641ce6b87de777566d463dbe0589deecdce9daa627d63a14401b31efca5d4",
+      "method": "actual image view by root, candidate25",
+      "evaluation": "Exact tolerance predicate and reported numerical limits precede chart; paired panels and complete ruled key fit body."
+    },
+    {
+      "file": "spread-630-631.png",
+      "sha256": "31f1d03337d11b4d26e5cf0e7fc93b8cf3c263d4c35971c702d3f333c9a20a0a",
+      "method": "actual image view by root, candidate25",
+      "evaluation": "Following model distinction is explicit; cartel caption aligns and retains premises, formula and illustration limits."
+    },
+    {
+      "file": "spread-732-733.png",
+      "sha256": "0ad2a85aed1ddb55ddd9ba088e1772a554b691a380a7e81b3d37036bc562bb87",
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
+    },
+    {
+      "file": "spread-734-735.png",
+      "sha256": "bd3d729705355091dd7d800151731f7cc5f4c91dbb1c94027fff73e49a5e1e55",
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
+    },
+    {
+      "file": "spread-736-737.png",
+      "sha256": "ea6b35652e0a10f02ed395ff74f51d401c1e8ca173bcc680a2b5fe44686ccb1d",
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-738-739.png",
       "sha256": "8cdc945430da84b80a4f853d620ae522e9c1496bbb21caf762244b46272791c9",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     },
     {
       "file": "spread-740-741.png",
       "sha256": "2d5cda24f8bc098a2f059c1c6ef1d729c565b0b4322669e75033a3d1eb0e8152",
-      "method": "byte-identical to accepted image in root-spread-review-18.json"
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
+    },
+    {
+      "file": "spread-808-809.png",
+      "sha256": "f14a0fdafca63c4a311a987b6302c6f6ac2492ea5c1049f9b676ce79284c7517",
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
+    },
+    {
+      "file": "spread-810-811.png",
+      "sha256": "59322cf28d80080421f8f948bf03231efd712c9e91155ec545af1d02c4e88b64",
+      "method": "byte-identical to accepted image in root-spread-review-23.json"
     }
   ],
-  "prior_receipt": "root-spread-review-18.json",
-  "prior_receipt_sha256": "5d64bbac8a41ce197311fd3e6057e78e18f0dc40b421ba3053cffa2d1443f8ba"
+  "manifest_sha256": "9347df21f9a546ad4831dd29769c3d7407745c7708c61115100553cbf3969f60"
 }
