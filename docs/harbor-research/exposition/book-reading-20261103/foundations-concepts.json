@@ -36,6 +36,15 @@
       "saved_sha256": "e90ede5f674687b29abb15c950029ba03c6a7af7a022cfa250fd12aba490ea69",
       "saved_lines": 180,
       "scope": "Complete sequential read of all book-owned opening and handoff paragraphs; qualified retellings against chapter hypotheses."
+    },
+    {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex",
+      "initial_sha256": "1eff893e2431f5a55132ac82b8bb83a59cff697dd3dcceea9a89daf9c056c413",
+      "lines": 172,
+      "read_coverage": "1-172",
+      "saved_sha256": "360b95b4585488438f1f68b91ed60ee32dc02f261a2bf915761eb53b5bb8ff13",
+      "saved_lines": 172,
+      "scope": "Complete landmark caption and rendering-source read; all twelve authored summaries and questions reconciled with chapter hypotheses."
     }
   ],
   "concepts": [
