@@ -932,7 +932,7 @@
     },
     "library_preflight": {
       "receipt": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight.json",
-      "sha256": "d56b107c44b572989991d8909f22255b8c9ecc86c4444a563284dc996ab21de4",
+      "sha256": "b916ad15a11f1b2bbdd5c109309d50ff958bf85f93cf6a7749f7af1c291472c4",
       "scope": "All 54 Library workflow steps enumerated; 49 executed required/static checks pass, two advisory checks retain nonzero findings, setup/install excluded and full research suite bound separately to hosted evidence. Source28 subsequently removes only the provenance-note spacing defect."
     },
     "final_provenance_typography": {

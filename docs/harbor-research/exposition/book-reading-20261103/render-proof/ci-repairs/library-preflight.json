@@ -576,7 +576,7 @@
     },
     {
       "yaml_step": 45,
-      "name": "Banned phrases (\"held to account\", \"load-bearing\") never appear in prose",
+      "name": "Banned-phrase prose guard",
       "command": "node scripts/lint/check-banned-phrases.mjs",
       "cwd": ".",
       "advisory": false,
