@@ -132971,7 +132971,7 @@
       "queue_state": "current_work",
       "priority": "P1",
       "owner": "codex:paper-eight",
-      "status": "complete sequential source read and locally accepted rendered Book; source delivery in progress",
+      "status": "complete sequential source read and locally accepted rendered Book; hosted source delivery tracked by PR10345",
       "result": "All nine authored chapters and their exercises/solutions have been read in source order across four reviewers. The reader route, definitions, examples, nonexamples, theorem assumptions and later retellings were reconciled. 152 substantive concept records have explicit treatment/use records. This is not a certification of every external citation or deployed runtime claim.",
       "assumptions": "Canonical Book authority is textbook.json plus authored Chapter0 and volume appendices. A later mention is not sufficient concept development. Source reading, finite computation, rendered review and hosted publication are distinct evidence.",
       "evidence": [
@@ -132991,7 +132991,7 @@
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/visual-coverage.json",
         "docs/harbor-research/exposition/book-reading-20261103/render-proof/candidate19-independent-review.json"
       ],
-      "next": "Publish the source PR, own exact-head hosted checks and review resolution, then complete the separately reviewed publication-artifact refresh. Preserve local Suisse acceptance separately from hosted open-font proofs.",
+      "next": "Follow PR10345 to its hosted verdict and protected rebase landing, then complete the separately reviewed publication-artifact refresh. Preserve local Suisse acceptance separately from hosted open-font proofs.",
       "acceptance": "All chapter sources read; foundational concepts have concrete first treatment and substantive reuse; examples and solutions agree with stated hypotheses; exact candidate passes PDF gates and facing-spread inspection; source delivery is separately evidenced.",
       "depends_on": [
         "BOOK-INTEGRATION-20261026",
@@ -133021,7 +133021,8 @@
         "selected_spreads": 133,
         "semantic_targets": 96
       },
-      "delivery": "Local 844-page Book accepted at source 81a867d979e037458f6884b99bca3d3b0e9277c8, with complete source reading and 133 selected spread views. Branch descends from protected-rebase merged PR #10336. Source PR is being delivered; no published-PDF refresh is claimed."
+      "delivery": "Source and review evidence delivered through PR10345, authored by erichowens. Its exact-head checks, reviews and protected rebase status are authoritative for hosted source delivery. The locally accepted844-page Book is bound to source81a867d979 and PDF977555b9; published-PDF refresh remains separate.",
+      "source_pr": "https://github.com/curiositech/port-daddy/pull/10345"
     }
   ],
   "coverage": {
