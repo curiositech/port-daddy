@@ -124,8 +124,8 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32",
-      "edited_source_lines": 3818
+      "edited_sha256": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+      "edited_source_lines": 3823
     }
   ],
   "concept_lifecycles": [
@@ -136,7 +136,7 @@
       "later_substantive_use": "sec:landing",
       "first_anchor_line": 476,
       "later_anchor_line": 1209,
-      "teaching_or_repair": "Mira’s scoped grant; committed effects remain outside revocation"
+      "teaching_or_repair": "Mira\u2019s scoped grant; committed effects remain outside revocation"
     },
     {
       "chapter": "ls",
@@ -252,7 +252,7 @@
       "first_teaching_anchor": "def:role",
       "later_substantive_use": "ex:stp-reputation-attachment",
       "first_anchor_line": 499,
-      "later_anchor_line": 2859,
+      "later_anchor_line": 2864,
       "teaching_or_repair": "Current role can change without fresh identity/history; no consciousness assertion"
     },
     {
@@ -261,8 +261,8 @@
       "first_teaching_anchor": "inv:parfit-lineage",
       "later_substantive_use": "ex:stp-connected-vs-continuous",
       "first_anchor_line": 674,
-      "later_anchor_line": 2892,
-      "teaching_or_repair": "a→b→c supplies reachability, not psychological identity or an equivalence relation"
+      "later_anchor_line": 2897,
+      "teaching_or_repair": "a\u2192b\u2192c supplies reachability, not psychological identity or an equivalence relation"
     },
     {
       "chapter": "stp",
@@ -270,7 +270,7 @@
       "first_teaching_anchor": "sec:continuity",
       "later_substantive_use": "ex:stp-nomint-sweep",
       "first_anchor_line": 589,
-      "later_anchor_line": 2933,
+      "later_anchor_line": 2938,
       "teaching_or_repair": "Debit source; .9+.81+.729 copy versus .9^3 live transfer"
     },
     {
@@ -279,7 +279,7 @@
       "first_teaching_anchor": "sec:organs",
       "later_substantive_use": "ex:stp-three-organs-trace",
       "first_anchor_line": 825,
-      "later_anchor_line": 2964,
+      "later_anchor_line": 2969,
       "teaching_or_repair": "Closure record and exact commit; reputation does not require exact inference restoration"
     },
     {
@@ -305,8 +305,8 @@
       "concept": "Front-loaded holdbacks",
       "first_teaching_anchor": "thm:probation-dominance",
       "later_substantive_use": "ex:binding-probation",
-      "first_anchor_line": 1283,
-      "later_anchor_line": 1411,
+      "first_anchor_line": 1288,
+      "later_anchor_line": 1416,
       "teaching_or_repair": "Equal-deterrence .60 now versus1 tomorrow; cap may preclude pure spike"
     },
     {
@@ -314,8 +314,8 @@
       "concept": "Engine value and cost",
       "first_teaching_anchor": "thm:engine-swap",
       "later_substantive_use": "sec:body-behind-name",
-      "first_anchor_line": 1584,
-      "later_anchor_line": 1546,
+      "first_anchor_line": 1589,
+      "later_anchor_line": 1551,
       "teaching_or_repair": "One-delivery model and full price pass-through; not endogenous adoption or dynamic market proof"
     },
     {
@@ -323,8 +323,8 @@
       "concept": "Estimator input contract",
       "first_teaching_anchor": "sec:substrate",
       "later_substantive_use": "ex:stp-estimator-fit",
-      "first_anchor_line": 1926,
-      "later_anchor_line": 3151,
+      "first_anchor_line": 1931,
+      "later_anchor_line": 3156,
       "teaching_or_repair": "Three of four pairwise wins imply log3 strength gap in two-player BT, not a pass-rate model"
     },
     {
@@ -332,8 +332,8 @@
       "concept": "Routing policy versus reputation evidence",
       "first_teaching_anchor": "sec:not-bandit",
       "later_substantive_use": "ex:stp-bandit-survives-where",
-      "first_anchor_line": 2003,
-      "later_anchor_line": 3190,
+      "first_anchor_line": 2008,
+      "later_anchor_line": 3195,
       "teaching_or_repair": "Bandit extensions acknowledged; learned selection cannot authenticate a receipt"
     },
     {
@@ -341,8 +341,8 @@
       "concept": "Quality vector scales",
       "first_teaching_anchor": "def:qvec",
       "later_substantive_use": "proto:judge",
-      "first_anchor_line": 2066,
-      "later_anchor_line": 2130,
+      "first_anchor_line": 2071,
+      "later_anchor_line": 2135,
       "teaching_or_repair": "Declare [0,1] scales and hard acceptance predicate before weighted tradeoff"
     },
     {
@@ -350,8 +350,8 @@
       "concept": "Exposure and causal helpfulness",
       "first_teaching_anchor": "proto:skill",
       "later_substantive_use": "ex:stp-skill-helpfulness-schema",
-      "first_anchor_line": 2232,
-      "later_anchor_line": 3242,
+      "first_anchor_line": 2237,
+      "later_anchor_line": 3247,
       "teaching_or_repair": "Graft records verify exposure; causal claim needs assignment/confounding model"
     },
     {
@@ -359,8 +359,8 @@
       "concept": "Audit detection and clique sampling",
       "first_teaching_anchor": "thm:tower-imported",
       "later_substantive_use": "ex:audit-depth",
-      "first_anchor_line": 2360,
-      "later_anchor_line": 2404,
+      "first_anchor_line": 2365,
+      "later_anchor_line": 2409,
       "teaching_or_repair": "Uniform sealed selection and prepaid bribes; conditional detection; pool capital separate"
     },
     {
@@ -368,8 +368,8 @@
       "concept": "Continuation value and audit spending",
       "first_teaching_anchor": "sec:oracle",
       "later_substantive_use": "ex:stp-tower-amortization",
-      "first_anchor_line": 2265,
-      "later_anchor_line": 3334,
+      "first_anchor_line": 2270,
+      "later_anchor_line": 3339,
       "teaching_or_repair": "t0-based sums; Model B firstzero334 and sum41.79175; integrals identified"
     },
     {
@@ -377,8 +377,8 @@
       "concept": "Tombstone and score projection",
       "first_teaching_anchor": "prop:tombstone",
       "later_substantive_use": "ex:stp-tombstone-walk",
-      "first_anchor_line": 2548,
-      "later_anchor_line": 3366,
+      "first_anchor_line": 2553,
+      "later_anchor_line": 3371,
       "teaching_or_repair": "Append-only evidence versus nonmonotone estimate; pre-detection and propagation delays separate"
     },
     {
@@ -593,7 +593,7 @@
       },
       "clinical_source": {
         "url": "https://doi.org/10.2345/0899-8205-46.4.268",
-        "evidence": "Original journal search-indexed text reports cited studies with80–99% false or clinically insignificant alarms. Direct DOI reopen403; PubMed original abstract separately inspected. No full-paper read claimed.",
+        "evidence": "Original journal search-indexed text reports cited studies with80\u201399% false or clinically insignificant alarms. Direct DOI reopen403; PubMed original abstract separately inspected. No full-paper read claimed.",
         "scope": "Motivation for measuring agent-supervision alert burden; no rate or timescale transferred."
       }
     },

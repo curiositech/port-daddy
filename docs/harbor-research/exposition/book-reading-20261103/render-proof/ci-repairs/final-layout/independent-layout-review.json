@@ -1,0 +1,59 @@
+{
+  "created_at": "2026-11-03T18:45:11.550047+00:00",
+  "source_head": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
+  "scope": "Four open-proof-only caption-placement guards, exact deltas and surrounding complete paragraphs/environments; not a full new chapter or PDF review.",
+  "verdict": "pass",
+  "findings": [],
+  "source_rows": [
+    {
+      "source": "whitepaper/single-writer-kernel.tex",
+      "before_sha256": "e50e9e5d8c3d30fa38f0bfd097f028819a421899af7bf0a83e1886ccf82e675a",
+      "after_sha256": "d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8",
+      "hooks": 1,
+      "anchors": [
+        {
+          "line": 1698,
+          "following_source": "\\subsection{Commitments: obligation with oracle-bound closure}"
+        }
+      ]
+    },
+    {
+      "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "before_sha256": "995f3c86a085dcdb0364352e8ca6453968986a4ddda398a4b4e061ab1760ffa1",
+      "after_sha256": "594794920d61c85096a7a5aa966c6416dba6b40be5ab41fcd0198e7346b4bd03",
+      "hooks": 2,
+      "anchors": [
+        {
+          "line": 179,
+          "following_source": "\\begin{table}[H]\\centering\\footnotesize"
+        },
+        {
+          "line": 506,
+          "following_source": "Table~\\ref{tab:sealed-side-invariants} names, for each of the six, the later"
+        }
+      ]
+    },
+    {
+      "source": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "before_sha256": "a1f8b93dc2e7f32bdbe217f897b6438d508052eb74840df2dd0484caa8badf32",
+      "after_sha256": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+      "hooks": 1,
+      "anchors": [
+        {
+          "line": 1256,
+          "following_source": "\\begin{table}[H]"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    "Source Sans open-proof is the sole active profile branch; Suisse and undefined profiles are inert.",
+    "All hooks occur after complete prose or closed pdclaim/pdexample, before a heading or complete table/introduction block.",
+    "Exact removal of guards reproduces committed source bytes.",
+    "No shared macro, figure, content or test mutation."
+  ],
+  "limits": [
+    "No independent actual view of operator isolated open-proof render; reported renderer evidence is attributed separately.",
+    "Final candidate22 edition layout acceptance remains pending."
+  ]
+}

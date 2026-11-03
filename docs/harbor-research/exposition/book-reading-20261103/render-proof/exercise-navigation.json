@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "created_at": "2026-11-03T18:09:53.337903+00:00",
+  "created_at": "2026-11-03T18:25:30.736785+00:00",
   "status": "pass",
-  "build_source_head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
-  "observed_repository_head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+  "build_source_head": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
+  "observed_repository_head": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
   "pdf": {
     "name": "coordination-papers-mega-volume.pdf",
-    "sha256": "5408ad52d2f0bf02d226ef64bb8e4ca6e92233b477d505de5fac44944d8f9811",
+    "sha256": "d0fb8302d4521022dcc68b1a21d74cb252c153b485733e6935d0726ce1c6c049",
     "pages": 844,
-    "bytes": 17653229,
-    "aux_sha256": "b5930fc65466d83e82d385728a7b4e9af5cbf9da7af676a9d210ab44ede846a7"
+    "bytes": 17652378,
+    "aux_sha256": "aab07739a9b821c4d882a0c2bf0a21afbdd5a8310045176d328959c7971482d0"
   },
   "input_sources": [
     {
@@ -85,5 +85,5 @@
     "The inverse solution audit is a bounded exact-PDF check; only the exercise audit is currently registered as a reusable hosted gate.",
     "This receipt identifies the PDF by hash; it does not include or replace the PDF artifact."
   ],
-  "candidate": "20"
+  "candidate": "21"
 }

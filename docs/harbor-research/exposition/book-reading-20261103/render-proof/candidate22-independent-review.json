@@ -1,0 +1,22 @@
+{
+  "reviewed_at": "2026-11-03T18:29:05.525736+00:00",
+  "reviewer": "craft_operator_identity",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+  "sha256": "7871f858514a754c75a72f79ff700d0bd6be67688be2ee3057301af290ce9843",
+  "scope": "Only app:fh-tla line2062 path-splitting prose delta; adjacent scope paragraph2064 read unchanged",
+  "verdict": "pass",
+  "findings": [],
+  "checks": [
+    "Exact git diff contains only the one paragraph change.",
+    "Conservation.tla and Conservation.cfg both exist under the stated proofs/bonded/conservation/ directory.",
+    "Configuration states Agents={a1,a2,a3}, MaxBalance=3, MaxMint=6, matching the retained prose.",
+    "All numerical state-count/depth claims and accounting invariant text are byte-identical to the previous committed source.",
+    "Single-machine scope and lack of cross-harbor model-checking/deployment evidence remain byte-identical."
+  ],
+  "limitations": [
+    "No new TLC execution or proof is claimed.",
+    "Candidate22 must verify the final typography; source-only review does not establish line-breaking quality."
+  ]
+}

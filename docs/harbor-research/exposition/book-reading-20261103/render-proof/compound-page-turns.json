@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "created_at": "2026-11-03T18:09:53.632228+00:00",
-  "pdf_sha256": "5408ad52d2f0bf02d226ef64bb8e4ca6e92233b477d505de5fac44944d8f9811",
-  "source_head": "786ff7802aa10fdb856778debd7cf4456a8bf27f",
+  "created_at": "2026-11-03T18:25:30.946612+00:00",
+  "pdf_sha256": "d0fb8302d4521022dcc68b1a21d74cb252c153b485733e6935d0726ce1c6c049",
+  "source_head": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
   "pages": 844,
   "method": "All font sizes; text lines inside Book body band (odd57.6–381.6pt/even122.4–446.4pt,3pt tolerance),55<y0<660pt. Final body line ends letter+ASCII/U2010/U2011/soft hyphen. Includes small protocol prose omitted by the older10pt minimum.",
   "status": "no_candidates",

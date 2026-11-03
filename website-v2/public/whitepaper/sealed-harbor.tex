@@ -176,6 +176,11 @@ workload whose releases need an explicit policy beyond transparent execution.
 A mediated gate and accounting ledger are this design's proposal, not the only
 possible solution. A single writer orders accounting; it cannot, by itself,
 provide confinement or determine what an output reveals.
+% The open-font proof needs an empty margin queue here; Suisse keeps its layout.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
+
 \begin{table}[H]\centering\footnotesize
 \caption{Different workload and observation models. Ryoan uses request-oriented
 confinement; the proposed sealed room adds explicit releases and cross-job
@@ -497,6 +502,11 @@ These are deployment obligations of the proposed room. The finite checks
 below cover selected abstractions; they are not evidence that all six hold
 in a running confidential-computing deployment.
 \end{pdclaim}
+
+% The open-font proof needs an empty margin queue here; Suisse keeps its layout.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
 
 Table~\ref{tab:sealed-side-invariants} names, for each of the six, the later
 result that leans on it; complete mediation is the one link and conservation

@@ -1253,6 +1253,11 @@ the early gaps are the expensive ones.)
 \end{pdexample}
 
 
+% The open-font proof needs an empty margin queue here; Suisse keeps its layout.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
+
 \begin{table}[H]
 \centering\small\renewcommand{\arraystretch}{1.25}
 \begin{tabular}{@{}l c c c c c c@{}}

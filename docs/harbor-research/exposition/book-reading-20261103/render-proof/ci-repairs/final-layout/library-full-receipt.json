@@ -1,0 +1,77 @@
+{
+  "head_before": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
+  "head_after": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
+  "created_at": "2026-11-03T18:45:50.851072+00:00",
+  "scope": "Complete library run after four open-proof-only placement hooks and FH path-only layout sentence. Manuscript changes after HEAD are bound by exact source hashes; BOOK_* unset. The 603-input manifest is not a hermetic dependency declaration.",
+  "source_hashes": {
+    "whitepaper/single-writer-kernel.tex": "d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8",
+    "website-v2/public/whitepaper/sealed-harbor.tex": "594794920d61c85096a7a5aa966c6416dba6b40be5ab41fcd0198e7346b4bd03",
+    "website-v2/public/whitepaper/spawn-to-person.tex": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+    "website-v2/public/whitepaper/federated-harbor-whitepaper.tex": "7871f858514a754c75a72f79ff700d0bd6be67688be2ee3057301af290ce9843"
+  },
+  "input_files": 603,
+  "input_manifest": ".scratch/textbook-craft-20261103/pr10345/machine/candidate22/input-manifest.json",
+  "input_manifest_sha256": "f92c3c9067ea8fd4dd608f4656ade0a571ab59b20dd06f34d835a04e79932445",
+  "changed_since_prior_focused_run": [
+    "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+    "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+    "website-v2/public/whitepaper/sealed-harbor.tex",
+    "website-v2/public/whitepaper/spawn-to-person.tex",
+    "whitepaper/single-writer-kernel.tex"
+  ],
+  "changed_inputs_during_run": [],
+  "generated_desk_changes": [
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+      "before_sha256": "173ad1dca2f65d57128ddf8984a638c41a2d486ea04337ab0a0bf38da84b45d3",
+      "after_sha256": "025b61f482481e2195bad61746ea8cf07d3273d23761f5333ea3cb7220a4b865"
+    }
+  ],
+  "command": [
+    "/opt/anaconda3/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests/harbor-research"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 35.423,
+  "log": ".scratch/textbook-craft-20261103/pr10345/machine/candidate22/library-full.log",
+  "log_sha256": "48f25d12f42e0cf05a6d04f39e1f95e6f246484417b6da7c638b91bdb3f7dd20",
+  "summary": [
+    "...................s...s.................................................................ss....sssss........sss...sssssss..........sss..ssss...........ss...sss....sssssssss....s..s.......sss.sss........................",
+    "----------------------------------------------------------------------",
+    "Ran 939 tests in 34.331s",
+    "",
+    "OK (skipped=121)"
+  ],
+  "prior_passing_full_receipt": ".scratch/textbook-craft-20261103/pr10345/machine/candidate21/library-full-receipt.json",
+  "independent_review": ".scratch/textbook-craft-20261103/pr10345/machine/candidate22/independent-layout-review.json",
+  "pass": true,
+  "counts": {
+    "collected": 939,
+    "passed": 818,
+    "skipped": 121,
+    "failed": 0
+  },
+  "generated_desk_review": {
+    "source": "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+    "changed_leaf_paths": 2,
+    "changes": [
+      {
+        "figure": "fig-sealed-leakage-ledger",
+        "field": "caption-carries-the-fact/evidence line number",
+        "from": 3712,
+        "to": 3722
+      },
+      {
+        "figure": "fig-stp-rate-the-raters",
+        "field": "caption-carries-the-fact/evidence line number",
+        "from": 4354,
+        "to": 4359
+      }
+    ],
+    "scores_and_verdicts_unchanged": true
+  }
+}

@@ -50,8 +50,8 @@
           3514
         ]
       ],
-      "after_sha256": "e50e9e5d8c3d30fa38f0bfd097f028819a421899af7bf0a83e1886ccf82e675a",
-      "after_lines": 3608,
+      "after_sha256": "d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8",
+      "after_lines": 3613,
       "read_complete": true,
       "layout_followups": [
         {
@@ -70,6 +70,21 @@
           "anchor": "pdswisslandmarkplate{05}",
           "change": "Flush this full-page plate at its existing logical source boundary using generator-preserved pdmarginpagebreak.",
           "evidence": "Operator actual14 spread review found the floating plate interrupting subsequent prose/invariant; next build must verify the repaired flow."
+        },
+        {
+          "source_head_before_edit": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
+          "before_sha256": "e50e9e5d8c3d30fa38f0bfd097f028819a421899af7bf0a83e1886ccf82e675a",
+          "after_sha256": "d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8",
+          "anchors": [
+            {
+              "line": 1698,
+              "following_source": "\\subsection{Commitments: obligation with oracle-bound closure}"
+            }
+          ],
+          "change": "Open-proof-only pdmarginpagebreak hooks at completed paragraph/environment boundaries before the affected heading/table. Suisse and undefined-profile branches are empty.",
+          "read_scope": "Independent read of exact layout-only delta and surrounding paragraphs; original full-reading ranges and hashes retained. No manuscript text or mathematical claim changed.",
+          "source_verification": "Removing only the complete inserted guards exactly reproduces the committed source; prepare-book-fonts.py emits the tested profile value and the generator preserves pdmarginpagebreak.",
+          "render_evidence": "Operator reports isolated Source Sans build 72783c15: 263 captions, 1464 margins, 212 exercise headings and off-page checks pass; eight contexts viewed. This agent did not independently view that isolated PDF; final assembled candidate 22 acceptance remains separate."
         }
       ]
     },
@@ -165,8 +180,8 @@
           1874
         ]
       ],
-      "after_sha256": "995f3c86a085dcdb0364352e8ca6453968986a4ddda398a4b4e061ab1760ffa1",
-      "after_lines": 1928,
+      "after_sha256": "594794920d61c85096a7a5aa966c6416dba6b40be5ab41fcd0198e7346b4bd03",
+      "after_lines": 1938,
       "read_complete": true,
       "layout_followups": [
         {
@@ -176,6 +191,25 @@
           "anchor": "pdswisslandmarkplate{07}",
           "change": "Flush this full-page plate at its existing logical source boundary using generator-preserved pdmarginpagebreak.",
           "evidence": "Operator actual14 spread review found the floating plate interrupting subsequent prose/invariant; next build must verify the repaired flow."
+        },
+        {
+          "source_head_before_edit": "25676e9537493a0f3438520d2a2abb9f3b0b5c1d",
+          "before_sha256": "995f3c86a085dcdb0364352e8ca6453968986a4ddda398a4b4e061ab1760ffa1",
+          "after_sha256": "594794920d61c85096a7a5aa966c6416dba6b40be5ab41fcd0198e7346b4bd03",
+          "anchors": [
+            {
+              "line": 179,
+              "following_source": "\\begin{table}[H]\\centering\\footnotesize"
+            },
+            {
+              "line": 506,
+              "following_source": "Table~\\ref{tab:sealed-side-invariants} names, for each of the six, the later"
+            }
+          ],
+          "change": "Open-proof-only pdmarginpagebreak hooks at completed paragraph/environment boundaries before the affected heading/table. Suisse and undefined-profile branches are empty.",
+          "read_scope": "Independent read of exact layout-only delta and surrounding paragraphs; original full-reading ranges and hashes retained. No manuscript text or mathematical claim changed.",
+          "source_verification": "Removing only the complete inserted guards exactly reproduces the committed source; prepare-book-fonts.py emits the tested profile value and the generator preserves pdmarginpagebreak.",
+          "render_evidence": "Operator reports isolated Source Sans build 72783c15: 263 captions, 1464 margins, 212 exercise headings and off-page checks pass; eight contexts viewed. This agent did not independently view that isolated PDF; final assembled candidate 22 acceptance remains separate."
         }
       ]
     }

@@ -1695,6 +1695,11 @@ note in \S\ref{sec:threatmodel} that one rule's enforcement (capability escalati
 is backed by a separate native component whose evidence is the weakest in the
 subsystem, carrying a time-of-check-to-time-of-use surface.
 
+% The open-font proof needs an empty margin queue here; Suisse keeps its layout.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
+
 \subsection{Commitments: obligation with oracle-bound closure}
 
 \input{figures/fig-swk-commitment-oracle}
