@@ -368,18 +368,19 @@ attach to the transitive thing.
 
 \subsection{Reputation and skill-rating estimators}
 
-The statistics of turning comparisons into a latent strength is mature. The
-\textbf{Bradley--Terry} model~\pdcite{bradleyterry1952} (1952) is the
-maximum-likelihood latent-strength model for paired comparisons; \textbf{Elo}~\pdcite{elo1978}
-(1978) is its online special case; \textbf{TrueSkill}~\pdcite{herbrich2007trueskill}
-(2007) adds calibrated Gaussian uncertainty for cold start, teams, and draws. For
-trust that must \emph{propagate} through a network rather than accumulate per
-player, \textbf{EigenTrust}~\pdcite{kamvar2003eigentrust} (2003) computes a global
-trust vector as the principal eigenvector of the local-trust matrix --- the
-reputation analogue of PageRank, with pre-trusted peers anchoring the modified
-algorithm. \textbf{Our use:} estimation comes after evidence collection. We use Table~\ref{tab:estimators} to match each to its signal type, and the
-substrate argument (\S\ref{sec:substrate}) to insist that none of them buys
-anything over a forgeable identity or an agent-authored oracle.
+Paired-comparison models provide established ways to estimate relative
+strength. The \textbf{Bradley--Terry} model~\pdcite{bradleyterry1952} (1952) can
+be fitted by maximum likelihood when the comparison data permit a finite fit;
+\textbf{Elo}~\pdcite{elo1978} (1978) updates ratings online.
+\textbf{TrueSkill}~\pdcite{herbrich2007trueskill} (2007) represents skill uncertainty
+within a Bayesian model supporting teams and draws. Calibration on a new task
+must be checked. For trust that propagates through a network,
+\textbf{EigenTrust}~\pdcite{kamvar2003eigentrust} (2003) computes an aggregate
+trust vector, with pretrusted peers anchoring its modified algorithm.
+\textbf{Our use:} estimation follows evidence collection. Table~\ref{tab:estimators}
+matches models to signal types; the substrate argument (\S\ref{sec:substrate})
+explains why none of these formulas, alone, establishes identity or verifies an
+agent-authored outcome.
 
 These are different input contracts. A record that says ``worker A's result
 was preferred to worker B's'' is a comparison; a record that says ``A trusts
@@ -529,15 +530,16 @@ three continuity organs it names are complete; \S\ref{sec:organs} grades each
 organ individually and none is yet fully \BUILT.
 \end{definition}
 
-\noindent Figure~\ref{fig:role-person} draws the distinction. The org-chart on the
-left is roles: stable, fillable, reputation-free. The thread on the right is a
+\noindent Figure~\ref{fig:role-person} draws the distinction. The upper org-chart
+shows roles: stable, fillable, reputation-free. The lower thread shows a
 person: one identity, walking through a sequence of role-instances and
-accumulating a witnessed history as it goes. Law has its own name for a status
-conferred and separable from any particular natural substrate: \emph{juristic}
-or \emph{artificial personhood}, founded for the corporate case by
-\emph{Dartmouth College v.\ Woodward}, 17 U.S.\ 518 (1819)~\pdcite{dartmouth1819}
---- the closest doctrinal analogue to Definition~\ref{def:person}'s claim that a
-person is a role plus a continuity witness, not a substance.
+accumulating a witnessed history as it goes. Corporate legal personality offers
+an analogy for an entity distinguished from its current members. In
+\emph{Dartmouth College v.\ Woodward}, 17 U.S.\ 518, 636 (1819), the Court describes
+a corporation as an entity created by law with properties conferred by its
+charter~\pdcite{dartmouth1819}. This is an analogy about continuing institutional
+identity, not a claim that software participants acquire legal personhood or
+that the case establishes Definition~\ref{def:person}.
 
 % --- FIGURE 2: role vs person ---
 \input{figures/fig-stp-role-vs-person}
@@ -1538,6 +1540,7 @@ or measured fact.
   \centering
   \pdswisslandmarkplate{03}{\linewidth}
 \end{figure}
+\pdmarginpagebreak
 \fi
 
 \subsection{The body behind the name: engine swaps and resurrection}\label{sec:body-behind-name}
@@ -1803,7 +1806,7 @@ is an adapter requirement, not a measured Harbor deployment guarantee.
 The engine-swap theorem is a one-delivery payoff comparison: the strategic type has no
 reputational continuation value beyond the bond $B$, and a long-horizon
 analysis would shift the unattested deterrence line. Attestation soundness is
-a deployment assumption (enclave and daemon integrity); the theorem prices
+a deployment \mbox{assumption} (enclave and daemon integrity); the theorem prices
 what attestation buys, not whether a given attestation is sound.
 
 Quality
@@ -1918,56 +1921,58 @@ The Agent Payments Protocol defines signed mandates for checkout and payment aut
 \section{Reputation as a substrate, not a score}\label{sec:substrate}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Here is the hinge of the whole series, stated as the canonical cross-paper
-sentence:
+The choice of estimator and the provenance of its inputs are separate problems.
 
-\pdthesis{The reputation \emph{estimator is cheap}; the \emph{substrate it scores
-over} --- witnessed outcomes on a non-forgeable identity --- is the gate.}
+\pdthesis{An estimator cannot supply the evidence it scores. This architecture
+pairs ratings with witnessed outcomes and attributable identities; a familiar
+rating formula does not establish either property.}
 
-\noindent A team tempted to start an agent economy by ``building an Elo
-leaderboard for backends'' would be building the cheap, last part first. Elo,
-Bradley--Terry, and TrueSkill are well-understood; you can implement any of them in
-an afternoon over a table of game results. The hard, prior work is
-the three links \emph{beneath} the estimator: a non-forgeable identity
-(\S\ref{sec:identity}), continuity (\S\ref{sec:organs}), and an
-\emph{oracle-witnessed} outcome ledger (Def.~\ref{def:oracle}). Without those, the
-estimator scores noise --- or worse, scores a number an adversary controls.
+\noindent Elo, Bradley--Terry, and TrueSkill provide established ways to model
+comparison results. Implementing a formula is only part of a rating system:
+computation, calibration, task selection, and resistance to manipulation still
+need evaluation. The three links developed here supply inputs that an estimator
+cannot infer from a score alone: identity (\S\ref{sec:identity}), continuity
+(\S\ref{sec:organs}), and an \emph{oracle-witnessed} outcome ledger
+(Def.~\ref{def:oracle}). An estimator can summarize reported outcomes without
+these links, but its output then lacks the attribution and witness guarantees
+claimed by this architecture.
 
-\subsection{The estimator family (the well-understood part)}
+\subsection{Choosing an estimator for the signal}
 
-We catalog the estimators not because they are hard but because choosing the
-\emph{wrong} one for the signal type is a real error.
+Different observations answer different questions. Choose the model for the
+observation and intended decision, then test its assumptions on that task.
 
 \begin{itemize}[leftmargin=1.4em]
   \item \textbf{Pairwise / tournament signal $\to$ Bradley--Terry / Elo /
-  TrueSkill.} When the witnessed signal is ``$A$ beat $B$ on this task,'' the
-  \textbf{Bradley--Terry} model~\pdcite{bradleyterry1952} is the full-history MLE,
-  and \textbf{Elo}~\pdcite{elo1978} is its online special case. A harbor that
-  retains the \emph{whole} history of every settled outcome lives in the
-  Bradley--Terry regime, not the streaming-Elo regime; BT gives more stable
-  ratings than Elo's recency-weighted update when the population is static.
-  \textbf{TrueSkill}~\pdcite{herbrich2007trueskill} adds a calibrated uncertainty
-  $\sigma$ --- the principled way to say ``we have not tested this backend much
-  yet,'' which matters at cold start.
-  \item \textbf{Trust-propagation signal $\to$ EigenTrust.} When the signal is
-  ``who does the network trust,'' \textbf{EigenTrust}~\pdcite{kamvar2003eigentrust}
-  computes a global trust vector as the principal eigenvector of the
-  local-trust matrix --- the reputation-systems analogue of PageRank, and the
-  canonical answer to ``aggregate peer opinions while resisting collusive
-  cliques.'' It is the right tool for the \emph{federated} reputation \pdchapref{he}{The
-  Harbor Economy} needs (trust that travels across harbors), and it is \emph{not} a bandit.
+  TrueSkill.} For observations such as ``$A$ beat $B$ on this task,''
+  \textbf{Bradley--Terry}~\pdcite{bradleyterry1952} models pairwise probabilities
+  through relative strengths. A full-history likelihood fit needs suitable
+  comparison data; separation can prevent a finite maximum-likelihood estimate.
+  \textbf{Elo}~\pdcite{elo1978} updates ratings sequentially. Retaining the whole
+  history does not force a batch fit or make it uniformly better than an online
+  update. \textbf{TrueSkill}~\pdcite{herbrich2007trueskill} represents uncertainty
+  about skill within a Bayesian model. Its uncertainty parameter is useful at
+  cold start, but predictive calibration for agent tasks requires checking the
+  model against outcomes.
+  \item \textbf{Trust-propagation signal $\to$ EigenTrust.} When observations
+  concern peers' transaction experience, \textbf{EigenTrust}~\pdcite{kamvar2003eigentrust}
+  aggregates normalized local trust through an eigenvector computation. The
+  paper's protection against malicious collectives uses pretrusted peers and
+  its specified propagation rule. Applying it across harbors therefore requires
+  justified trust anchors and an attack model; the algorithm's name does not
+  establish collusion resistance. It aggregates trust, rather than choosing
+  actions through a bandit exploration policy.
   \item \textbf{Marketplace feedback signal $\to$ feedback systems.}
-  Resnick--Zeckhauser~\pdcite{resnick2006value} measured a ${\sim}8\%$ reputation
-  price premium on eBay; Tadelis~\pdcite{tadelis2016} frames feedback systems as the
-  platform's answer to adverse selection. This is the empirical evidence that the
-  third side of the market has real value to price --- and the reason a harbor is a
-  \emph{platform} problem rather than a scoring problem: Rochet--Tirole's
-  two-sided-market analysis~\pdcite{rochettirole2003} shows that the price and
-  quality signals a platform exposes to one side determine participation on the
-  other, which is exactly the coupling a reputation substrate creates between the
-  agents being rated and the buyers reading the rating.
+  Resnick and colleagues~\pdcite{resnick2006value} found a reputation price
+  premium in a controlled eBay experiment. That result concerns its sellers and
+  goods; it does not measure demand for agent histories or establish an
+  additional side of this market. Tadelis~\pdcite{tadelis2016} discusses how
+  feedback systems address information problems. Rochet--Tirole's
+  two-sided-market analysis~\pdcite{rochettirole2003} motivates examining how
+  platform prices affect participation across groups. Here the corresponding
+  research question is how trustworthy outcome records affect buyers' choices
+  and sellers' incentives; its magnitude remains to be measured.
 \end{itemize}
-
 
 \begin{pdexample}{Two Kinds of Evidence Need Two Models}
 Suppose Heron wins three of four blinded pairwise comparisons against Wren on one declared task class. In a Bradley--Terry model,
@@ -2516,16 +2521,17 @@ $C$ changes about it.
 does not supply.
 \end{pdrecitation}
 
-% ═════════════════════════════════════════════════════════════════════════════
-\section{Revocation, tombstones, and bounded memory}\label{sec:revoke}
-% ═════════════════════════════════════════════════════════════════════════════
-
 \ifdefined\pdswisslandmarkplate
 \begin{figure}[p]
   \centering
   \pdswisslandmarkplate{04}{\linewidth}
 \end{figure}
+\pdmarginpagebreak
 \fi
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Revocation, tombstones, and bounded memory}\label{sec:revoke}
+% ═════════════════════════════════════════════════════════════════════════════
 
 A reputation built on witnessed outcomes must answer two questions: what
 happens when a witnessed outcome turns out to be \emph{fraudulent}, and when
@@ -2694,17 +2700,17 @@ The tower result is conditional.}\label{tab:handoff}\\
 \bottomrule
 \endlastfoot
 Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
-The third side of the market is a \emph{tradeable person}, defined here. \\
+A participant whose obligations and witnessed history remain attributable across process replacements. \\
 Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
 Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
-The three continuity subsystems & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
+The three continuity subsystems & \begin{tabular}[t]{@{}l@{}}\BUILT\\\BUILTWEAK\\\BUILTWEAK\end{tabular} &
 Reputation keys on subsystem~3 (the outcome ledger). \\
 Outcome ledger / oracle (Def.~\ref{def:oracle}) & \BUILTWEAK &
 Commitment, deadline, oracle closure, API/CLI, and overdue detection ship; neutral graded outcome events, sanctions, and reputation binding do not. \\
-Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \begin{tabular}[t]{@{}l@{}}\DESIGNED\\to \VISION\end{tabular} &
 The multi-dimensional score the market reads; the licensing side's signal. \\
-Neutral-judge market & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
-The ``universities and rating agencies'' that keep grades honest. \\
+Neutral-judge market & \begin{tabular}[t]{@{}l@{}}\DESIGNED\\to \VISION\end{tabular} &
+Proposed evaluation institutions; competent, honest grading remains an obligation. \\
 Grading-oracle hole (Prop.~\ref{prop:hole}) & \DESIGNED &
 Theorem~\ref{thm:tower-imported}~\pdcite{harborpaper3} bounds recursion under conditional detection and incentive assumptions. Oracle completeness, a competent honest root, and calibrated cross-clique detection remain owed. \\
 Cross-operator attestation (Def.~\ref{def:cross-operator-attestation}) & \VISION &
@@ -2713,10 +2719,11 @@ Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
 Reputation is revocable; convergence is the market paper's federation job. \\
 \end{xltabular}}
 
-\pdthesis{Build the harbor first. The trade comes when the ships do --- but the
-thing that makes the trade possible (continuity that turns spawns into persons) is
-the same thing that makes the single-player tool good. The bridge is not a detour;
-it is the bridge.}
+\pdthesis{The proposed history-dependent market needs attributable outcomes
+and obligations across process replacements. Those same records can help one
+operator resume work and inspect a past decision. This is the chapter's bridge
+from local continuity to exchange; it does not make continuity a prerequisite
+for every trade, such as a prepaid purchase of known content.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section*{Review of the key ideas}
@@ -3539,9 +3546,9 @@ Capability jail (capability $\ne$ permission) & \DESIGNED &
 Per-agent tool-allowlist and scoped filesystem; specified. \\
 Honest-attestation discipline & \BUILT &
 ``Report all-good only when verified'' is an enforced engineering rule. \\
-Multi-dimensional reputation & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+Multi-dimensional reputation & \begin{tabular}[t]{@{}l@{}}\DESIGNED\\to \VISION\end{tabular} &
 No reputation component yet; the substrate it scores over is partly built. \\
-Neutral-judge ceremony (Proto.~\ref{proto:judge}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+Neutral-judge ceremony (Proto.~\ref{proto:judge}) & \begin{tabular}[t]{@{}l@{}}\DESIGNED\\to \VISION\end{tabular} &
 Bonding and task-planning primitives exist; the hiring ceremony is designed. \\
 Skill-helpfulness schema (Proto.~\ref{proto:skill}) & \DESIGNED &
 Skill grafting is observable; the witnessed-event schema is specified. \\
@@ -3773,7 +3780,7 @@ Offchain Labs.
 
 \bibitem{dartmouth1819}
 \textit{Trustees of Dartmouth College v.\ Woodward}, 17 U.S.\ (4 Wheat.) 518 (1819).
-\newblock U.S.\ Supreme Court. Founding case for corporate legal personhood as a status distinct from the natural persons who compose or run the entity.
+\newblock U.S.\ Supreme Court. The discussion at p.\ 636 describes a corporation as an entity created by law; cited here as an analogy, not a source of legal status for software.
 
 \bibitem{chengfriedman2005}
 Alice Cheng and Eric Friedman.

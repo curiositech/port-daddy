@@ -273,9 +273,9 @@ repository. You must now price work done by agents you did not spawn, owned by a
 principal you do not trust, using skills you cannot inspect. That is a
 \emph{market-design} problem before it is a cryptography problem. Cryptography is
 the substrate that makes the ledger unforgeable; it is not the product.
-\pdthesis{Operators who trade work need a verifiable record, a way to relay
-evidence, and a reputation system. The proposed market combines these as
-\textbf{hosted trust}.}
+\pdthesis{The proposed reputation-priced market combines verifiable records,
+evidence relay, and reputation as \textbf{hosted trust}. These are design
+requirements of this market, not necessary conditions for every trade.}
 The chapter develops three claims:
 \begin{itemize}[leftmargin=1.4em,itemsep=3pt]
   \item \textbf{C1 (three contracts).} Operator-for-hire, asset-rental, and
@@ -866,8 +866,8 @@ disjunction.
 \end{pdexample}
 
 Figure~\ref{fig:he-conflict-witness} draws this witness as a derivation
-trace: the stated fact, the one Horn step, and the two rules it wakes up,
-joined by the interval they share.
+trace: the stated fact, the Horn inference that activates an obligation,
+and the already applicable prohibition, joined by their overlapping interval.
 
 \input{figures/fig-he-conflict-witness}
 
@@ -1531,9 +1531,11 @@ what makes ``rent my agent for an afternoon'' safe to say to a stranger.}
 
 \pitfall[Proof scope does not transfer]{Do not let the federation theorems borrow the substrate's ``formally
 verified'' halo. The hop-bound authorization chain has bounded symbolic and Rust
-evidence in \pdchapref{anchor}{The Anchor Protocol}. The \emph{federation} claims are design arguments plus a
-bounded TLA\textsuperscript{+} extension; they are \Designed{}, not deployed. Two different confidence levels,
-never blurred.}
+evidence in \pdchapref{anchor}{The Anchor Protocol}. The \emph{federation} claims are design arguments and an
+unexecuted lifecycle sketch: the cross-harbor listing omits a complete
+initial state and transition relation, and has no model-checker run.
+The separately identified bounded accounting check is single-harbor evidence.
+Federation remains \Designed{}, not deployed or model-checked.}
 
 \pdexercisepointer*{\ref{ex:he-four-message-why}}{\ref{ex:he-replay-freshness}}{\pageref{ex:he-four-message-why}}
 
@@ -1759,14 +1761,15 @@ requirements.
 \keyidea[Reputation can be corrected]{The reconciled statement: \textbf{the outcome record grows by appending witnessed events and corrections;
 a reputation score may rise or fall with those events, and a fraudulent outcome
 is invalidated by a propagating tombstone}. Dissemination has the same model and partition caveats as capability
-revocation. ``Never
-decays'' applies to honest outcomes only; it is \emph{not} an anti-revocation
-property.}
+revocation. Retaining an honest outcome does not fix its weight in the current
+score; retention and revocation are separate from the estimator's horizon.}
 
-We also decline to assert no-decay as a virtue: bounded memory is a design parameter
-(\textbf{Liu \& Skrzypacz}~2014, \emph{Limited Records and Reputation
-Bubbles}~\pdcite{liu2014}, show unbounded records create reputation \emph{bubbles},
-not stability). The horizon is a tunable, and $\infty$ is rarely optimal.
+Liu and Skrzypacz~\pdcite{liu2014} study a long-run player whose successive
+opponents observe a finite recent history. Under their stated equilibrium
+assumptions, reputation can build and be exploited repeatedly. This shows that
+the observation window affects incentives; it does not prove that infinite
+memory is generally inferior. The horizon here is a design parameter to choose
+against a stated prediction or incentive objective.
 
 \subsection{Why Sagas-style compensation does not restore reputation}
 
@@ -3043,8 +3046,9 @@ reputation solves adverse selection.
 
 \paragraph{Reputation systems.} Empirically, online reputation has measurable value
 (Resnick et al.~\pdcite{resnick2006}; Tadelis~\pdcite{tadelis2016}); theoretically,
-unbounded records create reputation \emph{bubbles} rather than stability (Liu \&
-Skrzypacz~\pdcite{liu2014}), which is why our horizon is a tunable. The Sybil
+finite recent histories change equilibrium incentives in the repeated-interaction
+model of Liu and Skrzypacz~\pdcite{liu2014}. That model supplies a question about
+our weighting horizon, not a generally optimal horizon. The Sybil
 attack~\pdcite{douceur2002} is the reason reputation must key on a principal, not a
 spawn. LLM-as-judge de-biasing follows Zheng et al.~\pdcite{zheng2023}.
 The empirical work asks whether reputation changes exchange and selection; the
@@ -3260,7 +3264,7 @@ Federation: witness log, capability transfer & \Designed{} & \pdchapref{fh}{The 
 Recipient-whitelisted escrow custody & \Designed{} (conditional property) &
   requires non-bypassable authority; no runtime conformance \\
 Cross-harbor conservation & \Designed{} (property) & proof sketch
-  (App.~\ref{app:proofs}) $+$ TLA\textsuperscript{+} \\
+  (App.~\ref{app:proofs}); unexecuted lifecycle sketch \\
 Federated revocation dissemination & \Designed{} (conditional expectation) & no finite partition deadline; equivocation delivery \Open{} \\
 Hosted-trust moat / rail separation & \Designed{} (positioning) & not a code artifact \\
 Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
