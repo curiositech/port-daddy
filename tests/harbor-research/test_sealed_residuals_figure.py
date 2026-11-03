@@ -15,8 +15,10 @@ def contract(source):
                    'transformed secret', 'self-declared', 'claimed cost,',
                    r'not a DP\\guarantee', 'free-form output',
                    r'one shared\\output envelope', r'q\ {\rm jobs}\times b\ {\rm bits}',
-                   r'specified alphabet\\before timing', 'not three allowances',
-                   r'$\varepsilon$ is not bits', 'does not cover unmodeled host side channels'):
+                   r'specified alphabet\\before timing',
+                   r'Alternative outputs share one $q\cdot b$-bit envelope',
+                   'A claimed privacy parameter is not a bit count',
+                   'Timing and other unmodeled side channels lie outside this accounting bound'):
         assert phrase in text, phrase
     paths = [''.join(path.split()) for path in
              re.findall(r'\\draw\[sg/arrow\]\s*(.*?);', text, re.S)]
@@ -36,11 +38,12 @@ class SourceContract(unittest.TestCase):
 
     def test_misleading_variants_are_rejected(self):
         source = FIG.read_text()
-        for old, new in [('not three allowances', 'three allowances'),
+        for old, new in [('Alternative outputs share one', 'Alternative outputs have three'),
                          (r'not a DP\\guarantee', r'a DP\\guarantee'),
                          (r'q\ {\rm jobs}\times b\ {\rm bits}', r'q+b\ {\rm bits}'),
                          ('before timing', 'all channels'),
-                         ('does not cover unmodeled host side channels', 'covers all host side channels'),
+                         ('A claimed privacy parameter is not a bit count', 'A claimed privacy parameter is a bit count'),
+                         ('side channels lie outside', 'side channels lie inside'),
                          ('(172,90)--(236,90)', '(236,90)--(172,90)')]:
             self.assertIn(old, source)
             with self.subTest(change=new), self.assertRaises(AssertionError):
@@ -81,7 +84,9 @@ class ActualBook(unittest.TestCase):
         text = ' '.join(self.page.get_text().replace('\u2011','-').split())
         for phrase in ('Figure '+self.number+'.', 'transformed secret', 'claimed cost,',
                        'not a DP guarantee', 'free-form output', 'one shared output envelope',
-                       'not three allowances', 'before timing', 'unmodeled host side channels'):
+                       'Alternative outputs share one', 'before timing',
+                       'A claimed privacy parameter is not a bit count',
+                       'Timing and other unmodeled side channels lie outside this accounting bound'):
             self.assertIn(phrase, text)
 
     def test_native_font_and_figure_geometry(self):
@@ -95,14 +100,18 @@ class ActualBook(unittest.TestCase):
                    'free-form output', 'one shared', 'output envelope')]
         self.assertGreaterEqual(len(labels), 9)
         for span in labels:
-            self.assertTrue(8.85 <= span['size'] <= 9.05, span)
+            # Same native Book label contract as the delegation figure;
+            # SGType delegates to the document role instead of fixing9pt.
+            self.assertTrue(8.6 <= span['size'] <= 8.9, span)
             self.assertLessEqual(span['bbox'][2], right+1)
         log = PDF.with_suffix('.log').read_text()
         sizes = re.findall(r'SG-GEOMETRY: VIII/fig:sealed-residuals-converge,width=([.\d]+)pt,height=([.\d]+)p\s*t', log)
         self.assertTrue(sizes, 'native geometry measurement absent')
         for width, height in sizes:
             self.assertAlmostEqual(float(width), 315.8, places=1)
-            self.assertAlmostEqual(float(height), 184.348, places=1)
+            # Source geometry is unchanged; the shared native label role
+            # determines the top text's ascent in the accepted Book.
+            self.assertAlmostEqual(float(height), 184.02383, places=1)
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ import json,re,hashlib,sys
 from pathlib import Path
 import fitz
 sys.path.insert(0,'scripts');from book_visual_atlas_inventory import plain,source_record
-b=Path('.scratch/visual-atlas/inventory');a=json.load(open(b/'atlas.json'));p=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');text=p.read_text();listings=[]
+b=Path('.scratch/visual-atlas/inventory');a=json.loads((b/'atlas.json').read_text());p=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');text=p.read_text();listings=[]
 norm=lambda v:re.sub('[^a-z0-9]','',plain(v).lower())
 for m in re.finditer(r'\\begin\{lstlisting\}',text):
  end=text.find('\\end{lstlisting}',m.end())+len('\\end{lstlisting}');raw=text[m.start():end];cm=re.search(r'caption\s*=\s*\{',raw)

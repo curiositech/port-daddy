@@ -164,7 +164,7 @@ Each list marker and its first body word must start below the whole heading.
 \begin{protocol}[Generic list title]\label{fixture:list-generic}
 \protocolfirstlist{P1.}{GenericListNamed}
 \begin{remark}[Nested]
-NestedSentinel remains run-in even inside a protocol body.
+NestedSentinel keeps its separate heading even inside a protocol body.
 \end{remark}
 \end{protocol}\protocolcheckstate
 \begin{protocol}\label{fixture:list-generic-none}
@@ -191,10 +191,10 @@ NestedSentinel remains run-in even inside a protocol body.
 \protocolcount{protocol}{2}\protocolcount{heprotocol}{2}
 \protocolcount{lsprotocol}{2}\protocolcount{stpprotocol}{2}
 \begin{theorem}[Unchanged]\label{fixture:list-restored}
-OrdinarySentinel remains run-in in this protocol-only slice.
+OrdinarySentinel keeps the shared separate-heading presentation.
 \end{theorem}
 \begin{proof}[Proof]
-ProofSentinel also retains the baseline run-in form.
+ProofSentinel also retains its separate heading paragraph.
 \end{proof}
 \protocolcheckstate
 \ifnum\protocolglyphcount=18\relax\else

@@ -21,12 +21,25 @@ def marks(source):
     required = (r'\SGMeasuredFigure{he-assurance}', 'ymode=log',
                 '100*(1-.6)^x', '(axis cs:2,16)', '{40}',
                 '1\\% target', 'reviewer count $k$', 'budget units',
-                'not realized payout', r'\label{fig:he-assurance}')
+                'not realized payout', 'conditional miss probability',
+                'a reviewer finds and reports a given flaw',
+                r'\label{fig:he-assurance}')
     return [s for s in required if s not in source] + [
         'unaligned count scale' for _ in [0]
         if source.count('xmin=.8,xmax=6.25') != 2] + [
         'wrong sampling domain' for _ in [0]
         if source.count('domain=1:6,samples=6') != 3]
+
+
+def prose_contract(source):
+    text = ' '.join(source.split())
+    for phrase in ('per reviewer for a fixed flaw', 'planned budget, not realized payout',
+                   'duplicate reports settle', 'mutually independent',
+                   'detection-and-truthful-report events', 'a conditional lower',
+                   'weak best response', 'with no false sanctions or other payoff effects',
+                   'it is distinct from the reporting probability $d$ above',
+                   r'\rho\, d_{\mathrm a}\, B \;\ge\; G'):
+        assert phrase in text, 'Missing assurance scope: '+phrase
 
 
 class AssuranceFigureTests(unittest.TestCase):
@@ -74,13 +87,23 @@ class AssuranceFigureTests(unittest.TestCase):
             self.assertNotIn(forbidden,source)
         caption=source.split(r'\caption{',1)[1].split(r'\label{',1)[0]
         self.assertIn('analytic',caption.lower())
-        self.assertRegex(source.lower(),r'(conditional on|given) a flaw')
+        self.assertIn('a reviewer finds and reports a given flaw', source)
 
-    def test_prose_defines_budget_without_changing_the_honesty_condition(self):
-        chapter=CHAPTER.read_text()
-        for phrase in ('per reviewer for a fixed flaw', 'planned\nbudget, not realized payout',
-                       'duplicate reports settle',r'\rho\, d\, B \;\ge\; G'):
-            self.assertIn(phrase,chapter)
+    def test_prose_keeps_reporting_and_audit_detection_distinct(self):
+        chapter = CHAPTER.read_text()
+        prose_contract(chapter)
+        normalized = ' '.join(chapter.split())
+        for before, after in [
+                ('mutually independent', 'arbitrarily dependent'),
+                ('detection-and-truthful-report events', 'detection events'),
+                ('a conditional lower', 'an unconditional lower'),
+                ('weak best response', 'dominant strategy'),
+                (r'd_{\mathrm a}', 'd'),
+                ('planned budget, not realized payout', 'realized payout')]:
+            mutant = normalized.replace(before, after)
+            self.assertNotEqual(mutant, normalized)
+            with self.subTest(change=after), self.assertRaises(AssertionError):
+                prose_contract(mutant)
         self.assertIn(r'\input{figures/fig-he-assurance}'+'\n'+r'\FloatBarrier',chapter)
 
     @unittest.skipUnless(os.environ.get('BOOK_ASSURANCE_PDF'),'assembled Book not supplied')
@@ -103,7 +126,7 @@ class AssuranceFigureTests(unittest.TestCase):
                 self.assertLess(page.search_for('reviewer count')[0].y1,
                                 page.search_for('Purchased Assurance Bound')[0].y0)
             theorem_text=' '.join(book[theorem].get_text().split())
-            self.assertIn('rather than a slogan.',theorem_text,
+            self.assertIn('reporting and independence hypotheses hold.',theorem_text,
                           'Purchased Assurance has a stranded framed continuation')
             fonts=' '.join(f[3] for f in page.get_fonts())
             self.assertIn('SuisseIntl',fonts)

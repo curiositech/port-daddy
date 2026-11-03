@@ -62,8 +62,14 @@ class DelegationContainmentTests(unittest.TestCase):
         chapter=CHAPTER.read_text()
         for phrase in ('authorization chain &',r'\Built\ (ProVerif)',
                        'coordination lineage &',r'(\Designed): the task-lineage',
-                       r'task-shape field is in the \emph{signed} payload at each hop'):
+                       'Signature validity\nand semantic loop detection are separate checks.'):
             self.assertIn(phrase,chapter)
+        flat = ' '.join(chapter.split())
+        for phrase in (r'carried \emph{inside} the authorization chain',
+                       'identifier can prove which identifier a delegator supplied',
+                       'It cannot prove that two differently worded tasks mean the same thing',
+                       'the open obligation is to specify and validate the equivalence rule'):
+            self.assertIn(phrase, flat)
         self.assertNotIn('draws the containment:',chapter)
         self.assertIn('\\input{figures/fig-swk-delegation-chains}\n\\FloatBarrier', chapter)
         self.assertIn('\\pdmarginpagebreak\nThe ladder these modes', chapter)

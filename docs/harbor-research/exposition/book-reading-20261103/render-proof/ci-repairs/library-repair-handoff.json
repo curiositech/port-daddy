@@ -1,0 +1,101 @@
+{
+  "created_at": "2026-11-03T18:02:18.531869+00:00",
+  "head_at_complete_library_run": "c612d9b808507fc6ba649916e3118974fc45ed42",
+  "scope": "Owned test/fixture expectations and generated desk outputs only; no manuscript changes. Dirty tracked inputs after this head are pinned by the603-file final manifest.",
+  "owned_files": [
+    {
+      "path": "tests/harbor-research/test_assurance_figure.py",
+      "sha256": "971f8545eba48bdf87ca656b64f0b1bbb955effdd345b9fe4c4a343e810eecf2"
+    },
+    {
+      "path": "tests/harbor-research/test_check_delegation_chain_vocabulary.py",
+      "sha256": "a067e40a2aa30424d6e5170f70ce6298cdb24986a9243f8ba87287966ee2cf42"
+    },
+    {
+      "path": "tests/harbor-research/test_definition_margin_note.py",
+      "sha256": "577110b1994c67996b82ebb31fd027638bf75c4f789ca8cbb65869e745a9d4f9"
+    },
+    {
+      "path": "tests/harbor-research/test_delegation_containment_figure.py",
+      "sha256": "5f3004be96132fed084614e1ada7c2d0f83f0392e7836a942eff143c3474e26a"
+    },
+    {
+      "path": "tests/harbor-research/test_sealed_remaining_examples.py",
+      "sha256": "636540826176f62846fd2fa608682eec5c13774d1b5e1d9331d93fea9d27d673"
+    },
+    {
+      "path": "tests/harbor-research/test_sealed_residuals_figure.py",
+      "sha256": "9b3e080373e6591d58518d8f95e67611b0abbd8f3b173c75e458b0e0e6b9bef5"
+    },
+    {
+      "path": "tests/harbor-research/test_semantic_block_styles.py",
+      "sha256": "5cc7ef6b9e2e6874160eba8ba3d209f643c853717f104bc9adf8f930f705dd5d"
+    },
+    {
+      "path": "tests/harbor-research/fixtures/sealed-readability-20260920.json",
+      "sha256": "83bf1621d3f91418900f97bf6dd1635766ad3094766ab8fb2734ef594c7fdc23"
+    },
+    {
+      "path": ".github/workflows/library-checks.yml",
+      "sha256": "84f35e74acb1491b679a9972fea92da85086ae579ba838cec49024b646674636"
+    },
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/FIGS.js",
+      "sha256": "226e3dc037a2661541155f08edd945eee0b2b1eecdc8269b7f0276c4b4cb19c9"
+    },
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/FINDINGS.js",
+      "sha256": "b42bbc378c7256b593bf41b8b1126550cca48bd2cedd28f6736834e76d5b78cb"
+    },
+    {
+      "path": "docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js",
+      "sha256": "173ad1dca2f65d57128ddf8984a638c41a2d486ea04337ab0a0bf38da84b45d3"
+    }
+  ],
+  "adjudication": {
+    "assurance": "Require conditional detection-and-truthful-report events, independent reviewers, reserved-not-paid budget and separate audit probability d_a. Reject independence, payoff and dominance promotions. Render checks retain the actual final theorem ending.",
+    "delegation_vocabulary": "Refresh exact test and workflow exception for intentionally corrected authenticity claim; all injected-use and copied-corpus mutation controls remain intact.",
+    "definition": "Replace obsolete historical-edition note/hash lock with explicit actor-wide sanction, same-window clean baseline, all routed identities and Designed status. Rejection tests cover weakened quantifiers, altered baseline and restored historical note. Render check reads named AUX/PDF destination and complete definition on its heading page.",
+    "delegation_containment": "Keep existing signed-payload geometry/status guards; manuscript expectation now protects explicit signature-versus-task-equivalence scope.",
+    "sealed_examples": "Retain original fixture text as provenance; three accepted blocks have stated reasons and explicit uniform-distribution, observed-read/exact-realization and committed-input/interface hypotheses. Added substantive removal mutants; display, paragraph and brace checks remain.",
+    "sealed_residuals": "Require one envelope shared by three alternatives, privacy parameter not bits, and unmodeled channels outside scope. Preserve route/geometry mutants. Render typography matches the established Book role (observed8.7174PDFpt) instead of obsolete9pt expectation; native width315.8pt unchanged, text-inclusive height184.02383pt checked.",
+    "semantic_blocks": "Qualified proposed-system opener retains14-baseline reservation and VRF-to-figure-to-bound ordering; paragraph boundary moved to the actual final sentence. Explicit missing-reservation mutant rejects loss. Failure output no longer prints the entire generated book.",
+    "figure_desk": "Regenerated exactly three stale outputs using the unchanged generator after corpus freeze. FIGS retains133rows with32 changed caption/page metadata rows; FINDINGS changes reconciliation/parse gaps; DOCTRINE changes derived scores/context/coverage. No claim these derived assets constitute a new rendered Book proof. CHAPTERS was only temporarily modified by the existing negative fixture and restored byte-for-byte."
+  },
+  "validation": {
+    "focused_source": {
+      "collected": 44,
+      "passed": 37,
+      "skipped": 7,
+      "log": "focused-final.log"
+    },
+    "rendered_branches": {
+      "collected": 22,
+      "passed": 20,
+      "skipped": 2,
+      "pdf_sha256": "977555b9ee2bf78426b182091171ebec5bfc7fc6c524f55764ca7804c29be212",
+      "log": "rendered-final.log"
+    },
+    "semantic_blocks": {
+      "collected": 15,
+      "passed": 10,
+      "skipped": 5,
+      "log": "semantic-blocks-final.log"
+    },
+    "complete_library": {
+      "collected": 939,
+      "passed": 818,
+      "skipped": 121,
+      "failures": 0,
+      "receipt": "library-full-final-receipt.json",
+      "input_manifest_sha256": "77a6f53c5ca346e945c405917b7cbaa0bd04f506a897715a35f8f38cffe3e693",
+      "changed_inputs_during_run": []
+    },
+    "previous_failure_receipt": "library-full-receipt.json",
+    "counts_overlap": "Do not add focused and complete-suite totals."
+  },
+  "unmodified_owned_tests": [
+    "tests/harbor-research/test_build_figure_desk.py"
+  ],
+  "publication_boundary": "Local verification only; new hosted exact-head checks remain required after commit/push. No source edit or Book rebuild is attributed to this repair lane."
+}

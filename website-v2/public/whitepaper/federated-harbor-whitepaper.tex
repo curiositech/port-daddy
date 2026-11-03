@@ -1704,10 +1704,39 @@ That is exactly why no structural mechanism closes the all-witnesses case: if th
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-cold-start-admission}
-\S\ref{sec:fh-lim-cold-start} lists engineering discipline (many sponsors, small probationary scope, witness-log permanence) against the bonded-sponsor pattern's cold-start risk, but explicitly declines to call it a theorem. Describe a concrete measurement --- stated as a metric over time, not a proof --- that would let an operator tell the difference between ``the sponsorship market is thin but open'' and ``incumbent sponsors have formed an invitation cartel.''
+\S\ref{sec:fh-lim-cold-start} lists engineering discipline (many sponsors, small probationary scope, witness-log permanence) against the bonded-sponsor pattern's cold-start risk, but explicitly declines to call it a theorem. Propose measurements over time that would help an operator investigate whether the sponsorship market is thin but open or whether incumbent sponsors restrict entry. State which records each measurement requires, what the admission log alone reveals, and why the measurements cannot by themselves identify a cartel.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-cold-start-admission}
-Four measurements, each cheap to compute off the witness-logged admission records \S\ref{sec:fh-admission} already produces because enrollment is permanent and public: \textbf{acceptance rate} (admitted harbors / sponsorship requests, over a trailing window); \textbf{sponsor concentration} (the Herfindahl index, or simply the top-sponsor's share, of successful sponsorships); \textbf{time-to-entry} (elapsed time from first sponsorship request to admission, for accepted applicants); and \textbf{false-rejection rate} (requests declined that a later, independent sponsor accepted without incident, as a proxy for rejections that were not actually risk-justified). A thin-but-open market shows a low acceptance rate \emph{and} low sponsor concentration \emph{and} a time-to-entry that is long but not systematically longer for any identifiable class of applicant. An invitation cartel shows the opposite signature on the second and fourth: concentration rising over time even as total admissions grow, and a persistent gap in acceptance rate or time-to-entry between applicants introduced by an incumbent sponsor and applicants without one. None of these four numbers is a proof of openness by itself --- a legitimately small, honest market can also show high concentration simply because there are few sponsors to begin with --- which is exactly why \S\ref{sec:fh-lim-cold-start} calls the structural pushback engineering discipline rather than theorem: the measurement tells an operator when to worry, it does not certify the absence of the failure mode.
+Start with what is observed. In a complete admission log for a stated time
+window, let $n_s$ count successful admissions attributed to sponsor $s$, with
+one recorded sponsor per admission, and let $n=\sum_s n_s$. For $n>0$, the
+sponsor shares $n_s/n$ and their Herfindahl index $\sum_s(n_s/n)^2$ measure
+concentration among \emph{successful} sponsorships. For $n=0$, these quantities
+are undefined. They do not measure how many applicants were turned away.
+For example, the same log of ten admissions is consistent with ten requests
+and no refusals, or with a thousand requests and 990 refusals. The admission
+log in \S\ref{sec:fh-admission} does not distinguish those histories.
+
+Acceptance and waiting-time measurements need additional records: stable
+request identifiers, first-request and decision timestamps, sponsor identifiers,
+and outcomes distinguishing admitted, refused, withdrawn, and still-pending
+requests. Define a request cohort and an observation cutoff before computing
+its admission and pending fractions; a pending request is not a refusal.
+Waiting time among admitted applicants describes a selected group and omits
+unfinished waits. Report that limitation and the pending fraction alongside it.
+A later admission by an independent sponsor, followed by no observed incident,
+can flag an earlier refusal for examination only if reapplications are linked
+and the follow-up window, terms, and observed risks are stated. It is not a
+measured false-rejection rate: changed terms or incomplete incident observation
+may explain the outcome.
+
+Rising concentration or persistent entry disparities can motivate an audit,
+but neither those patterns nor their conjunction identifies an invitation
+cartel. Sponsor capacity, applicant risk, and admission-policy changes can
+produce similar records. Compare like cohorts, disclose missing requests and
+outcomes, and investigate the decisions behind an apparent disparity. The
+measurements support the engineering discipline of
+\S\ref{sec:fh-lim-cold-start}; they certify neither openness nor collusion.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-equivocation-speed}

@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: BasicTeX fallback uses bounded xelatex passes without mutating the host installation
+ok 1 - BasicTeX fallback uses bounded xelatex passes without mutating the host installation
+  ---
+  duration_ms: 1500.190375
+  type: 'test'
+  ...
+# Subtest: generator rejects a transitive TeX import cycle with a useful receipt
+ok 2 - generator rejects a transitive TeX import cycle with a useful receipt
+  ---
+  duration_ms: 185.88875
+  type: 'test'
+  ...
+# Subtest: generator rejects a citation with no chapter-local bibliography entry
+ok 3 - generator rejects a citation with no chapter-local bibliography entry
+  ---
+  duration_ms: 224.685834
+  type: 'test'
+  ...
+# Subtest: generator fails closed when a canonical paper source is missing
+ok 4 - generator fails closed when a canonical paper source is missing
+  ---
+  duration_ms: 179.540416
+  type: 'test'
+  ...
+# Subtest: generator namespaces identical chapter-local labels and preserves the eight-source manifest
+ok 5 - generator namespaces identical chapter-local labels and preserves the eight-source manifest
+  ---
+  duration_ms: 296.0845
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1543.29475

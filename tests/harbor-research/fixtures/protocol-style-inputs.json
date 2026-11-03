@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "scope": "Current protocol fixture inputs; exact hashes are not a rendered acceptance receipt. The September checkpoint remains historical.",
+  "reviewed_source_head": "0821b9893c0cc26c95e65a61c992dd4406d08b00",
+  "changes_reviewed": {
+    "coordination-papers-mega-volume-preamble.tex": "Heading-only wrapping, publication copy-review switch, footer text and caption routing; protocol environment contracts unchanged.",
+    "coordination-papers-mega-volume-swiss-plates.tex": "Scoped landmark captions and removal of quotation marks from authored prose.",
+    "pd-cite-shortforms.tex": "Verified bibliography key and short-form corrections.",
+    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; protocol environments unchanged.",
+    "pd-textbook-map.tex": "Primary-source epigraph wording and edition metadata corrections.",
+    "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
+    "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required."
+  },
+  "fixture_repository_inputs": [
+    {
+      "path": "tests/harbor-research/fixtures/protocol-style-book.tex",
+      "sha256": "524579184b8a7e9a6f5808599c9ae23b8d5c483325bf61c52373b94339cc2b7e",
+      "bytes": 1131
+    },
+    {
+      "path": "tests/harbor-research/fixtures/protocol-style-fixture.tex",
+      "sha256": "3575f918dc070ec441478c101652199692d7799bfa3199938b98e91a115a5afc",
+      "bytes": 9507
+    },
+    {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
+      "sha256": "7bd81641515502122f76a31d905e711aac6a7fe946728adda552a7b396599ddb",
+      "bytes": 64831
+    },
+    {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex",
+      "sha256": "9b1ee580ccf95831ab5d662582443676a6eb8fe15f7a0dc3bda99d9c38b5d293",
+      "bytes": 14757
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/lucide/workflow.pdf",
+      "sha256": "8c275b160ad83fd52e44a874154d42dc34cec14dc30fefe327c09dd42eb19d99",
+      "bytes": 1231
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex",
+      "sha256": "3f9dddb37cdb77e1c5bec5e9afbc8ea80090de9f984960588f05dc8bbb53c2e2",
+      "bytes": 27259
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-discharges.tex",
+      "sha256": "56fbd01c9b74a7745cdc286ee8326cefabd210381e0c927f563a07da0070d6bb",
+      "bytes": 928
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex",
+      "sha256": "6bfaec492b914916857781c5cf80cfa0c7d1cbb02fd658a72e70c6aa55e11bdf",
+      "bytes": 5457
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-figure-language.tex",
+      "sha256": "f20734af70d8b9bc1525ef98c7623c778682797374931eb7bd0eee03ddc20047",
+      "bytes": 40314
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-hyperlinks.tex",
+      "sha256": "bd512ab0f5003663f7cb462601ab64b4bd276f567074477795ea61907d8b2248",
+      "bytes": 6243
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-palette.tex",
+      "sha256": "63306cfb03ef11f24a7eff438748e51a43f06d7f9985101cdce1af9867733a09",
+      "bytes": 3326
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-pedagogy.tex",
+      "sha256": "08f7b0804e17632ad9c137d90ad419584852eaa3035e13ad8cf638c5e2cdd127",
+      "bytes": 80238
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex",
+      "sha256": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
+      "bytes": 4192
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/pd-textbook-map.tex",
+      "sha256": "e96266e63af9f60ae47fdfcef6322539d3033e8aed38bf842cf181df7fedbdd1",
+      "bytes": 13940
+    }
+  ]
+}

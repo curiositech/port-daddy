@@ -1,0 +1,158 @@
+{
+  "scope": "protocol-only open-font fixture; not full-Book acceptance",
+  "base_commit": "73d8ce4ec38d1f1125d32401888984a7f5ee1936",
+  "source_head": "0821b9893c0cc26c95e65a61c992dd4406d08b00",
+  "fixture_repository_inputs_sha256": {
+    "tests/harbor-research/fixtures/protocol-style-book.tex": "524579184b8a7e9a6f5808599c9ae23b8d5c483325bf61c52373b94339cc2b7e",
+    "tests/harbor-research/fixtures/protocol-style-fixture.tex": "3575f918dc070ec441478c101652199692d7799bfa3199938b98e91a115a5afc",
+    "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex": "7bd81641515502122f76a31d905e711aac6a7fe946728adda552a7b396599ddb",
+    "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex": "9b1ee580ccf95831ab5d662582443676a6eb8fe15f7a0dc3bda99d9c38b5d293",
+    "website-v2/public/whitepaper/figures/lucide/workflow.pdf": "8c275b160ad83fd52e44a874154d42dc34cec14dc30fefe327c09dd42eb19d99",
+    "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex": "3f9dddb37cdb77e1c5bec5e9afbc8ea80090de9f984960588f05dc8bbb53c2e2",
+    "website-v2/public/whitepaper/figures/pd-discharges.tex": "56fbd01c9b74a7745cdc286ee8326cefabd210381e0c927f563a07da0070d6bb",
+    "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex": "6bfaec492b914916857781c5cf80cfa0c7d1cbb02fd658a72e70c6aa55e11bdf",
+    "website-v2/public/whitepaper/figures/pd-figure-language.tex": "f20734af70d8b9bc1525ef98c7623c778682797374931eb7bd0eee03ddc20047",
+    "website-v2/public/whitepaper/figures/pd-hyperlinks.tex": "bd512ab0f5003663f7cb462601ab64b4bd276f567074477795ea61907d8b2248",
+    "website-v2/public/whitepaper/figures/pd-palette.tex": "63306cfb03ef11f24a7eff438748e51a43f06d7f9985101cdce1af9867733a09",
+    "website-v2/public/whitepaper/figures/pd-pedagogy.tex": "08f7b0804e17632ad9c137d90ad419584852eaa3035e13ad8cf638c5e2cdd127",
+    "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
+    "website-v2/public/whitepaper/figures/pd-textbook-map.tex": "e96266e63af9f60ae47fdfcef6322539d3033e8aed38bf842cf181df7fedbdd1"
+  },
+  "validation_script_sha256": "5f26733a98dcdec5cde386f2dcba499c4f068874fe9294d389ff9841f632c6f8",
+  "engine": "xelatex",
+  "profile": "main-open",
+  "command": [
+    "xelatex",
+    "-no-shell-escape",
+    "-halt-on-error",
+    "-interaction=nonstopmode",
+    "-recorder",
+    "-output-directory",
+    "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/pr10345/protocol-main-open-current",
+    "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.scratch/textbook-craft-20261103/pr10345/protocol-main-open-current/protocol-style.tex"
+  ],
+  "pdf_sha256": "b3103c503722ca255a939a1dd957daca4f946f0e860b62538233560a23904119",
+  "labels": {
+    "before": {
+      "number": "1.1",
+      "page": 1,
+      "anchor": "theorem.1.1"
+    },
+    "ls": {
+      "number": "1.1",
+      "page": 1,
+      "anchor": "lsprotocol.1.1"
+    },
+    "stp": {
+      "number": "1.1",
+      "page": 1,
+      "anchor": "stpprotocol.1.1"
+    },
+    "stp-none": {
+      "number": "1.2",
+      "page": 1,
+      "anchor": "stpprotocol.1.2"
+    },
+    "stp-empty": {
+      "number": "1.3",
+      "page": 1,
+      "anchor": "stpprotocol.1.3"
+    },
+    "generic": {
+      "number": "1.1",
+      "page": 1,
+      "anchor": "protocol.1.1"
+    },
+    "he": {
+      "number": "1.1",
+      "page": 1,
+      "anchor": "heprotocol.1.1"
+    },
+    "after": {
+      "number": "1.2",
+      "page": 1,
+      "anchor": "theorem.1.2"
+    },
+    "definition": {
+      "number": "1.1",
+      "page": 1,
+      "anchor": "definition.1.1"
+    },
+    "long": {
+      "number": "2.1",
+      "page": 2,
+      "anchor": "lsprotocol.2.1"
+    },
+    "generic-reset": {
+      "number": "2.1",
+      "page": 6,
+      "anchor": "protocol.2.1"
+    },
+    "he-reset": {
+      "number": "2.1",
+      "page": 6,
+      "anchor": "heprotocol.2.1"
+    },
+    "stp-reset": {
+      "number": "2.1",
+      "page": 6,
+      "anchor": "stpprotocol.2.1"
+    },
+    "restored": {
+      "number": "2.1",
+      "page": 6,
+      "anchor": "theorem.2.1"
+    },
+    "list-generic": {
+      "number": "3.1",
+      "page": 7,
+      "anchor": "protocol.3.1"
+    },
+    "list-generic-none": {
+      "number": "3.2",
+      "page": 7,
+      "anchor": "protocol.3.2"
+    },
+    "list-he": {
+      "number": "3.1",
+      "page": 7,
+      "anchor": "heprotocol.3.1"
+    },
+    "list-he-none": {
+      "number": "3.2",
+      "page": 7,
+      "anchor": "heprotocol.3.2"
+    },
+    "list-ls": {
+      "number": "3.1",
+      "page": 7,
+      "anchor": "lsprotocol.3.1"
+    },
+    "list-ls-empty": {
+      "number": "3.2",
+      "page": 7,
+      "anchor": "lsprotocol.3.2"
+    },
+    "list-stp": {
+      "number": "3.1",
+      "page": 7,
+      "anchor": "stpprotocol.3.1"
+    },
+    "list-stp-empty": {
+      "number": "3.2",
+      "page": 8,
+      "anchor": "stpprotocol.3.2"
+    },
+    "list-restored": {
+      "number": "3.1",
+      "page": 8,
+      "anchor": "theorem.3.1"
+    }
+  },
+  "standalone_protocol_headings": 10,
+  "list_first_headings": 8,
+  "ordinary_paragraph_controls": 3,
+  "paragraph_entry_checks": 18,
+  "protocol_glyph_count": 18,
+  "scope_restoration_checks": 17
+}

@@ -1,94 +1,95 @@
-"""A historical cross-reference belongs beside its definition, not in a frame tail."""
-import hashlib
+"""Sanction definition keeps actor-wide scope and a fixed clean baseline.
+
+The final manuscript has no historical-edition aside. This contract protects
+its mathematical content rather than requiring an obsolete body hash or note.
+"""
+import importlib.util
 import os
+import re
 from pathlib import Path
-import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 CHAPTER = ROOT/'website-v2/public/whitepaper/spawn-to-person.tex'
 OPEN = r'\begin{definition}[Sanction-respecting reputation]'
-NOTE = ('In the first edition this was Definition III.6.1; the standalone research '
-        'paper on reputation inheritance cites it under that number.')
-EXPECTED = '3af52ed301d95dabc4e58d830bcaa8e28d5f1834230d67c8838df5761d876b2a'
 
 
 def source_check(source):
     assert source.count(OPEN) == 1
     body = source.split(OPEN, 1)[1].split(r'\end{definition}', 1)[0]
-    assert hashlib.sha256(body.encode()).hexdigest() == EXPECTED
-    assert body.count(r'\pdsourceaside') == 1 and r'\footnote' not in body
+    text = ' '.join(body.split())
+    for phrase in (r'\label{def:sanction-respecting}',
+                   'Fix a score-based access mechanism and a sanction window',
+                   r'some $\Delta>0$',
+                   'every actor producing a specified dishonest outcome',
+                   r'by at least $\Delta$',
+                   "that same actor's clean continuation over the same window",
+                   'Include every identity through which the actor can route work',
+                   r'\Designed{} definition for the stated access model and clean continuation'):
+        assert phrase in text, 'Missing definition condition: '+phrase
+    for stale in ('first edition', 'III.6.1', r'\footnote'):
+        assert stale not in body, 'Historical framing is not part of the definition'
 
 
 def render_check(path):
     import fitz
+    path = Path(path)
+    spec = importlib.util.spec_from_file_location(
+        'label_gate', ROOT/'scripts/harbor-research/check_book_label_migration.py')
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    labels = gate.parse(path.with_suffix('.aux').read_bytes())
+    number, _, _, destination, *_ = labels['stp:def:sanction-respecting']
     with fitz.open(path) as doc:
-        matches = []
-        for page in doc:
-            spans = [s for b in page.get_text('dict')['blocks'] if 'lines' in b
-                     for line in b['lines'] for s in line['spans']]
-            heads = [s for s in spans if s['text'].strip().startswith('Definition 5.6.1')]
-            notes = [s for s in spans if 'In the first edition' in s['text']]
-            if heads or notes:
-                matches.append((page.number, heads, notes, spans))
-        assert len(matches) == 1, 'Historical note is missing or on a continuation page'
-        index, heads, notes, spans = matches[0]
-        assert len(heads) == len(notes) == 1
-        head, note = heads[0], notes[0]
-        # The standalone heading no longer shares a line with the body.
-        # The authored note is invoked immediately before this opening sentence.
-        owners = [s for s in spans if s['text'].startswith('Fix a reputation mechanism')]
-        assert len(owners) == 1
-        assert abs(note['origin'][1] - owners[0]['origin'][1]) <= 3
-        sys.path.insert(0, str(ROOT/'scripts/harbor-research'))
-        try:
-            from page_overflow import column, MARGIN_SEP, MARGIN_W
-        finally:
-            sys.path.pop(0)
-        x0, x1, side = column(doc[index], index + 1)
-        left, right = ((x1 + MARGIN_SEP - 1, x1 + MARGIN_SEP + MARGIN_W + 1)
-                       if side == 'R' else (x0 - MARGIN_SEP - MARGIN_W - 1,
-                                            x0 - MARGIN_SEP + 1))
-        # Select just this note's lines; other independent marginalia may follow.
-        rail = sorted((s for s in spans if left <= s['bbox'][0] < right
-                       and s['bbox'][1] >= note['bbox'][1] - .1),
-                      key=lambda s: (round(s['origin'][1], 1), s['bbox'][0]))
-        words = []
-        used = []
-        for span in rail:
-            words.extend(span['text'].split()); used.append(span)
-            if len(words) >= len(NOTE.split()):
-                break
-        assert ' '.join(words) == NOTE
-        assert all(left <= s['bbox'][0] < s['bbox'][2] <= right
-                   and s['bbox'][3] <= 651.6 for s in used)
-        assert not any(s['text'].strip() == 'a' and s['size'] < 8
-                       and abs(s['origin'][1] - head['origin'][1]) < 12 for s in spans)
+        index = doc.resolve_names()[destination]['page']
+        page = doc[index]
+        text = ' '.join(page.get_text().replace('\u2011', '-').split())
+        assert 'Definition '+number in text
+        # The short definition is readable with its heading, not stranded on
+        # a continuation page; all substantive scope must actually be printed.
+        for phrase in ('score-based access mechanism', 'sanction window',
+                       'clean continuation over the same window',
+                       'every identity through which the actor can route work'):
+            # Discretionary line-break hyphens are glyphs in the PDF.
+            # Source syntax is guarded above; this checks that the complete
+            # semantic text remains on the heading page.
+            compact = lambda value: re.sub(r'[\s\u2011-]', '', value)
+            assert compact(phrase) in compact(text), 'Definition condition missing from its page: '+phrase
+        assert 'In the first edition' not in text
         return index + 1
 
 
 class DefinitionMarginNoteTests(unittest.TestCase):
-    def test_exact_definition_and_historical_note(self):
+    def test_definition_retains_actor_wide_baseline_and_status(self):
         source_check(CHAPTER.read_text())
 
-    def test_changed_math_history_and_duplicate_are_rejected(self):
+    def test_changed_math_scope_and_duplicate_are_rejected(self):
         source = CHAPTER.read_text()
-        for before, after in [('Delta > 0', 'Delta > 1'), ('III.6.1', 'III.6.2'),
-                              (r'\pdsourceaside{In', r'\pdsourceaside{In\pdsourceaside{extra}')]:
+        for before, after in [(r'\Delta>0', r'\Delta>1'),
+                              ('every actor producing', 'some actor producing'),
+                              ("same actor's clean continuation", "another actor's clean continuation"),
+                              ('every identity through which', 'one identity through which'),
+                              (r'\Designed{} definition', r'\Built{} definition'),
+                              (OPEN, OPEN+OPEN)]:
+            mutant = source.replace(before, after)
+            self.assertNotEqual(mutant, source)
             with self.subTest(change=after), self.assertRaises(AssertionError):
-                source_check(source.replace(before, after))
+                source_check(mutant)
 
-    def test_old_footnote_is_rejected(self):
-        with self.assertRaises(AssertionError):
-            source_check(CHAPTER.read_text().replace(r'\pdsourceaside{In', r'\footnote{In'))
+    def test_historical_note_cannot_be_restored(self):
+        source = CHAPTER.read_text()
+        for note in (r'\pdsourceaside{In the first edition this was Definition III.6.1.}',
+                     r'\footnote{Historical definition number.}'):
+            with self.subTest(note=note), self.assertRaises(AssertionError):
+                source_check(source.replace(OPEN, OPEN+note, 1))
 
     @unittest.skipUnless(os.environ.get('BOOK_DEFINITION_NOTE_PDF'), 'assembled Book not supplied')
-    def test_actual_margin_placement(self):
+    def test_actual_definition_and_scope_share_a_page(self):
         render_check(os.environ['BOOK_DEFINITION_NOTE_PDF'])
 
     @unittest.skipUnless(os.environ.get('BOOK_DEFINITION_NOTE_BEFORE_PDF'), 'negative Book not supplied')
-    def test_old_book_continuation_rejected(self):
-        with self.assertRaisesRegex(AssertionError, 'continuation page'):
+    def test_obsolete_definition_is_rejected(self):
+        with self.assertRaises(AssertionError):
             render_check(os.environ['BOOK_DEFINITION_NOTE_BEFORE_PDF'])
 
 

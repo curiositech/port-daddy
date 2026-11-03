@@ -1,0 +1,72 @@
+{
+  "observed_at": "2026-11-03T17:56:58.741821+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "head_at_report": "c612d9b808507fc6ba649916e3118974fc45ed42",
+  "scope": "Assigned PR10345 skill mirrors and protocol fixture CI repair; no production typography changes",
+  "files": {
+    ".agents/skills/port-daddy-internal-dev/SKILL.md": "b2190e399028dbd1d7930a6503b20b08aae4396da8103e3a18b03b759cd4a458",
+    ".claude/skills/port-daddy-internal-dev/SKILL.md": "b2190e399028dbd1d7930a6503b20b08aae4396da8103e3a18b03b759cd4a458",
+    ".codex/skills/port-daddy-internal-dev/SKILL.md": "b2190e399028dbd1d7930a6503b20b08aae4396da8103e3a18b03b759cd4a458",
+    "tests/harbor-research/test_protocol_style.py": "5f26733a98dcdec5cde386f2dcba499c4f068874fe9294d389ff9841f632c6f8",
+    "tests/harbor-research/fixtures/protocol-style-book.tex": "524579184b8a7e9a6f5808599c9ae23b8d5c483325bf61c52373b94339cc2b7e",
+    "tests/harbor-research/fixtures/protocol-style-fixture.tex": "3575f918dc070ec441478c101652199692d7799bfa3199938b98e91a115a5afc",
+    "tests/harbor-research/fixtures/protocol-style-inputs.json": "199703232a722aa85dde2308932a64f6910363cced7e093dff73115f1a3a7e30"
+  },
+  "source_tests": {
+    "passed": 14,
+    "command": "python3 -B tests/harbor-research/test_protocol_style.py"
+  },
+  "skill_mirrors": {
+    "drift_count": 0,
+    "command": "node scripts/sync-skill-mirrors.mjs --check --json"
+  },
+  "renders": [
+    {
+      "profile": "main",
+      "receipt": ".scratch/textbook-craft-20261103/pr10345/protocol-main-open-current/receipt.json",
+      "receipt_sha256": "65a721b5f183fb4d34a87b65a2de960224e8564755e3d15d373ad9f5229b6166",
+      "pdf_sha256": "b3103c503722ca255a939a1dd957daca4f946f0e860b62538233560a23904119",
+      "actual_page_views": [
+        {
+          "page": 1,
+          "sha256": "6fb7840559043979882aac12f8490ccf041679f525f0abb0ecdf4cf7f2df1dbb",
+          "finding": "Separate protocol and ordinary headings, nested remark, list markers and controls are readable without clipping or collision."
+        },
+        {
+          "page": 7,
+          "sha256": "a77f0ff644078f99ec695e52e7a1fd5162ffc4b396b4ff831cd9f0f02e9a09c6",
+          "finding": "Separate protocol and ordinary headings, nested remark, list markers and controls are readable without clipping or collision."
+        },
+        {
+          "page": 8,
+          "sha256": "aa705462c2f828cb5dfe0984126b12ae973f517d1d649c4428bcf919f7ac2d3d",
+          "finding": "Separate protocol and ordinary headings, nested remark, list markers and controls are readable without clipping or collision."
+        }
+      ]
+    },
+    {
+      "profile": "heros",
+      "receipt": ".scratch/textbook-craft-20261103/pr10345/protocol-heros-open-current/receipt.json",
+      "receipt_sha256": "0bc90a5dc750acce2f5bb3f38fedec3c9ae0b0f8b3669f2a62b1802d50608ead",
+      "pdf_sha256": "efca368e2954ddb9ce480737c35e662913673682a4d467437ab72ab055e0d602",
+      "actual_page_views": [
+        {
+          "page": 1,
+          "sha256": "4d09d4c5638c27053b81e39813a44cda4f037488ec1464dbb71cda1a9b1f8b61",
+          "finding": "Separate protocol and ordinary headings, nested remark, list markers and controls are readable without clipping or collision."
+        },
+        {
+          "page": 9,
+          "sha256": "0d34a9c1397cfd756c8dc6dc71d1c607334fe7fc6163a2d32dd1d6bf9d494dbc",
+          "finding": "Separate protocol and ordinary headings, nested remark, list markers and controls are readable without clipping or collision."
+        },
+        {
+          "page": 10,
+          "sha256": "b27a5a124e285756970a5f34f42c6610949e8054256f4364ffb08de99eb20449",
+          "finding": "Separate protocol and ordinary headings, nested remark, list markers and controls are readable without clipping or collision."
+        }
+      ]
+    }
+  ]
+}

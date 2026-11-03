@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import fitz
-b=Path('.scratch/visual-atlas/inventory');a=json.load(open(b/'atlas.json'));doc=fitz.open(a['book']['path'])
+b=Path('.scratch/visual-atlas/inventory');a=json.loads((b/'atlas.json').read_text());doc=fitz.open(a['book']['path'])
 for i in a['items']:
  if i['kind']!='uncaptioned-listing':continue
  dest=doc.resolve_names()[i['pdfDestination']];pg=doc[dest['page']];y=pg.rect.height-dest['to'][1];lines=[l for block in pg.get_text('dict')['blocks']for l in block.get('lines',[])];body=[l['bbox'][1]for l in lines if l['bbox'][1]>y+2 and any(s['size']>9 and 'SourceCodePro'not in s['font']for s in l['spans'])];cut=min(body)if body else pg.rect.height-45;code=[l for l in lines if y-3<=l['bbox'][1]<cut and any('SourceCodePro'in s['font']for s in l['spans'])];assert code,i['id'];rect=fitz.Rect(code[0]['bbox'])

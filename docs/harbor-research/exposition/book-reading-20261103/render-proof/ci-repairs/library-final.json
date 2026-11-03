@@ -1,0 +1,26 @@
+{
+  "head_before": "c612d9b808507fc6ba649916e3118974fc45ed42",
+  "head_after": "c612d9b808507fc6ba649916e3118974fc45ed42",
+  "created_at": "2026-11-03T18:00:35.292786+00:00",
+  "scope": "Complete harbor-research unittest discovery after the single additional canary-layout test repair; BOOK_* unset. Snapshot covers603 selected source/test/script/workflow/desk inputs, not a complete hermetic dependency declaration.",
+  "input_files": 603,
+  "input_manifest": ".scratch/textbook-craft-20261103/pr10345/machine/library-final-input-manifest.json",
+  "input_manifest_sha256": "77a6f53c5ca346e945c405917b7cbaa0bd04f506a897715a35f8f38cffe3e693",
+  "changed_since_failed_run": [
+    "tests/harbor-research/test_semantic_block_styles.py"
+  ],
+  "changed_inputs_during_run": [],
+  "exit_code": 0,
+  "elapsed_seconds": 27.862,
+  "log": ".scratch/textbook-craft-20261103/pr10345/machine/library-full-final.log",
+  "log_sha256": "2274a01844b5ebd8a19542fb865c3c9e901f26751d84f07c1594d1568dd27620",
+  "summary": [
+    "...................s...s.................................................................ss....sssss........sss...sssssss..........sss..ssss...........ss...sss....sssssssss....s..s.......sss.sss........................",
+    "----------------------------------------------------------------------",
+    "Ran 939 tests in 27.544s",
+    "",
+    "OK (skipped=121)"
+  ],
+  "failures": [],
+  "previous_failed_receipt": "library-full-receipt.json"
+}

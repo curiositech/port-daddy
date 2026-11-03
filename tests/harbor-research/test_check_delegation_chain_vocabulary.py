@@ -38,7 +38,7 @@ RECORDED = [
     ("whitepaper/legible-swarm.tex",
      "attenuation-monotonic delegation chain (a security object"),
     ("website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-     r"Delegation chain replay (\S\ref{sec:delegation}"),
+     r"Delegation chain authenticity (\S\ref{sec:delegation}"),
     ("website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
      "Delegation chain replay & ProVerif at depth 3"),
 ]

@@ -2,7 +2,7 @@ import json,re,hashlib,sys
 from pathlib import Path
 import fitz
 sys.path.insert(0,'scripts');from book_visual_atlas_inventory import source_record
-b=Path('.scratch/visual-atlas/inventory');a=json.load(open(b/'atlas.json'));doc=fitz.open(a['book']['path']);items=a['items'];assert len(items)==704
+b=Path('.scratch/visual-atlas/inventory');a=json.loads((b/'atlas.json').read_text());doc=fitz.open(a['book']['path']);items=a['items'];assert len(items)==704
 # Restore literal mathematical caption source before making any display rendering.
 aux=Path('.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.aux').read_text()
 sys.path.insert(0,'scripts/harbor-research');from export_book_type_review import tex_groups
@@ -25,7 +25,7 @@ for i in items:
  for tex,unicode in [('delta','δ'),('epsilon','ε'),('varepsilon','ε'),('alpha','α'),('beta','β'),('gamma','γ'),('theta','θ'),('lambda','λ'),('rho','ρ'),('sigma','σ'),('tau','τ'),('mu','μ'),('pi','π')]:display=re.sub(r'\\'+tex+r'\b',unicode,display)
  i['caption']=display.replace('{','').replace('}','')
 # Current original-source mappings are evidence dependencies, not byte equality claims.
-for entry in json.load(open('.scratch/visual-atlas/verification/inlined-upstream-map.json')):
+for entry in json.loads(Path('.scratch/visual-atlas/verification/inlined-upstream-map.json').read_text()):
  i=next(i for i in items if i['id']==entry['id']);p=Path(entry['originalPath']);dep=source_record(p,p.read_text(),0,len(p.read_text()));dep['relationship']='Original fragment named by generated BEGIN INLINED marker; generator transformations not replayed';i.setdefault('sourceDependencies',[]).append(dep)
 macro=Path('website-v2/public/whitepaper/figures/pd-margin-evidence.tex');text=macro.read_text();body=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');bodytext=body.read_text()
 def emit(kind,title,page,rect,source,extra):
