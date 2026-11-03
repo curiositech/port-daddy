@@ -1,0 +1,85 @@
+{
+  "reviewer": "craft_machine",
+  "created_at": "2026-11-03T18:59:47.279759+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "head_before_edit": "d06082b51603f0e8bdc0afc2246bd817b58bc501",
+  "scope": "Independent check of the existing OP-5 retelling against its cited theorem and proof, followed by an authorized single-passage correction. No new whole-chapter review, runtime test, or independent review of this agent-authored replacement is claimed.",
+  "sources": [
+    {
+      "path": "whitepaper/single-writer-kernel.tex",
+      "read_ranges": [
+        [
+          1788,
+          1830
+        ]
+      ],
+      "range_basis": "pre-edit source",
+      "read_sha256": "d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8",
+      "current_sha256": "27c1bbff970f1efd2a4a7fa869fd79538c8240ad9d7099c2c61d89926ef9315d"
+    },
+    {
+      "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "sha256": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+      "read_ranges": [
+        [
+          2307,
+          2349
+        ],
+        [
+          2363,
+          2405
+        ],
+        [
+          2444,
+          2469
+        ],
+        [
+          2503,
+          2521
+        ]
+      ],
+      "range_basis": "unchanged cited source"
+    },
+    {
+      "path": "docs/harbor-research/tex/paper3.tex",
+      "sha256": "45fbae56dc5ffd81c15cda53e6b0ac08ed1e69fa8fd881fcc20a5e075c133ffc",
+      "read_ranges": [
+        [
+          120,
+          155
+        ],
+        [
+          197,
+          205
+        ]
+      ],
+      "range_basis": "unchanged cited source"
+    }
+  ],
+  "original_statement_verdict": "requires correction",
+  "findings": [
+    "C counts separately bribable candidate groups per audit, not the number of levels.",
+    "The geometric bound is conditional on the stated bribery regime and detection after every earlier miss. Disjoint groups or marginal error rates alone do not establish it.",
+    "The tower explicitly retains a trustworthy terminal adjudicator; it does not eliminate all grader trust.",
+    "The bribery-payoff calculation and probabilistic contraction are distinct conditional claims, not general incentive compatibility."
+  ],
+  "conditional_probability_check": {
+    "example": "If every level misses the same latent 20% of faults, its marginal detection is 80%, but survival after three levels remains 20%, rather than 0.2 cubed = 0.8%.",
+    "meaning": "Full independence is not necessary when the theorem supplies the conditional detection bound. The counterexample shows why a marginal rate or group labels do not suffice."
+  },
+  "correction": {
+    "path": "whitepaper/single-writer-kernel.tex",
+    "before_sha256": "d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8",
+    "after_sha256": "27c1bbff970f1efd2a4a7fa869fd79538c8240ad9d7099c2c61d89926ef9315d",
+    "passage_start_line": 1813,
+    "changes": "Only the OP-5 tower-retelling paragraph, split into two prose paragraphs with a live Book reference. Expressiveness remains open."
+  },
+  "patch_author": "craft_machine",
+  "independent_patch_review": "Pending operator second reader",
+  "test_recommendation": [
+    "Existing source/math/propagation gates at committed checkpoint; no new mirrored-literal test.",
+    "Verify the generated Book resolves stp:thm:tower-imported and standalone suppresses only the numbered cross-chapter reference.",
+    "Rebuild candidate23 and inspect the changed OP-5 spreads; repeat exact-PDF navigation and all-font page-ending checks."
+  ]
+}
