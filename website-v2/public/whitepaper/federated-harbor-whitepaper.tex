@@ -231,7 +231,7 @@ In Bonded, the Admissible KMS was characterized by a list of properties rather t
 \begin{pdexample}{Sovereignty over the Card Is Not Sovereignty over What It Touches}
 \setlength{\parskip}{4pt plus 1pt}
 \pdmarginanalogy{fh-local-admission-turnstile}{}{ch08-local-admission-turnstile}{Like a visitor pass presented at a locally controlled turnstile, a valid foreign credential does not compel the receiving harbor to admit it.}%
-Return to Failure~1 of \S\ref{sec:fh-intro}: Alice's \texttt{db:write} card is well-formed under the Anchor Protocol, and Bob's daemon refuses it anyway, because Bob's daemon has never rooted Alice's signing key. Check the checklist below against this one case before reading it formally.
+Consider this case: Alice's \texttt{db:write} card is well-formed under the Anchor Protocol, and Bob's daemon refuses it anyway, because Bob's daemon has never rooted Alice's signing key. Check the checklist below against this one case before reading it formally.
 $D_A$ (Alice's daemon) is the only party that minted the card, the only party that could have attenuated it before issue, and the only party that can revoke it --- three of the five items already visible in one refused request.
 The failure also shows item~4 by its absence: acceptance is $D_B$'s call alone, and no amount of well-formedness at $A$ can compel it.
 Once the transfer ceremony of \S\ref{sec:fh-xfer} lets $D_B$ mint a derived card, sovereignty over what that derived card does to $B$'s own database still belongs to $D_B$, never to $D_A$ --- exactly the boundary the property characterization below draws.
@@ -241,7 +241,7 @@ Once the transfer ceremony of \S\ref{sec:fh-xfer} lets $D_B$ mint a derived card
 \label{def:fh-sovereignty}
 A daemon $D_A$ is \emph{sovereign over harbor $A$} if it has exclusive authority over five things:
 \begin{enumerate}[nosep]
-\item \textbf{Issuance.} Only $D_A$ can mint a Harbor Card whose root signature verifies under $A$'s signing key $\mathit{sk}_A$.
+\item \textbf{Issuance.} Only $D_A$ can mint a Harbor Card using $A$'s private signing key $\mathit{sk}_A$; its root signature verifies under the corresponding public key $\mathit{pk}_A$.
 \item \textbf{Attenuation.} Only $D_A$ can apply a local attenuation predicate $\mathrm{att}_A$ that restricts an inbound capability before it is verified by an $A$-side agent.
 \item \textbf{Revocation.} Only $D_A$ can decide that a card it issued is revoked. The decision becomes globally visible by the gossip protocol of \S\ref{sec:fh-revocation}; $D_A$ does not control when other harbors learn of it, but it controls whether the revocation event exists.
 \item \textbf{Acceptance.} $D_A$ alone decides which inbound cards from other harbors to accept and under what local policy. No external party can compel acceptance.
@@ -311,7 +311,7 @@ and \texttt{badAccept} is true at the end --- the restored \texttt{revoked} set 
 
 \textbf{Epoch} (the fix: an external epoch counter that \texttt{Revoke} bumps and that \texttt{RollbackRestore} does not roll back, with \texttt{Accept} additionally requiring \texttt{cardEpoch[c] = epoch}): the same four-step trace no longer breaches, because the restored card's epoch is stale even though its \texttt{revoked} bit was rolled back, and TLC reports the invariant holding over a larger, 76-state space.
 
-Three runs, one relay, one added counter: that is the entire mechanism behind ``only-issuer-revokes'' being trustworthy across a backup/restore mishap, and it is the reason this chapter's own per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) are an external, monotonic anchor rather than a value the relay's own database could quietly roll back.
+Three runs, one relay, one added counter: that is the entire mechanism behind ``only-issuer-revokes'' being trustworthy across a backup/restore mishap, and it is the reason this chapter's own per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) are an external, \mbox{monotonic} anchor rather than a value the relay's own database could quietly roll back.
 \end{pdexample}
 
 \subsection{In-scope attacks}\label{sec:fh-attacks-in}
@@ -378,7 +378,7 @@ the receiving harbor. The four messages are:
 
 \item $\mathsf{xfer\_ack}\langle C_B', R_B^{(e)} \rangle$ --- $D_B$ verifies the envelope's signature against $A$'s public key as recorded in the witness log; verifies that $R_A^{(e)}$ is the current root for $A$; applies its own local attenuation $\mathrm{att}_B$; and mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$, a card valid only at $B$, signed under $\mathit{sk}_B$. The acknowledgment is sent back to $D_A$ along with $B$'s current epoch root.
 
-\item $\mathsf{xfer\_deliver}\langle C_B' \rangle$ --- $D_B$ delivers $C_B'$ to the agent at $B$ that will use it. Subsequent presentations of $C_B'$ at $B$ verify under $\mathit{sk}_B$ alone --- no $A$-side lookup is needed at the hot path.
+\item $\mathsf{xfer\_deliver}\langle C_B' \rangle$ --- $D_B$ delivers $C_B'$ to the agent at $B$ that will use it. Subsequent presentations of $C_B'$ at $B$ verify under $\mathit{pk}_B$ alone --- no $A$-side lookup is needed at the hot path.
 \end{enumerate}
 
 Each derivative $C_B'$ carries the transfer identifier of the offer that produced it, and $D_B$ mints at most one derivative per identifier, so a replayed $\mathsf{xfer\_offer}$ cannot produce a second $C_B'$; the identifier is part of what the counter-signature covers. The critical property is that after message (3), no further synchronous interaction with $A$ is required for the agent to operate at $B$. The cost is that revocation of $C_A$ at $A$ does not instantaneously revoke $C_B'$ at $B$; Theorem~\ref{thm:fh-conv} gives an expectation only under its delivery model, and partitions require fail-closed policy or bounded credential TTLs.
@@ -388,7 +388,7 @@ Each derivative $C_B'$ carries the transfer identifier of the offer that produce
 The Anchor Protocol's Phase-3 delegation already proves that a chain $C_{\text{daemon}} \to C_A \to C_B$ of attenuated cards is verifiable under the issuing daemon's public key, and that an attacker cannot inflate a downstream cap to exceed an upstream one. The transfer ceremony is Phase-3 delegation across a trust boundary, with two changes:
 
 \begin{enumerate}[nosep]
-\item The second link in the chain is signed under a \emph{different} root key ($\mathit{sk}_B$ instead of $\mathit{sk}_A$), so the verifier at $B$ verifies under $\mathit{sk}_B$, not $\mathit{sk}_A$.
+\item The second link in the chain is signed under a \emph{different} root key ($\mathit{sk}_B$ instead of $\mathit{sk}_A$), so the verifier at $B$ uses $B$'s public key $\mathit{pk}_B$, rather than $\mathit{pk}_A$.
 \item The cross-realm link binds the issuing harbor's current epoch root $R_A^{(e)}$, so the receiving verifier must retain the parent identifier, check its
 revocation dependency against the locally accepted current state, and refuse
 the derivative after learning that its parent is invalid. Observing a new
@@ -1033,7 +1033,7 @@ An edge-report error is not an agentic cause or a dishonest principal. The
 typed model must fix feature domains, restriction maps and independent
 observations before applying its distance rule. A drawn face contributes no
 new measurement by itself. A relative cohomology obstruction concerns extension
-of a visible compatible section; its vanishing proves that an extension exists,
+of a visible \mbox{compatible} section; its vanishing proves that an extension exists,
 not that unseen receipts agree with it. Minimum-cost certificates select known
 observations. Unknown-answer acquisition needs a predictive or adversarial
 model, and complementary receipts can have zero individual gain but positive

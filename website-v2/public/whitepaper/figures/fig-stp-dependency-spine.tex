@@ -1,6 +1,6 @@
 % Atlas: III/fig:stp-dependency-spine.
 % Question: what must persist before an agent's reputation can be traded?
-% Claim: every lower capability needs the capabilities above it.
+% Claim: every higher capability needs the structural foundation below it.
 % Evidence: sec:intro, sec:organs and sec:keystone; this chapter's status claims.
 % Distinguish: dependency from sufficiency; partial mechanisms from proposed trade.
 % Grammar: Swiss Graphic architectural ladder with maritime structural metaphor.
@@ -27,7 +27,7 @@
   \draw[draw=sgInk!35,fill=white,line width=.65pt,dash pattern=on 3pt off 2pt]
     (0,144) rectangle (\cardW,144+\cardH);
   \node[anchor=west,font=\SGType\bfseries,text=sgViolet] at (8,166)
-    {L4\quad CHARTER \& COMMERCE};
+    {T4\quad CHARTER \& COMMERCE};
   \node[anchor=east,font=\pdfiglabelbold,text=sgInk!50] at (\cardW-8,166)
     {\fboxsep=2pt\colorbox{sgInk!8}{\textcolor{sgInk!70}{PROPOSED}}};
   \node[anchor=west,font=\SGType,text=sgInk] at (8,152)
@@ -43,7 +43,7 @@
   \draw[draw=sgInk!45,fill=white,line width=.65pt]
     (0,100) rectangle (\cardW,100+\cardH);
   \node[anchor=west,font=\SGType\bfseries,text=sgViolet] at (8,122)
-    {L3\quad CLASSIFICATION RATING};
+    {T3\quad CLASSIFICATION RATING};
   \node[anchor=east,font=\pdfiglabelbold,text=sgViolet] at (\cardW-8,122)
     {\fboxsep=2pt\colorbox{sgViolet!10}{\textcolor{sgViolet}{SPECIFIED}}};
   \node[anchor=west,font=\SGType,text=sgInk] at (8,108)
@@ -73,11 +73,11 @@
   \draw[draw=sgInk!65,fill=white,line width=.75pt]
     (0,34) rectangle (\cardW,34+\cardH);
   \node[anchor=west,font=\SGType\bfseries,text=sgBlue] at (8,56)
-    {L2\quad VESSEL CALL SIGN \& REGISTRY};
+    {T2\quad VESSEL CALL SIGN \& REGISTRY};
   \node[anchor=east,font=\pdfiglabelbold,text=sgAmber] at (\cardW-8,56)
     {\fboxsep=2pt\colorbox{sgAmber!12}{\textcolor{sgAmber!90!black}{OUTCOME LEDGER REQ.}}};
   \node[anchor=west,font=\SGType,text=sgInk] at (8,42)
-    {\textbf{Participant}\quad\textcolor{sgInk!60}{Witnessed identity soul}};
+    {\textbf{Participant}\quad\textcolor{sgInk!60}{Witnessed identity}};
   \node[anchor=east,font=\SGType,text=sgInk!60] at (\cardW-8,42)
     {Witness substrate partial};
 
@@ -89,11 +89,11 @@
   \draw[draw=sgInk!85,fill=white,line width=.85pt]
     (0,-10) rectangle (\cardW,-10+\cardH);
   \node[anchor=west,font=\SGType\bfseries,text=sgBlue] at (8,12)
-    {L1\quad BULKHEADS \& RIGGING SPLICE};
+    {T1\quad BULKHEADS \& RIGGING SPLICE};
   \node[anchor=east,font=\pdfiglabelbold,text=sgTeal] at (\cardW-8,12)
     {\fboxsep=2pt\colorbox{sgTeal!12}{\textcolor{sgTeal}{PARTIAL}}};
   \node[anchor=west,font=\SGType,text=sgInk] at (8,-2)
-    {\textbf{Continuity}\quad\textcolor{sgInk!60}{Session crash survival (Parfit)}};
+    {\textbf{Summary restart}\quad\textcolor{sgInk!60}{Saved context, not execution}};
   \node[anchor=east,font=\SGType,text=sgInk!60] at (\cardW-8,-2)
     {Resurrection partial};
 
@@ -101,19 +101,19 @@
   \draw[sg/arrow,draw=sgInk!75] (28,-10) -- (28,-20);
   \node[anchor=west,font=\SGType,text=sgInk!50] at (37,-15) {requires};
 
-  % --- TIER 0: MEMORY & CHECKPOINT (The Keel / Foundation) -----------------
+  % --- TIER 0: DURABLE MEMORY (The Keel / Foundation) -----------------
   \draw[draw=sgInk,fill=sgTeal!6,line width=1.1pt]
     (0,-54) rectangle (\cardW,-54+\cardH);
   \draw[sgTeal,line width=1.8pt] (0,-54)--(\cardW,-54);
   \node[anchor=west,font=\SGType\bfseries,text=sgTeal] at (8,-32)
-    {L0\quad CAST KEEL \& BEDPLATE FOUNDATION};
+    {T0\quad CAST KEEL \& BEDPLATE FOUNDATION};
   \node[anchor=east,font=\SGType\bfseries,text=sgTeal] at (\cardW-8,-32)
     {\fboxsep=2pt\colorbox{sgTeal!15}{\textcolor{sgTeal}{BUILT}}};
   \node[anchor=west,font=\SGType,text=sgInk] at (8,-46)
-    {\textbf{Memory \& checkpoint}\quad\textcolor{sgInk!70}{Append-only write log}};
+    {\textbf{Durable memory}\quad\textcolor{sgInk!70}{Append-only write log}};
   \node[anchor=east,font=\SGType,text=sgInk!70] at (\cardW-8,-46)
     {Log implemented};
 \end{tikzpicture}}
-\caption{Each lower capability requires the structural foundation beneath it; none follows from them alone. The ladder exposes the sharp boundary where the reference system's implemented reality stops today on the path to an operational market. [internal]}
+\caption{Each higher tier requires the foundation below it; none follows from that foundation alone. T0--T4 name capability tiers, distinct from architecture layers L0--L3. The status labels separate implemented logs and partial summary restart from specified reputation and proposed trade. [internal]}
 \label{fig:stp-dependency-spine}
 \end{figure}

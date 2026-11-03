@@ -11,6 +11,8 @@ the new ToC happens to call the expected macros.
 
 import os
 import importlib.util
+import hashlib
+import json
 from collections import Counter
 from pathlib import Path
 import unittest
@@ -83,9 +85,14 @@ class AssembledBookContentsTests(unittest.TestCase):
         if len(outlines) != 1:
             raise AssertionError(f"Expected one Contents bookmark, got {outlines}")
         cls.first = outlines[0][2] - 1
-        intro = next(link for link in cls.pdf[cls.first].get_links()
-                     if link.get("nameddest") == "section.1")
-        cls.last = intro["page"] - 1
+        # The first numbered chapter bounds the contents, including Chapter0.
+        # Its stable destination is supplied by the actual TOC inventory.
+        first_chapter = next(entry for entry in cls.entries if entry[0] == "chapter")
+        destinations = cls.pdf.resolve_names()
+        cls.last = destinations[first_chapter[3]]["page"] - 1
+        cls.chapter_count = sum(entry[0] == "chapter" for entry in cls.entries)
+        if cls.chapter_count != 9 or first_chapter[3] != "pdchapter.chap.0":
+            raise AssertionError("Expected foundations plus the eight core chapters")
         labels = {}
         for line in cls.path.with_suffix(".aux").read_text().splitlines():
             if line.startswith("\\newlabel{book:reader-"):
@@ -124,7 +131,7 @@ class AssembledBookContentsTests(unittest.TestCase):
                 missing.append((kind, title, number, destination))
         self.assertEqual(missing, [])
         counts = Counter(entry[0] for entry in self.entries)
-        self.assertEqual(counts["chapter"], 8)
+        self.assertEqual(counts["chapter"], self.chapter_count)
         self.assertGreater(counts["subsection"], 150)
 
     def test_all_page_numbers_match_the_destination_page_labels(self):
@@ -139,15 +146,32 @@ class AssembledBookContentsTests(unittest.TestCase):
 
     def test_complete_backmatter_and_existing_part_art_are_present(self):
         titles = [entry[1] for entry in self.entries]
-        for title in ["References", "Image credits", "Result atlas", "Mechanized claims",
+        for title in ["Image credits", "Result atlas", "Mechanized claims",
                       "One ledger, three different reputation keys",
                       "Which chapter owns which primitive",
                       "Routes to the open problems"]:
             self.assertEqual(sum(title in entry for entry in titles), 1, title)
-        self.assertEqual(sum(title.startswith("Chapter ") for title in titles), 8)
-        images = {image[0] for index in range(self.first, self.last + 1)
-                  for image in self.pdf[index].get_images()}
-        self.assertEqual(len(images), 12, "Four part plates and eight chapter plates")
+        self.assertNotIn("References", titles, "Full references live beside their first use")
+        self.assertEqual(sum(title.startswith("Chapter ") for title in titles), self.chapter_count)
+        root = Path(__file__).resolve().parents[2]
+        manifest = json.loads((root / "whitepaper/textbook.json").read_text())
+        plates = root / "website-v2/public/whitepaper/plates"
+        # Verify image identities, not just resource count. Chapter0 and the
+        # four reflection entries also have real visual locators in the ToC.
+        expected = {f"part-{part['numeral']}.jpg" for part in manifest["parts"]}
+        expected |= {f"chapter-{chapter['prefix']}.jpg" for chapter in manifest["chapters"]}
+        expected |= {"chapter-prereq.jpg", "the-controlled-opening.jpg",
+                     "the-unseen-boat.jpg", "the-waiting-body.jpg", "the-paper-crossing.jpg"}
+        assets = {hashlib.sha256(path.read_bytes()).hexdigest(): path.name
+                  for path in plates.rglob("*.jpg")}
+        images = {image["xref"] for index in range(self.first, self.last + 1)
+                  for image in self.pdf[index].get_image_info(xrefs=True)}
+        observed = []
+        for xref in images:
+            digest = hashlib.sha256(self.pdf.extract_image(xref)["image"]).hexdigest()
+            self.assertIn(digest, assets, f"Unbound ToC image {xref}")
+            observed.append(assets[digest])
+        self.assertEqual(Counter(observed), Counter(expected))
 
     def test_contents_and_reader_spread_ink_stays_inside_trim(self):
         outside = []
@@ -169,14 +193,16 @@ class AssembledBookContentsTests(unittest.TestCase):
         left, right = self.reader["book:reader-left"], self.reader["book:reader-right"]
         self.assertEqual((left + 1) % 2, 0)
         self.assertEqual(right, left + 1)
-        for index, prose in [(left, "paragraph to locate a claim"),
-                             (right, "Every important statement is labeled")]:
-            page = self.pdf[index]
-            paragraphs = page.search_for(prose)
-            lane = page.search_for("INSTITUTIONAL")
-            self.assertTrue(paragraphs and lane, (index + 1, prose))
-            self.assertGreater(paragraphs[0].y0, max(rect.y1 for rect in lane))
-        self.assertNotIn("paragraph to locate a claim", self.pdf[right].get_text())
+        page = self.pdf[left]
+        paragraphs = page.search_for("paragraph to locate a claim")
+        lane = page.search_for("INSTITUTIONAL")
+        self.assertTrue(paragraphs and lane, left + 1)
+        self.assertGreater(paragraphs[0].y0, max(rect.y1 for rect in lane))
+        right_text = " ".join(self.pdf[right].get_text().split())
+        for phrase in ("Part III", "What Survives the Restart", "Part IV",
+                       "Trade Between Strangers", "Five first", "reading routes"):
+            self.assertIn(phrase, right_text)
+        self.assertNotIn("paragraph to locate a claim", right_text)
 
 
 if __name__ == "__main__":

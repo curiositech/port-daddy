@@ -509,7 +509,7 @@ for writers; nothing in the repository yet checks the writer case.
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
 The alternative the procedure exists to forbid is dual writing with
-reconciliation: both authorities accept writes for a while and receipts
+reconciliation: both authorities accept writes for a while and \mbox{receipts}
 reconcile them afterwards. That is two truths, the condition every result in
 this chapter assumes away, and no receipt repairs it after the fact, because
 the receipt itself would need a writer.
@@ -531,9 +531,8 @@ The kernel's foundational promise --- ``a write that returned success survives''
 one the pitch most invites.
 \begin{table}[H]
 \centering
-\caption{In WAL mode, \texttt{NORMAL} preserves committed writes through
-process crashes, not necessarily OS crashes or power loss. \texttt{FULL}
-adds per-commit synchronization for those failures. [internal]}
+\caption{WAL: \texttt{NORMAL} survives process crashes. \texttt{FULL} adds
+per-commit synchronization against OS crashes and power loss. [internal]}
 \label{tab:swk-durability-faultclass}
 \small
 \renewcommand{\arraystretch}{1.2}
@@ -1670,7 +1669,7 @@ An Isabelle or Coq formalization remains open.
 
 (vi) Prevention governs effects, never
 semantics. For ``no confident falsehoods in status reports'' the obstruction is
-observability: a report leaves through emission and then through \texttt{api\_call},
+\mbox{observability}: a report leaves through emission and then through \texttt{api\_call},
 \texttt{fs\_write}, or \texttt{net\_egress}, all controllable, so the prohibition can be made
 controllable; but the coarse event alphabet does not say whether a report is true.
 A stronger interface might admit only registered facts with checked receipts.

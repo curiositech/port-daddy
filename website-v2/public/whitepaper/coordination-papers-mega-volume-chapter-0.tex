@@ -654,7 +654,7 @@ In any multi-agent engineering swarm, allocating tasks across workers presents a
 Two eligible workers offer to test revision~7 before the same deadline, for
 20 and 24 units. The lowest-price rule selects the first. It returns a passing
 receipt for revision~6. The selection rule has worked; the delivery has not
-met the agreed specification. Award, permission to execute and accepted delivery
+met the agreed \mbox{specification}. Award, permission to execute and accepted delivery
 are three different events. Chapter 6 develops their ledger consequences.
 \end{pdexample}
 
@@ -1059,13 +1059,13 @@ not guarantee recovery or make external effects reversible.
 Modern agents employ structured search and planning algorithms across candidate execution paths~\pdcite{wang2023agentsurvey}:
 
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
-  \item \textbf{ReAct (Reasoning and Acting)~\pdcite{yao2022react}:}\enspace Interleaves natural language reasoning traces (``Thoughts'') with structured tool executions (``Actions'') and environment feedback (``Observations''). When factual uncertainty is encountered, reasoning halts and an exploratory tool is invoked.
+  \item \textbf{ReAct (Reasoning and Acting)~\pdcite{yao2022react}:}\enspace Interleaves natural language reasoning traces (``Thoughts'') with structured tool executions (``Actions'') and environment feedback (``Observations''). An action can gather evidence that changes the next reasoning step. This interleaving permits inquiry; it does not guarantee that every uncertainty triggers a tool call.
   
   \item \textbf{Tree of Thoughts (ToT)~\pdcite{yao2023tree}:}\enspace Generalizes chain-of-thought prompting to tree-search algorithms (BFS, DFS, A*). The agent generates candidate reasoning steps, evaluates node value via self-critique heuristics, and backtracks upon exploring unviable subtrees.
   
   \item \textbf{Reflexion~\pdcite{shinn2023reflexion}:}\enspace Implements verbal reinforcement learning. Upon test failure or verification rejection, the model generates an explicit post-mortem reflection analyzing the cause of error, which is persisted in an episodic memory buffer and injected into future prompt turns.
 
-  \item \textbf{Voyager Lifelong Skill Learning~\pdcite{wang2023voyager}:}\enspace Implements open-ended lifelong learning by accumulating an \textbf{executable skill library}. When an agent solves a complex programming task, it synthesizes a self-contained, parameter-validated script and stores it in a vector-indexed codebase. Subsequent tasks retrieve and compose existing skills, transforming complex multi-step reasoning into atomic tool calls.
+  \item \textbf{Voyager Lifelong Skill Learning~\pdcite{wang2023voyager}:}\enspace In Minecraft, an agent accumulates an \textbf{executable skill library}: code for behaviors that later tasks can retrieve and compose. Environment feedback, execution errors and self-verification guide program improvement. The example shows how procedural memory can outlast a prompt; using the pattern for software work still requires checking dependencies, permitted effects and task-specific correctness.
 
   \item \textbf{TDAG~\pdcite{wang2024tdag}:}\enspace Task Decomposition and Agent Generation dynamically decomposes a task and generates specialized subagents. Wang et al. evaluate it on ItineraryBench, a travel-planning benchmark. This supports an adaptive planning pattern; it is not a theorem about eliminating dependency cycles or serializing software mutations.
 

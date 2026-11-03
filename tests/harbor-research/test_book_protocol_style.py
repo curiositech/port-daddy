@@ -1,14 +1,17 @@
 """Protocol presentation and whole-postcondition regression, not protocol proof."""
 import os
+from collections import Counter
 from pathlib import Path
 import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-EXPECTED = {
-    'lsprotocol.4.2.1', 'lsprotocol.4.3.1', 'lsprotocol.4.5.1',
-    'lsprotocol.4.7.1', 'stpprotocol.5.10.1', 'stpprotocol.5.10.2',
-    'stpprotocol.5.12.1', 'heprotocol.6.3.1', 'heprotocol.6.8.1',
+EXPECTED_COUNTS = {'lsprotocol': 4, 'stpprotocol': 3, 'heprotocol': 2}
+EXPECTED_TITLES = {
+    'Consent-grant lifecycle', 'Render a digest line under the one law',
+    'The Inception Canary protocol', 'Attention allocation under the stated loss model',
+    'The judge-hiring ceremony', 'The skill-helpfulness witnessed-event schema',
+    'Tombstone revocation', 'Float-plan escrow ceremony', 'Federated revocation gossip',
 }
 
 
@@ -28,16 +31,16 @@ def whole_gossip_postcondition(text):
 
 def whole_judge_remedy_heading(pages):
     """A page may break before a remedy, not halfway through its short label."""
-    heading = 'FixB—bondandslashthejudges:'
+    heading = 'FixB—accountablecontractualadjudication:'
     return sum(heading in compact(page) for page in pages) == 1
 
 
 class ProtocolSource(unittest.TestCase):
     def test_split_judge_remedy_heading_is_rejected(self):
         self.assertTrue(whole_judge_remedy_heading([
-            'Earlier text.', 'Fix B — bond-and-slash the judges: where checking is impossible']))
+            'Earlier text.', 'Fix B — accountable contractual adjudication: for subjective criteria']))
         self.assertFalse(whole_judge_remedy_heading([
-            'Earlier text. Fix B', '— bond-and-slash the judges: where checking is impossible']))
+            'Earlier text. Fix B', '— accountable contractual adjudication: for subjective criteria']))
 
     def test_conditional_gossip_premises_survive_shorter_introduction(self):
         source = (ROOT / 'website-v2/public/whitepaper/harbor-economy.tex').read_text()
@@ -76,6 +79,7 @@ class ProtocolActualBook(unittest.TestCase):
         import fitz
         cls.document = fitz.open(os.environ['BOOK_PROTOCOL_PDF'])
         cls.names = cls.document.resolve_names()
+        cls.aux = Path(os.environ['BOOK_PROTOCOL_PDF']).with_suffix('.aux').read_text()
 
     @classmethod
     def tearDownClass(cls):
@@ -84,19 +88,30 @@ class ProtocolActualBook(unittest.TestCase):
     def test_all_nine_protocols_keep_identity_and_approved_teal_frame(self):
         actual = {key for key in self.names
                   if re.fullmatch(r'(?:ls|stp|he)?protocol\.[\d.]+', key)}
-        self.assertEqual(actual, EXPECTED)
+        self.assertEqual(Counter(key.split('.', 1)[0] for key in actual),
+                         Counter(EXPECTED_COUNTS))
+        observed_titles = []
         teal = (0/255, 125/255, 115/255)
-        for key in sorted(EXPECTED):
+        for key in sorted(actual):
             page = self.document[self.names[key]['page']]
             number = key.split('.', 1)[1]
             self.assertIn('Protocol' + number + '(', compact(page.get_text()), key)
+            titles = [title for title in EXPECTED_TITLES
+                      if compact('Protocol' + number + '(' + title + ')')
+                      in compact(page.get_text())]
+            self.assertEqual(len(titles), 1, (key, titles))
+            observed_titles.extend(titles)
             caps = [drawing for drawing in page.get_drawings()
                     if drawing['fill'] is not None
                     and len(drawing['fill']) == 3
                     and max(abs(a-b) for a, b in zip(drawing['fill'], teal)) < .004
-                    and min(drawing['rect'].width, drawing['rect'].height) >= 4.8]
-            # Study A uses a broad top and left rail, not four corner caps.
+                    and min(drawing['rect'].width, drawing['rect'].height) >= 2.8
+                    and max(drawing['rect'].width, drawing['rect'].height) >= 12]
+            # House corner marks are 3pt strips. Require their length and
+            # both orientations, rather than mistaking strip thickness for area.
             self.assertGreaterEqual(len(caps), 2, key)
+            self.assertTrue(any(d['rect'].width > d['rect'].height for d in caps), key)
+            self.assertTrue(any(d['rect'].height > d['rect'].width for d in caps), key)
             edge_color = teal
             outlines = [drawing for drawing in page.get_drawings()
                         if drawing['width'] is not None
@@ -116,8 +131,12 @@ class ProtocolActualBook(unittest.TestCase):
                 for first, second in zip(items, items[1:]):
                     self.assertEqual(first[2], second[1], key)
 
+        self.assertEqual(Counter(observed_titles), Counter(EXPECTED_TITLES))
+
     def test_gossip_postcondition_does_not_become_a_two_line_page_tail(self):
-        start = self.names['heprotocol.6.8.1']['page']
+        match = re.search(r'\\newlabel\{he:prot:gossip\}\{\{([^{}]+)\}', self.aux)
+        self.assertIsNotNone(match, 'the gossip protocol lost its stable label')
+        start = self.names['heprotocol.' + match.group(1)]['page']
         matches = []
         # A protocol may break; the logical postcondition must not. A complete
         # continuation paragraph is different from a severed two-line tail.

@@ -47,8 +47,8 @@
           3431
         ]
       ],
-      "after_sha256": "c29ac2de3dc893acecd3d8f7b453019648fbf1c49cae6bcf5583d00504a09be6",
-      "after_lines": 3511,
+      "after_sha256": "eec7a39223fa2b3aaad8c1430c731adcb900b27c18db324af48d9ad03c315aa6",
+      "after_lines": 3513,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",
       "note": "Initial truncated combined preview was not counted."
@@ -133,7 +133,7 @@
           1911
         ]
       ],
-      "after_sha256": "c13bfdabf356839c2d1657dd968b2f7d37ba9661c9bcf672f94a0b1328eda52f",
+      "after_sha256": "94cfccc46152812969628b40a67f619502dd77c43b59b8dd2e652a3ccaf807e1",
       "after_lines": 2023,
       "canonical_read_complete": true,
       "method": "Sequential source reading of all prose, definitions, claims, examples, exercises, solutions, appendices and bibliography; not a lint proxy. Transitive figure sources are a separate follow-through.",

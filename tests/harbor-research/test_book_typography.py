@@ -66,7 +66,8 @@ def evidence_table_records(pages, statuses):
                               key=lambda span: (round(span["bbox"][1], 1), span["bbox"][0]))
                 identifier = "".join("".join(span["text"].split()) for span in code)
                 identifier = identifier.replace("\u2010", "-").replace("\u2011", "-")
-                continued = any("(continued)" in span["text"] for span in claim)
+                continued = any(span["text"].strip() in {"(continued)", "cont."}
+                                for span in claim)
                 records.append((identifier, status[4], continued, page.number + 1))
     return records
 
