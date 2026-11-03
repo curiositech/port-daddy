@@ -21,7 +21,7 @@
   \node[pd label,anchor=west] at (2.95,.70) {SessionEnd};
   \draw[pd focus arrow,rounded corners=3pt] (O3.west) -- (.25,1.40) -- (.25,2.80) -- (O2.west);
   \node[pd focus label,rotate=90] at (.70,2.10) {next turn};
-  \node[pd artifact,text width=1.1cm,align=center] (PC) at (5.00,4.25) {Pre\\Compact};
+  \node[pd artifact,text width=1.5cm,align=center] (PC) at (5.00,4.25) {Pre\\Compact};
   \draw[pd thin arrow,<->] (O2.north east) -- (PC.south west);
   \node[pd badge] at (4.60,3.40) {2};
   \draw[pd trust boundary] (5.95,1.75) rectangle (10.85,4.85);
@@ -41,12 +41,12 @@
 \end{tikzpicture}
 \par\smallskip
 {\pdfiglabel\renewcommand{\arraystretch}{1.15}%
-\begin{tabularx}{\linewidth}{@{}c p{2.55cm}p{.7cm}>{\raggedright\arraybackslash}X@{}}
+\begin{tabularx}{\linewidth}{@{}c p{2.8cm}p{1.05cm}>{\raggedright\arraybackslash}X@{}}
 \toprule
  & \textbf{Hook} & \textbf{Loop} & \textbf{Fires and may}\\
 \midrule
 1 & \texttt{UserPromptSubmit} & outer & Inject or reject context before deliberation.\\
-2 & \texttt{PreCompact} & outer & Preserve claims and locks; resume the turn.\\
+2 & \texttt{PreCompact} & outer & Record a recovery checkpoint before compaction.\\
 3 & \texttt{PreToolUse} & inner & Veto a call before its mediated effect.\\
 4 & \texttt{PostToolUse} & inner & Record results after effects; compensation may be limited.\\
 5 & \texttt{Stop} & outer & Check closeout; request more work if needed.\\

@@ -1,6 +1,6 @@
 % Stable atlas ID: IV/fig:fh-xfer.
 % Question: which messages cross the boundary, and when can B verify alone?
-% Claim: only offer/ack cross; attenuation never enlarges C_A.
+% Claim: only offer/ack cross; subset attenuation requires a shared resource universe.
 % Relation: four-party sequence, time downward, realms side by side.
 % Evidence: sec:fh-xfer-ceremony's four messages and signed epoch roots.
 % Counter-reading: local verification does not eliminate asynchronous revocation.
@@ -36,11 +36,12 @@
     {acknowledge: $C'_B$, epoch root $R_B^{(e)}$\\$C'_B=\mathrm{att}_B(\mathrm{att}_A(C_A))\subseteq C_A$};
   \draw[pd focus arrow] (5.7,-6.35) -- (8.7,-6.35);
   \node[pd focus label,anchor=south,text width=3.3cm,align=center] at (7.2,-6.2)
-    {deliver $C'_B$\\verify locally under $\mathrm{sk}_B$};
+    {deliver $C'_B$\\verify locally under $\mathrm{pk}_B$};
 \end{tikzpicture}
 \caption{Only the offer and acknowledgement cross the boundary. The
-destination card has no more authority than the source card; $B$ then
-verifies locally. Later epoch roots carry revocation asynchronously.
+displayed subset relation assumes the same resource identifiers. A different
+resource needs a new grant under $B$'s policy. Local verification uses $B$'s
+public key and must enforce the parent-revocation dependency.
 [internal]}
 \label{fig:fh-xfer}
 \end{figure}

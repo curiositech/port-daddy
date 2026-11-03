@@ -1,0 +1,19 @@
+# Foundations, front matter and concordance: sequential reading
+
+Applied textbook-craft to the complete authored root (227 initial lines), Chapter0 (1266 initial lines), and appendices (325 initial lines). Chapter0 narrative was read in contiguous bounded ranges:1–106,107–335,336–588,589–794,795–994,995–1266. Root and appendices were read through their ends. Initial source hashes are in reading-plan.json; saved source hashes and26 concept clusters are in foundations-concepts.json. Later edits were reread as scoped passages. An independent adversarial reader checked the changed foundations argument and all five solutions; all six findings were addressed. Rendered acceptance is recorded separately. This does not claim a full read of every external reference or every figure image.
+
+The reader's route is one interrupted repair: a stale overwrite, a failed patch, an ambiguous timeout and a resumed stale worker. The final preservation/recovery result uses these cases. Material whose formal machinery played no role (a misattributed eight-component BDI model, a fabricated FIPA formula table, and unused training-loss equations) was replaced with scoped explanations. The full originating theories are not claimed to be implemented by the harness.
+
+The BDI discussion distinguishes loss of belief in possibility from belief in impossibility; weak-until persistence does not imply completion. Two hidden-bit worlds teach observation before confinement. Attention is introduced by averaging2and4; the KV calculation remains a capacity estimate. Conditional survival is taught with0.9×0.8 before its theorem. Contract-net selection is separated from acceptance using prices20/24 and a wrong-revision receipt. The deterrence calculation returns with detection0.01 to show why a fixed100-unit bond can fail.
+
+The chapter ends with five Check/Trace/Open exercises and deferred solutions. The generator includes an authored Chapter0 solution file without treating it as one of the eight manifest chapters. Front matter no longer asserts an unsupported four-order economic collapse or a unique architecture theorem. An unverifiable composite Asimov quotation was removed; this pass does not independently certify every remaining epigraph. The concordance encourages contextual recall while retaining one canonical definition per primitive.
+
+Primary checks used:
+- Rao and Georgeff, 1991 technical report: https://jmvidal.cse.sc.edu/library/rao91a.pdf . Checked model arity, strong-realism context, weak-until convention and commitment distinctions. No claim to prove the complete logic here.
+- Liu et al., Lost in the Middle: https://arxiv.org/abs/2307.03172 . Position-sensitive task results do not establish universal60%/70% degradation or direct attention-weight claims.
+- MCP specification2025-11-25 tools/resources/prompts: https://modelcontextprotocol.io/specification/2025-11-25/server/tools . Checked interface scope; no confinement guarantee inferred.
+- Claude Code hooks: https://code.claude.com/docs/en/hooks , accessed2026-11-03. PreToolUse exit2 is an explicit refusal; other errors depend on failure policy. StopFailure is notification, not a veto.
+
+Remaining acceptance: final rendered chapter pacing, examples/solutions back-links, cross-chapter consistency, exact-head source checks and hosted publication. Sequential source reading does not certify deployed runtime assertions or every external empirical claim. The canonical Omni ledger records this pass and the separate publication boundary.
+
+Independent second-reader findings resolved: authorized withdrawal is an explicit commitment release; an absent timeout receipt does not exclude an in-flight request; VCG report/allocation symbols are defined; full observation is an explicit control premise; qualitative scenes use ordinary paragraphs rather than numeric-example boxes; audit selection and conditional detection have separate meanings.

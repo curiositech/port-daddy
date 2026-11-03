@@ -13,7 +13,7 @@
 % -----------------------------------------------------------------------
 \documentclass[11pt,a4paper]{article}
 \input{preamble}
-\usepackage{graphicx}
+\usepackage{graphicx}\usepackage{array}
 \graphicspath{{../figures/}}
 \usepackage{mdframed}
 \newmdenv[backgroundcolor=blue!4,linecolor=harborblue,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{thebox}
@@ -65,12 +65,7 @@ dissolving the identity question in fission cases, so that what matters survives
 being reached \cite{parfit,parfit1971}. The design rule that licenses is flat: any mechanism whose safety depends on resolving the
 ship of Theseus is unbuildable. We never decide whether the fork ``is'' its ancestor or the resurrected agent ``is'' the deceased one. We ask instead
 what a reputation economy must \emph{conserve} across these events so that the sanctions it levies keep their teeth, and we prove
-three conservation results --- one per door through which continuity can be abused. The root the chain hangs from is the program's prior impossibility result
-(whitepaper Def.~III.6.1 and its necessity theorem): a reputation mechanism is \emph{sanction-respecting} if a dishonest witnessed
-outcome reduces the score its producer can act under by some $\Delta>0$ for a non-trivial window; if fresh identities can be minted
-at zero cost, no sanction-respecting mechanism exists, because the whitewasher's accessible score never falls below a clean
-newcomer's \cite{friedman-resnick,douceur}. Non-forgeable identity with positive abandonment cost is therefore \emph{necessary} ---
-and this paper is about what remains once you have it: the abuses that ride on \emph{legitimate} continuity operations. Forks and
+three conservation results --- one per door through which continuity can be abused. The relevant newcomer-floor obstruction is narrower than a general impossibility of reputation. Suppose a fresh identity can be created and used for free at score $r_0$, inherited liabilities cannot be linked to it, access depends only on that score, and dishonesty is feasible at $r_0$. An actor sanctioned below $r_0$ can then return to the clean baseline by resetting. This defeats a penalty below the newcomer floor; it does not erase every fall from an established score. Authentication alone also does not make abandonment costly \cite{friedman-resnick,douceur}. Admission costs, linked liabilities, or restrictions on clean newcomers can address different premises of this obstruction. This paper studies the abuses that remain during \emph{legitimate} continuity operations. Forks and
 distillation ask what a child may inherit (\S\ref{sec:nomint}); engine swaps ask what the price must key on
 (\S\ref{sec:engine}); resurrection asks what must be verified before a body change carries a record across providers
 (\S\ref{sec:resurrection}); and the front gate asks what shape the newcomer ramp must be so that honest entrants pay the least
@@ -83,18 +78,18 @@ formal box --- and closes with an honest-boundary block at the same prominence a
 the named self-contained script at seed 20260816, shipped with the paper.
 
 \begin{center}
-\begin{tabular}{@{}llll@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{.18\linewidth}>{\raggedright\arraybackslash}p{.23\linewidth}>{\raggedright\arraybackslash}p{.27\linewidth}>{\raggedright\arraybackslash}p{.22\linewidth}@{}}
 \toprule
 Event & Claim & Verification & Artifact \\
 \midrule
 fork / distill (\S\ref{sec:nomint}) & no-mint under transfer & 4000 random DAGs; mutant caught &
-\texttt{a6\_no\_mint.py} \\
+\texttt{a6\_\allowbreak no\_\allowbreak mint.py} \\
 engine swap (\S\ref{sec:engine}) & unraveling; IC flip & $4000\times 8$ sweeps; 2000 spirals &
-\texttt{b5\_engine\_substitution.py} \\
+\texttt{b5\_\allowbreak engine\_\allowbreak substitution.py} \\
 resurrection (\S\ref{sec:resurrection}) & sanction soundness & 747-state machine; 4/4 mutants &
-\texttt{b5\_engine\_substitution.py} \\
+\texttt{b5\_\allowbreak engine\_\allowbreak substitution.py} \\
 fresh entry (\S\ref{sec:cliff}) & cliff undominated (uncapped) & 76{,}000 schedules, 0 dominate &
-\texttt{b6\_probation.py} \\
+\texttt{b6\_\allowbreak probation.py} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -118,7 +113,7 @@ printed on it, so the running total can be added up by eye.
 one, the child's prior $\gamma\, w\cdot\mathrm{value}(\text{source})$, and the claim ``total inherited over the DAG's closure
 $\le$ total witnessed.'' The refute-first sweep killed it before any proof effort was spent: a full-weight chain
 $e\to a_1\to a_2\to a_3$ at $\gamma=0.9$ is budget-legal at every hop, yet its closure sums to $0.9+0.81+0.729=2.439>1$ [internal,
-\texttt{a6\_no\_mint.py}]. Two thresholds live here and they are different numbers, so it is worth separating them at first use.
+\texttt{a6\_\allowbreak no\_\allowbreak mint.py}]. Two thresholds live here and they are different numbers, so it is worth separating them at first use.
 \emph{This particular three-hop chain} crosses the mint line at $\gamma\approx0.5437$, the root of $\gamma+\gamma^2+\gamma^3=1$;
 the \emph{budget-only scheme in general} fails to conserve exactly above $\gamma=\tfrac12$, since without a debit the credit a
 closure can inherit is bounded by $\sum_{d\ge1}\gamma^d=\gamma/(1-\gamma)$, which exceeds the one witnessed unit precisely when
@@ -139,7 +134,7 @@ derivation. Cycles are safe because re-derivation draws on the artifact's alread
 
 \textbf{Verification.} Randomized sweep over 4000 fork DAGs --- chains, diamonds, multi-parent merges, re-derivation cycles;
 independent per-parent $w\in[0,1]$, $\gamma\in[0.5,1]$: \textbf{0 violations}; maximum live-to-witnessed ratio observed $0.999995$
-[internal, \texttt{a6\_no\_mint.py}]. \textbf{Mutation:} the copy-full-reputation mutant (children inherit undebited) mints in a
+[internal, \texttt{a6\_\allowbreak no\_\allowbreak mint.py}]. \textbf{Mutation:} the copy-full-reputation mutant (children inherit undebited) mints in a
 \textbf{2-op} shortest crime --- witness, then fork twice: $\Phi=2.8>W=1$ --- and an 8-way copy-fork yields an $8.2\times$
 multiplication: one episode backing $8.2$ votes' worth of reputation, crossing any reputation-weighted quorum threshold below
 $8.2q$. Reverting the mutation restores conservation [internal].
@@ -173,8 +168,7 @@ historical grants is a reporting choice, not a safety hole.
 
 \section{Engine swaps: Akerlof inside one identity}\label{sec:engine}
 
-\onebreath{Unattested, the price can never depend on the engine actually running, so swapping always pays and pooling on quality
-dies by Akerlof's spiral inside a single identity; attest the engine on every witnessed outcome and, provided the attested price
+\onebreath{In the one-delivery model below, an unobserved engine swap saves cost at the same price; attest the engine on every witnessed outcome and, provided the attested price
 schedule passes through the full quality difference, the substitution incentive flips to the planner's own efficiency rule at
 zero audit stake --- formal statements in the box below.}
 
@@ -186,11 +180,8 @@ to solve adverse selection by aggregating past quality \cite{mailath-samuelson};
 and the machine that will produce the next outcome, so the record measures the wrong object.
 
 \begin{thebox}
-\textbf{Theorem 2a (adverse selection within one identity).} Engines $\theta_H>\theta_L$ at costs $c_H>c_L$, engine unobserved by
-buyers. The one-period gain from swapping, $(p-c_L)-(p-c_H)=\Delta c>0$, is \emph{price-independent}: no belief supports pooling
-on $\theta_H$, and no \emph{costless} signal exists inside the identity to separate on. Committed $\theta_H$ sellers stay in the market iff the pooled price clears their cost:
-$\mu\theta_H+(1-\mu)\theta_L\ge c_H\iff \mu\ge\mu^\star=(c_H-\theta_L)/\Delta\theta$; below $\mu^\star$ the death spiral runs
-inside one identity down to $\theta_L$. Deterring the swap without attestation requires an audited bond $qB\ge\Delta c$ (audit
+\textbf{Theorem 2a (adverse selection within one identity).} Two engines deliver expected buyer values $\theta_H>\theta_L$ at costs $c_H>c_L$. Consider one paid delivery, an engine unobserved by buyers, a fixed price $p$, and no future payoff or other penalty beyond the stated bond. The one-period gain from swapping, $(p-c_L)-(p-c_H)=\Delta c>0$, is \emph{price-independent}: a strategic seller strictly prefers the cheap engine at a common price. A cheap-talk assertion with no other consequence does not change that calculation. Committed $\theta_H$ sellers stay in the market iff the pooled price clears their cost:
+$\mu\theta_H+(1-\mu)\theta_L\ge c_H\iff \mu\ge\mu^\star=(c_H-\theta_L)/\Delta\theta$; below $\mu^\star$ committed high-cost sellers fail this participation test. This inequality alone does not prove a dynamic death spiral. Deterring the swap without attestation requires an audited bond $qB\ge\Delta c$ (audit
 probability $q$, slashable bond $B$; the letter $W$ is reserved throughout this paper for total witnessed value,
 \S\ref{sec:nomint}).
 
@@ -206,7 +197,7 @@ $\mu^\star=1/6\approx 0.167$; unattested deterrence bond $B^\star=\Delta c/q=0.5
 $0.2$ [verified]. Sweeps at seed 20260816: 4000 instances $\times$ 8 prices, 0 price-dependence violations; the $\mu^\star$ and
 $qB$ lines match simulation with 0 mismatches; 2000 heterogeneous-cost spirals are all monotone to the Akerlof fixed point
 ($\mu_0{=}0.5\to\mu_\infty{=}1/3$ at price $0.6$; $\mu_0{=}0.2\to 0$, price $\theta_L{=}0.4$); attested IC sign equals the
-efficiency sign in 4000/4000 draws [internal, \texttt{b5\_engine\_substitution.py}]. \textbf{Mutations:} the wrong-threshold
+efficiency sign in 4000/4000 draws [internal, \texttt{b5\_\allowbreak engine\_\allowbreak substitution.py}]. \textbf{Mutations:} the wrong-threshold
 mutant $\mu^\star=\Delta c/\Delta\theta$ is caught $1305\times$; the no-flip mutant (attestation without re-keying the price) is
 caught $1975\times$ [internal].
 \end{thebox}
@@ -220,20 +211,14 @@ committed before quality can even break even [verified].)
 \input{fig-r13-regime.tex}
 
 \textbf{What it buys.} The buyer-facing sentence in its provable form: \emph{reputation you can trust because the engine behind it
-is attested}. The misread to preempt: attestation does not force everyone onto the expensive engine. The flip means swapping pays
+is attested}. The misread to preempt: attestation does not force everyone onto the expensive engine. Under the stated full-value price schedule, the flip means swapping pays
 exactly when $\Delta c>\Delta\theta$ --- when the cheap engine really is the better social bargain --- so attestation does not
 freeze technology choice; it aligns it. What dies is only the trade that was profitable \emph{because} it was invisible.
 
-The engineering side of this problem has a contemporaneous literature that stops exactly where Theorem 2b starts. Cai et al.\
-\cite{cai2025} formalize covert model substitution in commercial LLM APIs, show that software-only auditing is query-intensive
-and defeated by inference nondeterminism, and conclude that TEE-backed attestation is the only robust channel --- while naming
-``weak provider incentives'' as the obstacle to its adoption. That obstacle is what the IC flip removes: attestation makes
-substitution unprofitable precisely when it is inefficient, so a provider's reason to attest is price rather than
-civic-mindedness. Their paper contains no adverse-selection framing, and this one contains no detection experiments; the two
-halves fit.
+Cai et al.\ \cite{cai2025} study the adjacent engineering problem of covert model substitution and argue for TEE-backed attestation. The pricing calculation here takes sound attestation as a hypothesis. It does not establish that providers will adopt it or that a market will pass the full value difference into prices. Those are additional economic questions.
 
 \begin{boundary}
-\textbf{Honest boundary.} Two-period stylization: the strategic type has no reputational continuation value beyond the bond $B$
+\textbf{Honest boundary.} One-delivery incentive comparison: the strategic type has no reputational continuation value beyond the bond $B$
 --- a long-horizon folk-theorem analysis is out of scope, and with one the unattested deterrence line would shift. Attestation
 soundness is a deployment assumption (TEE and daemon integrity), per the program's declined-claims list --- the theorem prices what
 attestation buys, not whether your attestation is sound. And $\theta$ here is a scalar quality; multi-dimensional quality with
@@ -268,7 +253,7 @@ identity as a free escape hatch (caught in 1 step, no migration needed); princip
 \textbf{Verification.} Bounded model check of the migration protocol: 747 reachable states to depth 7 (467 post-migration), and
 the intact protocol satisfies Def.~III.6.1 in \textbf{every} state. Mutants caught with shortest crimes: key-scoped sanctions in 1
 step, whitewash-by-resurrection in 2, engine-history shedding in 2, liability stranding in 2 [internal,
-\texttt{b5\_engine\_substitution.py}].
+\texttt{b5\_\allowbreak engine\_\allowbreak substitution.py}].
 \end{thebox}
 
 \textbf{The wrong turn, reported.} A first pass keyed \emph{sanctions} the way it keyed prices, per (principal, engine) --- and
@@ -309,7 +294,7 @@ operation for external reconciliation. Safety here is not progress.
 A finite one-operation, two-epoch transition check found no duplicate effect
 under those declared contracts and produced violating traces for an unfenced
 negative read, an altered retry key, and premature dedup-record eviction
-[internal, \texttt{continuation\_observation\_model.py}]. This is a bounded
+[internal, \texttt{continuation\_\allowbreak observation\_\allowbreak model.py}]. This is a bounded
 adapter decision result, not a deployed exactly-once claim or a proof for
 multiple effects. A replayed prompt or continuity witness cannot replace the
 remote effect receipt.
@@ -320,8 +305,7 @@ remote effect receipt.
 restriction as early as the newcomer's own ceiling can carry it --- a cliff, not a ramp --- uniquely minimizes the tax on honest
 newcomers, because early restriction is the only kind the impatient type still feels --- formal statement in the box below.}
 
-\textbf{Intuition.} Sections \ref{sec:nomint}--\ref{sec:resurrection} sealed the side doors; the front gate remains. By the
-necessity theorem, identities must cost something to abandon, and the standard instrument is a probation schedule: for the first
+\textbf{Intuition.} Sections \ref{sec:nomint}--\ref{sec:resurrection} sealed the side doors; the front gate remains. For a mechanism exposed to the newcomer-floor escape, one possible response is a probation schedule: for the first
 $T$ periods, a newcomer's economic ceiling is reduced by gaps $g_t\ge 0$. Two types walk through the gate with different clocks:
 the honest newcomer discounts at $\delta_h$ (patient --- it plans to stay), the whitewasher at $\delta_f<\delta_h$ (impatient ---
 its old identity is burning, which is why it is here). Deterrence requires the schedule to destroy, in the \emph{whitewasher's}
@@ -368,7 +352,7 @@ feasible.
 schedules plus the structured adversaries the deferred-compensation instinct suggests (uniform ramps, pure back-loads, two-point
 splits), all scaled so deterrence binds: \textbf{76{,}000 schedules, 0 dominate the cliff}; the closed form
 $H=G_{\max}(\delta_h/\delta_f)^t$ for all-mass-at-$t$ schedules matches the sweep and is strictly increasing in $t$ [internal,
-\texttt{b6\_probation.py}]. \emph{Scope of that evidence, stated exactly:} \texttt{b6\_probation.py} draws its schedules under
+\texttt{b6\_\allowbreak probation.py}]. \emph{Scope of that evidence, stated exactly:} \texttt{b6\_\allowbreak probation.py} draws its schedules under
 $g_t\ge0$ with no per-period cap parameter anywhere in the script, so the 76{,}000-schedule sweep is evidence for clause (ii), the
 uncapped corner, and \textbf{not} for the capped optimum of clause (iii) or the infeasibility bound. Clause (iii) currently rests on
 the closed-form exchange argument alone; adding a $g_t\le L$ clip to the sweep is an open script task, and until it lands this
@@ -505,15 +489,15 @@ prominence as the claim.
 \section*{Reproducibility}
 
 Every [internal] number regenerates from three self-contained Python scripts at seed 20260816, shipped alongside this paper:
-\texttt{a6\_no\_mint.py} (Theorem 1: the closure-sum refutation, the 4000-DAG sweep, the copy-full mutant's 2-op mint and
-$8.2\times$ quorum multiplication), \texttt{b5\_engine\_substitution.py} (Theorems 2--3: the $4000\times 8$ price-independence
+\texttt{a6\_\allowbreak no\_\allowbreak mint.py} (Theorem 1: the closure-sum refutation, the 4000-DAG sweep, the copy-full mutant's 2-op mint and
+$8.2\times$ quorum multiplication), \texttt{b5\_\allowbreak engine\_\allowbreak substitution.py} (Theorems 2--3: the $4000\times 8$ price-independence
 sweep, threshold and stake lines against simulation, 2000 death spirals, the attested IC-sign check, the 747-state migration
-machine, and all six mutants with shortest traces), and \texttt{b6\_probation.py} (Theorem 4: 76{,}000 deterrence-tight schedules
+machine, and all six mutants with shortest traces), and \texttt{b6\_\allowbreak probation.py} (Theorem 4: 76{,}000 deterrence-tight schedules
 against the cliff, plus the closed-form exchange spot check --- all under $g_t\ge0$ with no per-period cap, so this script covers
 Theorem 4(ii) and not the capped clause 4(iii); a $g_t\le L$ clip is the open script task). Figures~\ref{fig:r13reg} and \ref{fig:b6reg} regenerate deterministically from
-\texttt{figures/src/paper5\_figures.py}; Figures~\ref{fig:r12rel} and \ref{fig:r12reg} from
-\texttt{figures/src/r12\_figures.py}; and every balance in the lineage DAG of Figure~\ref{fig:p5lineage} is the ledger in
-\texttt{a6\_no\_mint.py} replayed operation by operation. Every [verified]
+\texttt{figures/\allowbreak src/\allowbreak paper5\_\allowbreak figures.py}; Figures~\ref{fig:r12rel} and \ref{fig:r12reg} from
+\texttt{figures/\allowbreak src/\allowbreak r12\_\allowbreak figures.py}; and every balance in the lineage DAG of Figure~\ref{fig:p5lineage} is the ledger in
+\texttt{a6\_\allowbreak no\_\allowbreak mint.py} replayed operation by operation. Every [verified]
 number is recomputable from the closed forms stated in the boxes with a hand calculator.
 
 \begin{thebibliography}{9}

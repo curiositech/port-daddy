@@ -1138,3 +1138,17 @@ test("no chapter source defines a Reader's Map or an abstract, and neither reach
     rmSync(out, { recursive: true, force: true });
   }
 });
+
+
+test('authored foundations exercises have a deferred chapter-zero solution file', () => {
+  const root = readFileSync(new URL('../website-v2/public/whitepaper/coordination-papers-mega-volume.tex', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex', import.meta.url), 'utf8');
+  assert.match(root, /\\Opensolutionfile\{pdsol\}\[book-sol-prereq\][\s\S]*?\\input\{coordination-papers-mega-volume-chapter-0\.tex\}[\s\S]*?\\Closesolutionfile\{pdsol\}/);
+  assert.equal(sourceDeclaresExercises(source), true);
+  const keys = [...source.matchAll(/\\begin\{pdexercise\}(?:\[[^\]]*\])?\{([^}]+)\}/g)].map(m => m[1]);
+  const solutions = [...source.matchAll(/\\begin\{pdsolution\}\{([^}]+)\}/g)].map(m => m[1]);
+  assert.deepEqual(solutions, keys);
+  const rendered = renderSolutions([{number:0, prefix:'prereq', title:'Foundations and Prerequisites'}]);
+  assert.match(rendered, /book-sol-prereq/);
+  assert.match(rendered, /Chapter 0: Foundations and Prerequisites/);
+});

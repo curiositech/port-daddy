@@ -1281,7 +1281,7 @@ function chunkLongRuns(text) {
 }
 
 function texEscapeBreakable(text) {
-  return chunkLongRuns(texText(text)).replace(/(-|\\_|\/)/g, '$1\\allowbreak ');
+  return chunkLongRuns(texText(text)).replace(/(-|\\_|\/|::)/g, '$1\\allowbreak ');
 }
 
 function texCode(text) {
@@ -1300,7 +1300,7 @@ const TABLE_COLUMN_SPEC = '@{}>{\\raggedright\\arraybackslash}p{0.15\\textwidth}
 const TABLE_HEADER_ROW = '\\textbf{Claim} & \\textbf{Artifact} & \\textbf{CI} & \\textbf{Status} & \\textbf{Evidence policy} \\\\';
 
 function renderRow(row, paths = row.paths, continued = false) {
-  const claim = `${texCode(row.id)}${continued ? '\\newline{}\\textit{(continued)}' : ''}`;
+  const claim = `${texCode(row.id)}${continued ? '\\newline{}\\textit{cont.}' : ''}`;
   const harness = row.harnessName ? `\\ (${texCode(row.harnessName)})` : '';
   const artifact = `${texPaths(paths, row.paths.length > MANY_PATHS_THRESHOLD)}${harness}`;
   const ci = row.ci.status === 'wired' ? row.ci.job.map((job) => texCode(job)).join(', ') : 'retired';
@@ -1490,6 +1490,11 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
   const chaptersWithExercises = prepared
     .filter((paper) => paper.hasExercises)
     .map(({ number, prefix, title }) => ({ number, prefix, title }));
+
+  const foundationsPath = resolve(repoRoot, 'website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex');
+  if (existsSync(foundationsPath) && sourceDeclaresExercises(readUtf8(foundationsPath))) {
+    chaptersWithExercises.unshift({ number: 0, prefix: 'prereq', title: 'Foundations and Prerequisites' });
+  }
 
   mkdirSync(out, { recursive: true });
   const citeAliases = renderCiteShortformAliases(prepared);

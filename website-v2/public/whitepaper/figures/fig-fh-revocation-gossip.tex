@@ -23,7 +23,7 @@
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\x0{1.55}   \def\dd{2.72}   \def\rh{0.42}
   \node[pd title,anchor=north west,text width=10.0cm,align=left] at (0,4.45)
-    {the spendable window closes when the local authority synchronizes};
+    {local refusal begins when revocation is learned and enforced};
 
   % ---- epoch-root commit points (concrete, auditable) --------------------
   \node[pd focus datum] (e0) at (\x0,3.05) {};
@@ -58,11 +58,10 @@
   \node[pd label,anchor=west] at (\x0+3*\dd+0.30,-0.20-\rh-0.55) {time};
 
   \node[pd note,anchor=north west,text width=8.9cm] at (\x0-0.20,-2.35)
-    {gold marks a harbor that has synchronized and refuses the card on its
-    own authority; red marks the window in which that card is still spendable
-    at that harbor};
+    {gold marks learned and enforced revocation; red marks stale acceptance
+    in this constructed trace, with no earlier expiry or fail-closed gate};
 \end{tikzpicture}
-\caption{Revocation reaches each harbor separately: here $A$ refuses
+\caption{One illustrative delivery trace, not an expectation or bound: $A$ refuses
 immediately, $B$ after $\Delta$, and $C$ after $2\Delta$. A partition can
 extend staleness without bound. [internal]}
 \label{fig:fh-revocation}

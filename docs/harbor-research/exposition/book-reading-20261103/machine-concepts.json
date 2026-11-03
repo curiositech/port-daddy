@@ -1,0 +1,812 @@
+{
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "scope": "Complete sequential reading of three canonical sources, not every external citation or rendered spread",
+  "chapters": [
+    {
+      "chapter": 1,
+      "source": "whitepaper/single-writer-kernel.tex",
+      "read_sha256": "da71044c54d8dde59d474ecd29c78532bee332017d76443aed84a322660bee17",
+      "read_lines": 3514,
+      "read_ranges": [
+        [
+          1,
+          180
+        ],
+        [
+          181,
+          520
+        ],
+        [
+          521,
+          880
+        ],
+        [
+          881,
+          1260
+        ],
+        [
+          1261,
+          1630
+        ],
+        [
+          1631,
+          2010
+        ],
+        [
+          2011,
+          2400
+        ],
+        [
+          2401,
+          2760
+        ],
+        [
+          2761,
+          3130
+        ],
+        [
+          3131,
+          3514
+        ]
+      ],
+      "after_sha256": "ffac19cf5ada147106defb6a4d47eb26d5edd645e07b958888bd9d44a80606ec",
+      "after_lines": 3606,
+      "read_complete": true
+    },
+    {
+      "chapter": 2,
+      "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "read_sha256": "b9006cf6e5c85ccc0d96945feb9f5b639d763422a6bf692023e325f996f275e6",
+      "read_lines": 2053,
+      "read_ranges": [
+        [
+          1,
+          220
+        ],
+        [
+          221,
+          460
+        ],
+        [
+          461,
+          700
+        ],
+        [
+          701,
+          940
+        ],
+        [
+          941,
+          1210
+        ],
+        [
+          1211,
+          1510
+        ],
+        [
+          1511,
+          1780
+        ],
+        [
+          1781,
+          2053
+        ]
+      ],
+      "after_sha256": "4cf06613f5978aff3e994c7c181649a79accfe0d62e96f407f2a1f705754101a",
+      "after_lines": 2092,
+      "read_complete": true
+    },
+    {
+      "chapter": 3,
+      "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "read_sha256": "c627a9f55d6becce0df697d0d01e3e6d7aedbcbd46c8ac3656877478e9c0bd8c",
+      "read_lines": 1874,
+      "read_ranges": [
+        [
+          1,
+          200
+        ],
+        [
+          201,
+          430
+        ],
+        [
+          431,
+          670
+        ],
+        [
+          671,
+          910
+        ],
+        [
+          911,
+          1150
+        ],
+        [
+          1151,
+          1390
+        ],
+        [
+          1391,
+          1630
+        ],
+        [
+          1631,
+          1874
+        ]
+      ],
+      "after_sha256": "ad243d84c13ad926d05128a3a500a60c295391532ac789709270295ebaa1d331",
+      "after_lines": 1927,
+      "read_complete": true
+    }
+  ],
+  "concepts": [
+    {
+      "id": "machine-01",
+      "chapter": 1,
+      "concept": "daemon, transaction, commit, WAL",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 205,
+        "anchor": "The \\emph{daemon}"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 525,
+        "anchor": "Durability, split by fault class"
+      },
+      "example_or_nonexample": "port7421 requests and lost reply; process crash versus power loss",
+      "recall_or_exercise": "ex:swk-linearization",
+      "handoff": "Ch2 pre-admission checks; Ch3 atomic release"
+    },
+    {
+      "id": "machine-02",
+      "chapter": 1,
+      "concept": "serializability versus linearizability",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 296,
+        "anchor": "Serializable means"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2211,
+        "anchor": "Conditional consistency model"
+      },
+      "example_or_nonexample": "completed A then overlapping B/C; either denied order",
+      "recall_or_exercise": "ex:swk-linearizability-assumptions",
+      "handoff": "Ch3 ledger ordering"
+    },
+    {
+      "id": "machine-03",
+      "chapter": 1,
+      "concept": "leases, conflict domain, epochs",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 635,
+        "anchor": "The resource subsystem:"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2078,
+        "anchor": "I1, every admitted effect"
+      },
+      "example_or_nonexample": "stale104 effect after105; raw OS bind outside claim",
+      "recall_or_exercise": "ex:swk-op1-ticket",
+      "handoff": "Ch2 revocation freshness"
+    },
+    {
+      "id": "machine-04",
+      "chapter": 1,
+      "concept": "atomicity versus uniqueness",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 717,
+        "anchor": "Atomic Mutual Exclusion and Fenced Leases"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2296,
+        "anchor": "Cross-subsystem atomicity:"
+      },
+      "example_or_nonexample": "delete/insert gap differs from stale external effect",
+      "recall_or_exercise": "resource race exercise",
+      "handoff": "Ch3 guard+append+debit"
+    },
+    {
+      "id": "machine-05",
+      "chapter": 1,
+      "concept": "safety versus bounded waiting",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 788,
+        "anchor": "Fairness without a scheduler:"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2845,
+        "anchor": "Eventual requests alone"
+      },
+      "example_or_nonexample": "finite L,D,P gives conservative(q+1)(L+D+P); eventual alone no bound",
+      "recall_or_exercise": "ex:swk-op1-ticket",
+      "handoff": ""
+    },
+    {
+      "id": "machine-06",
+      "chapter": 1,
+      "concept": "at-least-once versus once-only effects",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 876,
+        "anchor": "The bus: a durable carrier"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1887,
+        "anchor": "figures/swk-unknown-effect"
+      },
+      "example_or_nonexample": "redelivery and unknown-effect journal",
+      "recall_or_exercise": "communication/recovery exercises",
+      "handoff": "Ch2 authenticity versus replay"
+    },
+    {
+      "id": "machine-07",
+      "chapter": 1,
+      "concept": "decay versus persistent security labels",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 909,
+        "anchor": "Stigmergic markers: decay"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2533,
+        "anchor": "sec:ifc-airlock"
+      },
+      "example_or_nonexample": "0.9^29 below0.05; exposure must not evaporate",
+      "recall_or_exercise": "marker calibration exercise",
+      "handoff": "Ch3 labels"
+    },
+    {
+      "id": "machine-08",
+      "chapter": 1,
+      "concept": "authorization versus coordination lineage",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 958,
+        "anchor": "Two delegation chains, one dangerous name"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2018,
+        "anchor": "sec:workunit"
+      },
+      "example_or_nonexample": "signed bytes not semantic equivalence",
+      "recall_or_exercise": "delegation exercises",
+      "handoff": "Ch2 attenuation"
+    },
+    {
+      "id": "machine-09",
+      "chapter": 1,
+      "concept": "capability, permission, obligation",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1041,
+        "anchor": "The deontic split"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1696,
+        "anchor": "Commitments: obligation"
+      },
+      "example_or_nonexample": "allowed write versus owed release",
+      "recall_or_exercise": "ex:swk-empty-oracle",
+      "handoff": "Ch5 remedy"
+    },
+    {
+      "id": "machine-10",
+      "chapter": 1,
+      "concept": "pre-effect guard versus detector",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1067,
+        "anchor": "The policy monitor is a detector"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2871,
+        "anchor": "\\begin{pdexercise}[kind=Check,rating=1]{ex:swk-monitor-rules-precommit}"
+      },
+      "example_or_nonexample": "committed violation is already an effect",
+      "recall_or_exercise": "ex:swk-monitor-rules-precommit",
+      "handoff": "Ch2 Arbiter; Ch3 gate"
+    },
+    {
+      "id": "machine-11",
+      "chapter": 1,
+      "concept": "alphabet, plant, prefix closure, realization",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1216,
+        "anchor": "The vocabulary, at the point of use"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1391,
+        "anchor": "The compound case:"
+      },
+      "example_or_nonexample": "safe restriction loses legal histories",
+      "recall_or_exercise": "ex:swk-classify-two",
+      "handoff": "Ch3 observed read"
+    },
+    {
+      "id": "machine-12",
+      "chapter": 1,
+      "concept": "observation projection",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1525,
+        "anchor": "Two histories, one visible record"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1567,
+        "anchor": "Partial observation can shrink"
+      },
+      "example_or_nonexample": "empty history and hidden read demand different send decisions",
+      "recall_or_exercise": "ex:swk-classify-rules",
+      "handoff": "Ch3 trigger observation"
+    },
+    {
+      "id": "machine-13",
+      "chapter": 1,
+      "concept": "oracle-bound closure",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1696,
+        "anchor": "Commitments: obligation"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1783,
+        "anchor": "Extending the oracle vocabulary"
+      },
+      "example_or_nonexample": "minute29 note not release evidence",
+      "recall_or_exercise": "ex:swk-empty-oracle",
+      "handoff": "Ch5 verified outcome"
+    },
+    {
+      "id": "machine-14",
+      "chapter": 1,
+      "concept": "durable evidence versus inference state",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 1822,
+        "anchor": "The continuity subsystem:"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2599,
+        "anchor": "What the substrate provides"
+      },
+      "example_or_nonexample": "capsule cannot recover hidden activations",
+      "recall_or_exercise": "capsule/recovery exercises",
+      "handoff": "Ch5 outcomes need durable identity"
+    },
+    {
+      "id": "machine-15",
+      "chapter": 1,
+      "concept": "work unit and invariant scopes",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2017,
+        "anchor": "The work unit, model-checked"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2168,
+        "anchor": "These six labels are local"
+      },
+      "example_or_nonexample": "I1/I5epochs,I2once,I3completion,I4narrowing,I6owner",
+      "recall_or_exercise": "mutation traces",
+      "handoff": "Ch3 contract; Ch5 settlement"
+    },
+    {
+      "id": "machine-16",
+      "chapter": 1,
+      "concept": "maturity, assurance, automation",
+      "first_substantive_treatment": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 302,
+        "anchor": "A research-maturity scale"
+      },
+      "later_application": {
+        "source": "whitepaper/single-writer-kernel.tex",
+        "line": 2329,
+        "anchor": "Threat model and the limits"
+      },
+      "example_or_nonexample": "sameUID rewrite versus separateUID mediation",
+      "recall_or_exercise": "ex:swk-op9-hardening",
+      "handoff": "Ch2 evidence layers"
+    },
+    {
+      "id": "machine-17",
+      "chapter": 2,
+      "concept": "card, subject, authentication, authorization, TTL",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 222,
+        "anchor": "It issues \\textbf{Harbor Cards}"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 1148,
+        "anchor": "pinning is not skipping validation"
+      },
+      "example_or_nonexample": "signature insufficient for channel authorization",
+      "recall_or_exercise": "ex:anchor-security-envelope",
+      "handoff": "Ch3 signed work order"
+    },
+    {
+      "id": "machine-18",
+      "chapter": 2,
+      "concept": "coordinatewise attenuation",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 269,
+        "anchor": "The comparison is coordinatewise"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 2036,
+        "anchor": "\\begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-multihop-induction}"
+      },
+      "example_or_nonexample": "20min request clamped10; signed20 refused; write/read/write",
+      "recall_or_exercise": "ex:anchor-multihop-induction",
+      "handoff": "Ch3 label analogy bounded"
+    },
+    {
+      "id": "machine-19",
+      "chapter": 2,
+      "concept": "HMAC versus public signature",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 289,
+        "anchor": "The symmetric profile uses"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 698,
+        "anchor": "To read a chain, keep two keys"
+      },
+      "example_or_nonexample": "daemon root authenticates Alice key; Alice signs Bob",
+      "recall_or_exercise": "ex:anchor-algconfusion",
+      "handoff": ""
+    },
+    {
+      "id": "machine-20",
+      "chapter": 2,
+      "concept": "pinning versus header validation",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 301,
+        "anchor": "Algorithmic Pinning"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 1148,
+        "anchor": "pinning is not skipping validation"
+      },
+      "example_or_nonexample": "policy fixes algorithm; mismatch still rejected",
+      "recall_or_exercise": "ex:anchor-algconfusion",
+      "handoff": ""
+    },
+    {
+      "id": "machine-21",
+      "chapter": 2,
+      "concept": "nonce versus duplicate prevention",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 343,
+        "anchor": "A \\emph{nonce}"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 1989,
+        "anchor": "consumed\\_nonce"
+      },
+      "example_or_nonexample": "model writes consumed_nonce but never checks it",
+      "recall_or_exercise": "ex:anchor-chain-replay",
+      "handoff": "Proof/runtime follow-up"
+    },
+    {
+      "id": "machine-22",
+      "chapter": 2,
+      "concept": "probabilistic index and exact authority",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 380,
+        "anchor": "Cuckoo filters in one paragraph"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 412,
+        "anchor": "Revocation-Augmented Verification"
+      },
+      "example_or_nonexample": "001 OR010 becomes011; exact-table hit resolution",
+      "recall_or_exercise": "architecture recitation",
+      "handoff": ""
+    },
+    {
+      "id": "machine-23",
+      "chapter": 2,
+      "concept": "gossip expectation versus deadline",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 433,
+        "anchor": "Gossip-based synchronization"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 1897,
+        "anchor": "One Card through Attenuation"
+      },
+      "example_or_nonexample": "1,2,4,5 favorable trace; stale verifier can accept",
+      "recall_or_exercise": "architecture recitation",
+      "handoff": "Ch7 freshness"
+    },
+    {
+      "id": "machine-24",
+      "chapter": 2,
+      "concept": "model, harness, conformance",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 551,
+        "anchor": "How we know it is correct"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 2012,
+        "anchor": "\\begin{pdexercise}[kind=Open,rating=3]{ex:anchor-model-vs-code}"
+      },
+      "example_or_nonexample": "32byte stub rejects header; two vectors not quantified proof",
+      "recall_or_exercise": "ex:anchor-kani-scope",
+      "handoff": "Ch3 bounded model evidence"
+    },
+    {
+      "id": "machine-25",
+      "chapter": 2,
+      "concept": "bearer versus process binding",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 181,
+        "anchor": "The Ghost in the Harbor"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "line": 2023,
+        "anchor": "\\begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-security-envelope}"
+      },
+      "example_or_nonexample": "PID4021 recycled; signed bytes unchanged",
+      "recall_or_exercise": "ex:anchor-security-envelope",
+      "handoff": ""
+    },
+    {
+      "id": "machine-26",
+      "chapter": 3,
+      "concept": "work order pins versus enforcement",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 277,
+        "anchor": "The work order contract"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 370,
+        "anchor": "Dual-attested key release"
+      },
+      "example_or_nonexample": "13fields name checks; digest does not enforce loader",
+      "recall_or_exercise": "design recitation",
+      "handoff": "Ch1 work unit; Ch2 signatures"
+    },
+    {
+      "id": "machine-27",
+      "chapter": 3,
+      "concept": "attestation measurement evidence",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 370,
+        "anchor": "Dual-attested key release"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 482,
+        "anchor": "The Room's Side Properties"
+      },
+      "example_or_nonexample": "measurement not proof of code correctness or side-channel freedom",
+      "recall_or_exercise": "design recitation",
+      "handoff": "Ch2 assurance gaps"
+    },
+    {
+      "id": "machine-28",
+      "chapter": 3,
+      "concept": "owner labels, join, declassification",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 406,
+        "anchor": "Four Label States"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 442,
+        "anchor": "Whole-worker taint and two gates"
+      },
+      "example_or_nonexample": "four owner sets; union; owner-authorized removal",
+      "recall_or_exercise": "design recitation",
+      "handoff": "Ch2 attenuation not widening"
+    },
+    {
+      "id": "machine-29",
+      "chapter": 3,
+      "concept": "two-run noninterference",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 582,
+        "anchor": "Intuition: the voting booth"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1508,
+        "anchor": "\\begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-m1-trace}"
+      },
+      "example_or_nonexample": "uniform0..3 parity; equal-parity0/2 raw leak atstep4",
+      "recall_or_exercise": "ex:sealed-pairs; ex:sealed-bypass",
+      "handoff": ""
+    },
+    {
+      "id": "machine-30",
+      "chapter": 3,
+      "concept": "committed versus worker-selected argument",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 708,
+        "anchor": "It does not cover a worker that launders"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1540,
+        "anchor": "\\begin{pdexercise}[kind=Open,rating=3]{ex:sealed-launder}"
+      },
+      "example_or_nonexample": "floor(s/2) splits equal-parity0/2",
+      "recall_or_exercise": "ex:sealed-launder",
+      "handoff": "Different interface needs different guarantee"
+    },
+    {
+      "id": "machine-31",
+      "chapter": 3,
+      "concept": "control and observed trigger",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 734,
+        "anchor": "What the mediated gate can enforce"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1563,
+        "anchor": "\\begin{pdexercise}[kind=Check,rating=1]{ex:sealed-compound}"
+      },
+      "example_or_nonexample": "hidden read defeats exact send rule; deny-all safe",
+      "recall_or_exercise": "ex:sealed-compound",
+      "handoff": "Applies Ch1 conditional theorem"
+    },
+    {
+      "id": "machine-32",
+      "chapter": 3,
+      "concept": "differential privacy",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 902,
+        "anchor": "Fix which datasets count as neighbors"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 952,
+        "anchor": "Conditional privacy corollary"
+      },
+      "example_or_nonexample": "3/4randomized response epsilonln3; exact bit no finiteepsilon",
+      "recall_or_exercise": "ex:sealed-crossover",
+      "handoff": "Validated mechanism required"
+    },
+    {
+      "id": "machine-33",
+      "chapter": 3,
+      "concept": "budget conservation versus privacy",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 931,
+        "anchor": "Initially $\\sigma=0$"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1578,
+        "anchor": "\\begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-torn}"
+      },
+      "example_or_nonexample": "2,2,1logs5balance2;15full/11withcounters/5multisets",
+      "recall_or_exercise": "ex:sealed-torn; ex:sealed-15-states",
+      "handoff": "Ch1 atomicity; Ch5 ledger"
+    },
+    {
+      "id": "machine-34",
+      "chapter": 3,
+      "concept": "basic versus advanced composition",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 918,
+        "anchor": "Privacy costs add"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1618,
+        "anchor": "\\begin{pdexercise}[kind=Check,rating=1]{ex:sealed-crossover}"
+      },
+      "example_or_nonexample": "k32e.1advanced worse; crossing35; positive delta trade",
+      "recall_or_exercise": "ex:sealed-crossover",
+      "handoff": ""
+    },
+    {
+      "id": "machine-35",
+      "chapter": 3,
+      "concept": "canary power and hidden planting",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1134,
+        "anchor": "What the detector observes"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1665,
+        "anchor": "\\begin{pdexercise}[kind=Open,rating=3]{ex:sealed-canary-secrecy}"
+      },
+      "example_or_nonexample": "beta.2k5power.99968;30%compromise gives.699776",
+      "recall_or_exercise": "ex:sealed-power; ex:sealed-canary-secrecy",
+      "handoff": ""
+    },
+    {
+      "id": "machine-36",
+      "chapter": 3,
+      "concept": "Bernoulli, likelihood, KL, SPRT",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1142,
+        "anchor": "For the sequential test, let"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1646,
+        "anchor": "\\begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-sprt}"
+      },
+      "example_or_nonexample": "296.939approx versus359reported; outputs not seconds",
+      "recall_or_exercise": "ex:sealed-sprt",
+      "handoff": ""
+    },
+    {
+      "id": "machine-37",
+      "chapter": 3,
+      "concept": "alphabet capacity versus leakage",
+      "first_substantive_treatment": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1355,
+        "anchor": "If an Erin-visible channel"
+      },
+      "later_application": {
+        "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "line": 1689,
+        "anchor": "\\begin{pdexercise}[kind=Check,rating=1]{ex:sealed-budget}"
+      },
+      "example_or_nonexample": "200*64=12800;3slots adds316.99; framing/aborts extra",
+      "recall_or_exercise": "ex:sealed-budget",
+      "handoff": "Not DP epsilon"
+    }
+  ]
+}

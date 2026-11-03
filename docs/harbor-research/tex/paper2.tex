@@ -11,7 +11,7 @@
 %                      python3 scripts/harbor-research/check_citations.py
 %   System document  : docs/harbor-research/LIBRARY-SYSTEM.md
 % -----------------------------------------------------------------------
-\documentclass[11pt,a4paper]{article} \input{preamble} \usepackage{mdframed} \usepackage{graphicx}
+\documentclass[11pt,a4paper]{article} \input{preamble} \usepackage{mdframed} \usepackage{graphicx} \usepackage{tabularx}
 \graphicspath{{../figures/}}
 \newmdenv[backgroundcolor=blue!4,linecolor=harborblue,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{thebox}
 \newmdenv[backgroundcolor=red!4,linecolor=shipred,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{boundary}
@@ -21,22 +21,24 @@
 Paper 2 of the Harbor program: a supervisory-control characterization\\ of what an agent runtime can prevent}
 \author{Prepared for Erich Owens} \date{August 2026} \begin{document} \maketitle
 
-\begin{abstract} \noindent An agent hypervisor --- a runtime that mediates an LLM agent's file writes, network egress, tool
-executions, pushes, spawns, and API calls --- is asked to \emph{enforce} governance policies. Some it can enforce by prevention: the
-forbidden thing never happens. Others it can only enforce by detection and compensation: the thing happens, and the runtime
-notices afterward. We show the boundary between the two is not an engineering contingency but a theorem: a prefix-closed
-safety policy is \emph{regimentable} (preventable pre-effect) if and only if it is controllable in the sense of
-Ramadge--Wonham supervisory control theory, with respect to the uncontrollable event set of an LLM (model-internal steps and
-in-context reads). Schneider's classical result --- an EM-enforceable policy is a safety property, though not conversely ---
-is the ambient case of this characterization, and Basin et al.'s controllable/observable refinement of it is the criterion we
-identify with controllability; the identification is what imports supervisory control's synthesis machinery. The
-characterization is executable: a product-automaton checker classifies a realistic policy set (egress, push, write, exec,
-spawn: regimentable; token emission, context reads, and internal plans, where the confident falsehood lives: detect-only
-forever), and settles the decisive compound case --- ``no egress after reading a secret'' \emph{is} regimentable, because the policy permits the
-uncontrollable trigger and gates only the controllable effect. That single classification is the design theorem behind
-clean-room agent computation: gate the channel, never the token. \end{abstract}
+\begin{abstract}
+An agent runtime may refuse some effects while other events proceed outside
+its control. We apply the classical Ramadge--Wonham criterion to this boundary:
+under full observation, a nonempty prefix-closed policy can be realized
+\emph{exactly} by disabling controllable events if and only if it is
+controllable with respect to the declared plant. Exact realization preserves
+every legal history as well as excluding violations. Failure of the criterion
+may still permit a safer, more restrictive policy; it does not establish that
+violations can be detected. A product-automaton checker classifies single-event
+bans and the compound rule ``no egress after reading a secret.'' The latter is
+realizable when the read is observed and egress can be refused. Partial
+observation adds the requirement that indistinguishable histories not demand
+opposite decisions. The contribution is this application and its worked
+examples, not new supervisory-control theory or a universal impossibility
+claim about agent architectures.
+\end{abstract}
 
-\vspace{0.5em} \noindent\textbf{Express lane.} \emph{A governance policy can be enforced by prevention iff no legal prefix of
+\vspace{0.5em} \noindent\textbf{Express lane.} \emph{Under full observation, a governance policy can be realized exactly iff no legal prefix of
 agent behavior can be pushed out of the policy by an event the runtime cannot intercept --- Ramadge--Wonham controllability
 with respect to $\Sigma_u = \{$model-internal steps, in-context reads$\}$; formal statement and proof in the box of
 \S\ref{sec:theorem}, machine-checked policy table in \S\ref{sec:table}.} Experts: read the box, the table, and
@@ -50,19 +52,20 @@ falsehoods in status reports}; \emph{never incorporate the customer's secret int
 
 The operations lead asks the obvious question: which of these does the runtime \emph{guarantee}, and which does it merely
 \emph{watch for}? The first three feel different from the last two, and every practitioner senses it. The force-push rule is
-airtight --- the daemon owns the git remote credentials, and a push that never happens needs no forgiveness. The
-confident-lie rule is not airtight and never will be: the lie is composed inside the model's forward pass, and by the time
-any mediator sees tokens, the lie already exists. The practitioner's instinct is correct. This paper proves it is not an
-instinct but an instance of a thirty-nine-year-old theorem, and extracts the exact boundary.
+airtight --- the daemon owns the git remote credentials, and a push that never happens needs no forgiveness. A rule about false reports needs a different specification: which facts
+are registered, what evidence establishes their truth, and which output gate
+checks them? A coarse event alphabet cannot answer that semantic question.
+This paper instead asks the precise control question for an explicitly stated
+plant, policy, and observation model.
 
 \paragraph{The idea in one breath.} \onebreath{Split the agent's event alphabet into what the runtime can refuse (mediated
-effects) and what it cannot (model-internal steps); a safety policy is preventable iff no uncontrollable event can carry a
+effects) and what it cannot (model-internal steps); a safety policy is exactly realizable under full observation iff no uncontrollable event can carry a
 legal history out of the policy --- and that is precisely Ramadge--Wonham controllability.}
 
 \paragraph{Intuition: the bouncer.} A club has one door and a bouncer. The bouncer can refuse \emph{entry} --- entry is
 controllable, mediated by the door. The bouncer cannot refuse a patron's \emph{thought} --- thought is uncontrollable,
 unmediated by anything the club owns. A door policy (``no entry after 2am'') is enforceable by prevention. A thought policy
-(``no ill intent inside'') is enforceable only by observation and ejection --- detection and compensation. Now the structural
+(``no ill intent inside'') cannot be enforced from that door alone. Ejection after observable misconduct is a separate policy. Now the structural
 mapping (Figure~\ref{fig:relation}): the daemon's effect boundary is the door; $\Sigma_c$ (fs\_write, net\_egress,
 exec\_tool, git\_push, spawn\_child, api\_call) is entry; $\Sigma_u$ (model\_emit\_token, in\_context\_read, internal\_plan,
 hidden\_activation) is thought.
@@ -83,8 +86,8 @@ outside it. None of it is difficult. Every term below is a statement about strin
 comfortable with regular languages already has the prerequisites. Definitions in the order they are needed, each used
 immediately after it is given.
 
-An \emph{alphabet} $\Sigma$ is just the finite set of event types the system can emit --- for us, \texttt{fs\_write},
-\texttt{net\_egress}, \texttt{model\_emit\_token} and the rest. A \emph{string} over $\Sigma$ is one possible history of an
+An \emph{alphabet} $\Sigma$ is just the finite set of event types the system can emit --- for us, \texttt{fs\_\allowbreak write},
+\texttt{net\_\allowbreak egress}, \texttt{model\_\allowbreak emit\_\allowbreak token} and the rest. A \emph{string} over $\Sigma$ is one possible history of an
 execution, in order. Everything in this paper is a claim about which histories can happen.
 
 A set of strings $K$ is \emph{prefix-closed} when every prefix of a member is itself a member: if the first ten events of a
@@ -97,14 +100,14 @@ you can say it failed.
 
 The \emph{plant} $L$ is the set of histories that are \emph{physically} possible, before any policy is imposed. The name is
 inherited from the factory-floor origins of the theory, where the plant was a literal plant. We take $L=\Sigma^*$: any
-interleaving of events can occur, because nothing about the hardware forbids one. A \emph{policy} is then a prefix-closed
+finite event string is allowed in this illustrative abstraction. Actual hardware or protocols may restrict that plant. A \emph{policy} is then a prefix-closed
 $K\subseteq L$: the set of histories the governance document allows. We write $\overline{K}$ for prefix closure, so
 $\overline{K}=K$ throughout; the bar is kept only to match the standard statement of the theorem.
 
 A \emph{supervisor} is a function from the history so far to a set of events to disable next. The whole theorem turns on
 that function's \emph{type}: it may disable members of $\Sigma_c$ and nothing else. \emph{Controllable} events are the ones
 the supervisor can refuse, because they pass through a mediation boundary before taking effect; \emph{uncontrollable} events
-are the ones that complete before any mediator sees them.
+are the ones this supervisor cannot disable, whether or not it observes them.
 
 The \emph{closed loop} is the set of histories that actually occur once the supervisor is attached. A supervisor
 \emph{regiments} a policy when the closed loop equals the policy exactly: nothing forbidden happens, and nothing permitted
@@ -128,17 +131,19 @@ when the rule is controllable at all.
 \section{The model}\label{sec:model} \paragraph{Events and the mediation boundary.} Fix a finite alphabet
 $\Sigma=\Sigma_c\uplus\Sigma_u$ of agent events. $\Sigma_c$ (\emph{controllable}) contains the events that pass through the
 runtime's mediation boundary before taking effect, so the runtime can disable any of them at any instant: in our reference
-alphabet, $\Sigma_c=\{$\texttt{fs\_write}, \texttt{net\_egress}, \texttt{exec\_tool}, \texttt{git\_push},
-\texttt{spawn\_child}, \texttt{api\_call}$\}$. $\Sigma_u$ (\emph{uncontrollable}) contains the events that occur before any
-mediator can intervene: $\Sigma_u=\{$\texttt{model\_emit\_token}, \texttt{in\_context\_read}, \texttt{internal\_plan},
-\texttt{hidden\_activation}$\}$. The split is a fact about the architecture, not a modeling choice: the daemon owns the
-syscall-and-credential surface and does not own the forward pass.
+alphabet, $\Sigma_c=\{$\texttt{fs\_\allowbreak write}, \texttt{net\_\allowbreak egress}, \texttt{exec\_\allowbreak tool}, \texttt{git\_\allowbreak push},
+\texttt{spawn\_\allowbreak child}, \texttt{api\_\allowbreak call}$\}$. $\Sigma_u$ (\emph{uncontrollable}) contains the events that occur before any
+mediator can intervene: $\Sigma_u=\{$\texttt{model\_\allowbreak emit\_\allowbreak token}, \texttt{in\_\allowbreak context\_\allowbreak read}, \texttt{internal\_\allowbreak plan},
+\texttt{hidden\_\allowbreak activation}$\}$. The split describes the architecture assumed by this model: the daemon owns
+the listed effect gates and does not gate the forward pass. A different
+architecture may change it.
 
 \paragraph{What ``regiment'' means, formally.} A \emph{regimentation mechanism} is a supervisor $f:\overline{L}\to
 2^{\Sigma_c}$ mapping each history to a set of \emph{disabled controllable} events; the supervised plant executes any event
 not disabled. It \emph{regiments} the policy $K$ when the closed loop equals $\overline{K}$, in the sense of
-\S\ref{sec:vocab}. Anything short of that --- allowing the violation and then flagging, rolling back, slashing a bond --- is
-\emph{detect-and-compensate}, a legitimate but categorically weaker enforcement mode.
+\S\ref{sec:vocab}. A supervisor may instead preserve safety by sacrificing some legal histories.
+Allowing a violation and subsequently detecting or remedying it is another
+possibility, requiring separate observation and response assumptions.
 
 \section{The ambient result, and why the alphabet split refines it}\label{sec:schneider} Schneider's classical theorem says
 that a security policy enforceable by an execution monitor (EM) --- a mechanism that watches a single execution and can
@@ -155,7 +160,7 @@ An LLM agent runtime does not enjoy complete mediation. The model's forward pass
 plans on hardware the daemon schedules but does not gate step-by-step; these events happen and \emph{then} become visible,
 which in supervisory-control terms makes them uncontrollable. Once $\Sigma_u\neq\emptyset$, safety remains \emph{necessary}
 for preventability (a liveness violation has no finite witness to block) but is no longer \emph{sufficient}: ``never
-\texttt{internal\_plan}'' is as prefix-closed a safety property as ``never \texttt{git\_push},'' yet only one of them is
+\texttt{internal\_\allowbreak plan}'' is as prefix-closed a safety property as ``never \texttt{git\_\allowbreak push},'' yet only one of them is
 preventable. The refinement that separates them is Ramadge--Wonham controllability~\cite{rw87,rw89}, developed for exactly
 this situation --- a plant in which some events (machine breakdowns, arrivals) cannot be disabled by any supervisor.
 Anderson's reference-monitor tradition~\cite{anderson} contributes the design obligation (complete mediation \emph{of the
@@ -165,12 +170,12 @@ boundary is controllability.
 
 \section{The theorem}\label{sec:theorem} \begin{thebox} \textbf{Theorem (Regimentation $=$ controllability).} Let
 $L\subseteq\Sigma^*$ be a prefix-closed plant over $\Sigma=\Sigma_c\uplus\Sigma_u$, and let $K\subseteq L$ be a nonempty
-prefix-closed safety policy. There exists a regimentation mechanism for $K$ --- a supervisor disabling only controllable
+prefix-closed safety policy. Assume full observation of events. There exists a regimentation mechanism for $K$ --- a supervisor disabling only controllable
 events whose closed loop realizes exactly $\overline{K}$ --- if and only if $K$ is \emph{controllable} with respect to $L$
 and $\Sigma_u$: \[ \overline{K}\,\Sigma_u\;\cap\;\overline{L}\;\subseteq\;\overline{K}, \] i.e.\ no uncontrollable event,
-physically enabled after a legal history, exits the policy. When the condition fails, no runtime confined to disabling
-$\Sigma_c$ can prevent the violation; the best achievable enforcement is detect-and-compensate, and the largest preventable
-weakening of the policy is the supremal controllable sublanguage $\sup\mathcal{C}(K)$, which exists and is computable for
+physically enabled after a legal history, exits the policy. When the condition fails, no such supervisor realizes all of $K$ exactly.
+A controllable sublanguage can still preserve safety by excluding some legal
+histories. The largest such restriction is the supremal controllable sublanguage $\sup\mathcal{C}(K)$, which exists and is computable for
 regular $K$ and $L$ [verified framework, Ramadge--Wonham 1987]. \end{thebox}
 
 \begin{proof} ($\Leftarrow$) Suppose $K$ is controllable. Define the supervisor $f(s)=\{a\in\Sigma_c :
@@ -190,8 +195,9 @@ exactly $\overline{K}$, the legal history $s$ is reachable under $M$ --- $M$ can
 down. At $s$, the plant enables $\sigma$, and $M$ cannot disable it: $\sigma\notin\Sigma_c$, and disabling it is outside
 $M$'s type --- physically, the event completes before the mediation boundary sees it. So the closed loop under $M$ reaches
 $s\sigma\notin\overline{K}$, contradicting the assumption that $M$'s closed loop is contained in $\overline{K}$. Hence no
-regimentation mechanism exists, and any enforcement of $K$ must tolerate the reachable violation $s\sigma$ --- observe it
-after the fact and respond, which is detect-and-compensate by definition. The existence, uniqueness, and computability of
+exact regimentation mechanism exists. This argument does not forbid a
+supervisor from preventing the earlier legal history $s$, nor establish that
+the violation is observable. The existence, uniqueness, and computability of
 $\sup\mathcal{C}(K)$ are imported from Ramadge--Wonham~\cite{rw87}: controllable sublanguages of $K$ are closed under
 arbitrary union, so a supremal element exists, and for regular languages it is computed by a fixpoint iteration on the
 product automaton. \end{proof}
@@ -206,45 +212,40 @@ decision point the runtime owns.
 \section{The characterization, made runnable}\label{sec:table} The controllability test is decidable by a product-automaton
 search: walk the synchronous product of plant and policy automaton; flag any reachable product state where the plant enables
 an uncontrollable event that the policy disables. We implemented the test over the reference alphabet and ran it on the
-governance policy set. The checker\footnote{\texttt{skills/harbor-results/scripts/b3\_controllability.py}; deterministic, no
+governance policy set. The checker\footnote{\texttt{skills/\allowbreak harbor-results/\allowbreak scripts/\allowbreak b3\_\allowbreak controllability.py}; deterministic, no
 seed needed; exits 0.} produces:
 
-\begin{center} \begin{tabular}{@{}llc@{}} \toprule Policy & Event class & Regimentable? \\ \midrule forbid
-\texttt{net\_egress} & controllable & \textbf{yes} (regiment) \\ forbid \texttt{git\_push} (incl.\ force-push) & controllable
-& \textbf{yes} (regiment) \\ forbid \texttt{fs\_write} (out-of-scope write) & controllable & \textbf{yes} (regiment) \\
-forbid \texttt{exec\_tool} & controllable & \textbf{yes} (regiment) \\ forbid \texttt{spawn\_child} & controllable &
-\textbf{yes} (regiment) \\ forbid \texttt{model\_emit\_token} & uncontrollable & no (detect only) \\ forbid
-\texttt{in\_context\_read} & uncontrollable & no (detect only) \\ forbid \texttt{internal\_plan} (``confident lie'') &
-uncontrollable & no (detect only) \\ \midrule compound: no \texttt{net\_egress} after secret \texttt{in\_context\_read} &
-mixed & \textbf{yes} (regiment) \\ \bottomrule \end{tabular} \end{center}
+\begin{center} \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}Xlc@{}} \toprule Policy & Event class & Exact? \\ \midrule forbid
+\texttt{net\_\allowbreak egress} & controllable & \textbf{yes} \\ forbid \texttt{git\_\allowbreak push} (incl.\ force-push) & controllable
+& \textbf{yes} \\ forbid \texttt{fs\_\allowbreak write} (out-of-scope write) & controllable & \textbf{yes} \\
+forbid \texttt{exec\_\allowbreak tool} & controllable & \textbf{yes} \\ forbid \texttt{spawn\_\allowbreak child} & controllable &
+\textbf{yes} \\ forbid \texttt{model\_\allowbreak emit\_\allowbreak token} & uncontrollable & no \\ forbid
+\texttt{in\_\allowbreak context\_\allowbreak read} & uncontrollable & no \\ forbid \texttt{internal\_\allowbreak plan} &
+uncontrollable & no \\ \midrule compound: no \texttt{net\_\allowbreak egress} after secret \texttt{in\_\allowbreak context\_\allowbreak read} &
+mixed & \textbf{yes} \\ \bottomrule \end{tabularx} \end{center}
 
-\noindent All nine verdicts are the checker's output, verbatim in content [internal, \texttt{b3\_controllability.py}]; the
+\noindent All nine controllability verdicts match the checker's output. The output states its scope: full observation and exact realization, with no detector inferred [internal, \texttt{b3\_\allowbreak controllability.py}]; the
 eight single-event rows also follow by hand from the theorem, which is the right way to first believe the table.
-\emph{Numbers by hand:} take ``forbid \texttt{git\_push}.'' The policy automaton has one state with every event except
-\texttt{git\_push} self-looping; \texttt{git\_push}$\;\in\Sigma_c$, so the only event the policy ever disables is
+\emph{Numbers by hand:} take ``forbid \texttt{git\_\allowbreak push}.'' The policy automaton has one state with every event except
+\texttt{git\_\allowbreak push} self-looping; \texttt{git\_\allowbreak push}$\;\in\Sigma_c$, so the only event the policy ever disables is
 controllable, the premise of a controllability violation ($\sigma\in\Sigma_u$ enabled in plant, disabled in policy) is
-unsatisfiable, and $K$ is controllable --- regimentable. Now take ``forbid \texttt{internal\_plan}'': the same one-state
-automaton disables \texttt{internal\_plan}$\;\in\Sigma_u$, the universal plant enables it at the start state, so the empty
-history $s=\varepsilon\in\overline{K}$ and $\sigma=$ \texttt{internal\_plan} witness
-$\overline{K}\Sigma_u\cap\overline{L}\not\subseteq\overline{K}$ --- detect-only, forever, for any runtime with this alphabet
-split. \emph{Now you try:} classify ``forbid \texttt{api\_call} after \texttt{spawn\_child}'' and ``forbid
-\texttt{internal\_plan} after \texttt{fs\_write}.'' (Answers: the first gates a controllable event on a controllable trigger
+unsatisfiable, and $K$ is controllable --- regimentable. Now take ``forbid \texttt{internal\_\allowbreak plan}'': the same one-state
+automaton disables \texttt{internal\_\allowbreak plan}$\;\in\Sigma_u$, the universal plant enables it at the start state, so the empty
+history $s=\varepsilon\in\overline{K}$ and $\sigma=$ \texttt{internal\_\allowbreak plan} witness
+$\overline{K}\Sigma_u\cap\overline{L}\not\subseteq\overline{K}$ --- no supervisor for this plant and alphabet split can prevent that initially enabled event. Detectability is a separate question. \emph{Now you try:} classify ``forbid \texttt{api\_\allowbreak call} after \texttt{spawn\_\allowbreak child}'' and ``forbid
+\texttt{internal\_\allowbreak plan} after \texttt{fs\_\allowbreak write}.'' (Answers: the first gates a controllable event on a controllable trigger
 --- regimentable; the second must disable an uncontrollable event in its post-trigger state, and the plant enables it there
---- detect-only.)
+--- not exactly realizable, although forbidding the earlier write gives a safe restriction.)
 
-This table is the manuscript's needed re-grading of governance rules, stated correctly: \emph{force-push, unauthorized
-egress, and out-of-scope writes are matters of structural authority and shall be prevented; a confident lie in a status
-report is semantic --- its truth is not a condition the boundary can witness (boundary~(vi)) --- and shall be detected and
-compensated} --- by audit, reputation, and slashing, which is
-the adjacent paper's machinery, not this one's. Figure~\ref{fig:regime} draws the same line as a single divider: everything
-above it gates at the mediation boundary, everything below it is detect-only forever, and the criterion on the divider is
-the whole theorem in one inequality.
-
+The table classifies specified event policies. It does not classify the
+truth of arbitrary status reports: that requires a fact model and observation
+rule beyond this alphabet. Figure~\ref{fig:regime} illustrates the control
+split under its stated full-observation assumption.
 \input{fig-r5-regime.tex}
 
-\section{The compound case: gate the channel, never the token}\label{sec:compound} The last table row is the one the whole
+\section{The compound case: observed read, controlled egress}\label{sec:compound} The last table row is the one the whole
 clean-room product line rests on. The policy \emph{``no network egress after an in-context read of a secret''} mentions an
-uncontrollable event (\texttt{in\_context\_read}) --- so a naive reading of the single-event rows predicts detect-only. The
+uncontrollable event (\texttt{in\_\allowbreak context\_\allowbreak read}) --- so a naive reading of the single-event rows predicts failure of exact realization. The
 checker says otherwise:
 
 \begin{verbatim}
@@ -252,14 +253,15 @@ COMPOUND POLICY: 'no net_egress after in_context_read of a secret'
   regimentable? YES
 \end{verbatim}
 
-\noindent [internal, \texttt{b3\_controllability.py}]. The mechanism is visible in the policy automaton: two states,
+\noindent [internal, \texttt{b3\_\allowbreak controllability.py}]. The mechanism is visible in the policy automaton: two states,
 \texttt{ok} and \texttt{tainted}. The uncontrollable read is \emph{enabled in both} --- the policy never tries to forbid it;
-it lets the read happen and records the taint transition. What the tainted state disables is \texttt{net\_egress} alone, and
-egress is controllable.
+it lets the read happen and records the taint transition. What the tainted state disables is \texttt{net\_\allowbreak egress} alone, and
+egress is controllable. The full-observation premise supplies knowledge of
+the read; hiding it introduces the additional obstruction in \S\ref{sec:partial}.
 
 This automaton is not new, and it is worth saying whose it is: it is Schneider's own Figure~1, a two-state security automaton
 for ``a security policy that prohibits execution of \texttt{Send} operations after a \texttt{FileRead} has been
-executed''~\cite{schneider}, with his \texttt{q\_nfr}/\texttt{q\_fr} relabelled \texttt{ok}/\texttt{tainted}. What the
+executed''~\cite{schneider}, with his \texttt{q\_\allowbreak nfr}/\texttt{q\_\allowbreak fr} relabelled \texttt{ok}/\texttt{tainted}. What the
 alphabet split adds is not the construction but the \emph{grading}: under complete mediation the figure is simply one more
 enforceable safety policy, whereas once $\Sigma_u\neq\emptyset$ the same two states become the canonical witness that a
 policy may reference an unrefusable event freely so long as it never tries to refuse it. The design rule below is a reading
@@ -269,31 +271,24 @@ direction hands us the supervisor --- track taint, gate the channel.
 
 Three consequences, in increasing order of consequence.
 
-\emph{First, the design rule.} A compound trigger$\to$effect policy is regimentable iff its \emph{effect} events are
-controllable; the trigger may be as uncontrollable as it likes, provided the policy observes rather than forbids it.
-Uncontrollable events in the policy's \emph{condition} are free; uncontrollable events in its \emph{prohibition} are fatal.
+\emph{First, the design rule.} In this two-state fully observed plant, the
+policy preserves the read and only disables controlled egress. In general,
+check controllability at reachable legal histories; an impossible trigger
+creates no obligation, and an unobserved trigger needs an observability check.
 
-\emph{Second, the clean room.} The Sealed Harbor design (Paper 4) puts an agent alone in a room with a customer's secret data
-and promises the secret does not leave. The theorem dictates the only sound architecture: it is impossible to prevent the
-model from \emph{reading} the secret (the read is uncontrollable --- and useless to forbid, since reading is the job), and it
-is impossible to prevent the model from \emph{incorporating} the secret into tokens and plans (uncontrollable again). What is
-possible --- exactly and only --- is to gate every controllable egress channel out of the room, with taint recorded from the
-moment of exposure. Gate the channel, never the token. Paper 4's companion noninterference result proves from the other
-direction that the gate suffices: observations outside the room are identical across secrets except at declared gate
-releases. Controllability says the gate is the only place a guarantee \emph{can} live; noninterference says a guarantee
-\emph{does} live there. This controllability boundary is thus the critical assumption behind the clean-room ledger's
-claims elsewhere in the program: ``all spend is recorded'' is precisely complete mediation of $\Sigma_c$.
+\emph{Second, the clean room.} This model supports a gate before egress with
+persistent, observed exposure state. It does not prove that every possible
+architecture must use this boundary or that a gate alone supplies secrecy.
+Paper4's finite noninterference check assumes a gate computing the declared
+release on committed input. Complete mediation and the release-function
+premise remain independent implementation obligations.
 
 \emph{Third, the special case that explains a folk theorem.} Product reviews of agent governance converged on the slogan ``a
-rule is enforceable iff it is a pure deterministic function of committed local DB state.'' That slogan is our theorem's
-special case $\Sigma_c=\{$DB writes$\}$: when the only mediated channel is the database commit, the regimentable policies are
-exactly those expressible over committed state. The general statement strictly dominates it --- the slogan cannot express why
-force-push is preventable by a runtime that also owns the git credential channel, nor why a confident lie stays unpreventable
-no matter how much state is committed. Holding the plant fixed, widening $\Sigma_c$ (owning more channels) is the only way to
-grow the regimentable set; no policy-language cleverness does. The plant is the other dial, and the box of
+rule is enforceable iff it is a pure deterministic function of committed local DB state.'' For a gate whose controllable events are database writes, a committed-state predicate can decide admission when that state retains all relevant policy history. The predicate alone does not prevent non-database effects or supply missing observations. A separate mediated git credential channel can make force-push controllable; the truth of arbitrary status reports still requires a fact and observation model beyond this event alphabet. With the plant, observation, and policy fixed, expanding the controlled
+alphabet may remove a controllability obstruction; changing syntax alone does not. The plant is the other dial, and the box of
 \S\ref{sec:theorem} is where to see it: $\overline{L}$ sits on the left of the containment, so shrinking it weakens the
-antecedent and strictly more policies pass. Our own detect-only verdicts already say as much --- both turn on ``the universal
-plant enables \texttt{internal\_plan}'' (\S\ref{sec:table}, \S\ref{sec:synthesis}) and are therefore conditional on the
+antecedent and may remove an obstruction, without guaranteeing a strict improvement. The negative verdicts already say as much --- both turn on ``the universal
+plant enables \texttt{internal\_\allowbreak plan}'' (\S\ref{sec:table}, \S\ref{sec:synthesis}) and are therefore conditional on the
 modelling choice $L=\Sigma^*$. An event that never becomes physically possible needs no supervisor at all, which is why data
 minimization and capability removal are governance moves and not merely hygiene: a secret never loaded into the room
 regiments this section's compound policy with no gate at all. What no richer rule syntax reaches is either dial --- the
@@ -302,8 +297,8 @@ criterion mentions only $\overline{K}$, $\Sigma_u$ and $\overline{L}$.
 \section{A synthesis case study: the sandboxed review job}\label{sec:synthesis} The theorem's constructive direction is not
 just an existence proof --- it is the synthesis algorithm the Supremica / TCT tool family implements, and it is small enough
 here to run by hand. Consider a realistic composite policy for a sandboxed code-review job: \begin{itemize} \item $P_1$: no
-\texttt{net\_egress}, ever (sandboxed); \item $P_2$: no \texttt{git\_push}, ever (review jobs propose, humans land); \item
-$P_3$: after any \texttt{in\_context\_read} of customer material, no \texttt{fs\_write} (findings leave through the mediated
+\texttt{net\_\allowbreak egress}, ever (sandboxed); \item $P_2$: no \texttt{git\_\allowbreak push}, ever (review jobs propose, humans land); \item
+$P_3$: after any \texttt{in\_\allowbreak context\_\allowbreak read} of customer material, no \texttt{fs\_\allowbreak write} (findings leave through the mediated
 report channel, not the workspace). \end{itemize} Each $P_i$ is a safety automaton; the composite policy is their synchronous
 product. $P_1$ and $P_2$ are one-state automata, $P_3$ is the two-state taint automaton of \S\ref{sec:compound}, so the
 product spec has $1\times1\times2=2$ states, \texttt{ok} and \texttt{tainted}, and the product with the universal one-state
@@ -312,21 +307,22 @@ uncontrollable events in each: all eight (state, event) pairs are enabled by the
 member of $\Sigma_u$ --- so there are $0$ violations and the composite is controllable [verified: eight cases, checkable by
 eye]. The maximally permissive supervisor falls out of the proof's construction as a two-row disablement map: \begin{center}
 \begin{tabular}{@{}lll@{}} \toprule Supervisor state & Disabled ($\subseteq\Sigma_c$) & Everything else \\ \midrule
-\texttt{ok} & \{\texttt{net\_egress}, \texttt{git\_push}\} & enabled \\ \texttt{tainted} & \{\texttt{net\_egress},
-\texttt{git\_push}, \texttt{fs\_write}\} & enabled \\ \bottomrule \end{tabular} \end{center} Two states, one observed
-transition (\texttt{in\_context\_read} flips \texttt{ok} to \texttt{tainted}), three gates. That table \emph{is} the
+\texttt{ok} & \{\texttt{net\_\allowbreak egress}, \texttt{git\_\allowbreak push}\} & enabled \\ \texttt{tainted} & \{\texttt{net\_\allowbreak egress},
+\texttt{git\_\allowbreak push}, \texttt{fs\_\allowbreak write}\} & enabled \\ \bottomrule \end{tabular} \end{center} Two states, one observed
+transition (\texttt{in\_\allowbreak context\_\allowbreak read} flips \texttt{ok} to \texttt{tainted}), three gates. That table \emph{is} the
 synthesized supervisor --- it is also, not coincidentally, exactly the policy engine a competent engineer would have written
 by hand. The value of synthesis is not that the answer is surprising; it is that the answer arrives with a
 maximal-permissiveness certificate (no legal behavior was sacrificed) and a controllability certificate (no uncontrollable
 event can force a violation), neither of which hand-written policy engines carry.
 
-Synthesis is equally informative when it fails. Ask it to weaken the detect-only policy ``forbid \texttt{internal\_plan}'' to
+Synthesis is equally informative when it fails. Ask it to weaken the non-realizable policy ``forbid \texttt{internal\_\allowbreak plan}'' to
 its best preventable approximation: the supremal controllable sublanguage. Let $K'\subseteq K$ be any nonempty controllable
-sublanguage; it contains $\varepsilon$, the plant enables \texttt{internal\_plan} at $\varepsilon$, so controllability forces
-$\varepsilon\cdot\texttt{internal\_plan}\in\overline{K'}\subseteq\overline{K}$ --- contradicting that $K$ forbids it. Hence
+sublanguage; it contains $\varepsilon$, the plant enables \texttt{internal\_\allowbreak plan} at $\varepsilon$, so controllability forces
+$\varepsilon\cdot\texttt{internal\_\allowbreak plan}\in\overline{K'}\subseteq\overline{K}$ --- contradicting that $K$ forbids it. Hence
 $\sup\mathcal{C}(K)=\emptyset$ [verified: three lines, above]. The theory refuses to pretend: there is no nontrivial
-preventable weakening of a thought ban --- the nearest preventable policy prevents nothing --- and any governance document
-claiming to ``partially enforce'' such a rule by prevention is describing detection with optimistic vocabulary.
+nonempty controllable restriction of this universal-plant thought ban. The
+empty language here represents infeasibility: an executing system always has
+at least the empty history. It is not a permissive policy that allows everything.
 
 \section{Partial observation: the next boundary (future work)}\label{sec:partial} Our theorem assumes the supervisor
 \emph{observes} every event, even the ones it cannot disable --- the daemon logs tokens after emission, reads after
@@ -334,14 +330,12 @@ completion. Realistic deployments break this in a second place: some events are 
 (activations never surfaced; state internal to a third-party tool; another principal's context). Supervisory control under
 partial observation is also solved territory: Lin--Wonham~\cite{lw88} characterize enforceability as controllability
 \emph{plus observability} --- the supervisor's decisions must be constant on observation-equivalence classes of histories,
-i.e.\ the policy may not demand different gate decisions after histories the runtime cannot tell apart. Observability
-strictly shrinks the regimentable set: a policy like ``no egress after the model \emph{considered} exfiltration'' references
+i.e.\ the policy may not demand different gate decisions after histories the runtime cannot tell apart. Partial observation
+can shrink the exactly realizable set: a policy like ``no egress after the model \emph{considered} exfiltration'' references
 unmediated internal \emph{state} with no observable taint transition, so even though its prohibition (egress) is
-controllable, no supervisor can implement the gate condition. The practical reading: a compound policy is deployable only if
-its trigger is \emph{witnessed at the mediation boundary} (the secret arrives via a mediated \texttt{in\_context\_read} the
-daemon performs, as in \S\ref{sec:compound}) --- taint must be an event the daemon sees, not a state it infers.
+controllable, no supervisor can implement the gate condition. The practical reading: the required decision must be determined by the observed history. A directly witnessed read, as in \S\ref{sec:compound}, is one way to supply that information. An inference is sufficient only if all histories compatible with the observations require the same decision; a guess is not enough.
 Figure~\ref{fig:quadrant} puts both boundaries on one grid: controllability separates its columns, observability its rows,
-and only the policies in the upper-right cell are preventable. Mapping the
+with the stated exactly realizable examples in the upper-right cell. Other cells do not rule out safety through a stricter policy, and they do not establish detectability. Mapping the
 agent-governance policy corpus across the observability line, and connecting it to the assurance-level ladder (which
 integration tiers witness which triggers), is the natural sequel; we state it as future work rather than claim it, because
 the interesting part --- which real triggers are witnessed at which assurance levels --- is an empirical systems question,
@@ -431,32 +425,25 @@ covered by the sweep are safe reinforcement learning beyond the shielding papers
 filtering work, and the operating-systems capability literature. Boundary~(vii) names the single outstanding item we already
 know about.
 
-\section{Honest boundary}\label{sec:boundary} \begin{boundary} \textbf{What this theorem does NOT say.} (i) It does not say
-detect-only policies are unenforceable or hopeless --- detection feeding audit, reputation, and bond-slashing (Paper 3) is
-real enforcement; the theorem only says prevention is off the table, so pricing and compensation must be sized for violations
-that \emph{will} occur. (ii) It does not certify any implementation: the theorem's $\Sigma_c$ is the set of events
+\section{Honest boundary}\label{sec:boundary} \begin{boundary} \textbf{What this theorem does NOT say.} (i) Failure of exact realization does not rule out every safe
+restriction. Detection, audit, and remedies require their own evidence and
+response assumptions; they are not consequences of a failed controllability
+test. (ii) It does not certify any implementation: the theorem's $\Sigma_c$ is the set of events
 \emph{actually} mediated, and every unenumerated side channel (raw sockets, DNS, inherited file descriptors, /proc, git
 credential helpers, package managers, clipboard, provider callbacks) silently moves events from $\Sigma_c$ to $\Sigma_u$ and
 shrinks the regimentable set behind the operator's back --- complete mediation of the claimed alphabet is an architectural
 obligation (Anderson; Rushby) that a red-team, not this proof, discharges. (iii) The classification is relative to the
 alphabet split: a runtime that gates model steps (e.g.\ token-level filtering with the model inside the boundary) changes
-$\Sigma_u$ and re-grades the table --- the theorem is a functor from architectures to boundaries, not one fixed verdict. (iv)
+$\Sigma_u$ and re-grades the table --- the classification is relative to the declared architecture, not one fixed verdict. (iv)
 The full-observation assumption is critical: policies whose triggers are unwitnessed internal state fall to the
 Lin--Wonham refinement (\S\ref{sec:partial}) even when their prohibitions are controllable. Items~(iii) and~(iv) are the two
 axes of Figure~\ref{fig:quadrant}: (iii) is the horizontal move, (iv) the vertical one, and a policy must make both trips to
 become preventable. (v) The checker verifies the
-stated policy automata over the stated alphabet [internal, \texttt{b3\_controllability.py}]; it is a faithful implementation
-of the test, not a mechanized proof of the theorem --- an Isabelle/Coq formalization remains the submission gate. (vi)
-Prevention governs \emph{effects}, never \emph{semantics} --- but for the governance rule of \S\ref{sec:scene}, ``no
-confident falsehoods in status reports,'' the obstruction is \emph{observability}, not controllability, and item~(iii) is
-what forces the distinction. A runtime that gates model steps re-grades the table, and \texttt{internal\_plan} is a row of
-that table, so the confident-lie row is re-gradable in principle; by \S\ref{sec:compound}'s own design rule it is re-gradable
-in practice too, since a status report leaves through emission and then through \texttt{api\_call}, \texttt{fs\_write} or
-\texttt{net\_egress} --- all already controllable --- which makes the prohibition controllable and the internal step a mere
-trigger. What no such runtime can do is \emph{evaluate the gate}: ``this report is false'' is not a predicate over the event
-alphabet, and the condition is unwitnessed internal state rather than an event the daemon sees. The rule therefore falls to
-item~(iv) and \S\ref{sec:partial} --- Lin--Wonham observability --- and not to the box's inequality, which is why it stays
-unpreventable at \emph{every} alphabet split and not merely at ours. (vii) Dastani, Sardina and Yazdanpanah's \emph{Norm
+stated policy automata over the stated alphabet [internal, \texttt{b3\_\allowbreak controllability.py}]; it is a faithful implementation
+of the test, not a mechanized proof of the theorem --- an Isabelle/Coq formalization remains the submission gate. (vi) A coarse event alphabet lacks a truth predicate for arbitrary reports.
+A restricted report over registered facts and checked receipts can have an
+evaluable output guard; this paper supplies no complete oracle for unrestricted
+prose and proves no impossibility for every richer fact model. (vii) Dastani, Sardina and Yazdanpanah's \emph{Norm
 Enforcement as Supervisory Control}~\cite{dsy17}, obtained and read in full: their Theorem~1 proves a norm is
 ``regimentable'' iff a regimenting supervisor exists, by directly importing the same Ramadge--Wonham controllability
 theorem we do, in normative-multi-agent-systems vocabulary rather than ours. They do not claim the identification as a
@@ -468,8 +455,8 @@ paper; what neither prior source gives is the synthesis procedure or the $\sup\m
 theorem and the classification stand regardless, since neither depends on being first. \end{boundary}
 
 \vspace{0.4em} \noindent\emph{Reproducibility.} The policy table and the compound-case verdict regenerate deterministically
-from \texttt{skills/harbor-results/scripts/b3\_controllability.py} (pure Python, no dependencies, no randomness);
-Figures~\ref{fig:relation} and~\ref{fig:regime} regenerate from \texttt{docs/harbor-research/figures/src/r5\_figures.py}
+from \texttt{skills/\allowbreak harbor-results/\allowbreak scripts/\allowbreak b3\_\allowbreak controllability.py} (pure Python, no dependencies, no randomness);
+Figures~\ref{fig:relation} and~\ref{fig:regime} regenerate from \texttt{docs/\allowbreak harbor-research/\allowbreak figures/\allowbreak src/\allowbreak r5\_\allowbreak figures.py}
 (the relation map with the script's third row dropped, since the regime diagram's right panel already carries it), and
 Figure~\ref{fig:quadrant} is drawn from those same checker verdicts plus the worked policy of \S\ref{sec:partial}. Every number and verdict in this paper is
 tagged [verified] (externally recomputable from the cited literature or by hand) or [internal] (regenerates from the named

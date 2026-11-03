@@ -29,9 +29,9 @@
     \node[pd label,anchor=north] at (\x,-.16) {\lab};
   }
   \draw[pd breach rule,line width=1.25pt]
-    (0,3.20) -- (1.15,3.20) -- (1.15,0.55) -- (2.30,0.55) -- (2.30,0.30) -- (\pw,0.30);
+    (0,3.20) -- (1.15,3.20) -- (1.15,0) -- (\pw,0);
   \draw[pd focus rule,line width=1.45pt] (0,3.20) -- (\pw,3.20);
-  \node[pd focus label,anchor=south west,text width=4.2cm] at (0.15,3.40) {principal-bound identity};
+  \node[pd focus label,anchor=south west,text width=4.2cm] at (0.15,3.40) {principal-bound sanction policy};
   \node[pd breach label,anchor=west,text width=2.7cm] at (1.55,2.15) {fresh self-asserted label};
   \node[pd breach datum] at (0,3.20) {};
   \node[pd label,anchor=east] at (-.18,3.20) {$\Delta$};
@@ -53,10 +53,8 @@
     \node[pd focus datum,inner sep=1.5pt] at (\x,1.40) {};
   \end{scope}
   \node[pd note,anchor=north west,text width=9.5cm] at (0,-2.70)
-    {scope: one trusted daemon and one bound principal; federation still owes cross-operator attestation};
+    {scope: one trusted admission domain; principal linkage and sanction / voting policy are both required};
 \end{tikzpicture}
-\caption{Binding identity to a principal preserves sanctions across restarts
-and prevents aliases from multiplying quorum weight. This protection is
-local to one trusted domain, not cross-operator attestation. [internal]}
+\caption{Two policy illustrations, not measured attack traces. In A, a penalty imposed at the newcomer baseline vanishes on free unlinkable reset; a principal-bound sanction policy retains it. In B, counting each alias as a voter inflates weight, while one enforced principal-level weight does not. Authentication alone supplies neither policy, and neither panel proves cross-operator admission.}
 \label{fig:sybil}
 \end{figure*}

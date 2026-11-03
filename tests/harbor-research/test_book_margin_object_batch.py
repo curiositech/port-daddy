@@ -14,7 +14,7 @@ RECORDS = [
     ('spawn-to-person.tex', 'stp-splice-continuity',
      'ch05-continuity-rope-splice',
      'f0893d41e5a42b073c1794f9281736d7c3e701acc06758544f531a1443cedfde',
-     'Like the overlapping strands of a splice,', 'The level at which they agree'),
+     'Like the overlapping strands of a splice,', 'A small chain makes the engineering relation concrete'),
     ('harbor-economy.tex', 'reusable-pattern',
      'ch06-reusable-printing-block',
      'baa8bbc79d4bafeb1191da37c105e01746f260ce26e3ced07b2fbc3911aa6a39',

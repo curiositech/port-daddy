@@ -2,15 +2,13 @@
 """
 B3 — Hypervisor Enforceability = Ramadge-Wonham Controllability
 ================================================================
-Theorem: an agent hypervisor can REGIMENT (prevent pre-effect) a safety policy P
-iff P is a prefix-closed safety language CONTROLLABLE with respect to the
-uncontrollable event set Sigma_u (model-internal steps, in-context content that the
-daemon cannot intercept). Everything else is detect-and-compensate.
+Under full observation, a nonempty prefix-closed policy can be realized
+exactly by disabling controllable events iff it is controllable relative to the
+plant and declared uncontrollable alphabet. Failure of exact realization does
+not establish detectability, and a more restrictive safe policy may exist.
 
-This script implements the supervisory-control controllability test and the
-supremal controllable sublanguage computation, then applies it to a realistic
-agent-runtime alphabet to produce the regimentable-vs-detect-only table that the
-manuscript's ledger needs.
+This script tests finite prefix-closed plant/specification automata. It does not
+compute the supremal controllable sublanguage or prove runtime conformance.
 
 Controllability (Ramadge-Wonham 1987): K is controllable w.r.t. plant L and Sigma_u
 iff  K-bar . Sigma_u  ∩  L-bar  ⊆  K-bar
@@ -41,7 +39,8 @@ class DFA:
 def controllable(plantL, specK, Sigma_u):
     """
     Test K-bar . Sigma_u ∩ L-bar ⊆ K-bar via the product automaton.
-    plantL, specK are DFAs; specK's language ⊆ plantL's. We check: for every state
+    plantL, specK are prefix-closed DFAs with every reachable state marked;
+    specK's language is a subset of plantL's. We check: for every state
     (l,k) reachable in the product along a string in K, and every uncontrollable
     event a enabled in the plant (l has an a-transition to a live state), a must
     also be enabled in K (k has an a-transition to a live/legal state).
@@ -82,9 +81,8 @@ plant = DFA(states={"*"}, alphabet=Sigma,
 
 def make_spec_forbidding(forbidden_after):
     """
-    Spec = 'never let event `bad` occur after enabling condition'. We encode a
-    2-state safety automaton: state 0 (ok) -> on `bad` goes to a DEAD (illegal)
-    state (transition absent = disabled in spec). All other events self-loop.
+    Spec = 'never let the named event occur'. One legal state has self-loops
+    for all other events; the forbidden transition is absent.
     forbidden_after: the event the policy tries to forbid.
     """
     d={}
@@ -99,7 +97,7 @@ def make_spec_forbidding(forbidden_after):
 # ==================================================================
 print("="*72)
 print("REGIMENTABILITY TABLE — which agent-runtime policies can be PREVENTED")
-print("(controllable w.r.t. Sigma_u) vs only DETECTED post-hoc")
+print("Exact realization under full observation; no detector is inferred")
 print("="*72)
 print(f"{'policy: forbid ...':>24} {'event class':>16} {'regimentable?':>14}")
 print("-"*72)
@@ -117,25 +115,21 @@ policies = [
 for ev, cls in policies:
     spec = make_spec_forbidding(ev)
     ok, viol = controllable(plant, spec, Sigma_u)
-    verdict = "YES (regiment)" if ok else "NO (detect only)"
+    verdict = "YES (regiment)" if ok else "NO (not exact)"
     print(f"{('forbid '+ev):>24} {cls:>16} {verdict:>14}")
 
 print("\n" + "="*72)
 print("INTERPRETATION")
 print("="*72)
-print("""  A policy forbidding a CONTROLLABLE event (net egress, git push, fs write,
-  tool exec, child spawn) is controllable w.r.t. Sigma_u: the hypervisor can
-  disable the event pre-effect, so the policy is REGIMENTABLE. A policy that
-  would need to forbid an UNCONTROLLABLE event (a model emitting a token, reading
-  its context, forming an internal plan) is NOT controllable: the event occurs
-  before any mediator sees it, so the best available is DETECT-AND-COMPENSATE.
+print("""  These verdicts apply to the declared finite plant and event alphabet.
+  Full observation permits a supervisor to distinguish every modeled trace.
+  A forbidden uncontrollable event defeats exact realization here. It does not
+  prove that the event is observable or compensable, or that a smaller safe
+  language is impossible in a different plant.
 
-  This is exactly the manuscript's needed re-grading:
-    force-push, egress, out-of-scope write   -> REGIMENTABLE (structural authority)
-    'confident lie in a report'              -> DETECT-ONLY (semantic, uncontrollable)
-  and it is the formal content of OP-2 stated as Ramadge-Wonham controllability,
-  NOT as 'pure function of committed DB state' (which is the special case where
-  the controllable alphabet is exactly the set of DB writes).""")
+  A statement about false reports needs a separate truth/evidence model and
+  an output-admission contract. The label 'semantic' alone decides neither
+  controllability nor detectability.""")
 
 # ==================================================================
 # A subtler case: a COMPOUND policy that mixes controllable and uncontrollable
@@ -161,9 +155,8 @@ for a in Sigma:
 spec2=DFA(states={"ok","tainted"},alphabet=Sigma,delta=d,start="ok",marked={"ok","tainted"})
 ok,viol=controllable(plant,spec2,Sigma_u)
 print(f"  regimentable? {'YES' if ok else 'NO'}")
-print(f"""  Reading: the TRIGGER (in_context_read) is uncontrollable and the spec does
-  NOT try to forbid it — it lets it happen and RECORDS taint. The controlled
-  EFFECT (net_egress) is disabled post-taint, and egress IS controllable, so the
-  compound policy is regimentable. This is precisely why the Sealed Harbor gates
-  the CHANNEL (egress), never the token (read): gating the uncontrollable trigger
-  would be unregimentable, but gating the controllable effect is not.""")
+print("""  The read is uncontrollable but observed in this model. After that
+  observation, a controllable egress event is refused. If the read were hidden,
+  the permissive-before-read and refusing-after-read decisions would require
+  an additional observation analysis. Refusing all egress is a stricter policy,
+  not exact realization of this one.""")

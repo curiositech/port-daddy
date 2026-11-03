@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-03",
+  "branch": "codex/book-textbook-craft-20261103",
+  "base_commit": "4db6612e945a7c0555e5a1f6c6e8892d7d7b1fbd",
+  "reading_method": "Contiguous source reading including formal statements, examples, exercises, solutions and their summaries. Mechanical inventories are locators, not evidence of understanding.",
+  "parent_owned_sources": [
+    {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.tex",
+      "sha256": "966c2c5deded123870103d715c3e5c9447cd939a12f6f4b3cba98f88f57feb71",
+      "lines": 227
+    },
+    {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex",
+      "sha256": "9567b41bd2a17d2c142d2b8615ee1db86f550afbde36f1e8bc7002c23ba64e70",
+      "lines": 1266
+    },
+    {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-appendices.tex",
+      "sha256": "c30c40070f5d672ed1b4c8aad8bc0c16b24d5f44516d49546762a4424b2d7ca4",
+      "lines": 325
+    }
+  ],
+  "review_order": [
+    "front matter",
+    "foundations",
+    "local transaction and authority",
+    "confinement",
+    "supervision",
+    "durable identity",
+    "exchange",
+    "adjudication",
+    "federation",
+    "solutions and concordance"
+  ],
+  "acceptance": [
+    "First use has a concrete referent and explicit scope.",
+    "Each retained technical construction supports a later argument, example, or contrast.",
+    "Examples teach why each step is taken and admit hand recomputation.",
+    "Summaries and exercise answers preserve theorem assumptions.",
+    "Open problems do not promise invented closed-form solutions.",
+    "Render converged Book and inspect changed spreads."
+  ]
+}

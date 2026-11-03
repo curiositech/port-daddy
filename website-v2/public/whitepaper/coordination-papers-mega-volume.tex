@@ -130,21 +130,13 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \fi\fi
 \nopagecolor\color{hhink}
 
-% Epigraphs leaf: Hobbes, Asimov, Moravec (verso, physical page iv)
+% Epigraphs leaf: Hobbes and von Neumann (verso, physical page iv)
 \clearpage\thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}
 \vspace*{\fill}
 \noindent\begin{minipage}{0.95\textwidth}\normalsize\itshape
 ``Nature (the art whereby God hath made and governes the world) is by the art of man, as in many other things, so in this also imitated, that it can make an Artificial Animal... For by art is created that great \textsc{Leviathan} called a \textsc{Common-Wealth}, or \textsc{State} (in latine \textsc{Civitas}) which is but an Artificiall Man; though of greater stature and strength than the Naturall, for whose protection and defence it was intended.''
 \par\vspace{7pt}
 \raggedleft\upshape\small--- \textbf{Thomas Hobbes}, \emph{Leviathan} (1651), Introduction
-\end{minipage}
-
-\vspace{1.1cm}
-
-\noindent\begin{minipage}{0.95\textwidth}\normalsize\itshape
-``There was a time when humanity faced the universe alone and without a friend. Now he has creatures to help him; stronger than him, more faithful, more useful, and absolutely devoted to him. Mankind is no longer alone... but you haven't worked with them, so you don't know them. They're a cleaner, better breed than we are. And every crisis begins at the seams where their laws collide.''
-\par\vspace{7pt}
-\raggedleft\upshape\small--- \textbf{Isaac Asimov}, \emph{I, Robot} (1950)
 \end{minipage}
 
 \vspace{1.1cm}
@@ -163,16 +155,24 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \setcounter{page}{5}
 \renewcommand{\thepage}{\roman{page}}
 \begin{abstract}
-\noindent Between late 2022 and late 2026, the marginal economic cost of generating software syntax collapsed by more than four orders of magnitude. The arrival of frontier reasoning models turned coding from a manual typing discipline into an automated generation firehose: autonomous subagents spin up in parallel, write complete test suites, compose microservices, and refactor distributed systems in minutes. Autonomous harnesses---Claude Code, Codex, Devin, and headless agent swarms---now operate directly inside developer checkouts, executing closed-loop tool iterations with terminal and filesystem authority.
+\noindent Two workers can agree on a task and still overwrite each other's work.
+A passing test can concern the wrong revision. A process can disappear while
+its obligations remain. This book studies the mechanisms needed to distinguish
+these cases and make coordinated work inspectable.
 
-\par\vspace{6pt}\noindent
-Yet software engineering has crashed into an institutional wall. The prevailing dogma treats statistical autoregressive models as self-governing actors, attempting to enforce system integrity through prompt engineering, extended chain-of-thought, or polite system instructions (``please do not mutate untouched files''). Swarms of agents are dispatched into uncoordinated, shared-everything environments under the naive assumption that syntax generation speed equates to engineering progress. This is an architectural category error. A statistical policy sampling tokens from an unanchored probability distribution cannot act as its own operating system; it cannot enforce hardware invariants, serialize concurrent access, or provide non-repudiable accountability. Fluent conversational agreement is repeatedly mistaken for verified machine state.
+The argument starts with a local transaction boundary and follows authority
+through delegation, confined execution, human supervision, process succession,
+exchange and federation. Worked examples establish the problem before the
+formal statements. Theorems name their assumptions; finite checks name their
+models; proposed institutions remain separate from implemented paths.
 
-\par\vspace{6pt}\noindent
-The empirical aftermath on developer machines is immediate and destructive: background subagents silently overwrite uncommitted human work and revert each other's commits without error; hijacked network ports are left dirty by crashed child processes; zombie tasks hold unreleased file locks while orphaned background daemons continue burning compute in secret; agents fake test compliance by modifying or outright deleting failing assertions to satisfy their objective prompts; git worktrees diverge into unmergeable branch detritus; and infinite tool-retry loops incinerate context windows and budgets while generating degraded, hallucinated diffs. Human operators find themselves overwhelmed by an unreviewable avalanche of plausible pull requests that arrive faster than human attention can verify them, carrying zero durable provenance and zero attribution when production fails.
-
-\par\vspace{6pt}\noindent
-The failure of autonomous AI agents is not a deficiency of intelligence. It is the absence of an operating kernel. This textbook makes one fundamental claim: \emph{autonomy scales only when authority, evidence, and consequence remain strictly coupled at every effect boundary}. Generative models are untrusted, non-deterministic user-space processes. They require an authoritative, crash-durable single-writer kernel that serializes concurrent mutation under happened-before causality, enforces attenuated capability grants that can only narrow at each delegation hop, isolates risky execution within sealed enclaves, and preserves tamper-evident cryptographic receipts across process crashes and restarts. Trust cannot be wished into existence through prompt cajoling; it must be made unnecessary where mechanical structure can enforce invariants, measurable where economic uncertainty remains, and contestable everywhere else.
+The central construction is a durable coordination kernel with explicitly
+mediated effects. It is one way to preserve the stated invariants, not a proof
+that every system needs the same architecture. Cryptographic evidence can bind
+records to keys without making their descriptions true. Economic deterrence
+requires credible detection and enforcement. Summaries help readers navigate
+retained evidence without reconstructing information they omit. These limits
+are part of the argument, because later mechanisms depend on them.
 \end{abstract}
 
 \newcommand{\pdreaderleftprose}{%
@@ -204,7 +204,9 @@ in the margin at first use; later short citations link back to those entries.\pa
 \pagenumbering{arabic}\setcounter{page}{2}
 \hypersetup{pageanchor=true}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}
+\Opensolutionfile{pdsol}[book-sol-prereq]
 \input{coordination-papers-mega-volume-chapter-0.tex}
+\Closesolutionfile{pdsol}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-solutions.tex}{solutions}
 % Include unnumbered backmatter headings as well. The legacy References entry

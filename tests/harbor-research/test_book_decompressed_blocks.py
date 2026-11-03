@@ -44,18 +44,18 @@ def require_groups(text, anchors):
 
 def check_nomint(text):
     require_groups(text, ["The branching rule", "The reported randomized sweep",
-                         "The copy-full mutant", "One wrong turn", r"\emph{Now you try:}",
+                         "The copy-full mutant", "A counterexample to local grant budgets alone", r"\emph{Now you try:}",
                          "The discipline is older", "Same enemy"])
     require_displays(text, ["0.9+0.81+0.729=2.439>1", r"0.9^3=0.729\le 1"])
     for required in ["except at witness", "$4{,}000$", "$0$ violations [internal,",
-                     "$8.2\\times$", r"$\gamma>\tfrac12$", r"\pdcite{levien-advogato}",
+                     "$8.2\\times$", "Debiting each transferred balance is what supplies conservation", r"\pdcite{levien-advogato}",
                      r"\ref{ex:stp-nomint-sweep}"]:
         if required not in " ".join(text.split()):
             raise AssertionError("No-mint premise or provenance changed: " + required)
 
 
 def check_trade(text):
-    require_groups(text, [r"Theorem~\ref{thm:ms} names", "Any mechanism satisfying",
+    require_groups(text, [r"Theorem~\ref{thm:ms} requires a tradeoff", "Any mechanism satisfying",
                          "Take Bob's value", "Integrating over the whole square",
                          "Efficient trade is possible", "Counting opportunities",
                          "These are properties"])
@@ -94,7 +94,7 @@ class DecompressedBlocks(unittest.TestCase):
         source = SPAWN.read_text()
         start = source.index(r"\begin{pdclaim}{Theorem}{Tower Contraction;")
         text = source[start:source.index(r"\end{pdclaim}", start)]
-        require_groups(text, ["proof and verification artifacts", "Let level", "Below that threshold", "Consequently"])
+        require_groups(text, ["proof and verification artifacts", "Let level", "Below that threshold", "If $G_0\\le CB$"])
         require_displays(text, [r"G_k \;>\; C\,B", r"G_{k+1} \;=\; (1-\rho d)\,G_k",
                                r"\left\lfloor \frac{\log(G_0/u)}{\log\tfrac{1}{1-\rho d}}\right\rfloor+1"])
         self.assertIn("conditional on every preceding", " ".join(text.split()))
@@ -102,21 +102,28 @@ class DecompressedBlocks(unittest.TestCase):
 
     def test_audit_depth_keeps_two_pools_and_exercise_separate(self):
         text = example(SPAWN.read_text(), "Diversity and Audit Depth")
-        require_groups(text, ["Take $G_0", "With a heterogeneous pool", "With a monoculture pool", r"\emph{Now you try:}"])
+        require_groups(text, ["Take $G_0", "With a heterogeneous pool", "For $C=1$", r"\emph{Now you try:}"])
         require_displays(text, [r"\lceil \log 400/\log 1.25 \rceil = 27",
                                r"\lceil \log 50/\log 1.25\rceil = 18"])
         self.assertIn("they are not measured audit performance", " ".join(text.split()))
 
-    def test_amortization_keeps_horizon_limits_and_reported_check(self):
-        text = example(SPAWN.read_text(), r"The Audit Tower: Amortized \mbox{Verification} Spend")
-        require_groups(text, ["As a judge", "Two honest amortization", "Model B", "Both models", r"\emph{Now you try:}"])
-        require_displays(text, [r"a\sum_t\rho^\star=50.00", r"\rho_t=G/(d(B+vt))",
-                               r"\frac{aG}{dv}\ln(1+vT/B)=25.50", r"\rho_t=\max(0,(G-rvt)/(dB))",
-                               r"t^\star=G/(rv)=333", "aG^2/(2dBrv)=41.67",
-                               r"\rho^\star\times a\times200=0.25\times1\times200=50"])
-        for phrase in ["$25.58$", "$35.08$", "(short of $t^\\star$)", "script's IC check reports",
-                       r"$+1.78\times10^{-15}$", "zero to floating-point precision",
-                       r"[internal, \texttt{b2\_tower.py}, seed 20260816]"]:
+    def test_amortization_distinguishes_discrete_sum_and_integral(self):
+        text = example(SPAWN.read_text(), "Amortized Verification: Sums and Their Integral Approximations")
+        require_groups(text, ["Let periods be", "In Model~A", "Model~B", r"\emph{Now you try:}"])
+        require_displays(text, [r"\rho_t=\frac{G}{d(B+vt)}",
+                               r"\int_0^T\frac{aG}{d(B+vt)}\,dt",
+                               r"\rho_t=\max\{0,(G-rvt)/(dB)\}"])
+        for phrase in ["$t=0,\\ldots,T-1$", "additive payoff model",
+                       r"$\lceil G/(rv)\rceil=334$", "$35.075",
+                       "$41.79175$", "not its exact value",
+                       "does not converge to that integral",
+                       "its own evidence and enforcement mechanism"]:
+            self.assertIn(phrase, " ".join(text.split()))
+
+    def test_tower_budget_and_selected_capital_are_not_universal(self):
+        text = example(SPAWN.read_text(), "Diversity and Audit Depth")
+        for phrase in ["cannot replenish that budget", "only that remainder",
+                       "not disappearance", "not a capital requirement for the entire"]:
             self.assertIn(phrase, " ".join(text.split()))
 
     def test_negative_controls_reject_collapsed_points_and_promoted_evidence(self):

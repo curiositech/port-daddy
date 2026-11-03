@@ -148,8 +148,8 @@ and a named verification artifact in the companion manifest.
 \subsection{The eight propositions and their evidence}
 
 \paragraph{1. Prevention begins at the effect boundary (R5, R8) --- \pdchapref{swk}{The Single-Writer Kernel}.}
-Controllability separates rules that a pre-commit gate can enforce from failures
-that can only be observed and remedied. The airlock experiments show why complete
+Controllability and sufficient observation together distinguish enforceable
+pre-effect rules from properties requiring other controls or post-effect remedies. The airlock experiments show why complete
 channel mediation is the decisive assumption. A token, label, or policy document
 does not control an effect channel by itself.
 
@@ -163,7 +163,7 @@ Two owners who distrust each other compute one answer inside two fences with a
 single metered slot. Noninterference modulo declassification holds on the
 finite room model; the release ledger conserves its $\varepsilon$ budget and
 refuses the torn write; canaries detect exfiltration with a stated power curve
-and a Wald clock. What the slot may leak is priced as $q\cdot b$ bits before
+and a Wald clock. For $q$ fixed-length $b$-bit releases, $q\cdot b$ bounds payload capacity before
 timing, and timing, cache, and physical channels are declared out of model
 rather than closed.
 
@@ -178,16 +178,16 @@ event and flag models. They do not certify an arbitrary dashboard.
 \paragraph{5. Accountability outlives the process (R7, R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
 The inspection tower prices reputation as amortized verification. No-mint transfer semantics prevent skill or identity replacement from creating
 new authority. Budget-pooling and exposure arguments make reset laundering a
-property of the principal's case file, not the process name. The research killed
-the stronger closure-weight formulation before restating the result correctly.
+property of the principal's case file, not the process name. The admission and exposure assumptions are essential: an authentic key alone
+does not prevent its holder from abandoning liabilities under a new key.
 
 \paragraph{6. Exchange separates payment, collateral, evidence, and closure
 (R15, R17) --- \pdchapref{he}{The Harbor Economy}.}
 Conservation supplies the accounting invariant; the tractable deontic fragment
 decides which rule sets can conflict and names the frontier past which that
-decision turns NP-complete; the succession rule has a price, because a sole
-owner's response time never falls below its residual-downtime floor, so
-pooling dominates past a computable threshold. These are conditional economic
+decision turns NP-complete; the succession rule has a price, because under the stated queue model a sole
+owner has a residual-downtime floor; comparison with a stable pooled queue
+gives a conditional pooling threshold. These are conditional economic
 statements. Detection probability, one-shot gain, collateral, judge
 independence, and custody must be measured or contracted rather than implied.
 
@@ -229,15 +229,15 @@ unresolved.
   agent ultimately exercises; not interchangeable with a process identity.
   \item[Role] A bundle of obligations, capabilities, and authority that a spawn
   may fill.
-  \item[Person] A role instance plus continuity and a witnessed outcome history
-  bound to an identity that cannot be freely re-picked.
+  \item[Person] An accountable identity with continuity and a witnessed outcome history;
+  roles may change without creating a new accountable principal. Its anti-reset
+  properties depend on admission and liability rules.
   \item[Oracle] An external or independently checkable reference used to close
   a commitment or adjudicate an outcome. Its trust model must be named.
-  \item[Epoch] Three clocks share the word. In \pdchapref{anchor}{The Anchor
-  Protocol} an epoch is a revocation counter, and a Card's validity window is a
-  TTL; in \pdchapref{sealed}{The Sealed Harbor} an epoch is an attestation
-  freshness counter that detects rollback. None of the three converts into
-  another.
+  \item[Epoch] A version or freshness counter, with chapter-specific meaning.
+  Chapter 2 uses revocation epochs; Chapter 3 uses attestation freshness to
+  detect rollback. A credential's time-to-live is a validity duration, not
+  another epoch counter. None substitutes for the others.
   \item[Round] A model step in a dissemination or protocol analysis, not
   automatically a wall-clock deadline.
   \item[Closed] The exact recorded property has been mechanically discharged.
@@ -247,14 +247,12 @@ unresolved.
 \subsection*{Which chapter owns which primitive}
 \label{app:ownership}
 
-The list above settles what a word means. This table settles something
-different and just as easy to get wrong across eight chapters: which chapter is
-allowed to \emph{define} a shared object, and which chapters may only cite it.
-The rule is one definition per primitive, in its owning chapter; a chapter that
-needs a primitive it does not own states what it needs from it and refers, and
-if two chapters ever disagree the owner is the one to trust. Most of the
-duplication an outside reader has found in this book was a primitive defined
-twice rather than a fact stated twice, which is why this table exists at all.
+Each shared primitive has a canonical definition in its owning chapter.
+Later chapters recall the relevant part in context and apply it to a new
+example; readers should not have to retrieve a distant definition merely to
+follow a paragraph. Those reminders must preserve the same contract. A genuine
+extension states the added assumptions explicitly. The table identifies where
+to resolve a conflict, not a prohibition on useful repetition.
 
 \begin{table}[H]
 \centering
