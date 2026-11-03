@@ -1270,17 +1270,17 @@ stops and asks versus proceeds is a control problem (\S\ref{sec:operator}), and 
 philosophy (\textbf{ANSI/ISA-18.2}, \emph{Management of Alarm
 Systems}~\pdcite{isa182} --- \emph{the process-control standard for alarm
 rationalization: every alarm has a defined priority, set-point, and operator
-response, with explicit flood-suppression}). An uncontrolled-false-alarm distress
-lane self-destructs into habituated uselessness within days, exactly as clinical
-alarms do (\textbf{Cvach 2012}, \emph{Monitor Alarm Fatigue}~\pdcite{cvach2012} ---
-\emph{85--99\% of clinical alarms are non-actionable; staff learn to ignore channels
-that cry wolf}). We make escalation a \emph{costly signal} in Spence's
-sense~\pdcite{spence1973} --- the job-market model in which a credential nobody
-strictly needs is still worth buying, because it costs the able less than it
-costs everyone else and so sorts them (\S\ref{sec:gates}): an escalation the
-operator dismisses debits the agent's standing, so crying wolf has a price, and
-the price falls harder on the agent whose alarm was baseless than on the one
-whose alarm was right.
+response, with explicit flood-suppression}). Frequent unhelpful alerts risk
+habituation and ignored warnings. Cvach's clinical review~\pdcite{cvach2012}
+reports studies in which $80$--$99\%$ of alarms were false or clinically
+insignificant, and discusses desensitization. That clinical evidence motivates
+measuring alert burden and response in agent supervision; it establishes
+neither the rate nor the timescale of those effects in an agent distress lane. Spence's signaling model~\pdcite{spence1973} motivates examining how an
+escalation cost could separate signal types. Here the proposed debit follows an
+adjudicated false escalation, not a bare dismissal (\S\ref{sec:gates}). Whether
+it discourages manipulation without suppressing valid warnings depends on the
+validation rule and its errors. The model below abstracts that rule as an
+upholding probability; it does not establish the validator's correctness.
 
 The next result gives a threshold best response to a fixed validation rule.
 The worked model's threshold and feasible debit range are checked by
@@ -2594,13 +2594,13 @@ may serve both; their scores still need separate interpretations.
 $\mathrm{stakes}\times\mathrm{irreversibility}\times\mathrm{anomaly}$ looks like a
 designer's convenient heuristic. Its expected-loss interpretation follows under the inspection model below,
 which requires ``anomaly'' to be a calibrated probability. The analogy
-is a smoke detector. It has one dial, and the right setting of that dial is fixed
-not by how much smoke there is but by the ratio of two costs: the house burning down
-against burnt toast waking you at three in the morning. Three relations transfer.
-Expected loss is magnitude times probability, so the alarm must weigh what it would
-cost to be wrong, not merely how unusual the reading is. Raising the cost of the
-fire \emph{lowers} the threshold at which the alarm should sound; the dial moves
-toward hair-trigger, not away from it. A false alarm alone does not establish miscalibration: even a calibrated
+is a smoke detector whose alert triggers an inspection. Its threshold depends
+on the posterior danger probability and three costs: a missed fire, a false
+alarm, and the effort of inspecting. Three relations transfer. Expected loss
+is magnitude times probability, so the alarm must weigh what it would cost to
+be wrong, not merely how unusual the reading is. With false-alarm and
+inspection costs fixed, raising the miss cost weakly lowers the threshold;
+Eq.~\ref{eq:bayes-regret} gives the exact condition for a strict decrease. A false alarm alone does not establish miscalibration: even a calibrated
 posterior can cross a low decision threshold when fires are costly. Calibration
 and the choice of threshold need separate checks. Better sensing changes the evidence, while costs price the response. If the
 sensor perfectly identifies safe and dangerous items, false alarms need not
@@ -2670,10 +2670,11 @@ stated allocation. No independence between item outcomes is needed for this
 additive expectation, but the no-cross-effect assumption is essential.
 \end{proof}
 
-Note the direction the inequality runs: raising the miss-to-false-alarm cost ratio
-\emph{lowers} the bar to inspect, the formal version of ``when a mistake is
-unrecoverable, look at more things.'' Raising that bar instead would reverse the
-intended response to costly misses. The per-item rule is a single-shot Bayesian decision rule. Sequential
+Holding attention and false-alarm costs fixed, increasing the miss cost
+weakly lowers the inspection threshold in Eq.~\ref{eq:bayes-regret}; the decrease
+is strict when $c_{\mathrm{att}}+C_{\mathrm{fa}}>0$. A larger miss-to-false-alarm
+cost ratio alone does not establish that direction, because its denominator
+may have changed too. The per-item rule is a single-shot Bayesian decision rule. Sequential
 oversight needs its own observation and stopping model. Wald's sequential
 probability ratio test~\pdcite{wald1947} supplies a classical benchmark under
 specified simple hypotheses and sampling assumptions; its optimality does
@@ -2692,8 +2693,9 @@ bar to
 \[
 6/1005\approx 0.006;
 \]
-as the miss-to-false-alarm ratio grows the threshold
-falls, driving the operator toward inspecting everything ambiguous.
+Here attention and false-alarm costs stay fixed while the miss cost increases.
+The threshold falls; the number of additional inspections depends on the
+items' posterior probabilities.
 
 \emph{Now you
 try the other knob:} hold $C_{\mathrm{miss}}{=}100$ and raise the false-alarm cost
@@ -3670,11 +3672,18 @@ and a three-second budget make ratio-greedy select benefit~$3$, while the
 second item alone yields~$4$.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-goodhart-exposure}
-Why is the attention queue more Goodhart-exposed than the
-discovery ranker (\S\ref{sec:gates})?
+Compare incentives to game the attention queue and the discovery ranker
+(\S\ref{sec:gates}). Give a case in which each could cause the greater harm;
+why does the surface's name alone not settle that comparison?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-goodhart-exposure}
-The attention queue allocates a scarce human interrupt channel, so agents benefit directly from inflating its score and a buried item can cause irreversible loss. Discovery gaming usually yields only a bad routing recommendation, correctable before any effect. Both are Goodhart-exposed, but the attention queue carries the stronger incentive and the larger consequence.
+An exaggerated low-risk alert can displace an urgent review from a finite
+attention budget; a missed irreversible action may then dominate the harm of a
+reversible routing mistake. Conversely, a manipulated discovery ranker could
+select an unqualified actor for a consequential task while the false alert only
+costs a minute. Both surfaces allocate valuable resources. Their relative risk
+depends on incentives, downstream authority, verification, and the cost of the
+particular error; there is no universal ordering by surface type.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-dead-claim-replay}
 Replay the dead-claim case (\S\ref{sec:staleness}) twice: once without
@@ -3684,11 +3693,20 @@ Invariant~\ref{prop:decay} and once with it. Show exactly where the live agent u
 Without expiry, the dead holder's row remains authoritative and the live agent is denied forever. With a lease, heartbeat-based expiry, and a new fencing epoch (Invariant~\ref{prop:decay}), the stale lease becomes ineligible; a lazy sweep on the next acquire removes it; the live agent receives a higher epoch and proceeds. Merely decaying a display score is insufficient: ownership must actually expire, and every effect boundary must reject the stale epoch.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-costly-signal-debit}
-An agent fires an escalation; the operator dismisses it. Trace the costly-signal
-debit and explain how it deters crying wolf without silencing genuine distress.
+An agent fires an escalation; the operator dismisses it. In the proposed
+costly-signal design, what additional evidence is needed before a debit?
+Trace a false-alarm case and a genuine-warning case. What must be measured
+before claiming that the debit deters manipulation without suppressing distress?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-costly-signal-debit}
-The escalation cites evidence and posts a small stake or reputation exposure. The operator's dismissal is itself reasoned and appealable; only a confirmed low-value/false escalation debits the signaler. Repeated unsupported alarms raise future cost or lower priority, while verified hazards return the stake and improve calibration. The debit must never fire solely because an operator clicked dismiss --- that would silence minority warnings and make authority error self-validating.
+Retain the escalation's evidence, the dismissal reason, and an independent
+adjudication or appeal outcome. A confirmed false escalation may trigger the
+proposed debit under a declared rule. A genuine warning that was dismissed
+must not be penalized merely for that dismissal; correcting the decision and
+preserving the evidence are part of the recovery path. Adjudication can itself
+be wrong. Measure manipulation, false debits, suppressed genuine warnings,
+appeal errors, and interruption costs before and after the policy. A positive
+cost alone proves neither effective deterrence nor harmlessness.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-implicit-feedback-goodhart}
 Calibrating the discovery-ranker weights with \emph{no} ground

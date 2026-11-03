@@ -1766,11 +1766,16 @@ door and the fork door.
 dramatic case; the everyday case is a body that ends because its context is
 full. The harness checkpoints the plan, stores a cited packet of what the old
 body knew, and starts a new body that reads the plan and the packet first and
-continues the work. That is resurrection soundness with the provider held
-fixed: the three clauses collapse to one, that the successor body inherits
-the predecessor's open commitments and claims rather than a transcript. That
-is necessary for sanction continuity; the score-only model check does not
-prove equivalent inference or safe repetition of external effects. The
+continues the work. Holding the provider fixed does not by itself preserve
+the principal, authenticated lineage, or engine. All three soundness clauses
+still apply: verify the successor's credential and continuity witness, attest
+the engine of each successor outcome, and close or renegotiate open commitments
+with the required escrow delta before cutover. If the relevant identity and
+engine properties have been verified unchanged, those checks may already be
+satisfied; provider sameness alone supplies no such evidence. The successor
+also needs the predecessor's open claims and obligations, not just its
+transcript. The score-only model check does not prove equivalent inference or
+safe repetition of external effects. The
 front matter names the discipline under which such a claim is tested (a
 Genesis, a Voyage, a Receipt); this chapter supplies the property the Receipt
 has to show, and the night this book's product first ran end to end is the
@@ -1819,7 +1824,7 @@ teeth, not that the clause list is complete.
 
 Definition~\ref{def:sanction-respecting} is score-only, so the escrow side of
 clause (iii) enters as attribution (the default lands on an identity), not as
-a monetary conservation theorem. Continuity witnesses attest lineage, not
+a monetary conservation theorem. Continuity witnesses attest \mbox{lineage}, not
 welfare: nothing here says the checkpoint restored the agent's experience,
 only that the ledger followed the right body.
 \end{pdboundary}
@@ -2743,7 +2748,11 @@ different part of that escape.
 payoff comparison shows when a cheaper engine is profitable. The example's
 attested prices reverse that comparison ($0.5$ against $0.2$); they do not prove
 that buyers will offer those prices or that attestation is the only remedy.
-\item \textbf{Resurrection is sound only through the mint}: a lineage that forks cannot mint twice, and the checker refuses the copy-fork.
+\item \textbf{Resurrection preserves sanctions only under the stated checks.}
+The migration model requires authenticated lineage, outcome engine attestations,
+and closure or renegotiation of open commitments, with sanctions scoped to the
+principal. The separate no-mint accounting rule prevents a fork from duplicating
+spendable credit; it does not replace those migration conditions.
 \item \textbf{Reputation is a substrate, not a score}: multi-dimensional and buyer-weighted. A routing bandit can consume this
 evidence but does not create its provenance or accountability.
 \item \textbf{Bonded grading needs its stated detection model.} The tower uses
