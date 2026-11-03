@@ -1,0 +1,126 @@
+{
+  "candidate": "28",
+  "created_at": "2026-11-03T21:14:46.169655+00:00",
+  "source_head": "90aeef0b2171bf86793a023132025f20e1723a33",
+  "pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+  "verdict": "pass_for_bounded_source_navigation_conversion_and_corrected_spread_review",
+  "scope": "Independent one-character source-delta review, fresh full exercise/solution navigation, fresh all-font page-turn scan, fresh all-page facing conversion, and two actual spread views. No new whole-Book mathematical review or publication claim.",
+  "source_reconciliation": {
+    "count": 280,
+    "changed_from27": [
+      "website-v2/public/whitepaper/spawn-to-person.tex"
+    ],
+    "added": [],
+    "removed": [],
+    "mismatches_current": [],
+    "source_snapshot_sha256": "47ea3989793e05a6bd804156984503ce6e889bb1d4752f7bd6ff92f803d460f8"
+  },
+  "source_review": [
+    "Only the space before the margin-only pdprov macro was removed. Script/seed, numerical claims, model qualification, citation keys and shared macro definitions are unchanged."
+  ],
+  "checks": {
+    "status": "pass",
+    "halves_checked": 846,
+    "character_stream_exact_equal_for_every_half": true,
+    "characters_checked": 1342203,
+    "every_character_position_checked": true,
+    "maximum_coordinate_error_pt": 0.0001220703125,
+    "coordinate_tolerance_pt": 0.025,
+    "plain_text_extraction_difference_count": 1,
+    "plain_text_difference_physical_pages": [
+      105
+    ],
+    "links": 3562,
+    "link_target_kinds": {
+      "uri": 95,
+      "goto": 3467
+    },
+    "bookmarks": 475,
+    "named_destinations": 4203,
+    "unsupported_items": [],
+    "exercise_destinations": 212,
+    "solution_destinations": 212
+  },
+  "all_font_body_page_turn_candidates": 0,
+  "whole_pdf_plain_text_comparison": {
+    "comparison_pdf_sha256": "0dc9c3f88f5072c7732d8db0296b4cb35cde28c6234c8b85b672ec983c5a15c8",
+    "pages_compared": 844,
+    "changed_physical_pages": [
+      776
+    ],
+    "method": "Exact PyMuPDF page.get_text() string comparison; this identifies text changes, not pixel identity."
+  },
+  "visual_review": {
+    "status": "pass_for_two_inspected_spreads",
+    "scope": "Fresh two-spread inspection covers Exercise5.18 and its corrected Solution5.18, including punctuation and margin-note/backlink placement. No fresh entire-book visual claim.",
+    "images": [
+      {
+        "label": "resurrection-exercise",
+        "sha256": "7f78035a060a1192bf1950a8da9ed9aa821f766363622ba4d571aae13deff4b1",
+        "spread_index": 247,
+        "source_physical_page": 495,
+        "folio": "471",
+        "dpi": 150,
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate28-facing-resurrection-exercise.png",
+        "review_method": "Fresh actual candidate28 facing spread individually viewed.",
+        "assessment": "Exercise5.18 on folio471 names the existing script/seed and links to solution752; no overlap. The fresh PNG is also byte-identical to the inspected candidate27 PNG."
+      },
+      {
+        "label": "resurrection-solution",
+        "sha256": "7f859aa5b4dcb0747542e1b7471a7cbe95ca64cbc07daef9edf5654f6cdee26d",
+        "spread_index": 388,
+        "source_physical_page": 776,
+        "folio": "752",
+        "dpi": 150,
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate28-facing-resurrection-solution.png",
+        "review_method": "Fresh actual candidate28 facing spread individually viewed.",
+        "assessment": "Solution5.18 on folio752 links back to471. The text now reads states; with correct punctuation spacing, and the script/seed provenance margin note is legible and separate from the backlink."
+      }
+    ]
+  },
+  "prior_finding_resolution": {
+    "source": "candidate27-independent-review.json",
+    "finding": "Extra space before semicolon after states in Solution5.18.",
+    "status": "fixed_and_visually_verified",
+    "physical_page": 776,
+    "folio": "752",
+    "actual_extracted_text": "violations of Def. 5.6.1 among those enumerated states; the four"
+  },
+  "unresolved_findings_in_reviewed_scope": [],
+  "regular_copy": {
+    "schema": 1,
+    "candidate": "28",
+    "created_at": "2026-11-03T21:14:46.169655+00:00",
+    "source_head": "90aeef0b2171bf86793a023132025f20e1723a33",
+    "name": "book-20261103-78615532.pdf",
+    "relative_local_path": ".scratch/textbook-craft-20261103/book-20261103-78615532.pdf",
+    "sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+    "bytes": 17652261,
+    "pages": 844,
+    "bookmarks": 475,
+    "named_destinations": 4203,
+    "links": 3562,
+    "method": "Independent byte copy of stable converged candidate28 PDF; hashes verified before/after, distinct inode from mutable cache.",
+    "copy_verification": "pass",
+    "publication_status": "Candidate28 navigation and exact-copy checks pass; whole-Book acceptance and hosted publication remain separately owned."
+  },
+  "facing_copy": {
+    "name": "book-facing-spreads-20261103-2ccbc52c.pdf",
+    "relative_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-2ccbc52c.pdf",
+    "standard_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.pdf",
+    "sha256": "2ccbc52c2dbf3518c1d37901dfc54d6cb44dc2bc7f34f51f46cec958166b66d9",
+    "pages": 423,
+    "bytes": 18580091
+  },
+  "receipts": {
+    "exercise-navigation.json": "11e38c31ac79871b59839f41a241230fc75f86eeea568006cf09d1971c29d120",
+    "compound-page-turns.json": "1bd62c312deb077c37973a3df99f8caf31db8c9ca770d0a9fc21b01eca5d0971",
+    "regular-copy.json": "43bac19025c2e801bee4aadaab3c42d77bbd42cd8d0bab05d7e92641383380d6",
+    "facing-copy.json": "72bd01753961cd18d20d45bd7aa31144b6af1602e925c9ed62f84a3d24bcbb90"
+  },
+  "preserved27_receipts": "reader-proof-history/candidate27/",
+  "limits": [
+    "Conversion checks preserve glyphs and navigation; they do not certify global appearance or mathematical content.",
+    "Plain extractor differs only in inferred whitespace on physical105; ordered glyph streams and every position match."
+  ]
+}

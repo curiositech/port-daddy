@@ -1,0 +1,87 @@
+{
+  "reviewed_at": "2026-11-03T21:20:13.043734+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "source_checkpoint": "90aeef0b2171bf86793a023132025f20e1723a33",
+  "workflow": ".github/workflows/whitepaper-build.yml",
+  "workflow_sha256": "8a96804bdd058c31e63212612c8df21c3b3f8797441eaf3fe47c4e3ec1ccb986",
+  "exact_diff": "diff --git a/.github/workflows/whitepaper-build.yml b/.github/workflows/whitepaper-build.yml\nindex b72e27bf3b..338f0bf47a 100644\n--- a/.github/workflows/whitepaper-build.yml\n+++ b/.github/workflows/whitepaper-build.yml\n@@ -125,6 +125,7 @@ jobs:\n           # can read per-paper commit times for reproducible dates.\n           ref: ${{ github.head_ref || github.ref_name }}\n           fetch-depth: 0\n+          filter: blob:none\n \n       # The TeX container has no JavaScript runtime; generate the Book's body,\n       # front-matter map, and bibliography from the canonical chapter sources\n",
+  "semantic_check": {
+    "changes": [
+      {
+        "path": "/jobs/build/steps/1/with/filter",
+        "before": null,
+        "after": "blob:none"
+      }
+    ],
+    "before_sha256": "e351270a5148d71eab35ea0adbc692f3764626768b5d4c7c7d3e7ddc3a640d96",
+    "after_sha256": "8a96804bdd058c31e63212612c8df21c3b3f8797441eaf3fe47c4e3ec1ccb986",
+    "unchanged_fetch_depth": 0
+  },
+  "primary_sources": [
+    {
+      "url": "https://github.com/actions/checkout/blob/11d5960a326750d5838078e36cf38b85af677262/action.yml",
+      "blob_sha": "24e73e5a12126edc2adb9e5cd1bf245ce85bde56",
+      "inspected": "filter input and fetch-depth0 full-history input contract"
+    },
+    {
+      "url": "https://github.com/actions/checkout/blob/11d5960a326750d5838078e36cf38b85af677262/src/git-source-provider.ts",
+      "blob_sha": "2d3513897655e0ea2eb4efc2b2c9d6132a69549f",
+      "inspected": "Filter placed in fetchOptions before the fetchDepth<=0 full-history branch and retained in both fetches."
+    },
+    {
+      "url": "https://github.com/actions/checkout/blob/11d5960a326750d5838078e36cf38b85af677262/src/git-command-manager.ts",
+      "blob_sha": "9c789ac803e4d3b99463037d0ada654b79d8b863",
+      "inspected": "fetch emits --filter independently of --depth; history is not truncated."
+    },
+    {
+      "url": "https://github.com/git/git/blob/master/Documentation/git-clone.adoc",
+      "blob_sha": "07f7cf1a98dd3f7a23dc55ca61d527031c7f734e",
+      "inspected": "blob:none omits file contents until Git needs them."
+    },
+    {
+      "url": "https://github.com/git/git/blob/master/Documentation/technical/partial-clone.adoc",
+      "blob_sha": "18718a384053a5331d337606bbc1d3f66f4d1548",
+      "inspected": "Promisor objects are fetched on demand; remote must remain available."
+    }
+  ],
+  "checkout_v4_resolved_commit": "11d5960a326750d5838078e36cf38b85af677262",
+  "incident": {
+    "head": "e82955ac863132dcf6c6254f0b7048a3fc4bdd13",
+    "job": 126192119227,
+    "url": "https://github.com/curiositech/port-daddy/actions/runs/41714023969/job/126192119227",
+    "fetch_started_at": "2026-11-03T20:42:34Z",
+    "cancelled_at": "2026-11-03T21:11:28Z",
+    "configured_timeout_minutes": 30,
+    "last_operation": "Full-history fetch of all branch/tag refs; TeX never started.",
+    "log_sha256": "08e3196a8f89e785458d0b7f54b9e205a12b6ff46c769aada6c71c9cc315a153"
+  },
+  "git_consumers_reviewed": [
+    "scripts/build-whitepapers.sh:216\u2013237 paper_epoch git log and base...HEAD change detection",
+    "workflow renderer diff; source-selected builds; git checkout restoration; git log loop breaker; commit/push and rebase retry"
+  ],
+  "semantic_review": "Full commit/tree history and source epoch selection remain available. Needed historical blobs can be fetched on demand with existing persisted checkout credentials. No shallow boundary, scope suppression, timeout increase, build logic, or publication policy changed.",
+  "independent_review": {
+    "reviewer": "craft_machine",
+    "result": "pass",
+    "observations": "Verified exact workflow hash and independent YAML one-key diff; read epoch/diff/restoration/rebase consumers and primary action/Git documentation."
+  },
+  "book_inputs": {
+    "snapshot_sha256": "47ea3989793e05a6bd804156984503ce6e889bb1d4752f7bd6ff92f803d460f8",
+    "recorded_count": 280,
+    "mismatches": [],
+    "workflow_outside_inventory": true
+  },
+  "validation": {
+    "yaml_parse": "pass",
+    "exact_one_key_semantic_diff": "pass",
+    "git_diff_check": "pass",
+    "existing_book_refresh_jest_tests": "Not executed: this worktree has no node_modules/jest/bin/jest.js. Attempt failed at module resolution before tests; no installation performed.",
+    "test_attempt_log_sha256": "2c3ca249c5063bf8404598cc20ed7ad67980c42e8521464756efffde300e89d4"
+  },
+  "limits": [
+    "Actual hosted transfer time and on-demand fetch performance remain pending the next head.",
+    "This reduces requested initial file blobs; it does not guarantee completion or eliminate network/server failures.",
+    "Local accepted Suisse Book proof remains separate from hosted Source Sans proof."
+  ]
+}

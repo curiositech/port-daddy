@@ -230,3 +230,8 @@ All61 owned spreads across46 semantic targets are covered;60 pass by exact-byte 
 
 
 The candidate27 receipt is explicitly diagnostic after the punctuation finding (SHA256 `709f129985864f39b9b19b82ee73a93c384d3609c4d6e2dbf452cd19323e2382`). The Chapter5 after-hash is `52d03cef65217fde10907cd984161d5ef1d398ec58e0072d619774c9dfd8da7d`. Only the space before this one margin command was removed; no shared macro or mathematical wording changed. The provenance promoter inserts a separating space before a margin-only macro, so its freshness check alone does not catch this rendered punctuation gap.
+
+
+## Candidate28 assigned spread acceptance
+
+The corrected physical776–777 spread was directly viewed at original image resolution. The line now reads `among those enumerated states; the four`, with no spurious punctuation gap; the provenance note remains clear of body text and exercise pointers. All61selectedspreads across46targets pass:1freshactualview and60exactPNG reuses from passing26evidence. The extra450–451 context was freshly rendered from28 before its comparison. Receipt `.scratch/textbook-craft-20261103/operator-spread-review-28.json` (SHA256 `11481a14ed6829f7a48456aebe06e185825e86134d7afb4a7cf28a6f992e4830`) binds source `90aeef0b2171bf86793a023132025f20e1723a33`,844-page PDF `786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed`, and the actual/current image hashes. Candidate27 remains diagnostic with its observed defect; it is not relabeled as passing. Figure5.8’s receipt binds28production context to its matching25actual-view evidence. No new mathematical or whole-chapter read is claimed. No further owned-source defect is pending; hosted delivery remains separate.

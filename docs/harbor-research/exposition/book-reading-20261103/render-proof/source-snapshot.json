@@ -1,5 +1,5 @@
 {
-  "head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+  "head": "90aeef0b2171bf86793a023132025f20e1723a33",
   "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
   "direct_inputs": [
     "whitepaper/textbook.json",
@@ -153,7 +153,7 @@
     "website-v2/public/whitepaper/figures/icos-margin-specimens.tex": "4afac67a25189a2f89897406bbcac2d921520b6aa1bd41fcd690a23270c3e613",
     "website-v2/public/whitepaper/figures/legible-swarm-split-ranker.tex": "9c686a6a891cae25c063dad0ff2c340c20ac3353ff9a6d51e6b6ba1796815c02",
     "website-v2/public/whitepaper/figures/pd-book-citations.tex": "8228effc791d0ff7c73aecb20260cb0c3f127e8ace554a9a57876a6f05772a1f",
-    "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex": "3f9dddb37cdb77e1c5bec5e9afbc8ea80090de9f984960588f05dc8bbb53c2e2",
+    "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex": "c74ca5eea043121d61688d1b14db9f66a7943a54f7fa2c85490779d7d36f14cc",
     "website-v2/public/whitepaper/figures/pd-discharges.tex": "56fbd01c9b74a7745cdc286ee8326cefabd210381e0c927f563a07da0070d6bb",
     "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex": "6bfaec492b914916857781c5cf80cfa0c7d1cbb02fd658a72e70c6aa55e11bdf",
     "website-v2/public/whitepaper/figures/pd-figure-language-technical.tex": "22d85866f249c1ee95ec0f68546e60f384ae2ad96328eb9e13d9c42ff3d2fe9d",
@@ -193,7 +193,7 @@
     "website-v2/public/whitepaper/harbor-economy.tex": "9e712ff7d460bc24ee0b584abcf4763b0acc22b193f83b0ee19e7cad385d96ec",
     "website-v2/public/whitepaper/margin-apparatus-fixture.tex": "1c79a7b6fd699a7ab32e492d8a40f2706667c771013ea1d75359fe61464477c6",
     "website-v2/public/whitepaper/sealed-harbor.tex": "594794920d61c85096a7a5aa966c6416dba6b40be5ab41fcd0198e7346b4bd03",
-    "website-v2/public/whitepaper/spawn-to-person.tex": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+    "website-v2/public/whitepaper/spawn-to-person.tex": "52d03cef65217fde10907cd984161d5ef1d398ec58e0072d619774c9dfd8da7d",
     "whitepaper/chapter-0-prerequisites.tex": "69a1e5de61e5cb53d52472efa65defa829b91addc5617797b5e9c1c40a480e87",
     "whitepaper/citation-margin-entries.json": "43fdb485143b25f2705b62c7808160e2c5d039036ff973743c9604f64983d14c",
     "whitepaper/corpus.json": "9b55d10b61b1b593bc34d332e0ae8ec102f7e2f92a6dda00d1c28a4ee6de2e5d",
@@ -265,7 +265,7 @@
     "whitepaper/figures/legible-swarm-state-of-nature.tex": "3aeaa2f1e1e8783f1d0f69541723417f3939ecf6663fefdc5c3af856dfd7b449",
     "whitepaper/figures/legible-swarm-zoom-advantage.tex": "970a99eb12cf3df1ee27602d929379a69d6685b4c9f30dec8a07fe7380c09be6",
     "whitepaper/figures/legible-swarm-zoom-vs-potemkin.tex": "1768ae28815c2c0ae83c0fe7757e5f20ce42ab4b97a362835d04598cceaf8545",
-    "whitepaper/figures/pd-cite-shortforms.tex": "3f9dddb37cdb77e1c5bec5e9afbc8ea80090de9f984960588f05dc8bbb53c2e2",
+    "whitepaper/figures/pd-cite-shortforms.tex": "c74ca5eea043121d61688d1b14db9f66a7943a54f7fa2c85490779d7d36f14cc",
     "whitepaper/figures/pd-discharges.tex": "56fbd01c9b74a7745cdc286ee8326cefabd210381e0c927f563a07da0070d6bb",
     "whitepaper/figures/pd-figure-language-swiss.tex": "6bfaec492b914916857781c5cf80cfa0c7d1cbb02fd658a72e70c6aa55e11bdf",
     "whitepaper/figures/pd-figure-language.tex": "f20734af70d8b9bc1525ef98c7623c778682797374931eb7bd0eee03ddc20047",

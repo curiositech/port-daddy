@@ -504,21 +504,21 @@
     "scope": "Bounded reread of summaries dependent on the repaired identity, attestation, tower and checkpoint claims; not a fresh whole-chapter read."
   },
   "final_spread_followthrough": {
-    "candidate": "27",
-    "source_head": "88c39705aea24f902970bf6d744c5f7e6804aed7",
-    "pdf_sha256": "0dc9c3f88f5072c7732d8db0296b4cb35cde28c6234c8b85b672ec983c5a15c8",
-    "manifest_sha256": "57982e0e6d0aad4038f4c7f6e35896a2666609e2bae1af9fab28af63d6da1df3",
-    "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-27.json",
-    "receipt_sha256": "709f129985864f39b9b19b82ee73a93c384d3609c4d6e2dbf452cd19323e2382",
+    "candidate": "28",
+    "source_head": "90aeef0b2171bf86793a023132025f20e1723a33",
+    "pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+    "manifest_sha256": "f39571a27d02a4b2423eb97db3beca5ab219eb71698e5064e130eff4d5586a0f",
+    "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-28.json",
+    "receipt_sha256": "11481a14ed6829f7a48456aebe06e185825e86134d7afb4a7cf28a6f992e4830",
     "covered_unique_spreads": 61,
     "fresh_views": 1,
     "identical_reuses": 60,
-    "source_repairs_pending_render": true,
+    "source_repairs_pending_render": false,
     "source_hashes": {
       "whitepaper/legible-swarm.tex": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
-      "website-v2/public/whitepaper/spawn-to-person.tex": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028"
+      "website-v2/public/whitepaper/spawn-to-person.tex": "52d03cef65217fde10907cd984161d5ef1d398ec58e0072d619774c9dfd8da7d"
     },
-    "scope_status": "Candidate27 diagnostic: one punctuation gap on776; one-space source repair awaiting28."
+    "scope_status": "Accepted assigned sample; original full sequential-read evidence remains distinct and unchanged."
   },
   "historical_spread_followthrough": [
     {
@@ -667,11 +667,28 @@
       },
       "scope_status": "Accepted assigned sample; no remaining concrete owned-source defect. Full sequential source-read evidence remains distinct from selected rendered review.",
       "independent_source_review": "Machine accepted complete bounded final mathematical corrections, including the full-Q0 union bound and endpoint domains."
+    },
+    {
+      "candidate": "27",
+      "source_head": "88c39705aea24f902970bf6d744c5f7e6804aed7",
+      "pdf_sha256": "0dc9c3f88f5072c7732d8db0296b4cb35cde28c6234c8b85b672ec983c5a15c8",
+      "manifest_sha256": "57982e0e6d0aad4038f4c7f6e35896a2666609e2bae1af9fab28af63d6da1df3",
+      "receipt": ".scratch/textbook-craft-20261103/operator-spread-review-27.json",
+      "receipt_sha256": "709f129985864f39b9b19b82ee73a93c384d3609c4d6e2dbf452cd19323e2382",
+      "covered_unique_spreads": 61,
+      "fresh_views": 1,
+      "identical_reuses": 60,
+      "source_repairs_pending_render": true,
+      "source_hashes": {
+        "whitepaper/legible-swarm.tex": "05da6e56b48d73dddea78b6caef46011c95dd5e9053abe4cf5af6f54b2896322",
+        "website-v2/public/whitepaper/spawn-to-person.tex": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028"
+      },
+      "scope_status": "Candidate27 diagnostic: one punctuation gap on776; one-space source repair awaiting28."
     }
   ],
   "pending_render_checkpoint": {
-    "head": "pending28",
-    "status": "One-space provenance/punctuation correction requires fresh28 image inspection."
+    "head": "90aeef0b2171bf86793a023132025f20e1723a33",
+    "status": "Complete: candidate28assignedsample accepted; no owned-source repair pending."
   },
   "provenance_only_reread_27": {
     "source": "website-v2/public/whitepaper/spawn-to-person.tex",
@@ -698,6 +715,6 @@
     },
     "state_scope": "Depth7, at most2migrations, delta3, window4, scorecap3; no general proof inferred from enumeration.",
     "source_math_changed": false,
-    "render_status": "Candidate27 diagnostic: actual punctuation gap confirmed; one-space source repair awaits28."
+    "render_status": "Candidate27diagnostic preserved; candidate28actual776\u2013777 confirms corrected punctuation and clear margin."
   }
 }

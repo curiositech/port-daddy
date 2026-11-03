@@ -1,7 +1,7 @@
 {
-  "candidate": "26",
-  "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
-  "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+  "candidate": "28",
+  "source_commit": "90aeef0b2171bf86793a023132025f20e1723a33",
+  "pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
   "font_profile": "suisse",
   "dpi": 150,
   "hook_introduction_proof": {
@@ -164,8 +164,8 @@
             "candidate": "22",
             "image": "spread-142-143.png",
             "acceptance": {
-              "candidate": "25",
-              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
             }
           }
         },
@@ -180,8 +180,8 @@
             "candidate": "23",
             "image": "spread-144-145.png",
             "acceptance": {
-              "candidate": "25",
-              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
             }
           }
         }
@@ -203,8 +203,8 @@
             "candidate": "22",
             "image": "spread-252-253.png",
             "acceptance": {
-              "candidate": "25",
-              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
             }
           }
         },
@@ -219,8 +219,8 @@
             "candidate": "22",
             "image": "spread-254-255.png",
             "acceptance": {
-              "candidate": "25",
-              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
             }
           }
         }
@@ -242,8 +242,8 @@
             "candidate": "22",
             "image": "spread-266-267.png",
             "acceptance": {
-              "candidate": "25",
-              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
             }
           }
         },
@@ -258,8 +258,8 @@
             "candidate": "22",
             "image": "spread-268-269.png",
             "acceptance": {
-              "candidate": "25",
-              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
             }
           }
         }
@@ -281,8 +281,8 @@
             "candidate": "22",
             "image": "spread-444-445.png",
             "acceptance": {
-              "candidate": "25",
-              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
             }
           }
         },
@@ -297,8 +297,8 @@
             "candidate": "22",
             "image": "spread-446-447.png",
             "acceptance": {
-              "candidate": "25",
-              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
             }
           }
         }
@@ -319,12 +319,12 @@
         "candidate": "23",
         "image": "spread-144-145.png",
         "acceptance": {
-          "candidate": "25",
-          "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+          "candidate": "26",
+          "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
         }
       }
     }
   ],
-  "visual_receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01",
+  "visual_receipt_sha256": "37ba62904d3c9c4b8e0e1b64c035cbcc90b1fb7c73a0f3ba601969091d3fcfd7",
   "conclusion": "All eight Suisse context images were byte-identical when the open-proof-only hooks were introduced. Those four hook snippets are unchanged in this candidate. Seven context images remain byte-identical; the SWK following pair intentionally changes to state the tower theorem premises correctly and is accepted by direct inspection or exact byte reuse of a recorded direct inspection, as stated per image. This establishes the bounded profile-hook comparison, not invariance of every Book page or acceptance of the Source Sans profile."
 }

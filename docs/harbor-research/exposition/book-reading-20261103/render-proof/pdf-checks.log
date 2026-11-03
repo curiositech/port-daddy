@@ -10,7 +10,7 @@ Exercise navigation: 212 labels, 212 rendered headings, 0 issues
 
 == audit_book_layout.py -- coordination-papers-mega-volume.pdf ==
 $ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/audit_book_layout.py .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
-844 pages; 1464/1464 margin objects; 0 margin issues; 96 pages in whitespace review
+844 pages; 1465/1465 margin objects; 0 margin issues; 96 pages in whitespace review
 
 == page_overflow.py -- coordination-papers-mega-volume.pdf ==
 $ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-textbook-craft-20261103/scripts/harbor-research/page_overflow.py .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf

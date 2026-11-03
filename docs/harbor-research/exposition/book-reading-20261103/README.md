@@ -30,7 +30,7 @@ Independent checks include exact finite arithmetic for the audit, extractive-sum
 
 ## Acceptance boundary
 
-The locally accepted Book is 844 pages, built from source checkpoint `f3b3754064ba2aea4c05a24c983cbbee2451affb` with the private Suisse profile. All 280 captured build inputs remained unchanged. The PDF hash is `b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9`. The [acceptance receipt](render-proof/acceptance.json) binds the source, fonts, rendered checks, navigation checks and selected visual reviews.
+The locally accepted Book is 844 pages, built from source checkpoint `90aeef0b2171bf86793a023132025f20e1723a33` with the private Suisse profile. All 280 captured build inputs remained unchanged. The PDF hash is `786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed`. The [acceptance receipt](render-proof/acceptance.json) binds the source, fonts, rendered checks, navigation checks and selected visual reviews.
 
 Generator regressions: 73 passed. Book source regressions: 119 passed and 45 named fixture-only checks skipped; the separate rendered run passed 115 checks with 7 fixture-only skips. Mathematical-boundary regressions: 26 passed. Citation/index consistency and all 14 propagation checks pass. There are zero overfull boxes, unresolved references or detected page-turn split words. Every one of the 212 exercise destinations and 212 solution destinations matches its heading. These are separate suites, not additive claims of unique tests.
 

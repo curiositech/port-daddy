@@ -299,9 +299,9 @@
     }
   },
   "production_placement": {
-    "candidate": "26",
-    "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
-    "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+    "candidate": "28",
+    "source_commit": "90aeef0b2171bf86793a023132025f20e1723a33",
+    "pdf_sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
     "pdf_pages": [
       628,
       629,
@@ -319,8 +319,8 @@
           "candidate": "25",
           "image": "spread-628-629.png",
           "acceptance": {
-            "candidate": "25",
-            "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+            "candidate": "26",
+            "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
           }
         },
         "status": "byte-identical-to-directly-inspected-25"
@@ -332,8 +332,8 @@
           "candidate": "25",
           "image": "spread-630-631.png",
           "acceptance": {
-            "candidate": "25",
-            "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+            "candidate": "26",
+            "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
           }
         },
         "status": "byte-identical-to-directly-inspected-25"
@@ -345,8 +345,8 @@
           "candidate": "25",
           "image": "spread-632-633.png",
           "acceptance": {
-            "candidate": "25",
-            "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+            "candidate": "26",
+            "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
           }
         },
         "status": "byte-identical-to-directly-inspected-25"
@@ -418,9 +418,9 @@
         "issues": []
       }
     ],
-    "verdict": "Production PDF and all three spread PNGs are byte-identical to accepted candidate25 actual inspections; fresh candidate26 registered gates pass. No new actual view is claimed.",
-    "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-26.json",
-    "visual_receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
+    "verdict": "All three production spread PNGs are byte-identical to accepted candidate25 actual inspections. Fresh candidate28 PDF gates pass on the current whole-Book hash; no new paired-plot actual view is claimed. The recorded numeric geometry is retained through exact image identity.",
+    "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-28.json",
+    "visual_receipt_sha256": "37ba62904d3c9c4b8e0e1b64c035cbcc90b1fb7c73a0f3ba601969091d3fcfd7"
   },
   "production_placement_history": [
     {
@@ -528,6 +528,255 @@
       "verdict": "All three full production spreads actually inspected; data/prose/key match, width and caption adjacency gates pass; following model exposition remains coherent.",
       "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-25.json",
       "visual_receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+    },
+    {
+      "candidate": "26",
+      "source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+      "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+      "pdf_pages": [
+        628,
+        629,
+        630,
+        631,
+        632,
+        633
+      ],
+      "dpi": 150,
+      "spreads": [
+        {
+          "image": "spread-628-629.png",
+          "sha256": "043641ce6b87de777566d463dbe0589deecdce9daa627d63a14401b31efca5d4",
+          "prior_direct_view": {
+            "candidate": "25",
+            "image": "spread-628-629.png",
+            "acceptance": {
+              "candidate": "25",
+              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+            }
+          },
+          "status": "byte-identical-to-directly-inspected-25"
+        },
+        {
+          "image": "spread-630-631.png",
+          "sha256": "31f1d03337d11b4d26e5cf0e7fc93b8cf3c263d4c35971c702d3f333c9a20a0a",
+          "prior_direct_view": {
+            "candidate": "25",
+            "image": "spread-630-631.png",
+            "acceptance": {
+              "candidate": "25",
+              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+            }
+          },
+          "status": "byte-identical-to-directly-inspected-25"
+        },
+        {
+          "image": "spread-632-633.png",
+          "sha256": "1b9b3c063c0bdc0d6a02d68c67406643609e2f7e952354b482df937296d6f533",
+          "prior_direct_view": {
+            "candidate": "25",
+            "image": "spread-632-633.png",
+            "acceptance": {
+              "candidate": "25",
+              "receipt_sha256": "882f9e57ccf4de187e4b07dccb0e2e3bf18aa4120510a60d2f1ac367055e5fc9"
+            }
+          },
+          "status": "byte-identical-to-directly-inspected-25"
+        }
+      ],
+      "registered_geometry": [
+        {
+          "kind": "figure",
+          "number": "7.8",
+          "pdf_page": 629,
+          "folio": "605",
+          "side": "R",
+          "labels": [
+            "bonded:fig:pareto-mc-inline"
+          ],
+          "rects": [
+            [
+              396.0,
+              61.2,
+              488.1,
+              205.99
+            ]
+          ],
+          "exhibit_rect": [
+            57.6,
+            61.2,
+            381.6,
+            266.59
+          ],
+          "registered_caption_rect": [
+            396.0,
+            61.2,
+            489.6,
+            205.99
+          ],
+          "adjacency_checked": true,
+          "issues": []
+        },
+        {
+          "kind": "figure",
+          "number": "7.11",
+          "pdf_page": 631,
+          "folio": "607",
+          "side": "R",
+          "labels": [
+            "bonded:fig:cartel-game-inline"
+          ],
+          "rects": [
+            [
+              396.0,
+              436.03,
+              488.56,
+              617.22
+            ]
+          ],
+          "exhibit_rect": [
+            57.6,
+            436.03,
+            381.6,
+            615.41
+          ],
+          "registered_caption_rect": [
+            396.0,
+            436.03,
+            489.6,
+            617.22
+          ],
+          "adjacency_checked": true,
+          "issues": []
+        }
+      ],
+      "verdict": "Production PDF and all three spread PNGs are byte-identical to accepted candidate25 actual inspections; fresh candidate26 registered gates pass. No new actual view is claimed.",
+      "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-26.json",
+      "visual_receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
+    },
+    {
+      "candidate": "27",
+      "source_commit": "88c39705aea24f902970bf6d744c5f7e6804aed7",
+      "pdf_sha256": "0dc9c3f88f5072c7732d8db0296b4cb35cde28c6234c8b85b672ec983c5a15c8",
+      "pdf_pages": [
+        628,
+        629,
+        630,
+        631,
+        632,
+        633
+      ],
+      "dpi": 150,
+      "spreads": [
+        {
+          "image": "spread-628-629.png",
+          "sha256": "043641ce6b87de777566d463dbe0589deecdce9daa627d63a14401b31efca5d4",
+          "prior_direct_view": {
+            "candidate": "25",
+            "image": "spread-628-629.png",
+            "acceptance": {
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
+            }
+          },
+          "status": "byte-identical-to-directly-inspected-25"
+        },
+        {
+          "image": "spread-630-631.png",
+          "sha256": "31f1d03337d11b4d26e5cf0e7fc93b8cf3c263d4c35971c702d3f333c9a20a0a",
+          "prior_direct_view": {
+            "candidate": "25",
+            "image": "spread-630-631.png",
+            "acceptance": {
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
+            }
+          },
+          "status": "byte-identical-to-directly-inspected-25"
+        },
+        {
+          "image": "spread-632-633.png",
+          "sha256": "1b9b3c063c0bdc0d6a02d68c67406643609e2f7e952354b482df937296d6f533",
+          "prior_direct_view": {
+            "candidate": "25",
+            "image": "spread-632-633.png",
+            "acceptance": {
+              "candidate": "26",
+              "receipt_sha256": "01782e345b5ebad7b998f11b6dadc7027dd81ae11aba039efe87e54807a09a01"
+            }
+          },
+          "status": "byte-identical-to-directly-inspected-25"
+        }
+      ],
+      "registered_geometry": [
+        {
+          "kind": "figure",
+          "number": "7.8",
+          "pdf_page": 629,
+          "folio": "605",
+          "side": "R",
+          "labels": [
+            "bonded:fig:pareto-mc-inline"
+          ],
+          "rects": [
+            [
+              396.0,
+              61.2,
+              488.1,
+              205.99
+            ]
+          ],
+          "exhibit_rect": [
+            57.6,
+            61.2,
+            381.6,
+            266.59
+          ],
+          "registered_caption_rect": [
+            396.0,
+            61.2,
+            489.6,
+            205.99
+          ],
+          "adjacency_checked": true,
+          "issues": []
+        },
+        {
+          "kind": "figure",
+          "number": "7.11",
+          "pdf_page": 631,
+          "folio": "607",
+          "side": "R",
+          "labels": [
+            "bonded:fig:cartel-game-inline"
+          ],
+          "rects": [
+            [
+              396.0,
+              436.03,
+              488.56,
+              617.22
+            ]
+          ],
+          "exhibit_rect": [
+            57.6,
+            436.03,
+            381.6,
+            615.41
+          ],
+          "registered_caption_rect": [
+            396.0,
+            436.03,
+            489.6,
+            617.22
+          ],
+          "adjacency_checked": true,
+          "issues": []
+        }
+      ],
+      "verdict": "All three production spread PNGs are byte-identical to accepted candidate25 actual inspections and candidate26. Fresh candidate27 PDF gates pass on the new whole-Book hash; no new paired-plot actual view is claimed.",
+      "visual_receipt": ".scratch/textbook-craft-20261103/visual-reviewed-27.json",
+      "visual_receipt_sha256": "8865749358327c24b8414027aeb75f85d08b1b0ee7a2030a3c7dd074b2f8bca4",
+      "whole_candidate_status": "Diagnostic for unrelated Solution5.18 punctuation; these paired-plot images and their placement remain individually accepted."
     }
   ]
 }

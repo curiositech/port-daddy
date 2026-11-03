@@ -125,6 +125,7 @@ jobs:
           # can read per-paper commit times for reproducible dates.
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
+          filter: blob:none
 
       # The TeX container has no JavaScript runtime; generate the Book's body,
       # front-matter map, and bibliography from the canonical chapter sources
