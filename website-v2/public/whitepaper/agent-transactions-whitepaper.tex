@@ -1326,7 +1326,23 @@ To avoid the classic lemons problem, the mechanism requires:
 Under the simulation's full-information, competitive-entry assumptions and its chosen static baseline, the market-discovered premium can weakly improve the modeled principal and insurer payoffs while preserving coverage $B_T=\mu(1+s)$. This is not a claim against \emph{every} static parameter: a static price equal to the competitive price is outcome-equivalent, and transfers outside the modeled parties can change the Pareto ordering.
 
 
-An independent model specification and a Monte Carlo sweep over 36 parameter configurations accompany this chapter as a downloadable artifact (Appendix~\ref{app:mech}). Figure~\ref{fig:pareto-mc-inline} reports three results of that implementation: (i) the no-cartel baseline remains favorable across the tested noise sweep, whereas the three-colluder case loses the comparison beyond roughly $\sigma_r=0.1$; (ii) the tested full-cartel case defeats the mechanism at the fixed detection setting; and (iii) the tested objective peaks at $n=3$ insurers. These are finite-sample properties of the supplied code and parameter grid, not general theorems about Vickrey auctions or winner's curse.
+The accompanying Monte Carlo artifact sweeps 36 parameter configurations
+(Appendix~\ref{app:mech}), with 2{,}000 trials of 50 transactions per
+configuration. Figure~\ref{fig:pareto-mc-inline} plots the fraction of trials
+passing the script's \emph{tolerance-based comparison}: principal cost is
+strictly lower than under the static baseline, commons receipts are at least
+97\% of that baseline's receipts, and aggregate insurer profit is at least
+$-5\%$ of the baseline's principal cost. Because the latter two tests permit
+losses, this success rate is not a test of exact Pareto dominance.
+
+With five insurers and no colluders, the reported rate falls from $0.861$
+at zero reputation noise to $0.006$ at $\sigma_r=0.3$. All three plotted
+colluder counts have rates below $0.21$ at that noise level. The second
+panel holds noise and collusion at zero: the rates are $0.906$, $0.861$ and
+$0.739$ for three, five and ten insurers. More insurers therefore do not
+improve this comparison in that slice of the simulation. These are
+finite-sample results for the supplied implementation, baseline and
+parameter grid, not general claims about auction efficiency.
 
 \input{figures/fig-pareto-dominance-tikz}
 

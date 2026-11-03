@@ -1,60 +1,63 @@
-% Reader question: why does minted identity resist Sybil and whitewash
-% attacks? Claim: principal-bound identity changes the payoff of both classic
-% attacks -- a respawn can no longer shed a sanction, and an alias can no
-% longer mint quorum weight. Evidence: panel A, the penalty Delta retained by
-% a principal-bound identity across every respawn versus a self-asserted
-% label shedding it at each respawn; panel B, quorum weight staying constant
-% under one accountable principal versus growing linearly with each minted
-% alias under one-label-one-vote. Must distinguish: the two different attack
-% shapes (persistence over time vs inflation over count) and which line is
-% defeated. Grammar: paired threat traces, two small axes side by side,
-% rejected: a crowd of identical avatars (no measured quantity) and a shield
-% icon (asserts safety without showing the mechanism). Five-second test: a
-% reader says "the dashed line is the attack, and it never rises above the
-% solid one."
-\begin{figure*}[t]
+% Reader question: what changes when sanctions and votes attach to a principal?
+% Claim: enforced principal policies retain a sanction across respawns and
+% count one vote; free unlinkable resets and per-label votes do not.
+% Evidence: the two illustrative policies named beside fig:sybil in
+% spawn-to-person.tex, not deployment traces or an authentication theorem.
+% Exact discrete data, n=0,1,2,3: A retained/Delta=(1,1,1,1),
+% reset/Delta=(1,0,0,0); B principal votes=(1,1,1,1), label votes=1+n.
+% The sanction is imposed at the newcomer baseline before the first reset.
+% Must distinguish: time-indexed reset from alias-count inflation; linkage
+% from enforcement. Grammar: two small multiples on one x grid, equal plot
+% dimensions, and a shared policy key; y units are explicitly different.
+% Rejected: unnumbered intersecting traces, which obscure the common baseline.
+% Five-second test: the penalty survives only under the principal policy;
+% additional aliases increase only the per-label vote count.
+\begin{figure}[t]
 \centering
 \pdfigurehue{pdviolet}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\pw{3.70}  \def\ph{3.60}  \def\bx{5.20}
-  % ---- panel A: sanction persistence across respawns ------------------------
-  \node[pd title,anchor=west] at (0,4.55) {A. sanction persistence};
-  \node[pd note,anchor=west] at (0,4.18) {whitewashing across body leases};
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (\pw,0);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (0,\ph);
-  \node[pd label,anchor=north east] at (\pw,-.75) {respawns};
-  \node[pd label,rotate=90,anchor=south] at (-.68,{\ph/2}) {penalty retained};
-  \foreach \x/\lab in {1.15/1,2.30/2,3.45/3} {
-    \draw[pd tick] (\x,0) -- (\x,-.12);
-    \node[pd label,anchor=north] at (\x,-.16) {\lab};
-  }
-  \draw[pd breach rule,line width=1.25pt]
-    (0,3.20) -- (1.15,3.20) -- (1.15,0) -- (\pw,0);
-  \draw[pd focus rule,line width=1.45pt] (0,3.20) -- (\pw,3.20);
-  \node[pd focus label,anchor=south west] at (0.15,3.40) {principal-bound};
-  \node[pd breach label,anchor=west,text width=2.2cm] at (1.45,2.15) {fresh self-asserted label};
-  \node[pd breach datum] at (0,3.20) {};
-  \node[pd label,anchor=east] at (-.18,3.20) {$\Delta$};
-  % ---- panel B: quorum inflation under free aliasing -------------------------
-  \begin{scope}[xshift=\bx cm]
-  \node[pd title,anchor=west] at (0,4.55) {B. quorum inflation};
-  \node[pd note,anchor=west] at (0,4.18) {Sybil aliases under one principal};
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (\pw,0);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (0,\ph);
-  \node[pd label,anchor=north east] at (\pw,-.16) {aliases minted};
-  \node[pd label,rotate=90,anchor=south] at (-.68,{\ph/2}) {quorum weight};
-  \draw[pd breach rule,line width=1.25pt] (0.20,0.30) -- (\pw,3.40);
-  \draw[pd focus rule,line width=1.45pt] (0.20,1.40) -- (\pw,1.40);
-  \node[pd breach label,anchor=north west,text width=2.3cm] at (0.25,3.55) {one label = one vote};
-  \node[pd focus label,anchor=north west,text width=4.1cm,align=left] at (0,-1.10) {one principal = one accountable weight};
-  \foreach \x in {0.60,1.25,1.90,2.55,3.20,3.90}
-    \node[pd breach datum,inner sep=1.5pt] at (\x,{0.30+0.795*(\x-0.20)}) {};
-  \foreach \x in {0.60,1.25,1.90,2.55,3.20,3.90}
-    \node[pd focus datum,inner sep=1.5pt] at (\x,1.40) {};
-  \end{scope}
-  \node[pd note,anchor=north west,text width=9.5cm] at (0,-2.70)
-    {scope: one trusted admission domain; principal linkage and sanction / voting policy are both required};
+\begin{tikzpicture}[pd figure]
+  \def\plotw{4.05cm}\def\ploth{3.15cm}\def\panelgap{1.35cm}
+  \begin{groupplot}[
+    group style={group size=2 by 1,horizontal sep=\panelgap},
+    pd axis,width=\plotw,height=\ploth,
+    xmin=-0.3,xmax=3.3,xtick={0,1,2,3},
+    xlabel style={pd label,yshift=-1pt}]
+  \nextgroupplot[
+    title={A. Retained penalty},ylabel={Penalty},xlabel={Respawns, $n$},
+    ymin=-0.12,ymax=1.24,ytick={0,1},yticklabels={$0$,$\Delta$}]
+    % Right-continuous reset: the first respawn removes the old sanction.
+    % The shared initial point is drawn once, by the principal series.
+    \addplot[pd breach series,const plot,mark indices={2,3,4}]
+      coordinates {(0,1) (1,0) (2,0) (3,0)};
+    \addplot[pd focus series]
+      coordinates {(0,1) (1,1) (2,1) (3,1)};
+    \node[pd focus label,anchor=south] at (axis cs:1.8,1.07) {Retained};
+    \node[pd breach label,anchor=south] at (axis cs:2,0.10) {Reset};
+  \nextgroupplot[
+    title={B. Voting weight},ylabel={Votes},xlabel={Extra aliases, $n$},
+    ymin=-0.48,ymax=4.96,ytick={0,1,2,3,4}]
+    % An existing principal starts with one label and one vote: V_label=1+n.
+    \addplot[pd breach series,mark indices={2,3,4}]
+      coordinates {(0,1) (1,2) (2,3) (3,4)};
+    \addplot[pd focus series]
+      coordinates {(0,1) (1,1) (2,1) (3,1)};
+    \node[pd breach label,anchor=south] at (axis cs:2.5,4.18) {$1+n$};
+    \node[pd focus label,anchor=south] at (axis cs:2.5,1.40) {$1$};
+  \end{groupplot}
 \end{tikzpicture}
-\caption{Two policy illustrations, not measured attack traces. In A, a penalty imposed at the newcomer baseline vanishes on free unlinkable reset; a principal-bound sanction policy retains it. In B, counting each alias as a voter inflates weight, while one enforced principal-level weight does not. Authentication alone supplies neither policy, and neither panel proves cross-operator admission.}
+\par\smallskip
+{\footnotesize
+\begin{tabular}{@{}ll@{\qquad}ll@{}}
+\toprule
+\tikz[pd figure,baseline=-.5ex]{\draw[pd focus rule] (0,0)--(.55,0);}
+  & Principal policy &
+\tikz[pd figure,baseline=-.5ex]{\draw[pd breach rule,draw=pderror] (0,0)--(.55,0);}
+  & Unlinkable labels \\
+\bottomrule
+\end{tabular}}
+\caption{Principal-linked policies retain a sanction and count one vote.
+Free unlinkable resets remove that sanction; per-label voting counts $1+n$
+votes. Illustrative rules within one admission domain: authentication alone
+enforces neither policy. [internal, illustrative]}
 \label{fig:sybil}
-\end{figure*}
+\end{figure}

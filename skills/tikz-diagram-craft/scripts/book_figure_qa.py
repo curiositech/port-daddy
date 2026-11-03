@@ -96,17 +96,25 @@ def ink_width_in(pdf):
 
 def crop(pdf, png, dpi=150):
     import fitz
-    pg = fitz.open(pdf)[0]
-    r = fitz.Rect()
-    for d in pg.get_drawings():
-        # page furniture: full-width rules, and sub-point specks (the
-        # technical edition leaves one at the page corner)
-        if d['rect'].width < pg.rect.width * .98 and max(d['rect'].width, d['rect'].height) >= 1:
-            r |= d['rect']
-    for b in pg.get_text('blocks'):
-        r |= fitz.Rect(b[:4])
-    r = ((r if not r.is_empty else pg.rect) + (-6, -6, 6, 6)) & pg.rect
-    pg.get_pixmap(dpi=dpi, clip=r).save(png)
+    with fitz.open(pdf) as doc:
+        pg = doc[0]
+        r = fitz.Rect()
+        for d in pg.get_drawings():
+            # Filter page furniture and sub-point specks before expanding ink.
+            bounds = d['rect']
+            if bounds.width < pg.rect.width * .98 and max(bounds.width, bounds.height) >= 1:
+                if 's' in d.get('type', 's'):
+                    # A horizontal/vertical path has an empty geometric Rect,
+                    # which union discards. Include its painted stroke first;
+                    # PDF hairlines occupy one output-device pixel.
+                    half_stroke = max(float(d.get('width') or 0) / 2, 36.0 / dpi)
+                    bounds = bounds + (-half_stroke, -half_stroke,
+                                       half_stroke, half_stroke)
+                r |= bounds
+        for b in pg.get_text('blocks'):
+            r |= fitz.Rect(b[:4])
+        r = ((r if not r.is_empty else pg.rect) + (-6, -6, 6, 6)) & pg.rect
+        pg.get_pixmap(dpi=dpi, clip=r).save(png)
 
 
 def run_one(frag, edition, hue, out, width_in):
