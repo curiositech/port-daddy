@@ -368,9 +368,9 @@ through-line we will trace: how the claim stops the collision before it happens
 (\S\ref{sec:zoom}), how a digest-with-zoom surface lets her read the pile in bounded
 time (\S\ref{sec:zoom}), how a completion gate turns the confident lie into a loud
 ``I cannot verify this'' (\S\ref{sec:completionist}), how Signal Detection Theory
-sets exactly when she is forced to look before an irreversible act
-(\S\ref{sec:operator}), and how, at fifty agents instead of six, a directory keeps
-her from drowning (\S\ref{sec:readpoverty}).
+prices inspection under explicit assumptions (\S\ref{sec:operator}), and how a
+directory could reduce search effort as the workload grows
+(\S\ref{sec:readpoverty}).
 \pdexercisepointer{\ref{ex:ls-taxonomy-five-failures}}{\ref{ex:ls-sovereign-vs-oligarchy-experiment}}{\pageref{ex:ls-taxonomy-five-failures}}
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Consent to the Leviathan (the normative claim)}\label{sec:authority}
@@ -867,8 +867,9 @@ teaching contract, not a measured saving or an implemented invalidation rule.
 
 \subsection{Adversarial review: the quality organ}\label{sec:review}
 
-By Invariant~\ref{prop:verifiable-zoom}, a swarm reviewing its own work is two language
-models agreeing --- one error twice. The quality organ must therefore be
+A swarm reviewing its own work can repeat the same error. Agreement alone does
+not supply the independently checkable evidence required by
+Invariant~\ref{prop:verifiable-zoom}. The proposed quality organ is therefore
 \emph{adversarial and conflict-free}: a reviewer with no stake in the work, running a
 bounded critique--refine protocol. This is the wedge's local analog of the
 \emph{neutral evaluators} --- the independent rating agencies --- that \pdchapref{stp}{From Spawn to Person} and \pdchapref{he}{The Harbor Economy}
@@ -1586,7 +1587,7 @@ The proposed canary mechanism is also a vigilance task: the operator monitors
 for defects in items with known ground truth. \textbf{Warm, Parasuraman \&
 Matthews}\pdcite{warm2008} review evidence that vigilance can demand substantial
 mental effort and produce stress; performance and workload depend on task
-conditions. \textbf{Mackworth's} experiments\pdcite{mackworth1948} are a classic
+conditions. \textbf{Mackworth's} experiments~\pdcite{mackworth1948} are a classic
 study of sustained monitoring, not a universal timer for software review.
 A falling catch rate could reflect time on task, probe difficulty, prevalence,
 or changes in review conditions. It should not automatically be interpreted as
@@ -1608,7 +1609,7 @@ program ungameable or beneficial; its effect on real decisions must be evaluated
 \subsection{Situation awareness needs projection, not just perception}\label{sec:sa}
 
 Digest-with-zoom can organize current state and its supporting evidence; it does
-not establish what an operator understands. Endsley\pdcite{endsley1995}
+not establish what an operator understands. Endsley~\pdcite{endsley1995}
 distinguishes perception, comprehension, and projection of future states, and
 treats situation awareness, decision-making, and performance as distinct stages.
 In Endsley and Kiris's navigation experiment,\pdcite{endsleykiris1995}
@@ -1796,9 +1797,9 @@ matter would need those controls before claiming an ordering.
 \pdexercisepointer*{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
 
 \begin{pdrecitation}
-\item Without looking: what three quantities multiply to give the derived regret head, and what does calibration require of the anomaly term for that product to equal expected unrecoverable loss?
-\item When can a pooled review rate hide appropriate class-specific decisions, and when might one setting suffice?
-\item How could a canary score improve without better real defect detection? Name one safeguard to test and explain why it does not prove the program ungameable.
+\item Recall the regret head's three factors and its calibration premise.
+\item When can a pooled review rate hide class differences?
+\item Can canary scores improve without better defect detection? Why is a safeguard no guarantee?
 \end{pdrecitation}
 
 
@@ -2583,14 +2584,15 @@ disagree, not evidence that every pair of real queues does. The theorem
 forbids sharing when a strict reversal actually occurs; the upper panel
 shows why different objective names alone do not establish impossibility.
 
-The consequence is a design rule: the operator wants the \emph{most dangerous} item
-surfaced, the agent wants the \emph{most capable} collaborator. Collapsing them into
-one ranker silently serves one reader and starves the other.
+The design must preserve the distinction between collaborator fit and the value
+of inspection. When their priorities strictly reverse, one fixed ordering cannot
+serve both readers at every budget. When they are compatible, a shared ordering
+may serve both; their scores still need separate interpretations.
 
 \paragraph{The regret head is derived, not designed.} The product form
 $\mathrm{stakes}\times\mathrm{irreversibility}\times\mathrm{anomaly}$ looks like a
-designer's convenient heuristic. It is a theorem under one commitment, and the
-commitment converts ``anomaly'' from a vibe into a measured obligation. The analogy
+designer's convenient heuristic. Its expected-loss interpretation follows under the inspection model below,
+which requires ``anomaly'' to be a calibrated probability. The analogy
 is a smoke detector. It has one dial, and the right setting of that dial is fixed
 not by how much smoke there is but by the ratio of two costs: the house burning down
 against burnt toast waking you at three in the morning. Three relations transfer.
@@ -2599,8 +2601,10 @@ cost to be wrong, not merely how unusual the reading is. Raising the cost of the
 fire \emph{lowers} the threshold at which the alarm should sound; the dial moves
 toward hair-trigger, not away from it. A false alarm alone does not establish miscalibration: even a calibrated
 posterior can cross a low decision threshold when fires are costly. Calibration
-and the choice of threshold need separate checks. The misread to preempt: a better sensor does not remove
-the trade-off. A perfect sensor still needs the cost ratio to know where to trip.
+and the choice of threshold need separate checks. Better sensing changes the evidence, while costs price the response. If the
+sensor perfectly identifies safe and dangerous items, false alarms need not
+occur; for a known danger, the model below still compares inspection cost
+with the harm inspection would avert.
 
 \begin{pdclaim}{Theorem}{The Regret Head}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2810,19 +2814,23 @@ a live agent indefinitely. Decay is easy to apply to a
 forgetting layer and easy to forget on a digest; Invariant~\ref{prop:decay} closes that
 gap by making it universal.
 
-\subsection{Ambient legibility: the cross-modal load-balancer}\label{sec:ambient}
+\subsection{Ambient legibility: a proposed alert channel}\label{sec:ambient}
 
-Per Wickens' Multiple Resource Theory (\S\ref{sec:operator}), attention is vectored,
-not scalar. The dense console loads the \emph{visual-focal} channel; an ambient
-channel --- a menu-bar indicator that turns red on a PASS-to-FAIL transition, an
-opt-in sound, a reduced-motion cue --- loads a \emph{different}, always-visible,
-pre-attentive channel. This is not a second-class fallback --- it is the cross-modal
-load-balancing mechanism, and it may be the \emph{primary} alarm path, because a
-separate low-clutter field is where pop-out actually works (\textbf{Treisman \& Gelade
-1980}, Feature Integration Theory~\pdcite{treisman1980} --- \emph{a single salient
-feature pops out pre-attentively in $\sim$200--500\,ms in a non-cluttered field, but
-degrades toward serial search as distractor heterogeneity rises} --- so a busy console
-defeats the pop-out a dense, single-color distress lane depends on).
+A compact indicator can signal a status transition without requiring the operator
+to keep a dense console open. A menu-bar icon still uses vision; it is not
+a separate sensory modality merely because it occupies another part of the
+screen. An optional sound uses another modality, but its benefit depends on
+competing tasks and the conditions discussed in \S\ref{sec:operator}.
+
+\textbf{Treisman \& Gelade's} feature-integration experiments~\pdcite{treisman1980}
+distinguish searches for separable features from searches that require combining
+features with focused attention. They motivate testing whether an alert is easy
+to distinguish among its actual distractors; they do not establish a universal
+200--500\,ms detection time for this interface. The design hypothesis is that a
+low-clutter indicator with an optional alternative cue improves detection of
+important transitions at acceptable interruption cost. Test detection and false
+alarms in context, including accessibility and reduced-motion preferences, before
+making it the primary alarm path.
 
 \pdexercisepointer{\ref{ex:ls-split-ranker-statement}}{\ref{ex:ls-decay-vs-summary}}{\pageref{ex:ls-split-ranker-statement}}
 
@@ -3230,26 +3238,22 @@ real leverage over the actor.
 
 \subsection{M\^etis is Hayek, and some of it cannot be made legible}\label{sec:hayek}
 
-The formal constraint of \S\ref{sec:flatten} --- that a read-path to the diff is more
-legibility, not m\^etis --- has a 1945 economics name. \textbf{Hayek}, \emph{The Use
-of Knowledge in Society} (1945~\pdcite{hayek1945} --- \emph{the knowledge that matters
-is dispersed, particular to time and place, and not aggregable by any central
-planner; this is the fundamental reason central planning fails}) is the other half of
-Scott's argument from the opposite pole: the operator-attention economy
-(\S\ref{sec:operator}) is at bottom a Hayekian knowledge-allocation problem, not only
-a Wickens attention-resource problem. The core claim of this layer --- ``the binding
-constraint is decentralized, non-spawnable knowledge held in one head'' --- is a Hayek
-argument, and Scott's \emph{Two Cheers for Anarchism} (2012~\pdcite{scott2012}) is the
-\emph{constructive} sequel that says what to do: preserve the spaces where m\^etis
-lives, do not flatten them for legibility's sake. The skill-retention tax
-(\S\ref{sec:abdication}) is the design's gesture at exactly this, and it is the
-hardest mechanism in the paper to realize, because preserving the illegible is, by
-definition, the thing legibility cannot do for you.
+Section~\ref{sec:flatten} distinguishes access to an artifact from the situated
+knowledge needed to interpret it. \textbf{Hayek's} discussion of dispersed,
+local knowledge~\pdcite{hayek1945} and \textbf{Scott's} critique of administrative
+simplification~\pdcite{scott1998} offer complementary cautions for this design.
+Their arguments do not establish that one supervisor's knowledge is always the
+system's binding resource, or that all useful knowledge fits in that one head.
+
+The application here is an interpretive synthesis: keep evidence available and
+preserve opportunities for people to exercise practical judgment. Scott's
+\emph{Two Cheers for Anarchism}\pdcite{scott2012} motivates that concern. It does
+not prove that the proposed skill-retention or canary interventions preserve
+knowledge; their effects need the evaluation described in
+\S\ref{sec:abdication}. Figure~\ref{fig:hayek-scott} maps the two cautions to this
+design proposal without treating the arrows as a deduction.
 
 \input{figures/legible-swarm-hayek-scott}
-Figure~\ref{fig:hayek-scott} draws the convergence directly: two
-independent sources landing on one claim, with Scotts own later book
-supplying the one prescription that follows from it.
 
 \pdexercisepointer{\ref{ex:ls-hobbes-mapping}}{\ref{ex:ls-ranker-political-organ}}{\pageref{ex:ls-hobbes-mapping}}
 
@@ -3270,7 +3274,10 @@ floor depends on both the critical set and the number of permitted opens. At
 $N=60,m=8$, the floors for two and four critical items are $5.98$ and
 $12.77$ bits. These are different coverage requirements, not measured
 compression savings between two architectures.
-\item \textbf{Discovery has two heads.} Fit and regret rank candidates differently, no monotone score identifies both, and reputation enters only through the posterior.
+\item \textbf{Discovery and inspection ask different questions.} A strict
+priority reversal prevents one ordering from serving both readers at every
+budget; compatible priorities can share an ordering. Inspection still needs
+calibrated error probabilities and costs.
 \item \textbf{Compaction serves distinct readers.} The extractive
 counterexample shows why a one-record budget can force conflicting choices.
 The counting comparison prices different coverage budgets. The classical
@@ -3864,9 +3871,10 @@ practice~\pdcite{isa182} and the clinical alarm-fatigue evidence~\pdcite{cvach20
 
 \noindent\textbf{Limits of the objective.}
 \textbf{Campbell}~\pdcite{campbell1979} and \textbf{Strathern}~\pdcite{strathern1997}
-(Goodhart's law) bound any metered governor. To our knowledge the operator-attention
-objective spined explicitly on SDT miss-cost (Eq.~\ref{eq:sdt}) is new to agent
-supervision.
+(Goodhart's law) warn about incentives created by consequential metrics. This
+chapter applies a classical SDT loss (Eq.~\ref{eq:sdt}) to inspection decisions
+in agent supervision. The usefulness of that application requires calibration
+and evaluation.
 
 \paragraph{Information foraging and the cost of reading.}
 Read-poverty (Hypothesis~\ref{def:readpoverty}) is the agent-coordination instance of
@@ -3886,8 +3894,9 @@ construction~\pdcite{kamvar2003}, with Sybil resistance per
 \textbf{Douceur}~\pdcite{douceur2002} and commons governance per
 \textbf{Ostrom}~\pdcite{ostrom1990} --- machinery the wedge defers but must not
 contradict. Our specific result here is the \emph{split ranker}
-(Thm.~\ref{thm:split-ranker}): discovery and operator-attention ranking are provably
-distinct objectives, not one ranker with swapped weights.
+(Thm.~\ref{thm:split-ranker}): collaborator fit and inspection priorities can
+strictly conflict. The comonotonicity result states when a common ordering can
+nevertheless serve both readers.
 
 \paragraph{The formal siblings, and what they already prove.}
 The nearest prior art for several of this chapter's results is not external at all: it
@@ -3922,8 +3931,8 @@ literature.
 \midrule
 Legibility & Scott; Hayek; Rao & Make over-legibility a buildable failure mode; prove a legibility lower bound \\
 Social contract & Hobbes; Locke; Hume; Hirschman & Express, scoped, revocable consent grant; inalienable override; legible sovereign \\
-Automation \& trust & Bainbridge; Lee \& See; Endsley & Per-(action-class, agent) calibration; SDT miss-cost objective; skill-retention tax \\
-Information foraging & Pirolli \& Card; lost-in-the-middle & Read-poverty as the binding scale constraint; directory-as-index \\
+Automation \& trust & Bainbridge; Lee \& See; Endsley & Class-specific calibration where needed; SDT inspection loss; proposed vigilance probes \\
+Information foraging & Pirolli \& Card; lost-in-the-middle & Workload-dependent review bottleneck; directory-as-index \\
 Discovery \& trust & FIPA DF/AMS; ANS; EigenTrust & Split ranker: fit vs.\ regret-if-ignored are distinct objectives \\
 Queueing \& staffing & Erlang-C; Kendall; the formal siblings~\pdcite{paper6} & Sole-responsibility roles priced at an exact boundary, not asserted as a principle \\
 \bottomrule
@@ -3952,30 +3961,30 @@ inspectable present (digest-with-zoom), and the projected future (freeze-probe S
 
 \subsection{What this layer hands upward (the through-line)}\label{sec:handoff}
 
-The wedge is the single-player product. But the same legibility discipline applied to
-\emph{continuity} is the foundation of everything above it. The through-line
-the accompanying chapters depend on is one sentence:
+The single-operator product records continuity as well as current work. The
+accompanying chapters use that evidence in the following proposed architecture:
 
-\pdthesis{The economy rests on three continuity organs --- memory, checkpoint
-(today, notes rather than true execution state), and a witnessed-outcome ledger
-(today, commitments and oracle closure rather than neutral graded outcomes) ---
-and reputation keys on the richer third organ; the checkpoint organ is the weakest continuity link, and a
-real execution-state checkpoint --- ``resurrection with teeth'' --- is the literal
-foundation of any agent market.}
+\pdthesis{This design combines memory, checkpoints, and witnessed outcomes to
+support continuity. Reputation uses attributable outcomes under stable identity.
+A checkpoint that restores an exact running computation is needed only when the
+workload requires that form of resumption; it is not a prerequisite for every
+agent market. Today's notes and oracle-bound commitments provide narrower forms
+of continuity than execution snapshots and neutral graded outcomes.}
 
 Concretely, the legibility layer provides upward:
 \begin{itemize}[leftmargin=1.2em]
 \item \textbf{Legible continuity} --- resurrection-with-memory, episodic memory, and
-the briefing together make an agent's continuity legible. This is the precondition for
-the through-line \emph{memory $+$ checkpoint $\to$ continuity $\to$ a person not a
-spawn $\to$ reputation $\to$ a tradeable asset $\to$ the market}. No legible
-continuity, no reputation, no tradeable agent. \emph{The score is cheap; the substrate
-it scores over --- witnessed outcomes on a non-forgeable identity --- is the gate.}
+the briefing together make recorded continuity inspectable. The intended route
+is memory and task state supporting continued work, with attributable outcomes
+supporting reputation. A score alone does not establish whose work was evaluated
+or whether the evidence is valid. The required checkpoint fidelity depends on
+the task; preserving a reviewable outcome history need not restore a running
+process.
 That non-forgeable identity is a \BuiltWeak{} single-operator primitive in the
 wedge: daemon-minted \texttt{actor-souls} and a bounded newcomer pool ship, while universal
 write-boundary enforcement does not. The
-cross-operator attestation a real market needs is an additional, as-yet-unbuilt
-mechanism the economy paper must declare rather than assume.
+proposed cross-operator attestation is an additional mechanism whose trust
+assumptions and implementation the economy paper must declare.
 \item \textbf{The completion ledger} --- in the target design, every verified
 completion (and every loud-failed one) becomes an outcome event. Today durable
 commitments, oracle-bound closure, and overdue detection form a partial witness
@@ -3986,9 +3995,10 @@ are the candidate-generation and trust-signal scaffolding the reputation head co
 \item \textbf{The consent grant as a priceable object} --- a hosted-trust offering is
 the transfer of a consent grant (Invariant~\ref{def:consent}) to a third party, which the
 economy paper prices.
-\item \textbf{Operator-attention economics} --- the denominator a market cannot
-escape. The SDT-spined objective (\S\ref{sec:operator}) supplies the
-operator-attention cost of supervising a rented fleet.
+\item \textbf{Operator-attention economics} --- the loss in
+\S\ref{sec:operator} offers a model for pricing inspection and errors when
+supervising a rented fleet. Estimating those costs and checking the inspection
+assumptions are part of applying it.
 \end{itemize}
 
 The Leviathan that makes your swarm legible to you, without lying to you with a pretty
