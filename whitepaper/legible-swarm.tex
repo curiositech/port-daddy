@@ -1372,46 +1372,58 @@ relative to the crossing at which the band stops being empty.
 \section{The operator as a modeled entity}\label{sec:operator}
 % ═════════════════════════════════════════════════════════════════════════════
 
-It is tempting to model only the \emph{swarm} as the thing made legible, and to leave
-the \emph{operator} unmodeled. But the legibility layer exists \emph{for} the human
-operator, and the binding constraint at the top of the system is the operator's
-finite attention and fallible trust calibration. A complete design therefore treats
-operator attention as a resource with its own economics, parallel to the token
-economics of the swarm (\S\ref{sec:tokens}).
+The legibility layer exists for an operator who must decide what to inspect,
+permit, or stop. Consider a fixed review interval with one person on duty. Adding
+agents may increase the incoming work without increasing that person's available
+review time. Attention and trust calibration therefore belong in the workload
+model alongside the swarm's token costs (\S\ref{sec:tokens}); whether either is
+the binding constraint depends on the workload.
 
-\keyidea[More agents do not add attention]{In a world where token cost trends toward zero, the human supervisor is the
-only cost that stays fixed --- so the entire economic logic of the stack eventually
-routes through one objective: minimize \emph{operator-attention per correct
-decision}. The operator is the system's reliability bottleneck, a single server
-with a non-elastic service rate. The 51st agent does not get a 51st operator.}
+\keyidea[More agents do not add attention]{With staffing and available review time
+held fixed, additional agents do not automatically add review capacity. A
+single-server queue can approximate sequential human review, but its service
+times depend on the task, the interface, and the operator's experience. We need to
+price both inspection effort and decision errors, not assume a universal human
+service rate or a future token price.}
 
-The cognitive ceiling is real: \textbf{Miller 1956}, \emph{The Magical Number
-Seven}~\pdcite{miller1956} --- \emph{working memory holds roughly $7\pm2$ chunks},
-which makes read-poverty (\S\ref{sec:readpoverty}) a human constraint, not merely an
-engineering one --- and \textbf{Wickens}' \emph{Multiple Resource Theory}
-(\pdcite{wickens2002} --- \emph{attention is not a single scalar pool but a vector
-over stage $\times$ modality $\times$ code $\times$ visual-channel; you cannot trade
-audio-channel attention for visual-channel attention $1{:}1$}). The vectored model
-matters: the right objective is not ``minimize total seconds'' but \emph{minimize
-peak load on the bottleneck channel}, and the ambient-vs-dense split
-(\S\ref{sec:ambient}) is the cross-modal load-balancing mechanism that does it.
+\textbf{Miller's} \emph{The Magical Number Seven}\pdcite{miller1956}
+distinguishes limits in absolute judgment from limits in immediate memory. Familiar
+chunks and recoding change how much information a remembered item carries. These
+experiments do not establish a universal seven-item limit for dashboards or a
+maximum number of agents one person can supervise.
+
+\textbf{Wickens' multiple-resource theory}\pdcite{wickens2002} adds a different
+warning: equal durations need not impose equal interference. Tasks can compete
+for resources associated with processing stages, sensory modalities, visual
+channels, and representational codes. Under the model's comparable-demand
+conditions, greater resource overlap predicts greater interference. This
+motivates measuring workload distribution as well as elapsed time. It does not
+prove that minimizing peak load is the universal objective, or that the proposed
+ambient/dense display split (\S\ref{sec:ambient}) achieves it. That display choice
+needs evaluation on the intended decisions.
 
 \subsection{The attention objective, spined on Signal Detection Theory}\label{sec:sdt}
 
-A naive objective --- ``attention-seconds-per-correct-decision'' --- is
-Goodhart-bait: it rewards lowering the decision criterion to wave things through,
-because zooming costs seconds and most diffs are fine. The correct frame is
-\textbf{Signal Detection Theory} (\textbf{Green \& Swets 1966}~\pdcite{greenswets1966}
---- \emph{an operator discriminating signal from noise trades sensitivity $d'$
-against a decision criterion $\beta$; performance is a joint function of both and of
-the asymmetric costs of the two error types}). The operator is trading \emph{misses}
-(rubber-stamping a destructive-on-stale-premise merge) against \emph{false alarms}
-(zooming on a safe diff), and the cost of a miss is wildly asymmetric to the cost of
-a false alarm.
+An average such as ``attention-seconds per correct decision'' can conceal rare,
+expensive mistakes among many cheap successes. \textbf{Signal Detection Theory}
+(\textbf{Green \& Swets 1966}\pdcite{greenswets1966}) separates two questions:
+how well does the evidence distinguish dangerous from safe actions, and where
+should the inspection threshold sit? For equal-variance Gaussian evidence, the
+sensitivity $d'=(\mu_{\mathrm{danger}}-\mu_{\mathrm{safe}})/\sigma$ is the
+separation of the means in common standard-deviation units. Holding these
+distributions fixed, moving the threshold changes misses and false alarms;
+it does not change $d'$.
+
+Here $\beta$ denotes a threshold on the evidence score: inspect above it, otherwise
+permit the action. A \emph{miss} permits a dangerous action; a \emph{false alarm}
+inspects a safe one. The preferred threshold depends on prevalence and the costs
+of those outcomes. A destructive migration and an unnecessary inspection need
+not carry the same cost. The next example begins with just two available
+policies, inspect every item in a class or inspect none.
 
 \begin{pdexample}{Two Action Classes, Priced Before the Objective Is Written Down}
 \setlength{\parskip}{4pt plus 1pt}
-The objective below looks heavier than it is, so price two action classes with it first, in its crudest collapse: zoom \emph{every} item in a class or zoom \emph{none} of them, at a false-alarm cost $C_{\text{fa}}=1$ and a per-decision attention cost $c_{\mathrm{att}}=0.2$. Convert attention and harm to the same
+The objective below looks heavier than it is, so price two action classes with it first, in its crudest collapse: zoom \emph{every} item in a class or zoom \emph{none} of them, at an additional false-alarm cost $C_{\text{fa}}=1$ and an attention cost of $c_{\mathrm{att}}=0.2$ per inspection. Convert attention and harm to the same
 normalized cost units, and assume inspection detects every dangerous action.
 
 Take a migration that drops a foreign key, with a base rate of genuinely dangerous instances $\pi=0.2$ and a miss cost $C_{\text{miss}}=500$. Never zoom and you pay the miss term alone,
@@ -1436,18 +1448,21 @@ That is a factor of about $240$ the other way --- and it is worth noticing what 
 
 The whole apparatus below exists to keep that arithmetic honest once $P_{\text{miss}}$ and $P_{\text{fa}}$ stop being degenerate.
 
-\emph{Now you try:} what happens to the forced-zoom rate as $C_{\text{miss}}/C_{\text{fa}}\to\infty$ (Exercise~\ref{ex:ls-sdt-limits})?
+\emph{Now you try:} keep prevalence positive and the other costs fixed. Which of these two policies wins as $C_{\text{miss}}\to\infty$ (Exercise~\ref{ex:ls-sdt-limits})?
 \end{pdexample}
 
 \begin{pdclaim}{Design invariant}{The SDT-Spined Attention Objective}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:sdt}
-Let an operator decision over an action have sensitivity $d'$ and criterion $\beta$.
-With miss probability $P_{\text{miss}}(\beta)$, false-alarm probability
-$P_{\text{fa}}(\beta)$, miss cost $C_{\text{miss}}$ (large: irreversible damage),
-false-alarm cost $C_{\text{fa}}$ (small: wasted attention-seconds), base rate $\pi$
-of genuinely dangerous actions, and per-decision attention cost $c_{\mathrm{att}}$, the operator
-objective is
+Fix the score distributions for safe and dangerous actions. Let
+$P_{\text{miss}}(\beta)$ be the probability of no inspection conditional on danger,
+and $P_{\text{fa}}(\beta)$ the probability of inspection conditional on safety.
+Assume inspection detects and prevents the dangerous action. Let $\pi$ be the
+dangerous-action prevalence, $C_{\text{miss}}$ the cost of an unprevented danger,
+$C_{\text{fa}}$ the additional burden of an unnecessary inspection, and
+$c_{\mathrm{att}}$ the cost of each inspection. Express all costs in the same
+units without counting attention twice. With at most one inspection per action,
+$\mathbb{E}[\text{zooms}(\beta)]$ is the inspection probability. The objective is
 \begin{equation}\label{eq:sdt}
 \min_{\beta}\ \Big[\, \pi\,C_{\text{miss}}\,P_{\text{miss}}(\beta)
    \;+\; (1-\pi)\,C_{\text{fa}}\,P_{\text{fa}}(\beta)
@@ -1456,6 +1471,8 @@ objective is
 
 The forced-zoom policy $p(r,s,v)$ is calibrated against this loss after specifying
 the score distributions that determine $P_{\text{miss}}$ and $P_{\text{fa}}$.
+An imperfect inspection requires an additional residual-harm term; the displayed
+loss does not price that error.
 
 Equation~\ref{eq:sdt} is a decision objective, not by itself a fitted detector: what
 the design commits to is that operator friction is set by this loss and not by taste,
@@ -1531,17 +1548,19 @@ detector follows from this table.
 
 \subsection{Trust calibration is multi-dimensional, and the vigilance decrement is real}\label{sec:calibration}
 
-Showing the operator a beautiful digest does not make them appropriately reliant on
-it (\textbf{Lee \& See 2004}, \emph{Trust in Automation}~\pdcite{leesee2004} ---
-\emph{trust has at least three bases (performance, process, purpose) and calibration
-depends on \textbf{resolution} (can the operator tell where automation is reliable
-from where it is not?) and \textbf{specificity} (is trust differentiated across
-functions and time?)}). The implication is sharp: a \emph{single} ``approve-without-
-zoom rate'' and a \emph{single} global forced-zoom knob is mis-calibration by
-aggregation. An operator who correctly trusts the swarm on refactors and correctly
-distrusts it on migrations shows a middling \emph{global} catch-rate, and a global
-knob mis-serves both. Trust calibration must be \emph{function-specific and
-history-dependent} --- per (action-class, agent), not one scalar. Table~\ref{tab:trust-calibration} makes the aggregation failure concrete.
+A readable digest does not by itself establish appropriate reliance.
+\textbf{Lee \& See}\pdcite{leesee2004} distinguish trust based on performance,
+process, and purpose, and discuss calibration, resolution, and specificity.
+For this chapter, the practical question is whether the operator distinguishes
+contexts in which the automation has different capabilities.
+
+The two action classes above show why a global review rate can hide useful
+variation. Under their stated costs, light review of formatting and close review
+of migrations are sensible together. Their pooled review rate can hide that
+allocation. Table~\ref{tab:trust-calibration} is an illustrative aggregation
+problem, not a measured operator result. A common setting can be adequate when
+the relevant risks and costs are alike; when they differ, calibration should
+retain the action class, agent, and current evidence rather than discard them.
 
 \begin{table}[H]
 \centering
@@ -1550,39 +1569,40 @@ history-dependent} --- per (action-class, agent), not one scalar. Table~\ref{tab
 \setlength{\tabcolsep}{4pt}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Action class} & \textbf{The operator's actual calibration} & \textbf{Under one global knob} \\
+\textbf{Action class} & \textbf{Class-specific review} & \textbf{What a pooled rate hides} \\
 \midrule
-Refactors & correctly trusts; low zoom rate & aggregated away \\
-Migrations & correctly distrusts; high zoom rate & aggregated away \\
-\emph{Global aggregate} & a middling catch-rate that looks mis-calibrated & mis-serves both classes at once \\
+Formatting & low review under the example's costs & which safe items were permitted \\
+Migrations & high review under the example's costs & which dangerous items were inspected \\
+\emph{Combined} & one rate across both classes & allocation of review effort \\
 \bottomrule
 \end{tabularx}
-\caption{One global review setting hides correctly differentiated trust:
-the operator reviews migrations closely and refactors lightly. [internal]}
+\caption{A pooled review rate can hide the allocation of review
+between these two action classes. Appropriate allocation also depends on each
+class's danger rate and error costs. [internal]}
 \label{tab:trust-calibration}
 \end{table}
 
-And the canary-defect catch-rate mechanism --- inject known-bad diffs at a sampled
-rate, raise friction when catch-rate drops --- is a \emph{vigilance task}, monitoring
-for rare signals, and the vigilance literature predicts it will degrade for reasons
-unrelated to swarm danger (\textbf{Warm, Parasuraman \& Matthews 2008}, \emph{Vigilance
-Requires Hard Mental Work and Is Stressful}~\pdcite{warm2008} --- \emph{detection of
-rare signals degrades sharply within 20--35 minutes, worse at low signal
-probability}; the classic result is \textbf{Mackworth 1948}~\pdcite{mackworth1948}).
-The honest, citable tension: defeating the vigilance decrement \emph{costs
-attention-seconds} (canary rate must be high enough to beat the decrement, which
-fights Eq.~\ref{eq:sdt}). Catch-rate must therefore be \emph{time-on-task-corrected},
-and the right countermeasure is to force breaks, not just rotate zooms.
+The proposed canary mechanism is also a vigilance task: the operator monitors
+for defects in items with known ground truth. \textbf{Warm, Parasuraman \&
+Matthews}\pdcite{warm2008} review evidence that vigilance can demand substantial
+mental effort and produce stress; performance and workload depend on task
+conditions. \textbf{Mackworth's} experiments\pdcite{mackworth1948} are a classic
+study of sustained monitoring, not a universal timer for software review.
+A falling catch rate could reflect time on task, probe difficulty, prevalence,
+or changes in review conditions. It should not automatically be interpreted as
+worse trust calibration or greater swarm danger. Evaluation should record those
+conditions and compare like workloads. Breaks and changes in probe frequency are
+interventions to test, with their own costs in Eq.~\ref{eq:sdt}, rather than
+established remedies for this particular interface.
 
-\pitfall[Canary scores can be gamed]{Campbell's Law eats the governor. The moment ``operator catch-rate''
-becomes a metered invariant that raises friction when it drops, the operator is
-incentivized to game it --- memorize canary patterns, develop a ``looks-like-a-canary''
-heuristic orthogonal to real defect-finding (\textbf{Campbell 1979}~\pdcite{campbell1979}
---- \emph{the more a quantitative indicator is used for decision-making, the more it
-distorts the process it monitors}). The accountability instrument corrupts the
-accountability it measures. We do not claim the canary governor cleanly closes the
-loop; it is net-positive only if canaries are drawn from a refreshed, costly-to-fake
-distribution and the catch-rate is one signal among several, never the sole gate.}
+\pitfall[Canary scores can be gamed]{When catch rate controls friction or grants,
+operators have an incentive to optimize that score. Recognizing a recurring probe
+template can improve the score without improving detection of real defects.
+This is the risk highlighted by \textbf{Campbell's Law}\pdcite{campbell1979}:
+using an indicator for consequential decisions can distort the process it is
+meant to assess. Refreshed holdouts, separation of probe generation from scoring,
+and independent outcome evidence are proposed safeguards. None proves the
+program ungameable or beneficial; its effect on real decisions must be evaluated.}
 
 \pagebreak
 \subsection{Situation awareness needs projection, not just perception}\label{sec:sa}
@@ -1608,34 +1628,42 @@ contrasts current support with the proposed projection mode.
 
 \subsection{The Bainbridge--Scott convergence and the abdication gradient}\label{sec:abdication}
 
-\textbf{Lisanne Bainbridge 1983} (\emph{Ironies of Automation}~\pdcite{bainbridge1983}
---- \emph{the more reliable an automated system becomes, the less practiced and
-situationally aware its human supervisor becomes, so the human is least equipped to
-intervene at exactly the moment intervention is needed}) and Scott are the
-\emph{same warning at two scales}: the digest erases the swarm's m\^etis, and the
-digest erases the \emph{operator's} m\^etis. As the supervising automation gains
-autonomy --- executing longer plans end-to-end --- the operator's role slides
-$\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ --- the
-\emph{abdication gradient}, stated here as a hypothesis, not a measurement. The design's primary active defense is the \textbf{Inception Canary} (a \emph{consented, blinded} vigilance probe), moving beyond static ``skill-retention taxes'' (such as arbitrary manual busywork, which causes attention residue and degrades focus~\pdcite{leroy2009}).
+\textbf{Bainbridge's} \emph{Ironies of Automation}\pdcite{bainbridge1983}
+identifies a practical tension: automating routine control can remove opportunities
+to practise while leaving the operator responsible for difficult exceptions.
+This resembles Scott's concern about losing situated knowledge, but it does not
+prove that every digest erases either the swarm's or the operator's m\^etis.
+The proposed trajectory
+$\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ is this
+chapter's \emph{abdication-gradient hypothesis}, not a measured law.
 
+The \textbf{Inception Canary} is a proposed, consented, blinded probe of defect
+detection. It is intended to test meaningful review rather than impose arbitrary
+manual tasks. Its interruptions also need to be priced: Leroy's
+attention-residue experiments\pdcite{leroy2009} motivate measuring the cost of
+switching away from unfinished work, not assuming every interruption is harmful
+or that a probe preserves supervisory skill.
 
 \begin{protocol}{The Inception Canary protocol}\label{prot:canary}
-To continuously measure and maintain operator situation awareness without synthetic busywork. Operators enroll knowingly: the program's existence, rate $\rho_{\text{canary}}$, and stakes are disclosed at onboarding; only the \emph{which} and \emph{when} are blinded:
+The proposed protocol measures detection of known defects on sandboxed replays; whether training with it improves real supervision is an empirical question. Operators enroll knowingly: the program's existence, rate $\rho_{\text{canary}}$, and stakes are disclosed at onboarding; only the \emph{which} and \emph{when} are blinded:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
-\item \textbf{Blinded holdout replay.} An out-of-band Compaction Sidecar (\S\ref{sec:tokens-digest}) draws from a curated holdout of \emph{historical, already-fixed} defects (an off-by-one boundary condition, an unindexed query, a removed regression test), re-materializes one inside a sandboxed replay of a past work item at rate $\rho_{\text{canary}}$, and routes it through the review surface indistinguishably from live traffic. No anomaly is ever injected into a live pull request or pending action: probes are replays with known ground truth, so a missed canary costs vigilance points, never production correctness.
+\item \textbf{Blinded holdout replay.} An out-of-band Compaction Sidecar (\S\ref{sec:tokens-digest}) draws from a curated holdout of \emph{historical, already-fixed} defects (an off-by-one boundary condition, an unindexed query, a removed regression test), re-materializes one inside a sandboxed replay of a past work item at rate $\rho_{\text{canary}}$, and routes it through the review surface indistinguishably from live traffic. No anomaly is injected into a live pull request or pending action: the replay cannot directly modify production. Interruptions and score-driven changes to future grants can still affect real work and require evaluation.
 \item \textbf{Attention queue surfacing.} The item is placed in the Attention Queue with standard high-regret scoring.
-\item \textbf{Dual adjudication:}
+\item \textbf{Illustrative adjudication cases:}
 \begin{itemize}[leftmargin=1.2em,nosep]
 \item \emph{Rubber-stamp failure:} If the operator approves without expanding the forced-zoom diff, the daemon halts execution pre-commit, logs an \textsc{Inception Canary Failed} event, and tightens the operator's autonomous policy lease (lowering the threshold at which future agent actions require manual confirmation).
 \item \emph{Vigilant detection:} If the operator zooms, identifies the flaw, and rejects it, the daemon logs \textsc{Canary Defeated} and increases the \emph{Operator Trust Score}, unlocking extended autonomous execution grants (e.g., unattended batch merges).
 \end{itemize}
+Other responses, including inspecting and then approving the defect, require
+separate scoring rules. These two cases do not specify a complete controller;
+grants must remain within independently authorized policy limits.
 \end{enumerate}
 \end{protocol}
 
 \input{figures/legible-swarm-inception-canary}
 Figure~\ref{fig:inception-canary} draws the three steps into the
-single adjudication gate, with each outcomes opposite effect on the
-operators autonomy lease named beside it.
+two illustrative outcomes, with their proposed opposite effects on the
+operator's autonomy lease named beside them.
 
 This records detection on known probes with informed consent and preserved
 provenance. Probe performance is a proxy, not a complete measure of situation
@@ -1653,23 +1681,19 @@ pane fetching one route from the daemon and rendering the records that route
 returns. Two things about it follow from this chapter; neither flatters it,
 and neither is a complaint.
 
-First, every pane is a projection, and the information floor applies to each
-one separately. A pane is a channel with a coverage, an omission rate, and a
-review latency, and the front matter's question --- which channel, and what
-can it not show? --- has a separate answer for every pane. The claims pane
-shows what cooperating clients registered and nothing about what a
-non-cooperating process wrote; the lineage pane shows the witnessed record
-and is blind to the unrecorded fork; the cost ledger shows a protected
-meter's count (and, being a meter, has no opinion about the cause). A console
-that draws all of them beautifully on one screen has not lowered the floor;
-it has made the floor easier to forget. The design rule this chapter derives,
-that every digest line must carry a route back to its artifact, is the rule
-the panes are held to, and it is what makes the thing an instrument rather
-than a dashboard.
+First, each pane projects a particular record. The claims pane shows what
+cooperating clients registered, not an unrecorded write by another process;
+the lineage pane shows witnessed ancestry, not an unrecorded fork; the cost
+ledger gives a meter's count, not a causal explanation. Combining views can
+improve decisions, but cannot recover events that none of their sources observed.
+Table~\ref{tab:pane-floors} records these coverage limits.
 
-
-Table~\ref{tab:pane-floors} names the three panes the chapter itself
-specifies, each its own instance of the information floor.
+The counting bound in \S\ref{sec:lowerbound} applies only after specifying its
+artifact universe, possible critical sets, message budget, decoder, and allowed
+review set. A pane is not automatically an instance of that model. For the
+console, an evidence link from a digest claim to its artifact is a design
+requirement that makes checking possible; the theorem does not establish that
+links alone make the representation sufficient.
 
 \begin{table}[H]
 \centering
@@ -1727,8 +1751,9 @@ view.
 \begin{description}[leftmargin=1.4em,itemsep=3pt]
   \item[Solo with staff] One person writes. Longshoremen observe and suggest;
   they hold no write authority. The person must see the staff's suggestions
-  as suggestions, and the legibility cost is the smallest of the five:
-  nothing changes that the person did not type.
+  as suggestions. In this regime, the staff cannot itself change repository
+  content; the effort of evaluating its suggestions still depends on their volume
+  and quality.
   \item[Pair with agent] One person and one Voyager. The agent may suggest,
   patch, test, and respond to guidance; the person directs. Authority is
   shared turn by turn, and the person must see every patch before it lands,
@@ -1744,9 +1769,9 @@ view.
   agent writes within its budget; the person sees the artifacts, not the
   acts. The binder's rule is the one to remember: a Nightshift agent may open
   a pull request under budget, but merging requires explicit rules and green
-  gates. This is the regime with the largest gap between what happened and
-  what the person saw, and therefore the one the information floor bites
-  hardest.
+  gates. The person must evaluate work they did not watch being produced.
+  Its review cost depends on the artifacts, evidence, and decision, not on the
+  mode name alone.
   \item[Harbor co-edit] People and agents as co-equal peers in one governed
   editor buffer, with claims, semantic conflicts, and salvage. Write
   authority is co-equal and conflicts are settled by the claim machinery of
@@ -1755,24 +1780,25 @@ view.
   is advisory, and a rename or a delete draws the stronger review.
 \end{description}
 
-Three governance rules cut across the modes and are the chapter's normative
-claim made operational: the operator controls the harbor's policy while the
-agents' souls control their commitments within it; a Longshoreman must not
-silently perform a consequential action outside its mandate; and any action
-that requires a human in the loop must be shown as such in the instrument, not
-inferred from its absence. Read as regimes, the five modes are five points on
-this chapter's boundary diagram, ordered by how much of the write authority
-has left the person and, in the same order, by how many bits of digest the
-person must read to remain the operator rather than the audience. The modes
-are a design invariant; the costs per mode are an empirical hypothesis, and
-the study named in the front matter is where they will be measured.
+Three proposed governance rules cut across the modes: the operator controls the
+harbor's policy while agents choose commitments within it; a Longshoreman must
+not silently perform a consequential action outside its mandate; and a required
+human decision must be visible in the instrument. These are design requirements,
+not observations that every product mode already enforces them.
+
+The five modes are supervision patterns, not a total order of authority or
+information cost. For example, inspecting one unattended, well-tested formatting
+patch can be cheaper than following a complex pair-programming session. To
+compare modes, hold the task and acceptable error rate fixed, specify the
+available evidence, and measure review effort. The study proposed in the front
+matter would need those controls before claiming an ordering.
 
 \pdexercisepointer*{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
 
 \begin{pdrecitation}
 \item Without looking: what three quantities multiply to give the derived regret head, and what does calibration require of the anomaly term for that product to equal expected unrecoverable loss?
-\item State in one sentence why a global trust knob cannot be the right calibration unit.
-\item What is Campbell's Law's specific failure mode for a canary program, and the one governor that survives it?
+\item When can a pooled review rate hide appropriate class-specific decisions, and when might one setting suffice?
+\item How could a canary score improve without better real defect detection? Name one safeguard to test and explain why it does not prove the program ungameable.
 \end{pdrecitation}
 
 
@@ -1841,18 +1867,28 @@ unqualified verdict. This motivates the zoom requirement
 \end{figure}
 \fi
 
-\subsection{The value curve across $n$ (the wedge must work at $n{=}1$)}\label{sec:value-curve}
+\subsection{Value at different swarm sizes}\label{sec:value-curve}
 
-Read-poverty is a \emph{scale} disease, but the wedge ships to a solo developer who
-often runs one or two agents. The legibility layer must be valuable at $n{=}1$ ---
-the briefing, the attestation, the footgun guard, the honest completion gate all pay
-off immediately --- and \emph{gracefully grow} into the read-poverty regime.
-Discovery is free at $n{=}2$, the
-bottleneck at $n{=}50$, the whole system at $n{=}500$. This value curve \emph{is} the
-three-layer cure of the next section: existence (the registry), relevance (ranked
-routing), and trust (reputation, deferred to the accompanying chapters). The layers are
-strictly ordered: relevance over a stale registry returns confident garbage;
-reputation over an unranked registry has nothing to attach a score to.
+The legibility layer should help a solo developer as well as a larger team.
+At $n=1$, a briefing can locate unfinished work, an attestation can expose what
+was checked, and a completion receipt can point to the result. These are proposed
+benefits for decisions about one agent; their value still depends on accuracy,
+review effort, and the task. Discovery ranking is not needed to select among
+agents when there is only one candidate.
+
+The same surfaces must remain useful when review demand exceeds capacity.
+Comparing populations such as two, fifty, or five hundred agents could help
+study that transition, but those numbers are not established thresholds. Update
+rates, query selectivity, staffing, and evidence quality matter alongside the
+number of agents.
+
+The next section separates three functions: a registry records who exists and
+where their evidence lives; relevance ranking selects candidates for a query;
+reputation associates observed outcomes with stable identities. These functions
+have dependencies, but do not form a strict ranking-first pipeline. Stale registry
+entries can misdirect retrieval; reputation needs attributable evidence, yet can
+attach to an identity even in an unranked registry. Ranking may subsequently use
+that reputation as one input.
 
 \subsection{A legibility lower bound}\label{sec:lowerbound}
 
@@ -3448,11 +3484,23 @@ By hand, at $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ 
 \pdexercisesfor{\S\ref{sec:operator}}{The operator as a modeled entity}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-sdt-limits}
-In Eq.~\ref{eq:sdt}, what happens to the optimal forced-zoom rate $p(r,s,v)$ as
-$C_{\text{miss}}/C_{\text{fa}}\to\infty$? As agent reputation $r\to 1$?
+Use the two policies in the worked example: inspect the whole action class
+or inspect none, with perfect inspection and fixed $\pi>0$, $C_{\text{fa}}$, and
+$c_{\mathrm{att}}$. Which wins as $C_{\text{miss}}\to\infty$? Why is the ratio
+$C_{\text{miss}}/C_{\text{fa}}\to\infty$ alone insufficient? Does agent reputation
+$r\to1$ settle the choice in Eq.~\ref{eq:sdt}?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-sdt-limits}
-As $C_{\mathrm{miss}}/C_{\mathrm{fa}}\to\infty$, the optimal criterion moves toward forced review wherever a miss remains possible; the forced-zoom probability approaches one on the ambiguous region. If reputation $r\to1$, nothing follows from Eq.~\ref{eq:sdt} alone, since $r$ does not appear in it directly: zoom should decline only under a calibrated model in which high $r$ shifts the class-conditional danger probability downward for this agent, action class, and current version. High reputation must never defeat hard stakes or irreversibility gates.
+The no-inspection loss $\pi C_{\mathrm{miss}}$ diverges, while the
+all-inspection loss $(1-\pi)C_{\mathrm{fa}}+c_{\mathrm{att}}$ stays finite, so
+all-inspection eventually wins among these two policies. The ratio alone is
+insufficient: set $\pi=0.001$, $C_{\mathrm{miss}}=1$, $c_{\mathrm{att}}=1$, and
+let $C_{\mathrm{fa}}\downarrow0$. The ratio diverges, but no inspection costs
+$0.001$ while inspection costs at least $1$. Imperfect inspection or a broader
+policy class needs its own analysis. Nothing follows from $r\to1$ alone because
+$r$ does not appear in the equation: a calibrated model must connect reputation
+to current, class-specific danger probabilities. Any hard authorization
+constraints remain separate from this loss minimization.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-global-trust-knob}
 Give a
@@ -3460,7 +3508,14 @@ concrete scenario where a \emph{global} trust knob (\S\ref{sec:calibration})
 mis-serves an operator who is, in fact, perfectly calibrated.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-global-trust-knob}
-An operator may be correctly confident in one agent's formatting/test-only changes and correctly skeptical of that same agent's schema migrations. A global trust knob averages those two histories, forcing needless review of safe formatting while under-reviewing migrations. Calibration belongs to (principal, agent/build, action class, environment), with its own uncertainty and freshness, not to one scalar per agent.
+Use the formatting and migration classes in Table~\ref{tab:sdt-numbers}.
+Suppose a single knob imposes the same randomized inspection probability $q$
+on both, independent of the item. Formatting loss is
+$(1-q)0.005+q(1.199)$, minimized at $q=0$; migration loss is
+$(1-q)100+q(1)$, minimized at $q=1$. No common $q$ attains both class minima.
+A pooled rate can hide that difference. This counterexample assumes the knob
+really imposes a common probability; a common interface setting that implements
+different class thresholds need not have the same defect.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-canary-campbell}
 Walk the canary-defect loop and mark every point where Campbell's Law could
@@ -3468,7 +3523,7 @@ distort it. Propose one change that reduces the distortion without removing the
 governor.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-canary-campbell}
-Campbell pressure appears when canaries are selected (recognizable templates), exposed (agents/operators learn signatures), scored (catch rate substitutes for real defect discovery), and acted on (friction creates an incentive to optimize the metric). Time-on-task and breaks also confound the score. Reduce the distortion with a blinded, continuously refreshed holdout drawn from real failure transformations; separate the party generating canaries from the operator; correct for exposure time and base rate; and treat catch rate as one diagnostic among several, never the sole gate.
+Campbell pressure appears when canaries are selected (recognizable templates), exposed (agents/operators learn signatures), scored (catch rate substitutes for real defect discovery), and acted on (friction creates an incentive to optimize the metric). Time-on-task and breaks also confound the score. Test a blinded, refreshed holdout drawn from real failure transformations; separate probe generation from scoring; stratify by exposure time, difficulty, and base rate; and compare against independent real-defect outcomes. These measures may reduce distortion but do not guarantee it. The test must also price interruption costs and the consequences of changing grants.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-pareto-digest}
 Formalize the operator-attention objective (Eq.~\ref{eq:sdt})
@@ -3488,7 +3543,7 @@ freeze-probe study (\S\ref{sec:sa}) that would tell.
 Randomize operators or time blocks among manual-tax, automation-only, projection/freeze-probe, and adaptive-tax conditions, on matched repositories with fixed surprise events. Probe without warning: next-three-effect prediction, takeover completion time, false-belief rate, Brier score, post-interruption recovery, defect catch rate, NASA-TLX, and retention weeks later. Measure disablement/avoidance as an outcome in its own right. A useful tax improves later projection/takeover after controlling for interruption cost; mere annoyance raises workload and disablement without those gains.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:readpoverty}}{Read-poverty: the binding constraint at scale}
+\pdexercisesfor{\S\ref{sec:readpoverty}}{Read-poverty: when inspection falls behind}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-readpoverty-binding}
 Under what workload conditions could read-poverty
@@ -3511,11 +3566,11 @@ write-time cost a directory pays, and what read-time speed does it buy?
 A directory pays at write time to normalize metadata and update indices: typically $O(\log n)$ per indexed insert (or expected $O(1)$ for a hash index), plus storage. It buys selective reads in $O(\log n+k)$ for $k$ results rather than $O(n)$ roster scanning, along with a queryable provenance trail.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-value-curve-n1}
-At $n{=}1$, name three legibility surfaces that already pay off
+At $n{=}1$, name three legibility surfaces that could help a decision
 (\S\ref{sec:value-curve}), and explain why none of them are discovery-ranking.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-value-curve-n1}
-At $n{=}1$, briefing, honest self-attestation, footgun gating, completion receipts, and resurrection handoff already reduce uncertainty. None of them asks ``which collaborator fits?''; each projects or verifies one actor's own state, so none is discovery ranking.
+A briefing could locate unfinished work; an honest attestation could identify which checks ran; a completion receipt could locate the resulting artifact. Each supports a decision about the single actor rather than selecting among collaborators. Accuracy and reduced decision effort must be evaluated; a surface's existence alone does not establish that benefit.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-floor-limits}
 In Thm.~\ref{thm:lowerbound}, what happens to the bit floor as $k\to 0$ (almost
@@ -3805,7 +3860,8 @@ problem~\pdcite{endsley1995,endsleykiris1995}, the vigilance-decrement results o
 \textbf{Mackworth}~\pdcite{mackworth1948} and \textbf{Warm et al.}~\pdcite{warm2008},
 \textbf{Wickens}' multiple-resource theory~\pdcite{wickens2002},
 \textbf{Treisman \& Gelade}'s feature-integration theory~\pdcite{treisman1980}, and
-\textbf{Miller}'s capacity limit~\pdcite{miller1956}.
+\textbf{Miller}'s studies of absolute judgment, immediate memory, and
+recoding~\pdcite{miller1956}.
 
 \noindent\textbf{Alarm decisions.} The forced-zoom decision is
 modeled with \textbf{Green \& Swets}' Signal Detection Theory~\pdcite{greenswets1966}

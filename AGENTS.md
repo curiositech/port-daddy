@@ -32,6 +32,9 @@ repository-scoped pairing bearer.
 The canonical Book uses `whitepaper/textbook.json` plus the authored Chapter 0.
 For mathematical corrections, inspect the corresponding figure, worked example,
 exercise solution, and summary; these retellings can contradict a corrected theorem.
+Authored landmark captions and questions are part of that review: an art plate
+can overstate a result just as a theorem summary can. Verify rendered exercise
+and solution destinations against their actual headings, not just label counts.
 The build must converge before copying its PDF. Run
 `scripts/harbor-research/run_pdf_checks.py` on the exact candidate, inspect facing
 spreads for all chapter openers and repaired pages, and record its hash. Publication
