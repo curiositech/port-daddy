@@ -32,6 +32,63 @@
     "cover-write.log": {
       "sha256": "b9c6098df80ac7ff896fc787202e6616f071dcd28e6cf9a2168f6b2bc702f550",
       "text": "wrote website-v2/public/whitepaper/plates/cover-swiss.jpg (239 KB) from /Users/erichowens/coding/tmp/book-publication-20261103/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf (b589f090130f\u2026)\n"
+    },
+    "metadata-final-check.log": {
+      "sha256": "0498aff30c753b051145b76c88cbaa75aff876b011bd45373d131370264e50ac",
+      "text": "Whitepaper metadata in sync (the Book (8 chapters) + 8 research papers checked; publication digests match).\n",
+      "exit_code": 0
+    },
+    "metadata-final-tests.log": {
+      "sha256": "286fb6a58d360ef0f7613eaaadb833cf8a85eb3276d5e48c1ea3a0716f5fe05c",
+      "text": "\n RUN  v4.1.2 /Users/erichowens/coding/tmp/book-publication-20261103/website-v2\n\n\n Test Files  1 passed (1)\n      Tests  27 passed (27)\n   Start at  12:40:57\n   Duration  520ms (transform 74ms, setup 0ms, import 266ms, tests 169ms, environment 0ms)\n\n",
+      "exit_code": 0
+    },
+    "typescript-check.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "text": "",
+      "exit_code": 0
     }
+  },
+  "reference_count_audit": {
+    "raw_entries": 344,
+    "collated_chapters1_to8": 281,
+    "chapter0_registered": 50,
+    "chapter0_distinct_keys": 50,
+    "sources": [
+      {
+        "path": "whitepaper/single-writer-kernel.tex",
+        "entries": 39
+      },
+      {
+        "path": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+        "entries": 31
+      },
+      {
+        "path": "website-v2/public/whitepaper/sealed-harbor.tex",
+        "entries": 30
+      },
+      {
+        "path": "whitepaper/legible-swarm.tex",
+        "entries": 69
+      },
+      {
+        "path": "website-v2/public/whitepaper/spawn-to-person.tex",
+        "entries": 46
+      },
+      {
+        "path": "website-v2/public/whitepaper/harbor-economy.tex",
+        "entries": 46
+      },
+      {
+        "path": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "entries": 42
+      },
+      {
+        "path": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+        "entries": 41
+      }
+    ],
+    "scope": "Registry and generator counts, not a count of distinct works across the whole Book. The unused unsupported references:221 metadata is removed.",
+    "consumer_verification": "Read-only JS/TS consumer search found no read of CollectedVolume.references; 27 metadata tests and full website tsc -b pass after two-line removal."
   }
 }

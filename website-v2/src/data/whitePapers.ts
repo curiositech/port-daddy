@@ -242,7 +242,6 @@ export interface CollectedVolume {
   date: string
   pages: number
   sizeKb: number
-  references: number
   /**
    * Alternate-typography editions published beside the canonical PDF, built
    * from the same sources; see coordination-papers-mega-volume-{maritime,swiss,technical}.tex.
@@ -261,7 +260,6 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   date: TEXTBOOK.edition.date,
   pages: 844,
   sizeKb: 17238,
-  references: 221,
   // No `editions` while the Book publishes only its central edition. See the
   // CollectedVolumeEdition doc comment above.
 }

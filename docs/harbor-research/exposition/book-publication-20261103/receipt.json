@@ -1,18 +1,18 @@
 {
   "status": "local artifact prepared; source merge and hosted publication pending",
   "source_pr": 10345,
-  "reviewed_source_commit": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "reviewed_source_commit": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
   "integration_base": "69e6c96365a1babe9b7a3b7b59a4b29a02993eca",
   "accepted_print_receipt": {
     "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/acceptance.json",
-    "sha256": "fbdf345595a8d11e8b26f4dc93f6b9322009daea4d1cfbf21d16e75afe93b874"
+    "sha256": "b5395c7106b1f16f1f6d09d8beaeab74969d4572cb9d268c05a3720617e4b2a6"
   },
   "input_reconciliation": {
-    "count": 282,
+    "count": 280,
     "mismatches": [],
     "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
     "snapshot_path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/source-snapshot.json",
-    "snapshot_sha256": "6721fea84081ba92fcaf08d61def81ffdb454334b5cf0c789d30ffea54d64777"
+    "snapshot_sha256": "ff6e58ce5875e7c1e4850159385366cc426e89434b924d5dddcc8103253622f7"
   },
   "pdf": {
     "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
@@ -24,7 +24,7 @@
   "artifacts": {
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
     "website-v2/public/whitepaper/publication-digests.json": "8366dc148b0b0e7bd4f4be9f994254eaa21d7a1e33780249112eefd34f549513",
-    "website-v2/src/data/whitePapers.ts": "f437e239ca4dd69e7a3001e39958d5defd08aff53fcbc8f1c8ddba449693fd3e",
+    "website-v2/src/data/whitePapers.ts": "83434601ed4d7863c08492d306a84ff34c824965e897862b99ba4b849d3cb971",
     "website-v2/src/data/researchPapers.ts": "076cb1e343d476487b6a04aefd47f7b4be16d29fffad9d7b6d15bf3959b2a4d4",
     "website-v2/public/whitepaper/plates/cover-swiss.jpg": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
     "website-v2/public/whitepaper/plates/PROVENANCE.json": "749d01db8a0c0c7c26537e2f438eee389e86f709de5f37c64481695aabf5cbc3",
@@ -38,17 +38,22 @@
     "figure_desk_tests": 53,
     "cover_and_plate_provenance": "pass",
     "print_weight": "pass",
-    "test_counts": "Separate suites; not additive unique coverage."
+    "test_counts": "Separate suites; not additive unique coverage.",
+    "website_typescript": "tsc -b passes after removal of unused reference count"
   },
   "evidence": {
-    "validation.json": "5d720fb091e82f42a15d0a5de75ff033168f10ba62409f81d992b4411612be27",
+    "validation.json": "ef2c24049c2111d01c3cdf4814b60d7770d07bcca7354ea0b3249ee0958f3652",
     "figure-desk.json": "0e48886d405f8b290ce76fb975465c6ead39d4339272f565296899708a429ad1",
     "independent-review.json": "f72c13316b83d06033bb4a42a08766a86bcc4e302cc6e554b529ba33181ef300"
   },
   "limits": [
     "Source reading and selected-spread scope remain those in the accepted print receipt.",
     "Figure desk records 116 resolved page locators and 17 unknowns; no unverified overrides.",
-    "Research-paper metadata is synchronized to already committed source-PR PDF mirrors; no research PDF is changed here.",
-    "Hosted font-profile proof, protected source/artifact merges, deployment and live byte verification remain distinct."
-  ]
+    "Hosted font-profile proof, protected source/artifact merges, deployment and live byte verification remain distinct.",
+    "Research-paper metadata was already synchronized by the source PR; no research PDF or catalog row changes remain in the artifact diff."
+  ],
+  "prepared_after_source_commit": "e82955ac863132dcf6c6254f0b7048a3fc4bdd13",
+  "integration_checkpoint": "7ef830fbfcef9a0916b6d4c2fa15b8433a632989",
+  "reconciliation_scope": "The source PR removed two unused libraries and retained every surviving print input; its fresh PDF is byte-identical. Independent artifact checks remain applicable to these bytes. Guard-only verification-script fixes do not alter print inputs.",
+  "metadata_reference_count": "Removed unsupported unused221 count; chapter-bibliography collation and Chapter0 registration are separate conventions, so no replacement total is asserted."
 }
