@@ -16,5 +16,11 @@
   "scope": "Provenance markup only for the existing bounded enumeration: depth7,at most2migrations,delta3,window4,scorecap3. The sentence still says among those enumerated states; no general theorem is inferred from the fixture.",
   "script_exit": 0,
   "promoter_check_exit": 0,
-  "math_changes": false
+  "math_changes": false,
+  "punctuation_followthrough": {
+    "source_sha256": "52d03cef65217fde10907cd984161d5ef1d398ec58e0072d619774c9dfd8da7d",
+    "delta": "Remove exactly one ordinary space before the margin-only pdprov command.",
+    "generator_limitation": "Automatic promotion preserves a preceding space; the margin-only command consumes no inline width, leaving a gap before adjacent punctuation. The freshness check does not diagnose that rendered gap.",
+    "render_status": "Candidate28pending"
+  }
 }
