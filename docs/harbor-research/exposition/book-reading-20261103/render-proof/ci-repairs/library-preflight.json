@@ -1,0 +1,969 @@
+{
+  "head": "e82955ac863132dcf6c6254f0b7048a3fc4bdd13",
+  "root": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103",
+  "branch": "codex/book-textbook-craft-20261103",
+  "git_dir": "/Users/erichowens/coding/port-daddy/.git/worktrees/book-textbook-craft-20261103",
+  "workflow_sha256": "84f35e74acb1491b679a9972fea92da85086ae579ba838cec49024b646674636",
+  "numbering": "YAML 1-based step; GitHub hosted UI is offset by its setup step",
+  "tracked_status_before": "M website-v2/public/whitepaper/figures/pd-cite-shortforms.tex\n M whitepaper/figures/pd-cite-shortforms.tex",
+  "input_scope": "tracked source/ledger/test text under declared publication roots plus workflow and direct helper paths; excludes binary assets and full repository",
+  "input_count": 1220,
+  "readers": {
+    "pillow": "12.1.0",
+    "numpy": "2.2.6",
+    "scipy": "1.17.0",
+    "pymupdf": "1.26.7"
+  },
+  "steps": [
+    {
+      "yaml_step": 1,
+      "name": "actions/checkout@v4",
+      "command": null,
+      "cwd": ".",
+      "advisory": false,
+      "status": "not-run",
+      "reason": "setup/action or installed dependencies retained"
+    },
+    {
+      "yaml_step": 2,
+      "name": "actions/setup-node@v4",
+      "command": null,
+      "cwd": ".",
+      "advisory": false,
+      "status": "not-run",
+      "reason": "setup/action or installed dependencies retained"
+    },
+    {
+      "yaml_step": 3,
+      "name": "actions/setup-python@v5",
+      "command": null,
+      "cwd": ".",
+      "advisory": false,
+      "status": "not-run",
+      "reason": "setup/action or installed dependencies retained"
+    },
+    {
+      "yaml_step": 4,
+      "name": "Install the readers every page measurement is taken with",
+      "command": "pip install --quiet -r scripts/harbor-research/requirements-pdf.txt",
+      "cwd": ".",
+      "advisory": false,
+      "status": "not-run",
+      "reason": "setup/action or installed dependencies retained"
+    },
+    {
+      "yaml_step": 5,
+      "name": "textbook.json is the one source of chapter order (generated mirrors match)",
+      "command": "node scripts/generate-mega-whitepaper.mjs --check-shared",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.04,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/05.log",
+      "log_sha256": "2c7601f9d5ae2fb149fcfcb56c7eb9de5feeaa86366d572456a0dd3c02284e56"
+    },
+    {
+      "yaml_step": 6,
+      "name": "The Grand Harbor architecture ledger indexes what it claims to",
+      "command": "node checks/check-ledger.mjs",
+      "cwd": "docs/grand-harbor",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.076,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/06.log",
+      "log_sha256": "7156b7c524bf04aeb4aa4e4ba4e7f50dbf7747002b60e2961c1c658df9be3340"
+    },
+    {
+      "yaml_step": 7,
+      "name": "Book generator contract (namespacing, apparatus stripping, seams, shared files)",
+      "command": "node --test scripts/generate-mega-whitepaper.test.mjs scripts/generate-mega-mechanized.test.mjs",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.293,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/07.log",
+      "log_sha256": "c9ee5f2560b06446141a8ada97fa2c292e22e1a6a650a2b715bdab1ed02c8ced"
+    },
+    {
+      "yaml_step": 8,
+      "name": "Book body generates from the chapter sources (fails closed on drift)",
+      "command": "node scripts/generate-mega-whitepaper.mjs .cache/library-checks/mega-volume",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.179,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/08.log",
+      "log_sha256": "126765fc75a35fb194b60520f29fbcca64d73b75bdb5a2fd060a6109a9437709"
+    },
+    {
+      "yaml_step": 9,
+      "name": "LaTeX palette matches the design tokens (pd-palette.tex lockstep)",
+      "command": "node website-v2/scripts/check-figure-palette.mjs",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.184,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/09.log",
+      "log_sha256": "837174de1df5bea5760dbab88454775d378fef8f983c257df72cf6a6b6a7e935"
+    },
+    {
+      "yaml_step": 10,
+      "name": "The maritime-gold print ink stays plate trim and never sits beside the story colour",
+      "command": "python3 scripts/harbor-research/check_maritime_gold_ink.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.183,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/10.log",
+      "log_sha256": "5cb72dd8293c1c09702324f82361fcb21bc62784413ba3b7359a7623cd2febbb"
+    },
+    {
+      "yaml_step": 11,
+      "name": "Every \\cite has a \\bibitem across the three TeX corpora",
+      "command": "python3 scripts/harbor-research/check_citations.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.453,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/11.log",
+      "log_sha256": "61354311ddda8396eeed87cddb7afafa5e77b5a7250fe9a2f8bc8da79749c419"
+    },
+    {
+      "yaml_step": 12,
+      "name": "Reviewer corrections reached every site that echoes them",
+      "command": "python3 scripts/harbor-research/check_propagated_corrections.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.182,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/12.log",
+      "log_sha256": "72234ceebfb1b760cbdd5c0584e8226bcc387df1789c1e79859adf1f65122d3b"
+    },
+    {
+      "yaml_step": 13,
+      "name": "Omni research ledger integrity and deletion safeguards",
+      "command": "python3 -B scripts/harbor-research/omni_ledger.py check\npython3 -B scripts/harbor-research/test_omni_ledger.py\n",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.288,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/13.log",
+      "log_sha256": "c94b66f00435a60d382c9c74f041d20b73542d95c789124e9ca82d690c09c697"
+    },
+    {
+      "yaml_step": 14,
+      "name": "Library index matches the corpora it claims to index",
+      "command": "python3 scripts/harbor-research/check_library_index.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.87,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/14.log",
+      "log_sha256": "07fb2f6530c62382cb7b41a7c1be108bbc549e9b544e697eb375fcefdada21c8"
+    },
+    {
+      "yaml_step": 15,
+      "name": "LIBRARY-INDEX.md is a fresh render of library-index.json",
+      "command": "python3 scripts/harbor-research/check_library_index.py --check-md",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.876,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/15.log",
+      "log_sha256": "55f8f95324facbf4195b97268894284eb22b33158eec0a4b35665b0679f3ced7"
+    },
+    {
+      "yaml_step": 16,
+      "name": "Critique ledger Markdown and JSON agree and every Status cell is well-formed",
+      "command": "python3 scripts/harbor-research/check_critique_ledger.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.129,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/16.log",
+      "log_sha256": "982dde30bf205343f29c1c75240f48755f154c2e7f9209e190e07a45757475fa"
+    },
+    {
+      "yaml_step": 17,
+      "name": "The research program the website renders is current (index, manifest, ledger, studies, dives, silences, site mirror)",
+      "command": "python3 scripts/harbor-research/check_research_program.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.236,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/17.log",
+      "log_sha256": "e11fe3c83172897e34847f3d6aab6b6e30d3860a3e451a2b65940601e81b9fec"
+    },
+    {
+      "yaml_step": 18,
+      "name": "Reviewer study preparation and readiness boundaries",
+      "command": "python3 scripts/harbor-research/check_reviewer_protocol.py --self-test",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 7.982,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/18.log",
+      "log_sha256": "b84e382b61a59cdd22497dd9e4bcfe6b7af15a8f9deedc025b5049d6b29653e0"
+    },
+    {
+      "yaml_step": 19,
+      "name": "Every marginalia plate has a licence sidecar in the allow-list",
+      "command": "set -euo pipefail\npython3 scripts/harbor-research/check_marginalia_sidecars.py\n# A test module that cannot import is reported as one error and the\n# run still says \"Ran N tests\" -- which is how 11 page-measurement\n# tests went missing while the line above looked like it had run\n# them. Count what actually ran.\n# `|| true`, because errexit kills the step at a failing command\n# substitution before the echo runs -- which is how a genuinely\n# failing suite produced a red step with no output at all, the same\n# silence this counter was added to end. The exit status is taken\n# from the captured status, not from the substitution.\nout=$(python3 -m unittest discover -s tests/harbor-research -p 'test_*.py' 2>&1) || suite_failed=1\necho \"$out\"\nif [ \"${suite_failed:-0}\" = \"1\" ]; then\n  echo \"::error::the harbor-research suite failed; its output is above\"\n  exit 1\nfi\n# The floor is the count the suite actually has, raised whenever it\n# grows -- it sat at 212 while the suite had grown to 291, which is a\n# floor that would no longer have caught the missing-import case it\n# was written for.\nran=$(printf '%s' \"$out\" | sed -n 's/^Ran \\([0-9]*\\) tests.*/\\1/p')\nif [ \"${ran:-0}\" -lt 428 ]; then\n  echo \"::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 428 it has; a module failed to import\"\n  exit 1\nfi\n",
+      "cwd": ".",
+      "advisory": false,
+      "status": "not-repeated",
+      "reason": "Complete harbor-research discovery already passed on this hosted head; avoid concurrent temporary generated-output mutation. Dedicated sidecar check run separately."
+    },
+    {
+      "yaml_step": 20,
+      "name": "Every rendered plate has honest provenance and every TeX plate path resolves",
+      "command": "python3 scripts/harbor-research/check_plate_provenance.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.075,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/20.log",
+      "log_sha256": "e6515d26925748c22d0c669fa5c8da711395dfb91517329c2ca541102e05e0a2"
+    },
+    {
+      "yaml_step": 21,
+      "name": "Every plate the Book prints is at print weight",
+      "command": "python3 scripts/whitepaper-plates/print_weight.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.286,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/21.log",
+      "log_sha256": "9b57b2d0da58529b428cdaf6e320bf1504534f86e51354d6f2a49d4738e6d62d"
+    },
+    {
+      "yaml_step": 22,
+      "name": "The site's cover plate is page one of the committed Book",
+      "command": "python3 scripts/whitepaper-plates/render_cover_plate.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.076,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/22.log",
+      "log_sha256": "4308a6a80b75f03e70558b2d247d2e2ab033bbf07883913c2f4ce1e05a33889c"
+    },
+    {
+      "yaml_step": 23,
+      "name": "No plate or figure fragment is committed with nothing referencing it",
+      "command": "npm run check:orphan-assets",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 28.228,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/23.log",
+      "log_sha256": "627d8caa121703c2f3064eef4e97b209105e1f9047696f0facfaff18d50cb35b"
+    },
+    {
+      "yaml_step": 24,
+      "name": "Orphan-asset check mutation tests (both directions)",
+      "command": "node --test scripts/check-orphan-assets.test.mjs",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 7.338,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/24.log",
+      "log_sha256": "8b8469b2f9e2ff06ccd4de0633a7bbdffbc836fab06e979d2446f639ef8ba6ae"
+    },
+    {
+      "yaml_step": 25,
+      "name": "Full-bleed covers leave room for the type set over them",
+      "command": "python3 scripts/whitepaper-plates/check_cover_title_band.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.394,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/25.log",
+      "log_sha256": "23d7b31335d105d8f498b0661e463900843e188fdf6fa9a54bbbe5bc2778993f"
+    },
+    {
+      "yaml_step": 26,
+      "name": "The measured plates still match the geometry their record claims",
+      "command": "python3 scripts/whitepaper-plates/score_broken_arc.py --verify-provenance",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 1.068,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/26.log",
+      "log_sha256": "43b471ecf688b0a2c727a1be0035488ebf57ae7bfe448629331cb58f5bdf0cb9"
+    },
+    {
+      "yaml_step": 27,
+      "name": "Plate-check unit tests (band, ink thresholds, arc fitting)",
+      "command": "python3 -m unittest discover -s tests/whitepaper-plates -p 'test_*.py'",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 1.124,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/27.log",
+      "log_sha256": "c0895f160e08bf6b67162991eb8fc069823a5de64c2d5a4c97e8396cadef72af"
+    },
+    {
+      "yaml_step": 28,
+      "name": "Margin apparatus rules hold in every chapter",
+      "command": "python3 skills/tufte-evidence-design/scripts/margin_lint.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.074,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/28.log",
+      "log_sha256": "4073c43ab8e646c539e3543e95a7e5798bc43458483dc90d7081843dbf39bdad"
+    },
+    {
+      "yaml_step": 29,
+      "name": "Every \\begin has its \\end, and every source file balances",
+      "command": "python3 scripts/harbor-research/check_tex_environments.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.344,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/29.log",
+      "log_sha256": "11bfaeef14d1e9381fdb8bc99f80933991895ef2ea0fd01e5bdbfd2d6456a3de"
+    },
+    {
+      "yaml_step": 30,
+      "name": "No drawing is rendered twice in the Book",
+      "command": "python3 scripts/harbor-research/check_duplicate_figures.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.078,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/30.log",
+      "log_sha256": "a76bbe4868d92e434ed51381279a1c5ab7c8c6c2aa50c48cf69a5acf810b5e4d"
+    },
+    {
+      "yaml_step": 31,
+      "name": "Statement raw IDs are unique in the Book",
+      "command": "python3 scripts/harbor-research/check_duplicate_theorems.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.135,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/31.log",
+      "log_sha256": "1ec5fbce6e163afec513adf43d8d46874afd55a25a6200e5a6a6bacd39300476"
+    },
+    {
+      "yaml_step": 32,
+      "name": "Report remaining Float Plan semantic duplication",
+      "command": "python3 - <<'PY'\nimport json, os, re\nfrom pathlib import Path\nrows = json.loads(Path(\"docs/harbor-research/critique-ledger.json\").read_text())\nmatches = [row for row in rows if row.get(\"#\") == \"CA-014\"]\nif len(matches) != 1:\n    raise SystemExit(\"Expected exactly one CA-014 critique ledger row\")\nstatus = matches[0][\"Status\"]\ncomplete = isinstance(status, str) and re.fullmatch(r\"DONE \\S.*\", status) is not None\nif complete:\n    message = \"CA-014 is recorded complete in the critique ledger. The raw-ID gate checks labels only.\"\nelse:\n    message = \"CA-014 remains open: Float Plan semantic/schema duplication still needs the Book owner's reconciliation. Unique raw IDs do not resolve it.\"\n    print(\"::warning title=Book semantic duplication remains open::\" + message)\nif summary := os.environ.get(\"GITHUB_STEP_SUMMARY\"):\n    with Path(summary).open(\"a\", encoding=\"utf-8\") as stream:\n        stream.write(message + \"\\n\")\nPY\n",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.075,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/32.log",
+      "log_sha256": "d265092139db58ed3438abb7c61524afda0ced6a2448cb91d0925cae8c3c7dc8"
+    },
+    {
+      "yaml_step": 33,
+      "name": "No message ceremony is written out twice in the Book",
+      "command": "python3 scripts/harbor-research/check_duplicate_protocols.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.13,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/33.log",
+      "log_sha256": "4be9fc4d56c2b6032421367b6fe133bcb168134328a4efe9756b95799740580f"
+    },
+    {
+      "yaml_step": 34,
+      "name": "No figure caption says the data behind it is absent",
+      "command": "python3 scripts/harbor-research/check_absent_data_captions.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.177,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/34.log",
+      "log_sha256": "ba27cc0c8e7f08509cbabed28a9cdf0769b4864702c81a7fa7701a732e542ee4"
+    },
+    {
+      "yaml_step": 35,
+      "name": "No chapter writes bare \"delegation chain\"",
+      "command": "python3 scripts/harbor-research/check_delegation_chain_vocabulary.py --allow 'whitepaper/single-writer-kernel.tex:attenuation-monotonic delegation chain of digital signatures' --allow 'whitepaper/legible-swarm.tex:attenuation-monotonic delegation chain (a security object' --allow 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:Delegation chain authenticity (\\S\\ref{sec:delegation}' --allow 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex:Delegation chain replay & ProVerif at depth 3'",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.128,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/35.log",
+      "log_sha256": "592e91f9396a006956bf120ab83901378a190646905b2705e533fb25538766be"
+    },
+    {
+      "yaml_step": 36,
+      "name": "Margin citation short-forms are a fresh render of the bibliographies",
+      "command": "python3 scripts/harbor-research/build_cite_shortforms.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.264,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/36.log",
+      "log_sha256": "dcdd7584e842cf40531ac801b6c0ee570c3374c6fd9fa1ccbfae69f5b89627f9"
+    },
+    {
+      "yaml_step": 37,
+      "name": "Discharge pointers are a fresh render of the discharge pairs",
+      "command": "python3 scripts/harbor-research/build_discharge_pointers.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.041,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/37.log",
+      "log_sha256": "42a4c962d60ecb662eecb3278c7407d1fcf2dc7aff8f7ed6ac80cebf2b831e66"
+    },
+    {
+      "yaml_step": 38,
+      "name": "Every eligible \\cite is promoted to \\pdcite",
+      "command": "python3 scripts/harbor-research/promote_cites.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.05,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/38.log",
+      "log_sha256": "24412e45ef627a49a2891ee52ae0744396a262f571b763cf243d1cab12b5e09a"
+    },
+    {
+      "yaml_step": 39,
+      "name": "Every provenance tag is promoted to a margin note",
+      "command": "python3 scripts/harbor-research/promote_provenance.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.068,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-39-provenance.log",
+      "log_sha256": "25407ea309b409f692bdc9ad05c186ef7844ce843dafffd38e06fc7f92fd453c",
+      "initial_result": {
+        "status": "failure",
+        "exit_code": 1,
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/39.log",
+        "log_sha256": "cf5438e3b22150210271aef30db0acd3898f9bcf76fba6c687601cbf1659764c",
+        "seconds": 0.073
+      }
+    },
+    {
+      "yaml_step": 40,
+      "name": "Exercise pointers are starred exactly where a Recall block follows them",
+      "command": "python3 scripts/harbor-research/star_exercise_pointers.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.072,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/40.log",
+      "log_sha256": "4818583a5f82dab373adf305f399153984b0df6fd2ffaec9efcd41c7e9db7f2c"
+    },
+    {
+      "yaml_step": 41,
+      "name": "Semantic figure atlas covers every canonical figure (no drift from textbook.json)",
+      "command": "python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.337,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/41.log",
+      "log_sha256": "175509ec277832a689d5a3bd21f25b5d82393d94530d226a00c727de177d2409"
+    },
+    {
+      "yaml_step": 42,
+      "name": "Atlas-coverage unit tests",
+      "command": "python3 -m unittest discover -s skills/whitepaper-figure-system/tests -p 'test_*.py'",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.385,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/42.log",
+      "log_sha256": "84ccb21c50ef4d5753722e8d35212d327dfc25a680bb7bb0b9e07cec369309aa"
+    },
+    {
+      "yaml_step": 43,
+      "name": "TikZ figure-engineering unit tests",
+      "command": "python3 -m unittest discover -s skills/tikz-figure-engineering/tests -p 'test_*.py'",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 22.845,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/43.log",
+      "log_sha256": "1fa23ece36d2a4e4523cc1e747962ba7dd89bc7dc70aa4a57ace1941ca9619d9"
+    },
+    {
+      "yaml_step": 44,
+      "name": "figcheck T1-T10 and tikz_precheck unit tests (the figure gate's own tests)",
+      "command": "set -euo pipefail\nout=$(python3 -m unittest discover -s skills/harbor-chartwork/tests -p 'test_*.py' 2>&1) || suite_failed=1\necho \"$out\"\nif [ \"${suite_failed:-0}\" = \"1\" ]; then\n  echo \"::error::the harbor-chartwork figure-gate suite failed; its output is above\"\n  exit 1\nfi\nran=$(printf '%s' \"$out\" | sed -n 's/^Ran \\([0-9]*\\) tests.*/\\1/p')\nif [ \"${ran:-0}\" -lt 197 ]; then\n  echo \"::error::the harbor-chartwork suite ran ${ran:-0} tests, fewer than the 197 it has; a module failed to import\"\n  exit 1\nfi\n",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 1.566,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/44.log",
+      "log_sha256": "cc969910597ec0ab2f7e6d9df244c024fa571bd107129c81fa14feb5c7b740e9"
+    },
+    {
+      "yaml_step": 45,
+      "name": "Banned phrases (\"held to account\", \"load-bearing\") never appear in prose",
+      "command": "node scripts/lint/check-banned-phrases.mjs",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 1.517,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/45.log",
+      "log_sha256": "cb490394f453a5e4a0c5795d5a72550abc8a87df1eb46e984973e53999ac9465"
+    },
+    {
+      "yaml_step": 46,
+      "name": "textbook-craft chapter_lint unit tests",
+      "command": "python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": "Parent-authorized standalone fixture directory avoids walking from a nominally isolated fixture into the real repository. Initial failure retained; no test/source change.",
+      "exit_code": 0,
+      "seconds": 0.346,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/46-isolated-fixtures.log",
+      "log_sha256": "36e3a6713ad72e72ec75137aa3e8131cd5a820f943ddd6dd95d5544c680e83e9",
+      "initial_result": {
+        "status": "failure",
+        "exit_code": 1,
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/46.log",
+        "log_sha256": "4398ac6203f3762541ad75a58298410d92101b94dce27e973614603586a54d10",
+        "seconds": 0.346
+      },
+      "tests": 68,
+      "fixture_directory": "/Users/erichowens/coding/tmp/book-library-fixtures-20261103"
+    },
+    {
+      "yaml_step": 47,
+      "name": "Book chapter floor regression budget",
+      "command": "python3 skills/textbook-craft/scripts/chapter_lint.py --apparatus whitepaper/chapter-apparatus.json --max-blocking 15",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.179,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/47.log",
+      "log_sha256": "3d4cd3cfbe600d1aee456588503c6c5bd5d3a212745274927cac4cc45bd3ee79"
+    },
+    {
+      "yaml_step": 48,
+      "name": "readers_eye unit tests",
+      "command": "python3 -m unittest discover -s tests/harbor-research -p 'test_readers_eye.py' -v",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 1.613,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/48.log",
+      "log_sha256": "1aba391aa6b8e86124ac1f0925783a262dda1fafe6313f7a0b9174f817034280"
+    },
+    {
+      "yaml_step": 49,
+      "name": "The reader's-eye check still separates clean prose from bad",
+      "command": "python3 skills/textbook-craft/scripts/readers_eye.py --selftest",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.075,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/49.log",
+      "log_sha256": "c60fba5d8f961478b57982bb068056f166803e218c25dc8646c3e5d9576c32f8"
+    },
+    {
+      "yaml_step": 50,
+      "name": "Book prose is followable by a reader who lacks the vocabulary (advisory)",
+      "command": "python3 skills/textbook-craft/scripts/readers_eye.py --strict --limit 6",
+      "cwd": ".",
+      "advisory": true,
+      "status": "advisory-failure",
+      "reason": null,
+      "exit_code": 1,
+      "seconds": 1.958,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/50.log",
+      "log_sha256": "c2893d641a388d26d0b0ba7ab5e7a7adea41df646c24068e778275757ab1422a"
+    },
+    {
+      "yaml_step": 51,
+      "name": "Figure register and triage are well-formed, and the register's figure join resolves both ways",
+      "command": "python3 scripts/harbor-research/check_figure_register.py",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.176,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/51.log",
+      "log_sha256": "0fe494c537cbe4115759e1f888756bce759bc3021312ccb5ff0143bcf48bf09d"
+    },
+    {
+      "yaml_step": 52,
+      "name": "figcheck records and the live \\input-derived figure corpus name the same fragments",
+      "command": "python3 scripts/harbor-research/check_figcheck_corpus.py --verbose",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.073,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/52.log",
+      "log_sha256": "d3b7180706d6aae22a39b0b681da18429bf47375218846c78a2c96b37a6ba4bb"
+    },
+    {
+      "yaml_step": 53,
+      "name": "FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json",
+      "command": "python3 scripts/harbor-research/render_figure_audit.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "status": "pass",
+      "reason": null,
+      "exit_code": 0,
+      "seconds": 0.131,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/53.log",
+      "log_sha256": "2743ebe33e1652b8ba4cf5bd4aaaec58aac2ec4030a29f30389d9bceef197a2e"
+    },
+    {
+      "yaml_step": 54,
+      "name": "No unwaived (or expired-waiver) mechanical figure blocker (advisory)",
+      "command": "python3 scripts/harbor-research/check_figure_blockers.py --verbose",
+      "cwd": ".",
+      "advisory": true,
+      "status": "advisory-failure",
+      "reason": null,
+      "exit_code": 1,
+      "seconds": 0.04,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/54.log",
+      "log_sha256": "313932263051d041bba9c7f204a35065b68b469d35823bbb8e24b78fc309fced"
+    }
+  ],
+  "extra_checks": [
+    {
+      "name": "marginalia-sidecars",
+      "command": "python3 scripts/harbor-research/check_marginalia_sidecars.py",
+      "cwd": ".",
+      "advisory": false,
+      "exit_code": 0,
+      "seconds": 0.076,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/marginalia-sidecars.log",
+      "log_sha256": "b02af920dbc8a65943307b17353dc83f9c33722f90baa24cd26450770219b843",
+      "status": "pass"
+    },
+    {
+      "name": "figure-desk-freshness",
+      "command": "python3 scripts/harbor-research/build_figure_desk.py --check",
+      "cwd": ".",
+      "advisory": false,
+      "exit_code": 0,
+      "seconds": 4.09,
+      "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/figure-desk-freshness.log",
+      "log_sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b",
+      "status": "pass"
+    }
+  ],
+  "input_changes": {},
+  "tracked_status_after": "M website-v2/public/whitepaper/figures/pd-cite-shortforms.tex\n M whitepaper/figures/pd-cite-shortforms.tex",
+  "head_after": "e82955ac863132dcf6c6254f0b7048a3fc4bdd13",
+  "summary": {
+    "pass": 49,
+    "failure": 0,
+    "advisory-failure": 2,
+    "not-run": 4,
+    "not-repeated": 1
+  },
+  "environment_limitations": [
+    "Local installed PDF readers differ from workflow pins; no installer was run. Static source checks are reproduced, but local pixel/geometry results are not claimed as pinned hosted-environment identity.",
+    "Workflow setup/actions and pip install were not replayed; existing Node/Python/readers were used.",
+    "Full harbor-research discovery passed on the exact hosted head before the shortform step; not repeated in this static tail audit. The dedicated sidecar guard was run."
+  ],
+  "advisory_summary": {
+    "readers_eye": {
+      "findings": 100,
+      "abstraction_run": 64,
+      "artifact_register_drift": 6,
+      "caption_carries_fact": 3,
+      "undefined_slash_pair": 27,
+      "scope": "Existing advisory classifier findings; no new manual editorial verdict inferred."
+    },
+    "figure_blockers": {
+      "rows": 23,
+      "waived": 0,
+      "scope": "Historical figure ledger with expired2026-10-31 waivers and one unwaived row; freshness is green, this advisory is not current production-render verification."
+    },
+    "chapter_floor": {
+      "blocking": 12,
+      "budget": 15,
+      "advisory_floors": 3,
+      "review_floors": 8
+    }
+  },
+  "post_audit_repair": {
+    "head": "e82955ac863132dcf6c6254f0b7048a3fc4bdd13",
+    "source_hash": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028",
+    "input_count": 1220,
+    "prior_report_only_drift_receipt": "followup-receipt-report-drift.json",
+    "commands": [
+      {
+        "name": "39-provenance",
+        "command": "python3 scripts/harbor-research/promote_provenance.py --check",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-39-provenance.log",
+        "log_sha256": "25407ea309b409f692bdc9ad05c186ef7844ce843dafffd38e06fc7f92fd453c",
+        "seconds": 0.068
+      },
+      {
+        "name": "36-shortforms",
+        "command": "python3 scripts/harbor-research/build_cite_shortforms.py --check",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-36-shortforms.log",
+        "log_sha256": "dcdd7584e842cf40531ac801b6c0ee570c3374c6fd9fa1ccbfae69f5b89627f9",
+        "seconds": 0.504
+      },
+      {
+        "name": "37-discharge",
+        "command": "python3 scripts/harbor-research/build_discharge_pointers.py --check",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-37-discharge.log",
+        "log_sha256": "42a4c962d60ecb662eecb3278c7407d1fcf2dc7aff8f7ed6ac80cebf2b831e66",
+        "seconds": 0.048
+      },
+      {
+        "name": "11-citations",
+        "command": "python3 scripts/harbor-research/check_citations.py",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-11-citations.log",
+        "log_sha256": "61354311ddda8396eeed87cddb7afafa5e77b5a7250fe9a2f8bc8da79749c419",
+        "seconds": 3.224
+      },
+      {
+        "name": "14-index",
+        "command": "python3 scripts/harbor-research/check_library_index.py --check-md",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-14-index.log",
+        "log_sha256": "55f8f95324facbf4195b97268894284eb22b33158eec0a4b35665b0679f3ced7",
+        "seconds": 5.875
+      },
+      {
+        "name": "08-generator",
+        "command": "node scripts/generate-mega-whitepaper.mjs .cache/library-checks/mega-volume",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-08-generator.log",
+        "log_sha256": "126765fc75a35fb194b60520f29fbcca64d73b75bdb5a2fd060a6109a9437709",
+        "seconds": 0.597
+      },
+      {
+        "name": "desk",
+        "command": "python3 scripts/harbor-research/build_figure_desk.py --check",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-desk.log",
+        "log_sha256": "9a69cf797a29d3ce439c532f8c2f3de50da5ea7ed6066413c549112b6fda3a4b",
+        "seconds": 14.765
+      },
+      {
+        "name": "provenance-tests",
+        "command": "python3 -m unittest discover -s tests/harbor-research -p 'test_provenance_and_discharges.py'",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-provenance-tests.log",
+        "log_sha256": "c3bb85b448a4660370e46cbb8584d2c8d186c2a44b7215ea21f520128fe12e6f",
+        "seconds": 0.071
+      },
+      {
+        "name": "diff-check",
+        "command": "git diff --check",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-diff-check.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seconds": 0.109
+      },
+      {
+        "name": "banned-phrases",
+        "command": "node scripts/lint/check-banned-phrases.mjs",
+        "exit_code": 0,
+        "status": "pass",
+        "log": ".scratch/textbook-craft-20261103/pr10345/library-tail/final-banned-phrases.log",
+        "log_sha256": "cb490394f453a5e4a0c5795d5a72550abc8a87df1eb46e984973e53999ac9465",
+        "seconds": 4.251
+      }
+    ],
+    "input_drift": {}
+  },
+  "required_local_gates": "All49 executed required/static checks pass. The full harbor-research discovery is carried separately from hosted exact-head evidence; setup/install intentionally not replayed.",
+  "schema_version": 1,
+  "scope": "Complete54-step Library workflow enumerated;49 required/static checks executed and passed,2 advisory checks executed and retained nonzero;4 setup/install steps not replayed, full harbor-research suite separately passed on exact hosted head. Ten affected checks rerun after the bounded STP provenance promotion.",
+  "portable_log_copies": {
+    ".scratch/textbook-craft-20261103/pr10345/library-tail/39.log": {
+      "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight-logs/39.log",
+      "sha256": "cf5438e3b22150210271aef30db0acd3898f9bcf76fba6c687601cbf1659764c"
+    },
+    ".scratch/textbook-craft-20261103/pr10345/library-tail/46.log": {
+      "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight-logs/46.log",
+      "sha256": "4398ac6203f3762541ad75a58298410d92101b94dce27e973614603586a54d10"
+    },
+    ".scratch/textbook-craft-20261103/pr10345/library-tail/46-isolated-fixtures.log": {
+      "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight-logs/46-isolated-fixtures.log",
+      "sha256": "36e3a6713ad72e72ec75137aa3e8131cd5a820f943ddd6dd95d5544c680e83e9"
+    },
+    ".scratch/textbook-craft-20261103/pr10345/library-tail/final-39-provenance.log": {
+      "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight-logs/final-39-provenance.log",
+      "sha256": "25407ea309b409f692bdc9ad05c186ef7844ce843dafffd38e06fc7f92fd453c"
+    },
+    ".scratch/textbook-craft-20261103/pr10345/library-tail/final-36-shortforms.log": {
+      "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight-logs/final-36-shortforms.log",
+      "sha256": "dcdd7584e842cf40531ac801b6c0ee570c3374c6fd9fa1ccbfae69f5b89627f9"
+    },
+    ".scratch/textbook-craft-20261103/pr10345/library-tail/final-provenance-tests.log": {
+      "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight-logs/final-provenance-tests.log",
+      "sha256": "c3bb85b448a4660370e46cbb8584d2c8d186c2a44b7215ea21f520128fe12e6f"
+    }
+  },
+  "input_manifests": [
+    {
+      "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight-inputs-before.json",
+      "sha256": "0241a9037265395ea6279a500aa91eb11830bf5ed32ffa19e3e796b443855c37",
+      "count": 1220
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-reading-20261103/render-proof/ci-repairs/library-preflight-inputs-final.json",
+      "sha256": "0e1152fbf156a62443e000231e4e7e2680bfba39e4db6717f0cad765a3c43c73",
+      "count": 1220
+    }
+  ],
+  "input_delta_after_repairs": {
+    "docs/harbor-research/exposition/book-reading-20261103/operator-identity-concepts.json": {
+      "before": "7ffdbb48b6b153327631d1cf2788892c5accbde005a602be02dc87bead0a0961",
+      "after": "242f03682209013ac49c62fe98501e583a4c3ae3e6015abb8a28e5acad0b5277"
+    },
+    "docs/harbor-research/exposition/book-reading-20261103/operator-identity.md": {
+      "before": "9720124be9d52d235da0cdfc4de39399191845f9addcb0b70b4f2dec9b6658fc",
+      "after": "c6a20e6b5b5d4ae8e7ada16010aeb4d51d121869a1dabf4adf00f886a5060f01"
+    },
+    "website-v2/public/whitepaper/spawn-to-person.tex": {
+      "before": "1d124d07022b7715a965591c1b1e3bc00831eb11ce67a622fcd67fbdafcee65a",
+      "after": "059b6309e17c1ee99bdb3da36ef8180d39661d011975d8f238db8c6a25b3f028"
+    }
+  },
+  "local_full_audit_receipt": {
+    "path": ".scratch/textbook-craft-20261103/pr10345/library-tail/receipt.json",
+    "sha256": "981e8e2467dd4e09afcb79e7feb94971366b9ffe9cb660cc9b9dd438bdba36c4"
+  },
+  "hosted_prior_evidence": {
+    "head": "e82955ac863132dcf6c6254f0b7048a3fc4bdd13",
+    "run": 41714023706,
+    "job": 126189188042,
+    "step": 37,
+    "url": "https://github.com/curiositech/port-daddy/actions/runs/41714023706/job/126189188042",
+    "failure": "Margin citation short-forms are a fresh render of the bibliographies",
+    "command": "python3 scripts/harbor-research/build_cite_shortforms.py --check",
+    "exact_generated_delta": {
+      "paths": [
+        "whitepaper/figures/pd-cite-shortforms.tex",
+        "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex"
+      ],
+      "remove_only": [
+        "abdulrahman1997pgp",
+        "zimmermann1995pgp"
+      ],
+      "surviving_entries_changed": 0
+    },
+    "diagnostic_method": "Imported generator read-only and rendered into a string; unified diff printed. No output files written.",
+    "other_results": {
+      "orphan_asset_gate": "pass",
+      "research_python_suite": "pass,122 skips"
+    },
+    "owner_next_action": "Root coordinates generated input cleanup and accepted-source reconciliation; operator monitor makes no manuscript/input writes."
+  },
+  "source_mutation_policy": "This audit wrote no manuscript, test, or generated publication input. Operator owned two shortform twin repairs and one STP tag promotion; its two reading records were refreshed separately. No Port Daddy runtime, installers, root npm test, commit, or push invoked.",
+  "reader_identity_claim": "Local installed reader versions are recorded; they differ from hosted requirements-pdf.txt pins. No identical hosted rendering environment is claimed.",
+  "initial_failure_log_policy": "Initial STP tag failure and fixture-location failure preserved verbatim beside their successful repair/rerun logs. Full scratch logs retain every other command by SHA256; those omitted logs are not claimed portable.",
+  "final_snapshot_changes_expected": [
+    "website-v2/public/whitepaper/spawn-to-person.tex",
+    "docs/harbor-research/exposition/book-reading-20261103/operator-identity.md",
+    "docs/harbor-research/exposition/book-reading-20261103/operator-identity-concepts.json"
+  ]
+}
