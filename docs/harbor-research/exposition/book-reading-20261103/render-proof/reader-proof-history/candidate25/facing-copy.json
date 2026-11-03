@@ -1,0 +1,111 @@
+{
+  "candidate": "25",
+  "created_at": "2026-11-03T19:58:57.117244+00:00",
+  "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "source_pdf": {
+    "name": "coordination-papers-mega-volume.pdf",
+    "sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+    "pages": 844
+  },
+  "facing_pdf": {
+    "name": "book-facing-spreads-20261103-879d1a08.pdf",
+    "relative_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads-20261103-879d1a08.pdf",
+    "standard_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.pdf",
+    "sha256": "879d1a083733e6cc1a6e2ebdcaeddcd8e59d48717c1cbb8b21aa257b6e4089a8",
+    "pages": 423,
+    "bytes": 18579982
+  },
+  "verification": {
+    "status": "pass",
+    "halves_checked": 846,
+    "character_stream_exact_equal_for_every_half": true,
+    "characters_checked": 1342171,
+    "every_character_position_checked": true,
+    "maximum_coordinate_error_pt": 0.0001220703125,
+    "coordinate_tolerance_pt": 0.025,
+    "plain_text_extraction_difference_count": 1,
+    "plain_text_difference_physical_pages": [
+      105
+    ],
+    "links": 3562,
+    "link_target_kinds": {
+      "uri": 95,
+      "goto": 3467
+    },
+    "bookmarks": 475,
+    "named_destinations": 4203,
+    "unsupported_items": [],
+    "exercise_destinations": 212,
+    "solution_destinations": 212
+  },
+  "representative_visual_review": {
+    "status": "pass_for_five_inspected_spreads",
+    "scope": "Two navigation examples and three affected diagram spreads individually inspected. This scoped view does not assert a fresh entire-book review.",
+    "images": [
+      {
+        "label": "exercises",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate25-facing-exercises.png",
+        "sha256": "651bd8ef038bfc3bb0df716900fb6d85155f2b827b5a4b712092db8ca66e6637",
+        "spread_index": 43,
+        "source_physical_page": 87,
+        "folio": "63",
+        "dpi": 150,
+        "review_method": "Fresh actual candidate25 facing spread individually viewed.",
+        "assessment": "Exercise0.2 starts at folio63 and links visibly to solution714."
+      },
+      {
+        "label": "solutions",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate25-facing-solutions.png",
+        "sha256": "dc59a6cb6e90eb8d69e2167d387b39e2e86b6824ae9f361ffe7e74ba4b97304a",
+        "spread_index": 369,
+        "source_physical_page": 738,
+        "folio": "714",
+        "dpi": 150,
+        "review_method": "Fresh actual candidate25 facing spread individually viewed.",
+        "assessment": "Solution0.2 starts at folio714 and links visibly back to exercise63."
+      },
+      {
+        "label": "sybil",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate25-facing-sybil.png",
+        "sha256": "92be3a2eb497488c0ce17910102c6c9b1152d2d8abdba6a618e3dfda6e43e24a",
+        "spread_index": 226,
+        "source_physical_page": 452,
+        "folio": "428",
+        "dpi": 150,
+        "review_method": "Fresh actual candidate25 facing spread individually viewed.",
+        "assessment": "Introductory paragraph is complete before Figure5.8; discrete axes, labels and full key are legible."
+      },
+      {
+        "label": "pareto",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate25-facing-pareto.png",
+        "sha256": "3c15557807637b8700b8dc4e97ea70f34dc0f5ba3bc4f0b53a1eab313fa8e2f3",
+        "spread_index": 314,
+        "source_physical_page": 629,
+        "folio": "605",
+        "dpi": 150,
+        "review_method": "Fresh actual candidate25 facing spread individually viewed.",
+        "assessment": "Narrowed plots and full key fit beside the caption; tolerance definition and reported values are adjacent on the facing page."
+      },
+      {
+        "label": "cartel",
+        "relative_local_path": ".scratch/textbook-craft-20261103/candidate25-facing-cartel.png",
+        "sha256": "d9b810e0a1565dcabfe2398cfc15f27247bd2dee8806378aaa95571c4400bf28",
+        "spread_index": 315,
+        "source_physical_page": 631,
+        "folio": "607",
+        "dpi": 150,
+        "review_method": "Fresh actual candidate25 facing spread individually viewed.",
+        "assessment": "Caption top aligns with the diagram; all premises, boundary formula, marked probabilities and model-only qualification remain legible."
+      }
+    ]
+  },
+  "full_facing_receipt_sha256": "ff04d57de048277e9f0d52e012078db67eb64d0e2442e39fa25a619640b3f99f",
+  "full_facing_receipt_local_path": ".scratch/textbook-craft-20261103/book-facing-spreads.receipt.json",
+  "builder_sha256": "f9e04b3f7135116ff0b6496085dceccbede2f47aca95dafc13d1a7ba1d9ff855",
+  "publication_status": "Locally accepted navigation-preserving facing copy of the reviewed Book; hosted publication is separate.",
+  "regular_copy_receipt": "regular-copy.json",
+  "limits": [
+    "Conversion checks preserve glyphs and navigation; they do not certify global appearance or mathematical content.",
+    "Plain extractor differs only in inferred whitespace on physical105; ordered glyph streams and every position match."
+  ]
+}

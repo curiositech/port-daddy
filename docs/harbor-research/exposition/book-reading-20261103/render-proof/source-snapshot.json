@@ -1,5 +1,5 @@
 {
-  "head": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
   "scope": "All two-tree TeX inputs plus explicit direct generator JSON and generation/build/font helpers; private font hashes are recorded separately. Not a complete transitive image-asset or toolchain inventory.",
   "direct_inputs": [
     "whitepaper/textbook.json",
@@ -166,7 +166,6 @@
     "website-v2/public/whitepaper/figures/pd-palette.tex": "63306cfb03ef11f24a7eff438748e51a43f06d7f9985101cdce1af9867733a09",
     "website-v2/public/whitepaper/figures/pd-pedagogy.tex": "08f7b0804e17632ad9c137d90ad419584852eaa3035e13ad8cf638c5e2cdd127",
     "website-v2/public/whitepaper/figures/pd-reflection-plates.tex": "233bd6b20f5d64457715d4667a4755f526a4bcb14178e25f8cedebb59690d5ef",
-    "website-v2/public/whitepaper/figures/pd-robot-glyphs.tex": "9e310afa9a737ee2e8e8e2d3622e309bede0a87e52d0481b7b7192092d0d002a",
     "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
     "website-v2/public/whitepaper/figures/pd-swiss-evidence.tex": "76411e4226c33a0bca5d8928d4efab0daade992e51f081916b96ebd451821bd0",
     "website-v2/public/whitepaper/figures/pd-textbook-map.tex": "e96266e63af9f60ae47fdfcef6322539d3033e8aed38bf842cf181df7fedbdd1",
@@ -274,7 +273,6 @@
     "whitepaper/figures/pd-margin-evidence.tex": "e9050215e9ff246b05e59328722464ef25c90526f7fa7f76b5572619c7ddeef6",
     "whitepaper/figures/pd-palette.tex": "63306cfb03ef11f24a7eff438748e51a43f06d7f9985101cdce1af9867733a09",
     "whitepaper/figures/pd-pedagogy.tex": "08f7b0804e17632ad9c137d90ad419584852eaa3035e13ad8cf638c5e2cdd127",
-    "whitepaper/figures/pd-robot-glyphs.tex": "9e310afa9a737ee2e8e8e2d3622e309bede0a87e52d0481b7b7192092d0d002a",
     "whitepaper/figures/pd-semantic-blocks.tex": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
     "whitepaper/figures/pd-swiss-evidence.tex": "76411e4226c33a0bca5d8928d4efab0daade992e51f081916b96ebd451821bd0",
     "whitepaper/figures/pd-textbook-map.tex": "e96266e63af9f60ae47fdfcef6322539d3033e8aed38bf842cf181df7fedbdd1",

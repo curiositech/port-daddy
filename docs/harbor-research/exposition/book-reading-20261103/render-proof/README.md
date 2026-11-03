@@ -1,6 +1,6 @@
 # Book reading and render evidence
 
-[Acceptance](acceptance.json) binds the 844-page local Book to source `39c7e2cf708d937317811d69049cce227e1a3393` and its PDF hash. [Reading coverage](reading-coverage.json) reconciles the thirteen saved source records and 152 concept records; the surrounding chapter reports contain the substantive reading findings.
+[Acceptance](acceptance.json) binds the 844-page local Book to source `f3b3754064ba2aea4c05a24c983cbbee2451affb` and its PDF hash. [Reading coverage](reading-coverage.json) reconciles the thirteen saved source records and 152 concept records; the surrounding chapter reports contain the substantive reading findings.
 
 [Selected-spread coverage](visual-coverage.json) covers 148 actual or byte-identical previously inspected spreads, spanning 109 targets. The three reader receipts and spread manifest identify every image. The page-scale PNGs below are excerpts from that exact PDF, not substitutes for the wider inspection.
 
@@ -11,7 +11,7 @@
 - [All-font-size page-turn audit](compound-page-turns.json)
 - [Facing-copy preservation](facing-copy.json) and [regular-copy provenance](regular-copy.json)
 - [Current paired-plot evidence](figures/README.md)
-- [Final bounded independent review](candidate25-independent-review.json)
+- [Final bounded independent review](candidate26-independent-review.json)
 - [Source check history and current verdict](source-checks.json)
 - [Registered PDF checks](pdf-checks.log) and [rendered tests](rendered-checks.log)
 

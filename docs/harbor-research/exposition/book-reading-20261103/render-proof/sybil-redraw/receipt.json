@@ -126,7 +126,7 @@
     "operator": "All3 final PNGs directly viewed; accepted fragment geometry, hierarchy and semantics.",
     "machine": "Independent source06360763 and all3 actual stable PNGs accepted in tool-native message; production spread still pending."
   },
-  "publication_boundary": "Owned Figure5.8 production placement is accepted against the exact candidate25 source/PDF/image hashes. Historical candidate24 diagnostic and fragment/cache evidence are preserved. This does not establish hosted CI, merge, deployment or whole-book publication authority.",
+  "publication_boundary": "Owned Figure5.8 production placement is accepted for candidate26, with280source inputs and exact byte reuse of candidate25 actual views. This does not establish current-head hosted CI, merge, deployment or whole-book publication authority.",
   "production24": {
     "source_head": "a6d91e18bacdb6d87d1cc888967ca996853a91e8",
     "source_sha256": "06360763bfcc545951f7aefb340b1a8ca609ae2390ee7aa336f956e70e5769fa",
@@ -278,5 +278,22 @@
     "resolves": "operator24-sybil-introduction-split",
     "manifest_sha256": "9347df21f9a546ad4831dd29769c3d7407745c7708c61115100553cbf3969f60"
   },
-  "current_verdict": "Accepted fragment geometry and actual candidate25 production context"
+  "current_verdict": "Accepted candidate26 production context via exact candidate25 PDF/image bytes",
+  "production26": {
+    "source_head": "f3b3754064ba2aea4c05a24c983cbbee2451affb",
+    "source_input_count": 280,
+    "source_sha256": "33287b156bcc2965d16e88767b7e9b4434dccc29aba9eb3dfdc4f15288e6ea2e",
+    "pdf": {
+      "path": "/Users/erichowens/coding/tmp/book-textbook-craft-20261103/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf",
+      "sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+      "pages": 844
+    },
+    "review_receipt": ".scratch/textbook-craft-20261103/operator-spread-review-26.json",
+    "review_receipt_sha256": "86300c3b03efd70ee52f68c523b974dc5cafe07244c6a43b9f543ad226b94aae",
+    "manifest_sha256": "9347df21f9a546ad4831dd29769c3d7407745c7708c61115100553cbf3969f60",
+    "method": "Exact byte reuse of accepted production25 views; PDF and all61 owned images independently hash-checked unchanged.",
+    "actual_view_evidence": "production25 retains the three directly viewed physical450\u2013455 context spreads.",
+    "inventory_reconciliation": "Only two unused glyph-library source files removed; source figure/data/caption/placement unchanged.",
+    "verdict": "accepted-owned-production-context; no new views claimed"
+  }
 }

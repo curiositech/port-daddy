@@ -122,6 +122,6 @@ test_reviewed_model_hypotheses_cannot_be_removed (test_sealed_remaining_examples
 test_scientific_changes_and_boundary_removal_are_rejected (test_sealed_remaining_examples.RemainingExamples.test_scientific_changes_and_boundary_removal_are_rejected) ... ok
 
 ----------------------------------------------------------------------
-Ran 122 tests in 52.411s
+Ran 122 tests in 25.151s
 
 OK (skipped=7)

@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "created_at": "2026-11-03T19:56:49.133243+00:00",
+  "pdf_sha256": "b589f090130f5b6f775d88a2f2314456ea762a95f3f1d12bcc6dd982ead581b9",
+  "source_head": "39c7e2cf708d937317811d69049cce227e1a3393",
+  "pages": 844,
+  "method": "All font sizes; text lines inside Book body band (odd57.6–381.6pt/even122.4–446.4pt,3pt tolerance),55<y0<660pt. Final body line ends letter+ASCII/U2010/U2011/soft hyphen. Includes small protocol prose omitted by the older10pt minimum.",
+  "status": "no_candidates",
+  "candidate_count": 0,
+  "findings": [],
+  "script_sha256": "99a9797b3c5d20628df2ea98b8c659a20f2fe4673a45259aa5424f12a8f61909",
+  "limits": [
+    "Geometric candidate detector; any figure/code ending requires contextual judgment.",
+    "This covers body-column page-turn endings, not every mid-page word break or all margin lines."
+  ]
+}
