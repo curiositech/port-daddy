@@ -1640,7 +1640,7 @@ chapter's \emph{abdication-gradient hypothesis}, not a measured law.
 The \textbf{Inception Canary} is a proposed, consented, blinded probe of defect
 detection. It is intended to test meaningful review rather than impose arbitrary
 manual tasks. Its interruptions also need to be priced: Leroy's
-attention-residue experiments\pdcite{leroy2009} motivate measuring the cost of
+attention-residue experiments~\pdcite{leroy2009} motivate measuring the cost of
 switching away from unfinished work, not assuming every interruption is harmful
 or that a probe preserves supervisory skill.
 
@@ -1892,23 +1892,17 @@ that reputation as one input.
 
 \subsection{A legibility lower bound}\label{sec:lowerbound}
 
-Section~\ref{sec:zoom} forbade the Potemkin digest by fiat. We can also state the
-prohibition as a theorem --- and the theorem, it should be said before the box
-and not after it, is the classical counting bound of group testing, the one
-Dorfman's pooled blood tests~\pdcite{dorfman} and Hwang's splitting
-procedures~\pdcite{hwang} rest on, and the same move that gives coding theory
-its covering bound: so many messages, each covering so many cases, must
-between them cover every case there is. What is ours is the reading, not the
-arithmetic. A digest that must never miss is a message that picks out $m$
-items to open, and there is a floor below which no such message can be a
-faithful zoomable index, however cleverly it is written. That the floor was
-derived here before it was recognized is, if anything, a point in its favor:
-a two-line proof that lands on a 1943 bound by a different door is behaving
-the way a true bound behaves.
+A useful limit follows by counting how many critical sets each digest message
+can cover. This is a combinatorial information argument, related to counting
+bounds in group testing~\pdcite{dorfman,hwang}. Here the decoder selects a set
+of at most $m$ artifacts for the reader to inspect. One message can cover several
+possible critical sets, provided that every artifact in each of those sets is
+included in the selected review set. The message budget and the review budget
+therefore constrain one another.
 
 Consider four artifacts, exactly one critical, with permission to open two. One bit can select either the pair $\{1,2\}$ or the pair $\{3,4\}$; the encoder sends the pair containing the critical artifact. Zero bits cannot suffice: a fixed pair misses either of the other two possibilities. If four opens are allowed, zero bits do suffice. The next bound counts this trade between message length and inspection effort.
 
-\pdmarginfigure{shannon}{Shannon's information theory is why a digest has a hard floor: nothing compresses below the entropy of what the reader must recover.}%
+\pdmarginfigure{shannon}{A fixed message budget distinguishes only finitely many cases. The review budget limits how many critical sets one message can safely cover.}%
 \begin{pdclaim}{Theorem}{Legibility Lower Bound with a Review Budget}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:lowerbound}

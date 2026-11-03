@@ -64,8 +64,8 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "6dd1e0631fa5747d34c9735a63e5c15040c9debeb1464b24a032a70376542446",
-      "edited_source_lines": 4512
+      "edited_sha256": "8ce11681ec4ff1f339edb70922cafa6ef2c0a5c173ecac216231507d302dbf33",
+      "edited_source_lines": 4506
     },
     {
       "chapter": "stp",
@@ -449,7 +449,7 @@
     "scope": "Complete bounded second semantic read of sec:operator through the following recitation, plus sec:value-curve and dependent exercise/solution/bibliography retellings. No claim to have read every external work.",
     "first_section": "sec:operator",
     "last_section": "sec:cooperation-modes",
-    "source_sha256": "6dd1e0631fa5747d34c9735a63e5c15040c9debeb1464b24a032a70376542446",
+    "source_sha256": "e95e185b61c71a2bc30a2f689aa2bd257e94983d6712f700ae58bdb29398451b",
     "verified_numeric_examples": {
       "formatting": {
         "none": 0.005,
