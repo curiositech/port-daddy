@@ -22,7 +22,7 @@ RECORDS = [
     ('federated-harbor-whitepaper.tex', 'fh-local-admission-turnstile',
      'ch08-local-admission-turnstile',
      'e5a41d10a672e824159c4163918c3ed7478e6b715f367ee7c423a2edb94a1d12',
-     'Like a visitor pass presented at a locally controlled turnstile,', 'Return to Failure'),
+     'Like a visitor pass presented at a locally controlled turnstile,', "Consider this case:"),
     (ROOT / 'whitepaper/single-writer-kernel.tex', 'batch3-ch01-ticket-dispenser',
      'ch01-fairness-ticket-dispenser',
      '6156226a0a48118f77296602de4ec03ace30e83a6bc05b29e08ac913ee23bb6c',

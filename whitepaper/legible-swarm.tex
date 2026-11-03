@@ -266,26 +266,26 @@ the coordination primitive intended to address each one.
 \centering
 \small
 \renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}p{0.20\textwidth}p{0.34\textwidth}p{0.38\textwidth}@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}>{\raggedright\arraybackslash}p{0.38\textwidth}@{}}
 \toprule
-\textbf{State-of-nature failure} & \textbf{Concrete form in a coding swarm} & \textbf{The primitive that answers it} \\
+\textbf{Failure} & \textbf{Concrete form in a coding swarm} & \textbf{The primitive that answers it} \\
 \midrule
-Resource conflict & Two agents edit the same file/region; one silently clobbers the other &
+Resource\newline conflict & Two agents edit the same file/region; one silently clobbers the other &
 A \textbf{claim} --- an advisory announcement that an agent intends to touch a
-file or region --- backed by a database uniqueness constraint that makes a
-two holders of the same registered key impossible. Overlapping regions
+file or region --- backed by a database uniqueness constraint that prevents
+two holders of the same registered key. Overlapping regions
 need a separate overlap check and mediated writes. \\
 Illegibility & A pull request or session whose intent and effect a human cannot read in bounded time &
 A \textbf{digest-with-zoom} surface (\S\ref{sec:zoom}): a summary that is a lens onto
 the underlying artifact, never a replacement for it. \\
-Lies / confident-wrong & An agent reports completion (``all green'') without having verified &
+Lies or\newline confident\newline errors & An agent reports completion (``all green'') without having verified &
 An \textbf{honest-attestation} discipline: a self-report that distinguishes
 \emph{verified-good} from \emph{no-evidence-of-bad} and refuses to claim what it
 cannot check --- ``a green that wasn't checked is a lie.'' \\
 Footguns & Irreversible action (force-push, delete) on a stale or wrong premise &
 Footgun guards (\S\ref{sec:landing}); the open problem this chapter frames is
 replacing hand-maintained rule corpora with a structural authority. \\
-Illegible authority & The coordinator blocks an agent and the operator cannot see \emph{why} &
+Illegible\newline authority & The coordinator blocks an agent and the operator cannot see \emph{why} &
 The \emph{legible-sovereign rule} (\S\ref{sec:authority}): every act of authority is
 a logged, named, zoomable event. \\
 \bottomrule
@@ -2884,7 +2884,7 @@ The value $10$ expresses the operator's requirement to retain that incident; it 
 List the three feasible choices. Their losses $(L_{\mathrm{succ}},L_{\mathrm{op}})$ are respectively $(1,10)$, $(0,10)$, and $(1,0)$. The unique continuation minimizer retains the work record, and the unique oversight minimizer retains the audit record. They differ.
 \end{proof}
 
-\noindent\Proved. The restriction to one retained record does the work. With a two-record budget, retaining both gives $(0,0)$. A general codec might also preserve both readers' sufficient information in less space than the raw trace. Thus this counterexample establishes that reader objectives can conflict; it does not prohibit a shared evidence store, a jointly designed encoding, or a single implementation with two views. The preference reversal recalls Theorem~\ref{thm:comonotone}, while the explicit feasible set supplies the missing budget argument.
+\noindent The restriction to one retained record does the work. With a two-record budget, retaining both gives $(0,0)$. A general codec might also preserve both readers' sufficient information in less space than the raw trace. Thus this counterexample establishes that reader objectives can conflict; it does not prohibit a shared evidence store, a jointly designed encoding, or a single implementation with two views. The preference reversal recalls Theorem~\ref{thm:comonotone}, while the explicit feasible set supplies the missing budget argument.
 
 \emph{Pause and check:} if the audit weight becomes zero, the work-only summary minimizes both objectives. Disagreement requires a real oversight obligation, not merely two named readers. The next result studies a different question: the counting floors when two readers need disjoint critical sets.
 

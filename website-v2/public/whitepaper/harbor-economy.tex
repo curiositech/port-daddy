@@ -1119,14 +1119,15 @@ certifies agreement with the semantics there; the complexity bound, not the
 sweep, covers scale.
 \end{pdboundary}
 
-\paragraph{Skill licensing (IP).} The per-use fee is released to the licensor
-\emph{only on green settlement} (metered $+$ clawback). This is forced by
-\textbf{Akerlof}'s \emph{market for lemons} (1970~\pdcite{akerlof1970}, \emph{when
-buyers cannot observe quality, price collapses to the average and good goods exit
-the market}): a skill's quality is unobservable before use, so a flat upfront
-license drives good skills out. Metering $+$ clawback $+$ a Merkle \emph{portfolio
-proof} (the skill's prior settled outcomes, anchored in the evidence chain) restore
-the seller's incentive to ship quality.
+\paragraph{Skill licensing (IP).} This contract releases the per-use fee
+\emph{only on green settlement} (metered $+$ clawback). The motivation is
+adverse selection: when buyers cannot distinguish quality, a pooled price can
+make high-quality sellers withdraw, as in \textbf{Akerlof}'s model
+\pdcite{akerlof1970}. That model does not uniquely require contingent payment.
+Here, metering, clawback, and a Merkle \emph{portfolio proof} of prior settled
+outcomes are proposed responses. Their effect depends on reliable grading and
+attributable records; a Merkle proof authenticates those records, not their
+quality. A known, inspectable skill can instead support an upfront licence.
 
 \subsection{One trade, all three sides, one settlement}\label{sec:one-settlement}
 
@@ -1258,24 +1259,26 @@ cross-operator attestation is built (a real attestation story), or the market's
 scope is restated as ``federation among \emph{semi-trusted} operators.'' We
 take the first horn as the designed target and flag every claim that depends on it.}
 
+\pdexercisepointer*{\ref{ex:he-sybil-no-mechanism}}{\ref{ex:he-principal-binding}}{\pageref{ex:he-sybil-no-mechanism}}
+
+\begin{pdrecitation}
+\item Which part of the market's identity definition exceeds local authentication?
+\item Distinguish local identity from cross-operator attestation.
+\item Why does a trusted local root not establish trust between operators?
+\end{pdrecitation}
+
 \subsection{The principal above the actor}
 
 The economic counterparty in every trade is the \textbf{principal} (the human or
 org owning a fleet), not the agent. Bonds, reputation inheritance, and sanctions
 must key on the principal via the hop-bound authorization chain, or Sybil
 bond-farming works by spawning fresh \emph{agents} under one principal
-(\textbf{Douceur}'s Sybil attack~\pdcite{douceur2002}: \emph{free identities defeat
-any reputation or quorum system}). Defining the principal as a first-class economic
+(\textbf{Douceur}'s Sybil attack~\pdcite{douceur2002}: \emph{free aliases can dominate a rule that gives each identity equal weight}). Defining the principal as a first-class economic
 entity is the cleanest Sybil fix; its cryptographic binding is the identity object
 specified in \pdchapref{stp}{From Spawn to Person} and consumed here.
 
-\pdexercisepointer*{\ref{ex:he-sybil-no-mechanism}}{\ref{ex:he-principal-binding}}{\pageref{ex:he-sybil-no-mechanism}}
 
-\begin{pdrecitation}
-\item Without looking: what is the one word in the market's own definition that local non-forgeable identity's threat model directly contradicts?
-\item State the difference between local non-forgeable identity and cross-operator attestation, one sentence each.
-\item Why can the single-operator trusted root not be reused as the cross-operator market's foundation ``by assertion''?
-\end{pdrecitation}
+
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Conservation under composition}\label{sec:conservation}
@@ -2063,8 +2066,8 @@ a settlement, a refund, or a slash: it is correct and stuck.
 
 That stuck state,
 not a wrong sum, is exactly what \textbf{Operator exit / harbor death} below
-names as unspecified, and it is why Table~\ref{tab:gaps} marks it as reaching
-conservation rather than some softer property.
+names as unspecified. Table~\ref{tab:gaps} therefore classifies it as a
+settlement-liveness gap: conserved funds still need a valid path to release.
 \end{pdexample}
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
@@ -2095,10 +2098,9 @@ critical promise made earlier in this chapter:
 \begin{table}[H]
 \centering
 \small
-\caption{Which promise each gap threatens. The two gaps that reach the
-\emph{conservation} invariant are the urgent ones, because conservation is the only
-claim in this chapter graded \Built{} --- a hole there falsifies something that is
-currently true, rather than deferring something that is not yet true.}
+\caption{Which promise each gap threatens. An unmatched amendment can
+break conservation; orphaned escrow can preserve conservation while preventing
+settlement. The table separates those safety and liveness obligations.}
 \label{tab:gaps}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.32\textwidth} l >{\raggedright\arraybackslash}X@{}}
 \toprule

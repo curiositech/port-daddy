@@ -6,8 +6,8 @@
       "sha256": "966c2c5deded123870103d715c3e5c9447cd939a12f6f4b3cba98f88f57feb71",
       "lines": 227,
       "initial_sha256": "966c2c5deded123870103d715c3e5c9447cd939a12f6f4b3cba98f88f57feb71",
-      "saved_sha256": "b46c74a5fa98fc57c6b6dfa22ef77643867600dd6e731ed8156e86bc63cf4fc5",
-      "saved_lines": 229,
+      "saved_sha256": "67ddac3ba8baffcb69a663bf8b895ccfef5dce7bc7dc4369343fbe9ce3fc97ff",
+      "saved_lines": 231,
       "read_coverage": "1-227"
     },
     {
@@ -15,7 +15,7 @@
       "sha256": "9567b41bd2a17d2c142d2b8615ee1db86f550afbde36f1e8bc7002c23ba64e70",
       "lines": 1266,
       "initial_sha256": "9567b41bd2a17d2c142d2b8615ee1db86f550afbde36f1e8bc7002c23ba64e70",
-      "saved_sha256": "f209b73086a469bb56e55cf566c93d0aa65d4cae22373e949f43c0fd7f9d0c4f",
+      "saved_sha256": "9c4cda543a16a8e9d0297a59780a4f9003491c35ad875067cc67645b70a913e7",
       "saved_lines": 1481,
       "read_coverage": "1-1266"
     },
@@ -27,6 +27,15 @@
       "saved_sha256": "f763cff78b8205dcc8f51c9dc62ddec7edb04f1c9f4ddafed6916eb45d18f0be",
       "saved_lines": 323,
       "read_coverage": "1-325"
+    },
+    {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex",
+      "initial_sha256": "f182a368f107fd7c32a027afb1177e155c2c6fa0814ff7d95360f79304deefa2",
+      "lines": 184,
+      "read_coverage": "1-184",
+      "saved_sha256": "e90ede5f674687b29abb15c950029ba03c6a7af7a022cfa250fd12aba490ea69",
+      "saved_lines": 180,
+      "scope": "Complete sequential read of all book-owned opening and handoff paragraphs; qualified retellings against chapter hypotheses."
     }
   ],
   "concepts": [

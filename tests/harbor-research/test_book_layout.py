@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -90,12 +91,13 @@ class BookLayoutTests(unittest.TestCase):
 class RenderedBoundaryLayoutTests(unittest.TestCase):
     def test_boundary_introductions_do_not_get_nearly_empty_pages(self):
         # Locate the actual prose, not a folio that changes on every rewrite.
-        anchors = ('is the blueprint, the same three unwinding conditions',
-                   'spend past the contracted maximum, is exhibited concretely.')
+        anchors = ('an unbounded argument still to be supplied',
+                   'the mutation suite shows the invariant has teeth')
         with fitz.open(os.environ['BOOK_LAYOUT_PDF']) as book:
             for anchor in anchors:
                 found = [(i, page) for i, page in enumerate(book)
-                         if anchor in ' '.join(page.get_text().split())]
+                         if re.sub(r'[-\s\u2010\u2011]', '', anchor)
+                         in re.sub(r'[-\s\u2010\u2011]', '', page.get_text())]
                 self.assertEqual(len(found), 1, anchor)
                 index, page = found[0]
                 with self.subTest(anchor=anchor, pdf_page=index + 1):

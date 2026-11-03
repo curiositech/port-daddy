@@ -64,7 +64,7 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "5ba8e259059e2f4ac6220e5f797d2d6363f05433f8622cfdc099c867c173955a",
+      "edited_sha256": "ca8311c11ea9135c431ad40097c222038ae5d856cbc0190039434f3e39e3fa67",
       "edited_source_lines": 4465
     },
     {
@@ -124,7 +124,7 @@
       ],
       "covered": "all source lines, including prose, claims, examples, exercise prompts and deferred solutions, bibliography, status appendices",
       "method": "Sequential semantic read before chapter edits; no unreturned/truncated range counted",
-      "edited_sha256": "a624c64ffb1cc3be2e0415df8d5034bd0a88e40425bdc9dff17514abd5e6d24f",
+      "edited_sha256": "448d876713e87a3dc1bc650e9c3f2a093e2bd919149c9fa536bce2cf8d1e8ab3",
       "edited_source_lines": 3798
     }
   ],

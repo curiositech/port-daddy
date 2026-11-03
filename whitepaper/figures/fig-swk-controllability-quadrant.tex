@@ -2,14 +2,14 @@
 % rotated axis title) plus a v2 restyle of an already-correct grammar.
 % Reader question: which cell of controllability x witnessing is actually
 %   preventable?
-% Claim: preventable is one cell, not a spectrum -- exactly the top-right,
+% Claim: exact realization of the pictured guards requires the top-right,
 %   where the daemon controls the event AND its trigger is witnessed at the
 %   mediation boundary. Missing observation does not imply detectability.
 % Evidence: whitepaper/single-writer-kernel.tex sec:partial-observation,
 %   thm:regimentation-controllability; b3_controllability.py classifies each
 %   column; row membership is by inspection of each trigger.
 % Must distinguish: the two independent axes as full clauses, not one-word
-%   headers; that only one cell is preventable; a concrete instance per cell,
+%   headers; that exact realization differs from a stricter safe policy; a concrete instance per cell,
 %   not an empty label.
 % Grammar: quadrant, one cell shaded and starred, an instance under each
 %   head. Rejected: a single "controllable?" ladder, which would hide that
@@ -48,9 +48,10 @@
   \foreach \cy/\l in {0/no, 1/yes}{
     \node[pd label,rotate=90,anchor=south] at ({\ox-.42},{\oy+\cy*\h+\h/2}) {\l};}
 \end{tikzpicture}
-\caption{Prevention needs both control of the event and observation sufficient
-to evaluate its guard: the shaded cell. The partial-observation theorem gives
-the formal condition. Outside this cell, detection is not automatic; private,
-unreported state may remain invisible. [internal; schematic]}
+\caption{Exact realization needs control and observations sufficient to
+evaluate the specified guard. The partial-observation theorem states the full
+condition. A stricter policy, such as refusing every egress, may preserve
+safety while rejecting legal histories. Detection outside the shaded cell is
+not automatic. [internal; schematic]}
 \label{fig:swk-controllability-quadrant}
 \end{figure}

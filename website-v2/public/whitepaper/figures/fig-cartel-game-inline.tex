@@ -1,56 +1,35 @@
-% Figure IV.14 --- cartel stability is a two-lever phase diagram.
-%
-% Reader question: under which detection probabilities and sampled losses
-% does collusion stop paying?
-% Claim: the repeated-game boundary $V_C=\pi_D$ separates a region where
-% deviation dominates from one where the discounted collusive stream still
-% wins, and a rare severe loss can sit on the same boundary as a frequent
-% smaller one.
-% Evidence: $V_C=(\pi_C-p_dL)/(1-\delta(1-p_d))$, the two worked points
-% (rare/severe; frequent/smaller) that this section marks on the boundary.
-% Must distinguish: the two named regions (a verdict each) from the two
-% specific worked points on the boundary between them.
-% Grammar chosen: payoff inequality as a phase/regime plot (atlas first
-% choice for IV/fig:cartel-game-inline). Grammar rejected: a decorative
-% seesaw or five ticks with no scale (atlas reject list) -- neither carries
-% the boundary's shape or the two worked points.
-% Five-second test: a reader can find both worked points on the same
-% boundary curve and say which region each one falls in.
+% Analytic boundary from the chapter's cartel payoff model.
+% Normalize x=q_floor-mu>0; pi_C=x/3 and pi_D -> x as epsilon/x -> 0.
+% Fix the chapter's delta=.95. V_C=pi_D gives L/x=(17/60)/p_d-19/20.
+% This is convex decreasing, not an empirically fitted curve. The two
+% marked policy points are evaluations at p_d=.025 and .10.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdgold}%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \draw[pd rule,->] (-0.30,-1.45) -- (5.30,-1.45);
-  \draw[pd rule,->] (-0.30,-1.45) -- (-0.30,3.15);
-  \node[pd label,anchor=west] at (5.45,-1.45) {detection probability $p_d$};
-  \node[pd label,rotate=90,anchor=south] at (-0.70,.80) {loss if detected $L$};
-  % ---- the two regions, edged by the boundary they share -------------------
-  \begin{scope}[on background layer]
-    \fill[pd ready fill]
-      (0.30,2.65) -- (1.70,2.00) -- (3.10,1.05) -- (3.95,.35) -- (4.50,-.15)
-      -- (4.90,-.85) -- (4.90,3.15) -- (0.30,3.15) -- cycle;
-    \fill[pd warn fill]
-      (0.30,2.65) -- (1.70,2.00) -- (3.10,1.05) -- (3.95,.35) -- (4.50,-.15)
-      -- (4.90,-.85) -- (4.90,-1.45) -- (0.30,-1.45) -- cycle;
-  \end{scope}
-  \draw[pd focus rule,line width=1.4pt]
-    (0.30,2.65) -- (1.70,2.00) -- (3.10,1.05) -- (3.95,.35) -- (4.50,-.15)
-    -- (4.90,-.85);
-  \node[pd focus label,anchor=south west] at (0.45,3.28)
-    {boundary $V_C=\pi_D$};
-  \node[pd label,align=center,text width=2.5cm] at (3.60,2.55)
-    {deviation pays\\cartel unstable};
-  \node[pd label,align=center,text width=2.3cm] at (1.45,.30)
-    {collusion pays\\discounted stream wins};
-  % ---- the two worked points, on the shared boundary ------------------------
-  \node[pd datum] at (1.70,2.00) {};
-  \node[pd tag,anchor=south east] at (1.48,2.30) {rare, severe};
-  \node[pd datum] at (3.95,.35) {};
-  \node[pd tag,anchor=north] at (3.45,-.48) {frequent, smaller};
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,width=8.7cm,height=4.8cm,
+ xmin=.02,xmax=.20,ymin=0,ymax=15,
+ xtick={.02,.05,.10,.15,.20},ytick={0,5,10,15},
+ xlabel={detection probability $p_d$},ylabel={penalty $L/x$},
+ clip=true,clip mode=individual]
+  \path[pd ready fill] (rel axis cs:0,0) rectangle (rel axis cs:1,1);
+  \addplot[pd warn fill,draw=none,domain=.02:.20,samples=101,forget plot]
+    {(17/60)/x-19/20} \closedcycle;
+  \addplot[pd focus series,mark=none,domain=.02:.20,samples=101]
+    {(17/60)/x-19/20};
+  \node[pd label,align=center] at (axis cs:.135,11) {deviation pays};
+  \node[pd label,align=center] at (axis cs:.07,1.4) {collusion pays};
+  \node[pd datum] at (axis cs:.025,10.383333333) {};
+  \node[pd tag,anchor=south west] at (axis cs:.035,10.8) {rare, severe};
+  \node[pd datum] at (axis cs:.10,1.883333333) {};
+  \node[pd tag,anchor=south west] at (axis cs:.115,3.5) {frequent, smaller};
+  \draw[pd hairline] (axis cs:.10,1.883333333) -- (axis cs:.115,3.5);
+\end{axis}
 \end{tikzpicture}
-\caption{\textbf{Cartel sustainability in the detection--loss plane.} The
-curve marks $V_C=\pi_D$: below it collusion pays; above it deviation pays.
-The two marked policies share the boundary, so detection frequency alone does
-not determine stability. [internal]}
+\caption{An analytic slice of the cartel model. Let $x>0$ be the collusive price margin, with $\pi_C=x/3$, negligible undercutting
+($\pi_D\to x$), and $\delta=.95$. The boundary $V_C=\pi_D$ is
+$L/x=(17/60)/p_d-19/20$. Above it deviation pays; below it collusion pays.
+The marked points evaluate the formula at $p_d=.025$ and $.10$.
+These are model values, not measured detection rates. [internal]}
 \label{fig:cartel-game-inline}
 \end{figure}

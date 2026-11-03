@@ -36,8 +36,9 @@
 
 \newcommand{\pdchapterhandoffswk}{%
   \pdbookrail{What \pdchapref{anchor}{The Anchor Protocol} receives}{%
-    Local effects now have one serial history, one fencing epoch, and one place
-    to attach receipts. The writer decides what becomes real; it does not yet say
+    Under the stated transaction and mediation assumptions, admitted local effects
+    have a serial history, a fencing epoch, and a place to attach receipts.
+    The writer decides which requests take effect; it does not yet identify
     who may ask it to. The next chapter turns authority into a key-bound,
     attenuating, revocable object, so that every request the kernel admits
     arrives with a checked pedigree.}%
@@ -63,8 +64,8 @@
 
 \newcommand{\pdchapteropeningsealed}{%
   \pdbookrail{\pdchapterquestion}{%
-    A proprietary model and a proprietary dataset must produce one answer that
-    neither owner will let the other see. The kernel refuses a write it has not
+    A model owner and a data owner want a shared answer while keeping their
+    respective inputs private. The kernel refuses a write it has not
     authorized and the Anchor checks who asked; neither says what may leave a
     room through the only slot in its wall. This chapter builds the sealed room:
     one work order, two fences, two gates, and four properties, each stated at
@@ -73,32 +74,26 @@
 
 \newcommand{\pdchapterhandoffsealed}{%
   \pdbookrail{What \pdchapref{ls}{The Legible Swarm} receives}{%
-    The machine now has three parts that can be kept honest: a writer with
-    one history, an authority that arrives checked, and a room whose only exit
-    is metered. Notice what the third part cost. Sealing execution so that a
-    secret cannot walk out is the same act as making the inside of the
-    computation dark to the person responsible for it --- the slot is the only
-    place anyone sees through the wall, and \S3.7 metered exactly what leaves
-    it. Part~I therefore ends holding an operator who is accountable for work
-    it can no longer watch directly. That is not a philosophical turn, it is
-    the bill for the room, and the next chapter is the reply to it: with many
-    such machines running at once, what must remain visible to the operator,
-    and what does reading it cost?}%
+    The machine's proposed contract combines an ordered writer, checked
+    authority, and explicit release gates. Each guarantee retains its stated
+    trust, observation, and channel assumptions. An operator may now receive
+    a permitted result without seeing the private inputs or internal computation.
+    The next chapter studies that evidence boundary alongside a second limit:
+    even visible events can arrive faster than a person can inspect them.
+    What must a summary preserve, and when must the reader open the evidence?}%
 }
 
 % ---- Part II: The Operator -----------------------------------------------
 
 \newcommand{\pdchapteropeningls}{%
   \pdbookrail{\pdchapterquestion}{%
-    The previous chapter sealed the room and, in the same stroke, put the work
-    beyond the operator's sight; this chapter is the information-theoretic
-    answer to that darkness. A swarm can produce more events than its operator
-    can read. The resulting
-    scarcity is not cured by a smoother summary: some summaries make the
-    decisive artifact unreachable. This chapter establishes the cost of a
-    zero-miss digest, proves why a successor and an operator require different
-    rankings, and derives the attention rule from explicit error costs. Its
-    strongest claims are governed by R1--R4, R14, and R16.}%
+    A swarm can produce more events than its operator can read, and some
+    underlying evidence may be private. The resulting scarcity is not cured
+    by a smoother summary: an omitted artifact may be decisive. This chapter
+    bounds zero-miss inspection in a stated model, gives an extractive-summary
+    example in which a successor and an operator need different records, and
+    derives an attention rule from explicit error costs. R1--R4, R14, and R16
+    state the assumptions behind those results.}%
 }
 
 \newcommand{\pdchapterhandoffls}{%
@@ -141,10 +136,10 @@
 
 \newcommand{\pdchapterhandoffhe}{%
   \pdbookrail{What \pdchapref{bonded}{The Bonded Commons} receives}{%
-    Work can now be proposed, bonded, graded, and settled against a named
-    principal. The market's contracts rest on promises this chapter states but
-    does not prove: that evidence is admissible, that settlement conserves value,
-    that remedy stays bounded. The next chapter proves them.}%
+    The proposed contracts name a principal, a grade, a bond, and a settlement
+    rule. They still need evidence-admission rules, accounting invariants, and
+    limits on remedies. The next chapter formalizes these obligations and
+    distinguishes its bounded model checks from runtime and economic assumptions.}%
 }
 
 \newcommand{\pdchapteropeningbonded}{%
@@ -158,18 +153,19 @@
 
 \newcommand{\pdchapterhandoffbonded}{%
   \pdbookrail{What \pdchapref{fh}{The Federated Harbor} receives}{%
-    One machine can authorize, observe, adjudicate, and settle work.
+    The local model now separates authorization, observation, adjudication,
+    and settlement, with explicit conditions for each.
     The final chapter asks which capabilities and records may cross to a
     second operator without giving either machine authority over the other.}%
 }
 
 \newcommand{\pdchapteropeningfh}{%
   \pdbookrail{\pdchapterquestion}{%
-    The current Relay federates harbor-scoped events over outbound HTTPS and
-    SSE; it does not replicate daemon state or create consensus between
-    operators. Local admission remains local. The research result is narrower
-    and sharper still: R6 and CR-1/2/3 show exactly when relayed reports around a
-    cycle can expose an inconsistency that a missing pairwise check cannot.}%
+    The Relay design carries harbor-scoped events over outbound HTTPS and
+    SSE; event delivery alone neither replicates daemon state nor establishes
+    consensus between operators. Local admission remains local. R6 and
+    CR-1/2/3 then study a different question: under which observation and
+    topology assumptions can relayed reports certify an inconsistency?}%
 }
 
 \newcommand{\pdchapterhandofffh}{%

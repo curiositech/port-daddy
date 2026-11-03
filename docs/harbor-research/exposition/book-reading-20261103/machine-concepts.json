@@ -50,8 +50,8 @@
           3514
         ]
       ],
-      "after_sha256": "ffac19cf5ada147106defb6a4d47eb26d5edd645e07b958888bd9d44a80606ec",
-      "after_lines": 3606,
+      "after_sha256": "c8de37f8be0f3c4c95666df63d56a9e85c48b92acc0b1254e065ba3944555e65",
+      "after_lines": 3605,
       "read_complete": true
     },
     {
@@ -93,7 +93,7 @@
           2053
         ]
       ],
-      "after_sha256": "4cf06613f5978aff3e994c7c181649a79accfe0d62e96f407f2a1f705754101a",
+      "after_sha256": "2ec5cf84adab1915c8cd53f1e48be170255f7bb8a7387ee796ee35789794057f",
       "after_lines": 2092,
       "read_complete": true
     },
@@ -167,11 +167,11 @@
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
         "line": 296,
-        "anchor": "Serializable means"
+        "anchor": "as a single authoritative coordination record. Serializable"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2211,
+        "line": 2210,
         "anchor": "Conditional consistency model"
       },
       "example_or_nonexample": "completed A then overlapping B/C; either denied order",
@@ -184,12 +184,12 @@
       "concept": "leases, conflict domain, epochs",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 635,
+        "line": 634,
         "anchor": "The resource subsystem:"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2078,
+        "line": 2077,
         "anchor": "I1, every admitted effect"
       },
       "example_or_nonexample": "stale104 effect after105; raw OS bind outside claim",
@@ -202,12 +202,12 @@
       "concept": "atomicity versus uniqueness",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 717,
+        "line": 716,
         "anchor": "Atomic Mutual Exclusion and Fenced Leases"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2296,
+        "line": 2295,
         "anchor": "Cross-subsystem atomicity:"
       },
       "example_or_nonexample": "delete/insert gap differs from stale external effect",
@@ -220,12 +220,12 @@
       "concept": "safety versus bounded waiting",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 788,
+        "line": 787,
         "anchor": "Fairness without a scheduler:"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2845,
+        "line": 2844,
         "anchor": "Eventual requests alone"
       },
       "example_or_nonexample": "finite L,D,P gives conservative(q+1)(L+D+P); eventual alone no bound",
@@ -238,12 +238,12 @@
       "concept": "at-least-once versus once-only effects",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 876,
+        "line": 875,
         "anchor": "The bus: a durable carrier"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1887,
+        "line": 1886,
         "anchor": "figures/swk-unknown-effect"
       },
       "example_or_nonexample": "redelivery and unknown-effect journal",
@@ -256,12 +256,12 @@
       "concept": "decay versus persistent security labels",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 909,
+        "line": 908,
         "anchor": "Stigmergic markers: decay"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2533,
+        "line": 2532,
         "anchor": "sec:ifc-airlock"
       },
       "example_or_nonexample": "0.9^29 below0.05; exposure must not evaporate",
@@ -274,12 +274,12 @@
       "concept": "authorization versus coordination lineage",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 958,
+        "line": 957,
         "anchor": "Two delegation chains, one dangerous name"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2018,
+        "line": 2017,
         "anchor": "sec:workunit"
       },
       "example_or_nonexample": "signed bytes not semantic equivalence",
@@ -292,12 +292,12 @@
       "concept": "capability, permission, obligation",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1041,
+        "line": 1040,
         "anchor": "The deontic split"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1696,
+        "line": 1695,
         "anchor": "Commitments: obligation"
       },
       "example_or_nonexample": "allowed write versus owed release",
@@ -310,12 +310,12 @@
       "concept": "pre-effect guard versus detector",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1067,
+        "line": 1066,
         "anchor": "The policy monitor is a detector"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2871,
+        "line": 2870,
         "anchor": "\\begin{pdexercise}[kind=Check,rating=1]{ex:swk-monitor-rules-precommit}"
       },
       "example_or_nonexample": "committed violation is already an effect",
@@ -328,12 +328,12 @@
       "concept": "alphabet, plant, prefix closure, realization",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1216,
+        "line": 1215,
         "anchor": "The vocabulary, at the point of use"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1391,
+        "line": 1390,
         "anchor": "The compound case:"
       },
       "example_or_nonexample": "safe restriction loses legal histories",
@@ -346,12 +346,12 @@
       "concept": "observation projection",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1525,
+        "line": 1524,
         "anchor": "Two histories, one visible record"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1567,
+        "line": 1566,
         "anchor": "Partial observation can shrink"
       },
       "example_or_nonexample": "empty history and hidden read demand different send decisions",
@@ -364,12 +364,12 @@
       "concept": "oracle-bound closure",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1696,
+        "line": 1695,
         "anchor": "Commitments: obligation"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1783,
+        "line": 1782,
         "anchor": "Extending the oracle vocabulary"
       },
       "example_or_nonexample": "minute29 note not release evidence",
@@ -382,12 +382,12 @@
       "concept": "durable evidence versus inference state",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 1822,
+        "line": 1821,
         "anchor": "The continuity subsystem:"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2599,
+        "line": 2598,
         "anchor": "What the substrate provides"
       },
       "example_or_nonexample": "capsule cannot recover hidden activations",
@@ -400,12 +400,12 @@
       "concept": "work unit and invariant scopes",
       "first_substantive_treatment": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2017,
+        "line": 2016,
         "anchor": "The work unit, model-checked"
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2168,
+        "line": 2167,
         "anchor": "These six labels are local"
       },
       "example_or_nonexample": "I1/I5epochs,I2once,I3completion,I4narrowing,I6owner",
@@ -423,7 +423,7 @@
       },
       "later_application": {
         "source": "whitepaper/single-writer-kernel.tex",
-        "line": 2329,
+        "line": 2328,
         "anchor": "Threat model and the limits"
       },
       "example_or_nonexample": "sameUID rewrite versus separateUID mediation",
