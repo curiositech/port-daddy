@@ -1810,18 +1810,22 @@ been gamed. \emph{Oracle completeness} --- the claim that some finite vocabulary
 captures the ``done'' conditions agents actually need --- is not established by
 adding two kinds, and OP-5 stays \Open{}.
 
-A reader who has got this far usually asks a different question --- not ``is the
-vocabulary complete?'' but ``who keeps the oracle honest?'' --- and that one has an
-answer, in another chapter. \pdchapref{stp}{From Spawn to Person} builds an
-inspection tower over graders and proves a contraction: escalation through $C$
-disjoint cliques drives the probability that a bad verdict survives down
-geometrically, so no single grader is trusted and none has to be. Note what that
-does and does not settle, because the two are easy to run together. It is a result
-about the oracle's \emph{incentives} --- whether a grader who would rather lie can
-profit by it --- and OP-5 is a question about the oracle's \emph{expressiveness},
-whether the vocabulary can state the closure condition at all. A perfectly
-incentivised grader still cannot close a commitment the vocabulary cannot phrase,
-which is why the tower does not move this status and OP-5 stays where it is.
+The separate question of who checks a grader has a conditional answer in
+\pdchapref{stp}{From Spawn to Person}%
+\ifpdbook\ (Theorem~\ref{stp:thm:tower-imported})\fi.
+Its inspection-tower model distinguishes bribery incentives from detection.
+With prepaid bribes and a sealed, uniform draw from separately bribable
+candidate groups, buying cooperation does not improve the briber's expected
+payoff below the stated threshold; at equality, the model resolves the tie
+against bribery. In that regime, the stated positive lower bound on detection,
+conditional on all earlier levels having missed, gives geometric decay of expected surviving
+corrupt value. Disjoint groups alone do not establish this detection premise,
+and the tower still requires a trustworthy terminal adjudicator.
+
+Neither result establishes oracle \emph{expressiveness}: whether the vocabulary
+can state the closure condition at all. Even a competent, honestly motivated
+grader cannot close a commitment whose condition the vocabulary cannot phrase.
+The tower therefore does not discharge OP-5's completeness obligation.
 
 \pdexercisepointer{\ref{ex:swk-monitor-rules-precommit}}{\ref{ex:swk-op5-oracle}}{\pageref{ex:swk-monitor-rules-precommit}}
 

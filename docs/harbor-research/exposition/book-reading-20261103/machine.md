@@ -164,3 +164,10 @@ Chapter 1 current source: 3613 lines, SHA-256 `d18ff86060715d22f789677daefe0ba39
 Chapter 3 current source: 1938 lines, SHA-256 `594794920d61c85096a7a5aa966c6416dba6b40be5ab41fcd0198e7346b4bd03`. The initial sequential-reading hashes/ranges remain intact in machine-concepts.json; this follow-up is not a new complete read.
 
 The operator agent separately reports a six-pass Source Sans validation (`72783c15`): all 263 captions, 1464 margin objects and 212 exercise headings pass, zero off-page issues, and eight actual page contexts inspected. This agent has not independently inspected that isolated PDF. Candidate 22 still owns final assembled typography and edition acceptance.
+
+
+## OP-5 tower scope and oracle expressiveness
+
+Reread the OP-5 paragraph and neighboring prose (source lines 1788–1830 before this edit), STP `thm:tower-imported` with its detection/root caveats, and Paper 3 `thm:tower` with its proof. The SWK summary conflated candidate groups with audit depth, omitted the low-gain and conditional-detection premises, and denied the terminal trust obligation explicitly retained by the cited result. The replacement distinguishes the prepaid sealed-sampling bribery calculation from conditional geometric decay, names the trustworthy terminal adjudicator, and keeps oracle expressiveness separate. It adds a Book-only live reference to `stp:thm:tower-imported`; the standalone retains the chapter title. No theorem, proof, figure, exercise, or surrounding paragraph changed.
+
+The source is now 3617 lines, SHA-256 `27c1bbff970f1efd2a4a7fa869fd79538c8240ad9d7099c2c61d89926ef9315d`. This is a bounded correction and reread, not a new full chapter review. The original reading ranges remain recorded. The original assertion was checked independently against its cited sources; the replacement is authored by this agent and awaits a second-reader review and assembled candidate 23 proof. No new mirror-the-prose test was added.

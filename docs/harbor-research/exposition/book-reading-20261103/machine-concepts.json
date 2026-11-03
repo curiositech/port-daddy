@@ -50,8 +50,8 @@
           3514
         ]
       ],
-      "after_sha256": "d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8",
-      "after_lines": 3613,
+      "after_sha256": "27c1bbff970f1efd2a4a7fa869fd79538c8240ad9d7099c2c61d89926ef9315d",
+      "after_lines": 3617,
       "read_complete": true,
       "layout_followups": [
         {
@@ -85,6 +85,23 @@
           "read_scope": "Independent read of exact layout-only delta and surrounding paragraphs; original full-reading ranges and hashes retained. No manuscript text or mathematical claim changed.",
           "source_verification": "Removing only the complete inserted guards exactly reproduces the committed source; prepare-book-fonts.py emits the tested profile value and the generator preserves pdmarginpagebreak.",
           "render_evidence": "Operator reports isolated Source Sans build 72783c15: 263 captions, 1464 margins, 212 exercise headings and off-page checks pass; eight contexts viewed. This agent did not independently view that isolated PDF; final assembled candidate 22 acceptance remains separate."
+        }
+      ],
+      "bounded_source_followups": [
+        {
+          "source_head_before_edit": "d06082b51603f0e8bdc0afc2246bd817b58bc501",
+          "before_sha256": "d18ff86060715d22f789677daefe0ba39c87b5915ca1b1dcb94491c4f7f432b8",
+          "after_sha256": "27c1bbff970f1efd2a4a7fa869fd79538c8240ad9d7099c2c61d89926ef9315d",
+          "anchor": "Extending the oracle vocabulary: State-Machine Assertions (OP-5)",
+          "lines_read_before_edit": [
+            1788,
+            1830
+          ],
+          "updated_passage_start_line": 1813,
+          "scope": "Reread only the OP-5 paragraph and neighboring oracle-vocabulary prose, then the cited STP tower theorem/context and companion paper3 theorem/proof. Initial full-reading evidence remains unchanged.",
+          "correction": "Distinguish conditional bribery and detection claims, name separately bribable candidate groups rather than levels, retain the detection bound after every history of misses and the trustworthy terminal adjudicator, and preserve oracle expressiveness as an open obligation.",
+          "cross_reference": "stp:thm:tower-imported; Book-only numbered reference, standalone chapter-title fallback.",
+          "independent_patch_review": "Pending second reader; this agent authored the paragraph."
         }
       ]
     },
