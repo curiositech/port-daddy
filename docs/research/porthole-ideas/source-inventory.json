@@ -1,0 +1,123 @@
+{
+  "researchDate": "2026-11-03",
+  "repository": "curiositech/port-daddy",
+  "sourceRevision": "94f6f6dca8a4120ef8748fc84e9777b06151f9f5",
+  "worktree": "/Users/erichowens/coding/tmp/porthole-ideas-archeology",
+  "branch": "codex/porthole-ideas-archeology",
+  "method": "Pinned tracked-source search, full reads of core documents, targeted source/schema/adjacent-plan reads, and selected local Git history. This is not an exhaustive reading of every branch, asset, or attachment.",
+  "matchingMarkdownCount": 71,
+  "matchingMarkdown": [
+    "apps/PortholeMediaKit/README.md",
+    "apps/pd-ios/README.md",
+    "apps/porthole-stage-capture/Evidence/synthetic-ui-20260902/README.md",
+    "apps/porthole-stage-capture/README.md",
+    "demos/porthole/PERSONAS.md",
+    "demos/porthole/PLAN.md",
+    "demos/porthole/PRODUCT.md",
+    "docs/adr/0010-maritime-design-language.md",
+    "docs/adr/0136-cross-runtime-execution-envelope.md",
+    "docs/architecture/PORTHOLE-SYSTEM-SPECIFICATION-AND-MILESTONES.md",
+    "docs/architecture/agent-harbor-technical-binder/28-postmaster-context-and-review-coordination.md",
+    "docs/design/convoy-platform-requirements.md",
+    "docs/design/porthole-cooperative-native-loop.md",
+    "docs/design/swiss-system/ROADMAP.md",
+    "docs/grand-harbor/00-constitution.md",
+    "docs/grand-harbor/01-system-map.md",
+    "docs/grand-harbor/02-contract-registry.md",
+    "docs/grand-harbor/03-product-experiences.md",
+    "docs/grand-harbor/04-program.md",
+    "docs/grand-harbor/07-research-provenance.md",
+    "docs/grand-harbor/08-skill-graft-plan.md",
+    "docs/grand-harbor/11-proof-catalog.md",
+    "docs/grand-harbor/13-migration-and-compatibility.md",
+    "docs/grand-harbor/15-implementation-seams.md",
+    "docs/grand-harbor/archive/2026-09-02-conversation-synthesis.md",
+    "docs/grand-harbor/archive/first-vertical-slice-motivation.md",
+    "docs/grand-harbor/archive/original-smart-goals.md",
+    "docs/grand-harbor/archive/prior-M0-M10-roadmap.md",
+    "docs/grand-harbor/decisions/GH-D-0001-establish-architecture-ledger.md",
+    "docs/grand-harbor/program/CUT-001-first-vertical-proof.md",
+    "docs/grand-harbor/ux/00-information-architecture.md",
+    "docs/grand-harbor/ux/01-user-stories.md",
+    "docs/grand-harbor/ux/02-wireframes.md",
+    "docs/grand-harbor/ux/03-full-flows.md",
+    "docs/grand-harbor/ux/05-accessibility-and-degraded-states.md",
+    "docs/grand-harbor/ux/README.md",
+    "docs/harbor-research/OMNI-LEDGER.md",
+    "docs/harbor-research/exposition/book-reading-20261103/render-proof/website/README.md",
+    "docs/operations/operator-charge-ledger/INDEX.md",
+    "docs/operations/operator-charge-ledger/part-01-messages-001-027.md",
+    "docs/operations/operator-charge-ledger/part-02-messages-028-055.md",
+    "docs/operations/operator-charge-ledger/part-03-messages-056-084.md",
+    "docs/operations/porthole-contract-security.md",
+    "docs/operations/porthole-private-memory-delivery.md",
+    "docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md",
+    "docs/pr-artifacts/salvage-durable-hold-ui/MANIFEST.md",
+    "docs/product/PERSONAS-AND-UX-FRICTION.md",
+    "docs/proposals/grand-harbor-product-atlas.md",
+    "docs/proposals/harbor-agent-runtime.md",
+    "docs/proposals/provider-neutral-retrieval-fabric.md",
+    "docs/recovery/2026-09-10-release-wave-inventory.md",
+    "docs/reports/r2-archive-retention-20260920.md",
+    "docs/research/2026-09-02-delivery-census.md",
+    "docs/research/2026-09-02-runtime-resilience-successor-findings.md",
+    "docs/research/cloudflare-agents-runtime-study-2026.md",
+    "docs/research/drydock-anchor-convention/positions/P10-human-factors-and-operator-sovereignty.md",
+    "docs/research/drydock-anchor-convention/positions/P4-hypertree-execution-and-coordination.md",
+    "docs/research/egosystem-reconciliation/final/architecture.md",
+    "docs/research/egosystem-reconciliation/final/delivery-plan.md",
+    "docs/research/egosystem-reconciliation/final/harbor-integration-contract.md",
+    "docs/research/egosystem-reconciliation/final/publication-packet.md",
+    "docs/research/egosystem-reconciliation/meta/process-log.md",
+    "docs/research/egosystem-reconciliation/phase-0-setup/problem-definition.md",
+    "docs/research/egosystem-reconciliation/phase-0-setup/research-synthesis-dag.md",
+    "docs/research/egosystem-reconciliation/phase-1-divergence/commission.md",
+    "docs/research/egosystem-reconciliation/research/current-system-inventory.md",
+    "docs/research/egosystem-reconciliation/research/experimental-protocol.md",
+    "docs/research/egosystem-reconciliation/research/gap-register.md",
+    "docs/research/egosystem-reconciliation/research/literature-map.md",
+    "docs/research/embedding-retrieval-model-landscape-2026.md",
+    "docs/strategy/cooperative-harbor-implementation.md"
+  ],
+  "historicalSources": [
+    {
+      "revision": "f3098054be3b6253fa1d905597dc5dce2dd8a9ab",
+      "paths": [
+        "demos/porthole/PRODUCT.md",
+        "demos/porthole/PERSONAS.md"
+      ],
+      "reason": "Preserves August 19 product/persona text substantially replaced August 29; agent verified blob equality with original feature commit."
+    },
+    {
+      "revision": "b4c4a19d77e07fdb1a65e00e88bf15ab7700ca0b",
+      "paths": [
+        "docs/adr/0135-porthole-universal-pov-evidence.md"
+      ],
+      "reason": "Historical universal cooperative stage design, absent at pinned main."
+    },
+    {
+      "revision": "809f8886c1a8818cbed6d999f2b682e44c37f942",
+      "paths": [
+        "schemas/agent-harbor/v0/porthole-mutation-receipt.schema.json",
+        "schemas/agent-harbor/v0/porthole-rejection-coverage.schema.json",
+        "schemas/agent-harbor/v0/porthole-mutation-invariants.mjs"
+      ],
+      "reason": "Historical rejection-frontier contracts, absent at pinned main."
+    },
+    {
+      "revision": "2c639df8f79da05efd245fb17b05efc17ef8c43f",
+      "paths": [
+        "docs/harbor-research/exposition/PORTHOLE-DECISIONS-FROM-THE-BOOK.md"
+      ],
+      "reason": "September 7 architecture answers and unresolved questions, absent at pinned main."
+    }
+  ],
+  "excluded": [
+    "Local runtime, daemon, hooks and private account/transcript databases",
+    "Untracked user material outside the relevant source directories",
+    "Fresh competitor, pricing or codec benchmark research",
+    "Launching or capturing any application",
+    "Treating historical roadmap statuses as current authority"
+  ],
+  "primaryRelevantSourceChangesObserved": 0
+}
