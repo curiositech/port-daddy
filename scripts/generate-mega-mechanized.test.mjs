@@ -300,8 +300,11 @@ test('the registered R-script suite breaks into page-breakable rows without losi
     chunks.push(suite.paths.slice(start, start + 7));
   }
   assert.equal(rows.length, chunks.length);
-  assert.equal(rows.filter((line) => line.includes('\\textit{(continued)}')).length, chunks.length - 1);
+  const continuation = '\\newline{}\\textit{cont.}';
+  assert.equal(rows.filter((line) => line.includes(continuation)).length, chunks.length - 1);
   rows.forEach((row, index) => {
+    assert.equal(row.includes(continuation), index > 0,
+      'only rows after the first repeat the suite identity with a continuation marker');
     const chunk = chunks[index];
     assert.ok(chunk.length <= 7, 'each row stays within the page-breakable path limit');
     assert.match(row, /\\texttt\{harbor-results-estate\} & \\textsc\{current\} & ---/);

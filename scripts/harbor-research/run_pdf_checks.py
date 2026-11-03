@@ -18,7 +18,8 @@ page_spills.py checks stranded headings and page endings.
 check_book_caption_margins.py checks every numbered figure, table and code
 caption against the matching converged .aux inventory. That sidecar must be
 beside the PDF; a missing inventory fails rather than silently checking a
-hand-selected subset. These are placement checks, never design acceptance.
+hand-selected subset. Exercise navigation also compares every rendered heading with its AUX folio
+and PDF destination. These are placement checks, never design acceptance.
 
 Usage:
     python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir DIR
@@ -61,6 +62,7 @@ PER_PDF_CHECKS = [
     # Needs the matching converged .aux beside each PDF. The workflow ships
     # it as a separate inventory artifact; missing evidence is a failure.
     (os.path.join(REPO_ROOT, "scripts", "harbor-research", "check_book_caption_margins.py"), []),
+    (os.path.join(REPO_ROOT, "scripts", "harbor-research", "check_book_exercise_navigation.py"), []),
     (os.path.join(REPO_ROOT, "scripts", "harbor-research", "audit_book_layout.py"), []),
     (os.path.join(REPO_ROOT, "scripts", "harbor-research", "page_overflow.py"), []),
     # Joined 2026-09-08, which is what the docstring below was waiting for: the

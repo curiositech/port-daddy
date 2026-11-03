@@ -1117,10 +1117,12 @@
     \PackageError{pd-pedagogy}{Invalid pdexercise rating '\pdexercise@rating'}%
       {Use rating=1, rating=2, or rating=3.}%
   \fi
-  \refstepcounter{pdexercise}%
-  \label{#2}%
   \def\pdexercise@label{#2}%
   \par\addvspace{7pt plus 1pt}\noindent
+  % The counter anchor and label belong to the heading's horizontal list,
+  % so a page break carries the destination and page reference with it.
+  \refstepcounter{pdexercise}%
+  \label{#2}%
   \ifpdmargincolumn\marginnote{\itshape Solution p.\,\pageref{sol:#2}}\fi
   {\bfseries\thepdexercise}\enspace{\footnotesize\scshape\pdexercise@kind}\,{\footnotesize\pdexercise@stars}\pdblockheadingend
 }{%
