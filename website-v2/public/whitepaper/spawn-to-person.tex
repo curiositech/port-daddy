@@ -2000,7 +2000,8 @@ buyer can read), but \emph{gate} on \emph{predicates} (machine-checkable witness
 facts: ``passed the acceptance test,'' ``no slashed bond in the last $k$
 settlements''). The instant the score itself becomes the gate, it becomes a
 Goodhart target~\pdcite{strathern1997}: ``when a measure becomes a target it ceases
-to be a good measure.''}
+to be a good measure.'' Predicates can also be gamed: protected acceptance criteria and
+independently checkable evidence remain necessary to assess the outcome.}
 
 \pdexercisepointer{\ref{ex:stp-bt-vs-elo-regime}}{\ref{ex:stp-rotten-substrate}}{\pageref{ex:stp-bt-vs-elo-regime}}
 
@@ -2744,11 +2745,18 @@ can still be disposable. The newcomer-floor theorem states when a reset erases
 a score sanction; principal-wide admission and exposure rules address a
 different part of that escape.
 \item \textbf{Whitewashing has a conditional price.} A reset costs the discounted continuation gap $W_\delta$; a deviation that triggers it with probability $p$ after delay $\tau$ faces expected cost $p\delta^\tau W_\delta$. The worked schedule costs $18$ without discounting. Front-loading minimizes honest-newcomer friction only under the stated relative discount factors, ceiling, and deterrence constraint.
-\item \textbf{Adverse selection lives inside one identity} until a price can depend on an attested quantity; the attested flip is the whole gain from attestation ($0.5$ against $0.2$ in the example).
+\item \textbf{Engine substitution can occur within one identity.} The one-delivery
+payoff comparison shows when a cheaper engine is profitable. The example's
+attested prices reverse that comparison ($0.5$ against $0.2$); they do not prove
+that buyers will offer those prices or that attestation is the only remedy.
 \item \textbf{Resurrection is sound only through the mint}: a lineage that forks cannot mint twice, and the checker refuses the copy-fork.
 \item \textbf{Reputation is a substrate, not a score}: multi-dimensional and buyer-weighted. A routing bandit can consume this
 evidence but does not create its provenance or accountability.
-\item \textbf{A grade is evidence only if the grader is at risk.} Eligibility is decided before the grade, the draw is public, the grade is blind, and a rate-the-raters tower contracts toward an honest root that must exist outside the tower.
+\item \textbf{Bonded grading needs its stated detection model.} The tower uses
+prepaid bribes, sealed uniform clique sampling, and a conditional detection
+bound. Geometric contraction starts below the bribery threshold; a trustworthy
+root is a separate assumption. A bond alone neither makes a grade correct nor
+excludes other ways to obtain useful evidence.
 \item \textbf{Revocation needs a freshness contract}: a tombstone retracts a
 record without erasing its history. A finite stale-use bound requires delivery
 or fail-closed expiry assumptions; the estimator's memory horizon is separate
@@ -2772,9 +2780,9 @@ accountable continuity survives replacement of that process. The convention
 makes no claim about consciousness or moral status.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-dependency-chain}
-Walk the dependency chain right-to-left and, for each arrow, name the failure
-that occurs if the left-hand thing is absent (e.g.\ ``no non-forgeable
-identity $\Rightarrow$ \underline{\hspace{3cm}}'').
+Walk the proposed dependency diagram right-to-left. For each arrow, name the
+evidence or recovery capability lost when its source is absent. Which links are
+choices of this architecture rather than necessities for every market?
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-dependency-chain}
 \par\smallskip
@@ -2796,20 +2804,20 @@ identity $\Rightarrow$ \underline{\hspace{3cm}}'').
   \node[pd breach label,align=center,text width=27mm] at (42,-1)
     {absent: history cannot follow a swap};
   \node[pd breach label,align=center,text width=27mm] at (70,-1)
-    {absent: disposable sybil reset};
+    {risk: disposable sybil reset};
 \end{tikzpicture}
 \end{center}
 \par\smallskip
-Read right-to-left. No reputation $\Rightarrow$ a buyer cannot price
-differentiated trust, so the alleged tradeable asset is adverse-selection
-noise. No durable accountable person/outcome identity $\Rightarrow$ reputation
-attaches to a disposable incarnation and can be reset or duplicated. No
-continuity $\Rightarrow$ successive role-holders cannot be shown to belong to
-one lineage; history does not follow replacement. No memory/checkpoint/evidence
-$\Rightarrow$ a successor lacks both resumable state and a witnessed chain from
-old work to new work. The chain is not literally linear: non-forgeable identity
-and witnessed outcomes are parallel prerequisites for accountable continuity;
-checkpointing helps resumption but is not logically necessary for every
+Read right-to-left within the proposed architecture. Without outcome history,
+a buyer loses this history-based trust input; direct evaluation or collateral
+may still support a trade. Without a stable, liability-bound identity, outcomes
+may attach to a disposable incarnation. Whether reset escapes a sanction depends
+on the newcomer and admission rules of Theorem~\ref{thm:necessity}. Without a
+witnessed succession link, the system cannot establish that recorded work belongs
+to the claimed lineage. Missing task state impairs resumption, while missing
+outcome evidence impairs historical evaluation: these are different losses.
+The chain is not literally linear. Identity and witnessed outcomes are parallel
+inputs; checkpointing helps resumption but is not logically necessary for every
 reputation system.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-operator-as-person}
@@ -2822,8 +2830,10 @@ gap; see \S\ref{sec:identity} and the market paper.)
 The human operator is a moral/legal person but should be represented
 economically as the \emph{principal} above agent identities
 (Def.~\ref{def:principal}). If one principal can mint unlimited apparently
-independent agent-persons, it can whitewash sanctions, forge quorums, reuse
-aggregate collateral, and farm reputation through self-trade. Bind every agent
+independent agent-persons, policies that count identities rather than shared
+control can permit sanction resets, duplicated voting weight, reused collateral,
+or reputation farming. Those failures depend on the admission, voting, and
+settlement rules; minting another credential alone does not prove they occur. Bind every agent
 lineage to a principal credential, cap principal-wide exposure and newcomer
 credit, and disclose shared control: the actor may change; the economic
 liability root must not.
