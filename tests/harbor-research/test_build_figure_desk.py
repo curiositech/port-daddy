@@ -15,6 +15,7 @@ claim checkable:
 from __future__ import annotations
 
 import json
+import re
 import os
 import subprocess
 import sys
@@ -495,6 +496,27 @@ class ReconciliationIsHonest(unittest.TestCase):
         self.assertTrue(r["renderDrift"], "the drift disappeared -- was `page` re-derived?")
         for d in r["renderDrift"]:
             self.assertNotEqual(d["renderPage"], d["bookPage"])
+
+    def test_live_register_summary_preserves_every_chapter_and_derived_total(self):
+        register = self._findings()["register"]
+        self.assertEqual(set(register["chapters"]), set(map(str, range(1, 9))))
+        source = B.omni_ledger.document_text(B.REGISTER_REL)
+        rows = []
+        for line in source.splitlines():
+            if re.match(r"^\|\s*ch\d+-\d+\s*\|", line):
+                rows.append([part.strip() for part in re.split(r"(?<!\\)\|", line)[1:-1]])
+        self.assertTrue(rows)
+        for key, summary in [*register["chapters"].items(), ("total", register["totals"])]:
+            group = rows if key == "total" else [r for r in rows if r[0].startswith("ch" + key + "-")]
+            with self.subTest(chapter=key):
+                self.assertEqual(int(summary["rows"]), len(group))
+                named = sum(not row[6].startswith("none") for row in group)
+                self.assertEqual(int(summary["existing"]), named)
+                self.assertEqual(int(summary["noneYet"]), len(group) - named)
+                for priority in ("must", "should", "could", "no"):
+                    expected = sum(row[8] == priority for row in group if row[0] != "ch2-34")
+                    self.assertEqual(int(summary[priority]), expected)
+        self.assertFalse(any("parsed 0 chapter rows" in gap for gap in self._findings()["parseGaps"]))
 
     def test_parse_gaps_are_carried_to_the_desk_not_swallowed(self):
         self.assertIn("parseGaps", self._findings())

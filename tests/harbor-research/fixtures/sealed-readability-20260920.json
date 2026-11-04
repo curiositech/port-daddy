@@ -33,9 +33,10 @@
         "Two keys, four locks,"
       ],
       "displays": [
-        "\\{D\\}\\to\\{\\}\\text{ and }\\{D,E\\}\\to\\{E\\}",
-        "\\{E\\}\\to\\{\\}\\text{ and }\\{D,E\\}\\to\\{D\\}"
-      ]
+        "\\{D\\}\\to\\emptyset\\text{ and }\\{D,E\\}\\to\\{E\\}",
+        "\\{E\\}\\to\\emptyset\\text{ and }\\{D,E\\}\\to\\{D\\}"
+      ],
+      "accepted": "\\begin{pdexample}{Four Label States, Four Locked Doors, Two Keys}\nThe lattice the next paragraph reaches for is small enough to count on your\nfingers, and the count \\emph{is} the mechanism. Two owners, Derek and Erin,\nmeans two clauses, so a value inside the room sits in one of $2^2=4$ label\nstates: $\\emptyset$, $\\{D\\}$, $\\{E\\}$, $\\{D,E\\}$. Derek's data enters at $\\{D\\}$ and\nErin's model at $\\{E\\}$; the instant the worker computes with both, whatever it\nproduced sits at $\\{D,E\\}$. There are four edges up that lattice and four\nedges down it, and the asymmetry between the two fours is the design. All four\nupward edges are free and unwitnessed, because adding somebody's restriction\nneeds nobody's permission. All four downward edges are locked, and --- this is\nthe part worth doing by hand --- they're locked \\emph{by owner}: the two that\ndrop $D$, namely $\\{D\\}\\to\\emptyset$ and $\\{D,E\\}\\to\\{E\\}$, open only with Derek's\ndelegated declassification authority, and the two that drop $E$, namely\n$\\{E\\}\\to\\emptyset$ and $\\{D,E\\}\\to\\{D\\}$, only with Erin's. Two keys, four locks,\ntwo apiece. That is why the room has exactly two gates rather than one, and\nwhy the aggregate-feedback channel to Erin is \\emph{Derek's} gate and not hers:\nthe artifact she receives is one that has had Derek's clause dropped, and only\nDerek can drop it.\n\\end{pdexample}"
     },
     {
       "heading": "\\begin{pdexample}{Six Pairs, Two of Them Equal-Parity}",
