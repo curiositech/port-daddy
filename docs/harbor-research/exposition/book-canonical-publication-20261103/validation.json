@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "scope": "Publication artifacts and source-package consistency; live deployment is verified separately after protected merge.",
+  "sourcePr": 10349,
+  "mergedSourceCommit": "0f1d4bd26740e5d5ba208e78c191cf702ef650f5",
+  "pdfSha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
+  "facingSha256": "31fb02e17790c06aafc158e01305f33a00400638eee052edd289035988e091dc",
+  "sourceArchiveSha256": "ad8a352ab58dfafaef24d4ce15907b86e33db2a4f3e8cf880049d5c68ce860dd",
+  "sourceArchiveBytes": 40162963,
+  "sourceInputs": 507,
+  "coverSha256": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927",
+  "checks": {
+    "whitePapersTests": 27,
+    "plateProvenanceTests": 15,
+    "figureDeskTests": 53,
+    "publicationHashTests": 2,
+    "metadataFreshness": "pass",
+    "coverFreshness": "pass",
+    "platePathsAndProvenance": "pass",
+    "figureDeskFreshness": "pass",
+    "deterministicSourcePackageAndReceipt": "pass",
+    "websiteBuild": "pass: TypeScript, Vite, 368 route metadata pages, Cloudflare per-file size check"
+  },
+  "checkOwner": "tool-native canonical_book_tree worker; source package checked by lead",
+  "limits": [
+    "Default public archive uses open fonts; licensed Suisse files are not redistributed.",
+    "Only the three affected facing spreads received independent visual review in this publication pass."
+  ]
+}

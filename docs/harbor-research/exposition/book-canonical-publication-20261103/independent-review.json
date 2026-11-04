@@ -1,0 +1,86 @@
+{
+  "verdict": "ACCEPT",
+  "reviewer": "codex:/root/book_pr_coverage",
+  "scope": "Independent visual acceptance of three corrected facing spreads only: physical750–751,752–753,812–813; not a full-book aesthetic or mathematical certification.",
+  "candidate": {
+    "sha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
+    "pages": 844,
+    "bytes": 17652169
+  },
+  "baselineSha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+  "imagesActuallyViewed": [
+    {
+      "physicalSpread": "750-751",
+      "file": "spread-750-751.png",
+      "sha256": "1c7b12ac6cf00732be442ae4188b18d55df490dc680b5050e2b8f9065c45c14d"
+    },
+    {
+      "physicalSpread": "752-753",
+      "file": "spread-752-753.png",
+      "sha256": "09ebd367db8dfc91882f9cc2d9edf4e90430b44cb12bfa59f27572e0de7a25f3"
+    },
+    {
+      "physicalSpread": "812-813",
+      "file": "spread-812-813.png",
+      "sha256": "b9becef9dafa21017a5392e38db13a40f8ee2d5add552180d9c55e46f0b6d566"
+    }
+  ],
+  "priorFinding": {
+    "status": "resolved",
+    "physicalPages": [
+      752,
+      753
+    ],
+    "printedPages": [
+      728,
+      729
+    ],
+    "observation": "The Pinned output lead-in now begins physical753 immediately above its three numbered code lines. It is no longer stranded at the foot of physical752.",
+    "authoredSource": "book/anchor-protocol-whitepaper.tex:2051",
+    "fix": "Needspace for the lead-in and listing in the authored solution; unused generated solution copies are not the authority."
+  },
+  "observations": [
+    {
+      "physicalPages": [
+        750,
+        751
+      ],
+      "printedPages": [
+        726,
+        727
+      ],
+      "result": "Path-shortening reflow is legible. Solution headings have following prose; exercise margin pointers remain associated with their headings. No new collision, clipping, or cross-page word split observed."
+    },
+    {
+      "physicalPages": [
+        752,
+        753
+      ],
+      "printedPages": [
+        728,
+        729
+      ],
+      "result": "Output lead-in and complete numbered listing occupy the same page. The preceding solution ends normally; its reserved bottom whitespace is appropriate. Solution2.8 and2.9 headings and margin pointers remain clear."
+    },
+    {
+      "physicalPages": [
+        812,
+        813
+      ],
+      "printedPages": [
+        788,
+        789
+      ],
+      "result": "AppendixB heading remains with its explanatory paragraph; book/corpus.json wraps readably. No new stranded heading, clipping, or collision observed."
+    }
+  ],
+  "supportingEvidence": {
+    "parentReportedAllPageGlyphPositions": "840of844pages unchanged; changedphysical750,751,752,813; bookmarks equal. This report does not independently recertify that whole-book comparison.",
+    "independentPdfTextCheck": "Verified candidateSHA/pagecount; Pinned output label and listing text present together onphysical753 andlabelabsentfromphysical752."
+  },
+  "remainingFindings": [],
+  "limitations": [
+    "Viewed six physicalpages in three complete facing spreads.",
+    "No new claim about mathematical correctness, novelty, or whole-book visual quality."
+  ]
+}

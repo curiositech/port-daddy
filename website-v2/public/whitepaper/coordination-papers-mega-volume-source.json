@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40162933,
+    "bytes": 40162963,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/78ffc95429a02cde354c7ba0cdd022154e1a429050120e42bf5393915efa613d.tar.gz",
-    "sha256": "78ffc95429a02cde354c7ba0cdd022154e1a429050120e42bf5393915efa613d",
-    "url": "https://media.portdaddy.dev/book/source/sha256/78ffc95429a02cde354c7ba0cdd022154e1a429050120e42bf5393915efa613d.tar.gz"
+    "key": "book/source/sha256/ad8a352ab58dfafaef24d4ce15907b86e33db2a4f3e8cf880049d5c68ce860dd.tar.gz",
+    "sha256": "ad8a352ab58dfafaef24d4ce15907b86e33db2a4f3e8cf880049d5c68ce860dd",
+    "url": "https://media.portdaddy.dev/book/source/sha256/ad8a352ab58dfafaef24d4ce15907b86e33db2a4f3e8cf880049d5c68ce860dd.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "9a504b376aa9ba67cd0a600aae17aaf1f3722f3a336a330fa31d8038106667e7",
+  "manifestSha256": "ef80e20cde046e9d8e36cd667dfed037272a6d7db8bd220b39684c9d9e559806",
   "schemaVersion": 1,
   "source": {
     "fileCount": 507,
@@ -1879,7 +1879,7 @@
         "bytes": 27125,
         "mode": 420,
         "path": "book/plates/PROVENANCE.json",
-        "sha256": "affbfc3a8eedd60948fc742a89bb12050c507c4669ea1b2d848a7554ff1cba30"
+        "sha256": "ec4ef9009b608e6116dde478a338205d0e7afff060376b0b4ca3934fedbeacb8"
       },
       {
         "bytes": 7961,
@@ -3064,6 +3064,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "7f87b91d429570d50fedc8504c800a244aa18503b2b6abbac0d9921bcabfee63"
+    "sha256": "51b12dd49716667bd0ece3f3bdb67cf66e8795dce7f6567e7e0bbb83992f5022"
   }
 }

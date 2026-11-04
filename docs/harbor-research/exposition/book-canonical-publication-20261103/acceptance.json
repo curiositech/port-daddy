@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "status": "Accepted artifact reconciled with merged source; publication PR and deployment pending",
+  "sourcePr": 10349,
+  "sourceCommitVerified": "f7683b39e2db9a78f3f8215483e261278a1278c2",
+  "pdf": {
+    "sha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
+    "bytes": 17652169,
+    "pages": 844
+  },
+  "facing": {
+    "file": "coordination-papers-mega-volume-spreads.pdf",
+    "sha256": "31fb02e17790c06aafc158e01305f33a00400638eee052edd289035988e091dc",
+    "bytes": 18583781,
+    "pages": 423
+  },
+  "checks": {
+    "texConvergence": "pass",
+    "overfullHboxes": 0,
+    "pdfGateChecks": 6,
+    "pdfGateResult": "pass",
+    "pdfGateAdvisories": "Advisories remain: 96 pages in whitespace review, 53 whitespace spill warnings, and 74 pictures extended past the column by the safety net. No paper-edge loss or margin-column collision was reported; this is not an unqualified whole-book aesthetic or mathematical certification.",
+    "independentAffectedSpreadReview": "ACCEPT",
+    "pageComparison": {
+      "baselineSha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+      "candidateSha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
+      "pages": 844,
+      "identicalGlyphPositionPages": 840,
+      "changedPhysicalPages": [
+        750,
+        751,
+        752,
+        813
+      ],
+      "sameBookmarks": true,
+      "reader": "1.28.2",
+      "scope": "All pages compared by text glyph and bounding box; this does not compare raster or vector artwork pixels."
+    },
+    "sourceReconciliation": {
+      "result": "PASS",
+      "directInputsMatched": 147,
+      "authoredChaptersMatched": 8,
+      "chapterZeroMatched": true,
+      "regeneratedAssemblyFilesMatched": 9,
+      "recordedGeneratedStreamsVerified": 19,
+      "snapshotDifferencesExplicitlyDispositioned": 19
+    }
+  },
+  "evidence": {
+    "build-summary.json": "80c926f444fa9eb813b94b880f0eccd3b75d51a93aedff1adce29346c4e53f77",
+    "consumed-inputs.json": "369425e4fe2f7a8642ec1179902db5f14d9ec0121dcf616bc9b6907726698133",
+    "font-profile.json": "e8c51745e8fcb8d57d1c06652933a4b8ee789e2b6ef1397dc072c441aff6de62",
+    "page-comparison.json": "eacadef30503848a6f18c2597e1487981a8b9012dbfedefbb4389d798e8e5c5c",
+    "independent-review.json": "942484f93d9cc12bd33003cd53c3906049a13034ecdb6d5c244665d507363cdb",
+    "coordination-papers-mega-volume-spreads.json": "498c4917c68df2fd44f8aae4a4e81f142a9763e89e7026c62b9a7f24dc918fc5",
+    "pdf-checks.log": "5efecf93e47b5ea18754ed8aebc29b64f12e9c53475a14103e7eb62dd3906621",
+    "source-reconciliation.json": "f37c98a0084342989bffde3c1288860bcb041f1139120398fb27687c7773c637"
+  },
+  "limits": [
+    "Suisse fonts are privately licensed and excluded from publication sources.",
+    "Default public archive compiles with bundled open fonts, so its pagination differs.",
+    "Source reconciliation checks all 147 direct/explicit inputs, the eight authored chapter sources plus Chapter 0, the complete source-package inventory, and byte-identical regeneration of all nine assembly outputs. The original extraction manifest predates two disclosed edits; final generated TeX hashes bind the accepted compilation. External tools are separately scoped.",
+    "Only the three affected facing spreads received this independent visual review."
+  ],
+  "mergedSourceCommit": "0f1d4bd26740e5d5ba208e78c191cf702ef650f5"
+}
