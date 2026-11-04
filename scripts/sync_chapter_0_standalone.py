@@ -2,8 +2,8 @@
 """
 Sync Chapter 0 body from coordination-papers-mega-volume-chapter-0.tex
 into the standalone twins:
-  website-v2/public/whitepaper/chapter-0-prerequisites.tex
-  whitepaper/chapter-0-prerequisites.tex
+  book/chapter-0-prerequisites.tex
+  book/chapter-0-prerequisites.tex
 """
 
 import sys
@@ -11,10 +11,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-mega_ch0_path = REPO_ROOT / "website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex"
+mega_ch0_path = REPO_ROOT / "book/coordination-papers-mega-volume-chapter-0.tex"
 twin_paths = [
-    REPO_ROOT / "website-v2/public/whitepaper/chapter-0-prerequisites.tex",
-    REPO_ROOT / "whitepaper/chapter-0-prerequisites.tex",
+    REPO_ROOT / "book/chapter-0-prerequisites.tex",
+    REPO_ROOT / "book/chapter-0-prerequisites.tex",
 ]
 
 mega_lines = mega_ch0_path.read_text(encoding="utf-8").splitlines(keepends=True)

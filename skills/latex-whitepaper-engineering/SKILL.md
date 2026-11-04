@@ -1,6 +1,6 @@
 ---
 name: latex-whitepaper-engineering
-description: "Author, revise, and ship LaTeX whitepapers in repos that publish committed PDFs behind a metadata registry. Covers the full loop: editing .tex with thebibliography discipline, two-pass pdflatex builds, catching undefined citations/references from the log, source→published PDF naming, version/date title blocks bumped in lockstep with the site registry, and Math.round(bytes/1024) size sync against metadata drift checks in CI. Use when editing website-v2/public/whitepaper/*.tex in port-daddy or any repo where PDFs are committed artifacts with a registry (pages/sizeKb) test. NOT for prose voice (use port-daddy-expository-writer), NOT for resume/CV typesetting (use cv-creator), NOT for HTML/MDX document generation (use document-generation-pdf)."
+description: "Author, revise, and ship LaTeX whitepapers in repos that publish committed PDFs behind a metadata registry. Covers the full loop: editing .tex with thebibliography discipline, two-pass pdflatex builds, catching undefined citations/references from the log, source→published PDF naming, version/date title blocks bumped in lockstep with the site registry, and Math.round(bytes/1024) size sync against metadata drift checks in CI. Use when editing book/*.tex in port-daddy or any repo where PDFs are committed artifacts with a registry (pages/sizeKb) test. NOT for prose voice (use port-daddy-expository-writer), NOT for resume/CV typesetting (use cv-creator), NOT for HTML/MDX document generation (use document-generation-pdf)."
 license: FSL-1.1-MIT
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
@@ -24,14 +24,25 @@ a red build or, worse, a silently stale PDF.
 ## The ship loop (never skip a step)
 
 ```bash
-cd website-v2/public/whitepaper
-pdflatex -halt-on-error -interaction=nonstopmode paper.tex >/dev/null 2>&1   # pass 1: refs
-pdflatex -halt-on-error -interaction=nonstopmode paper.tex >/dev/null 2>&1   # pass 2: resolve
-grep "Output written" paper.log        # → "(NN pages, BBBBBB bytes)"
-grep -c "LaTeX Error" paper.log        # must be 0
-grep "Warning: Citation" paper.log     # every hit = a \cite with no \bibitem
-grep "Warning: Reference" paper.log    # dangling \ref — check if pre-existing
+# The Book's only authored source directory is book/.
+# Use the shared XeLaTeX builder; chapter files are inputs, not separately published PDFs.
+bash scripts/build-whitepapers.sh coordination-papers-mega-volume
+# The builder requires stable references and margin geometry before copying the PDF.
+node scripts/generate-mega-whitepaper.mjs --check-shared
 ```
+
+`book/textbook.json` names the eight chapter manuscripts in `book/`; Chapter 0,
+preamble, solutions, figures, fonts, plate provenance, and alternate style drivers
+live there too. Never restore source mirrors under `whitepaper/` or the website's
+public directory. `scripts/stage-book-public-assets.mjs` generates public image
+derivatives for stable website URLs. Edit their source under `book/`.
+
+The complete public source download is built by `scripts/build-book-source.py`.
+It includes open-license fonts and builds the open-font proof profile by default;
+matching the publication's Suisse typography requires the reader's own licensed
+fonts. The archive must compile after extraction without this repository or a
+Git checkout. See `book/BUILDING.md`.
+
 
 - **Always two passes.** Pass 1 writes the `.aux`; pass 2 resolves `\ref`/`\cite`.
   One pass looks fine and ships `??` in the PDF.
@@ -69,7 +80,7 @@ individually published PDFs:
 
 | Source | Published PDF |
 |---|---|
-| `whitepaper/textbook.json` + every chapter (via `scripts/generate-mega-whitepaper.mjs`) | `coordination-papers-mega-volume.pdf` (the Book — `pdfPath`/`pages`/`sizeKb` in `website-v2/src/data/whitePapers.ts`'s `COLLECTED_VOLUME`) |
+| `book/textbook.json` + every chapter (via `scripts/generate-mega-whitepaper.mjs`) | `coordination-papers-mega-volume.pdf` (the Book — `pdfPath`/`pages`/`sizeKb` in `website-v2/src/data/whitePapers.ts`'s `COLLECTED_VOLUME`) |
 | `docs/harbor-research/tex/paper1.tex` … `paper8.tex` (the eight standalone research papers) | `website-v2/public/research/paper1.pdf` … `paper8.pdf` (registry: `website-v2/src/data/researchPapers.ts`) |
 
 A chapter entry in `WHITE_PAPERS` carries no `pdfPath`/`filename`/`pages`/
@@ -147,7 +158,7 @@ gets the caveat stated harder than the claim. Match `\paragraph{}` vs
   page is `website-v2/src/pages/whitepaper/PaperDetailPage.tsx`. There is no
   `pages/library` directory any more; the routes are in
   `website-v2/src/main.tsx`.
-- PRs touching `public/whitepaper/**` trigger the metadata-drift workflow;
+- PRs touching `book/**` or `public/whitepaper/**` trigger the metadata-drift workflow;
   PRs with visual changes need committed screenshots + a recording under
   `docs/pr-assets/pr-NNN/` embedded via SHA-pinned raw URLs.
 - Doc-citation guard: repo paths cited in changed docs must exist — no

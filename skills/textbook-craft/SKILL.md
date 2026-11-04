@@ -131,7 +131,7 @@ taken, not only what it is (the self-explanation effect,
 
 ## Page grammar: what may be boxed, what may not
 
-From `whitepaper/figures/pd-pedagogy.tex`, the actual macro vocabulary — use
+From `book/figures/pd-pedagogy.tex`, the actual macro vocabulary — use
 these names, not new ones:
 
 | Content kind | Environment/macro | How it renders | May it use a tinted fill? |
@@ -270,7 +270,7 @@ none is reported `REVIEW`, never `PASS`, because an aside woven unlabelled
 into ordinary prose leaves no mechanical trace. That is not a gap waiting for
 a cleverer regex — a keyword list of philosopher names would be a guess
 wearing a measurement's clothes, and this repository has spent enough effort
-unwinding that kind of false precision. `whitepaper/legible-swarm.tex` is the
+unwinding that kind of false precision. `book/legible-swarm.tex` is the
 standing example: Hobbes as its spine, Scott as its governing warning, both
 unlabelled, and the floor counts zero. Only a human read settles it.
 
@@ -319,7 +319,7 @@ first `theorem`/`definition`.
 ## Scripts
 
 Run `python3 scripts/chapter_lint.py [CHAPTER.tex ...] --apparatus
-whitepaper/chapter-apparatus.json --strict` for chapter structure and claim
+book/chapter-apparatus.json --strict` for chapter structure and claim
 labels. Run `python3 scripts/readers_eye.py [CHAPTER.tex ...] --selftest`
 for the countable reader-followability checks. Read
 `references/checker-contracts.md` for exact floors, status semantics,

@@ -26,7 +26,7 @@ are cited throughout as primary context, not as "sources" in the bibliographic
 sense: `docs/harbor-research/figures/CONVENTION.md` (the two-figure-kind
 convention: plain-`tikzpicture` relation maps vs. `pgfplots` regime diagrams,
 both compiled from flat `.tex` fragments, no raster) and
-`website-v2/public/whitepaper/figures/pd-palette.tex` (the ink/cream/accent
+`book/figures/pd-palette.tex` (the ink/cream/accent
 semantic palette, "one hue, one meaning").
 
 ---
@@ -348,7 +348,7 @@ framing: don't fight the intended behavior by wrapping the whole picture in
 `y=`, or a `scale=` key set once per figure, so fonts stay at their real,
 final point size.) Implication for the Harbor charts: this directly
 contradicts two figures already in this repository — `website-v2/public/
-whitepaper/figures/fig-stp-stack-map.tex` and `whitepaper/figures/
+book/figures/fig-stp-stack-map.tex` and `book/figures/
 fig-swk-stack-map.tex` both wrap their entire `tikzpicture` in
 `\resizebox{0.9x\textwidth}{!}{...}` — meaning both figures' node labels and
 rule widths are rendered at some off-nominal scale rather than the font size
@@ -1093,8 +1093,8 @@ coexist in this repository: the `pd*` semantic palette in `pd-palette.tex`
 preamble.tex` per `CONVENTION.md`; and a separately-defined `hh*` palette
 (`hhcobalt`, `hhamber`, `hhteal`, `hhink`, `hhpaper`, `hhsand`, `hhgray`)
 `\definecolor`'d locally inside individual whitepaper `.tex` files (e.g.
-`whitepaper/single-writer-kernel.tex`) even though a byte-identical twin of
-`pd-palette.tex` already sits in the same `whitepaper/figures/` directory.
+`book/single-writer-kernel.tex`) even though a byte-identical twin of
+`pd-palette.tex` already sits in the same `book/figures/` directory.
 The values have drifted apart under near-matching names — `hhcobalt`
 (#003FB8) happens to equal `pdcobalt` exactly, but `hhink` (#1B1712) is not
 `pdink` (#121212), `hhamber` (#6B4500) is not `pdamber` (#A66F00), and

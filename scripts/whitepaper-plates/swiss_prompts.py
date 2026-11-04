@@ -8,7 +8,7 @@ history or from PROVENANCE.json's flat copy.
 
 Art direction: docs/harbor-research/exposition/SWISS-BRIEF.md. Palette,
 chapter tint ladder, and part inks below are transcribed from that brief's
-section B and from whitepaper/textbook.json; do not hand-edit a hex here
+section B and from book/textbook.json; do not hand-edit a hex here
 without updating both.
 
 Generation: Google's Nano Banana Pro (`gemini-3-pro-image-preview`) via

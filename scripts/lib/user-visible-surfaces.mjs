@@ -76,7 +76,7 @@ export const FIGURE_WORK_TREES = [
   // The Book and the chapter sources, their `figures/` fragments, and the
   // corpus records (`standalone-figures.json`, `corpus.json`) that say which
   // fragment prints in which edition.
-  'whitepaper/',
+  'book/',
   // Parked worktree copies of the same tree, same shape, same contract.
   'whitepaper-foundlings/',
   // The published paper sources: `.tex`, the committed PDFs, `figures/`,
@@ -102,7 +102,7 @@ export const FIGURE_DIR_RE = /(^|\/)figures\//i
 
 /**
  * A plate directory: a segment that is exactly `plates` or ends in `-plates`
- * (`website-v2/public/whitepaper/plates/`, `scripts/whitepaper-plates/`,
+ * (`book/plates/`, `scripts/whitepaper-plates/`,
  * `docs/pr-assets/swiss-plates/`). The `(^|\/)` anchor and the required hyphen
  * are what keep this off the ~90 `templates/` directories in this repo —
  * "templates" contains the letters "plates" and a looser pattern matches every

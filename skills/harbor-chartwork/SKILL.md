@@ -13,8 +13,8 @@ metadata:
 
 # Harbor Chartwork
 
-Three TikZ figure corpora feed the Harbor library: `website-v2/public/whitepaper/figures/`
-and `whitepaper/figures/` (the seven chapter whitepapers, `hh*`-palette house style), and
+Three TikZ figure corpora feed the Harbor library: `book/figures/`
+and `book/figures/` (the seven chapter whitepapers, `hh*`-palette house style), and
 `docs/harbor-research/figures/` (the seven research papers, `harborblue`/`shipred`/`seagreen`
 palette). Every fragment is a bare `.tex` file `\input` at point of use -- none carries its
 own `\documentclass` (six orphaned `website-v2/figures/diag-*.tex` files excepted), so none
@@ -122,7 +122,7 @@ listings, hyperref and cleveref in one document:
 
 ```bash
 skills/harbor-chartwork/scripts/compile_fragment.sh \
-  website-v2/public/whitepaper/figures/fig-swk-stack-map.tex --preamble book \
+  website-v2/public/book/figures/fig-swk-stack-map.tex --preamble book \
   --out /tmp/chartwork/probe
 ```
 

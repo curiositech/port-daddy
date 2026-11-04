@@ -29,7 +29,7 @@ repository-scoped pairing bearer.
 
 ## Book publication checks
 
-The canonical Book uses `whitepaper/textbook.json` plus the authored Chapter 0.
+The canonical Book uses `book/textbook.json` plus the authored Chapter 0.
 For mathematical corrections, inspect the corresponding figure, worked example,
 exercise solution, and summary; these retellings can contradict a corrected theorem.
 Authored landmark captions and questions are part of that review: an art plate

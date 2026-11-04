@@ -8,7 +8,7 @@ exactly the bracket form it replaces ("[tag]"), so no chapter's rendered
 prose changes outside the Book.
 
 Matching a bare "[verified]"/"[internal]" tag in the eight Book chapters
-(whitepaper/textbook.json's chapters[].source) to a script and seed:
+(book/textbook.json's chapters[].source) to a script and seed:
 
   1. Only entries in docs/harbor-research/library-index.json whose
      chapters[] names the CURRENT chapter file are candidates -- an entry's
@@ -48,7 +48,7 @@ import re
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-TEXTBOOK_REL = "whitepaper/textbook.json"
+TEXTBOOK_REL = "book/textbook.json"
 INDEX_REL = "docs/harbor-research/library-index.json"
 
 TAG_RE = re.compile(r"\[(verified|internal)\]")

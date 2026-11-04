@@ -38,11 +38,10 @@ delete the chapter-local copies.
 
 SCOPE
 
-The chapter sources named by whitepaper/textbook.json, the Book's preamble,
+The chapter sources named by book/textbook.json, the Book's preamble,
 and the shared figures/pd-*.tex they all \\input. The shared figures exist as
-two byte-identical copies (one per source tree); only the canonical copy under
-whitepaper/figures/ is scanned, since the twins' identity is asserted by
-scripts/generate-mega-whitepaper.test.mjs.
+one canonical directory under book/figures/. The source-tree guard rejects
+TeX copies in either former authoring directory.
 
 Only \\newcommand is considered. \\renewcommand and \\def are deliberate
 overrides of something already defined, and pd-pedagogy.tex uses \\long\\def at
@@ -64,22 +63,20 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TEXTBOOK_JSON = REPO_ROOT / "whitepaper" / "textbook.json"
+TEXTBOOK_JSON = REPO_ROOT / "book" / "textbook.json"
 BOOK_PREAMBLE = (
     REPO_ROOT
-    / "website-v2"
-    / "public"
-    / "whitepaper"
+    / "book"
     / "coordination-papers-mega-volume-preamble.tex"
 )
-SHARED_FIGURES_DIR = REPO_ROOT / "whitepaper" / "figures"
+SHARED_FIGURES_DIR = REPO_ROOT / "book" / "figures"
 
 # Names allowed to carry more than one definition, each with the reason it is
 # not the defect above. An entry here is a record that a duplicate is
 # deliberate -- not a place to silence a new one.
 ALLOWED: dict[str, str] = {
     # Per-chapter by design: each chapter declares its own key into
-    # whitepaper/textbook.json, which figures/pd-textbook-map.tex reads.
+    # book/textbook.json, which figures/pd-textbook-map.tex reads.
     "pdchapterprefix": "per-chapter by design: each chapter's own textbook.json key",
     # Page-grammar placeholders. figures/pd-pedagogy.tex \long\def's each of
     # these at \AtBeginDocument time, AFTER every preamble has run, so the

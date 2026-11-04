@@ -8,7 +8,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / 'website-v2/public/whitepaper'
+WEB = ROOT / 'book'
 ART = WEB / 'plates/margin-evidence'
 RECORDS = [
     ('spawn-to-person.tex', 'stp-splice-continuity',
@@ -23,7 +23,7 @@ RECORDS = [
      'ch08-local-admission-turnstile',
      'e5a41d10a672e824159c4163918c3ed7478e6b715f367ee7c423a2edb94a1d12',
      'Like a visitor pass presented at a locally controlled turnstile,', "Consider this case:"),
-    (ROOT / 'whitepaper/single-writer-kernel.tex', 'batch3-ch01-ticket-dispenser',
+    (ROOT / 'book/single-writer-kernel.tex', 'batch3-ch01-ticket-dispenser',
      'ch01-fairness-ticket-dispenser',
      '6156226a0a48118f77296602de4ec03ace30e83a6bc05b29e08ac913ee23bb6c',
      'Like a ticket dispenser, the proposed lock would assign turns', 'It would introduce a'),

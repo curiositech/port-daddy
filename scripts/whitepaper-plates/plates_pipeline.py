@@ -85,7 +85,7 @@ def cream_on_hue(im, hue, ink=PAGE):
     return Image.fromarray(out.astype(np.uint8))
 
 def build_maritime(repo):
-    SP = Path(os.environ['SP']); PL = repo / 'website-v2/public/whitepaper/plates'; PL.mkdir(exist_ok=True)
+    SP = Path(os.environ['SP']); PL = repo / 'book/plates'; PL.mkdir(exist_ok=True)
     R3, R8 = SP / 'covers/out', SP / 'covers/r8'
     PLATES = {
      'jacket':       dict(src=R3 / 'G2-wash-machine.png', ratio=0.707, long=2300, q=88, fn=lambda im: inset(im, 0.055), note='cover wash (the beached moon), sheet edges cropped away, full bleed at A4'),
@@ -132,7 +132,7 @@ def build_swiss(repo, renders_dir):
     sys.path.insert(0, str(Path(__file__).parent))
     import swiss_prompts as SW
 
-    PL = repo / 'website-v2/public/whitepaper/plates/swiss'
+    PL = repo / 'book/plates/swiss'
     PL.mkdir(parents=True, exist_ok=True)
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
 

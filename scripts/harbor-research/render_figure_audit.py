@@ -66,8 +66,7 @@ BLOCKERS_REL = f"{FIGURES_DIR}/blockers.json"
 TRIAGE_REL = f"{FIGURES_DIR}/FIGURE-TRIAGE.md"
 
 FIGURE_DIRS = (
-    "whitepaper/figures",
-    "website-v2/public/whitepaper/figures",
+    "book/figures",
     "docs/harbor-research/figures",
 )
 

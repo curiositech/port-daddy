@@ -9,12 +9,12 @@ Its publication inventories are projected from `omni-ledger.json`
 `publication_program`; the other sections are derived from the named sources:
 
   results        <- docs/harbor-research/library-index.json   (every executed result)
-  estate         <- whitepaper/corpus.json                    (every mechanized artifact)
+  estate         <- book/corpus.json                    (every mechanized artifact)
   critiqueLedger <- docs/harbor-research/critique-ledger.json (every review item)
 
 The website keeps a byte-identical mirror at
 `website-v2/src/data/harborResearchProgram.json` (the same pattern as
-whitepaper/textbook.json -> website-v2/src/data/textbook.json), because the
+book/textbook.json -> website-v2/src/data/textbook.json), because the
 site build cannot reach outside its own tree.
 
 What this check enforces, so that a change to the program is a change the
@@ -57,9 +57,9 @@ PROGRAM = REPO / "docs/harbor-research/program.json"
 SCHEMA = REPO / "docs/harbor-research/program.schema.json"
 MIRROR = REPO / "website-v2/src/data/harborResearchProgram.json"
 LIBRARY_INDEX = REPO / "docs/harbor-research/library-index.json"
-CORPUS = REPO / "whitepaper/corpus.json"
+CORPUS = REPO / "book/corpus.json"
 CRITIQUE_LEDGER = REPO / "docs/harbor-research/critique-ledger.json"
-TEXTBOOK = REPO / "whitepaper/textbook.json"
+TEXTBOOK = REPO / "book/textbook.json"
 PAPER_TEX_DIR = REPO / "docs/harbor-research/tex"
 DEEP_DIVES_DIR = REPO / "docs/harbor-research/deep-dives"
 WRONG_TURNS_DIR = REPO / "docs/harbor-research/wrong-turns"
@@ -134,7 +134,7 @@ def derive_estate() -> dict:
         if a["status"] != "current"
     ]
     return {
-        "manifest": "whitepaper/corpus.json",
+        "manifest": "book/corpus.json",
         "formalArtifacts": len(formal),
         "researchProgramArtifacts": len(research),
         "ci": {"wired": ci.get("wired", 0), "retired": ci.get("retired", 0)},
@@ -379,7 +379,7 @@ def check(program: dict) -> list[str]:
         for item in program[key]:
             for ch in item.get("chapters", []):
                 if ch not in chapters:
-                    problems.append(f"{key}: {item.get('id')} cites chapter {ch}, not in whitepaper/textbook.json")
+                    problems.append(f"{key}: {item.get('id')} cites chapter {ch}, not in book/textbook.json")
 
     # 5. the program matches its own JSON Schema
     schema = load(SCHEMA)

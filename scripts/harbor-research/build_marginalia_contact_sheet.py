@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-MARGIN_DIR = ROOT / "website-v2/public/whitepaper/plates/margin-evidence"
+MARGIN_DIR = ROOT / "book/plates/margin-evidence"
 OUT_HTML = ROOT / "docs/harbor-research/exposition/marginalia-contact-sheet.html"
 
 # Complete 40-item curriculum across Chapters 1 to 8 (5 per chapter)

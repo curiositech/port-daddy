@@ -25,6 +25,10 @@ on:
     branches: [main]
     paths:
       - 'website-v2/**'
+      - 'book/**'
+      - 'scripts/build-book-source.py'
+      - 'scripts/stage-book-public-assets.mjs'
+      - 'scripts/verify-book-source-download.mjs'
       - '.github/workflows/deploy-website-v2.yml'
   workflow_dispatch:
 
@@ -61,6 +65,9 @@ jobs:
         working-directory: website-v2
         # --with-deps grabs apt packages chromium needs on Ubuntu runners.
         run: npx playwright install --with-deps chromium
+
+      - name: Verify the complete source archive is publicly readable
+        run: node scripts/verify-book-source-download.mjs
 
       - name: Build + snap rendered HTML
         working-directory: website-v2

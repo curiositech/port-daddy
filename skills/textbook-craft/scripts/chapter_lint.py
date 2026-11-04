@@ -48,13 +48,13 @@ Usage:
     python3 chapter_lint.py CH1.tex CH2.tex ... [--json] [--md] [--strict]
     python3 chapter_lint.py CHAPTER.tex --table   # force the one-table report
     python3 chapter_lint.py --strict              # no files given: lint every
-                                                    # chapter in whitepaper/textbook.json
+                                                    # chapter in book/textbook.json
 
 Given more than one chapter (or --table), the report becomes a single
 consolidated table -- one row per (chapter, floor) -- instead of N separate
 per-chapter reports, so a CI run over every chapter reads on one screen. Given
 NO chapter at all, the chapter list is read from the `source` field of every
-entry in whitepaper/textbook.json (same convention and same default-list
+entry in book/textbook.json (same convention and same default-list
 function shape as skills/tufte-evidence-design/scripts/margin_lint.py's
 default_chapter_sources) -- so a CI step never hard-codes the Book's eight
 chapter paths and picks up a ninth chapter for free the day textbook.json
@@ -91,7 +91,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # ---------------------------------------------------------------------------
-# Vocabulary, per whitepaper/figures/pd-pedagogy.tex and this project's own
+# Vocabulary, per book/figures/pd-pedagogy.tex and this project's own
 # maturity-grading macros (see references/sources.md and references/canon.md
 # for where each name comes from).
 # ---------------------------------------------------------------------------
@@ -476,7 +476,7 @@ def find_final_exercises_section(sections, cluster_positions=()):
 
     Picking the LAST top-level section whose title merely *contains* the
     word was wrong, and wrong in the direction that costs the most: in
-    website-v2/public/whitepaper/spawn-to-person.tex a later section titled
+    book/spawn-to-person.tex a later section titled
     "Open problems (the starred exercises, collected)" outranked the real
     \\section{Exercises}, and all 50 correctly-placed clusters were then
     reported as sitting outside it. Fifty false positives is worse than no
@@ -645,7 +645,7 @@ def imports_pd_pedagogy(text: str) -> bool:
 
 
 def find_pd_pedagogy_file(chapter_path: Path):
-    """Locate whitepaper/figures/pd-pedagogy.tex by walking upward from the
+    """Locate book/figures/pd-pedagogy.tex by walking upward from the
     chapter file's own location, the way \\input{figures/pd-pedagogy}
     resolves relative to a repo root -- rather than trusting a single
     hard-coded absolute path (the fragility a reviewer flagged). Works from
@@ -655,7 +655,7 @@ def find_pd_pedagogy_file(chapter_path: Path):
     if cur.is_file():
         cur = cur.parent
     for candidate in (cur, *cur.parents):
-        p = candidate / "whitepaper" / "figures" / "pd-pedagogy.tex"
+        p = candidate / "book" / "figures" / "pd-pedagogy.tex"
         if p.is_file():
             return p
     return None
@@ -851,7 +851,7 @@ def build_report(path: Path, apparatus=()) -> ChapterReport:
         else (f"all {len(claims)} claims carry an epistemic-kind tag" if claims else "no claim-like environments found"),
     }
 
-    # Item 3: dead-or-live is settled by parsing whitepaper/figures/pd-pedagogy.tex
+    # Item 3: dead-or-live is settled by parsing book/figures/pd-pedagogy.tex
     # itself (which macro names its \AtBeginDocument block actually
     # re-\long\def's), not by whether THIS chapter happens to \input it. A
     # fill=-drawing \newcommand whose name IS in that set is dead no matter
@@ -868,7 +868,7 @@ def build_report(path: Path, apparatus=()) -> ChapterReport:
     elif not live:
         tinted_detail = (
             f"{len(tinted)} legacy tinted-box macro(s) defined with a fill= node, but "
-            "whitepaper/figures/pd-pedagogy.tex's own \\AtBeginDocument block re-\\long\\def's "
+            "book/figures/pd-pedagogy.tex's own \\AtBeginDocument block re-\\long\\def's "
             "every one of their names as a run-in or margin head with plain prose -- the "
             "preamble definitions are cosmetic leftovers, never live at render time: "
             + ", ".join(f"{t['macro']} (line {t['line']})" for t in dead)
@@ -887,7 +887,7 @@ def build_report(path: Path, apparatus=()) -> ChapterReport:
             )
         )
         if pd_pedagogy_path is None:
-            tinted_detail += " [whitepaper/figures/pd-pedagogy.tex could not be located above this chapter's path]"
+            tinted_detail += " [book/figures/pd-pedagogy.tex could not be located above this chapter's path]"
     report.floors["no_tinted_box_macros"] = {"ok": not live, "detail": tinted_detail}
 
     # Item 5: getting the shared page grammar at all is a separate, harder
@@ -935,7 +935,7 @@ def build_report(path: Path, apparatus=()) -> ChapterReport:
     # subsection whose title says so. The template's actual rule ("at most
     # one philosophical frame per chapter, explicitly labelled, bounded,
     # skippable") also forbids the unlabelled kind, and the unlabelled kind
-    # is the common one: whitepaper/legible-swarm.tex runs Hobbes as its
+    # is the common one: book/legible-swarm.tex runs Hobbes as its
     # spine and Scott as its governing warning, both woven through ordinary
     # prose, and this floor counted 0 and printed PASS -- a clean verdict on
     # the worst instance of the thing it checks. No regex fixes that, and a
@@ -1133,11 +1133,11 @@ def render_consolidated_md(reports: list) -> str:
 
 def default_chapter_sources(repo_root: Path) -> list:
     """The Book's own chapter list, straight from the `source` field of every
-    entry in whitepaper/textbook.json -- so a caller (this script's own CLI
+    entry in book/textbook.json -- so a caller (this script's own CLI
     with no files given, or a CI step) never hard-codes a chapter path list
     that can drift from the manifest that actually governs chapter order.
     Same shape as margin_lint.py's function of the same name."""
-    textbook_path = repo_root / "whitepaper" / "textbook.json"
+    textbook_path = repo_root / "book" / "textbook.json"
     data = json.loads(textbook_path.read_text(encoding="utf-8"))
     return [repo_root / ch["source"] for ch in data["chapters"]]
 
@@ -1145,7 +1145,7 @@ def default_chapter_sources(repo_root: Path) -> list:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("chapters", nargs="*", type=Path,
-                     help="Path(s) to .tex chapter file(s); default: every chapter in whitepaper/textbook.json")
+                     help="Path(s) to .tex chapter file(s); default: every chapter in book/textbook.json")
     ap.add_argument("--json", action="store_true", help="Emit a JSON report instead of text")
     ap.add_argument("--md", action="store_true", help="Emit a markdown report instead of text")
     gates = ap.add_mutually_exclusive_group()
@@ -1170,7 +1170,7 @@ def main(argv=None) -> int:
         try:
             chapters = default_chapter_sources(args.repo_root)
         except Exception as exc:  # noqa: BLE001
-            print(f"error: could not read chapter sources from whitepaper/textbook.json: {exc}", file=sys.stderr)
+            print(f"error: could not read chapter sources from book/textbook.json: {exc}", file=sys.stderr)
             return 2
 
     for c in chapters:

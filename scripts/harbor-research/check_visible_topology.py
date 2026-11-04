@@ -4,7 +4,7 @@ import json
 import re
 
 root = Path(__file__).resolve().parents[2]
-tex = (root / 'website-v2/public/whitepaper/figures/fig-fh-visible-topology.tex').read_text()
+tex = (root / 'book/figures/fig-fh-visible-topology.tex').read_text()
 vertices = set('ABCDEFG')
 def edge(u, v):
     return tuple(sorted((u, v)))

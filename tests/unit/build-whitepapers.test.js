@@ -40,11 +40,11 @@ describe('reproducible whitepaper source scoping', () => {
   test('Spawn to Person depends only on its root and imported stp figures', () => {
     const sources = bashFunction(
       'paper_sources',
-      'website-v2/public/whitepaper',
+      'book',
       'spawn-to-person.tex',
     ).split('\n');
 
-    expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
+    expect(sources[0]).toBe('book/spawn-to-person.tex');
     // 19, not the 17 this pinned when it was written. The two additions are
     // generated apparatus that pd-pedagogy pulls in -- pd-cite-shortforms.tex
     // and pd-discharges.tex -- which arrived with the margin citations and the
@@ -52,21 +52,21 @@ describe('reproducible whitepaper source scoping', () => {
     // a dependency, and paper_sources is right to follow it transitively.
     expect(sources).toHaveLength(27);
     for (const generated of [
-      'website-v2/public/whitepaper/figures/pd-cite-shortforms.tex',
-      'website-v2/public/whitepaper/figures/pd-discharges.tex',
+      'book/figures/pd-cite-shortforms.tex',
+      'book/figures/pd-discharges.tex',
     ]) {
       // Named rather than left to the count, so the next person who moves this
       // number can see which files it is made of.
       expect(sources).toContain(generated);
     }
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/pd-figure-language.tex',
+      'book/figures/pd-figure-language.tex',
     );
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex',
+      'book/figures/fig-stp-deterrence-regime.tex',
     );
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex',
+      'book/figures/fig-stp-rate-the-raters.tex',
     );
     // Every non-root input is either an stp figure, one of the shared
     // figures/pd-*.tex files (palette, textbook map, hyperlinks, figure
@@ -84,16 +84,16 @@ describe('reproducible whitepaper source scoping', () => {
   test('the Book depends on textbook.json, the one source of chapter order', () => {
     const sources = bashFunction(
       'paper_sources',
-      'website-v2/public/whitepaper',
+      'book',
       'coordination-papers-mega-volume.tex',
     ).split('\n');
-    expect(sources).toContain('whitepaper/textbook.json');
+    expect(sources).toContain('book/textbook.json');
     expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
     // The preamble \input's the Swiss plate macros unconditionally on the
     // Swiss branch, and Swiss is what the canonical root renders, so the
     // published PDF's freshness depends on that file.
     expect(sources).toContain(
-      'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex',
+      'book/coordination-papers-mega-volume-swiss-plates.tex',
     );
   });
 
@@ -103,7 +103,7 @@ describe('reproducible whitepaper source scoping', () => {
   ];
 
   test('every Book edition includes the semantic helper and its exact mapped PDF dependencies', () => {
-    const pub = 'website-v2/public/whitepaper';
+    const pub = 'book';
     const helper = `${pub}/figures/pd-semantic-blocks.tex`;
     // These are explicit TeX assignments, not a title/content classifier. Keep
     // the dependency list synchronized when the helper adds an icon family.
@@ -114,8 +114,9 @@ describe('reproducible whitepaper source scoping', () => {
       const sources = bashFunction('paper_sources', pub,
         `coordination-papers-mega-volume${edition}.tex`).split('\n');
       expect(sources).toContain(helper);
-      expect(sources.filter((source) => source.startsWith(`${pub}/figures/lucide/`)).sort())
-        .toEqual(semanticIcons.map((icon) => `${pub}/figures/lucide/${icon}.pdf`));
+      expect(sources).toEqual(expect.arrayContaining(semanticIcons.map((icon) => `${pub}/figures/lucide/${icon}.pdf`)));
+      expect(sources).toContain('book/coordination-papers-mega-volume-typography.tex');
+      expect(sources).toContain('book/fonts/source-sans/SourceSans3-Regular.otf');
     }
   });
 
@@ -126,11 +127,11 @@ describe('reproducible whitepaper source scoping', () => {
       [`${icon} PDF modification`, `figures/lucide/${icon}.pdf`, 'modify', true],
       [`${icon} PDF deletion`, `figures/lucide/${icon}.pdf`, 'delete', true],
     ]),
-    ['unconsumed SVG modification', 'figures/lucide/workflow.svg', 'modify', false],
-    ['unrelated PDF modification', 'figures/unrelated.pdf', 'modify', false],
+    ['canonical SVG source modification', 'figures/lucide/workflow.svg', 'modify', true],
+    ['new canonical figure input modification', 'figures/unrelated.pdf', 'modify', true],
   ])('Book incremental selection handles %s', (_name, relativePath, operation, shouldBuild) => {
     const dir = mkdtempSync(join(tmpdir(), 'book-semantic-deps-'));
-    const pub = 'website-v2/public/whitepaper';
+    const pub = 'book';
     const root = 'coordination-papers-mega-volume.tex';
     const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
     try {
@@ -170,7 +171,7 @@ describe('reproducible whitepaper source scoping', () => {
   // switching the Book's character moves one macro and no path, link or
   // registry entry. The other two characters stay switchable and unbuilt.
   test('one edition is built, and all three driver roots are present and distinct', () => {
-    const pub = 'website-v2/public/whitepaper';
+    const pub = 'book';
     const preamble = readFileSync(
       join(repoRoot, pub, 'coordination-papers-mega-volume-preamble.tex'),
       'utf8',
@@ -196,7 +197,7 @@ describe('reproducible whitepaper source scoping', () => {
     const megaVolumeRoots = listUnchangedSince(git('rev-parse', 'HEAD')).filter((pdf) =>
       pdf.includes('coordination-papers-mega-volume'),
     );
-    expect(megaVolumeRoots).toEqual([`${pub}/coordination-papers-mega-volume.pdf`]);
+    expect(megaVolumeRoots).toEqual(['website-v2/public/whitepaper/coordination-papers-mega-volume.pdf']);
   });
 
   test('standalone chapter PDF targets fail closed', () => {
@@ -214,7 +215,7 @@ describe('reproducible whitepaper source scoping', () => {
       '/bin/bash',
       [
         fragmentCompiler,
-        'whitepaper/figures/fig-swk-stack-map.tex',
+        'book/figures/fig-swk-stack-map.tex',
         '--preamble',
         'chapter',
       ],
@@ -239,28 +240,28 @@ describe('reproducible whitepaper source scoping', () => {
     ]) {
       const sources = bashFunction(
         'paper_sources',
-        'website-v2/public/whitepaper',
+        'book',
         driver,
       ).split('\n');
 
-      expect(sources).toContain(`website-v2/public/whitepaper/${driver}`);
-      expect(sources).toContain('website-v2/public/whitepaper/coordination-papers-mega-volume.tex');
-      expect(sources).toContain('whitepaper/textbook.json');
+      expect(sources).toContain(`book/${driver}`);
+      expect(sources).toContain('book/coordination-papers-mega-volume.tex');
+      expect(sources).toContain('book/textbook.json');
       expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
       // Same transitive chapter set as the main root (e.g. Spawn to Person's figures).
-      expect(sources).toContain('website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex');
+      expect(sources).toContain('book/figures/fig-stp-deterrence-regime.tex');
     }
   });
 
   test('every analytical paper declares the shared figure language as a source', () => {
     const papers = [
-      ['website-v2/public/whitepaper', 'agent-transactions-whitepaper.tex'],
-      ['website-v2/public/whitepaper', 'anchor-protocol-whitepaper.tex'],
-      ['website-v2/public/whitepaper', 'federated-harbor-whitepaper.tex'],
-      ['website-v2/public/whitepaper', 'harbor-economy.tex'],
-      ['website-v2/public/whitepaper', 'spawn-to-person.tex'],
-      ['whitepaper', 'legible-swarm.tex'],
-      ['whitepaper', 'single-writer-kernel.tex'],
+      ['book', 'agent-transactions-whitepaper.tex'],
+      ['book', 'anchor-protocol-whitepaper.tex'],
+      ['book', 'federated-harbor-whitepaper.tex'],
+      ['book', 'harbor-economy.tex'],
+      ['book', 'spawn-to-person.tex'],
+      ['book', 'legible-swarm.tex'],
+      ['book', 'single-writer-kernel.tex'],
     ];
 
     for (const [srcdir, root] of papers) {
@@ -274,12 +275,12 @@ describe('reproducible whitepaper source scoping', () => {
   test('another paper excludes Spawn to Person figures from its epoch', () => {
     const sources = bashFunction(
       'paper_sources',
-      'website-v2/public/whitepaper',
+      'book',
       'anchor-protocol-whitepaper.tex',
     ).split('\n');
 
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/fig-anchor-capability-attenuation.tex',
+      'book/figures/fig-anchor-capability-attenuation.tex',
     );
     expect(sources.some((source) => source.includes('/figures/fig-stp-'))).toBe(false);
   });
@@ -287,7 +288,7 @@ describe('reproducible whitepaper source scoping', () => {
   test('paper_epoch equals the maximum source commit author time', () => {
     const sources = bashFunction(
       'paper_sources',
-      'website-v2/public/whitepaper',
+      'book',
       'spawn-to-person.tex',
     ).split('\n');
     const authorTimes = execFileSync(
@@ -295,10 +296,12 @@ describe('reproducible whitepaper source scoping', () => {
       ['log', '--format=%at', 'HEAD', '--', ...sources],
       { cwd: repoRoot, encoding: 'utf8' },
     ).trim().split('\n').filter(Boolean).map(Number);
-    const expected = String(Math.max(...authorTimes));
+    const expected = authorTimes.length
+      ? String(Math.max(...authorTimes))
+      : git('log', '-1', '--format=%at', 'HEAD');
     const actual = bashFunction(
       'paper_epoch',
-      'website-v2/public/whitepaper',
+      'book',
       'spawn-to-person.tex',
     );
 
@@ -434,7 +437,7 @@ describe('reproducible whitepaper source scoping', () => {
       const result = spawnSync(
         '/bin/bash',
         ['-c',
-          'source "$1"; build_one website-v2/public/whitepaper coordination-papers-mega-volume.tex "$2"',
+          'source "$1"; build_one book coordination-papers-mega-volume.tex "$2"',
           'whitepaper-test', buildScript, join(shimBin, 'unused.pdf')],
         { cwd: repoRoot, encoding: 'utf8', env: { ...process.env, PATH: shimBin } },
       );

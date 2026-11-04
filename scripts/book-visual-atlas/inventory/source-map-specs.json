@@ -3,7 +3,7 @@
     {
       "id": "v00024",
       "sourceDependency": {
-        "path": "website-v2/public/whitepaper/figures/pd-swiss-evidence.tex",
+        "path": "book/figures/pd-swiss-evidence.tex",
         "lineStart": 221,
         "lineEnd": 243,
         "sha256": "9424f6268920e4537aad2106ac1250bba8946da243e66d742524ddc4f6d69adf",
@@ -15,7 +15,7 @@
     {
       "id": "v00702",
       "sourceDependency": {
-        "path": "website-v2/public/whitepaper/figures/pd-swiss-evidence.tex",
+        "path": "book/figures/pd-swiss-evidence.tex",
         "lineStart": 243,
         "lineEnd": 253,
         "sha256": "9424f6268920e4537aad2106ac1250bba8946da243e66d742524ddc4f6d69adf",
@@ -32,7 +32,7 @@
         "v00312"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "path": "book/figures/pd-margin-sketches.tex",
         "lineStart": 38,
         "lineEnd": 59,
         "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
@@ -47,7 +47,7 @@
         "v00329"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "path": "book/figures/pd-margin-sketches.tex",
         "lineStart": 59,
         "lineEnd": 81,
         "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
@@ -62,7 +62,7 @@
         "v00435"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "path": "book/figures/pd-margin-sketches.tex",
         "lineStart": 81,
         "lineEnd": 103,
         "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
@@ -77,7 +77,7 @@
         "v00451"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "path": "book/figures/pd-margin-sketches.tex",
         "lineStart": 103,
         "lineEnd": 132,
         "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
@@ -94,7 +94,7 @@
         "v00517"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "path": "book/figures/pd-margin-sketches.tex",
         "lineStart": 132,
         "lineEnd": 160,
         "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
@@ -110,7 +110,7 @@
         "v00575"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "path": "book/figures/pd-margin-sketches.tex",
         "lineStart": 160,
         "lineEnd": 180,
         "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
@@ -125,7 +125,7 @@
         "v00697"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "path": "book/figures/pd-margin-sketches.tex",
         "lineStart": 180,
         "lineEnd": 198,
         "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
@@ -140,7 +140,7 @@
         "v00692"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
+        "path": "book/figures/pd-margin-sketches.tex",
         "lineStart": 198,
         "lineEnd": 213,
         "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e",
@@ -165,7 +165,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-revocation-gossip.tex",
+          "path": "book/figures/spark-revocation-gossip.tex",
           "lineStart": 1,
           "lineEnd": 25,
           "sha256": "46e4d9386cc8707924b0f3057e6f17930dade5feb9a882bb118577d28b63309b",
@@ -190,7 +190,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-canary-power.tex",
+          "path": "book/figures/spark-canary-power.tex",
           "lineStart": 1,
           "lineEnd": 29,
           "sha256": "0569d0cb216fdf0b3701b554c9a8efc16ce0180be89d004987a3fc39684ed83a",
@@ -215,7 +215,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-canary-hypergeom.tex",
+          "path": "book/figures/spark-canary-hypergeom.tex",
           "lineStart": 1,
           "lineEnd": 26,
           "sha256": "e23ad49d9dfa09cae8d4938b6cde0b4a5c951e37077d0cf7f3bc35b4ebcedbaa",
@@ -240,7 +240,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-wald-sprt.tex",
+          "path": "book/figures/spark-wald-sprt.tex",
           "lineStart": 1,
           "lineEnd": 28,
           "sha256": "86321798a561d8257ab863ab1a5eb30efb8f50e857bef209277022767929104c",
@@ -265,7 +265,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-escalation-threshold.tex",
+          "path": "book/figures/spark-escalation-threshold.tex",
           "lineStart": 1,
           "lineEnd": 26,
           "sha256": "e3a93b904f381f88f9c3c29bca06a13a63e412b51a6d570bfca8fea278dd1c18",
@@ -292,7 +292,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-stp-audit-depth.tex",
+          "path": "book/figures/spark-stp-audit-depth.tex",
           "lineStart": 1,
           "lineEnd": 30,
           "sha256": "78e8129ab610c0613492f31229e26f3ac2c347a4a933a8fea4b3de0aadcc4784",
@@ -317,7 +317,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-welfare-loss.tex",
+          "path": "book/figures/spark-welfare-loss.tex",
           "lineStart": 1,
           "lineEnd": 24,
           "sha256": "3fa4f82669eb41ca87ec651e5dd1e6f7c5a3ec03eb2e20abe9ecbc8c9c126947",
@@ -342,7 +342,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-bonded-deviation.tex",
+          "path": "book/figures/spark-bonded-deviation.tex",
           "lineStart": 1,
           "lineEnd": 19,
           "sha256": "84014a2f183efa3f47c7a9a67aacdf6704a44c0aa2995bf10e569dcf7eede2ad",
@@ -367,7 +367,7 @@
       },
       "sourceDependencies": [
         {
-          "path": "whitepaper/figures/spark-fh-cycle-radius.tex",
+          "path": "book/figures/spark-fh-cycle-radius.tex",
           "lineStart": 1,
           "lineEnd": 20,
           "sha256": "eb7992994caac1642835139cc73c9c0ebd48a814a7c258175a8b76fce3547e30",
@@ -424,7 +424,7 @@
         "v00689"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-evidence.tex",
+        "path": "book/figures/pd-margin-evidence.tex",
         "lineStart": 48,
         "lineEnd": 61,
         "sha256": "c7a22e9489d8f0a2b6d4b2bc6ed0b78cd2b95be298d31d24399398a66527e095",
@@ -439,7 +439,7 @@
         "v00698"
       ],
       "source": {
-        "path": "website-v2/public/whitepaper/figures/pd-margin-evidence.tex",
+        "path": "book/figures/pd-margin-evidence.tex",
         "lineStart": 34,
         "lineEnd": 48,
         "sha256": "c7a22e9489d8f0a2b6d4b2bc6ed0b78cd2b95be298d31d24399398a66527e095",

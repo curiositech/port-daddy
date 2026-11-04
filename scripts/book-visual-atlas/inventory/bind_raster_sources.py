@@ -4,7 +4,7 @@ from pathlib import Path
 import fitz
 from PIL import Image
 b=Path('.scratch/visual-atlas/inventory');a=json.loads((b/'atlas.json').read_text());matches={}
-for p in sorted(Path('website-v2/public/whitepaper/plates').rglob('*')):
+for p in sorted(Path('book/plates').rglob('*')):
     if p.suffix.lower()not in ('.jpg','.jpeg','.png','.webp'):continue
     variants=[]
     try:variants.append((fitz.Pixmap(str(p)).digest.hex(),'exact decoded image MD5 (PyMuPDF)'))
@@ -15,7 +15,7 @@ for p in sorted(Path('website-v2/public/whitepaper/plates').rglob('*')):
         value=dict(path=str(p),sha256=hashlib.sha256(p.read_bytes()).hexdigest(),method=method)
         if not any(x['path']==str(p)for x in matches.get(key,[])):matches.setdefault(key,[]).append(value)
 aliases={}
-for folder in ['website-v2/public/whitepaper','whitepaper']:
+for folder in ['book','book']:
     for path in sorted(Path(folder).rglob('*')):
         if path.suffix.lower()in ('.jpg','.jpeg','.png','.webp'):
             aliases.setdefault(hashlib.sha256(path.read_bytes()).hexdigest(),[]).append(str(path))

@@ -27,13 +27,13 @@ on:
       - 'analyses/**'
       - 'core/harbor-card-rs/**'
       - 'scripts/proofs/**'
-      - 'whitepaper/corpus.json'
-      - 'whitepaper/corpus.schema.json'
+      - 'book/corpus.json'
+      - 'book/corpus.schema.json'
       - 'scripts/check-whitepaper-corpus.mjs'
       - 'tests/unit/whitepaper-corpus.test.js'
       - 'tests/unit/proverif-runner-comparison.test.mjs'
       - '.github/workflows/proofs.yml'
-      - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+      - 'book/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
       - 'docs/harbor-research/research/claim-audit-example.json'
   pull_request:
@@ -43,13 +43,13 @@ on:
       - 'analyses/**'
       - 'core/harbor-card-rs/**'
       - 'scripts/proofs/**'
-      - 'whitepaper/corpus.json'
-      - 'whitepaper/corpus.schema.json'
+      - 'book/corpus.json'
+      - 'book/corpus.schema.json'
       - 'scripts/check-whitepaper-corpus.mjs'
       - 'tests/unit/whitepaper-corpus.test.js'
       - 'tests/unit/proverif-runner-comparison.test.mjs'
       - '.github/workflows/proofs.yml'
-      - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+      - 'book/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
       - 'docs/harbor-research/research/claim-audit-example.json'
   # Merge queue: trigger on the queued group so every proof job reports a check
@@ -432,7 +432,7 @@ jobs:
   # (*_vuln*.pv, *naive_unsound*.pv) genuinely fails its query (so the checker
   # itself can't go vacuous). skills/pd-relay-zero-trust/templates/proverif-relay.pv
   # is a skill teaching template, not a claim about this repo's protocol, and is
-  # deliberately out of the runner's two scan roots (see whitepaper/corpus.json).
+  # deliberately out of the runner's two scan roots (see book/corpus.json).
   proverif-estate:
     if: github.event_name != 'merge_group'
     name: ProVerif / model estate (2.05)
@@ -771,7 +771,7 @@ jobs:
             proofs/relay/WebhookDelivery_vuln.tlc.log
 
   # ── Proof-estate manifest: WIRED or RETIRED, no third state ─────────────────
-  # whitepaper/corpus.json is the ledger every formal artifact and R-script
+  # book/corpus.json is the ledger every formal artifact and R-script
   # must appear in; scripts/check-whitepaper-corpus.mjs fails the build if an
   # on-disk formal artifact (or #[kani::proof] harness) is unregistered, or if
   # a registered path is missing on disk. Node/stdlib-only; no TLA+/Z3/

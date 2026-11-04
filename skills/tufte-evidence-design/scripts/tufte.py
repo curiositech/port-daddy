@@ -14,7 +14,7 @@ Subcommands:
   margin-lint <tex...> [--json]
       Delegates to margin_lint.py (this skill's mechanical margin-apparatus
       checker). With no files, margin_lint.py's own default applies: the
-      Book's eight chapter sources, read from whitepaper/textbook.json.
+      Book's eight chapter sources, read from book/textbook.json.
 
   checklist <kind>
       Prints one checklist from SKILL.md's "## Checklists" section, matched

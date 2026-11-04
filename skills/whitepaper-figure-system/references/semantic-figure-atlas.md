@@ -95,7 +95,7 @@ the claim. Radial "organs" and sand-dollar rings are forbidden unless radial ord
 
 ## Volume I: The Legible Swarm
 
-Canonical root: `whitepaper/legible-swarm.tex` (17 figures).
+Canonical root: `book/legible-swarm.tex` (17 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -123,7 +123,7 @@ Canonical root: `whitepaper/legible-swarm.tex` (17 figures).
 
 ## Volume II: The Single-Writer Kernel
 
-Canonical root: `whitepaper/single-writer-kernel.tex` (10 graphical figures, 2 recorded terminal
+Canonical root: `book/single-writer-kernel.tex` (10 graphical figures, 2 recorded terminal
 sessions set as listings, and 2 algorithm exhibits). The seven-organs, communication-organ and
 deontic-split exhibits are tables in the chapter (round 4, 2026-09-06); the bouncer sketch and the
 dual-runtime mirror were cut with a written rationale in the figure triage.
@@ -164,7 +164,7 @@ dual-runtime mirror were cut with a written rationale in the figure triage.
 
 ## Volume III: From Spawn to Person
 
-Canonical root: `website-v2/public/whitepaper/spawn-to-person.tex` (13 figures).
+Canonical root: `book/spawn-to-person.tex` (13 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -187,7 +187,7 @@ Canonical root: `website-v2/public/whitepaper/spawn-to-person.tex` (13 figures).
 
 ## Volume IV: The Harbor Economy
 
-Canonical root: `website-v2/public/whitepaper/harbor-economy.tex` (15 figures).
+Canonical root: `book/harbor-economy.tex` (15 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -226,7 +226,7 @@ five rows are the best inventory of what would be lost by deleting them.
 
 ## Volume V: The Anchor Protocol
 
-Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (9 figures).
+Canonical root: `book/anchor-protocol-whitepaper.tex` (9 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -244,7 +244,7 @@ Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (9
 
 ## Volume VI: The Bonded Commons
 
-Canonical root: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` (12 figures).
+Canonical root: `book/agent-transactions-whitepaper.tex` (12 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -270,7 +270,7 @@ Canonical root: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex`
 
 ## Volume VII: The Federated Harbor
 
-Canonical root: `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` (5 figures).
+Canonical root: `book/federated-harbor-whitepaper.tex` (5 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -291,7 +291,7 @@ Canonical root: `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` (
 
 ## Volume VIII: The Sealed Harbor
 
-Canonical root: `website-v2/public/whitepaper/sealed-harbor.tex` (5 graphical figures; drawn in
+Canonical root: `book/sealed-harbor.tex` (5 graphical figures; drawn in
 wave 4 under figcheck, the reference set for the legibility rubric).
 
 | Stable ID | Reader question | Prescribed grammar | Must distinguish | Rejected grammar |

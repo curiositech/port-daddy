@@ -59,7 +59,7 @@ argument (`\pdexercisepointer`/`\pdexercisepointerone`). This is not a style
 preference — it is Wave 12's own measured finding (`READING-FLOW-AUDIT.md`
 F1): "exercises interrupted the argument in triples after almost every
 section," fixed by "mov[ing] to chapter-end Exercises sections with margin
-pointers." `whitepaper/single-writer-kernel.tex`'s `\exercises{...}` blocks,
+pointers." `book/single-writer-kernel.tex`'s `\exercises{...}` blocks,
 scattered after nine subsections, are the *pre-fix* pattern —
 `scripts/chapter_lint.py` detects exactly this and reports it as a floor
 violation, not a style note.

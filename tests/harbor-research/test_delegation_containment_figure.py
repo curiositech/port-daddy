@@ -7,8 +7,8 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT/'whitepaper/figures/fig-swk-delegation-chains.tex'
-CHAPTER = ROOT/'whitepaper/single-writer-kernel.tex'
+FIGURE = ROOT/'book/figures/fig-swk-delegation-chains.tex'
+CHAPTER = ROOT/'book/single-writer-kernel.tex'
 
 
 def source_contract(source):

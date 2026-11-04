@@ -100,7 +100,7 @@ describe('the offload rule is mechanical', () => {
     // website-v2/public is copied into dist by vite; a plate is resolved by
     // pdflatex. An unreachable R2 must never be able to break a build.
     expect(isOffloadable('website-v2/public/whitepaper/coordination-papers-mega-volume.pdf')).toBe(false);
-    expect(isOffloadable('website-v2/public/whitepaper/plates/swiss/cover.jpg')).toBe(false);
+    expect(isOffloadable('book/plates/swiss/cover.jpg')).toBe(false);
     expect(isOffloadable('core/pd-console/fixtures/frame.png')).toBe(false);
   });
 

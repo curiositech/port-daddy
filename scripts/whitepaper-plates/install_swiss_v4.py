@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import swiss_prompts_v4 as v4  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PLATE_DIR = os.path.join(REPO, "website-v2", "public", "whitepaper", "plates", "swiss")
+PLATE_DIR = os.path.join(REPO, "book", "plates", "swiss")
 
 # name -> (final aspect string, (width, height)).
 #

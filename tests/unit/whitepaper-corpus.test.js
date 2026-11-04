@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const repoRoot = process.cwd();
-const corpus = JSON.parse(readFileSync(resolve(repoRoot, 'whitepaper/corpus.json'), 'utf8'));
+const corpus = JSON.parse(readFileSync(resolve(repoRoot, 'book/corpus.json'), 'utf8'));
 
 describe('proof-estate corpus manifest', () => {
   test('the checker accepts the current manifest against the current (unmoved) layout', () => {

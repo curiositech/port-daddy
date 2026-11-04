@@ -4,7 +4,7 @@
 stdlib-only (unittest, tempfile, subprocess), same pattern as
 test_check_marginalia_sidecars.py: each test builds a small, self-contained
 fixture repo under a tempdir (one chapter .tex file, and a
-website-v2/public/whitepaper/plates/marginalia/ directory when the fixture
+book/plates/marginalia/ directory when the fixture
 needs a plate) and runs the real checker against it with --repo-root, so
 these tests exercise the actual CLI a developer or CI runs.
 
@@ -23,7 +23,7 @@ from tempfile import TemporaryDirectory
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CHECKER = REPO_ROOT / "skills" / "tufte-evidence-design" / "scripts" / "margin_lint.py"
-PLATES_REL = Path("website-v2") / "public" / "whitepaper" / "plates" / "marginalia"
+PLATES_REL = Path("book") / "plates" / "marginalia"
 
 VALID_SIDECAR = {
     "subject": "Test Subject",
@@ -376,7 +376,7 @@ class TestProvedOnResolves(unittest.TestCase):
     closed on the other direction (an entry whose target label has moved), so
     this rule closes the pair."""
 
-    DISCHARGES_REL = Path("website-v2") / "public" / "whitepaper" / "figures" / "pd-discharges.tex"
+    DISCHARGES_REL = Path("book") / "figures" / "pd-discharges.tex"
 
     def write_discharges(self, repo: Path, labels: list[str]) -> None:
         path = repo / self.DISCHARGES_REL

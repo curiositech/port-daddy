@@ -87,7 +87,7 @@ def build(inventory,output,review_paths,screening=None,source_root=None):
         try:relative=candidate.relative_to(repo)
         except ValueError:return candidate.as_uri()
         # Source evidence only; neither crawl the repository nor export unrelated secrets.
-        if relative.parts[0] not in ('whitepaper','website-v2','scripts','skills','docs','proofs','analyses','.cache'):return candidate.as_uri()
+        if relative.parts[0] not in ('book','website-v2','scripts','skills','docs','proofs','analyses','.cache'):return candidate.as_uri()
         dest=out/'source-files'/relative;dest.parent.mkdir(parents=True,exist_ok=True)
         if str(candidate) not in snapshots:
             shutil.copyfile(candidate,dest);snapshots[str(candidate)]={'originalPath':str(relative),'snapshot':str(dest.relative_to(out)),'sha256':hashlib.sha256(candidate.read_bytes()).hexdigest()}

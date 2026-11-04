@@ -13,7 +13,7 @@ test('generator rejects a citation with no chapter-local bibliography entry', {
 }, () => {
   const root = makeFixture();
   try {
-    injectAfterDocumentStart(root, 'whitepaper/legible-swarm.tex', '\\cite{purserMissingCitation}');
+    injectAfterDocumentStart(root, 'book/legible-swarm.tex', '\\cite{purserMissingCitation}');
     const result = runGenerator(root);
 
     assert.notEqual(result.status, 0);

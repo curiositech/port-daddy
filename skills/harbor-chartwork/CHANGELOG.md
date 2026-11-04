@@ -98,7 +98,7 @@
 ## v1.0.0 (2026-09-06)
 
 - Initial skill: deterministic figure-QA tooling for the three Harbor TikZ
-  corpora (website-v2/public/whitepaper/figures, whitepaper/figures,
+  corpora (book/figures, book/figures,
   docs/harbor-research/figures).
 - `scripts/compile_fragment.sh`: wraps and compiles one bare fragment
   standalone, reusing the real chapter/paper preamble verbatim.

@@ -10,7 +10,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-CHAPTER = ROOT/'website-v2/public/whitepaper/spawn-to-person.tex'
+CHAPTER = ROOT/'book/spawn-to-person.tex'
 OPEN = r'\begin{definition}[Sanction-respecting reputation]'
 
 

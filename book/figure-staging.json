@@ -1,0 +1,8 @@
+{
+  "purpose": "Temporary inventory for figure sources that exist but are not yet input by an assembled-Book chapter.",
+  "fragments": [
+    "book/figures/icos-margin-specimens.tex",
+    "book/figures/fig-swk-marker-renewal.tex",
+    "book/figures/fig-swk-workunit-crimes.tex"
+  ]
+}

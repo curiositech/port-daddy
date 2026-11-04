@@ -1,0 +1,3117 @@
+{
+  "archive": {
+    "bytes": 40221763,
+    "contentType": "application/gzip",
+    "file": "coordination-papers-mega-volume-source.tar.gz",
+    "key": "book/source/sha256/f34c9bb0fda5433e1579f9ad92776a556cc6331a95c2a78488108bb5b593dbf9.tar.gz",
+    "sha256": "f34c9bb0fda5433e1579f9ad92776a556cc6331a95c2a78488108bb5b593dbf9",
+    "url": "https://media.portdaddy.dev/book/source/sha256/f34c9bb0fda5433e1579f9ad92776a556cc6331a95c2a78488108bb5b593dbf9.tar.gz"
+  },
+  "build": {
+    "defaultFontProfile": "open-proof",
+    "entrypoint": "book/BUILDING.sh",
+    "nodeMajor": 22,
+    "publicationFonts": "Exact published Suisse typography requires separately licensed private Suisse fonts; they are not included.",
+    "pythonMinimum": "3.10",
+    "sourceDateEpoch": 1700000000,
+    "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
+  },
+  "manifestSha256": "05ad67254fe34835254386353065c045b3c597b199d04d860b29c164a5fdc752",
+  "schemaVersion": 1,
+  "source": {
+    "fileCount": 515,
+    "files": [
+      {
+        "bytes": 1202,
+        "mode": 420,
+        "path": "LICENSE",
+        "sha256": "f80cb91f12a65f61b025092d62dbc9565d3bbf1d731005059f7529d0f013ee51"
+      },
+      {
+        "bytes": 3812,
+        "mode": 420,
+        "path": "book/BUILDING.md",
+        "sha256": "d5f028a1972abc5011eaa1183fd23cd44893f208c78c8771bb90ca74763a8f7f"
+      },
+      {
+        "bytes": 1216,
+        "mode": 493,
+        "path": "book/BUILDING.sh",
+        "sha256": "cc87d30a2fd82dec82037aa4846d99b22d0335abd5a37eaece9011bea3093122"
+      },
+      {
+        "bytes": 220960,
+        "mode": 420,
+        "path": "book/agent-transactions-whitepaper.tex",
+        "sha256": "6d8246888a37e5e62140b329661f6aa50376c348e3f97d8d0b13496c706ccf39"
+      },
+      {
+        "bytes": 148284,
+        "mode": 420,
+        "path": "book/anchor-protocol-whitepaper.tex",
+        "sha256": "e10dd1b37532fdf05b9c62a19cf21c8b05f37454c4d90eec89738ad16b3314bd"
+      },
+      {
+        "bytes": 16074,
+        "mode": 420,
+        "path": "book/book-sol-anchor.tex",
+        "sha256": "c812920b04d11993488aec067a7b0bcafee4f7ce6c1e22d6dd5efff01503bb32"
+      },
+      {
+        "bytes": 24156,
+        "mode": 420,
+        "path": "book/book-sol-bonded.tex",
+        "sha256": "76830dee3670c2a31cf666604341c082e8383fbedbd77ee6afa9807876668e8b"
+      },
+      {
+        "bytes": 23604,
+        "mode": 420,
+        "path": "book/book-sol-fh.tex",
+        "sha256": "6b997bbc1d11b0989dbf4ce0f74250b094e4578c43f7ace1bf786989a9d8d259"
+      },
+      {
+        "bytes": 29067,
+        "mode": 420,
+        "path": "book/book-sol-he.tex",
+        "sha256": "b1ecf286153b3c57ed36617bbe0f16d3fff07abdd55e43a0fe3517f12530b2e2"
+      },
+      {
+        "bytes": 33021,
+        "mode": 420,
+        "path": "book/book-sol-ls.tex",
+        "sha256": "91b19a0512ddb19a5cb89bf72cb844ae710bf42e52084adde807f692bead1524"
+      },
+      {
+        "bytes": 7217,
+        "mode": 420,
+        "path": "book/book-sol-sealed.tex",
+        "sha256": "654de205e5c1a44b9b226934e6a7ddd34dcd1d0622b5cb24c25ffdc00936e2e9"
+      },
+      {
+        "bytes": 21595,
+        "mode": 420,
+        "path": "book/book-sol-stp.tex",
+        "sha256": "6ea60ca6e3e0cc83e3d751ebe2d380183f88339f660c52aacd988c8284ac2fe6"
+      },
+      {
+        "bytes": 22018,
+        "mode": 420,
+        "path": "book/book-sol-swk.tex",
+        "sha256": "79fa4d29c459cf17eea6d94a3e808debfc3186edafe31f9c31ff61bd34ea5711"
+      },
+      {
+        "bytes": 262,
+        "mode": 420,
+        "path": "book/caption-layout-fixture.tex",
+        "sha256": "e1d958b716bcb102b66d249aefd7e2e1029acd5bbd0e0bd701ae8a28ac7e5917"
+      },
+      {
+        "bytes": 382,
+        "mode": 420,
+        "path": "book/caption-layout-no-persistence-fixture.tex",
+        "sha256": "6e57c58a8f22155854edf777f95bb2f5c4861ac80970739fdba38d76837a335f"
+      },
+      {
+        "bytes": 130143,
+        "mode": 420,
+        "path": "book/chapter-0-prerequisites.tex",
+        "sha256": "69a1e5de61e5cb53d52472efa65defa829b91addc5617797b5e9c1c40a480e87"
+      },
+      {
+        "bytes": 3858,
+        "mode": 420,
+        "path": "book/chapter-apparatus.json",
+        "sha256": "d392563bd9d987341befcb38d359a0bcdc74ac31652229e369fa8ee525e0cdc8"
+      },
+      {
+        "bytes": 43657,
+        "mode": 420,
+        "path": "book/citation-margin-entries.json",
+        "sha256": "43fdb485143b25f2705b62c7808160e2c5d039036ff973743c9604f64983d14c"
+      },
+      {
+        "bytes": 1770,
+        "mode": 420,
+        "path": "book/citation-shortform-overrides.json",
+        "sha256": "c50d33adec516b53923f2f87b9e4b00f9c5570d6ef5cfa193e6cccf13c555214"
+      },
+      {
+        "bytes": 19414,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-appendices.tex",
+        "sha256": "0abbd88d481251ceeaaa620318280459d0a92b88c57570ff9d80f18c7fbd3153"
+      },
+      {
+        "bytes": 130806,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-chapter-0.tex",
+        "sha256": "6c9e23df44fc314c89161095a03ed6c20c2e706d679b8ea52903bb8a43cf4ceb"
+      },
+      {
+        "bytes": 30257,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-epigraph-review-spreads.tex",
+        "sha256": "7a73e69d8b84b60cf22f83d5c9523330f51e0783afccc47c1b092a3d961d23a1"
+      },
+      {
+        "bytes": 268,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-maritime.tex",
+        "sha256": "371de29ca9e350d73870beae90f2d8e17f6d69735b840d3d0f88c43622206088"
+      },
+      {
+        "bytes": 64825,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-preamble.tex",
+        "sha256": "45b4912c5d1aa10701598e74d6d120b7ace389ca3c548fc4c5ba2a3c6797c48f"
+      },
+      {
+        "bytes": 9159,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-seams.tex",
+        "sha256": "24cedcc80e26cf395d34f44b46658c08a7ac0e35b579fbb02cb91484acadcaa9"
+      },
+      {
+        "bytes": 14733,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
+        "sha256": "76349e0601fe7f58e2f77ea1ea24761963d7f8bb566fe9388d208746496b14b5"
+      },
+      {
+        "bytes": 253,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-swiss.tex",
+        "sha256": "d12d0798beb748786845225022063d5fb23fece7c0d80cb9dbb9ababfbf50b4d"
+      },
+      {
+        "bytes": 268,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-technical.tex",
+        "sha256": "afffaddf4f3d244089896bffc6ffe159be148e0cfa723668073a071861e0d0d0"
+      },
+      {
+        "bytes": 5358,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume-typography.tex",
+        "sha256": "9e1c31d3bf17058dc0157c67b046f1d3ca49e4dd90afb6532de7538a506627f3"
+      },
+      {
+        "bytes": 13443,
+        "mode": 420,
+        "path": "book/coordination-papers-mega-volume.tex",
+        "sha256": "8f7a72e6c5ebd31d12c34853aa1ff9e09b76314d66efc6f8be8ba4ffdef97ba4"
+      },
+      {
+        "bytes": 32890,
+        "mode": 420,
+        "path": "book/corpus.json",
+        "sha256": "87f2518e77516a342dfffb4979b78711ceb88ce00faef26e43987481d3294ca5"
+      },
+      {
+        "bytes": 5235,
+        "mode": 420,
+        "path": "book/corpus.schema.json",
+        "sha256": "7360e70e81810b7e9f764a4381fb22a94bd006d0707aa1fa2a862f2cde893f84"
+      },
+      {
+        "bytes": 182285,
+        "mode": 420,
+        "path": "book/federated-harbor-whitepaper.tex",
+        "sha256": "479ac2a4f7640e549d4424c4cfc1802fc741be23c45517db68431f5af183d3f9"
+      },
+      {
+        "bytes": 644,
+        "mode": 420,
+        "path": "book/figure-requests.json",
+        "sha256": "d6ffd9354711c9f16aa065bc0bb45e8fee4697c4095078b06d7ca052990ede91"
+      },
+      {
+        "bytes": 283,
+        "mode": 420,
+        "path": "book/figure-staging.json",
+        "sha256": "bfd17e09f7dcc5a407f31c59d47ed9c4f7fb018ceeb301a3210db848e6d5f6ad"
+      },
+      {
+        "bytes": 63402,
+        "mode": 420,
+        "path": "book/figures-side-by-side-comparison.tex",
+        "sha256": "b5a70a201f1706274efdf3cf8f6e14fe2d34c867558a219c4e91263cb807703b"
+      },
+      {
+        "bytes": 20372,
+        "mode": 420,
+        "path": "book/figures/appendix-figures.tex",
+        "sha256": "13c2f02f6097bb7bb4c5ad6495c3cbb04199b4097e5a77687864849ec66d2718"
+      },
+      {
+        "bytes": 4572,
+        "mode": 420,
+        "path": "book/figures/data/audit-tower-depth.csv",
+        "sha256": "0ffd183b0a4c18deeaa2cdf2984a4397ad1648f76e62feee362d4a5e65499f4a"
+      },
+      {
+        "bytes": 327,
+        "mode": 420,
+        "path": "book/figures/data/graduated-trigger-threshold.csv",
+        "sha256": "6045d6323211f82041dff666ac04714976be5d99b27e2355c105345c53b2728c"
+      },
+      {
+        "bytes": 4506,
+        "mode": 420,
+        "path": "book/figures/data/make-figure-data.py",
+        "sha256": "2c1182e878be631216b19a58b9f712c539bf4c229447f402ef5f855cdc214fa3"
+      },
+      {
+        "bytes": 740,
+        "mode": 420,
+        "path": "book/figures/data/oracle-audit-threshold.csv",
+        "sha256": "98409bc87584b96f1c033227d022932604230703326a4cf39b2290f850fa0a4a"
+      },
+      {
+        "bytes": 1397,
+        "mode": 420,
+        "path": "book/figures/data/r1-floor.csv",
+        "sha256": "caaf58a2f8a2692c5c202ef93356d6a6aaf8f1c3b880ef31de04f18eddc4903c"
+      },
+      {
+        "bytes": 3937,
+        "mode": 420,
+        "path": "book/figures/diag-magic-link.tex",
+        "sha256": "50c367702a46beed6aafd69c7c2ee4823d724bbcf9998c38dcc620cf83d0e31d"
+      },
+      {
+        "bytes": 3726,
+        "mode": 420,
+        "path": "book/figures/diag-sybil-attack.tex",
+        "sha256": "3d6c4b405b042c39893d280c6cfcf937384df48f48f9327ff3305163173c69a4"
+      },
+      {
+        "bytes": 2707,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-alg-confusion.tex",
+        "sha256": "632b45dd1167531afbb01135259baf2722dcbe0848a869fcb30a2b3d8ca84b24"
+      },
+      {
+        "bytes": 2428,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-capability-attenuation.tex",
+        "sha256": "77fe2f73d4e24365624309684c04b229f23bcda52a9cf10d97f99a28c5c9760a"
+      },
+      {
+        "bytes": 3061,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-card-lifecycle.tex",
+        "sha256": "300dfbebd29e4fc266c209ad3a076f807682e1f982ad89a8e9008bdb68c7e5f5"
+      },
+      {
+        "bytes": 2330,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-cuckoo-inline.tex",
+        "sha256": "b8162d676d5093c70c027cadab8c43d78cfe246b3f72616774507cdd493974b0"
+      },
+      {
+        "bytes": 3884,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-delegation-inline.tex",
+        "sha256": "d819f66c7eac37d648b6b97621436981182b1f95b3feb3098e38217447b5efcb"
+      },
+      {
+        "bytes": 2117,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-four-phases.tex",
+        "sha256": "d3838292b0a59ec8b7e1903d7ef6363a822c9ff112852f354083e0d9e0388fe5"
+      },
+      {
+        "bytes": 6685,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-handshake-ladder.tex",
+        "sha256": "1ec1b8e9edaad6d73128c798e6ba4f7063d21b92242a0e77e79b29fe0aa8078a"
+      },
+      {
+        "bytes": 4290,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-phases.tex",
+        "sha256": "f6ae7c088aeb87eca28a1bd009fbda87023af0007d1b3793b468fa32d989b247"
+      },
+      {
+        "bytes": 1997,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-revocation-gossip.tex",
+        "sha256": "73b863daa10643a6aaa22cf42fff452a350d22251120de31257c8920bf841449"
+      },
+      {
+        "bytes": 4347,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-v6v7-escalation.tex",
+        "sha256": "e83c672fd6b3fa6117a36572c12bf23bdf1a5c891c0258770ca6e6018c19a359"
+      },
+      {
+        "bytes": 3035,
+        "mode": 420,
+        "path": "book/figures/fig-anchor-verification-stack.tex",
+        "sha256": "a6f883748d3ec86c4df64082a0e5e905815a12ed8a5b297e8c84bc2e420dcef2"
+      },
+      {
+        "bytes": 319371,
+        "mode": 420,
+        "path": "book/figures/fig-arrows-impossibility.png",
+        "sha256": "353d486858e25eb8adfea87be4596a5b35bdb2152ed280e28eb008687916553a"
+      },
+      {
+        "bytes": 3204,
+        "mode": 420,
+        "path": "book/figures/fig-bc-delta-threshold.tex",
+        "sha256": "c74080884ff2176abfd38f915b67e9fd063713200f87016d5fda222d98832884"
+      },
+      {
+        "bytes": 3921,
+        "mode": 420,
+        "path": "book/figures/fig-bc-graduated-trigger.tex",
+        "sha256": "03a90b08b80c8eae132a037d3be141e352ecb3f4bfd3eed1ef6b26630bfff74a"
+      },
+      {
+        "bytes": 4491,
+        "mode": 420,
+        "path": "book/figures/fig-bc-oracle-audit-rate.tex",
+        "sha256": "6c9b1596a44f58b6e1b42734775505f7d7a05ec54615300caff3f51658355fe1"
+      },
+      {
+        "bytes": 4616,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-cartel-folk-theorem-tikz.tex",
+        "sha256": "089a929598d7a454527165deca28aa7667aeda55ad91a983296094b9a3bd5080"
+      },
+      {
+        "bytes": 5180,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-conservation-ledger.tex",
+        "sha256": "4763fd4f85ecfc80a0e5908d7355c5fbd7e799237238535f144d5fb9536aece1"
+      },
+      {
+        "bytes": 397,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-inclusion-check.tex",
+        "sha256": "9f10bf19e847d7d34b4f65c157853a58e571a0cc0f7a0f7ee3f61e59e6d6f501"
+      },
+      {
+        "bytes": 3383,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-isolation-ladder.tex",
+        "sha256": "1752b0801781a4653e7968aa18633e4c08fa612d21fc8cf197df794b5927a6bb"
+      },
+      {
+        "bytes": 1206,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-key-custody.tex",
+        "sha256": "fa8fdb66946682c7dc69bb9ba28fc53c4f75e4eec2411ac9a6108e262feea3e7"
+      },
+      {
+        "bytes": 1302,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-merkle-forest.tex",
+        "sha256": "0166d4cc758c5e8e43e645b3fae93622aa5d461153c243a1e1f0ee623332cac0"
+      },
+      {
+        "bytes": 1251,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-regiment-boundary.tex",
+        "sha256": "ed9a33ca1d12d504331516bf5d4f43ec49228b5587e1befb3f273f08fe7415a0"
+      },
+      {
+        "bytes": 6008,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-session-lifecycle.tex",
+        "sha256": "32bbe0cfc67bfd20bb8825d2bf29bb5d7e771fe55c9402cff39a1b2fd7dd56e8"
+      },
+      {
+        "bytes": 3876,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-sybil-deposit-floor-tikz.tex",
+        "sha256": "0bedb763ea0dc93f5c7cdd0577654fe89e56d7152e5957b93589d8de96de5225"
+      },
+      {
+        "bytes": 3820,
+        "mode": 420,
+        "path": "book/figures/fig-bonded-trust-collision.tex",
+        "sha256": "1b53ffc39f13c28c66f41817d1ae8abcdfec5950c8b0f24f5f2f51e92525f58b"
+      },
+      {
+        "bytes": 2565,
+        "mode": 420,
+        "path": "book/figures/fig-book-reader-map.tex",
+        "sha256": "36c7ca017a91d8d198d8ae831c0c305754a9941de3122d806b1029248187a879"
+      },
+      {
+        "bytes": 25334,
+        "mode": 420,
+        "path": "book/figures/fig-cartel-folk-theorem.pdf",
+        "sha256": "4bfb18592c06c936614b0ba7f8408e214c0b9cd7087999071702ad5688adee73"
+      },
+      {
+        "bytes": 1718,
+        "mode": 420,
+        "path": "book/figures/fig-cartel-game-inline.tex",
+        "sha256": "63d34caa977d04727a1c0baa459c08451a743eb3ec5117db1254f4b4409f6415"
+      },
+      {
+        "bytes": 2935,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-arrows-consensus.tex",
+        "sha256": "3d4530860d5544f8bfb944e68df71ba5aa957a91d6498af50447b4f31601239d"
+      },
+      {
+        "bytes": 215992,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-bbl-diagram.jpg",
+        "sha256": "2540b6238cf16223ac73fe866250c806c3e0effc98709206a8c64b966581a9c0"
+      },
+      {
+        "bytes": 3835,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-bbl-vision-cones.tex",
+        "sha256": "2245e5653a25fee8e496bc2a86dc4176b17fad45fa181185f6344e982e424432"
+      },
+      {
+        "bytes": 310225,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-bdi-diagram.jpg",
+        "sha256": "5a9673c8d7b7005725fdfc04d6d14632ed8a09a047fda420651d9443c08e5c54"
+      },
+      {
+        "bytes": 2464,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-bdi-execution.tex",
+        "sha256": "8bb98f7472b74921aeed8868b1b77662d8612e627e83d6a0f3d011567e6d37c0"
+      },
+      {
+        "bytes": 367275,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-big-brother-logic.jpg",
+        "sha256": "2bd8c4e9dfb8a4b5af6909e21344134ec5f26ed58127f859cdedcccb46adeab6"
+      },
+      {
+        "bytes": 317835,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-closed-loop-diagram.jpg",
+        "sha256": "2c16bea40f734091be5fdbd1f9a8fefde5885dece6a7baa3a7f3ecc9c50bde44"
+      },
+      {
+        "bytes": 2203,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-closed-loop-diagram.tex",
+        "sha256": "3426c469ad810509689dac7881dd3f650ab117ab82a57ad172a9fe01ceadff3e"
+      },
+      {
+        "bytes": 449528,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-closed-loop.jpg",
+        "sha256": "b882da036d159a0e859ce8be37df0e52f066924da5d21feca1a36ed18380a139"
+      },
+      {
+        "bytes": 401936,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-cnp-bidding.jpg",
+        "sha256": "39ecf2ee32353dd5b3040818643fc97a13a919b18081fac65452ca32165a2c3c"
+      },
+      {
+        "bytes": 230490,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-cnp-diagram.jpg",
+        "sha256": "a0721d2d269fed1f7e24ef187ae6452286e0aeac0a88aaf7c2218ebb43a76e32"
+      },
+      {
+        "bytes": 3598,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-cnp-protocol.tex",
+        "sha256": "0e7ae2f135b94cee3ddb3ba8151203a911b41c8d0e505ff91d4e179d21051ad9"
+      },
+      {
+        "bytes": 355958,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-cnp-settlement.jpg",
+        "sha256": "4d19c738f1c6fc0598145145ff06d2102e99134c6630555a02c52ea02d8570a4"
+      },
+      {
+        "bytes": 3519,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-concurrency-actors-csp.tex",
+        "sha256": "10c071d9b9e6e4be2093eef47f35893a66e644e9eca187220919392635323730"
+      },
+      {
+        "bytes": 341899,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-concurrency-diagram.jpg",
+        "sha256": "1e15b71274f35fbcb14f8d479f8eb2533c57ef85ef67488ae5ec4acda50c74d5"
+      },
+      {
+        "bytes": 288097,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-fipa-speech-acts.jpg",
+        "sha256": "f8e8b82039e495c512cb099e38187da74c0b5f0173299362094c228e98129aae"
+      },
+      {
+        "bytes": 2828,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-fipa-speech-acts.tex",
+        "sha256": "dfa8212945b4f141b252bcb0abb020cd55426d2be1f18cead8b98acaea829e75"
+      },
+      {
+        "bytes": 261485,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-lifecycle-diagram.jpg",
+        "sha256": "d1627a4f75954229f6aa3500bf7810955c12e97887cf8f9ce02468147675a308"
+      },
+      {
+        "bytes": 397914,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-lifecycle-hooks.jpg",
+        "sha256": "f5e6c87f5ca03f450c8f44d27b2050e89e2f7840226356439b788ace0f8dfaca"
+      },
+      {
+        "bytes": 3445,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-lifecycle-hooks.tex",
+        "sha256": "3b42c07865a908bd55831ce583b593285dcf3678f139bf0b74be313d960a8504"
+      },
+      {
+        "bytes": 1346,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-progressive-skills.tex",
+        "sha256": "e69b801df636f2a09877e161f604caf8a98ba9905f287ccd74dd182cd2c15e2a"
+      },
+      {
+        "bytes": 319091,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-skills-diagram.jpg",
+        "sha256": "74b15c590142b23f0775b05608544905ce523fe3ec219ee3806f35075de15f22"
+      },
+      {
+        "bytes": 443300,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-skills-logarithmic.jpg",
+        "sha256": "41e13f5988b4616760999630e1ddd713c6010589bffaab3345b368c7724e6994"
+      },
+      {
+        "bytes": 303105,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-wonham-supervisory.jpg",
+        "sha256": "1ea6fdbc4ae90f36e8b78e69b94b97dd730cb6b6dd1380c22e7b60697c22eda7"
+      },
+      {
+        "bytes": 2523,
+        "mode": 420,
+        "path": "book/figures/fig-ch0-wonham-supervisory.tex",
+        "sha256": "c0d09a49acd0404e2835102aa4ce1e1bf8433b7018a44467565131d346beb5ff"
+      },
+      {
+        "bytes": 5186,
+        "mode": 420,
+        "path": "book/figures/fig-fh-cochain-hand.tex",
+        "sha256": "dbecb35762f1564270bfd97e6a3d4ac4140daa46751638d7791ad7a53f2667f6"
+      },
+      {
+        "bytes": 3384,
+        "mode": 420,
+        "path": "book/figures/fig-fh-conservation-ledger.tex",
+        "sha256": "b6a0595172db961e06613cd244840d6df427e3ba88bad25a20ac29118e29be94"
+      },
+      {
+        "bytes": 3031,
+        "mode": 420,
+        "path": "book/figures/fig-fh-cycle-vs-cut.tex",
+        "sha256": "21afb1c04455f3c3c17fe0fe96301a499d61250e986a2f6997f420f51997753f"
+      },
+      {
+        "bytes": 3862,
+        "mode": 420,
+        "path": "book/figures/fig-fh-revocation-gossip.tex",
+        "sha256": "e30110c2ac5c1de552a0eff82af9671736891c1d8936f6f0a7272489a8e87244"
+      },
+      {
+        "bytes": 2674,
+        "mode": 420,
+        "path": "book/figures/fig-fh-revocation-regime.tex",
+        "sha256": "9b49245bb60d0684ba145c9726e25d732dbf8e6e6f40a24c6a4ae1b574dcd0bf"
+      },
+      {
+        "bytes": 4556,
+        "mode": 420,
+        "path": "book/figures/fig-fh-settle-protocol.tex",
+        "sha256": "76c22696a7a3518607b76e83e8516e262bd4128dbbf7d52cecd86157a3931201"
+      },
+      {
+        "bytes": 4434,
+        "mode": 420,
+        "path": "book/figures/fig-fh-settlement.tex",
+        "sha256": "6c60ad7fc29217f099aa829e30cfa88094463f0555a2c366f9fb90e8ad4d4ebd"
+      },
+      {
+        "bytes": 1082,
+        "mode": 420,
+        "path": "book/figures/fig-fh-sovereignty-fence.tex",
+        "sha256": "bc2789b6985a85eb6949dbd56f210e42ca1ea121dba8f408b0b1ed06485baeed"
+      },
+      {
+        "bytes": 3940,
+        "mode": 420,
+        "path": "book/figures/fig-fh-sponsor-lifecycle.tex",
+        "sha256": "460f4cf30e27ebc20c61ab2b5f228880761cbe7d369c2b87ac3fa91cb2e35727"
+      },
+      {
+        "bytes": 4819,
+        "mode": 420,
+        "path": "book/figures/fig-fh-threat-bands.tex",
+        "sha256": "1f295655dc1f02c6b14c8228a982bb0333d8056a1dc6724eec53b4598bd804af"
+      },
+      {
+        "bytes": 2365,
+        "mode": 420,
+        "path": "book/figures/fig-fh-visible-topology.tex",
+        "sha256": "a504d6be9fb9b91b80ce8394746b7c854541e5f1ab1254dd17b3ad8a57682a1a"
+      },
+      {
+        "bytes": 7262,
+        "mode": 420,
+        "path": "book/figures/fig-fh-worked-example.tex",
+        "sha256": "55edacedddaa32388a0ad13b285662ad23a3ae5b1c468c7c6ec06b8c58a95dd8"
+      },
+      {
+        "bytes": 2590,
+        "mode": 420,
+        "path": "book/figures/fig-fh-xfer-ceremony.tex",
+        "sha256": "c0d22268bd93e7b892beca6e0bd3e2aa4ee0f96104e45bbaac9bf62b1cc365fe"
+      },
+      {
+        "bytes": 4392,
+        "mode": 420,
+        "path": "book/figures/fig-governance-flow.tex",
+        "sha256": "32ddf21d4ddfe849647ac9ffc9cfb8a05e4281742fef30164f4286e2bc11f946"
+      },
+      {
+        "bytes": 1587,
+        "mode": 420,
+        "path": "book/figures/fig-he-assurance-sieve.tex",
+        "sha256": "19bea5bdde5a8ed7e5a10fb36f98b3553c7eccc64e4e3ce260bdd041dfed08cd"
+      },
+      {
+        "bytes": 3559,
+        "mode": 420,
+        "path": "book/figures/fig-he-assurance.tex",
+        "sha256": "44e03cc84a951439512c9a0983415757a1c7d94c28f660faa627c51659041545"
+      },
+      {
+        "bytes": 3200,
+        "mode": 420,
+        "path": "book/figures/fig-he-cold-start.tex",
+        "sha256": "ab695d560edafce8714c8f5138e94a74a1d58c344ef51c7d1d207562f66c8ef7"
+      },
+      {
+        "bytes": 2316,
+        "mode": 420,
+        "path": "book/figures/fig-he-conflict-kinds.tex",
+        "sha256": "9cfdfcd3a2637407dcab50f81c1336e036461b60b15a2e0477c44f29accc6916"
+      },
+      {
+        "bytes": 3444,
+        "mode": 420,
+        "path": "book/figures/fig-he-conflict-witness.tex",
+        "sha256": "50b19c5ec18ead7b6e6c1616a56b9bc1933353f61fb2da37e806ade784799a57"
+      },
+      {
+        "bytes": 2819,
+        "mode": 420,
+        "path": "book/figures/fig-he-conservation-functor.tex",
+        "sha256": "45b813e92bf2a29c67e289c50c1713554aa0353eb02fe8d8620ea826d103436f"
+      },
+      {
+        "bytes": 3223,
+        "mode": 420,
+        "path": "book/figures/fig-he-deontic-frontier.tex",
+        "sha256": "2e2c1b0c3e1c361e642770bd285db8171433ef3f27eccff1dd197cef27d2ad96"
+      },
+      {
+        "bytes": 2425,
+        "mode": 420,
+        "path": "book/figures/fig-he-deterrence-convention.tex",
+        "sha256": "fb44100804e1235b277e7eab94a0f6afd2f0aa91d487af0167368c8062e252f2"
+      },
+      {
+        "bytes": 4448,
+        "mode": 420,
+        "path": "book/figures/fig-he-float-plan.tex",
+        "sha256": "ba22273dea793d1dd17d391b1f76c0ca6f93ce39ee31c528e584bece40cbb778"
+      },
+      {
+        "bytes": 2864,
+        "mode": 420,
+        "path": "book/figures/fig-he-ms-wedge.tex",
+        "sha256": "26fb760ee831124f89ab945f4c47adb515da0c9952cd6ff091d0531080e89665"
+      },
+      {
+        "bytes": 2704,
+        "mode": 420,
+        "path": "book/figures/fig-he-rater-ladder.tex",
+        "sha256": "aa26cf477c4922f75a421e2612129f0150bf45a2fd4196654031c2a3e7dab7f6"
+      },
+      {
+        "bytes": 2208,
+        "mode": 420,
+        "path": "book/figures/fig-he-skill-lineage.tex",
+        "sha256": "28f3033aee2800205b00bd9ad6125ea51500ce172e06d75389d778aac1d1ce2d"
+      },
+      {
+        "bytes": 2637,
+        "mode": 420,
+        "path": "book/figures/fig-he-succession-price.tex",
+        "sha256": "312ef1901cb283c922f5e9a7a73ab0a58ec84821886e4cf5f77e42d1e7ff5c67"
+      },
+      {
+        "bytes": 1271,
+        "mode": 420,
+        "path": "book/figures/fig-he-three-sided.tex",
+        "sha256": "9ba6f78c62f6709ecc5ffc6f8f356db09ceeb5eb4d7583b37de724f7c3b02fa4"
+      },
+      {
+        "bytes": 2289,
+        "mode": 420,
+        "path": "book/figures/fig-magic-link-inline.tex",
+        "sha256": "e15a57f2c446e197de679abfaaf74742d44c367eccd8f05dfc3ad8799cbcb494"
+      },
+      {
+        "bytes": 2670,
+        "mode": 420,
+        "path": "book/figures/fig-pareto-dominance-tikz.tex",
+        "sha256": "f349a8b98dac1b896eb619ee4a28772e886c1c83cb1fc258779dc93f1fce9a89"
+      },
+      {
+        "bytes": 3080,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-composition-crossover.tex",
+        "sha256": "bf80ed92708bff50c4de926d015284e7edb0f2443be44ddf6ca4422e8d71ca77"
+      },
+      {
+        "bytes": 2821,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-controllability-quadrant.tex",
+        "sha256": "c78ebe0cee0333f914aaffdf77e21459e84cc6f561628e318743828b90fa2e60"
+      },
+      {
+        "bytes": 5942,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-dual-attestation.tex",
+        "sha256": "e1daba826561dab88adcdeaa3f7aba22d2db232c6e928d314bbf07de2ba19c74"
+      },
+      {
+        "bytes": 2216,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-laundering-fork.tex",
+        "sha256": "33b49463ea073e27301bfc5922c7bff0282751db37b948ffaf4505a7a787c194"
+      },
+      {
+        "bytes": 3887,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-leakage-ledger.tex",
+        "sha256": "c34de01cc704fffa0c35da37ab7eb64e414a4b6b4dc5ff4ffc32eedf25b7975a"
+      },
+      {
+        "bytes": 3635,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-mutant-grid.tex",
+        "sha256": "43cb3dceef1d32cea03b4283f19f886b0b61419a40c9eef6930b118b643b529b"
+      },
+      {
+        "bytes": 3830,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-operating-curve.tex",
+        "sha256": "8ea8468c11bbe7e7e0a9f0269ae44c5959cb4be6e796e34d0353f3d79f46f1fe"
+      },
+      {
+        "bytes": 4700,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-pillar-pipeline.tex",
+        "sha256": "91fdb2ac96260b8bd1874d63fa0b096ab0a0014106edb0ed5ef66a75c6300dfb"
+      },
+      {
+        "bytes": 2355,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-receipt-provenance.tex",
+        "sha256": "06b858c73a78873af1b821a0cb15cfa30b7423be7d229b133886e2b2625fb996"
+      },
+      {
+        "bytes": 4897,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-residuals-converge.tex",
+        "sha256": "0ac8fcce5d711f9d5943b5ce213eaff3f910831dac727eede5e7b6577bd46c20"
+      },
+      {
+        "bytes": 3266,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-three-principals.tex",
+        "sha256": "bf4945163c78ccf0ff166e6b12addfd5cf38052e14fa258983a6c20cfe91177f"
+      },
+      {
+        "bytes": 4263,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-two-adversaries.tex",
+        "sha256": "b99e48729b442658cb7638aaaf6674ad122326dbad1458f132411fa19f5dc668"
+      },
+      {
+        "bytes": 4224,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-two-worlds.tex",
+        "sha256": "5af5906cec44af90b5759243fb6e1af604db8f5fc1ec8ba87e726a26b4223196"
+      },
+      {
+        "bytes": 3730,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-work-order-schema.tex",
+        "sha256": "33abec27a9fd9ff7186f042177364688a160a39756ee44ea970b8cf873263e14"
+      },
+      {
+        "bytes": 3251,
+        "mode": 420,
+        "path": "book/figures/fig-sen-pareto-locking.tex",
+        "sha256": "9f73c9edc9f84eb6056162c8aa428f44fd88c7803274ab730228c40b0cf6df99"
+      },
+      {
+        "bytes": 172910,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop1-funnel.jpg",
+        "sha256": "563d6d15706a84d431f0bba939eb0eaa5c3a959bacb0c04fe409cda700760d01"
+      },
+      {
+        "bytes": 1445,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop1-funnel.tex",
+        "sha256": "5cba95cef102ba4e3c29417fd46bb02923516e66ed2686e6fe17be325d609fd9"
+      },
+      {
+        "bytes": 170087,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop2-attenuation.jpg",
+        "sha256": "756ada51bab1b4fdd6587666ddd0285f7104a1b8eb47063194d63b346689191d"
+      },
+      {
+        "bytes": 1126,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop2-attenuation.tex",
+        "sha256": "3fd99ad8f787d28d75945a57bd955664b39df0d1a794eaad82462f452535ead3"
+      },
+      {
+        "bytes": 140899,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop3-confinement.jpg",
+        "sha256": "8a513d5180f61a48dcdc506cf6d341dbbef11f060a1ea7bf45826c0a204fc570"
+      },
+      {
+        "bytes": 1442,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop3-confinement.tex",
+        "sha256": "a624854f28d455b3d74b688d4f00e9f756ff76737882157f1952a5a8ca21502d"
+      },
+      {
+        "bytes": 412231,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop4-supervision.jpg",
+        "sha256": "b77910718dd29c0ab5ee1998f138de34a25bd1bb248aa4541cd12a0ca822ef43"
+      },
+      {
+        "bytes": 2219,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop4-supervision.tex",
+        "sha256": "7c4f7fa7b702bd479d6f5828f50ee0c5ec8fb6e13f5730ee55fb34f862462820"
+      },
+      {
+        "bytes": 204300,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop5-identity.jpg",
+        "sha256": "044c1e94897c6ece45fa9582c73bafbe828207501e64da5d6106293aadac57aa"
+      },
+      {
+        "bytes": 1236,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop5-identity.tex",
+        "sha256": "4f6f60f5268c4d6fc0d7413f2e10ed5854d992173eff0319a4b0b3aea5a9b638"
+      },
+      {
+        "bytes": 223132,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop6-instruments.jpg",
+        "sha256": "8ea4ed813eb817ce33cf6187e080221acb8c75f24a1a6482bad9f6f5b572c0ef"
+      },
+      {
+        "bytes": 2500,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop6-instruments.tex",
+        "sha256": "c4fa2c548c3afca8e50b3125e6a634f2c2b75d77d22272ed811618a45676a9ca"
+      },
+      {
+        "bytes": 252274,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop7-bonded.jpg",
+        "sha256": "acd694134e33a4f0e9eb7d29daa76b1c97338263898b8e2ff0c1d639c3d64056"
+      },
+      {
+        "bytes": 1382,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop7-bonded.tex",
+        "sha256": "27d0c2c0c9869e1bc09a65f690cd17d7aed811ecdcbb327bc4377cf0d889f663"
+      },
+      {
+        "bytes": 254361,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop8-federation.jpg",
+        "sha256": "97df0a8ecfbea9278b451f71f7775810bf0686b7383b095a5fe4cf77fc971ab2"
+      },
+      {
+        "bytes": 1249,
+        "mode": 420,
+        "path": "book/figures/fig-spark-prop8-federation.tex",
+        "sha256": "37e56386bba5dc6fc0043e7be21be7f9f4054ea9adae4d9ac9a8955d03b74c37"
+      },
+      {
+        "bytes": 2900,
+        "mode": 420,
+        "path": "book/figures/fig-stp-audit-amortization.tex",
+        "sha256": "8140b709524eaedb852e384e359b0153f30de897a8a76032bd03eebf7506891c"
+      },
+      {
+        "bytes": 6375,
+        "mode": 420,
+        "path": "book/figures/fig-stp-dependency-spine.tex",
+        "sha256": "6263225919376aa5453a34eedfe5b6127dc552fe0c74720794aef54063b581df"
+      },
+      {
+        "bytes": 2516,
+        "mode": 420,
+        "path": "book/figures/fig-stp-deterrence-regime.tex",
+        "sha256": "26a9fb820aae9ba1d66fbe91747befe5ac9512695e6025613d7b6041a2b0243a"
+      },
+      {
+        "bytes": 2537,
+        "mode": 420,
+        "path": "book/figures/fig-stp-engine-swap-regime.tex",
+        "sha256": "06d5b6825a55bda561c07011632157b4d970470dfbeefe433f06147d2054565f"
+      },
+      {
+        "bytes": 3496,
+        "mode": 420,
+        "path": "book/figures/fig-stp-handoff-coverage.tex",
+        "sha256": "ad45a282acb43735a8ba41a35cbaf505c3314a05dc40df3eefc1f05f49dff823"
+      },
+      {
+        "bytes": 3852,
+        "mode": 420,
+        "path": "book/figures/fig-stp-judge-market.tex",
+        "sha256": "cacfa1037ea2344478135a083e7630643c7a9492b10d537f0c37caefbc9e2fa9"
+      },
+      {
+        "bytes": 3378,
+        "mode": 420,
+        "path": "book/figures/fig-stp-multidim-reputation.tex",
+        "sha256": "d9e3f803cdb008c1d2f35f7b7d7d74dd5e6bc6961892c4432a6df2e1ec9b9ac2"
+      },
+      {
+        "bytes": 4311,
+        "mode": 420,
+        "path": "book/figures/fig-stp-nomint-lineage.tex",
+        "sha256": "00fe9a6eb6ffbc13077fba2a855611a12ea04b6bd2951204ae13558f50b5907c"
+      },
+      {
+        "bytes": 3830,
+        "mode": 420,
+        "path": "book/figures/fig-stp-parfit-chain.tex",
+        "sha256": "f7df877954eec2849fa0411fc0aa30ed62d7d07f8c23202d463c39f90dc13cce"
+      },
+      {
+        "bytes": 2675,
+        "mode": 420,
+        "path": "book/figures/fig-stp-probation-cliff.tex",
+        "sha256": "198e25555eadb3d7828ecc50dccc1cf3020946a2c30efef0fa31c1098ceff28e"
+      },
+      {
+        "bytes": 3316,
+        "mode": 420,
+        "path": "book/figures/fig-stp-rate-the-raters.tex",
+        "sha256": "20b91cc643f2025b329fd3dfb7b21558d49c306c63d48ff1027a40a49ff51a4a"
+      },
+      {
+        "bytes": 2521,
+        "mode": 420,
+        "path": "book/figures/fig-stp-resurrection-soundness.tex",
+        "sha256": "bbacb0209c8b9a539147cb8699b0c95f96e5cf095e80fda7e1bdffbf2ffed535"
+      },
+      {
+        "bytes": 3750,
+        "mode": 420,
+        "path": "book/figures/fig-stp-role-vs-person.tex",
+        "sha256": "6f49a83812d2f39b7ef32f3cbbd52bddbf20f4f3534518033623b885be92881f"
+      },
+      {
+        "bytes": 3156,
+        "mode": 420,
+        "path": "book/figures/fig-stp-sybil-whitewash.tex",
+        "sha256": "33287b156bcc2965d16e88767b7e9b4434dccc29aba9eb3dfdc4f15288e6ea2e"
+      },
+      {
+        "bytes": 3591,
+        "mode": 420,
+        "path": "book/figures/fig-stp-tombstone.tex",
+        "sha256": "4f997818ed9c39a1c796380afd9f32bd71da9b31b347186463e9a806d13678b8"
+      },
+      {
+        "bytes": 2709,
+        "mode": 420,
+        "path": "book/figures/fig-swk-atomicity-fix.tex",
+        "sha256": "1ff4183bd3f1b4b972b0ad83d0d94b0f5d0f80cb2a97193f2c5c682d0052e48f"
+      },
+      {
+        "bytes": 2704,
+        "mode": 420,
+        "path": "book/figures/fig-swk-capability-permission.tex",
+        "sha256": "4b1d367381d99091e6031a0fb6d1ea3ea69d3d4d197e1a971693b6f432f49b07"
+      },
+      {
+        "bytes": 4067,
+        "mode": 420,
+        "path": "book/figures/fig-swk-claim-lifecycle.tex",
+        "sha256": "cb2c5a45f983157ab58d89f77495f1af774e2c74bcd8bfdc2711e6c871ae380e"
+      },
+      {
+        "bytes": 4990,
+        "mode": 420,
+        "path": "book/figures/fig-swk-commitment-oracle.tex",
+        "sha256": "fd97bac4623ab08b066a502d8a2f9e272036db9b88d83b7d2b969ee65f3e4a6c"
+      },
+      {
+        "bytes": 2798,
+        "mode": 420,
+        "path": "book/figures/fig-swk-consistency-model.tex",
+        "sha256": "f6e2bfa506007089d35686b203082f482e1a880f83cc876b913ab1013945b6b1"
+      },
+      {
+        "bytes": 2826,
+        "mode": 420,
+        "path": "book/figures/fig-swk-continuity-organs.tex",
+        "sha256": "b2910a7cc1c05405787de6916e25f55e497f263551997dec5bd800dacdd77609"
+      },
+      {
+        "bytes": 3365,
+        "mode": 420,
+        "path": "book/figures/fig-swk-controllability-quadrant.tex",
+        "sha256": "dd485cee8c59278cd8fac70216777d9b4329c8274b1d5e0551ac8a06ec015b71"
+      },
+      {
+        "bytes": 3330,
+        "mode": 420,
+        "path": "book/figures/fig-swk-delegation-chains.tex",
+        "sha256": "6cc15963e569a5854f682c3e51c69eec2684e71c3d285252457ed1b94fb78497"
+      },
+      {
+        "bytes": 3885,
+        "mode": 420,
+        "path": "book/figures/fig-swk-durability-dramatization.tex",
+        "sha256": "e22d66c5fc299a5cc7e10ce67f07c6d2a4d627d8bcdfbfc874ec416fe79ae450"
+      },
+      {
+        "bytes": 4148,
+        "mode": 420,
+        "path": "book/figures/fig-swk-enforcement-layers.tex",
+        "sha256": "210e8659e24d955f549d143838799e854e9e83767fdb752a25013a26181145ba"
+      },
+      {
+        "bytes": 4355,
+        "mode": 420,
+        "path": "book/figures/fig-swk-fencing-epoch.tex",
+        "sha256": "0133726f1d6307d094f5f22066e2bd4b350acd8d5a7f5b41630500de7b52a564"
+      },
+      {
+        "bytes": 2447,
+        "mode": 420,
+        "path": "book/figures/fig-swk-i12-dependency.tex",
+        "sha256": "c270cb382c91a35b9f8484fbb59b1410bea14ecfde2203a26f2f5f589b0950a0"
+      },
+      {
+        "bytes": 3612,
+        "mode": 420,
+        "path": "book/figures/fig-swk-idempotency-gap.tex",
+        "sha256": "e55f7003ee892da39f3e69501b860179bc2c26273ebc4cfede5a07c8db573a17"
+      },
+      {
+        "bytes": 2193,
+        "mode": 420,
+        "path": "book/figures/fig-swk-marker-decay.tex",
+        "sha256": "6ea3bad2a6c56655180b000d728f61519c60e20471843a2734f36a64c658a6c1"
+      },
+      {
+        "bytes": 5170,
+        "mode": 420,
+        "path": "book/figures/fig-swk-marker-renewal.tex",
+        "sha256": "57f9a408285dc83894d5d8870e2151141c6dae4701e47b3169297d1b1dbc591e"
+      },
+      {
+        "bytes": 2139,
+        "mode": 420,
+        "path": "book/figures/fig-swk-op9-reclass.tex",
+        "sha256": "84088e0214ad2a082008af3872d878d466e8e60a84cc75246e2d78384e8ded8c"
+      },
+      {
+        "bytes": 3664,
+        "mode": 420,
+        "path": "book/figures/fig-swk-race-dramatization.tex",
+        "sha256": "fd8b6c23814e1c7d7b53f757a91832096ea885e992e59ed72db767748e1736fe"
+      },
+      {
+        "bytes": 515,
+        "mode": 420,
+        "path": "book/figures/fig-swk-recovery-pipeline.tex",
+        "sha256": "c28e9645545cc9aa0fcce8887439a92d7cbbe4ec2ccc3ef69a8330b84c8226c4"
+      },
+      {
+        "bytes": 3525,
+        "mode": 420,
+        "path": "book/figures/fig-swk-reference-monitor.tex",
+        "sha256": "9c97556019110d4f5242199f451f4166ebbbf669555da9a2f2e5522a528a1fc0"
+      },
+      {
+        "bytes": 2698,
+        "mode": 420,
+        "path": "book/figures/fig-swk-rehydration-pipeline.tex",
+        "sha256": "ce845e5534fb3b3607d16bedca4e228f7322704472a9457db0e76a08b351bd42"
+      },
+      {
+        "bytes": 496,
+        "mode": 420,
+        "path": "book/figures/fig-swk-single-writer.tex",
+        "sha256": "9fafc59f6f1e25cdd3bb3ea9588bdfc5ac338a17db3d2e4462b0b199a3458f83"
+      },
+      {
+        "bytes": 505,
+        "mode": 420,
+        "path": "book/figures/fig-swk-stack-map.tex",
+        "sha256": "21053207cb29b74a3ca9a3b1717606c7974347ffd26d8b7c0c3bd670f740c535"
+      },
+      {
+        "bytes": 2846,
+        "mode": 420,
+        "path": "book/figures/fig-swk-taint-automaton.tex",
+        "sha256": "adbab647746fd7d766cd203ce7cb99e982c2b86411276e2f6deb7310ee573501"
+      },
+      {
+        "bytes": 2467,
+        "mode": 420,
+        "path": "book/figures/fig-swk-ticket-lock-delta.tex",
+        "sha256": "04929aeecd80191aced65ab5d9868b0ada06a2e84719a8479b8b396022d5412d"
+      },
+      {
+        "bytes": 4883,
+        "mode": 420,
+        "path": "book/figures/fig-swk-workunit-crimes.tex",
+        "sha256": "0fd5f51270ab5b58a6b946db405a6a521b3bde592d7d1eb2d8cf13461f124e29"
+      },
+      {
+        "bytes": 5591,
+        "mode": 420,
+        "path": "book/figures/fig-swk-workunit-machine.tex",
+        "sha256": "ee3a7ea635c3653a97392b95b7fe1cc413b685fd2e3fbb848beaa639f57e7634"
+      },
+      {
+        "bytes": 22751,
+        "mode": 420,
+        "path": "book/figures/fig-sybil-deposit-floor.pdf",
+        "sha256": "762b94469c64641a3029a5c28ba127548fd3c738b95a1f3f35b2c5456a0bf571"
+      },
+      {
+        "bytes": 3526,
+        "mode": 420,
+        "path": "book/figures/fig-sybil-inline.tex",
+        "sha256": "4bc163eab58ac35ff88f3a25647bf43532341bd8b2fcdd2aeb231cd76a16cea0"
+      },
+      {
+        "bytes": 4178,
+        "mode": 420,
+        "path": "book/figures/fig-worked-example.tex",
+        "sha256": "bfb5ea8edc620f9cf6d5d98c99e4bab83461041917178a03e3c7a5917fb201a2"
+      },
+      {
+        "bytes": 14909,
+        "mode": 420,
+        "path": "book/figures/icons/mira-silhouette.pdf",
+        "sha256": "0ce16ec4aa923ef2d20eb46fcb87df596ca1de86b9b7dc5eec5e6db62fbe8d04"
+      },
+      {
+        "bytes": 25654,
+        "mode": 420,
+        "path": "book/figures/icons/mira-silhouette.png",
+        "sha256": "ddd661db8a0d3f93fc0eb9f3ca2e92e2da720ea6b55762b360bbac9b694de237"
+      },
+      {
+        "bytes": 6052,
+        "mode": 420,
+        "path": "book/figures/icos-margin-specimens.tex",
+        "sha256": "4afac67a25189a2f89897406bbcac2d921520b6aa1bd41fcd690a23270c3e613"
+      },
+      {
+        "bytes": 2953,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-completion-verifier.tex",
+        "sha256": "931a4a4c88779878bdad6bdd3fbe220f2ae794c6237ee45d765fd93cd4279436"
+      },
+      {
+        "bytes": 3928,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-consent-lifecycle.tex",
+        "sha256": "33e6c0585354156d87e1c63a83d4d9a8931696583ac701f3cbf88dabbab4919a"
+      },
+      {
+        "bytes": 3521,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-escalation-band.tex",
+        "sha256": "50e7fee1a1906aa5e0a5196ea6f9a19e817cb2feb13e154724b26a6fad58b1ba"
+      },
+      {
+        "bytes": 1409,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-hayek-scott.tex",
+        "sha256": "1967daa1c01619e72e5eebfddbfe6a1d24744621eb57b7c81840701a681b98ea"
+      },
+      {
+        "bytes": 2844,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-inception-canary.tex",
+        "sha256": "70af98a85d240ba240c0935f9fe334f5b01cfb958187cd49ba52402eb2566bdc"
+      },
+      {
+        "bytes": 1814,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-judge-dependence.tex",
+        "sha256": "6d7907de50d3598f6c271b564e020eab471995b6e0b1df625b8aeba301451d99"
+      },
+      {
+        "bytes": 2696,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-obligation-coverage.tex",
+        "sha256": "35f5a848317d3cb60a2e24a43b07b67412d45f7c74df53d14c54f8ba80413a0a"
+      },
+      {
+        "bytes": 2566,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-plan-revision.tex",
+        "sha256": "b03fad092e12541bd089ebd9111007e9d1020bb0d851904c6907d6a2b0d7a7bf"
+      },
+      {
+        "bytes": 3771,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-rate-regime.tex",
+        "sha256": "4a56a3c888c763f185ee8bd90eb38b343a1b2dafa650e352c55d8022d521db8b"
+      },
+      {
+        "bytes": 3685,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-readpoverty.tex",
+        "sha256": "ef15df4c846a00db21bb9427ccd11d61c8b237748062d5376b7443a61d2bfff9"
+      },
+      {
+        "bytes": 3174,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-roles.tex",
+        "sha256": "edb8be5e772815a1f15293b5d74f8fe56028dfcc517be18622b1fc7263c9c33d"
+      },
+      {
+        "bytes": 2791,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-sa-levels.tex",
+        "sha256": "3c63b737bfce880525b6430cfe908db008c55fc7e3f5261343ecc9fcd8266833"
+      },
+      {
+        "bytes": 3650,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-sdt.tex",
+        "sha256": "fa63613b7e8c36cbc0cd4cb0737b049de3859ebb937c91f66c601edafd2332b3"
+      },
+      {
+        "bytes": 3400,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-specialization.tex",
+        "sha256": "7621493512f677c26bbbc7ed16e213b193084111879ba16afccc8cabb779e781"
+      },
+      {
+        "bytes": 4674,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-split-penalty.tex",
+        "sha256": "067e8fe824e65f02604b237fe59513b1a12ef56f01a72e1d844191d3941aa9c5"
+      },
+      {
+        "bytes": 6064,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-split-ranker.tex",
+        "sha256": "9c686a6a891cae25c063dad0ff2c340c20ac3353ff9a6d51e6b6ba1796815c02"
+      },
+      {
+        "bytes": 3991,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-state-of-nature.tex",
+        "sha256": "3aeaa2f1e1e8783f1d0f69541723417f3939ecf6663fefdc5c3af856dfd7b449"
+      },
+      {
+        "bytes": 4225,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-zoom-advantage.csv",
+        "sha256": "f2295c3f285884f696b79a7379385431194955d3994e9f4e3e79ec30d0e264a6"
+      },
+      {
+        "bytes": 3168,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-zoom-advantage.tex",
+        "sha256": "970a99eb12cf3df1ee27602d929379a69d6685b4c9f30dec8a07fe7380c09be6"
+      },
+      {
+        "bytes": 6436,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-zoom-vs-potemkin.tex",
+        "sha256": "ba52ebc1e4964f8ce34a7bd8ed61d20f492a38f6abfa01b553cdedd9e99c8c4a"
+      },
+      {
+        "bytes": 3208,
+        "mode": 420,
+        "path": "book/figures/lucide/LICENSE",
+        "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+      },
+      {
+        "bytes": 1082,
+        "mode": 420,
+        "path": "book/figures/lucide/LICENSE.feather.txt",
+        "sha256": "308028e93fcf84972523cdf6e616f73168546b4953895f516d01287f16fe7bee"
+      },
+      {
+        "bytes": 3208,
+        "mode": 420,
+        "path": "book/figures/lucide/LICENSE.lucide.txt",
+        "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+      },
+      {
+        "bytes": 1285,
+        "mode": 420,
+        "path": "book/figures/lucide/README.md",
+        "sha256": "703d3381218634dbdf5d6d2609bdefba41b0c4d450dfc4f2f2c3ac58af52236c"
+      },
+      {
+        "bytes": 1205,
+        "mode": 420,
+        "path": "book/figures/lucide/book-open.pdf",
+        "sha256": "ddcc404dd18b38a007d08ee0674ad4dfa59fc2bc00b71ed406f14b8b81b3c9b5"
+      },
+      {
+        "bytes": 387,
+        "mode": 420,
+        "path": "book/figures/lucide/book-open.svg",
+        "sha256": "9b9bed0ff057283d5c5c5a1c71f8d3e927db26a56639603a92fdf7b25961510e"
+      },
+      {
+        "bytes": 1197,
+        "mode": 420,
+        "path": "book/figures/lucide/calculator.pdf",
+        "sha256": "d2c0419d08cb05336aa77b8be9d135fcd459fe054ce00ebc64019dfa5b7bd3d1"
+      },
+      {
+        "bytes": 523,
+        "mode": 420,
+        "path": "book/figures/lucide/calculator.svg",
+        "sha256": "a6b191250b1ffabdf9fc9536662309f1b0f65336aa681d75bae9f1708baaefd0"
+      },
+      {
+        "bytes": 1219,
+        "mode": 420,
+        "path": "book/figures/lucide/file-text.pdf",
+        "sha256": "1068f620c191a54a27dc8c616c2cf756bc02df454d7d09a79aaa8776aaffe03b"
+      },
+      {
+        "bytes": 444,
+        "mode": 420,
+        "path": "book/figures/lucide/file-text.svg",
+        "sha256": "52ca55846c202335fb870c8aa23e9345630ec10489303756d62e750f7109605c"
+      },
+      {
+        "bytes": 1219,
+        "mode": 420,
+        "path": "book/figures/lucide/flask-conical.pdf",
+        "sha256": "66ce9cc65082285f8fe3f12f8aa6fd38fd22409b788a2b89fcf2d540b4fa0cd6"
+      },
+      {
+        "bytes": 383,
+        "mode": 420,
+        "path": "book/figures/lucide/flask-conical.svg",
+        "sha256": "a2ce857c159bef4c128a6d9f0b6dcbd6504ecf1a2a670ee220efd14fd032b561"
+      },
+      {
+        "bytes": 1366,
+        "mode": 420,
+        "path": "book/figures/lucide/key-round.pdf",
+        "sha256": "249b48814796e8c5abedc52357b4677642f89df35054abde530bdc5bbcb9cb5c"
+      },
+      {
+        "bytes": 453,
+        "mode": 420,
+        "path": "book/figures/lucide/key-round.svg",
+        "sha256": "f8cdea843754ed360e36b04bf6aa2c2b3610935dd39ffc685a36c4d0a05be248"
+      },
+      {
+        "bytes": 1118,
+        "mode": 420,
+        "path": "book/figures/lucide/list-checks.pdf",
+        "sha256": "836316fcabfd87bf99afc46b18c754dcae311db8ac43c4e5c2e8c9edab27e802"
+      },
+      {
+        "bytes": 336,
+        "mode": 420,
+        "path": "book/figures/lucide/list-checks.svg",
+        "sha256": "08d26ab05aaf724222c4c0cd5a19d5eae753b2a5fff0eb2d81759dde11bac6b6"
+      },
+      {
+        "bytes": 1243,
+        "mode": 420,
+        "path": "book/figures/lucide/lock-keyhole.pdf",
+        "sha256": "bcd69e80b587882311031f1541cf1603ecb448280e45bd6e6c3227ecc8286438"
+      },
+      {
+        "bytes": 337,
+        "mode": 420,
+        "path": "book/figures/lucide/lock-keyhole.svg",
+        "sha256": "fc0b8b7590d1d9e9bb0112c5c2e15a78ade0bfeca6d6f8c79fbbe149236d74be"
+      },
+      {
+        "bytes": 1236,
+        "mode": 420,
+        "path": "book/figures/lucide/scroll-text.pdf",
+        "sha256": "f72f506a5046b2379f0756f8c6c8f855dd07331a1afa4d57f2c9051b4be7240a"
+      },
+      {
+        "bytes": 419,
+        "mode": 420,
+        "path": "book/figures/lucide/scroll-text.svg",
+        "sha256": "57739b59816cedf5b2fd92559784431ce59f3d14eb77eabb659591b6789e223d"
+      },
+      {
+        "bytes": 1094,
+        "mode": 420,
+        "path": "book/figures/lucide/terminal.pdf",
+        "sha256": "339945eb63d5ba1fe494d3a7dde9951fbb3bc445eeb323990ca978183d0fa777"
+      },
+      {
+        "bytes": 261,
+        "mode": 420,
+        "path": "book/figures/lucide/terminal.svg",
+        "sha256": "4f9b6488b237757d5cb615ccd07502fa99774826839e2a99017784bdb2596f1a"
+      },
+      {
+        "bytes": 1231,
+        "mode": 420,
+        "path": "book/figures/lucide/workflow.pdf",
+        "sha256": "8c275b160ad83fd52e44a874154d42dc34cec14dc30fefe327c09dd42eb19d99"
+      },
+      {
+        "bytes": 351,
+        "mode": 420,
+        "path": "book/figures/lucide/workflow.svg",
+        "sha256": "ae99ea8f56a2835a2cca35b2fbb57643ab73443610970dba23e24bd9df75cfec"
+      },
+      {
+        "bytes": 7030,
+        "mode": 420,
+        "path": "book/figures/pd-book-citations.tex",
+        "sha256": "8228effc791d0ff7c73aecb20260cb0c3f127e8ace554a9a57876a6f05772a1f"
+      },
+      {
+        "bytes": 27058,
+        "mode": 420,
+        "path": "book/figures/pd-cite-shortforms.tex",
+        "sha256": "c04d4d63255fcabfd09fd89098b7087f6c8bc15ad02c9c19a3a4380b17dc7eed"
+      },
+      {
+        "bytes": 898,
+        "mode": 420,
+        "path": "book/figures/pd-discharges.tex",
+        "sha256": "d24cb6103ef0d38e2d7af8255bfd75de3a35d3b6f69dc30b55a7c314e55158cf"
+      },
+      {
+        "bytes": 5457,
+        "mode": 420,
+        "path": "book/figures/pd-figure-language-swiss.tex",
+        "sha256": "6bfaec492b914916857781c5cf80cfa0c7d1cbb02fd658a72e70c6aa55e11bdf"
+      },
+      {
+        "bytes": 4443,
+        "mode": 420,
+        "path": "book/figures/pd-figure-language-technical.tex",
+        "sha256": "22d85866f249c1ee95ec0f68546e60f384ae2ad96328eb9e13d9c42ff3d2fe9d"
+      },
+      {
+        "bytes": 40308,
+        "mode": 420,
+        "path": "book/figures/pd-figure-language.tex",
+        "sha256": "e35aef5c5609f9aa75a6846baebcf60106d6d7547489a3d61723c1fcce3a25f5"
+      },
+      {
+        "bytes": 6237,
+        "mode": 420,
+        "path": "book/figures/pd-hyperlinks.tex",
+        "sha256": "7017867e88421ee207ffe9107c9c8ca6501c43a87a1aefc0f2bfd8c2410c0408"
+      },
+      {
+        "bytes": 4412,
+        "mode": 420,
+        "path": "book/figures/pd-margin-evidence.tex",
+        "sha256": "e9050215e9ff246b05e59328722464ef25c90526f7fa7f76b5572619c7ddeef6"
+      },
+      {
+        "bytes": 13887,
+        "mode": 420,
+        "path": "book/figures/pd-margin-layout.tex",
+        "sha256": "82f16674b667caf2058d294b13ed01d7392f1667e0f600f6b75df332ef98cb25"
+      },
+      {
+        "bytes": 10912,
+        "mode": 420,
+        "path": "book/figures/pd-margin-sketches.tex",
+        "sha256": "30e8a2ab8a745bca134b2027bd7faa194b29bcce56a67c3133383f741847560e"
+      },
+      {
+        "bytes": 5508,
+        "mode": 420,
+        "path": "book/figures/pd-marginalia-credits.tex",
+        "sha256": "3c3297a63ceb7dc14fa0a6ddeea5f0d6ac9e7147192c024affa82d12328f8398"
+      },
+      {
+        "bytes": 3320,
+        "mode": 420,
+        "path": "book/figures/pd-palette.tex",
+        "sha256": "f286f318b25bec0ae9d58c99a799349c354e7697bf5563e144b0f1b7ca999668"
+      },
+      {
+        "bytes": 80226,
+        "mode": 420,
+        "path": "book/figures/pd-pedagogy.tex",
+        "sha256": "4df2929a2e3a61c5be3c7dd6db02104b1decd440acf01f2cc9e122ce07abb891"
+      },
+      {
+        "bytes": 4001,
+        "mode": 420,
+        "path": "book/figures/pd-reflection-plates.tex",
+        "sha256": "233bd6b20f5d64457715d4667a4755f526a4bcb14178e25f8cedebb59690d5ef"
+      },
+      {
+        "bytes": 4192,
+        "mode": 420,
+        "path": "book/figures/pd-semantic-blocks.tex",
+        "sha256": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1"
+      },
+      {
+        "bytes": 16564,
+        "mode": 420,
+        "path": "book/figures/pd-swiss-evidence.tex",
+        "sha256": "76411e4226c33a0bca5d8928d4efab0daade992e51f081916b96ebd451821bd0"
+      },
+      {
+        "bytes": 13843,
+        "mode": 420,
+        "path": "book/figures/pd-textbook-map.tex",
+        "sha256": "ac9b487d9f7b404b2bd9f7f837aeac36f7fa82d22ccf39d7584de264eddef602"
+      },
+      {
+        "bytes": 236,
+        "mode": 420,
+        "path": "book/figures/r1-floor.csv",
+        "sha256": "d5ec6dd2d356b1e2f4d20d897840a48a668a1264eebd6cf07ab53df4c7a2d15f"
+      },
+      {
+        "bytes": 18029,
+        "mode": 420,
+        "path": "book/figures/render_montecarlo.py",
+        "sha256": "7da75b4eecc8374bbc1f49b1878ae6e5ea31acc939f72b1988d37e790ee34361"
+      },
+      {
+        "bytes": 657,
+        "mode": 420,
+        "path": "book/figures/session-anchor-v6-attack.tex",
+        "sha256": "09ec7ca7dd387a8cea0328342ede788ce4d991218389919c04095b4276a45e23"
+      },
+      {
+        "bytes": 1279,
+        "mode": 420,
+        "path": "book/figures/session-bc-delta30.tex",
+        "sha256": "cc19261fc732c24f9bd80da70b2ce001775a84674dd84d5317180b930ffb5b02"
+      },
+      {
+        "bytes": 846,
+        "mode": 420,
+        "path": "book/figures/session-fh-rollback.tex",
+        "sha256": "bd837108cbdebb30afc4ff9332b87a6d6023bb6b4be2b8b3d3195831d03a5be2"
+      },
+      {
+        "bytes": 884,
+        "mode": 420,
+        "path": "book/figures/session-swk-lock-demo.tex",
+        "sha256": "d55f61ed0ee474be81c6f253a7dd738027f559aa48c53ad34d4bb6906b6d3b5f"
+      },
+      {
+        "bytes": 2423,
+        "mode": 420,
+        "path": "book/figures/session-swk-workunit-check.tex",
+        "sha256": "9cc95cf084c02d7415e67097e9e2a156720c97e3bed9fd5f139afb123a9509d3"
+      },
+      {
+        "bytes": 913,
+        "mode": 420,
+        "path": "book/figures/spark-bonded-deviation.tex",
+        "sha256": "84014a2f183efa3f47c7a9a67aacdf6704a44c0aa2995bf10e569dcf7eede2ad"
+      },
+      {
+        "bytes": 1518,
+        "mode": 420,
+        "path": "book/figures/spark-canary-hypergeom.tex",
+        "sha256": "17f6853c93b770098e257916c3896cc16ceca0ce7c4cbe5e0814a1c5e4e8753c"
+      },
+      {
+        "bytes": 1748,
+        "mode": 420,
+        "path": "book/figures/spark-canary-power.tex",
+        "sha256": "0b09a7e9867c574b75e898e928eb392daaf3489d63e7263ba901a21e56b4f08c"
+      },
+      {
+        "bytes": 1736,
+        "mode": 420,
+        "path": "book/figures/spark-escalation-threshold.tex",
+        "sha256": "93bca67dd6913ece60f3f77ddbb6ec695289868c55b78a970df08e5f59072cc0"
+      },
+      {
+        "bytes": 936,
+        "mode": 420,
+        "path": "book/figures/spark-fh-cycle-radius.tex",
+        "sha256": "eb7992994caac1642835139cc73c9c0ebd48a814a7c258175a8b76fce3547e30"
+      },
+      {
+        "bytes": 1148,
+        "mode": 420,
+        "path": "book/figures/spark-revocation-gossip.tex",
+        "sha256": "b390e094136f4d556b4b1d4bb534523909e0a87a1a79e62d091dc41f18d2ced8"
+      },
+      {
+        "bytes": 1498,
+        "mode": 420,
+        "path": "book/figures/spark-stp-audit-depth.tex",
+        "sha256": "78e8129ab610c0613492f31229e26f3ac2c347a4a933a8fea4b3de0aadcc4784"
+      },
+      {
+        "bytes": 1361,
+        "mode": 420,
+        "path": "book/figures/spark-wald-sprt.tex",
+        "sha256": "86321798a561d8257ab863ab1a5eb30efb8f50e857bef209277022767929104c"
+      },
+      {
+        "bytes": 1434,
+        "mode": 420,
+        "path": "book/figures/spark-welfare-loss.tex",
+        "sha256": "1e4ed93798c7d3dea0f973fbcd23529e8a255dfc558b9ba0912d2217ae2d4c69"
+      },
+      {
+        "bytes": 4073,
+        "mode": 420,
+        "path": "book/figures/src/legible-swarm-specialization.py",
+        "sha256": "390a0a567031b107d1ef221363a756f381d09a80385b209745a9f4c3b793d61f"
+      },
+      {
+        "bytes": 2817,
+        "mode": 420,
+        "path": "book/figures/swk-unknown-effect.tex",
+        "sha256": "6baa6b66cfb2272411da3339a4dda5f9c7f28a0d03bdb5d4c936025764c10ea5"
+      },
+      {
+        "bytes": 1619,
+        "mode": 420,
+        "path": "book/figures/tab-bc-settlement-rule.tex",
+        "sha256": "04ee29711bc9ad8e5ed03a362a3727228f6eb5017c699eda1171839241017bef"
+      },
+      {
+        "bytes": 1761,
+        "mode": 420,
+        "path": "book/figures/tab-fh-partition.tex",
+        "sha256": "ae0239ab4d8afc772b799e091c6469677f3735d2dcf2806d3644dcd9dafa2ced"
+      },
+      {
+        "bytes": 2729,
+        "mode": 420,
+        "path": "book/figures/tab-fh-related-borrow-depart.tex",
+        "sha256": "3639e0d52875415a8ef822ab4a8147ce62e4a2cb370f262c0c5388b699b4862e"
+      },
+      {
+        "bytes": 2062,
+        "mode": 420,
+        "path": "book/figures/tab-fh-revocation-rules.tex",
+        "sha256": "18cf7b6b3bdfb05aaa4cf05d5e14749dfe12751d732f8768c73c03e7c41a62ef"
+      },
+      {
+        "bytes": 960,
+        "mode": 420,
+        "path": "book/figures/tab-fh-sheaf-harness.tex",
+        "sha256": "c3a550e43a0bb3c34bcf75732747b02afdb3508a8090b331c23e547bb7558f1d"
+      },
+      {
+        "bytes": 1896,
+        "mode": 420,
+        "path": "book/figures/tab-fh-topology.tex",
+        "sha256": "297020af68eefaf47ce5a5290a5f9ee58d252ebd61690ca701d9e114b878c9d4"
+      },
+      {
+        "bytes": 1807,
+        "mode": 420,
+        "path": "book/figures/tab-fh-witness-log.tex",
+        "sha256": "5f048b49d8e26199bc938a04acd58c7ff2dc2f851be96adcc79059e062b9616e"
+      },
+      {
+        "bytes": 1334,
+        "mode": 420,
+        "path": "book/figures/tab-keystone-split.tex",
+        "sha256": "53400e609d65e250710136c3b8374d82de3e4350accc5fb2897c624cbf542244"
+      },
+      {
+        "bytes": 8027,
+        "mode": 420,
+        "path": "book/fixtures/caption-layout-fixture.tex",
+        "sha256": "d05b9f7d869b3571441bb03f0047c48706873f1f12d51cc804278e205a387d1a"
+      },
+      {
+        "bytes": 4397,
+        "mode": 420,
+        "path": "book/fixtures/margin-apparatus-fixture.tex",
+        "sha256": "eb60c2e7c1a8cce324001d30814aa22d3da1c4a28a09d8cfecfb306cd6a1257d"
+      },
+      {
+        "bytes": 5080,
+        "mode": 420,
+        "path": "book/fonts/README.md",
+        "sha256": "0b00e450571b9a792aac05574c85b1c8a3389812ad76ce27b68fd36e03520617"
+      },
+      {
+        "bytes": 2876,
+        "mode": 420,
+        "path": "book/fonts/manifest.json",
+        "sha256": "b265c355d3f3c61f10b9bce97ebe397590c132b6636d0eb9bb0b3e448feb6e68"
+      },
+      {
+        "bytes": 4486,
+        "mode": 420,
+        "path": "book/fonts/source-sans/LICENSE.md",
+        "sha256": "56af9b9c6715597e458284a474dc118a50a4150e9d547c70f7b4a33c3e6a9328"
+      },
+      {
+        "bytes": 239048,
+        "mode": 420,
+        "path": "book/fonts/source-sans/SourceSans3-It.otf",
+        "sha256": "430b9f0eb1170be0981706d14b6cf87122efba9d86c373bbdf69daf276421462"
+      },
+      {
+        "bytes": 334924,
+        "mode": 420,
+        "path": "book/fonts/source-sans/SourceSans3-Regular.otf",
+        "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6"
+      },
+      {
+        "bytes": 339636,
+        "mode": 420,
+        "path": "book/fonts/source-sans/SourceSans3-Semibold.otf",
+        "sha256": "36f1cd2c344aa3109e64429bce41a41e4b2b923beb2db19b8dbf9bb56f05a4f9"
+      },
+      {
+        "bytes": 239736,
+        "mode": 420,
+        "path": "book/fonts/source-sans/SourceSans3-SemiboldIt.otf",
+        "sha256": "81204ed282543df2d93db214c98b5ec1c9ce735c4c82e4323d5ae5ee69c6b8b7"
+      },
+      {
+        "bytes": 4491,
+        "mode": 420,
+        "path": "book/fonts/source-serif/LICENSE.md",
+        "sha256": "c21d7293d87b6d7ab1d0229a2f55b77f33a7613a6a4e66f6693d68d7d8d09464"
+      },
+      {
+        "bytes": 169132,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4-It.otf",
+        "sha256": "f8062257f4693e438a8e317c9fe2b4393f0d4eed84d897edcbfd733c30a1c1a1"
+      },
+      {
+        "bytes": 241392,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4-Regular.otf",
+        "sha256": "edf160d0d584deee8a3bb2c3371b2a7624ca63580fbe02c57c1f4c91e84d8787"
+      },
+      {
+        "bytes": 252852,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4-Semibold.otf",
+        "sha256": "25e034392847d9965c92f98971b3646436b7ab919ece9118b0c0e5ec94c02efc"
+      },
+      {
+        "bytes": 174988,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4-SemiboldIt.otf",
+        "sha256": "fc22addcea5d5ab982dfef6d388fff6bdb3e31ae46c37e0015b8312e634a6e9b"
+      },
+      {
+        "bytes": 158864,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4Caption-It.otf",
+        "sha256": "eac5467fa1e9eefe466da00e5ac409857cb7610aa4e07611dcb82c52e5d5b9dd"
+      },
+      {
+        "bytes": 226484,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4Caption-Regular.otf",
+        "sha256": "312a15e15369b7b54527c288e2391ff14cb73bcf41520d3a5c34b4c259e99a3a"
+      },
+      {
+        "bytes": 244224,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4Caption-Semibold.otf",
+        "sha256": "9efb82f0a6310771d7bec17dfe38c30b145b857f5781a554990b48edadf54cb0"
+      },
+      {
+        "bytes": 171272,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4Caption-SemiboldIt.otf",
+        "sha256": "49456d846253d8930e9f139349df61b84e56178f01ea7e39d41ef3f013925e26"
+      },
+      {
+        "bytes": 175300,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4Display-It.otf",
+        "sha256": "653bba042213020d624a147c55d84662b3c20c1e12355bc691ae53c7051785ca"
+      },
+      {
+        "bytes": 262988,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4Display-Regular.otf",
+        "sha256": "0525aba71e1d7293d3ef645f5a9b56101432d1f6c676cba388f800523c7b2111"
+      },
+      {
+        "bytes": 273232,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4Display-Semibold.otf",
+        "sha256": "0f2b3699c57dd032db8c8d93b34f7dac72e60fa2638d209aa2e428dfb6eb6400"
+      },
+      {
+        "bytes": 181464,
+        "mode": 420,
+        "path": "book/fonts/source-serif/SourceSerif4Display-SemiboldIt.otf",
+        "sha256": "2f548ebe7b4e535e4e5e9a3d6f7bff4436387e837c0925fef782be2736b6f982"
+      },
+      {
+        "bytes": 203818,
+        "mode": 420,
+        "path": "book/harbor-economy.tex",
+        "sha256": "6e6d7ae42b97f06d502318421ac8ccb6142913e07a79dd8aa373217018855fbf"
+      },
+      {
+        "bytes": 290047,
+        "mode": 420,
+        "path": "book/legible-swarm.tex",
+        "sha256": "e86d35251ee0568fe20892b42489d5264d0ff228071cc3a852bfb893d5809cda"
+      },
+      {
+        "bytes": 1076,
+        "mode": 420,
+        "path": "book/margin-apparatus-fixture.tex",
+        "sha256": "ff30caf9e7cd91dd08f6061a481d2bb9d7bca6bce31c37853d97788b302cdb5e"
+      },
+      {
+        "bytes": 27125,
+        "mode": 420,
+        "path": "book/plates/PROVENANCE.json",
+        "sha256": "affbfc3a8eedd60948fc742a89bb12050c507c4669ea1b2d848a7554ff1cba30"
+      },
+      {
+        "bytes": 7961,
+        "mode": 420,
+        "path": "book/plates/README.md",
+        "sha256": "d45b26b7a7836a2bd529ca88d8546ecd846d1ac1f38fd87ffffcc0740cc3b9d9"
+      },
+      {
+        "bytes": 229464,
+        "mode": 420,
+        "path": "book/plates/chapter-anchor.jpg",
+        "sha256": "4608a3ccab92abcf85267b608ffdbdbd68d5aabc741b7d9ece91cdd025ccbfa4"
+      },
+      {
+        "bytes": 347162,
+        "mode": 420,
+        "path": "book/plates/chapter-bonded.jpg",
+        "sha256": "bf33ac5654ee3b2295700acad0e4be7c6f39f81538f3796fd97465d9ab3cfc16"
+      },
+      {
+        "bytes": 323217,
+        "mode": 420,
+        "path": "book/plates/chapter-fh.jpg",
+        "sha256": "c8d39b705f02537b2e8a8ca53494a544166aac02b04e3103655aaf49e4c0e826"
+      },
+      {
+        "bytes": 327165,
+        "mode": 420,
+        "path": "book/plates/chapter-he.jpg",
+        "sha256": "cf10e7230801a8bf155dd5284bbbc5b1481fa0b288fc134af28a1a491b68e377"
+      },
+      {
+        "bytes": 300920,
+        "mode": 420,
+        "path": "book/plates/chapter-ls.jpg",
+        "sha256": "907bb2655d4c8924a42310a803c9029bf2a9e36c697b2dacca8220637978a573"
+      },
+      {
+        "bytes": 242096,
+        "mode": 420,
+        "path": "book/plates/chapter-sealed.jpg",
+        "sha256": "1c939c7d7c5c97896661868d7cf59228be209a583f80a1c272dddfd7ab33b291"
+      },
+      {
+        "bytes": 290183,
+        "mode": 420,
+        "path": "book/plates/chapter-stp.jpg",
+        "sha256": "352ea289ed1921ae4875b681ad6dc102828e9c2ed5bc7616415e6c5ab544a19a"
+      },
+      {
+        "bytes": 247822,
+        "mode": 420,
+        "path": "book/plates/chapter-swk.jpg",
+        "sha256": "bcd2820e5db3d6905bfce476fe5bcdd2ec18cb328270ed930249c54fc44d1408"
+      },
+      {
+        "bytes": 245501,
+        "mode": 420,
+        "path": "book/plates/cover-swiss.jpg",
+        "sha256": "d455ae0bbe42d52ef478ee683415f73e7c8546ed811cfafe48a87d6803951927"
+      },
+      {
+        "bytes": 342963,
+        "mode": 420,
+        "path": "book/plates/frontispiece.jpg",
+        "sha256": "fa7c85f75931bc181b7c308e80213ae918399abc77e7a0f7aa0f100f71788472"
+      },
+      {
+        "bytes": 13025,
+        "mode": 420,
+        "path": "book/plates/interstitial/PROVENANCE.json",
+        "sha256": "3a98d94158e2f078a246a829bbec70577abc9950476ce64874627484406b5e17"
+      },
+      {
+        "bytes": 2583,
+        "mode": 420,
+        "path": "book/plates/interstitial/README.md",
+        "sha256": "87b6516245b239abc792c329134dea50a7408e38c9b7f887bfa220590c92ca7e"
+      },
+      {
+        "bytes": 231392,
+        "mode": 420,
+        "path": "book/plates/interstitial/the-controlled-opening.jpg",
+        "sha256": "1987036d466d73b5c721a43bb2f9f8b9291e8986f79d98f124257fbd5727e91e"
+      },
+      {
+        "bytes": 366638,
+        "mode": 420,
+        "path": "book/plates/interstitial/the-paper-crossing.jpg",
+        "sha256": "9d0d7ea784d4f376e9923cc23f05da623152c5018318c20ce4e55bdc580b7a39"
+      },
+      {
+        "bytes": 408132,
+        "mode": 420,
+        "path": "book/plates/interstitial/the-unseen-boat.jpg",
+        "sha256": "bac67045678e60035b73eceaf5191a2f0f6c1e77991966fc3dedc7a44fb57d59"
+      },
+      {
+        "bytes": 311331,
+        "mode": 420,
+        "path": "book/plates/interstitial/the-waiting-body.jpg",
+        "sha256": "2297827a60e11ee8028d4d760e6d7f2949ad6d906b0b5762a2f09bacc46e44bb"
+      },
+      {
+        "bytes": 301462,
+        "mode": 420,
+        "path": "book/plates/jacket.jpg",
+        "sha256": "10e0e3b4e2b0d5748e1882b18b80cab46ae110455942dba790d5d641a94ff39c"
+      },
+      {
+        "bytes": 1504,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/bond-balance.json",
+        "sha256": "2dd9ce0b543314e8a84a7033293d7d23c0b2170a03d1be2780ef32313f72636c"
+      },
+      {
+        "bytes": 127220,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/bond-balance.pdf",
+        "sha256": "94856d7cec5ef244c370a6aeecec0cd06f5659b08e554e583d9db15fc61797a5"
+      },
+      {
+        "bytes": 3384,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch01-fairness-ticket-dispenser.json",
+        "sha256": "a45171e2613f171c8f7948c07b63739d0e1d70677b99197dde9aaeade0d5ecbf"
+      },
+      {
+        "bytes": 127784,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch01-fairness-ticket-dispenser.pdf",
+        "sha256": "dd57c256a8308e120b7e6a4f881aea49c9ba7a7fadb58d974a059de51e641533"
+      },
+      {
+        "bytes": 1000,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch01-flywheel-governor.json",
+        "sha256": "618f89ec659f2f1a5f9e5ef392078462dc06ed5bbe301bcd2bcec32a0b14e707"
+      },
+      {
+        "bytes": 109030,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch01-flywheel-governor.pdf",
+        "sha256": "95c93051d3eef46eaa764dde661b2a8054434c2f6ec9b77bb4c904a6cfad49a1"
+      },
+      {
+        "bytes": 939,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch01-railway-token-staff.json",
+        "sha256": "0af911bc6bd654fc050ae3f02a3b48ecaf79eef55375b8cb265af8ea2ab8fd59"
+      },
+      {
+        "bytes": 76158,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch01-railway-token-staff.pdf",
+        "sha256": "7c84231cb07ff46a06c9928ac9bfea1bba29659fe421cd1e703bedf41e140b23"
+      },
+      {
+        "bytes": 953,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch01-water-meter-dial.json",
+        "sha256": "03bdf6c9b07b05cffeb61269a31e5be84862e2fcd821587939cd003835649d54"
+      },
+      {
+        "bytes": 210529,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch01-water-meter-dial.pdf",
+        "sha256": "f24fcee549f400d8bbcba278699f5b7aefdbe4dcab59d43cc70677694790ee6f"
+      },
+      {
+        "bytes": 949,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch02-colander-mesh.json",
+        "sha256": "40b446134636c7b9aea11910500f34ec0e4b8579f20cbd219f1857e8bfe2bc32"
+      },
+      {
+        "bytes": 196933,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch02-colander-mesh.pdf",
+        "sha256": "24929e9d1670fafabae4d4a3438747b05faefd299e940fa7f9086db2166099c3"
+      },
+      {
+        "bytes": 953,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch02-couriers-dispatch-pouch.json",
+        "sha256": "f14c91400894288c8b46a6ae60e16eb421b71bd1a76a5b5e17a8e47151bab994"
+      },
+      {
+        "bytes": 184501,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch02-couriers-dispatch-pouch.pdf",
+        "sha256": "f436b63b72509fd3dfbbc03414d9d8d93b2b29ecf41ed9adebfe0927d41630b4"
+      },
+      {
+        "bytes": 973,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch02-finite-grant-parking-meter.json",
+        "sha256": "e9c2267649650ab3ee101d340d90375b4d62a8854e8dd16f997a0c7953b47a31"
+      },
+      {
+        "bytes": 161982,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch02-finite-grant-parking-meter.pdf",
+        "sha256": "e32c573d701f23e3dce743d2e28836a047f2a57ceaada3e7dfd1943560553978"
+      },
+      {
+        "bytes": 981,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch02-nested-measuring-spoons.json",
+        "sha256": "bc387370c1d3fd086342101d4824984b9baa0644669684d7282e5907d2ebc749"
+      },
+      {
+        "bytes": 110936,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch02-nested-measuring-spoons.pdf",
+        "sha256": "f35e713e721a15bcfe108151650e8414955763e8b223bda0b8e9ddedabca90b7"
+      },
+      {
+        "bytes": 990,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch03-authorized-speaking-tube.json",
+        "sha256": "7181e39b7572589eb716ebd577472a363779350855942b7c1ac5422738fb7253"
+      },
+      {
+        "bytes": 103558,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch03-authorized-speaking-tube.pdf",
+        "sha256": "d3764d31322d17dc5e54ac58112e281096a54b991dbdb9bac16910c95caca839"
+      },
+      {
+        "bytes": 972,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch03-lead-lined-darkslide.json",
+        "sha256": "c7d0151e8eb63383fed22157aee178b344292fa096656ed9d45c4a9934325c10"
+      },
+      {
+        "bytes": 141814,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch03-lead-lined-darkslide.pdf",
+        "sha256": "f02331df88836482bceb3428d5b83cc3d05b6235b1e8bb0c2f0770c99602bfb1"
+      },
+      {
+        "bytes": 968,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch03-sandglass-flow-orifice.json",
+        "sha256": "303d418ce79c2f6ffe3ad661efde05ca83f0bf34397d58bb4a8690a15c0c15db"
+      },
+      {
+        "bytes": 137835,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch03-sandglass-flow-orifice.pdf",
+        "sha256": "c06129b722f9e30797ce6d74816d1948538169251a2582838a121da720994055"
+      },
+      {
+        "bytes": 993,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch03-two-shutter-shadowbox.json",
+        "sha256": "3d617349be309346ebb07675c6b06e179185ed6959f7e931032b715093e2da96"
+      },
+      {
+        "bytes": 167565,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch03-two-shutter-shadowbox.pdf",
+        "sha256": "b4a348f04719b3aae41ec40b2bf022d92849467be322ea99c802a7c1c8c4f087"
+      },
+      {
+        "bytes": 980,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch04-selective-attention-annunciator.json",
+        "sha256": "e3447b258462b96ffb211e75ca5ed715808ec79c7c8d4b4fea4a1ba3ece309e3"
+      },
+      {
+        "bytes": 110304,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch04-selective-attention-annunciator.pdf",
+        "sha256": "476e6295f89fd4bd5114cafdb60e0f128eae2bac688f2b3f193f8b77d2cff36f"
+      },
+      {
+        "bytes": 985,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch04-sextant-index-mirror.json",
+        "sha256": "76781230a74889873d64fa305b6eb24e43a6db6290e31de05520516330fded1c"
+      },
+      {
+        "bytes": 163323,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch04-sextant-index-mirror.pdf",
+        "sha256": "0da0148d63b194eed2c2c3301148b2aeba4e77d578bc63dca47ee458bbd0aeca"
+      },
+      {
+        "bytes": 980,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch04-telegraph-sounder-key.json",
+        "sha256": "bf8a4a60ac36f65f55144a191e1ef4e9ccabea38b2607d8591bf15ddf6ef96e3"
+      },
+      {
+        "bytes": 211181,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch04-telegraph-sounder-key.pdf",
+        "sha256": "34325edd49e49b66998970f8ed6a1f7456a0d4a609fe377737d5c5de6f8e0a9b"
+      },
+      {
+        "bytes": 980,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch04-tide-gauge-staff.json",
+        "sha256": "0251db6bf179034734bf5139aaac9ac609718881f2e4da1ddbd41446e606fc44"
+      },
+      {
+        "bytes": 144053,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch04-tide-gauge-staff.pdf",
+        "sha256": "83a4d678b0b8e2450d65bc6c5ce3b713bb77581f0a4c0ad62e7f772b5d86f554"
+      },
+      {
+        "bytes": 3464,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-continuity-rope-splice.json",
+        "sha256": "08dde0d8b7772071c01dba02bb86a992b3bcf8c719de7b6e3e6270212918cd61"
+      },
+      {
+        "bytes": 46631,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-continuity-rope-splice.pdf",
+        "sha256": "f1da75ca2eba78dfb38a202478aec039be3cf999e05c6e6c9ef9e65ff817585d"
+      },
+      {
+        "bytes": 3365,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-episodic-card-file.json",
+        "sha256": "5667adb0fa0494d36421483a409f2dbe535af8d71c2e71c17ab473424a499c64"
+      },
+      {
+        "bytes": 150235,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-episodic-card-file.pdf",
+        "sha256": "a8bda2635275aa8982e6387f7c3c8512ac6e164913f1f245984bb7a9c1f8c8a2"
+      },
+      {
+        "bytes": 984,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-stagecoach-relay-post.json",
+        "sha256": "ab69b7de4497f30a9a9fc14a5b3f74b35fc234260ab9e4c8039a18e9a276089c"
+      },
+      {
+        "bytes": 201406,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-stagecoach-relay-post.pdf",
+        "sha256": "ce786b3ecf482ebec6b9bab2ea0d35accbcb856acc8553da4eee8131bc734b18"
+      },
+      {
+        "bytes": 966,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-stepped-surveyors-pole.json",
+        "sha256": "4aed351438bf4bf479a7d42523aa629f41d7cdf5080def0014109e0a9fae929c"
+      },
+      {
+        "bytes": 115072,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-stepped-surveyors-pole.pdf",
+        "sha256": "ada303a0f7a9b881c4957fcab4e1020bf5ceda2055e2282b6068de0dae366a57"
+      },
+      {
+        "bytes": 974,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-wax-seal-signet.json",
+        "sha256": "5dbf26b01f431895729d8cbcb73fa91528e4620695788e60a5117644a1b42358"
+      },
+      {
+        "bytes": 192048,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch05-wax-seal-signet.pdf",
+        "sha256": "2a45aa2259b10d4000f94efe91de45f5b5ac2a6640dd5a691b36c4bf52da85d2"
+      },
+      {
+        "bytes": 972,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch06-dockyard-cargo-sling.json",
+        "sha256": "cd4f0db4e11ca4c83cef1ccdf640ed1d22c1d1ffc31a59c238dc8f2eba496fbd"
+      },
+      {
+        "bytes": 184469,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch06-dockyard-cargo-sling.pdf",
+        "sha256": "b96d42ae9d72c5877565c946574046e8a57f561e10f212bcfc2f35f99b85983e"
+      },
+      {
+        "bytes": 974,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch06-grain-tally-board.json",
+        "sha256": "104685cf0c71a0077e197650b99988509bef5fbe9ff3471a94954d66d7fa45f8"
+      },
+      {
+        "bytes": 205105,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch06-grain-tally-board.pdf",
+        "sha256": "e9c135d58086a093c03021ed54b3dc6f2dc8191e512220023a75ff130a71b255"
+      },
+      {
+        "bytes": 3516,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch06-reusable-printing-block.json",
+        "sha256": "da5c1111f2f5e9cb5fbe09cc96041d7437ec49586104fa66c65dcc43c506db76"
+      },
+      {
+        "bytes": 137145,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch06-reusable-printing-block.pdf",
+        "sha256": "a8dafe25464ed26dc0efc9e156e77dba8bae2f159223deed0fef35056be29a28"
+      },
+      {
+        "bytes": 975,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch06-wharf-steelyard-scale.json",
+        "sha256": "026184b8082294a4240fc2579067e381ae025a8afbae65fc455f50fe3797931d"
+      },
+      {
+        "bytes": 104871,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch06-wharf-steelyard-scale.pdf",
+        "sha256": "1198373ee092f26dc8567d537d75cdcf338191c6286f625aa9553b1b4ad6e86f"
+      },
+      {
+        "bytes": 3505,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch07-cleanup-repair-kit.json",
+        "sha256": "682393260e97605dd9b80bdef2277a233b0cee33c0105949bd238bb263fcf32e"
+      },
+      {
+        "bytes": 177358,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch07-cleanup-repair-kit.pdf",
+        "sha256": "f991001ca0858acc4ee7a19b58a2f1e4bbd63432e043f77b1e44affc3e0d4f47"
+      },
+      {
+        "bytes": 973,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch07-dual-control-escrow-box.json",
+        "sha256": "cbec1d24f12698d008301e9e742d995cacaa4653c7ddac93458e058e7998b50a"
+      },
+      {
+        "bytes": 208193,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch07-dual-control-escrow-box.pdf",
+        "sha256": "6b22b2a382347147cef7eb4303280eb223c817903c6554b4362f585d7ee1ca25"
+      },
+      {
+        "bytes": 961,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch07-shear-pin-fuse.json",
+        "sha256": "69865485951ccb843dd2ed8c8ca6009d6fb937ff61eec47f85848206069ca744"
+      },
+      {
+        "bytes": 206605,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch07-shear-pin-fuse.pdf",
+        "sha256": "8f90b24ee95b319c6a04e44fc593bc6b6bad217947c15d194be1d6f5401eab2f"
+      },
+      {
+        "bytes": 978,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-closed-traverse-compass.json",
+        "sha256": "d4a0c32a1c9379d3c0535ceb02adc607c9ad6ada140e5ef399897817bbba71d2"
+      },
+      {
+        "bytes": 141119,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-closed-traverse-compass.pdf",
+        "sha256": "84df51cbdae69005c20ddd5c3000a7615d084acafe23fb56c0c85aa240c1d013"
+      },
+      {
+        "bytes": 1014,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-interlocking-railway-lever.json",
+        "sha256": "f596d4e4772e7f8a4ea4e383d6a34a53881eb1f63436ec7ba6bb64a0a2493c44"
+      },
+      {
+        "bytes": 128965,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-interlocking-railway-lever.pdf",
+        "sha256": "aa808cc745100adc228038a86b0318949233043f966363a7c70f7f2f5691de08"
+      },
+      {
+        "bytes": 3629,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-local-admission-turnstile.json",
+        "sha256": "93ed28b503f705341b9781b239af87831adfb7cd3682abca45e9b3aafd184e09"
+      },
+      {
+        "bytes": 91573,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-local-admission-turnstile.pdf",
+        "sha256": "705b21c584feda16dbf59034f6e695b227b47c96d549a53d7da376a26c19e228"
+      },
+      {
+        "bytes": 985,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-quarantine-inspection-lantern.json",
+        "sha256": "1133c00ca31edcb79e71af9b8a847f6b2581458d8e29f93759a20c7d2b1a6292"
+      },
+      {
+        "bytes": 126626,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-quarantine-inspection-lantern.pdf",
+        "sha256": "f9e9daaec16e724898172fa946ba962642e956d05aa6f29bda0a997ec2fcd8e0"
+      },
+      {
+        "bytes": 995,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-transit-customs-seal.json",
+        "sha256": "b791bebaf69ecc47ec53059e634f74358735951690a075a681eb2b3b67eb2c1c"
+      },
+      {
+        "bytes": 131587,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/ch08-transit-customs-seal.pdf",
+        "sha256": "8319aaddcc78d4007c0a31683964fd609058402dcd279bd12bc613d8399bc55a"
+      },
+      {
+        "bytes": 1513,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/map-and-lens.json",
+        "sha256": "84ce8f9c35e72054df606458e09e1172a3bc3b70760187f3aea62933ccbe8d53"
+      },
+      {
+        "bytes": 205429,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/map-and-lens.pdf",
+        "sha256": "5be3f255959f071efc6fca2f984f6150e8974266c4199e76b2f08c5daf29ff7f"
+      },
+      {
+        "bytes": 1511,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/movable-type.json",
+        "sha256": "a2d89e2778b11ef2bfabf9cdcf17517fc746ee8d45ae93e28ca1c0d68514dc0d"
+      },
+      {
+        "bytes": 176390,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/movable-type.pdf",
+        "sha256": "d39af029f9cdbab0db2b5459065dd1767260568bfe6ab42316e82c0d740d7321"
+      },
+      {
+        "bytes": 1516,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/one-printing-press.json",
+        "sha256": "ff0dd0b1f773f74cd950bd74de566987fd3e942ef1795cb881c232b1ff71e0ac"
+      },
+      {
+        "bytes": 151606,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/one-printing-press.pdf",
+        "sha256": "5ee4f45b6d3c78eff8ce6d9707db36d2d62640d25c90af6b913cd51e958754f0"
+      },
+      {
+        "bytes": 1572,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/reduced-key.json",
+        "sha256": "116eb7ba273cc69aa1ddcd59e8a3e4dac102b395e50031440fc61ac09db8635e"
+      },
+      {
+        "bytes": 117722,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/reduced-key.pdf",
+        "sha256": "5caf7060c04e23ee4fa24bbfe9368f2d42650a3c70d0ee34bc4aec95899253bc"
+      },
+      {
+        "bytes": 1518,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/sealed-specimen.json",
+        "sha256": "8120b9b91b9cc21bc9df122c8d26a2ee9db2061f64e96116f009f8d4b8fc43d2"
+      },
+      {
+        "bytes": 99278,
+        "mode": 420,
+        "path": "book/plates/margin-evidence/sealed-specimen.pdf",
+        "sha256": "2c2e070c074521decb471085dcdd860f5520c3487606c9741ebd9124ce990cd7"
+      },
+      {
+        "bytes": 40389,
+        "mode": 420,
+        "path": "book/plates/marginalia/aumann.jpg",
+        "sha256": "e67e13d0d0d47cea6489f897b1c10d06b0fcbad99f6e830eb05716a468e94c4d"
+      },
+      {
+        "bytes": 945,
+        "mode": 420,
+        "path": "book/plates/marginalia/aumann.json",
+        "sha256": "357ed3ec780f42688c7f04814afc2d762955b138fbc4a9bc63243943166dcfd4"
+      },
+      {
+        "bytes": 1401,
+        "mode": 420,
+        "path": "book/plates/marginalia/coase.NOT-CLEARED.json",
+        "sha256": "63e6d038cd66a375c090bebcff7219c90fd4b71d00c981b7abaebec6d01af111"
+      },
+      {
+        "bytes": 111455,
+        "mode": 420,
+        "path": "book/plates/marginalia/hickman.jpg",
+        "sha256": "3ad3b688a8b4d39646f04e25f964d1e1e931abdbf70d64b95728e80624513f25"
+      },
+      {
+        "bytes": 1508,
+        "mode": 420,
+        "path": "book/plates/marginalia/hickman.json",
+        "sha256": "c0340335b9e0df3d891a706eedb87ffe5b6c3e93cf27d5771b91ca500d24d069"
+      },
+      {
+        "bytes": 123254,
+        "mode": 420,
+        "path": "book/plates/marginalia/hobbes.jpg",
+        "sha256": "e34600ffb5734a95c75261b70a881af8974836cb23f197b6bac349bfe0df860b"
+      },
+      {
+        "bytes": 1558,
+        "mode": 420,
+        "path": "book/plates/marginalia/hobbes.json",
+        "sha256": "9430e552108d9a7bd07e25afb6ef41861a432f064616b7d5c034a62603f6c71c"
+      },
+      {
+        "bytes": 34020,
+        "mode": 420,
+        "path": "book/plates/marginalia/lamport.jpg",
+        "sha256": "7a0d859643f9fa2870214cdf1b2a9a3371d073be78e2bf2afb56d19ff7aa2f73"
+      },
+      {
+        "bytes": 1089,
+        "mode": 420,
+        "path": "book/plates/marginalia/lamport.json",
+        "sha256": "dba514d31ec8a854ead0a7a37376949ace1a9dcffb0df8059580360b2b8d939a"
+      },
+      {
+        "bytes": 22326,
+        "mode": 420,
+        "path": "book/plates/marginalia/lampson.jpg",
+        "sha256": "29824288e609eb80f7fa19a2e11a8a99dcfa90fcdff5c4ed289003373626501d"
+      },
+      {
+        "bytes": 1026,
+        "mode": 420,
+        "path": "book/plates/marginalia/lampson.json",
+        "sha256": "cf502a2ce99475786767a366dcb6df3671b98c7696d6e1cac06aeb20409d5996"
+      },
+      {
+        "bytes": 46272,
+        "mode": 420,
+        "path": "book/plates/marginalia/leviathan.jpg",
+        "sha256": "6a9c8d619c8a1d685a6c368c595d8191985d932097f312d527767e2b25d4ac38"
+      },
+      {
+        "bytes": 1225,
+        "mode": 420,
+        "path": "book/plates/marginalia/leviathan.json",
+        "sha256": "4ac437baf87629abd25a72070645cdc23ead17928ba59a701d3a1f3a12abcc68"
+      },
+      {
+        "bytes": 49740,
+        "mode": 420,
+        "path": "book/plates/marginalia/lovelace.jpg",
+        "sha256": "7b09fe5710f95903b48bfaca42c65f77b69d24f1c5f6596e4a6a7b9c9a4ee220"
+      },
+      {
+        "bytes": 920,
+        "mode": 420,
+        "path": "book/plates/marginalia/lovelace.json",
+        "sha256": "7f93567f5e0081186d06e880cdc1b8604bfaabfa8de7037d45444df86fe1b4aa"
+      },
+      {
+        "bytes": 40667,
+        "mode": 420,
+        "path": "book/plates/marginalia/ostrom.jpg",
+        "sha256": "4715af57ed0ba78745e114478f36d06a63ee6ba15da415a04d818cce76eee5fe"
+      },
+      {
+        "bytes": 1006,
+        "mode": 420,
+        "path": "book/plates/marginalia/ostrom.json",
+        "sha256": "96e86219277852e7a25dc2a83f6fe6fb63067cc506a2bcf58d202cf5af22f07e"
+      },
+      {
+        "bytes": 33572,
+        "mode": 420,
+        "path": "book/plates/marginalia/parfit.jpg",
+        "sha256": "d76c5eeac8b7b393845aec1ff35a9e8307816b6519dbe6b5552a6febd69302f0"
+      },
+      {
+        "bytes": 1094,
+        "mode": 420,
+        "path": "book/plates/marginalia/parfit.json",
+        "sha256": "1316d447c04d829f7c7a1d34b3e3e41f4f5d1ee545076590307a7fdec92693b8"
+      },
+      {
+        "bytes": 21053,
+        "mode": 420,
+        "path": "book/plates/marginalia/scott.jpg",
+        "sha256": "8b169a671581d540f95838522bd5e809d2e667911af6e8809c21e30e0412d9e8"
+      },
+      {
+        "bytes": 904,
+        "mode": 420,
+        "path": "book/plates/marginalia/scott.json",
+        "sha256": "ff30d410f86cdd7eb6b50136669e83419ddbcd5938a05319515315e7949f5430"
+      },
+      {
+        "bytes": 85046,
+        "mode": 420,
+        "path": "book/plates/marginalia/sen.jpg",
+        "sha256": "ae6f14ad10e4bc873fdfca381b2acfa95a12f3407f3b625a71be90fe318a97b9"
+      },
+      {
+        "bytes": 1730,
+        "mode": 420,
+        "path": "book/plates/marginalia/sen.json",
+        "sha256": "5387f7ab1fa2a4dca82033bde619f50940a89d605d3a09cf5e1ed3cc1308cbbf"
+      },
+      {
+        "bytes": 48662,
+        "mode": 420,
+        "path": "book/plates/marginalia/shannon.jpg",
+        "sha256": "866ed8021f20a5e2c6c858c95046bdfca44c45eec767ca045f3d515cc101deb9"
+      },
+      {
+        "bytes": 1064,
+        "mode": 420,
+        "path": "book/plates/marginalia/shannon.json",
+        "sha256": "ef5e36186d8a7e4b3cc232f7ae9264a6b3286a34fd80074df49de021e47d40ec"
+      },
+      {
+        "bytes": 292342,
+        "mode": 420,
+        "path": "book/plates/marginalia/termites.jpg",
+        "sha256": "3d79090fc64836f1ccb3271ef1ca8c125300383ef5c26fe914e0bc0cab1e8c5e"
+      },
+      {
+        "bytes": 1654,
+        "mode": 420,
+        "path": "book/plates/marginalia/termites.json",
+        "sha256": "a9ee933835feea157aa4b0c87170af6b8f30080945a2a877d09993c4f02a508b"
+      },
+      {
+        "bytes": 31320,
+        "mode": 420,
+        "path": "book/plates/marginalia/thomas-youle.jpg",
+        "sha256": "b06bfa3a0d4e17d905876e81df18e36c7928cbb1bb649f33265a2649ff060614"
+      },
+      {
+        "bytes": 1168,
+        "mode": 420,
+        "path": "book/plates/marginalia/thomas-youle.json",
+        "sha256": "3b2beee64eed60cfca1c4567a9b73e41469f2b3eabceb3f3deb4ad94f1448524"
+      },
+      {
+        "bytes": 29843,
+        "mode": 420,
+        "path": "book/plates/marginalia/wald.jpg",
+        "sha256": "c9f77fad5c39f0f17e90464e953b0d643f184c6a285974949cdc5ba8a5c7a86d"
+      },
+      {
+        "bytes": 1057,
+        "mode": 420,
+        "path": "book/plates/marginalia/wald.json",
+        "sha256": "d90bfe5ad895678ffb80780fbbaca01f13a167d0f63477821297c9968de12ef0"
+      },
+      {
+        "bytes": 34316,
+        "mode": 420,
+        "path": "book/plates/marginalia/wonham.jpg",
+        "sha256": "125dad3b439538c9ebf0bb16ec8de4448a80de7b7cf244216898011807e4e3e1"
+      },
+      {
+        "bytes": 1911,
+        "mode": 420,
+        "path": "book/plates/marginalia/wonham.json",
+        "sha256": "3aab727a49aa9f047755f8981fd0c86015f03e203928c74f846ceec43e6ce293"
+      },
+      {
+        "bytes": 6131334,
+        "mode": 420,
+        "path": "book/plates/originals/termites.jpg",
+        "sha256": "2c812ba19c7c74257a62197d202b0a3198013e65f7e5aefffb84a3123bae7352"
+      },
+      {
+        "bytes": 1167,
+        "mode": 420,
+        "path": "book/plates/originals/termites.json",
+        "sha256": "9077d2b4948ce29292b643c8d100889b7c4cf643306c929afa9a16b0ff987154"
+      },
+      {
+        "bytes": 313738,
+        "mode": 420,
+        "path": "book/plates/part-I.jpg",
+        "sha256": "d7ebda04065ff27cdb677054ae55dd56a20b1c0e5a800d51036a1599d12e5c5b"
+      },
+      {
+        "bytes": 302004,
+        "mode": 420,
+        "path": "book/plates/part-II.jpg",
+        "sha256": "1e4c9f17aa6d8fd0c63f698053f75f240f3902d48753eb49c1489f9bde31d604"
+      },
+      {
+        "bytes": 345559,
+        "mode": 420,
+        "path": "book/plates/part-III.jpg",
+        "sha256": "bae4d70d5c0feb68be904200fd64270f2ba19b9b1cd1f9a2ca19dee993d73966"
+      },
+      {
+        "bytes": 349518,
+        "mode": 420,
+        "path": "book/plates/part-IV.jpg",
+        "sha256": "f426bb38ad2f6c1c2e6278a214d1e5359a0a96377fccbb2244be6f4a4de599f5"
+      },
+      {
+        "bytes": 79150,
+        "mode": 420,
+        "path": "book/plates/swiss/PROVENANCE.json",
+        "sha256": "71e8f46447c00cd9337c75ea8665b34810d65a1ee04b65a2016b20e47e145a10"
+      },
+      {
+        "bytes": 257692,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-anchor.jpg",
+        "sha256": "12c80df2355648b8565b31aa82ed239b646cc083fa9e70b911c6df920c9ddbe4"
+      },
+      {
+        "bytes": 285527,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-bonded.jpg",
+        "sha256": "f8eee25b7a911e5756164dce335df36a8266709b159bc2e1a29a0a022f5be3e6"
+      },
+      {
+        "bytes": 241927,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-fh.jpg",
+        "sha256": "10ca078b3fa1c51042a19916c6901c97026457554bab08e1cbef3cf653c41af9"
+      },
+      {
+        "bytes": 258207,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-he.jpg",
+        "sha256": "425cd5d4236aa73c826f97142695f96394fa293d8d1ba4adc99be007b5cbc163"
+      },
+      {
+        "bytes": 374222,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-ls.jpg",
+        "sha256": "d5de57d2ea8fa7f43f1eefc5c9dae64775109053561890fceea0e39a10592eac"
+      },
+      {
+        "bytes": 179102,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-prereq.jpg",
+        "sha256": "b54f72a22ca9eeee12ecbdeff3f7e30cb9fb09a53ce50692a991ddf0838223e1"
+      },
+      {
+        "bytes": 193514,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-sealed.jpg",
+        "sha256": "8e7e0c14db0214c78d0a0f4c29fb1ffcb303e88270e3b4648265a0550acbef0d"
+      },
+      {
+        "bytes": 356203,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-stp.jpg",
+        "sha256": "f17751a2b90b6b4a2a436086f0e833df98fd8adb59ac924966aa5d816fa49c1f"
+      },
+      {
+        "bytes": 178548,
+        "mode": 420,
+        "path": "book/plates/swiss/chapter-swk.jpg",
+        "sha256": "bb431d490dfc16f5940fe1363adb6bfeec1537df6cbd10fdd29f06b4d3b67389"
+      },
+      {
+        "bytes": 139966,
+        "mode": 420,
+        "path": "book/plates/swiss/cover.jpg",
+        "sha256": "61a04c5d360f66db23de5fa70bc7e4779c04ef3b929097b3913983e85f61f8f5"
+      },
+      {
+        "bytes": 78650,
+        "mode": 420,
+        "path": "book/plates/swiss/fig-ch0-big-brother-logic.jpg",
+        "sha256": "dc9914072a577ee00b3070b5103090f00e9ed696a571586da25a338cf1c3fddf"
+      },
+      {
+        "bytes": 114033,
+        "mode": 420,
+        "path": "book/plates/swiss/fig-ch0-closed-loop.jpg",
+        "sha256": "feede0446329225fc83cff788155e7ac4ce3b93b7d118e6ffe38b3714ad6faf5"
+      },
+      {
+        "bytes": 108341,
+        "mode": 420,
+        "path": "book/plates/swiss/fig-ch0-cnp-bidding.jpg",
+        "sha256": "0f123cd7cfe447515d9b557868c8c4ece06ac26504aae418ced50d960330fa97"
+      },
+      {
+        "bytes": 78272,
+        "mode": 420,
+        "path": "book/plates/swiss/fig-ch0-cnp-settlement.jpg",
+        "sha256": "b1b1f746f74e5847e7e37001666a5e67049933a2bdcb8ecb568aa4fa4dbb92fd"
+      },
+      {
+        "bytes": 93612,
+        "mode": 420,
+        "path": "book/plates/swiss/fig-ch0-lifecycle-hooks.jpg",
+        "sha256": "16afc2054ca8b98571c9b9d574a85da2280bd96bc0edef7477c6f8c48a24d09e"
+      },
+      {
+        "bytes": 131029,
+        "mode": 420,
+        "path": "book/plates/swiss/fig-ch0-skills-logarithmic.jpg",
+        "sha256": "0f331179d0ab809e60faaf28a0139aee4fd69daf9ee6315879577bfad729073a"
+      },
+      {
+        "bytes": 186371,
+        "mode": 420,
+        "path": "book/plates/swiss/frontispiece.jpg",
+        "sha256": "f79f604490f7738833b123633c0a01d149a8d208e8d73bd9b7877cdbc48ca800"
+      },
+      {
+        "bytes": 84551,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-01.jpg",
+        "sha256": "a4b2b1393aaef233c1313353bbecac6b2801d1d72c313401141d66836c2ab1b6"
+      },
+      {
+        "bytes": 175099,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-02.jpg",
+        "sha256": "2e23a8a9097e9297643ef813e93fe9a0b7e053763eb97b42b4ae82fa8a2970d7"
+      },
+      {
+        "bytes": 178696,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-03.jpg",
+        "sha256": "960a2b94bd5e5a8da2208c6b935c3710ff50fb953108742b5664a8bbc18d2fca"
+      },
+      {
+        "bytes": 131328,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-04.jpg",
+        "sha256": "260fdeaa465da910d34f3f08164de2e47daee79228b864ead7e010d2b1ac7931"
+      },
+      {
+        "bytes": 113910,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-05.jpg",
+        "sha256": "818865d4a7a66508170483ee78bdc77511a389fca20bae9554beb6157f71b83b"
+      },
+      {
+        "bytes": 90388,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-06.jpg",
+        "sha256": "f4253cf8248f636fcf21b4fa0e4201a23d55d132382739137847d020b1d9d03f"
+      },
+      {
+        "bytes": 89424,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-07.jpg",
+        "sha256": "48392cb735361c465fe1df65085f778bfce2502f9b4ab31d176756531fcdc33b"
+      },
+      {
+        "bytes": 258322,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-08.jpg",
+        "sha256": "717dc6c57eed4b23e365f6440cd97c7dda83101239fc5c2802dc359ad5ed6d71"
+      },
+      {
+        "bytes": 176465,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-09.jpg",
+        "sha256": "71c5459dc37567c414dce6115de70d9c8309ff505806ba8683aecca1b063d28e"
+      },
+      {
+        "bytes": 184422,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-10.jpg",
+        "sha256": "4689b5a1c83cc0ab30212e1daebfb9322c77ddfea906dcf17fbba1a56cc5a4ea"
+      },
+      {
+        "bytes": 205068,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-11.jpg",
+        "sha256": "2d2b2f2e5981427021a69c3718d847e1714455960ed9d4c9817b759448fc6be3"
+      },
+      {
+        "bytes": 156322,
+        "mode": 420,
+        "path": "book/plates/swiss/landmark-12.jpg",
+        "sha256": "2b7551da363cc3cb2990b626c80ced0c8bbfe43a273e0d1b27e862173ca342f4"
+      },
+      {
+        "bytes": 138737,
+        "mode": 420,
+        "path": "book/plates/swiss/part-0.jpg",
+        "sha256": "19007b19b7e03c1d694d9d713adb1e72b2bc8198372a077d399bee7262f2f7c3"
+      },
+      {
+        "bytes": 328991,
+        "mode": 420,
+        "path": "book/plates/swiss/part-I.jpg",
+        "sha256": "c97020a2b653106b5b2c88f60f13c53df5aebe3a833c95d7c35071be922e70fe"
+      },
+      {
+        "bytes": 340871,
+        "mode": 420,
+        "path": "book/plates/swiss/part-II.jpg",
+        "sha256": "c1127c128591c328075321e6bad9cd52da317bcac3cda3c9ac5965737074465d"
+      },
+      {
+        "bytes": 384536,
+        "mode": 420,
+        "path": "book/plates/swiss/part-III.jpg",
+        "sha256": "20e7d11adba68ea3274d1b2a4beccf35f4018e3e91c330c2b95cd35e8d755171"
+      },
+      {
+        "bytes": 348996,
+        "mode": 420,
+        "path": "book/plates/swiss/part-IV.jpg",
+        "sha256": "806ddae927a195bacc82ac3b24251266a7b4f320428eadc82b0f6fc23d9eae01"
+      },
+      {
+        "bytes": 16202,
+        "mode": 420,
+        "path": "book/plates/technical/PROVENANCE.json",
+        "sha256": "8f2ed4f440d00c48e0192c0819e6fd9e3c5e280f0a3c116f49e181c1c8126e54"
+      },
+      {
+        "bytes": 369723,
+        "mode": 420,
+        "path": "book/plates/technical/chapter-1.jpg",
+        "sha256": "37f073ebb59fb54da27f856c231d6c72abacb6bc9b1c38a26120d177320f98b6"
+      },
+      {
+        "bytes": 385566,
+        "mode": 420,
+        "path": "book/plates/technical/chapter-2.jpg",
+        "sha256": "dc75ea74539da2df322368769ce855cdc9087c490cd71daa2762aa1c836ca59a"
+      },
+      {
+        "bytes": 356822,
+        "mode": 420,
+        "path": "book/plates/technical/chapter-3.jpg",
+        "sha256": "2b06608dc018afd322a9f06fb24cfd4f1895de1093736e8bdc00cb0dd1445671"
+      },
+      {
+        "bytes": 319343,
+        "mode": 420,
+        "path": "book/plates/technical/chapter-4.jpg",
+        "sha256": "9530151e29bb2589f7dfab344ea4cbc804f50680a274f929432092239b71c408"
+      },
+      {
+        "bytes": 413789,
+        "mode": 420,
+        "path": "book/plates/technical/chapter-5.jpg",
+        "sha256": "e2d9316ceb1648909fe7164a4ec7e260e887ce0bf6eab761686b747dbf4bba16"
+      },
+      {
+        "bytes": 349457,
+        "mode": 420,
+        "path": "book/plates/technical/chapter-6.jpg",
+        "sha256": "65425735eb0538f367ffff6b8642e022f0d70f3d2ac148803893299dc5580d01"
+      },
+      {
+        "bytes": 300396,
+        "mode": 420,
+        "path": "book/plates/technical/chapter-7.jpg",
+        "sha256": "ea9abfe573a278980a6842a5ac67464d482870f1a4b3317d6aa51c15da42461e"
+      },
+      {
+        "bytes": 279653,
+        "mode": 420,
+        "path": "book/plates/technical/chapter-8.jpg",
+        "sha256": "bdaffe260cc499c88e752721a87a60ba9a6902e9f395bf934b79bfd2781929a2"
+      },
+      {
+        "bytes": 351071,
+        "mode": 420,
+        "path": "book/plates/technical/cover.jpg",
+        "sha256": "329647ecf8cf18b11f5d2c9ef2d42b9554506b8d0a42f1846a30a2eb9bab7bd5"
+      },
+      {
+        "bytes": 282698,
+        "mode": 420,
+        "path": "book/plates/technical/frontispiece.jpg",
+        "sha256": "e626260aa797cee6fccb6cdfea977dd3778aa1ea1d10031cbd41d19d4c5cd0ce"
+      },
+      {
+        "bytes": 253400,
+        "mode": 420,
+        "path": "book/plates/technical/part-I.jpg",
+        "sha256": "7c485c8ecb05c2a1bef29bb422bb2bb3090bc897c62ca4b75fa3ab1de62d1c54"
+      },
+      {
+        "bytes": 242382,
+        "mode": 420,
+        "path": "book/plates/technical/part-II.jpg",
+        "sha256": "34c15fea2fbde5dd7f2034342ce367f68ef868735031a71e3c3e9637b24fb77b"
+      },
+      {
+        "bytes": 386315,
+        "mode": 420,
+        "path": "book/plates/technical/part-III.jpg",
+        "sha256": "1ac7a9be7a14c12e44f18fcf25e320e6375f1c9369d5c9fde38d23a85721117a"
+      },
+      {
+        "bytes": 381745,
+        "mode": 420,
+        "path": "book/plates/technical/part-IV.jpg",
+        "sha256": "903fecf1b89d05b262c8eeff50b245ef491227f3df59c817205b107a341bcfa2"
+      },
+      {
+        "bytes": 54709,
+        "mode": 420,
+        "path": "book/print-weight.json",
+        "sha256": "c247729812923c2e0043a0698ddbb063d95262febf439340e60232680636cab5"
+      },
+      {
+        "bytes": 111695,
+        "mode": 420,
+        "path": "book/sealed-harbor.tex",
+        "sha256": "2e5802e27f1149c751c3a4102ffd6921145c40945dc716173ff62096607855a2"
+      },
+      {
+        "bytes": 4064,
+        "mode": 420,
+        "path": "book/serve_wysiwyg.py",
+        "sha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6"
+      },
+      {
+        "bytes": 237467,
+        "mode": 420,
+        "path": "book/single-writer-kernel.tex",
+        "sha256": "0a22c845e0c33f61c0287f82a858c9fb032268dcb796d414e42ce0a5c077c56f"
+      },
+      {
+        "bytes": 226189,
+        "mode": 420,
+        "path": "book/spawn-to-person.tex",
+        "sha256": "e53625ae182e9efe70573df24e262f14753a04a890ead9dcf1ed7fe5d2cb15a6"
+      },
+      {
+        "bytes": 10209,
+        "mode": 420,
+        "path": "book/textbook.json",
+        "sha256": "5a135f470f1ffdfed74fd1743150c1360cfb1d888477110e4632a1cb85a939a9"
+      },
+      {
+        "bytes": 5399,
+        "mode": 420,
+        "path": "book/textbook.schema.json",
+        "sha256": "e04f8c32cd86aafcf480529c636a6df131b7b79e17ca592247e1eea820acae9c"
+      },
+      {
+        "bytes": 139206,
+        "mode": 420,
+        "path": "book/wysiwyg-figure-editor.html",
+        "sha256": "3df6a53db6fc31eaac75d9b6418e9f2f7a8ab66d8a55f267e1f38bf766aa243b"
+      },
+      {
+        "bytes": 13611,
+        "mode": 420,
+        "path": "scripts/build-book-source.py",
+        "sha256": "040ba644e3c0aa0affcb7f697e938d9131205bf735eae28aa49c4d6670c458fc"
+      },
+      {
+        "bytes": 18441,
+        "mode": 493,
+        "path": "scripts/build-whitepapers.sh",
+        "sha256": "adf8ebe3bbc68acb1a90bab68f0c0c8413426e13e222dd7c6918479e6e65a1dc"
+      },
+      {
+        "bytes": 76956,
+        "mode": 420,
+        "path": "scripts/generate-mega-whitepaper.mjs",
+        "sha256": "7b0f953682510e2e14505e602f09b6651bb018a509176d61f372ad02070a332d"
+      },
+      {
+        "bytes": 3612,
+        "mode": 420,
+        "path": "scripts/prepare-book-fonts.py",
+        "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
+      }
+    ],
+    "sha256": "d6f5d8d12f6b69a117a54126f8acc33aa4ff83a6f4e393902e6546e7ed40c1e7"
+  }
+}

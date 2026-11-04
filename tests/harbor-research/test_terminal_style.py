@@ -9,7 +9,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / 'website-v2/public/whitepaper'
+WEB = ROOT / 'book'
 ROLLBACK_SHA256 = 'bd837108cbdebb30afc4ff9332b87a6d6023bb6b4be2b8b3d3195831d03a5be2'
 TERMINAL_SHA256 = '4f9b6488b237757d5cb615ccd07502fa99774826839e2a99017784bdb2596f1a'
 LICENSE_SHA256 = 'b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57'
@@ -21,7 +21,7 @@ def compact(text):
 
 class TerminalStyle(unittest.TestCase):
     def test_shared_sources_remain_identical(self):
-        self.assertEqual((ROOT / 'whitepaper/figures/pd-pedagogy.tex').read_bytes(),
+        self.assertEqual((ROOT / 'book/figures/pd-pedagogy.tex').read_bytes(),
                          (WEB / 'figures/pd-pedagogy.tex').read_bytes())
 
     def test_full_frame_uses_shared_hooks_and_preserves_verbatim_terminator(self):
@@ -71,7 +71,7 @@ class TerminalStyle(unittest.TestCase):
             self.assertNotIn(path, fixture)
 
     def test_official_svg_and_full_license(self):
-        for directory in (ROOT / 'whitepaper', WEB):
+        for directory in (ROOT / 'book', WEB):
             assets = directory / 'figures/lucide'
             self.assertEqual(hashlib.sha256((assets / 'terminal.svg').read_bytes()).hexdigest(), TERMINAL_SHA256)
             self.assertEqual(hashlib.sha256((assets / 'LICENSE').read_bytes()).hexdigest(), LICENSE_SHA256)

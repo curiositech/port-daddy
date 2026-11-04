@@ -67,7 +67,7 @@ class ReviewMathBoundaries(unittest.TestCase):
 
     def test_cross_chapter_equilibrium_boundaries_survive_regeneration(self):
         root = Path(__file__).resolve().parents[2]
-        web = root / 'website-v2/public/whitepaper'
+        web = root / 'book'
         bonded = (web / 'agent-transactions-whitepaper.tex').read_text()
         federated = (web / 'federated-harbor-whitepaper.tex').read_text()
         for invalid in ("the daemon's authority rests on it",
@@ -134,21 +134,21 @@ class ReviewMathBoundaries(unittest.TestCase):
     def test_documented_kani_unwind_matches_source(self):
         root = Path(__file__).resolve().parents[2]
         rust = (root / 'core/harbor-card-rs/src/lib.rs').read_text()
-        tex = (root / 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex').read_text()
+        tex = (root / 'book/anchor-protocol-whitepaper.tex').read_text()
         pattern = r'#\[kani::unwind\((\d+)\)\]\s*fn proof_verify_logic_only'
         self.assertEqual(re.search(pattern, rust).group(1),
                          re.search(pattern, tex).group(1))
 
     def test_market_handoff_has_one_canonical_label(self):
         root = Path(__file__).resolve().parents[2]
-        text = (root / 'website-v2/public/whitepaper/spawn-to-person.tex').read_text()
+        text = (root / 'book/spawn-to-person.tex').read_text()
         for label in ('sec:handoff', 'tab:handoff'):
             self.assertEqual(text.count('\\label{' + label + '}'), 1)
 
     def test_pinned_algorithm_still_validates_header(self):
         root = Path(__file__).resolve().parents[2]
         rust = (root / 'core/harbor-card-rs/src/lib.rs').read_text()
-        tex = (root / 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex').read_text()
+        tex = (root / 'book/anchor-protocol-whitepaper.tex').read_text()
         self.assertIn('if header?.alg != SUPPORTED_ALG', rust)
         self.assertIn('pinning is not skipping validation', tex)
         self.assertIn('header.alg != SUPPORTED\\_ALG', tex)

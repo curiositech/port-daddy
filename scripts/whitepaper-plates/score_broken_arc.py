@@ -56,7 +56,7 @@ from PIL import Image
 from scipy import ndimage, optimize
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SWISS = os.path.join(REPO, "website-v2", "public", "whitepaper", "plates", "swiss")
+SWISS = os.path.join(REPO, "book", "plates", "swiss")
 
 # How far a re-measurement may sit from the recorded one before it counts as a
 # different plate. The two numbers are shares of a radius, recorded to three

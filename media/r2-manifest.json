@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 399,
-    "distinctObjects": 364,
-    "bytes": 122981399,
-    "distinctBytes": 120304379
+    "assets": 404,
+    "distinctObjects": 369,
+    "bytes": 123884697,
+    "distinctBytes": 121207677
   },
   "assets": [
     {
@@ -421,6 +421,41 @@
       "sha256": "fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f",
       "key": "sha256/fd/fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f.gif",
       "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/book-canonical-source/1440x1000-dark-viewport.png",
+      "bytes": 161516,
+      "sha256": "d5783134b91908724be7fb5a97e6a9b605830cbcf78eb065527806fdbbc90c96",
+      "key": "sha256/d5/d5783134b91908724be7fb5a97e6a9b605830cbcf78eb065527806fdbbc90c96.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-canonical-source/390x844-light-viewport.png",
+      "bytes": 86738,
+      "sha256": "09a9c7f5782e8cd710d7f9dd2f9b0d4fd3e4f37321ec4e8337c66fd902006ec1",
+      "key": "sha256/09/09a9c7f5782e8cd710d7f9dd2f9b0d4fd3e4f37321ec4e8337c66fd902006ec1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-canonical-source/accepted-book-spread-227.png",
+      "bytes": 113240,
+      "sha256": "3449b09e23f39320903e93f8b8c5e9108a0710b2fe6abc14feec96c944cedc5b",
+      "key": "sha256/34/3449b09e23f39320903e93f8b8c5e9108a0710b2fe6abc14feec96c944cedc5b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-canonical-source/book-source-phone.gif",
+      "bytes": 333031,
+      "sha256": "09946765a0da6f275cff2782b81b2bd230325549c934427bbbbbf8f7064d670b",
+      "key": "sha256/09/09946765a0da6f275cff2782b81b2bd230325549c934427bbbbbf8f7064d670b.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/book-canonical-source/book-source-phone.webm",
+      "bytes": 208773,
+      "sha256": "c0587f3121959bc970b276fbfb0d1dc91fe61898a93ff6e8b0dffb41761cd2d5",
+      "key": "sha256/c0/c0587f3121959bc970b276fbfb0d1dc91fe61898a93ff6e8b0dffb41761cd2d5.webm",
+      "contentType": "video/webm"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-card-lifecycle.webp",

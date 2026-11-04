@@ -32,7 +32,7 @@ def audit_file(path):
     return errors
 
 if __name__ == '__main__':
-    target = sys.argv[1] if len(sys.argv) > 1 else 'website-v2/public/whitepaper/figures/fig-spark-prop1-funnel.tex'
+    target = sys.argv[1] if len(sys.argv) > 1 else 'book/figures/fig-spark-prop1-funnel.tex'
     errs = audit_file(target)
     if errs:
         print(f"FAIL: {target}")

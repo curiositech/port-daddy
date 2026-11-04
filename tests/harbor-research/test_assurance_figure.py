@@ -7,8 +7,8 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT/'website-v2/public/whitepaper/figures/fig-he-assurance.tex'
-CHAPTER = ROOT/'website-v2/public/whitepaper/harbor-economy.tex'
+FIGURE = ROOT/'book/figures/fig-he-assurance.tex'
+CHAPTER = ROOT/'book/harbor-economy.tex'
 
 
 def miss(k, detection=F(3,5), shared=False):

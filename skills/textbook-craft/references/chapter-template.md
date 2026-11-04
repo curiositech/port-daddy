@@ -2,7 +2,7 @@
 
 The exact page-1/page-2 sequence, sourced from
 `docs/harbor-research/exposition/TEXTBOOK-CRAFT.md` §7.1, with the apparatus
-vocabulary from `whitepaper/figures/pd-pedagogy.tex` bound to each element.
+vocabulary from `book/figures/pd-pedagogy.tex` bound to each element.
 Follow this order; do not reorder it without a reason a reviewer could check
 against `references/canon.md`.
 

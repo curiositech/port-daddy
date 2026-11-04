@@ -12,14 +12,14 @@ from audit_book_layout import margin_records, empty_bands
 class BookLayoutTests(unittest.TestCase):
     def test_final_credits_ship_before_local_headers_expire(self):
         root = Path(__file__).resolve().parents[2]
-        source = (root / 'website-v2/public/whitepaper/coordination-papers-mega-volume-appendices.tex').read_text()
+        source = (root / 'book/coordination-papers-mega-volume-appendices.tex').read_text()
         self.assertIn(r'\pdbackmatterheaders{References}', source)
         self.assertIn(r'\pdbackmatterheaders{Image credits}', source)
         self.assertTrue(source.rstrip().endswith(r'\clearpage'))
 
     def test_boundary_reservation_does_not_force_a_second_page_turn(self):
         root = Path(__file__).resolve().parents[2]
-        for directory in ('whitepaper', 'website-v2/public/whitepaper'):
+        for directory in ('book', 'book'):
             source = (root / directory / 'figures/pd-pedagogy.tex').read_text()
             block = source.split(r'\newenvironment{pdboundary}', 1)[1].split(r'\begin{mdframed}', 1)[0]
             self.assertIn(r'\Needspace{4\baselineskip}', block)
@@ -29,7 +29,7 @@ class BookLayoutTests(unittest.TestCase):
 
     def test_protocol_variants_share_a_breakable_frame(self):
         root = Path(__file__).resolve().parents[2]
-        preamble = (root / 'website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex').read_text()
+        preamble = (root / 'book/coordination-papers-mega-volume-preamble.tex').read_text()
         block = preamble.split(r'\newenvironment{pdbookprotocol}',1)[1].split(r'\newtheorem{heprotocol}',1)[0]
         self.assertTrue(r'\pdblockbefore{Protocol}' in block or r'\begin{mdframed}' in block)
         self.assertNotIn(r'\begin{tikzpicture}', block)
@@ -38,19 +38,19 @@ class BookLayoutTests(unittest.TestCase):
 
     def test_intro_to_first_part_uses_one_physical_verso_alignment(self):
         root = Path(__file__).resolve().parents[2]
-        source = (root / 'website-v2/public/whitepaper/coordination-papers-mega-volume.tex').read_text()
+        source = (root / 'book/coordination-papers-mega-volume.tex').read_text()
         self.assertIn('\\cleartoleftpage\n\\pagenumbering{arabic}\\setcounter{page}{2}',source)
 
     def test_float_only_pages_require_more_than_half_a_page(self):
         root = Path(__file__).resolve().parents[2]
-        preamble = (root / 'website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex').read_text()
+        preamble = (root / 'book/coordination-papers-mega-volume-preamble.tex').read_text()
         self.assertIn(r'\renewcommand{\floatpagefraction}{.8}', preamble)
         self.assertIn(r'\renewcommand{\topfraction}{.85}', preamble)
         self.assertIn(r'\renewcommand{\textfraction}{.1}', preamble)
 
     def test_page_turns_do_not_strand_paragraph_lines_or_hyphenated_words(self):
         root = Path(__file__).resolve().parents[2]
-        preamble = (root / 'website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex').read_text()
+        preamble = (root / 'book/coordination-papers-mega-volume-preamble.tex').read_text()
         for penalty in ('clubpenalty', 'widowpenalty', 'displaywidowpenalty', 'brokenpenalty'):
             self.assertIn('\\' + penalty + '=10000', preamble)
 

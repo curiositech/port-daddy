@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # compile_fragment.sh -- compile one Harbor TikZ figure fragment standalone.
 #
-# Wraps a bare `\input`-only fragment (from website-v2/public/whitepaper/figures,
-# whitepaper/figures, or docs/harbor-research/figures) in a minimal document that
+# Wraps a bare `\input`-only fragment (from book/figures,
+# book/figures, or docs/harbor-research/figures) in a minimal document that
 # loads the SAME preamble pieces the assembled Book or research paper would load,
 # then compiles it with tectonic. This is the only way to render a fragment on
 # its own: none of
@@ -272,10 +272,10 @@ else
 
   if [ "$PREAMBLE_MODE" = "book" ]; then
     # The Book: its root's preamble section verbatim (the generated-input
-    # guard, the preamble, the seams, the PDF metadata), its figure twins, and
+    # guard, the preamble, the seams, the PDF metadata), its canonical figures, and
     # the fragment. The Book's geometry stands, so no \newgeometry; there is
     # no standalone variant because the column is the point.
-    BOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../website-v2/public/whitepaper" && pwd)"
+    BOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../book" && pwd)"
     BOOK_ROOT="$BOOK_DIR/coordination-papers-mega-volume.tex"
     [ -f "$BOOK_ROOT" ] || { echo "compile_fragment.sh: Book root not found at $BOOK_ROOT" >&2; exit 2; }
     mkdir -p "$BUILD/figures"
@@ -300,7 +300,7 @@ else
     # even on a machine without these faces installed.
     [ ! -d "$BOOK_DIR/fonts" ] || cp -R "$BOOK_DIR/fonts" "$BUILD/fonts"
     # Same typography as the assembled Book; configuration only, no font copies.
-    python3 "$BOOK_DIR/../../../scripts/prepare-book-fonts.py" "$BUILD" || exit 2
+    python3 "$BOOK_DIR/../scripts/prepare-book-fonts.py" "$BUILD" || exit 2
     # ...but the two the wrapper cannot compile without are still asserted, so a
     # renamed preamble fails here rather than 200 lines into a TeX log.
     for required in coordination-papers-mega-volume-preamble.tex coordination-papers-mega-volume-seams.tex; do

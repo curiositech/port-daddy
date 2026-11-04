@@ -1,3 +1,8 @@
+# BEGIN BOOK SOURCE DOWNLOAD
+/whitepaper/coordination-papers-mega-volume-source.tar.gz  https://media.portdaddy.dev/book/source/sha256/f34c9bb0fda5433e1579f9ad92776a556cc6331a95c2a78488108bb5b593dbf9.tar.gz  302
+/whitepaper/coordination-papers-mega-volume.tex  https://media.portdaddy.dev/book/source/sha256/f34c9bb0fda5433e1579f9ad92776a556cc6331a95c2a78488108bb5b593dbf9.tar.gz  302
+# END BOOK SOURCE DOWNLOAD
+
 # The eight per-chapter PDFs are retired; the Book is the one document.
 #
 # These have to be here, above the catch-all, because the catch-all is what

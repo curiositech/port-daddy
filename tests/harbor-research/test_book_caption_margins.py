@@ -112,7 +112,7 @@ class CaptionMarginTests(unittest.TestCase):
                       bounds_issues((15, 0, 107, 200), 122.4, 446.4, "L"))
 
     def test_book_has_no_length_based_inline_fallback(self):
-        source = (ROOT / "website-v2/public/whitepaper/figures/pd-pedagogy.tex").read_text()
+        source = (ROOT / "book/figures/pd-pedagogy.tex").read_text()
         self.assertNotIn("PD-CAPTION-FALLBACK", source)
         caption = source.split(r"\newcommand{\pdmargincaption}", 1)[1].split(
             r"\newif\ifpd@routecaption", 1)[0]
@@ -120,7 +120,7 @@ class CaptionMarginTests(unittest.TestCase):
         self.assertNotIn(".25", caption)
 
     def test_shared_margin_column_is_independent_and_uses_shipped_page(self):
-        source = (ROOT / "website-v2/public/whitepaper/figures/pd-pedagogy.tex").read_text()
+        source = (ROOT / "book/figures/pd-pedagogy.tex").read_text()
         self.assertIn(r"\pd@endfloatbox\pd@attachfloatcaption", source)
         edge = source.split(r"\newcommand{\pd@floatcaptionedge}", 1)[1].split(
             r"\newcommand{\pd@attachfloatcaption}", 1)[0]
@@ -130,9 +130,9 @@ class CaptionMarginTests(unittest.TestCase):
         self.assertIn(r"\edef\pd@captionenv{\@captype}", source)
         self.assertIn(r"\PackageError{pd-pedagogy}{Exhibit and margin caption", source)
         self.assertIn(r"\pdtablecaptionheight", source)
-        twin = ROOT / "whitepaper/figures/pd-pedagogy.tex"
+        twin = ROOT / "book/figures/pd-pedagogy.tex"
         self.assertEqual(source, twin.read_text())
-        allocator = (ROOT / "website-v2/public/whitepaper/figures/pd-margin-layout.tex").read_text()
+        allocator = (ROOT / "book/figures/pd-margin-layout.tex").read_text()
         self.assertIn(r"\zref@addprop{savepos}{abspage}", allocator)
         self.assertIn(r"\AddToHook{shipout/foreground}", allocator)
         self.assertIn(r"\renewcommand{\pd@clearcaptionband}{}", allocator)

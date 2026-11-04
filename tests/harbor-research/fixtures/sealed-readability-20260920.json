@@ -1,5 +1,5 @@
 {
-  "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+  "source": "book/sealed-harbor.tex",
   "beforeSourceSha256": "a90af00c18ec3d57f4a680153b950002367cca32e5f71f1e8fc03521909a5be8",
   "scope": "Six example structure contracts. Original before-text is retained as provenance; three reviewed semantic corrections use explicit accepted text and hypotheses, with substantive negative mutations.",
   "blocks": [

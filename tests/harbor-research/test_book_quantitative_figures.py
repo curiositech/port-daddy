@@ -51,13 +51,13 @@ class QuantitativeFigureChecks(unittest.TestCase):
         # above the panel: both are below 256 at this omitted stable input.
         for numerator in (11,3):
             self.assertLess(floor+numerator/(Q("3.049")-3), 256)
-        source = (ROOT / "website-v2/public/whitepaper/figures/fig-he-succession-price.tex").read_text()
+        source = (ROOT / "book/figures/fig-he-succession-price.tex").read_text()
         for required in ("domain=3.05:12", "ymode=log", "h; log scale",
                          "tasks/h", "not measurements", "8/3+11/(x-3)",
                          "8/3+3/(x-3)", "3.05\\le\\mu_s\\le12"):
             self.assertIn(required, source)
         self.assertNotIn("min(", source)
-        chapter = (ROOT / "website-v2/public/whitepaper/harbor-economy.tex").read_text()
+        chapter = (ROOT / "book/harbor-economy.tex").read_text()
         self.assertNotIn("distance between the threshold and the canary", chapter)
 
     def test_digest_floor_values(self):
@@ -70,7 +70,7 @@ class QuantitativeFigureChecks(unittest.TestCase):
         self.assertNotAlmostEqual(joint / one, joint / (2 * one), places=2)
 
     def test_exact_specialized_curves_and_domain(self):
-        source = (ROOT / "whitepaper/figures/legible-swarm-readpoverty.tex").read_text()
+        source = (ROOT / "book/figures/legible-swarm-readpoverty.tex").read_text()
         self.assertIn("ln(\\n*(\\n-1)/56)/ln(2)", source)
         self.assertIn("ln(\\n*(\\n-1)*(\\n-2)*(\\n-3)/1680)/ln(2)", source)
         self.assertIn("domain=16:100,samples=85,smooth=false", source)
@@ -86,7 +86,7 @@ class QuantitativeFigureChecks(unittest.TestCase):
             floor_bits(8, 9, 8)
 
     def test_wedge_geometry_and_denominators(self):
-        source = (ROOT / "website-v2/public/whitepaper/figures/fig-he-ms-wedge.tex").read_text()
+        source = (ROOT / "book/figures/fig-he-ms-wedge.tex").read_text()
         check_wedge_source(source)
         a, m = Q(90, 4), Q(90)
         all_draws = a * (2*m-a) / (2*m*m)
@@ -119,14 +119,14 @@ class QuantitativeFigureChecks(unittest.TestCase):
         self.assertLess(100*posterior, 10+5*(1-posterior))
         self.assertGreaterEqual(posterior/(1-posterior), Q(15, 100))
         self.assertLess(posterior/(1-posterior), Q(15, 90))
-        source = (ROOT / "whitepaper/legible-swarm.tex").read_text()
+        source = (ROOT / "book/legible-swarm.tex").read_text()
         statement = source.split(r"\label{thm:regret-head}", 1)[1].split(r"\end{pdclaim}", 1)[0]
         self.assertIn(r"{C_{\mathrm{miss}}(x)+C_{\mathrm{fa}}}", statement)
         self.assertNotIn(r"\frac{a(x)}{1-a(x)}", statement)
         self.assertIn("both loss terms are zero", statement)
 
     def test_split_penalty_coordinates_and_exact_positivity(self):
-        source = (ROOT / "whitepaper/figures/legible-swarm-split-penalty.tex").read_text()
+        source = (ROOT / "book/figures/legible-swarm-split-penalty.tex").read_text()
         blocks = re.findall(r"coordinates \{([^}]+)\}", source)
         self.assertEqual(len(blocks), 2)
         for block, m in zip(blocks, (8, 20)):

@@ -396,8 +396,8 @@ def canonical_roots_from_build_script(repo_root: Path) -> set[str]:
         if root.startswith("coordination-papers-mega-volume"):
             continue
         source_dir = match.group("src")
-        if source_dir == "$PUB":
-            source_dir = "website-v2/public/whitepaper"
+        if source_dir == "$BOOK":
+            source_dir = "book"
         roots.add(f"{source_dir}/{root}")
     return roots
 
@@ -407,12 +407,12 @@ def canonical_roots_from_textbook(repo_root: Path) -> dict[str, str]:
 
     ``scripts/generate-mega-whitepaper.mjs`` no longer carries its own
     roman-numeral-to-source table; it renders the Book straight from
-    ``whitepaper/textbook.json``. Atlas volume numerals map to textbook
+    ``book/textbook.json``. Atlas volume numerals map to textbook
     chapters by ``formerNumeral`` (the pre-textbook volume numbering); the
     Sealed Harbor chapter has no former numeral and is the fixed Volume VIII.
     """
 
-    path = repo_root / "whitepaper/textbook.json"
+    path = repo_root / "book/textbook.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     chapters = data.get("chapters")
     if not isinstance(chapters, list) or not chapters:
@@ -461,7 +461,7 @@ def canonical_root_drift(
     # build a chapter root the atlas does not declare canonical — that would
     # mean a ninth chapter, or a renamed source the atlas has not followed —
     # so the extra direction stays a failure. Chapter-root truth itself is
-    # checked against whitepaper/textbook.json below, which is where the Book
+    # checked against book/textbook.json below, which is where the Book
     # now gets its chapter list.
     build_roots = canonical_roots_from_build_script(repo_root)
     build_extra = sorted(build_roots - expected)

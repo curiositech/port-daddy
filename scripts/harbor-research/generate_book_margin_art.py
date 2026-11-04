@@ -18,7 +18,7 @@ SPEC = importlib.util.spec_from_file_location(
 CLIENT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CLIENT)
 MODEL = "gemini-3-pro-image"
-OUT = ROOT / "website-v2/public/whitepaper/plates/margin-evidence"
+OUT = ROOT / "book/plates/margin-evidence"
 COMMON = (
     "Editorial specimen drawing for the margin of a serious technical book. "
     "Crisp black pen linework with sparse crosshatching, one cobalt blue accent, "

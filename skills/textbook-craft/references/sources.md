@@ -43,7 +43,7 @@ are checked mechanically.
   (quoted in `references/exercise-design.md` and in `SKILL.md`'s honesty
   ledger): repair a false premise instead of answering it as asked, and give
   open problems a defensible obligation rather than a fictional closed form.
-- `whitepaper/figures/pd-pedagogy.tex` (on `main` since the Book landed; it was
+- `book/figures/pd-pedagogy.tex` (on `main` since the Book landed; it was
   read from `wave-16/figure-gates` when this skill was first written) — the
   actual macro vocabulary
   this skill's page-grammar section and `chapter_lint.py`'s claim/example/
@@ -62,7 +62,7 @@ are checked mechanically.
   governs one self-contained argument; `textbook-craft` governs a chapter of a
   book that must also open, pace, exercise, and hand off across many pages. See
   `SKILL.md`'s "Relationship to `harbor-exposition`" for the exact boundary.
-- `whitepaper/single-writer-kernel.tex` — the chapter this skill's
+- `book/single-writer-kernel.tex` — the chapter this skill's
   `scripts/chapter_lint.py` is tested against. It predates the Wave 12 page
   grammar: it uses its own local tinted-box macros (`\keyidea`, `\pitfall`,
   `\exercises{...}`, all `tikzpicture` nodes with `fill=hhsand!NN`) rather than

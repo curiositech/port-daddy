@@ -43,7 +43,7 @@ class ProtocolSource(unittest.TestCase):
             'Earlier text. Fix B', '— accountable contractual adjudication: for subjective criteria']))
 
     def test_conditional_gossip_premises_survive_shorter_introduction(self):
-        source = (ROOT / 'website-v2/public/whitepaper/harbor-economy.tex').read_text()
+        source = (ROOT / 'book/harbor-economy.tex').read_text()
         start = source.index('Federated revocation uses anti-entropy gossip')
         end = source.index(r'\end{protocol}', start)
         prose = ' '.join(source[start:end].split())

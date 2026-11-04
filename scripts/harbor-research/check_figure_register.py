@@ -20,7 +20,7 @@ Checks, over both files:
   4. chapter numbers      -- every `## Chapter N -- Title` heading in either
                              file, and every register row id's `chN-` prefix,
                              must name a chapter 1-8 whose number and title
-                             match whitepaper/textbook.json exactly.
+                             match book/textbook.json exactly.
   5. fragment existence   -- a FIGURE-TRIAGE.md fragment named on a `keep` or
                              `restyle` row must exist as `<fragment>.tex`
                              under one of the three figure corpora (a
@@ -63,11 +63,10 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 
 REGISTER_REL = "docs/harbor-research/exposition/figures/FIGURE-REGISTER.md"
 TRIAGE_REL = "docs/harbor-research/exposition/figures/FIGURE-TRIAGE.md"
-TEXTBOOK_REL = "whitepaper/textbook.json"
+TEXTBOOK_REL = "book/textbook.json"
 
 FIGURE_DIRS = (
-    "whitepaper/figures",
-    "website-v2/public/whitepaper/figures",
+    "book/figures",
     "docs/harbor-research/figures",
 )
 

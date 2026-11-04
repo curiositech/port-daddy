@@ -17,7 +17,7 @@
   exists rather than that it's missing. No chapter calls it yet; that
   editorial pass is the author's.
 - `scripts/margin_lint.py`: a mechanical checker over the Book's eight
-  chapter sources (read by default from `whitepaper/textbook.json`) for the
+  chapter sources (read by default from `book/textbook.json`) for the
   margin-apparatus rules that are actually mechanical: at most one
   `\pdmarginfigure` per section, every referenced slug's plate and sidecar
   present (reusing `scripts/harbor-research/check_marginalia_sidecars.py`'s <!-- phantom-ok -->

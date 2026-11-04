@@ -80,7 +80,7 @@ describe('whitepaper metadata sync', () => {
   })
 
   test('the site mirror of textbook.json is byte-identical to the source of record', () => {
-    const source = readFileSync(resolve(websiteRoot, '../whitepaper/textbook.json'), 'utf8')
+    const source = readFileSync(resolve(websiteRoot, '../book/textbook.json'), 'utf8')
     const mirror = readFileSync(resolve(websiteRoot, 'src/data/textbook.json'), 'utf8')
     expect(mirror).toBe(source)
   })

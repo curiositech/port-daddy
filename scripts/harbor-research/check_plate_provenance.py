@@ -5,7 +5,7 @@ provenance, and every plate path the TeX sources reach for actually exists.
 Two review-bot asks, one module (stdlib only, no Pillow, no LaTeX engine):
 
   A. PROVENANCE.json completeness/accuracy for each rendered-plate directory
-     under website-v2/public/whitepaper/plates/ (everything except
+     under book/plates/ (everything except
      marginalia/, which has its own licence-sidecar checker,
      check_marginalia_sidecars.py -- this script does not touch it).
 
@@ -23,7 +23,7 @@ A. Provenance schema (derived from scripts/whitepaper-plates/plates_pipeline.py
    recovered from an earlier git round, and the two authoring paths use
    different but overlapping field sets):
 
-   Document level (website-v2/public/whitepaper/plates/<dir>/PROVENANCE.json):
+   Document level (book/plates/<dir>/PROVENANCE.json):
      - "plates": required. A dict keyed by plate name (e.g. "cover",
        "part-I", "chapter-swk", or, for the technical edition, "chapter-1").
      - "model", "post": optional at document level. When present they are
@@ -94,20 +94,20 @@ A. Provenance schema (derived from scripts/whitepaper-plates/plates_pipeline.py
 B. TeX path resolution.
 
    Concrete, literal `plates/...` arguments to \\includegraphics or
-   \\IfFileExists anywhere in website-v2/public/whitepaper/*.tex or
-   whitepaper/*.tex are checked directly.
+   \\IfFileExists anywhere in book/*.tex or
+   book/*.tex are checked directly.
 
    The Swiss plate macros (coordination-papers-mega-volume-swiss-plates.tex)
    and the maritime/technical chapter and part openers
    (coordination-papers-mega-volume-preamble.tex) build their paths from a
    TeX parameter (`plates/swiss/chapter-#1.jpg` etc) that is only ever
    filled in at the generated-body stage (scripts/generate-mega-whitepaper.mjs,
-   from whitepaper/textbook.json) -- the filled-in call sites are not
+   from book/textbook.json) -- the filled-in call sites are not
    committed .tex, so a literal-text scan alone cannot check them. Instead
    this script extracts each such macro's path *template* straight out of
    its \\newcommand/\\def body (so a template edit is picked up
    automatically) and substitutes every chapter prefix, chapter number, and
-   part numeral from whitepaper/textbook.json -- the one source of chapter
+   part numeral from book/textbook.json -- the one source of chapter
    order and prefixes the book generator itself trusts -- to get the
    concrete paths the real build will ask for.
 
@@ -130,7 +130,7 @@ import sys
 # ---------------------------------------------------------------------------
 # (A) provenance schema
 
-PLATES_SUBDIR = os.path.join("website-v2", "public", "whitepaper", "plates")
+PLATES_SUBDIR = os.path.join("book", "plates")
 IMAGE_EXTS = (".jpg", ".jpeg", ".png")
 
 # See the "TODO" paragraph in the module docstring before adding an
@@ -384,11 +384,11 @@ def check_all_provenance(repo_root: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # (B) static TeX plate-path resolution
 
-WHITEPAPER_SUBDIR = os.path.join("website-v2", "public", "whitepaper")
-TEXTBOOK_JSON = os.path.join("whitepaper", "textbook.json")
+WHITEPAPER_SUBDIR = os.path.join("book")
+TEXTBOOK_JSON = os.path.join("book", "textbook.json")
 TEX_GLOBS = [
-    os.path.join("website-v2", "public", "whitepaper", "*.tex"),
-    os.path.join("whitepaper", "*.tex"),
+    os.path.join("book", "*.tex"),
+    os.path.join("book", "*.tex"),
 ]
 
 # Path *templates* to extract, straight out of the named macro's body, in

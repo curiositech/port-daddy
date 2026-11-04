@@ -11,7 +11,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT / "website-v2/public/whitepaper/figures/fig-sealed-laundering-fork.tex"
+FIGURE = ROOT / "book/figures/fig-sealed-laundering-fork.tex"
 MODEL = ROOT / "skills/harbor-results/scripts/c1_noninterference.py"
 MODEL_SHA = "f4e663d3b1bd96bff2d5bbe1304263feae7ab65c028eb85ca8689dee63d15f1b"
 
@@ -94,7 +94,7 @@ class LaunderingFigureTests(unittest.TestCase):
             self.assertIn(required, source)
         for forbidden in (r"\resizebox", r"\scalebox", r"\tiny", r"\scriptsize"):
             self.assertNotIn(forbidden, source)
-        chapter = (ROOT / "website-v2/public/whitepaper/sealed-harbor.tex").read_text()
+        chapter = (ROOT / "book/sealed-harbor.tex").read_text()
         self.assertIn("counterexample to the current model", chapter)
         self.assertIn("This is an arithmetic illustration", chapter)
 

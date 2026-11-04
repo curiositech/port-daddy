@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Proof-estate manifest checker: every on-disk formal artifact and R-script
 // must be WIRED (a real CI job runs it) or explicitly RETIRED (with a
-// reason) in whitepaper/corpus.json -- no third state. Dependency-free
+// reason) in book/corpus.json -- no third state. Dependency-free
 // (Node stdlib only), so this job never needs a TLA+/Z3/ProVerif/Kani
 // toolchain.
 //
@@ -20,7 +20,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const manifestPath = resolve(repoRoot, 'whitepaper/corpus.json');
+const manifestPath = resolve(repoRoot, 'book/corpus.json');
 const corpus = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const failures = [];
 

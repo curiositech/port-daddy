@@ -10,11 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class SemanticBlocks(unittest.TestCase):
-    def test_mirrors_and_counter_separation(self):
+    def test_canonical_helper_and_counter_separation(self):
         relative = "figures/pd-semantic-blocks.tex"
-        a = (ROOT / "whitepaper" / relative).read_text()
-        b = (ROOT / "website-v2/public/whitepaper" / relative).read_text()
-        self.assertEqual(a, b)
+        a = (ROOT / "book" / relative).read_text()
         for forbidden in (r"\newcounter", r"\refstepcounter", r"\marginpar"):
             self.assertNotIn(forbidden, a)
         self.assertIn(r"\let\pgfsys@typesetpicturebox\pd@typesetpicturebox", a)
@@ -22,7 +20,7 @@ class SemanticBlocks(unittest.TestCase):
         self.assertIn(r"{Conjecture}{\def\pdblock@family{Empirical hypothesis}}", a)
 
     def test_closed_claim_vocabulary_is_unchanged(self):
-        source = (ROOT / "whitepaper/figures/pd-pedagogy.tex").read_text()
+        source = (ROOT / "book/figures/pd-pedagogy.tex").read_text()
         self.assertIn(r"\newcommand{\pd@claim@kinds}{Theorem,Design invariant,Model-checked property,Empirical hypothesis}", source)
         self.assertIn(r"\input{figures/pd-semantic-blocks}", source)
         self.assertIn(r"\newcommand{\pd@numberedhead}[3][theorem]", source)
@@ -31,7 +29,7 @@ class SemanticBlocks(unittest.TestCase):
         self.assertNotIn(r"\pdblockglyph{Numbers by hand}\pd@marginglyph", source)
 
     def test_lucide_assets_and_complete_split_frames(self):
-        directory = ROOT / "website-v2/public/whitepaper/figures"
+        directory = ROOT / "book/figures"
         source = (directory / "pd-semantic-blocks.tex").read_text()
         self.assertNotIn(r"\newcommand{\pdblockrule}", source)
         self.assertNotIn(r"\begin{tikzpicture}", source)
@@ -46,15 +44,11 @@ class SemanticBlocks(unittest.TestCase):
         for icon in icons:
             for extension in ("svg", "pdf"):
                 asset = (directory / "lucide" / (icon + "." + extension)).read_bytes()
-                mirror = (ROOT / "whitepaper/figures/lucide" / (icon + "." + extension)).read_bytes()
-                self.assertEqual(asset, mirror)
                 self.assertTrue(asset)
             self.assertTrue((directory / "lucide" / (icon + ".pdf")).read_bytes().startswith(b"%PDF-1.5"))
 
     def test_claims_and_calculations_share_bold_numbered_heading(self):
-        source = (ROOT / "whitepaper/figures/pd-pedagogy.tex").read_text()
-        mirror = (ROOT / "website-v2/public/whitepaper/figures/pd-pedagogy.tex").read_text()
-        self.assertEqual(source, mirror)
+        source = (ROOT / "book/figures/pd-pedagogy.tex").read_text()
         for display in ("Model-Checked Property", "Empirical Hypothesis",
                         "Design Invariant", "Numbers by Hand"):
             self.assertIn(display, source)
@@ -66,7 +60,7 @@ class SemanticBlocks(unittest.TestCase):
         self.assertNotIn(r"\itshape Numbers by hand ---", source)
 
     def test_protocol_family_uses_official_workflow_and_distinct_ink(self):
-        source = (ROOT / "whitepaper/figures/pd-semantic-blocks.tex").read_text()
+        source = (ROOT / "book/figures/pd-semantic-blocks.tex").read_text()
         self.assertIn(r"\definecolor{pdblockProtocol}{HTML}{007D73}", source)
         self.assertIn(r"{Protocol}{\def\pdblock@color{pdblockProtocol}\def\pdblock@icon{workflow}}", source)
         colors = dict(re.findall(r"\\definecolor\{([^}]+)\}\{HTML\}\{([^}]+)\}", source))
@@ -76,7 +70,7 @@ class SemanticBlocks(unittest.TestCase):
         self.assertIn(" workflow;", vendor)
 
     def test_approved_palette_uses_quiet_fields_and_full_strength_edges(self):
-        source = (ROOT / "whitepaper/figures/pd-semantic-blocks.tex").read_text()
+        source = (ROOT / "book/figures/pd-semantic-blocks.tex").read_text()
         colors = dict(re.findall(r"\\definecolor\{pdblock([^}]+)\}\{HTML\}\{([^}]+)\}", source))
         approved = dict(Proof="B33F35", Property="7048A5", Hypothesis="427A26",
                         Calculation="946000", Invariant="233A76", Definition="3D454B",
@@ -93,7 +87,7 @@ class SemanticBlocks(unittest.TestCase):
         self.assertNotIn(r"\itshape", source)
 
     def test_body_and_edge_contrast_on_actual_six_percent_fields(self):
-        source = (ROOT / "whitepaper/figures/pd-semantic-blocks.tex").read_text()
+        source = (ROOT / "book/figures/pd-semantic-blocks.tex").read_text()
         colors = re.findall(r"\\definecolor\{pdblock[^}]+\}\{HTML\}\{([^}]+)\}", source)
         rgb = lambda h: [int(h[i:i+2], 16) / 255 for i in (0, 2, 4)]
         def luminance(v):
@@ -113,7 +107,7 @@ class SemanticBlocks(unittest.TestCase):
                     self.assertGreaterEqual(ratio(rgb(ink), field), 7)
 
     def test_all_book_protocol_forms_share_frame_without_counter_replacement(self):
-        source = (ROOT / "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex").read_text()
+        source = (ROOT / "book/coordination-papers-mega-volume-preamble.tex").read_text()
         for name in ("protocol", "heprotocol"):
             self.assertIn(r"\BeforeBeginEnvironment{" + name + r"}{\pdblockbefore{Protocol}}", source)
             self.assertIn(r"\AfterEndEnvironment{" + name + r"}{\pdblockafter{Protocol}}", source)
@@ -184,7 +178,7 @@ class SemanticBlocks(unittest.TestCase):
         missing_reservation = re.sub(reservation, opening, body, count=1)
         self.assertNotEqual(missing_reservation, body)
         self.assertIsNone(re.search(reservation, missing_reservation))
-        spawn = (ROOT / "website-v2/public/whitepaper/spawn-to-person.tex").read_text()
+        spawn = (ROOT / "book/spawn-to-person.tex").read_text()
         self.assertIn("shows the resulting model calculation.\n\n``Who audits", spawn)
         self.assertIn("to answer, reached from the other side.\n\nAnd applied", spawn)
         vrf = spawn.index(opening)
@@ -194,7 +188,7 @@ class SemanticBlocks(unittest.TestCase):
         self.assertLess(diagram, bound)
 
     def test_shared_heads_end_before_the_body(self):
-        root = ROOT / "website-v2/public/whitepaper"
+        root = ROOT / "book"
         pedagogy = (root / "figures/pd-pedagogy.tex").read_text()
         helper = pedagogy.split(r"\newcommand{\pd@numberedhead}", 1)[1].split(
             r"\newenvironment{pdclaim}", 1)[0]

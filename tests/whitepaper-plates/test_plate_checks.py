@@ -163,7 +163,7 @@ class ManifestTests(unittest.TestCase):
         """The other two characters are switchable, not deleted. Their driver
         roots stay in the tree so either can be built by hand or made central
         again by moving \\pdedition's default in the preamble."""
-        whitepaper = os.path.join(band.REPO, "website-v2", "public", "whitepaper")
+        whitepaper = os.path.join(band.REPO, "book")
         for edition in ("maritime", "swiss", "technical"):
             with self.subTest(edition=edition):
                 driver = os.path.join(

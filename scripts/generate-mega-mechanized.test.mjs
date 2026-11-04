@@ -23,9 +23,9 @@ function collapseBreakHints(text) {
   return result;
 }
 
-// A minimal, hand-built manifest matching whitepaper/corpus.schema.json's
+// A minimal, hand-built manifest matching book/corpus.schema.json's
 // shape closely enough to exercise the emitter without depending on the real
-// whitepaper/corpus.json (which the real-manifest test below still checks
+// book/corpus.json (which the real-manifest test below still checks
 // separately). Deliberately out of id order and carrying TeX specials in its
 // prose fields, so ordering and escaping are both under test.
 function fixtureManifest(overrides = {}) {
@@ -144,7 +144,7 @@ test('renderMechanizedClaims states the total, wired, and retired counts in its 
     rendered,
     /4 artifacts in total, 3 wired into continuous integration and 1 retired/,
   );
-  assert.match(rendered, /\\path\{whitepaper\/corpus\.json\}/);
+  assert.match(rendered, /\\path\{book\/corpus\.json\}/);
 });
 
 test('renderMechanizedClaims labels a Kani row with its harness function alongside the path', () => {
@@ -273,7 +273,7 @@ test('loadCorpus fails closed with a clear error when the manifest file is missi
   );
 });
 
-test('the real whitepaper/corpus.json renders end to end without drift', () => {
+test('the real book/corpus.json renders end to end without drift', () => {
   const corpus = loadCorpus();
   const rendered = renderMechanizedClaims(corpus);
   const artifacts = [...corpus.formalArtifacts, ...corpus.researchProgramArtifacts];

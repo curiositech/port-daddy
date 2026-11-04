@@ -7,10 +7,10 @@ Wave 12 §12.2 rule (HANDOFF-TEXTBOOK.md §4): "no image without a sidecar JSON
 page." This checker enforces the sidecar half of that rule for every print
 plate committed under plates/marginalia/.
 
-For every website-v2/public/whitepaper/plates/marginalia/<slug>.jpg this
+For every book/plates/marginalia/<slug>.jpg this
 checks that:
 
-  (a) a sidecar website-v2/public/whitepaper/plates/marginalia/<slug>.json
+  (a) a sidecar book/plates/marginalia/<slug>.json
       exists and is valid JSON;
   (b) it carries every required field, non-empty (booleans/None where the
       task allows them -- e.g. a public-domain image has no licence_url --
@@ -83,7 +83,7 @@ def plates_dir(repo_root: str) -> str:
     the tufte-evidence-design skill's mechanical margin-apparatus checks) can
     reuse this exact path instead of re-deriving it and risking drift."""
     return os.path.join(
-        repo_root, "website-v2", "public", "whitepaper", "plates", "marginalia"
+        repo_root, "book", "plates", "marginalia"
     )
 
 

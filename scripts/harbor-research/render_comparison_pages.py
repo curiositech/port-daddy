@@ -6,7 +6,7 @@ import os
 import sys
 import fitz
 
-PDF_PATH = "website-v2/public/whitepaper/figures-side-by-side-comparison.pdf"
+PDF_PATH = "book/figures-side-by-side-comparison.pdf"
 OUT_DIR = os.environ.get("RENDER_OUT_DIR", os.path.join(os.path.dirname(__file__), "../../.cache/rendered_comparison"))
 
 os.makedirs(OUT_DIR, exist_ok=True)

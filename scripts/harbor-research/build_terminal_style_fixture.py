@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / 'website-v2/public/whitepaper'
+WEB = ROOT / 'book'
 
 
 def inventory_bytes():
@@ -18,7 +18,7 @@ def inventory_bytes():
     if len(paths) != 48:
         raise ValueError('The split fixture requires 48 existing figure sources.')
     lines = ['READ-ONLY FIGURE SOURCE INVENTORY',
-             'root=website-v2/public/whitepaper/figures',
+             'root=book/figures',
              'hash=SHA-256; bytes=source-file-size; order=filename; limit=48']
     for index, path in enumerate(paths, 1):
         data = path.read_bytes()

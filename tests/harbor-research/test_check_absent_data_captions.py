@@ -8,7 +8,7 @@ shipped -- Figure 4.5's "The committed sweep CSV (r1-floor.csv) is not yet
 present" -- beside the honest boundary prose the check must leave alone.
 
 That caption is history. The R1 sweep CSV is now committed at
-whitepaper/figures/data/r1-floor.csv, the caption states what the measurement
+book/figures/data/r1-floor.csv, the caption states what the measurement
 shows, and the CI step runs with no --allow. The corpus test therefore asserts
 the corpus is *clean* rather than pinning one known debt.
 
@@ -36,7 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "harbor-research"))
 import check_absent_data_captions as cadc  # noqa: E402
 
-REAL = "whitepaper/figures/legible-swarm-readpoverty.tex"
+REAL = "book/figures/legible-swarm-readpoverty.tex"
 
 
 class TestCaptionScanner(unittest.TestCase):
@@ -113,7 +113,7 @@ class TestAgainstTheRealCorpus(unittest.TestCase):
     def test_no_caption_in_the_corpus_says_its_data_is_absent(self):
         # This test used to pin exactly one caption (Figure 4.5's "not yet
         # present") as a known, allowed debt. That debt is paid: the R1 sweep
-        # CSV is committed at whitepaper/figures/data/r1-floor.csv and the
+        # CSV is committed at book/figures/data/r1-floor.csv and the
         # caption now states what the measurement shows. The corpus is clean,
         # the CI step runs with no --allow, and this test holds it there.
         found = cadc.find_absent(cadc.sources())
@@ -126,7 +126,7 @@ class TestAgainstTheRealCorpus(unittest.TestCase):
     def test_the_figure_that_carried_the_debt_now_cites_its_data(self):
         # Guard the other half: the caption could be cleaned by deleting the
         # sentence and never committing the CSV, which is the dishonest fix.
-        csv = cadc.REPO / "whitepaper" / "figures" / "data" / "r1-floor.csv"
+        csv = cadc.REPO / "book" / "figures" / "data" / "r1-floor.csv"
         self.assertTrue(csv.is_file(), f"{csv} is missing; Figure 4.5's overlay has no data")
         self.assertIn("r1-floor.csv", (cadc.REPO / REAL).read_text(encoding="utf-8"))
 

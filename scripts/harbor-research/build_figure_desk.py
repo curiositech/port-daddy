@@ -14,7 +14,7 @@ committed source, or explicitly CURATED and named as such below.
   Recomputed on every run; hand-editing the output is pointless because
   --check will call it stale.
 
-  CHAPTERS.js   whitepaper/textbook.json
+  CHAPTERS.js   book/textbook.json
                 Chapter number -> short title. The chapter list is NEVER
                 hard-coded here; it is whatever textbook.json says, in
                 textbook.json's own order.
@@ -142,7 +142,7 @@ DESK_DIR = f"{FIGURES_DIR}/desk"
 DATA_DIR = f"{DESK_DIR}/data"
 INDEX_REL = f"{DESK_DIR}/index.html"
 
-TEXTBOOK_REL = "whitepaper/textbook.json"
+TEXTBOOK_REL = "book/textbook.json"
 BOOK_PDF_REL = "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf"
 TRIAGE_REL = f"{FIGURES_DIR}/FIGURE-TRIAGE.md"
 PIXEL_REL = f"{FIGURES_DIR}/PIXEL-JUDGMENT.md"
@@ -1003,7 +1003,7 @@ def build() -> tuple[list[tuple[str, str]], dict]:
     }
 
     outputs = [
-        (f"{DATA_DIR}/CHAPTERS.js", js("CHAPTERS", chapters, "derived from whitepaper/textbook.json")),
+        (f"{DATA_DIR}/CHAPTERS.js", js("CHAPTERS", chapters, "derived from book/textbook.json")),
         (f"{DATA_DIR}/FIGS.js", js("FIGS", figs, "derived from the chapter sources + the committed Book PDF; page pinned by desk-curated/RENDER-PAGES.json")),
         (f"{DATA_DIR}/TRIAGE.js", js("TRIAGE", triage, "derived from FIGURE-TRIAGE.md")),
         (f"{DATA_DIR}/UNDRAWN.js", js("UNDRAWN", undrawn, "derived from FIGURE-TRIAGE.md add-rows")),

@@ -7,8 +7,8 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-LS = ROOT / "whitepaper/legible-swarm.tex"
-STP = ROOT / "website-v2/public/whitepaper/spawn-to-person.tex"
+LS = ROOT / "book/legible-swarm.tex"
+STP = ROOT / "book/spawn-to-person.tex"
 TARGETS = {
     LS: {"ex:queue-boundary": "Sole Ownership at the Queue Boundary",
          "ex:digest-review-budget": "Digest Bits and File Opens"},
@@ -129,7 +129,7 @@ class WorkedExampleChecks(unittest.TestCase):
             self.assertEqual(levels*50, {8:1350,2:1800,1:2650}[cliques])
 
     def test_sparkline_uses_all_three_exact_domains(self):
-        source = (ROOT / "website-v2/public/whitepaper/figures/spark-stp-audit-depth.tex").read_text()
+        source = (ROOT / "book/figures/spark-stp-audit-depth.tex").read_text()
         for signature in ("8/0/27", "2/15/36", "1/35/53"):
             self.assertIn(signature, source)
         self.assertIn("domain=0:\\L,samples=\\L+1", source)

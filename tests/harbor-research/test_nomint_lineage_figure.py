@@ -9,8 +9,8 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT/'website-v2/public/whitepaper/figures/fig-stp-nomint-lineage.tex'
-CHAPTER = ROOT/'website-v2/public/whitepaper/spawn-to-person.tex'
+FIGURE = ROOT/'book/figures/fig-stp-nomint-lineage.tex'
+CHAPTER = ROOT/'book/spawn-to-person.tex'
 
 
 def accounting(closure, transfer, copied):

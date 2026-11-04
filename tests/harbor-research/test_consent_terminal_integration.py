@@ -7,8 +7,8 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIG = ROOT / 'whitepaper/figures/legible-swarm-consent-lifecycle.tex'
-WEB = ROOT / 'website-v2/public/whitepaper'
+FIG = ROOT / 'book/figures/legible-swarm-consent-lifecycle.tex'
+WEB = ROOT / 'book'
 GUARDS = {
     'scope': r'$x$ in scope',
     'stakes': r'$\mathrm{stakes}(x)\le s_{\max}$',
@@ -17,11 +17,11 @@ GUARDS = {
     'unrevoked': r'$g$ unrevoked',
 }
 RECORDS = [
-    ('whitepaper/figures/session-swk-lock-demo.tex', 'lstlisting.1.2', 'd55f61ed0ee474be81c6f253a7dd738027f559aa48c53ad34d4bb6906b6d3b5f'),
-    ('whitepaper/figures/session-swk-workunit-check.tex', 'lstlisting.1.4', '9cc95cf084c02d7415e67097e9e2a156720c97e3bed9fd5f139afb123a9509d3'),
-    ('website-v2/public/whitepaper/figures/session-anchor-v6-attack.tex', 'lstlisting.2.appendix.13', '09ec7ca7dd387a8cea0328342ede788ce4d991218389919c04095b4276a45e23'),
-    ('website-v2/public/whitepaper/figures/session-bc-delta30.tex', 'lstlisting.7.1', 'cc19261fc732c24f9bd80da70b2ce001775a84674dd84d5317180b930ffb5b02'),
-    ('website-v2/public/whitepaper/figures/session-fh-rollback.tex', 'lstlisting.8.1', 'bd837108cbdebb30afc4ff9332b87a6d6023bb6b4be2b8b3d3195831d03a5be2'),
+    ('book/figures/session-swk-lock-demo.tex', 'lstlisting.1.2', 'd55f61ed0ee474be81c6f253a7dd738027f559aa48c53ad34d4bb6906b6d3b5f'),
+    ('book/figures/session-swk-workunit-check.tex', 'lstlisting.1.4', '9cc95cf084c02d7415e67097e9e2a156720c97e3bed9fd5f139afb123a9509d3'),
+    ('book/figures/session-anchor-v6-attack.tex', 'lstlisting.2.appendix.13', '09ec7ca7dd387a8cea0328342ede788ce4d991218389919c04095b4276a45e23'),
+    ('book/figures/session-bc-delta30.tex', 'lstlisting.7.1', 'cc19261fc732c24f9bd80da70b2ce001775a84674dd84d5317180b930ffb5b02'),
+    ('book/figures/session-fh-rollback.tex', 'lstlisting.8.1', 'bd837108cbdebb30afc4ff9332b87a6d6023bb6b4be2b8b3d3195831d03a5be2'),
 ]
 
 
@@ -110,7 +110,7 @@ class ConsentTerminalSources(unittest.TestCase):
                 consent_contract(mutant)
 
     def test_owning_protocol_and_description(self):
-        source = (ROOT / 'whitepaper/legible-swarm.tex').read_text()
+        source = (ROOT / 'book/legible-swarm.tex').read_text()
         section = source[source.index(r'\subsection{Consent as'):source.index(r'\ifpdmargincolumn\pdconsentregion')]
         for phrase in ('unexpired and unrevoked; otherwise it escalates',
                        'Every action taken under $g$ records', 'all five conditions apply to every admission',
@@ -130,13 +130,13 @@ class ConsentTerminalSources(unittest.TestCase):
             body = data.decode().split(r'\begin{pdsession}', 1)[1].split('\n', 1)[1].split(r'\end{pdsession}', 1)[0]
             count += sum(bool(line.strip()) for line in body.splitlines())
         self.assertEqual(count, 97)
-        a = (ROOT / 'whitepaper/figures/pd-pedagogy.tex').read_text()
+        a = (ROOT / 'book/figures/pd-pedagogy.tex').read_text()
         self.assertEqual(a, (WEB / 'figures/pd-pedagogy.tex').read_text())
         self.assertIn(r'\newif\ifpdsessionwordwrap', a)
         self.assertIn(r'\ifpdsessionwordwrap\lstset{breakatwhitespace=true}\fi', a)
         self.assertIn('breakatwhitespace=false', a)
         self.assertIn(r'\fontsize{8.6}{10.6}', a)
-        swk = (ROOT / 'whitepaper/single-writer-kernel.tex').read_text()
+        swk = (ROOT / 'book/single-writer-kernel.tex').read_text()
         self.assertEqual(swk.count(r'\pdsessionwordwraptrue'), 1)
         self.assertIn('\\begingroup\n\\pdsessionwordwraptrue\n\\input{figures/session-swk-workunit-check}\n\\endgroup', swk)
 
@@ -145,7 +145,7 @@ class ConsentTerminalSources(unittest.TestCase):
         self.assertIn('\\label{thm:attn-sound}\n\\raggedright\nIn ', source)
 
     def test_scott_opening_preserves_citation_order_and_defined_term(self):
-        source = (ROOT / 'whitepaper/legible-swarm.tex').read_text()
+        source = (ROOT / 'book/legible-swarm.tex').read_text()
         opening = source[source.index('A referee that only prevents'):
                          source.index(r'\ifdefined\pdreflectionplate\pdreflectionplate{the-unseen-boat}')]
         self.assertEqual(re.findall(r'\\pdcite\{([^}]+)\}', opening),

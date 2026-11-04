@@ -112,7 +112,7 @@ Usage:
     python3 readers_eye.py [CHAPTER.tex ...] [--json] [--rule NAME] [--strict]
     python3 readers_eye.py --limit 0        # list every finding, not 12 per rule
     python3 readers_eye.py                  # no files: every chapter in
-                                            # whitepaper/textbook.json
+                                            # book/textbook.json
     python3 readers_eye.py --summary        # one line per rule, no findings
     python3 readers_eye.py --selftest       # clean vs. deliberately-bad prose
 
@@ -869,9 +869,9 @@ def lint_file(path: str, lex: dict, only=None) -> list:
 
 def default_chapter_sources(repo_root: str) -> list:
     """Same convention and same function shape as margin_lint.py's and
-    chapter_lint.py's: the chapter list is whitepaper/textbook.json's `source`
+    chapter_lint.py's: the chapter list is book/textbook.json's `source`
     fields, never a hard-coded list of eight paths."""
-    textbook_path = Path(repo_root) / "whitepaper" / "textbook.json"
+    textbook_path = Path(repo_root) / "book" / "textbook.json"
     data = json.loads(textbook_path.read_text(encoding="utf-8"))
     return [str(Path(repo_root) / ch["source"]) for ch in data["chapters"]]
 
@@ -972,7 +972,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("files", nargs="*",
-                        help="chapter .tex files; default: every chapter in whitepaper/textbook.json")
+                        help="chapter .tex files; default: every chapter in book/textbook.json")
     parser.add_argument("--json", action="store_true", help="emit findings as JSON")
     parser.add_argument("--summary", action="store_true", help="counts per rule only")
     parser.add_argument("--rule", action="append", default=None,
@@ -1008,7 +1008,7 @@ def main(argv=None) -> int:
         try:
             files = default_chapter_sources(str(Path(args.repo_root).resolve()))
         except Exception as exc:  # noqa: BLE001
-            print(f"readers_eye.py: could not read chapter sources from whitepaper/textbook.json: {exc}",
+            print(f"readers_eye.py: could not read chapter sources from book/textbook.json: {exc}",
                   file=sys.stderr)
             return 2
 

@@ -14,8 +14,8 @@
   "fixture_repository_inputs": [
     {
       "path": "tests/harbor-research/fixtures/protocol-style-book.tex",
-      "sha256": "524579184b8a7e9a6f5808599c9ae23b8d5c483325bf61c52373b94339cc2b7e",
-      "bytes": 1131
+      "sha256": "4fb00e5bc8b82ef93e9ff34e0de133b47aa8a53a5c284aa7897f29029c496557",
+      "bytes": 1059
     },
     {
       "path": "tests/harbor-research/fixtures/protocol-style-fixture.tex",
@@ -23,64 +23,65 @@
       "bytes": 9507
     },
     {
-      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "7bd81641515502122f76a31d905e711aac6a7fe946728adda552a7b396599ddb",
-      "bytes": 64831
+      "path": "book/coordination-papers-mega-volume-preamble.tex",
+      "sha256": "45b4912c5d1aa10701598e74d6d120b7ace389ca3c548fc4c5ba2a3c6797c48f",
+      "bytes": 64825
     },
     {
-      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex",
-      "sha256": "9b1ee580ccf95831ab5d662582443676a6eb8fe15f7a0dc3bda99d9c38b5d293",
-      "bytes": 14757
+      "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
+      "sha256": "76349e0601fe7f58e2f77ea1ea24761963d7f8bb566fe9388d208746496b14b5",
+      "bytes": 14733
     },
     {
-      "path": "website-v2/public/whitepaper/figures/lucide/workflow.pdf",
+      "path": "book/figures/lucide/workflow.pdf",
       "sha256": "8c275b160ad83fd52e44a874154d42dc34cec14dc30fefe327c09dd42eb19d99",
       "bytes": 1231
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex",
-      "sha256": "c74ca5eea043121d61688d1b14db9f66a7943a54f7fa2c85490779d7d36f14cc",
-      "bytes": 27088
+      "path": "book/figures/pd-cite-shortforms.tex",
+      "sha256": "c04d4d63255fcabfd09fd89098b7087f6c8bc15ad02c9c19a3a4380b17dc7eed",
+      "bytes": 27058
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-discharges.tex",
-      "sha256": "56fbd01c9b74a7745cdc286ee8326cefabd210381e0c927f563a07da0070d6bb",
-      "bytes": 928
+      "path": "book/figures/pd-discharges.tex",
+      "sha256": "d24cb6103ef0d38e2d7af8255bfd75de3a35d3b6f69dc30b55a7c314e55158cf",
+      "bytes": 898
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex",
+      "path": "book/figures/pd-figure-language-swiss.tex",
       "sha256": "6bfaec492b914916857781c5cf80cfa0c7d1cbb02fd658a72e70c6aa55e11bdf",
       "bytes": 5457
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-figure-language.tex",
-      "sha256": "f20734af70d8b9bc1525ef98c7623c778682797374931eb7bd0eee03ddc20047",
-      "bytes": 40314
+      "path": "book/figures/pd-figure-language.tex",
+      "sha256": "e35aef5c5609f9aa75a6846baebcf60106d6d7547489a3d61723c1fcce3a25f5",
+      "bytes": 40308
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-hyperlinks.tex",
-      "sha256": "bd512ab0f5003663f7cb462601ab64b4bd276f567074477795ea61907d8b2248",
-      "bytes": 6243
+      "path": "book/figures/pd-hyperlinks.tex",
+      "sha256": "7017867e88421ee207ffe9107c9c8ca6501c43a87a1aefc0f2bfd8c2410c0408",
+      "bytes": 6237
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-palette.tex",
-      "sha256": "63306cfb03ef11f24a7eff438748e51a43f06d7f9985101cdce1af9867733a09",
-      "bytes": 3326
+      "path": "book/figures/pd-palette.tex",
+      "sha256": "f286f318b25bec0ae9d58c99a799349c354e7697bf5563e144b0f1b7ca999668",
+      "bytes": 3320
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-pedagogy.tex",
-      "sha256": "08f7b0804e17632ad9c137d90ad419584852eaa3035e13ad8cf638c5e2cdd127",
-      "bytes": 80238
+      "path": "book/figures/pd-pedagogy.tex",
+      "sha256": "4df2929a2e3a61c5be3c7dd6db02104b1decd440acf01f2cc9e122ce07abb891",
+      "bytes": 80226
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex",
+      "path": "book/figures/pd-semantic-blocks.tex",
       "sha256": "50743f173e24b3d47b62809a2768459bd98e973e22c240ae1d7bf5599a30edb1",
       "bytes": 4192
     },
     {
-      "path": "website-v2/public/whitepaper/figures/pd-textbook-map.tex",
-      "sha256": "e96266e63af9f60ae47fdfcef6322539d3033e8aed38bf842cf181df7fedbdd1",
-      "bytes": 13940
+      "path": "book/figures/pd-textbook-map.tex",
+      "sha256": "ac9b487d9f7b404b2bd9f7f837aeac36f7fa82d22ccf39d7584de264eddef602",
+      "bytes": 13843
     }
-  ]
+  ],
+  "source_relocation": "Canonical book/ relocation: source-path comments, generated locator header, and fixture import roots updated; no new rendered acceptance claimed. Historical checkpoint hashes remain unchanged."
 }

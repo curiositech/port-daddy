@@ -7,8 +7,8 @@ import sys
 import unittest
 
 ROOT=Path(__file__).resolve().parents[2]
-FIG=ROOT/'whitepaper/figures/legible-swarm-completion-verifier.tex'
-OWNER=ROOT/'whitepaper/legible-swarm.tex'
+FIG=ROOT/'book/figures/legible-swarm-completion-verifier.tex'
+OWNER=ROOT/'book/legible-swarm.tex'
 EXPECTED={'met':'done','unmet':'refused','unevaluable':'inability'}
 
 

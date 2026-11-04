@@ -6,7 +6,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT / 'website-v2/public/whitepaper/figures/fig-bc-delta-threshold.tex'
+FIGURE = ROOT / 'book/figures/fig-bc-delta-threshold.tex'
 TRACE = ROOT / 'proofs/economics/claim_signaling_delta30.run.log'
 
 

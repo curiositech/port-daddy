@@ -49,6 +49,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 PUB="website-v2/public/whitepaper"
+BOOK="book"
 # pdfTeX incorporates the output path into the trailer /ID. A random mktemp
 # directory therefore makes otherwise identical PDFs differ on every build.
 # Keep the ignored build path stable across PR and main runners.
@@ -80,7 +81,7 @@ mkdir -p "$BUILD_DIR"
 # the Book still assembles from them — but this list now builds only the one
 # artifact the site actually serves per chapter: the Book itself.
 PAPERS=(
-  "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
+  "$BOOK|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
 )
 
 # Editions that are switchable but not built. The Book has one set of chapter
@@ -106,9 +107,9 @@ PAPERS=(
 # generator handling, right engine); it is independent of whether the default
 # build list contains it.
 UNBUILT_EDITIONS=(
-  "$PUB|coordination-papers-mega-volume-maritime.tex|$PUB/coordination-papers-mega-volume-maritime.pdf"
-  "$PUB|coordination-papers-mega-volume-swiss.tex|$PUB/coordination-papers-mega-volume-swiss.pdf"
-  "$PUB|coordination-papers-mega-volume-technical.tex|$PUB/coordination-papers-mega-volume-technical.pdf"
+  "$BOOK|coordination-papers-mega-volume-maritime.tex|$PUB/coordination-papers-mega-volume-maritime.pdf"
+  "$BOOK|coordination-papers-mega-volume-swiss.tex|$PUB/coordination-papers-mega-volume-swiss.pdf"
+  "$BOOK|coordination-papers-mega-volume-technical.tex|$PUB/coordination-papers-mega-volume-technical.pdf"
 )
 
 CHANGED_SINCE=""
@@ -138,50 +139,13 @@ paper_sources() {
   local srcdir="$1" roottex="$2"
   case "$roottex" in
     coordination-papers-mega-volume.tex|coordination-papers-mega-volume-maritime.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
-      # Every edition driver is a two-line root (\def\pdedition{...} then
-      # \input of the main root) that shares every source the main root does,
-      # plus its own driver file. All three drivers stay listed here even
-      # though only the canonical root is in the default build list, so that a
-      # manual build of one still gets the right dependency set.
-      if [ "$roottex" != "coordination-papers-mega-volume.tex" ]; then
-        printf '%s\n' "$srcdir/$roottex"
-      fi
-      # whitepaper/textbook.json is the one source of chapter order, numbering,
-      # parts, and edition metadata; the generator renders the Book from it.
-      # The preamble \input's the Swiss plate macros, so they are a dependency
-      # of the Swiss render and, now that Swiss is the central edition, of the
-      # canonical artifact itself. Listing the file keeps a change to a plate
-      # path or a \PackageError message from leaving the published PDF behind
-      # its own source.
-      printf '%s\n' "$srcdir/coordination-papers-mega-volume.tex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
-        "$srcdir/coordination-papers-mega-volume-seams.tex" \
-        "$srcdir/coordination-papers-mega-volume-chapter-0.tex" \
-        "$srcdir/coordination-papers-mega-volume-appendices.tex" \
-        "$srcdir/coordination-papers-mega-volume-swiss-plates.tex" \
-        "$srcdir/coordination-papers-mega-volume-epigraph-review-spreads.tex" \
-        "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
-      # The Book preamble imports this helper, whose glyph path is assembled
-      # from explicit icon-family assignments rather than a literal \input.
-      # Declare the consumed PDFs even when missing: enumerating existing files
-      # would hide a deleted dependency from both change detection and epochs.
-      printf '%s\n' "$srcdir/figures/pd-semantic-blocks.tex"
-      local icon
-      for icon in book-open calculator file-text flask-conical key-round \
-        list-checks lock-keyhole scroll-text workflow; do
-        printf '%s\n' "$srcdir/figures/lucide/$icon.pdf"
-      done
-      # Art plates (jacket, part and chapter openers) are Book inputs too.
-      if [ -d "$srcdir/plates" ]; then
-        find "$srcdir/plates" -type f | sort
-      fi
-      paper_sources "whitepaper" "single-writer-kernel.tex"
-      paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
-      paper_sources "$PUB" "sealed-harbor.tex"
-      paper_sources "whitepaper" "legible-swarm.tex"
-      paper_sources "$PUB" "spawn-to-person.tex"
-      paper_sources "$PUB" "harbor-economy.tex"
-      paper_sources "$PUB" "agent-transactions-whitepaper.tex"
-      paper_sources "$PUB" "federated-harbor-whitepaper.tex"
+      # The canonical Book tree includes dynamic TeX inputs, typography, font
+      # files, artwork and attribution. Include the directory as a Git pathspec
+      # so a deleted or newly added input still invalidates selection and epoch.
+      printf '%s\n' "$srcdir" "scripts/build-whitepapers.sh" \
+        "scripts/generate-mega-whitepaper.mjs" "scripts/prepare-book-fonts.py"
+      find "$srcdir" -type f ! -name '*.aux' ! -name '*.log' ! -name '*.out' \
+        ! -name '*.toc' ! -name '*.fls' ! -name '*.fdb_latexmk' ! -name '*.synctex.gz' | sort
       return
       ;;
   esac
@@ -215,6 +179,11 @@ paper_sources() {
 # not. Falls back to the repo HEAD author time, then to a fixed constant.
 paper_epoch() {
   local srcdir="$1" roottex="$2" epoch=""
+  if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
+    case "$SOURCE_DATE_EPOCH" in *[!0-9]*) echo "invalid SOURCE_DATE_EPOCH" >&2; return 1 ;; esac
+    printf '%s' "$SOURCE_DATE_EPOCH"
+    return
+  fi
   local sources=()
   while IFS= read -r source; do
     sources+=("$source")
@@ -246,7 +215,7 @@ run_tex_passes() {
   local engine="$1" roottex="$2" outdir="$3" base="$4" pass
   for pass in 1 2 3 4 5 6 7 8; do
     echo "$engine fallback pass $pass/8"
-    "$engine" -interaction=nonstopmode -halt-on-error -file-line-error \
+    "$engine" -interaction=nonstopmode -halt-on-error -file-line-error -recorder \
       -output-directory="$outdir" "$roottex" || return $?
     if [ "$pass" -ge 2 ] && tex_log_converged "$outdir/$base.log"; then
       return 0
@@ -315,7 +284,7 @@ build_one() {
       coordination-papers-mega-volume*.tex) engine=xelatex; latexmk_engine=-xelatex ;;
     esac
     if command -v latexmk >/dev/null 2>&1; then
-      latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error \
+      latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error -recorder \
               -e '$max_repeat=8;' -outdir="$outdir" "$roottex"
     else
       # BasicTeX can ship pdfTeX without latexmk. These papers use inline
@@ -346,6 +315,7 @@ build_one() {
     echo "::endgroup::"
     return 1
   fi
+  mkdir -p "$(dirname "$dest")"
   if ! cp "$outdir/$base.pdf" "$dest"; then
     echo "::error::could not copy $roottex to $dest; publication failed" >&2
     echo "::endgroup::"

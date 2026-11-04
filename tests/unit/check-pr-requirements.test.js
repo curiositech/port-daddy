@@ -194,7 +194,7 @@ describe('check-pr-requirements guard', () => {
   describe('figure/print territory', () => {
     // The exact shape of #10190: whitepaper sources + a figure fragment, and a
     // visual-exempt marker in place of a picture.
-    const FIGURE_DIFF = 'website-v2/public/whitepaper/figures/fig-bc-delta-threshold.tex,website-v2/public/whitepaper/harbor-economy.tex,changelog.d/9910-figures.md';
+    const FIGURE_DIFF = 'book/figures/fig-bc-delta-threshold.tex,book/harbor-economy.tex,changelog.d/9910-figures.md';
 
     test('a whitepaper diff with visual-exempt FAILS, and the error says what to do instead', () => {
       const { code, stderr } = run('--body-file', fixture('figure-visual-exempt.md'), '--changed', FIGURE_DIFF);
@@ -237,7 +237,7 @@ describe('check-pr-requirements guard', () => {
         '## Visual Proof',
         embed,
       ].join('\n');
-      const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      const { code, stdout } = run('--body', body, '--changed', 'book/figures/f.tex');
       expect(code).toBe(0);
       expect(stdout).toMatch(/meets the contract/);
     });
@@ -260,7 +260,7 @@ describe('check-pr-requirements guard', () => {
         '## Visual Proof',
         embed,
       ].join('\n');
-      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      const { code, stderr } = run('--body', body, '--changed', 'book/figures/f.tex');
       expect(code).toBe(1);
       expect(stderr).toMatch(/carries no render a reviewer can open/);
     });
@@ -275,7 +275,7 @@ describe('check-pr-requirements guard', () => {
         'Before/after contact sheet at 1.0x / 150 dpi, published by the figure gates:',
         'https://github.com/curiositech/port-daddy/actions/runs/1234567890',
       ].join('\n');
-      const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/fig-swk-stack-map.tex');
+      const { code, stdout } = run('--body', body, '--changed', 'book/figures/fig-swk-stack-map.tex');
       expect(code).toBe(0);
       expect(stdout).toMatch(/meets the contract/);
     });
@@ -346,7 +346,7 @@ describe('check-pr-requirements guard', () => {
       ].join('\n');
       const { code, stderr } = run(
         '--body', body,
-        '--changed', 'website-v2/public/whitepaper/spawn-to-person.tex,whitepaper/single-writer-kernel.tex,changelog.d/9913-critique.md',
+        '--changed', 'book/spawn-to-person.tex,book/single-writer-kernel.tex,changelog.d/9913-critique.md',
       );
       expect(code).toBe(1);
       expect(stderr).toMatch(/`visual-exempt` is not available/);
@@ -362,7 +362,7 @@ describe('check-pr-requirements guard', () => {
         '## Test Plan',
         'Compiled under both preambles and ran figcheck T1 through T8; all clean at page scale.',
       ].join('\n');
-      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/fig-swk-stack-map.tex');
+      const { code, stderr } = run('--body', body, '--changed', 'book/figures/fig-swk-stack-map.tex');
       expect(code).toBe(1);
       expect(stderr).toMatch(/no `## Visual Proof` section at all/);
     });
@@ -379,7 +379,7 @@ describe('check-pr-requirements guard', () => {
         '## Visual Proof',
         'Rendered at 150 dpi and inspected by eye; nothing regressed.',
       ].join('\n');
-      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/fig-swk-stack-map.tex');
+      const { code, stderr } = run('--body', body, '--changed', 'book/figures/fig-swk-stack-map.tex');
       expect(code).toBe(1);
       expect(stderr).toMatch(/carries no render a reviewer can open/);
     });
@@ -399,7 +399,7 @@ describe('check-pr-requirements guard', () => {
     test('visual-exempt is void for the app-surface half of a mixed diff', () => {
       const { code, stderr } = run(
         '--body-file', fixture('figure-visual-exempt.md'),
-        '--changed', 'whitepaper/figures/fig-swk-stack-map.tex,fleet-config-ui/src/HealthPane.tsx,changelog.d/9911-mixed.md',
+        '--changed', 'book/figures/fig-swk-stack-map.tex,fleet-config-ui/src/HealthPane.tsx,changelog.d/9911-mixed.md',
       );
       expect(code).toBe(1);
       expect(stderr).toMatch(/`visual-exempt` is not available/);
@@ -414,7 +414,7 @@ describe('check-pr-requirements guard', () => {
     // the two self-exemption regressions above, one level more embarrassing.
     test('the real PR template does not self-trigger the figure rule', () => {
       const template = join(repo, '.github', 'PULL_REQUEST_TEMPLATE.md');
-      const { code, stderr } = run('--body-file', template, '--changed', 'whitepaper/figures/fig-swk-stack-map.tex');
+      const { code, stderr } = run('--body-file', template, '--changed', 'book/figures/fig-swk-stack-map.tex');
       expect(code).toBe(1);
       // It fails for the honest reason — an unfilled template has no render —
       // and NOT because the template's own prose read as a live marker.
@@ -426,7 +426,7 @@ describe('check-pr-requirements guard', () => {
     // `figures/` or plate directory is in scope the day it is created.
     test.each([
       ['a figures/ directory at any depth', 'docs/harbor-research/exposition/figures/FIGURE-REGISTER.md'],
-      ['a plate directory', 'website-v2/public/whitepaper/plates/swiss/chapter-swk.jpg'],
+      ['a plate directory', 'book/plates/swiss/chapter-swk.jpg'],
       ['a hyphenated plate pipeline', 'scripts/whitepaper-plates/plates_pipeline.py'],
       ['any .tex file', 'docs/harbor-research/tex/appendix.tex'],
       ['the chartwork skill', 'skills/harbor-chartwork/scripts/tikz_precheck.py'],
@@ -487,7 +487,7 @@ describe('check-pr-requirements guard', () => {
       'Ran the suite and exercised several edge cases to be sure it behaves well here.',
       '',
     ].join('\n');
-    const FIG = 'whitepaper/figures/fig-swk-stack-map.tex';
+    const FIG = 'book/figures/fig-swk-stack-map.tex';
 
     // THE BYPASS. The Visual Proof section has no render. If the fence tracker
     // desynchronises on the inner ``` line it never leaves the fence, so the
@@ -596,7 +596,7 @@ describe('check-pr-requirements guard', () => {
       '## Visual Proof',
       '![render](https://x.test/fig.png)',
     ].join('\n');
-    const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+    const { code, stdout } = run('--body', body, '--changed', 'book/figures/f.tex');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });
@@ -615,7 +615,7 @@ describe('check-pr-requirements guard', () => {
       '## Visual Proof',
       '![render](https://x.test/fig.png)',
     ].join('\n');
-    const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex,lib/relay-client.ts');
+    const { code, stdout } = run('--body', body, '--changed', 'book/figures/f.tex,lib/relay-client.ts');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });

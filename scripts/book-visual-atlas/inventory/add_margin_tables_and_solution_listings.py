@@ -27,7 +27,7 @@ for i in items:
 # Current original-source mappings are evidence dependencies, not byte equality claims.
 for entry in json.loads(Path('.scratch/visual-atlas/verification/inlined-upstream-map.json').read_text()):
  i=next(i for i in items if i['id']==entry['id']);p=Path(entry['originalPath']);dep=source_record(p,p.read_text(),0,len(p.read_text()));dep['relationship']='Original fragment named by generated BEGIN INLINED marker; generator transformations not replayed';i.setdefault('sourceDependencies',[]).append(dep)
-macro=Path('website-v2/public/whitepaper/figures/pd-margin-evidence.tex');text=macro.read_text();body=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');bodytext=body.read_text()
+macro=Path('book/figures/pd-margin-evidence.tex');text=macro.read_text();body=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');bodytext=body.read_text()
 def emit(kind,title,page,rect,source,extra):
  ident=f'v{len(items)+1:05d}';pg=doc[page-1];rect=fitz.Rect(rect)&pg.rect;crop=f'crops/{ident}.png';context=f'contexts/page-{page:04d}.png';pg.get_pixmap(matrix=fitz.Matrix(1.7,1.7),clip=(rect+(-8,-8,8,8))&pg.rect).save(b/crop)
  if not(b/context).exists():pg.get_pixmap(matrix=fitz.Matrix(.58,.58)).save(b/context)

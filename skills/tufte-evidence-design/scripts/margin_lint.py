@@ -126,7 +126,7 @@ Usage:
     python3 margin_lint.py [FILE.tex ...] [--json] [--repo-root PATH]
 
 With no FILE arguments, reads the Book's eight chapter sources from the
-`source` field of each entry in whitepaper/textbook.json (resolved relative
+`source` field of each entry in book/textbook.json (resolved relative
 to --repo-root, default: three levels up from this script).
 
 Exit status: 0 if no ENFORCED rule was violated (advisory findings, such as
@@ -513,7 +513,7 @@ def check_no_footnote_in_body(path: str, text: str, findings: list):
         })
 
 
-DISCHARGES_REL = "website-v2/public/whitepaper/figures/pd-discharges.tex"
+DISCHARGES_REL = "book/figures/pd-discharges.tex"
 PROVEDON_ENTRY_RE = re.compile(r'\\pdprovedonentry\s*\{([^}]*)\}')
 
 
@@ -571,14 +571,14 @@ def lint_file(path: str, repo_root: str, sidecar_mod) -> list:
 
 
 def default_chapter_sources(repo_root: str) -> list:
-    textbook_path = Path(repo_root) / "whitepaper" / "textbook.json"
+    textbook_path = Path(repo_root) / "book" / "textbook.json"
     data = json.loads(textbook_path.read_text(encoding="utf-8"))
     return [str(Path(repo_root) / ch["source"]) for ch in data["chapters"]]
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("files", nargs="*", help="chapter .tex files to lint; default: the eight Book chapters from whitepaper/textbook.json")
+    parser.add_argument("files", nargs="*", help="chapter .tex files to lint; default: the eight Book chapters from book/textbook.json")
     parser.add_argument("--json", action="store_true", help="emit findings as JSON instead of file:line text")
     parser.add_argument("--repo-root", default=str(REPO_ROOT), help="repository root (default: inferred from this script's location)")
     args = parser.parse_args(argv)
@@ -591,7 +591,7 @@ def main(argv=None) -> int:
         try:
             files = default_chapter_sources(repo_root)
         except Exception as exc:  # noqa: BLE001
-            print(f"margin_lint.py: could not read chapter sources from whitepaper/textbook.json: {exc}", file=sys.stderr)
+            print(f"margin_lint.py: could not read chapter sources from book/textbook.json: {exc}", file=sys.stderr)
             return 2
 
     for f in files:

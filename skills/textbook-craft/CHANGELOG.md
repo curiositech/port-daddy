@@ -16,7 +16,7 @@
   unselected chapters. `--max-blocking N` permits a measured aggregate debt
   budget without hiding failures or ignoring invalid input.
 - Activate only the 16 authored recap/exercise declarations in
-  `whitepaper/chapter-apparatus.json`; literature and teaching appendices stay
+  `book/chapter-apparatus.json`; literature and teaching appendices stay
   body. Replace the advisory CI step with a freshly measured ceiling of 15
   blocking floors. The historical budget of 17 is not reused. Three actual
   CLI-process tests witness breached-budget, stale-selector and apparatus-claim
@@ -43,7 +43,7 @@ workers running `chapter_lint.py` over real chapters; both are fixed in the
 checker, not in the chapters.
 
 - `exercises_at_chapter_end` mistook a section for the Exercises section.
-  `website-v2/public/whitepaper/spawn-to-person.tex`'s
+  `book/spawn-to-person.tex`'s
   `\section{Open problems (the starred exercises, collected)}` matched the
   `exercises\b` title substring and, being the last such match, was taken
   for the chapter's closing Exercises section — so all **50** correctly
@@ -61,7 +61,7 @@ checker, not in the chapters.
   `find_final_exercises_section` takes the cluster positions;
   `find_exercise_clusters` returns `(clusters, exercises_section)`.
 - `at_most_one_interlude` could only see interludes that were already
-  labelled, and printed a clean `PASS` on `whitepaper/legible-swarm.tex` —
+  labelled, and printed a clean `PASS` on `book/legible-swarm.tex` —
   the chapter with the worst instance of exactly what it checks (Hobbes as
   its spine, Scott as its governing warning, both unlabelled, plus Hume,
   Locke, Pateman, Hirschman and Hayek in §9). Renamed
@@ -103,7 +103,7 @@ CI wiring and a consolidated report:
   brace-and-env-balanced body (new `balanced_env_body`), not a fixed
   ±200/400-character window that could borrow a neighboring claim's tag.
 - `no_tinted_box_macros`: dead-or-live is settled by parsing
-  `whitepaper/figures/pd-pedagogy.tex` itself (which macro names its
+  `book/figures/pd-pedagogy.tex` itself (which macro names its
   `\AtBeginDocument` block actually re-`\long\def`'s), located by walking
   upward from the chapter's own path rather than a hard-coded absolute
   path — not by whether the chapter's own `\input` line is present.
@@ -119,7 +119,7 @@ CI wiring and a consolidated report:
   or claim, and every claim-like environment must be tagged.
 - Multi-chapter consolidated report (`--table`, or simply more than one
   chapter path) and a default chapter list read from
-  `whitepaper/textbook.json` when none is given, mirroring
+  `book/textbook.json` when none is given, mirroring
   `skills/tufte-evidence-design/scripts/margin_lint.py`'s own convention.
 - `.github/workflows/library-checks.yml` runs the skill's own unit tests
   and the chapter floors across all eight Book chapters (advisory /
@@ -135,7 +135,7 @@ CI wiring and a consolidated report:
 
 - Initial skill, built from `docs/harbor-research/exposition/TEXTBOOK-CRAFT.md`
   (seed research memo), `READING-FLOW-AUDIT.md`, `HANDOFF-TEXTBOOK.md`,
-  `memo-solution-key.md`, `whitepaper/figures/pd-pedagogy.tex`, and
+  `memo-solution-key.md`, `book/figures/pd-pedagogy.tex`, and
   `skills/harbor-exposition/SKILL.md`, extended with web research (Rudin,
   Mason–Burton–Stacey, Chi self-explanation, Rohrer/Bjork interleaving) and
   the author's public corpus (`github.com/curiositech/some_claude_skills`,
@@ -154,7 +154,7 @@ CI wiring and a consolidated report:
   epistemic-kind tagging, interlude count, legacy tinted-box macro
   definitions (aware of `\input{figures/pd-pedagogy}` neutralizing them), and
   chapter-close apparatus, against this skill's floors. Tested against
-  `whitepaper/single-writer-kernel.tex` (fails 5/6 floors — a pre-reform
+  `book/single-writer-kernel.tex` (fails 5/6 floors — a pre-reform
   chapter, captured honestly in `examples/chapter1-lint-report.txt`) and
   spot-checked against a pd-pedagogy-adopted chapter to confirm it correctly
   passes the floors that chapter actually meets.

@@ -456,7 +456,7 @@ for idx, fig in enumerate(figures_data):
 
 latex_doc += r"\end{document}" + "\n"
 
-target_path = "website-v2/public/whitepaper/figures-side-by-side-comparison.tex"
+target_path = "book/figures-side-by-side-comparison.tex"
 with open(target_path, "w") as f:
     f.write(latex_doc)
 

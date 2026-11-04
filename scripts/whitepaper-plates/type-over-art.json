@@ -75,7 +75,7 @@
     {
       "id": "maritime-cover",
       "edition": "maritime",
-      "plate": "website-v2/public/whitepaper/plates/jacket.jpg",
+      "plate": "book/plates/jacket.jpg",
       "clean_band_floor": 0.30,
       "measured": { "clean_band": 0.392 },
       "note": "Full-bleed jacket, type placed by a \\vspace* from the top margin."
@@ -83,7 +83,7 @@
     {
       "id": "swiss-cover",
       "edition": "swiss",
-      "plate": "website-v2/public/whitepaper/plates/swiss/cover.jpg",
+      "plate": "book/plates/swiss/cover.jpg",
       "clean_band_floor": 0.30,
       "measured": { "clean_band": 0.332 },
       "note": "Full-bleed photomontage, type placed at absolute TikZ coordinates."

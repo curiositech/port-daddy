@@ -1,7 +1,7 @@
 # Harbor Chartwork
 
 Deterministic figure-QA tooling for the three Harbor TikZ figure corpora
-(`website-v2/public/whitepaper/figures/`, `whitepaper/figures/`,
+(`book/figures/`, `book/figures/`,
 `docs/harbor-research/figures/`). See `SKILL.md` for the QA loop and script
 CLIs.
 

@@ -121,14 +121,14 @@ quote.
 
 ## This repository's own margin apparatus (primary source, read directly)
 
-- `website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex`
+- `book/coordination-papers-mega-volume-preamble.tex`
   — the Book's 7×10 trim geometry: 4.5in text column, 1.3in `marginparwidth`,
   0.2in `marginparsep`; `\pdfullwidth` macro and the `pgfsys@typesetpicturebox`
   hook. Captioned figures must fit the body column; new margin evidence fails
   rather than scaling. A legacy spill/scale path remains for other inline art
   and must not be treated as an authoring recommendation.
-- `website-v2/public/whitepaper/figures/pd-pedagogy.tex` (byte-identical twin of
-  `whitepaper/figures/pd-pedagogy.tex`) — defines `\pdmarginfigure{slug}{caption}`
+- `book/figures/pd-pedagogy.tex` (byte-identical twin of
+  `book/figures/pd-pedagogy.tex`) — defines `\pdmarginfigure{slug}{caption}`
   (a duotone portrait keyed to `plates/marginalia/<slug>.jpg`, Book-only, silently
   a no-op when `\ifpdmargincolumn` is false) and the whole pedagogic apparatus
   (`pdclaim`, `pdboundary`, `pdexample`, `pdrecitation`, `pdexercise`,

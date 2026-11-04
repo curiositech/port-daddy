@@ -13,12 +13,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/harbor-research'))
 from check_plate_provenance import check_provenance_dir
 
-PLATES = ROOT / 'website-v2/public/whitepaper/plates/interstitial'
+PLATES = ROOT / 'book/plates/interstitial'
 SOURCES = {
-    'the-controlled-opening': ('website-v2/public/whitepaper/sealed-harbor.tex', r'\section{Silence except through the slot}'),
-    'the-unseen-boat': ('whitepaper/legible-swarm.tex', r'\begin{pdexample}{The Same Pull Request, Rendered Twice}'),
-    'the-waiting-body': ('website-v2/public/whitepaper/spawn-to-person.tex', r"\subsection{Locke's memory criterion, and its famous bug}"),
-    'the-paper-crossing': ('website-v2/public/whitepaper/federated-harbor-whitepaper.tex', r'\section{Cross-Harbor Capability Transfer}'),
+    'the-controlled-opening': ('book/sealed-harbor.tex', r'\section{Silence except through the slot}'),
+    'the-unseen-boat': ('book/legible-swarm.tex', r'\begin{pdexample}{The Same Pull Request, Rendered Twice}'),
+    'the-waiting-body': ('book/spawn-to-person.tex', r"\subsection{Locke's memory criterion, and its famous bug}"),
+    'the-paper-crossing': ('book/federated-harbor-whitepaper.tex', r'\section{Cross-Harbor Capability Transfer}'),
 }
 
 
@@ -32,12 +32,12 @@ class ReflectionSourceTests(unittest.TestCase):
                              plate['sha256'])
 
     def test_insertion_does_not_split_arbitrary_pages_or_add_parity_filler(self):
-        macro = (ROOT / 'website-v2/public/whitepaper/figures/pd-reflection-plates.tex').read_text()
+        macro = (ROOT / 'book/figures/pd-reflection-plates.tex').read_text()
         self.assertNotIn(r'\afterpage', macro)
         self.assertNotIn(r'\cleardoublepage', macro)
 
     def test_interstitial_contents_preserves_chapter_counter(self):
-        macro = (ROOT / 'website-v2/public/whitepaper/figures/pd-reflection-plates.tex').read_text()
+        macro = (ROOT / 'book/figures/pd-reflection-plates.tex').read_text()
         self.assertIn(r'\addcontentsline{toc}{pdplate}', macro)
         self.assertIn(r'\newcommand*{\l@pdplate}', macro)
         self.assertNotIn(r'\advance\pd@tocchapter', macro)

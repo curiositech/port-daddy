@@ -20,7 +20,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
-PUB = Path("website-v2/public/whitepaper")
+PUB = Path("book")
 PREAMBLE = PUB / "coordination-papers-mega-volume-preamble.tex"
 HISTORICAL_SNAPSHOT = "0bd6a38fa3b6020c16ed060a256e45ce4f169561"
 CURRENT_INPUTS = Path("tests/harbor-research/fixtures/protocol-style-inputs.json")
@@ -252,7 +252,8 @@ class ProtocolSourceTests(unittest.TestCase):
     def test_current_fixture_dependencies_have_exact_reviewed_hashes(self):
         current = json.loads((ROOT / CURRENT_INPUTS).read_text())
         historical = json.loads((ROOT / "docs/harbor-research/exposition/PROTOCOL-CHECKPOINT-20260920.json").read_text())
-        expected = {entry["path"] for entry in historical["fixture_repository_inputs"]}
+        expected = {entry["path"].replace("website-v2/public/whitepaper/", "book/")
+                    for entry in historical["fixture_repository_inputs"]}
         entries = current["fixture_repository_inputs"]
         self.assertEqual(len(entries), len(expected))
         self.assertEqual({entry["path"] for entry in entries}, expected)
@@ -319,7 +320,6 @@ class ProtocolSourceTests(unittest.TestCase):
     def test_frozen_helper_and_mirror(self):
         data = (ROOT / PUB / "figures/pd-semantic-blocks.tex").read_bytes()
         self.assertEqual(hashlib.sha256(data).hexdigest(), HELPER_SHA)
-        self.assertEqual(data, (ROOT / "whitepaper/figures/pd-semantic-blocks.tex").read_bytes())
         text = data.decode()
         self.assertNotIn(r"\newcounter", text)
         self.assertEqual(set(re.findall(r"\\def\\pdblock@icon\{([^}]+)\}", text)), set(ICONS))
@@ -361,18 +361,16 @@ class ProtocolSourceTests(unittest.TestCase):
             with self.subTest(marker_top=marker_top), self.assertRaises(AssertionError):
                 list_heading_layout(specimen(marker_top), records, starts)
 
-    def test_every_helper_asset_is_present_and_mirrored(self):
+    def test_every_canonical_helper_asset_is_present_and_licensed(self):
         for name in ICONS:
             for extension in ("svg", "pdf"):
                 rel = Path("figures/lucide") / f"{name}.{extension}"
                 public = (ROOT / PUB / rel).read_bytes()
-                self.assertEqual(public, (ROOT / "whitepaper" / rel).read_bytes())
                 self.assertTrue(public.startswith(b"%PDF-") if extension == "pdf"
                                 else b"<svg" in public)
         for name in ("LICENSE", "LICENSE.lucide.txt", "LICENSE.feather.txt"):
             rel = Path("figures/lucide") / name
-            self.assertEqual((ROOT / PUB / rel).read_bytes(),
-                             (ROOT / "whitepaper" / rel).read_bytes())
+            self.assertTrue((ROOT / PUB / rel).read_text().strip())
         license_text = (ROOT / PUB / "figures/lucide/LICENSE").read_text()
         self.assertIn("ISC License", license_text)
         self.assertIn("The MIT License", license_text)
@@ -397,7 +395,7 @@ class ProtocolSourceTests(unittest.TestCase):
         self.assertIn(r"\def\pdedition{maritime}", wrapper)
 
     def test_mirror_pdfs_are_not_ignored(self):
-        paths = [f"whitepaper/figures/lucide/{name}.pdf" for name in ICONS]
+        paths = [f"book/figures/lucide/{name}.pdf" for name in ICONS]
         result = subprocess.run(["git", "check-ignore", *paths], cwd=ROOT,
                                 text=True, capture_output=True, check=False)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)

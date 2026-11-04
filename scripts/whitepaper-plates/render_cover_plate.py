@@ -13,7 +13,7 @@ Both were reproductions that had drifted from the object they reproduced.
 --write rasterises page one of the Book PDF (default: the committed
 website-v2/public/whitepaper/coordination-papers-mega-volume.pdf; --pdf names a
 fresh local build when the Book is being refreshed) at 1000x1429 and writes
-website-v2/public/whitepaper/plates/cover-swiss.jpg, then records the source PDF's
+book/plates/cover-swiss.jpg, then records the source PDF's
 SHA-256 in plates/PROVENANCE.json under plates.cover-swiss.
 
 --check recomputes the committed PDF's SHA-256 and fails if it differs from the
@@ -26,7 +26,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 PDF = REPO / "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf"
-PLATES = REPO / "website-v2/public/whitepaper/plates"
+PLATES = REPO / "book/plates"
 OUT = PLATES / "cover-swiss.jpg"
 PROV = PLATES / "PROVENANCE.json"
 KEY = "cover-swiss"

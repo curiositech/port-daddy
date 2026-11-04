@@ -46,7 +46,7 @@ describe('isFigureSurface — the enumerated work trees', () => {
 
 describe('isFigureSurface — any directory named figures, at any depth', () => {
   test.each([
-    'whitepaper/figures/fig-a.tex',
+    'book/figures/fig-a.tex',
     'docs/harbor-research/figures/fig-b.pdf',
     'docs/harbor-research/exposition/figures/plot.png',
   ])('%s is figure territory', (path) => {
@@ -66,7 +66,7 @@ describe('isFigureSurface — any directory named figures, at any depth', () => 
 
 describe('isFigureSurface — plate directories versus the ~90 templates/ directories', () => {
   test.each([
-    'website-v2/public/whitepaper/plates/p.png',
+    'book/plates/p.png',
     'docs/pr-assets/swiss-plates/p.png',
     'scripts/whitepaper-plates/build.mjs',
   ])('%s is a plate directory', (path) => {

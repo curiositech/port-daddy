@@ -13,10 +13,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class CaptionClearanceRecovery(unittest.TestCase):
     def test_estimator_credits_bind_to_complete_archival_sources(self):
-        entries = json.loads((ROOT / "whitepaper/citation-margin-entries.json").read_text())
+        entries = json.loads((ROOT / "book/citation-margin-entries.json").read_text())
         by_body = {e["original"]: e for e in entries}
         self.assertEqual(len(by_body), len(entries), "One margin override per archival record")
-        source = (ROOT / "website-v2/public/whitepaper/spawn-to-person.tex").read_text()
+        source = (ROOT / "book/spawn-to-person.tex").read_text()
         for key, year, title in [
             ("bradleyterry1952", "1952", "Rank Analysis of Incomplete Block Designs: I. The Method of Paired Comparisons"),
             ("elo1978", "1978", "The Rating of Chessplayers, Past and Present"),
@@ -31,7 +31,7 @@ class CaptionClearanceRecovery(unittest.TestCase):
                 self.assertIn(r"\pdcite{" + key + "}", source)
 
     def test_long_recalls_have_local_body_measure_with_all_questions(self):
-        source = (ROOT / "website-v2/public/whitepaper/federated-harbor-whitepaper.tex").read_text()
+        source = (ROOT / "book/federated-harbor-whitepaper.tex").read_text()
         recalls = re.findall(
             r"\\begin\{pdrecitationbody\}(.*?)"
             r"\\end\{pdrecitationbody\}", source, re.S)
@@ -48,7 +48,7 @@ class CaptionClearanceRecovery(unittest.TestCase):
 
     def test_body_recall_never_disables_margin_shipout(self):
         copies = [ROOT / p / "figures/pd-pedagogy.tex" for p in
-                  ("whitepaper", "website-v2/public/whitepaper")]
+                  ("book", "book")]
         self.assertEqual(copies[0].read_bytes(), copies[1].read_bytes())
         source = copies[0].read_text()
         body = source.split(r"\NewEnviron{pdrecitationbody}", 1)[1].split(

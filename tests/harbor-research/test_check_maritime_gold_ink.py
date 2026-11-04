@@ -58,9 +58,9 @@ class TestTexRules(unittest.TestCase):
     def test_allowed_uses_pass(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write(root / "whitepaper/figures/pd-palette.tex",
+            write(root / "book/figures/pd-palette.tex",
                   "\\definecolor{pdmaritimegold}{HTML}{805A14}\n")
-            write(root / "website-v2/public/whitepaper/pre.tex",
+            write(root / "book/pre.tex",
                   "\\vspace{2pt}\\noindent{\\color{pdmaritimegold}\\rule{\\textwidth}{0.4pt}}\\par\n")
             failures, files, seen = checker.check_tex_usage(str(root))
             self.assertEqual(failures, [])
@@ -70,7 +70,7 @@ class TestTexRules(unittest.TestCase):
     def test_use_outside_the_allowed_pattern_fails(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write(root / "whitepaper/ch.tex",
+            write(root / "book/ch.tex",
                   "\\node[fill=pdmaritimegold] at (0,0) {x};\n")
             failures, _, _ = checker.check_tex_usage(str(root))
             self.assertEqual(len(failures), 1)
@@ -79,7 +79,7 @@ class TestTexRules(unittest.TestCase):
     def test_commented_out_use_is_not_flagged(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write(root / "whitepaper/ch.tex",
+            write(root / "book/ch.tex",
                   "% \\node[fill=pdmaritimegold] at (0,0) {x};\n")
             failures, _, seen = checker.check_tex_usage(str(root))
             self.assertEqual(failures, [])
@@ -89,7 +89,7 @@ class TestTexRules(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             write(
-                root / "whitepaper/ch.tex",
+                root / "book/ch.tex",
                 "\\color{pdmaritimegold}\\rule{1cm}{1pt}\n"
                 "\\textcolor{pdgold}{the market}\n",
             )
@@ -105,7 +105,7 @@ class TestTexRules(unittest.TestCase):
             lines = ["\\color{pdmaritimegold}\\rule{1cm}{1pt}"]
             lines.extend(["filler line"] * 20)
             lines.append("\\textcolor{pdgold}{the market}")
-            write(root / "whitepaper/ch.tex", "\n".join(lines) + "\n")
+            write(root / "book/ch.tex", "\n".join(lines) + "\n")
             failures, _, _ = checker.check_tex_usage(str(root))
             self.assertEqual(failures, [])
 

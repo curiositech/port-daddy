@@ -9,11 +9,11 @@ from fractions import Fraction
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / "website-v2/public/whitepaper"
+WEB = ROOT / "book"
 SOURCES = [
-    ROOT / "whitepaper/single-writer-kernel.tex",
+    ROOT / "book/single-writer-kernel.tex",
     WEB / "anchor-protocol-whitepaper.tex", WEB / "sealed-harbor.tex",
-    ROOT / "whitepaper/legible-swarm.tex", WEB / "spawn-to-person.tex",
+    ROOT / "book/legible-swarm.tex", WEB / "spawn-to-person.tex",
     WEB / "harbor-economy.tex", WEB / "agent-transactions-whitepaper.tex",
     WEB / "federated-harbor-whitepaper.tex",
 ]
@@ -67,7 +67,7 @@ class BookEvidenceEditorial(unittest.TestCase):
 
     def test_shared_macro_and_figure_primitives_are_identical(self):
         for name in ("pd-pedagogy.tex", "pd-figure-language.tex"):
-            self.assertEqual((ROOT / "whitepaper/figures" / name).read_bytes(),
+            self.assertEqual((ROOT / "book/figures" / name).read_bytes(),
                              (WEB / "figures" / name).read_bytes())
 
     def test_legacy_cue_fallback_does_not_print_generic_label(self):
@@ -94,7 +94,7 @@ class BookEvidenceEditorial(unittest.TestCase):
         self.assertLessEqual(len(match[2].split()), 16)
 
     def test_reader_evidence_policies_do_not_require_private_adrs(self):
-        corpus = json.loads((ROOT / "whitepaper/corpus.json").read_text())
+        corpus = json.loads((ROOT / "book/corpus.json").read_text())
         def check(value):
             if isinstance(value, dict):
                 if "evidencePolicy" in value:

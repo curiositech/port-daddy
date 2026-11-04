@@ -7,7 +7,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIG = ROOT / 'whitepaper/figures/fig-swk-enforcement-layers.tex'
+FIG = ROOT / 'book/figures/fig-swk-enforcement-layers.tex'
 GRADES = {'guardgrade': r'\Built', 'hookgrade': r'\Designed',
           'pushgrade': r'\Designed', 'credentialgrade': r'\Vision',
           'isolationgrade': r'\Vision', 'cryptograde': r'\Built'}
@@ -103,8 +103,8 @@ def explanation_follows_figure(doc, index):
 
 class EnforcementSource(unittest.TestCase):
     def test_compact_credits_keep_full_titles_and_archival_records(self):
-        entries = json.loads((ROOT / 'whitepaper/citation-margin-entries.json').read_text())
-        chapter = (ROOT / 'whitepaper/single-writer-kernel.tex').read_text()
+        entries = json.loads((ROOT / 'book/citation-margin-entries.json').read_text())
+        chapter = (ROOT / 'book/single-writer-kernel.tex').read_text()
         for key, author, year in [('young2019gvisor', 'Young', '2019'),
                                   ('mohan1992aries', 'Mohan', '1992')]:
             selected = [entry for entry in entries if entry['key'] == key]
@@ -149,7 +149,7 @@ class EnforcementSource(unittest.TestCase):
             contract(source + r'\scalebox{.8}{x}')
 
     def test_owner_agrees_with_source_grades_and_optional_route(self):
-        source = (ROOT / 'whitepaper/single-writer-kernel.tex').read_text()
+        source = (ROOT / 'book/single-writer-kernel.tex').read_text()
         owner = source[source.index(r'\label{sec:enforcement-gap}'):
                        source.index(r'\subsection{Partial actor-soul')]
         for phrase in (r'hook harness} (\Designed{})',

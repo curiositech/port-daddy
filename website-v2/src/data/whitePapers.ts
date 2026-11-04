@@ -107,7 +107,7 @@ export interface WhitePaper {
    * Chapter number in the Book (1..N), in dependency order: each chapter
    * stands on the ones before it and each proving chapter follows the
    * chapter whose promises it discharges. The number lives in
-   * whitepaper/textbook.json (mirrored here as ./textbook.json); this field
+   * book/textbook.json (mirrored here as ./textbook.json); this field
    * must agree with it, and the data test checks that it does.
    */
   chapter: number
@@ -163,7 +163,7 @@ export interface WhitePaper {
 
 /**
  * The Book's source of record: edition metadata, parts, and chapter order.
- * `./textbook.json` is a byte-identical mirror of `whitepaper/textbook.json`,
+ * `./textbook.json` is a byte-identical mirror of `book/textbook.json`,
  * written by `node scripts/generate-mega-whitepaper.mjs --sync-shared` and
  * verified by `--check-shared`; the LaTeX generator, the standalone chapters'
  * locator maps, and this site all read the same numbers.
@@ -236,6 +236,8 @@ export interface CollectedVolumeEdition {
 export interface CollectedVolume {
   /** Facing-page reading format derived from the canonical PDF. */
   spreadsPdfPath: string
+  /** Complete buildable LaTeX source archive, served through the Book site. */
+  sourceArchivePath: string
   id: string
   title: string
   subtitle: string
@@ -255,6 +257,7 @@ export interface CollectedVolume {
 export const COLLECTED_VOLUME: CollectedVolume = {
   id: 'coordination-papers-mega-volume',
   spreadsPdfPath: '/whitepaper/coordination-papers-mega-volume-spreads.pdf',
+  sourceArchivePath: '/whitepaper/coordination-papers-mega-volume-source.tar.gz',
   title: TEXTBOOK.edition.title,
   subtitle: `${TEXTBOOK.edition.subtitle}, unified by one claim: ${TEXTBOOK.edition.claim}`,
   pdfPath: `/whitepaper/${TEXTBOOK.edition.pdf}`,
@@ -1304,7 +1307,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     date: 'September 6, 2026',
     title: 'The Sealed Harbor arrives as Chapter 3; five chapters renumber',
     summary:
-      'The eighth chapter, The Sealed Harbor, joins Part I (Ground Truth) right after the Anchor Protocol: a work order runs in a sealed room behind two fences and two gates, and what leaks is priced as a conserving ledger rather than promised away. It proves the single-writer kernel’s enforceability boundary as one of four pillars. whitepaper/textbook.json is the one source of the new order; Legible Swarm, From Spawn to Person, The Harbor Economy, The Bonded Commons, and The Federated Harbor renumber from 3–7 to 4–8 without changing former-edition numerals or ids. This is the skeleton pass: the chapter compiles with its sections transplanted from the standalone research paper and its own bibliography; the chapter’s prose voice, its opening and handoff seams, and the retirement of the appendix material it grew out of are the next wave.',
+      'The eighth chapter, The Sealed Harbor, joins Part I (Ground Truth) right after the Anchor Protocol: a work order runs in a sealed room behind two fences and two gates, and what leaks is priced as a conserving ledger rather than promised away. It proves the single-writer kernel’s enforceability boundary as one of four pillars. book/textbook.json is the one source of the new order; Legible Swarm, From Spawn to Person, The Harbor Economy, The Bonded Commons, and The Federated Harbor renumber from 3–7 to 4–8 without changing former-edition numerals or ids. This is the skeleton pass: the chapter compiles with its sections transplanted from the standalone research paper and its own bibliography; the chapter’s prose voice, its opening and handoff seams, and the retirement of the appendix material it grew out of are the next wave.',
     chapters: ['sealed-harbor', 'legible-swarm', 'spawn-to-person', 'harbor-economy', 'bonded-commons', 'federated-harbor'],
   },
   {
@@ -1312,7 +1315,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     date: 'September 6, 2026',
     title: 'The Textbook Edition: one book, in the order the argument needs',
     summary:
-      'The seven chapters become one textbook with Arabic numbering and four parts (Ground Truth, The Cost of Seeing, What Survives the Restart, Trade Between Strangers), ordered by what each chapter stands on, with every proving chapter placed right after the chapter whose promises it keeps. whitepaper/textbook.json is the single source of that order for the PDF, the standalone chapters, and this site. Each chapter opens on a page of its own (title, epigraph, the question it answers) and starts with exposition; live links, three-level bookmarks, and back-references from every citation return to the PDF; the story palette v2 becomes the book\u2019s color system. Versions: 1 Kernel 1.2, 2 Anchor 1.5, 3 Legible Swarm 1.2, 4 Spawn to Person 1.5, 5 Harbor Economy 1.3, 6 Bonded Commons 2.8, 7 Federated Harbor 1.1.',
+      'The seven chapters become one textbook with Arabic numbering and four parts (Ground Truth, The Cost of Seeing, What Survives the Restart, Trade Between Strangers), ordered by what each chapter stands on, with every proving chapter placed right after the chapter whose promises it keeps. book/textbook.json is the single source of that order for the PDF, the standalone chapters, and this site. Each chapter opens on a page of its own (title, epigraph, the question it answers) and starts with exposition; live links, three-level bookmarks, and back-references from every citation return to the PDF; the story palette v2 becomes the book\u2019s color system. Versions: 1 Kernel 1.2, 2 Anchor 1.5, 3 Legible Swarm 1.2, 4 Spawn to Person 1.5, 5 Harbor Economy 1.3, 6 Bonded Commons 2.8, 7 Federated Harbor 1.1.',
     chapters: ['single-writer-kernel', 'anchor-protocol', 'legible-swarm', 'spawn-to-person', 'harbor-economy', 'bonded-commons', 'federated-harbor'],
   },
   {

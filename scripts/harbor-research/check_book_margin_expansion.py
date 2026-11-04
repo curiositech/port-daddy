@@ -27,19 +27,19 @@ WITNESSES = {
 }
 PHOTOS = ("hobbes", "sen", "hickman", "movable-type-photo", "leviathan")
 SOURCE_FILES = (
-    "whitepaper/single-writer-kernel.tex",
-    "whitepaper/legible-swarm.tex",
-    "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-    "website-v2/public/whitepaper/sealed-harbor.tex",
-    "website-v2/public/whitepaper/spawn-to-person.tex",
-    "website-v2/public/whitepaper/harbor-economy.tex",
-    "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-    "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-    "website-v2/public/whitepaper/figures/pd-margin-sketches.tex",
-    "website-v2/public/whitepaper/figures/pd-margin-layout.tex",
-    "website-v2/public/whitepaper/figures/pd-margin-evidence.tex",
-    "website-v2/public/whitepaper/figures/pd-marginalia-credits.tex",
-    "website-v2/public/whitepaper/figures/fig-sealed-laundering-fork.tex",
+    "book/single-writer-kernel.tex",
+    "book/legible-swarm.tex",
+    "book/anchor-protocol-whitepaper.tex",
+    "book/sealed-harbor.tex",
+    "book/spawn-to-person.tex",
+    "book/harbor-economy.tex",
+    "book/agent-transactions-whitepaper.tex",
+    "book/federated-harbor-whitepaper.tex",
+    "book/figures/pd-margin-sketches.tex",
+    "book/figures/pd-margin-layout.tex",
+    "book/figures/pd-margin-evidence.tex",
+    "book/figures/pd-marginalia-credits.tex",
+    "book/figures/fig-sealed-laundering-fork.tex",
     "docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md",
     "tests/harbor-research/test_book_margin_sketches.py",
 )
@@ -70,7 +70,7 @@ def inspect(pdf):
                 digest_pages.setdefault(item["digest"], []).append(
                     dict(pdf_page=i, folio=page.get_label(), bounds=list(item["bbox"])))
         for slug in PHOTOS:
-            asset = ROOT / f"website-v2/public/whitepaper/plates/marginalia/{slug}.jpg"
+            asset = ROOT / f"book/plates/marginalia/{slug}.jpg"
             pix = fitz.Pixmap(str(asset))
             if pix.colorspace.n != 3:
                 pix = fitz.Pixmap(fitz.csRGB, pix)
@@ -79,7 +79,7 @@ def inspect(pdf):
                 errors.append(f"{slug}: expected one printed image, got {len(matches)}")
             images.append(dict(asset=slug, placements=matches))
         inputs = list(SOURCE_FILES) + [
-            f"website-v2/public/whitepaper/plates/marginalia/{slug}.{ext}"
+            f"book/plates/marginalia/{slug}.{ext}"
             for slug in PHOTOS[:-1] for ext in ("jpg", "json")]
         source_sha256 = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
                          for name in inputs}

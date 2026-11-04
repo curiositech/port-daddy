@@ -1,18 +1,18 @@
 # Examples
 
 `chapter1-lint-report.txt` — the actual output of
-`python3 scripts/chapter_lint.py whitepaper/single-writer-kernel.tex`, captured
+`python3 scripts/chapter_lint.py book/single-writer-kernel.tex`, captured
 against Chapter 1 (the single-writer kernel) as it stands at this skill's most
 recent revision. Regenerate it after any change to the chapter or the script:
 
 ```bash
 python3 skills/textbook-craft/scripts/chapter_lint.py --repo-root . \
-  --apparatus whitepaper/chapter-apparatus.json whitepaper/single-writer-kernel.tex \
+  --apparatus book/chapter-apparatus.json book/single-writer-kernel.tex \
   > skills/textbook-craft/examples/chapter1-lint-report.txt
 ```
 
 Chapter 1 has since adopted the Wave 12 page-grammar rewrite
-(`whitepaper/figures/pd-pedagogy.tex`) and relocated its exercises to a
+(`book/figures/pd-pedagogy.tex`) and relocated its exercises to a
 closing `Exercises` section, so most floors now pass. It still fails
 `worked_example_per_section` (most top-level sections have no worked
 example) and `claims_carry_epistemic_kind` (most theorem/property/definition
@@ -25,12 +25,12 @@ is advisory: no chapter in the corpus yet opens with an `\epigraph` macro.
 `consolidated-lint-report.txt` — the one-table report `chapter_lint.py`
 produces when it is given more than one chapter (or `--table`), run with no
 arguments at all so it reads its own chapter list from
-`whitepaper/textbook.json` (the same convention
+`book/textbook.json` (the same convention
 `skills/tufte-evidence-design/scripts/margin_lint.py` uses):
 
 ```bash
 python3 skills/textbook-craft/scripts/chapter_lint.py --repo-root . \
-  --apparatus whitepaper/chapter-apparatus.json \
+  --apparatus book/chapter-apparatus.json \
   > skills/textbook-craft/examples/consolidated-lint-report.txt
 ```
 
@@ -53,7 +53,7 @@ the chapter column holds repo-relative paths rather than whichever absolute
 path the generating checkout happened to live at.
 
 Current capture: main `cf07690b03a3f6082092fc9760155f36c7d47256`, using
-`whitepaper/chapter-apparatus.json`: **117 body sections, 77 without a counted
+`book/chapter-apparatus.json`: **117 body sections, 77 without a counted
 worked example, 15 blocking failures, 6 advisory failures and 8 REVIEW rows**.
 Only 16 authored recaps/exercise collections are excluded. Literature summaries,
 teaching/proof/status appendices and substantive boundaries remain body. CI uses
