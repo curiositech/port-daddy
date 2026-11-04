@@ -1,0 +1,22 @@
+{
+  "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+  "width": 288,
+  "height": 895.9375,
+  "fontSize": "80px",
+  "words": 10,
+  "lines": 10,
+  "fragmentedWords": [
+    {
+      "text": "Governing",
+      "lines": 2
+    },
+    {
+      "text": "Agents:",
+      "lines": 2
+    },
+    {
+      "text": "Economy",
+      "lines": 2
+    }
+  ]
+}

@@ -1,0 +1,258 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "target": "http://127.0.0.1:4189",
+  "method": "Actual preview interaction. Text enlargement is simulated by setting document.documentElement.style.fontSize to 200%; it is not browser zoom or an operating-system text preference.",
+  "themes": [
+    {
+      "theme": "light",
+      "file": "/Users/erichowens/coding/tmp/book-download-text-scale-20261104/.scratch/text-scale/recording/book-phone-390-light-text200.webm",
+      "stages": [
+        {
+          "stage": "01-normal-text",
+          "seconds": 0.593,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "16px",
+          "focus": null,
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 258,
+            "height": 49.59375
+          }
+        },
+        {
+          "stage": "02-text200-reflow",
+          "seconds": 1.951,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": null,
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "03-pdf-focus",
+          "seconds": 3.301,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": "Read book (PDF) \u2192",
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "04-facing-focus",
+          "seconds": 4.646,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": "Read facing pages (PDF) \u2192",
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "05-source-focus",
+          "seconds": 5.983,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": "Download LaTeX source (.tar.gz) \u2193",
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "06-chapter-focus",
+          "seconds": 7.313,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": "01The Single-Writer Kernel\u2192One writer orders changes to a local database; the chapter specifies which failures that record can survive.",
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "07-chapter-open",
+          "seconds": 9.116,
+          "url": "http://127.0.0.1:4189/whitepaper/single-writer-kernel",
+          "rootFontPx": "32px",
+          "focus": null,
+          "heading": "The Single-Writer Kernel",
+          "pdf": null
+        },
+        {
+          "stage": "08-back-to-downloads",
+          "seconds": 10.483,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": null,
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        }
+      ],
+      "sha256": "5c0cc2ce0a0970b502aa12dc8d0dc225883db5855a727ed840670e1add945bf8",
+      "videoProbe": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "vp8",
+            "width": 390,
+            "height": 844,
+            "r_frame_rate": "25/1"
+          }
+        ],
+        "format": {
+          "duration": "12.600000",
+          "size": "778978"
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "file": "/Users/erichowens/coding/tmp/book-download-text-scale-20261104/.scratch/text-scale/recording/book-phone-390-dark-text200.webm",
+      "stages": [
+        {
+          "stage": "01-normal-text",
+          "seconds": 0.581,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "16px",
+          "focus": null,
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 258,
+            "height": 49.59375
+          }
+        },
+        {
+          "stage": "02-text200-reflow",
+          "seconds": 1.938,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": null,
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "03-pdf-focus",
+          "seconds": 3.288,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": "Read book (PDF) \u2192",
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "04-facing-focus",
+          "seconds": 4.62,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": "Read facing pages (PDF) \u2192",
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "05-source-focus",
+          "seconds": 5.954,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": "Download LaTeX source (.tar.gz) \u2193",
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "06-chapter-focus",
+          "seconds": 7.297,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": "01The Single-Writer Kernel\u2192One writer orders changes to a local database; the chapter specifies which failures that record can survive.",
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        },
+        {
+          "stage": "07-chapter-open",
+          "seconds": 9.119,
+          "url": "http://127.0.0.1:4189/whitepaper/single-writer-kernel",
+          "rootFontPx": "32px",
+          "focus": null,
+          "heading": "The Single-Writer Kernel",
+          "pdf": null
+        },
+        {
+          "stage": "08-back-to-downloads",
+          "seconds": 10.498,
+          "url": "http://127.0.0.1:4189/whitepaper?panel=read",
+          "rootFontPx": "32px",
+          "focus": null,
+          "heading": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "pdf": {
+            "width": 326,
+            "height": 150.375
+          }
+        }
+      ],
+      "sha256": "152c087072c30eb8d767e806bf4c77354f4afa25b8ea3e440e911c2ecb0a27d9",
+      "videoProbe": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "vp8",
+            "width": 390,
+            "height": 844,
+            "r_frame_rate": "25/1"
+          }
+        ],
+        "format": {
+          "duration": "12.680000",
+          "size": "865577"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Existing shared-header wordmark/menu crowding at 200% text remains visible.",
+    "The existing fixed Aa typography control overlays page content; this evidence does not certify whole-site 200% accessibility."
+  ],
+  "requests": "Only background localhost/127.0.0.1 origins other than this isolated Vite preview are blocked, to respect the local Port Daddy halt. No Relay or site responses are mocked.",
+  "inspection": {
+    "method": "Visually reviewed ffmpeg-decoded video frames, not only independently captured screenshots.",
+    "frames": [
+      "light-02-text200-reflow-decoded-video.png",
+      "light-03-pdf-focus-decoded-video.png",
+      "light-05-source-focus-decoded-video.png",
+      "dark-05-source-focus-decoded-video.png",
+      "light-07-chapter-open-decoded-video.png"
+    ],
+    "verdict": "The enlarged title keeps whole words; the full-width PDF and readable source label show actual visible keyboard outlines. The chapter destination displays The Single-Writer Kernel. Shared-header crowding and fixed Aa overlay remain visible and are outside the claimed repair."
+  }
+}

@@ -1,0 +1,69 @@
+[
+  {
+    "label": "Read book (PDF)",
+    "width": 126,
+    "height": 713.4375,
+    "words": 3,
+    "lines": 13,
+    "fragmentedWords": [
+      {
+        "text": "Read",
+        "lines": 4
+      },
+      {
+        "text": "book",
+        "lines": 4
+      },
+      {
+        "text": "(PDF)",
+        "lines": 5
+      }
+    ]
+  },
+  {
+    "label": "Read facing pages (PDF)",
+    "width": 126,
+    "height": 390.3125,
+    "words": 4,
+    "lines": 7,
+    "fragmentedWords": [
+      {
+        "text": "facing",
+        "lines": 2
+      },
+      {
+        "text": "pages",
+        "lines": 2
+      },
+      {
+        "text": "(PDF)",
+        "lines": 2
+      }
+    ]
+  },
+  {
+    "label": "Download LaTeX source (.tar.gz)",
+    "width": 126,
+    "height": 492.6875,
+    "words": 4,
+    "lines": 9,
+    "fragmentedWords": [
+      {
+        "text": "Download",
+        "lines": 3
+      },
+      {
+        "text": "LaTeX",
+        "lines": 2
+      },
+      {
+        "text": "source",
+        "lines": 2
+      },
+      {
+        "text": "(.tar.gz)",
+        "lines": 2
+      }
+    ]
+  }
+]
