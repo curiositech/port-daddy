@@ -121,7 +121,7 @@ repo-specific mechanics:
 - **Generalize.** Features must work for non-tsx/non-Rust repos, remote harbors,
   other machines, and shared GitHub teams — not just this checkout.
 - **Book and research checks.** Reconcile coordination/kernel work against the
-  chapter manifest `whitepaper/textbook.json` and the claims in
+  chapter manifest `book/textbook.json` and the claims in
   `docs/harbor-research/omni-ledger.json`. The Book includes Chapter 0 plus eight
   manifest chapters; chapter PDFs are retired. Correct a mathematical claim's
   dependent figures, summaries, exercises, and indexed description together.
@@ -656,6 +656,19 @@ The friction below costs every fresh session real time. Internalize it.
 - **Provider CLI policy flags are versioned interfaces**: dogfood the exact packaged spawn argv against the installed provider CLI, not only a mocked child process. Current Codex defines `--approve-for-me` as automatic review inside `workspace-write`; combining it with `--sandbox workspace-write` is a hard parse error before an agent starts. Direct spawn and Tube builders must share this compatibility invariant, and a reviewer that cannot launch is a product red, not a reason to waive review.
 - **A Cloudflare Queue delivery is not a logical Fleet run**: persist an ingress intent before `queue.send()`, idempotently key it by webhook delivery id, and assign a monotonic generation per repo + PR. Only supersede older active generations after the newer queue send succeeds; otherwise a transient admission failure can erase the last valid review. The executor must compare-and-swap that intent before spend so duplicate deliveries, retries, and stale heads acknowledge without re-running ships. Project activity from the intent ledger plus `fleet_runs`; label D1-known queue depth and expected timestamps as estimates, never Cloudflare-internal position. Keep active rows out of retention deletion, delete intent-only receipts through the same operator contract, and test the webhook, executor race, rollback-without-table path, signed-in receipt, and terminal retention seams independently.
 - **Generated relay migration ledgers land through a PR, never a direct `main` push**: `deploy-relay.yml` first proves the staging D1 apply and deploys `relay-latest`, then updates the deterministic `automation/relay-staging-ledger` branch and arms auto-merge on its generated PR. Use `release-workflow-state.mjs select-live-token` to live-probe the dedicated PAT fallbacks and expose only the source name. Do not use `GITHUB_TOKEN` for this mutation (GitHub leaves its generated PR runs human-approval-gated; use a dedicated App/PAT for automatic runs), do not add `github-actions[bot]` to the ruleset bypass, and do not make staging availability depend on whether the generated ledger PR has merged. The production gate stays closed until that PR lands.
+
+## Book source and publication boundary
+
+All authored Book inputs live in `book/`: chapter registry and manuscripts,
+shared TeX, figures, solutions, fonts and plate provenance. The site public
+whitepaper directory contains generated downloads and staged image derivatives;
+do not put independently editable TeX or source mirrors back there.
+`bash scripts/build-whitepapers.sh coordination-papers-mega-volume` is the shared
+build entry. `scripts/build-book-source.py` packages the complete public source
+closure; its extracted `book/BUILDING.sh` must work without Git or the original
+repository. Keep private licensed fonts outside both tree and archive. Public
+source uses the documented open-font proof profile unless a reader supplies
+licensed fonts explicitly.
 
 ## Show-Me Runbook (operator demos)
 

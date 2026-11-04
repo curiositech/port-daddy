@@ -25,7 +25,7 @@ textbook-craft/
 ├── tests/
 │   └── test_chapter_lint.py        # Unit tests for chapter_lint.py's parsing and floors
 └── examples/
-    ├── chapter1-lint-report.txt    # A real run against whitepaper/single-writer-kernel.tex
+    ├── chapter1-lint-report.txt    # A real run against book/single-writer-kernel.tex
     ├── consolidated-lint-report.txt # The one-table report across all eight Book chapters
     └── README.md
 ```
@@ -41,7 +41,7 @@ textbook-craft/
    python3 skills/textbook-craft/scripts/chapter_lint.py path/to/chapter.tex
    ```
    Auditing every Book chapter at once? Run it with no path at all (it reads
-   `whitepaper/textbook.json`'s chapter list) for one consolidated table:
+   `book/textbook.json`'s chapter list) for one consolidated table:
    ```bash
    python3 skills/textbook-craft/scripts/chapter_lint.py --strict
    ```
@@ -54,7 +54,7 @@ Built from `docs/harbor-research/exposition/TEXTBOOK-CRAFT.md` (the research
 memo), `READING-FLOW-AUDIT.md` (measured reading-flow findings on the Book's
 own rendered pages), `HANDOFF-TEXTBOOK.md` (the settled design contracts),
 `docs/harbor-research/exposition/memo-solution-key.md` (the exercise
-solution-key's own two governing rules), `whitepaper/figures/pd-pedagogy.tex`
+solution-key's own two governing rules), `book/figures/pd-pedagogy.tex`
 (the actual macro vocabulary), and `skills/harbor-exposition/SKILL.md` (the
 seven-moves style this skill is downstream of, not a duplicate of) — extended
 with targeted web/corpus research (Pólya, Lakatos, Hersh, Mason–Burton–

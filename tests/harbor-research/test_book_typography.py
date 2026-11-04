@@ -17,7 +17,7 @@ except ImportError:
     fitz = None
 
 ROOT = Path(__file__).resolve().parents[2]
-BOOK = ROOT / "website-v2/public/whitepaper"
+BOOK = ROOT / "book"
 
 
 def copy_review_pages(book):
@@ -208,7 +208,7 @@ class RenderedBookTypographyTests(unittest.TestCase):
                 self.assertIn("font profile: suisse", book.metadata["creator"])
 
     def test_four_part_opening_spreads_are_retained(self):
-        manifest = json.loads((ROOT / "whitepaper/textbook.json").read_text())
+        manifest = json.loads((ROOT / "book/textbook.json").read_text())
         aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()
         with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
             for number, part in enumerate(manifest["parts"], start=1):
@@ -224,7 +224,7 @@ class RenderedBookTypographyTests(unittest.TestCase):
                     self.assertIn("Part " + part["numeral"], book[index + 1].get_text())
 
     def test_every_chapter_keeps_its_epigraph_on_the_opener(self):
-        manifest = json.loads((ROOT / "whitepaper/textbook.json").read_text())
+        manifest = json.loads((ROOT / "book/textbook.json").read_text())
         aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()
 
         def letters(text):
@@ -303,7 +303,7 @@ class RenderedBookTypographyTests(unittest.TestCase):
     def test_evidence_records_preserve_every_manifest_identifier(self):
         pdf = Path(os.environ['BOOK_TYPOGRAPHY_PDF'])
         aux = pdf.with_suffix('.aux').read_text()
-        manifest = json.loads((ROOT / 'whitepaper/corpus.json').read_text())
+        manifest = json.loads((ROOT / 'book/corpus.json').read_text())
         expected = {record['id']: record['status'] for record in
                     manifest['formalArtifacts'] + manifest['researchProgramArtifacts']}
         with fitz.open(pdf) as book:

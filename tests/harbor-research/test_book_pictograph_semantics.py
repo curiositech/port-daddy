@@ -10,7 +10,7 @@ import sqlite3
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURES = ROOT / 'website-v2/public/whitepaper/figures'
+FIGURES = ROOT / 'book/figures'
 
 
 class PictographSemantics(unittest.TestCase):
@@ -65,7 +65,7 @@ class PictographSemantics(unittest.TestCase):
         self.assertIn(0b010, rebuilt)
 
     def test_duplicate_fingerprints_are_not_declared_invalid(self):
-        chapter = (ROOT / 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex').read_text()
+        chapter = (ROOT / 'book/anchor-protocol-whitepaper.tex').read_text()
         self.assertNotIn('which no single consistent filter state could have produced', chapter)
         self.assertIn('Duplicate fingerprints are not themselves invalid', chapter)
 

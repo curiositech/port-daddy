@@ -11,8 +11,8 @@ import { readRetiredDocument } from '../helpers/omni-retired-source.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 
-const kernelPaper = read('whitepaper/single-writer-kernel.tex');
-const economyPaper = read('website-v2/public/whitepaper/harbor-economy.tex');
+const kernelPaper = read('book/single-writer-kernel.tex');
+const economyPaper = read('book/harbor-economy.tex');
 const roadmap = readRetiredDocument('docs/roadmap/whitepaper-research-program.md');
 
 describe('Coordination Papers implementation-status contract', () => {

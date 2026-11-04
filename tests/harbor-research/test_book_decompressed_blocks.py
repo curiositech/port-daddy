@@ -10,9 +10,9 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SPAWN = ROOT / "website-v2/public/whitepaper/spawn-to-person.tex"
-TRADE = ROOT / "website-v2/public/whitepaper/harbor-economy.tex"
-SWARM = ROOT / "whitepaper/legible-swarm.tex"
+SPAWN = ROOT / "book/spawn-to-person.tex"
+TRADE = ROOT / "book/harbor-economy.tex"
+SWARM = ROOT / "book/legible-swarm.tex"
 
 
 def example(source, title):

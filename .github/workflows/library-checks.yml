@@ -1,7 +1,7 @@
 name: Library Checks
 
 # The Harbor library's drift guards, in one place: the Book's single source of
-# record (whitepaper/textbook.json) against its generated mirrors, the LaTeX
+# record (book/textbook.json) against its generated mirrors, the LaTeX
 # palette against the design tokens, every \cite against a \bibitem across the
 # three TeX corpora, and every reviewer correction against the sites that echo
 # it. Each check is stdlib-only (Python) or dependency-free (Node), so the job
@@ -21,14 +21,14 @@ name: Library Checks
 on:
   pull_request:
     paths:
-      - 'whitepaper/**'
+      - 'book/**'
       - 'website-v2/public/whitepaper/**'
       - 'website-v2/src/data/textbook.json'
       - 'website-v2/src/styles/tokens.semantic.css'
       - 'website-v2/scripts/check-figure-palette.mjs'
       - 'docs/harbor-research/**'
       - 'studies/**'
-      - 'whitepaper/corpus.json'
+      - 'book/corpus.json'
       - 'website-v2/src/data/harborResearchProgram.json'
       - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
@@ -55,14 +55,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'whitepaper/**'
+      - 'book/**'
       - 'website-v2/public/whitepaper/**'
       - 'website-v2/src/data/textbook.json'
       - 'website-v2/src/styles/tokens.semantic.css'
       - 'website-v2/scripts/check-figure-palette.mjs'
       - 'docs/harbor-research/**'
       - 'studies/**'
-      - 'whitepaper/corpus.json'
+      - 'book/corpus.json'
       - 'website-v2/src/data/harborResearchProgram.json'
       - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
@@ -363,7 +363,7 @@ jobs:
 
       # Figure 4.5's caption used to tell the reader its sweep CSV "is not yet
       # present", and this step carried an --allow for exactly that one debt.
-      # The CSV is now committed (whitepaper/figures/data/r1-floor.csv, emitted
+      # The CSV is now committed (book/figures/data/r1-floor.csv, emitted
       # by a7_experiment.py at seed 20260816), the caption states what the
       # measurement shows, and the allow is gone. This step now runs with no
       # --allow at all: any caption anywhere in the corpus that says its data
@@ -382,10 +382,10 @@ jobs:
       - name: No chapter writes bare "delegation chain"
         run: >-
           python3 scripts/harbor-research/check_delegation_chain_vocabulary.py
-          --allow 'whitepaper/single-writer-kernel.tex:attenuation-monotonic delegation chain of digital signatures'
-          --allow 'whitepaper/legible-swarm.tex:attenuation-monotonic delegation chain (a security object'
-          --allow 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:Delegation chain authenticity (\S\ref{sec:delegation}'
-          --allow 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex:Delegation chain replay & ProVerif at depth 3'
+          --allow 'book/single-writer-kernel.tex:attenuation-monotonic delegation chain of digital signatures'
+          --allow 'book/legible-swarm.tex:attenuation-monotonic delegation chain (a security object'
+          --allow 'book/anchor-protocol-whitepaper.tex:Delegation chain authenticity (\S\ref{sec:delegation}'
+          --allow 'book/agent-transactions-whitepaper.tex:Delegation chain replay & ProVerif at depth 3'
 
       - name: Margin citation short-forms are a fresh render of the bibliographies
         run: python3 scripts/harbor-research/build_cite_shortforms.py --check
@@ -453,7 +453,7 @@ jobs:
       # This aggregate ceiling prevents debt growth without hiding existing
       # failures. Metadata/read errors remain fatal regardless of the budget.
       - name: Book chapter floor regression budget
-        run: python3 skills/textbook-craft/scripts/chapter_lint.py --apparatus whitepaper/chapter-apparatus.json --max-blocking 15
+        run: python3 skills/textbook-craft/scripts/chapter_lint.py --apparatus book/chapter-apparatus.json --max-blocking 15
 
       - name: readers_eye unit tests
         run: python3 -m unittest discover -s tests/harbor-research -p 'test_readers_eye.py' -v

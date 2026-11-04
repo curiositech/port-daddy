@@ -13,7 +13,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-PLATE_DIR = ROOT / "website-v2/public/whitepaper/plates/margin-evidence"
+PLATE_DIR = ROOT / "book/plates/margin-evidence"
 BACKUP_DIR = PLATE_DIR / "originals_backup"
 
 # Explicit tight crop windows for the 8 RGB drawings (x0, y0, x1, y1)

@@ -100,7 +100,7 @@ function llmsTxt() {
     '/whitepaper',
     // Every chapter of the Book, in the Book's own order — derived, never
     // typed out. `WHITE_PAPERS` is sorted by chapter number where it is
-    // defined, and its entries come from whitepaper/textbook.json, so a
+    // defined, and its entries come from book/textbook.json, so a
     // chapter added there reaches this list with no second edit. The hand-
     // written list this replaced held seven paths and never grew an eighth:
     // The Sealed Harbor (chapter 3) landed after the list was typed and was

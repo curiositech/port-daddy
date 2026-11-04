@@ -70,7 +70,7 @@ def export_review(source, destination):
         pages = [(0, "Cover: shared sans display"), (left, "Reader map: prose starts left"),
                  (right, "Reader map: continuation right")]
         pages += [(i, f"Complete contents: {book[i].get_label()}") for i in range(toc_start, intro)]
-        manifest = json.loads((Path(__file__).resolve().parents[2] / "whitepaper/textbook.json").read_text())
+        manifest = json.loads((Path(__file__).resolve().parents[2] / "book/textbook.json").read_text())
         chapters = {item["id"]: item for item in manifest["chapters"]}
         for part in manifest["parts"]:
             start = page_for_label("part:" + part["numeral"])

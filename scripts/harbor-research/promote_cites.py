@@ -4,7 +4,7 @@
 \\pdcite{key[,key...]} (figures/pd-pedagogy.tex) emits the normal \\cite{...}
 plus, in the Book only, a margin short-form note per key; in a standalone
 chapter it is exactly \\cite. This script promotes every eligible \\cite{...}
-in the eight Book chapters (whitepaper/textbook.json's chapters[].source) to
+in the eight Book chapters (book/textbook.json's chapters[].source) to
 \\pdcite{...}, EXCEPT inside:
 
   - \\begin{thebibliography}...\\end{thebibliography} (the back matter itself
@@ -48,7 +48,7 @@ import re
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-TEXTBOOK_REL = "whitepaper/textbook.json"
+TEXTBOOK_REL = "book/textbook.json"
 
 CITE_RE = re.compile(r"\\cite(\[[^\]]*\])?\{([^}]*)\}")
 HEADING_COMMANDS = ("section", "subsection", "subsubsection", "paragraph", "subparagraph")

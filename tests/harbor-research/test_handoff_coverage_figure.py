@@ -9,7 +9,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT / 'website-v2/public/whitepaper/figures/fig-stp-handoff-coverage.tex'
+FIGURE = ROOT / 'book/figures/fig-stp-handoff-coverage.tex'
 ARCHIVE = ROOT / 'docs/harbor-research/experiments/handoff-coverage-20260920'
 RUN_SHA = '4650de5b6236e2f883b3de102b3626471b0074fbbd131963131122b57dc3b7c3'
 
@@ -101,7 +101,7 @@ class HandoffFigureTests(unittest.TestCase):
             self.assertIn(required, self.source)
         for forbidden in (r'\resizebox', r'\scalebox', r'\tiny', r'\scriptsize', 'transform shape'):
             self.assertNotIn(forbidden, self.source)
-        chapter = (ROOT / 'website-v2/public/whitepaper/spawn-to-person.tex').read_text()
+        chapter = (ROOT / 'book/spawn-to-person.tex').read_text()
         insertion = r'\input{figures/fig-stp-handoff-coverage}'
         self.assertEqual(chapter.count(insertion), 1)
         self.assertLess(chapter.index(r'\label{tab:death-ladder}'), chapter.index(insertion))

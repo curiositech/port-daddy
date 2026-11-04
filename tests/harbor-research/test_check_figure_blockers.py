@@ -28,7 +28,7 @@ BLOCKERS_REL = Path("docs/harbor-research/exposition/figures/blockers.json")
 def entry(id_: str, checks_failed: list[str], waiver: dict | None) -> dict:
     return {
         "id": id_,
-        "fragment": f"whitepaper/figures/{id_}.tex",
+        "fragment": f"book/figures/{id_}.tex",
         "chapter": 1,
         "checks_failed": checks_failed,
         "first_seen": "2026-09-07",

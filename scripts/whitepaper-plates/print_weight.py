@@ -31,7 +31,7 @@ the generated edge, not a flattened one.
     python3 scripts/whitepaper-plates/print_weight.py --sync-ledger
 
 Every derivative this tool writes is also recorded in
-website-v2/public/whitepaper/print-weight.json (the ledger): its digest, its
+book/print-weight.json (the ledger): its digest, its
 pixels, and the digest of the generated original it came from. The ledger is
 what lets the tool tell its own derivative from a replacement dropped at the
 same path, and what `--check` compares each derivative against, so a plate
@@ -56,7 +56,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / "website-v2/public/whitepaper"
+WEB = ROOT / "book"
 ORIGINALS = ROOT / ".cache/plates-originals"
 LEDGER_NAME = "print-weight.json"  # under WEB; every derivative, keyed "<dir>/<stem>"
 TOOL = "scripts/whitepaper-plates/print_weight.py"

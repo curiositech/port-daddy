@@ -54,12 +54,12 @@ figcheck = load_module("figcheck", SCRIPT_DIR / "figcheck.py")
 CORPORA = [
     {
         "label": "website-v2",
-        "dir": REPO_ROOT / "website-v2/public/whitepaper/figures",
+        "dir": REPO_ROOT / "book/figures",
         "style_files": {"pd-figure-language.tex", "pd-palette.tex"},
     },
     {
         "label": "whitepaper",
-        "dir": REPO_ROOT / "whitepaper/figures",
+        "dir": REPO_ROOT / "book/figures",
         "style_files": {"pd-figure-language.tex", "pd-palette.tex"},
     },
     {

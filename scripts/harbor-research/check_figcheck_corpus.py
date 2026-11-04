@@ -26,7 +26,7 @@ What the live figure corpus is
 Derived mechanically, never hand-maintained, in two conjuncts:
 
   REACHED   The Book's eight chapter sources are read from the `source` field
-            of every entry in whitepaper/textbook.json -- the same convention
+            of every entry in book/textbook.json -- the same convention
             skills/tufte-evidence-design/scripts/margin_lint.py and
             skills/textbook-craft/scripts/chapter_lint.py both use, so a
             ninth chapter joins the corpus the day textbook.json gains one.
@@ -77,7 +77,7 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-TEXTBOOK_REL = "whitepaper/textbook.json"
+TEXTBOOK_REL = "book/textbook.json"
 FIGCHECK_REL = "docs/harbor-research/exposition/figures/figcheck"
 ALLOW_REL = "docs/harbor-research/exposition/figures/figcheck-allow.json"
 
@@ -85,8 +85,7 @@ ALLOW_REL = "docs/harbor-research/exposition/figures/figcheck-allow.json"
 # the chapter list rather than hard-coded for membership; this tuple only
 # bounds where --orphans looks for files nothing reaches.
 FIGURE_DIRS = (
-    "whitepaper/figures",
-    "website-v2/public/whitepaper/figures",
+    "book/figures",
 )
 
 INPUT_RE = re.compile(r"\\input\{figures/([A-Za-z0-9._-]+?)(?:\.tex)?\}")
@@ -95,7 +94,7 @@ DRAWS_TOKEN = r"\begin{tikzpicture}"
 
 def chapter_sources(repo_root: str) -> list[str]:
     """The Book's chapter list, straight from the `source` field of every
-    entry in whitepaper/textbook.json. Same shape as margin_lint.py's and
+    entry in book/textbook.json. Same shape as margin_lint.py's and
     chapter_lint.py's functions of the same purpose, so no chapter path is
     ever written down twice."""
     path = os.path.join(repo_root, TEXTBOOK_REL)

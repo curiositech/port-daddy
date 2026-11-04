@@ -124,7 +124,7 @@ class DriftIsCaught(unittest.TestCase):
 
 
 class EstateDerivationTracksStatus(unittest.TestCase):
-    """derive_estate() splits whitepaper/corpus.json artifacts into current
+    """derive_estate() splits book/corpus.json artifacts into current
     vs. notCurrent by status; flipping one artifact's status must move it
     across that split and make the committed estate look stale."""
 

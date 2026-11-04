@@ -9,7 +9,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT / "whitepaper/figures/fig-swk-idempotency-gap.tex"
+FIGURE = ROOT / "book/figures/fig-swk-idempotency-gap.tex"
 DATA = ROOT / "docs/harbor-research/experiments/receipt-gap-20260920/experiment-results.json"
 OBSERVED_SHA = "e93863430b6b09d7845aa637304e719114e60c9444529deb3fc1ed6cadbc7a38"
 POLICIES = ("journal_retry", "journal_hold", "receiver_dedup")
@@ -141,7 +141,7 @@ class ReceiptGapFigureTests(unittest.TestCase):
             self.assertIn(required, self.source)
         for forbidden in (r"\resizebox", r"\scalebox", r"\tiny", r"\scriptsize"):
             self.assertNotIn(forbidden, self.source)
-        chapter = (ROOT / "whitepaper/single-writer-kernel.tex").read_text()
+        chapter = (ROOT / "book/single-writer-kernel.tex").read_text()
         self.assertIn("not arbitrary tools, key expiry or power loss", chapter)
         self.assertIn("Message identifiers and replay guards do not by themselves", chapter)
 

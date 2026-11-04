@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/check-book-spreads.mjs && npm run generate:seo && npm run generate:skill-audit",
+    "prebuild": "python3 ../scripts/build-book-source.py check && node ../scripts/verify-book-source-download.mjs --pages-if-production && node ../scripts/stage-book-public-assets.mjs && node scripts/check-book-spreads.mjs && npm run generate:seo && npm run generate:skill-audit",
     "build": "tsc -b && vite build",
     "postbuild": "tsx scripts/inject-route-html.mjs && node scripts/prune-pages-assets.mjs",
     "snap:routes": "tsx scripts/snap-routes.mjs",
@@ -37,7 +37,8 @@
     "test:gifs": "node scripts/check-terminal-recordings.mjs",
     "test:porthole": "tsx scripts/check-porthole-casts.mjs",
     "test:interface-contrast": "node scripts/check-interface-contrast.mjs",
-    "test:theme:browser": "node scripts/check-theme-browser.mjs"
+    "test:theme:browser": "node scripts/check-theme-browser.mjs",
+    "pretest": "node ../scripts/stage-book-public-assets.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

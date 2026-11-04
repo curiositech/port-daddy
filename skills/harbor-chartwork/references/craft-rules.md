@@ -1,7 +1,7 @@
 # Craft rules
 
 How a figure in the Harbor library is judged and drawn. The rules are in force for
-every fragment under `whitepaper/figures/` and `website-v2/public/whitepaper/figures/`
+every fragment under `book/figures/` and `book/figures/`
 and for every new figure. Mechanics are enforced by `scripts/tikz_precheck.py`
 (source) and `scripts/figcheck.py` (rendered PDF); the judgment rules are applied by
 the author on the rendered page, never on the fragment in isolation.

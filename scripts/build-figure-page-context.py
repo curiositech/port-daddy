@@ -58,8 +58,8 @@ MANIFEST = OUT / "manifest.json"
 IDENTITY = OUT / "figure-identity.json"
 
 FRAGMENT_DIRS = [
-    REPO / "website-v2/public/whitepaper/figures",
-    REPO / "whitepaper/figures",
+    REPO / "book/figures",
+    REPO / "book/figures",
 ]
 
 # --- rendering settings -------------------------------------------------

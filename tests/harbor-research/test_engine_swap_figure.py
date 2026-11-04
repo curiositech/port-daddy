@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT / "website-v2/public/whitepaper/figures/fig-stp-engine-swap-regime.tex"
+FIGURE = ROOT / "book/figures/fig-stp-engine-swap-regime.tex"
 
 
 class EngineSwapFigureTests(unittest.TestCase):

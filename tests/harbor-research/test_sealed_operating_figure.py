@@ -7,7 +7,7 @@ import sys
 import unittest
 
 ROOT=Path(__file__).resolve().parents[2]
-FIG=ROOT/'website-v2/public/whitepaper/figures/fig-sealed-operating-curve.tex'
+FIG=ROOT/'book/figures/fig-sealed-operating-curve.tex'
 PDF=Path(os.environ.get('BOOK_OPERATING_PDF',ROOT/'.cache/book-operating-20260920/coordination-papers-mega-volume.pdf'))
 
 

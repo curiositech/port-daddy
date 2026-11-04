@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = (ROOT / "whitepaper/figures/legible-swarm-rate-regime.tex").read_text(encoding="utf-8")
+SOURCE = (ROOT / "book/figures/legible-swarm-rate-regime.tex").read_text(encoding="utf-8")
 
 p = 0.05
 panel_top = 0.4

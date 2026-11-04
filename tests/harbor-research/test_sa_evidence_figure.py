@@ -8,8 +8,8 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT/'whitepaper/figures/legible-swarm-sa-levels.tex'
-CHAPTER = ROOT/'whitepaper/legible-swarm.tex'
+FIGURE = ROOT/'book/figures/legible-swarm-sa-levels.tex'
+CHAPTER = ROOT/'book/legible-swarm.tex'
 
 
 def source_contract(text):

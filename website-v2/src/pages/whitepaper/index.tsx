@@ -66,6 +66,8 @@ export default function WhitepaperPage() {
           <p className="book-file-info">{COLLECTED_VOLUME.pages} pages · about {Math.round(COLLECTED_VOLUME.sizeKb / 1024)} MB · free</p>
           <a className="book-spreads" href={COLLECTED_VOLUME.spreadsPdfPath}>Read facing pages (PDF) <span aria-hidden="true">→</span></a>
           <p className="book-file-info">Two-page spreads for larger screens.</p>
+          <a className="book-spreads" href={COLLECTED_VOLUME.sourceArchivePath}>Download LaTeX source (.tar.gz) <span aria-hidden="true">↓</span></a>
+          <p className="book-file-info">Chapters, artwork, and build instructions. Builds with open fonts; the published Suisse typography requires a separate font license.</p>
         </div>
         <img
           className="book-cover"

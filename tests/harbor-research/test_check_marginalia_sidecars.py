@@ -3,7 +3,7 @@
 
 stdlib-only (unittest, tempfile, subprocess). Each test builds a small,
 self-contained fixture repo under a tempdir -- a
-website-v2/public/whitepaper/plates/marginalia/ directory with a plate JPEG
+book/plates/marginalia/ directory with a plate JPEG
 and a sidecar JSON -- and runs the real checker against it with
 --repo-root, so these tests exercise the actual CLI a developer or CI runs.
 
@@ -22,7 +22,7 @@ from tempfile import TemporaryDirectory
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CHECKER = REPO_ROOT / "scripts" / "harbor-research" / "check_marginalia_sidecars.py"
-PLATES_REL = Path("website-v2") / "public" / "whitepaper" / "plates" / "marginalia"
+PLATES_REL = Path("book") / "plates" / "marginalia"
 
 VALID_SIDECAR = {
     "subject": "Test Subject",

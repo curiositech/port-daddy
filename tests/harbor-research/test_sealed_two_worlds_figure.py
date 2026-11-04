@@ -7,8 +7,8 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIG = ROOT / 'website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex'
-OWNER = ROOT / 'website-v2/public/whitepaper/sealed-harbor.tex'
+FIG = ROOT / 'book/figures/fig-sealed-two-worlds.tex'
+OWNER = ROOT / 'book/sealed-harbor.tex'
 RECORDS = {
     'secretA': ('0,60', '47', '36', 'sgViolet!8', 'A', '$s=0$'),
     'secretB': ('0,123', '47', '36', 'sgAmber!10', 'B', '$s=2$'),
@@ -61,7 +61,7 @@ def bounded_owner(source):
 
 class SourceContract(unittest.TestCase):
     def test_neighboring_citation_keeps_title_and_archival_metadata(self):
-        entries = json.loads((ROOT / 'whitepaper/citation-margin-entries.json').read_text())
+        entries = json.loads((ROOT / 'book/citation-margin-entries.json').read_text())
         entry, = [item for item in entries if item['key'] == 'pkube21']
         original = OWNER.read_text().split(r'\bibitem{pkube21}', 1)[1].split(r'\bibitem', 1)[0].strip()
         self.assertEqual(entry['original'], original)

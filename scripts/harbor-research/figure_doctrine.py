@@ -212,8 +212,8 @@ CRITERIA_BY_ID = {c["id"]: c for c in CRITERIA}
 # does is read from the two files at run time; these names are only the keys.
 EDGED_STYLES = ("pd focus fill", "pd caution fill", "pd neutral fill", "pd state", "pd hatch")
 
-SWISS_REL = "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex"
-BASE_REL = "website-v2/public/whitepaper/figures/pd-figure-language.tex"
+SWISS_REL = "book/figures/pd-figure-language-swiss.tex"
+BASE_REL = "book/figures/pd-figure-language.tex"
 READERS_EYE_REL = "skills/textbook-craft/scripts/readers_eye.py"
 READERS_EYE_LEX_REL = "skills/textbook-craft/references/readers-eye-lexicon.json"
 

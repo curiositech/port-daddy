@@ -10,7 +10,7 @@ stdlib-only (unittest, tempfile, subprocess, struct). Two flavors of test:
   * Everything else builds a small, self-contained fixture repo under a
     tempdir: two rendered-plate directories (swiss/, technical/) each with
     a couple of tiny synthetic JPEG/PNG plates and a PROVENANCE.json, a
-    minimal whitepaper/textbook.json, and cut-down reproductions of the
+    minimal book/textbook.json, and cut-down reproductions of the
     two .tex files whose macros build plate paths. Plates are synthesized
     as minimal-but-valid JPEG/PNG byte strings (real width/height, no pixel
     data) so the aspect-ratio check has real header dimensions to read
@@ -34,7 +34,7 @@ from tempfile import TemporaryDirectory
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CHECKER = REPO_ROOT / "scripts" / "harbor-research" / "check_plate_provenance.py"
 
-WHITEPAPER_REL = Path("website-v2") / "public" / "whitepaper"
+WHITEPAPER_REL = Path("book")
 PLATES_REL = WHITEPAPER_REL / "plates"
 
 
@@ -98,9 +98,9 @@ def make_repo(tmp: Path) -> Path:
     (tmp / WHITEPAPER_REL).mkdir(parents=True, exist_ok=True)
     (tmp / PLATES_REL / "swiss").mkdir(parents=True, exist_ok=True)
     (tmp / PLATES_REL / "technical").mkdir(parents=True, exist_ok=True)
-    (tmp / "whitepaper").mkdir(parents=True, exist_ok=True)
+    (tmp / "book").mkdir(parents=True, exist_ok=True)
 
-    (tmp / "whitepaper" / "textbook.json").write_text(
+    (tmp / "book" / "textbook.json").write_text(
         json.dumps({"chapters": CHAPTERS, "parts": PARTS}), encoding="utf-8"
     )
     (tmp / WHITEPAPER_REL / "coordination-papers-mega-volume-swiss-plates.tex").write_text(

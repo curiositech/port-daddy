@@ -66,21 +66,21 @@ function seed() {
   mkdirSync(join(SANDBOX, 'scripts'), { recursive: true })
 
   // ── Assets, in the trees the checker scopes itself to ──────────────────────
-  put('website-v2/public/whitepaper/plates/swiss/chapter-anchor.jpg', PIXEL)   // TeX macro only
-  put('website-v2/public/whitepaper/plates/swiss/chapter-bonded.jpg', PIXEL)   // TeX macro only
+  put('book/plates/swiss/chapter-anchor.jpg', PIXEL)   // TeX macro only
+  put('book/plates/swiss/chapter-bonded.jpg', PIXEL)   // TeX macro only
   put('website-v2/public/img/orphan-render.jpg', PIXEL)                        // nothing
-  put('website-v2/public/whitepaper/plates/chapter-anchor.jpg', PIXEL)         // JS template literal only
-  put('website-v2/public/whitepaper/plates/jacket.jpg', PIXEL)                 // plain literal
-  put('website-v2/public/whitepaper/figures/fig-live.pdf', PIXEL)              // \input, no extension
+  put('book/plates/chapter-anchor.jpg', PIXEL)         // JS template literal only
+  put('book/plates/jacket.jpg', PIXEL)                 // plain literal
+  put('book/figures/fig-live.pdf', PIXEL)              // \input, no extension
   put('website-v2/public/img/manifesto/collision.webp', PIXEL)                 // plain literal
   put('website-v2/public/img/manifesto/collision-dark.webp', PIXEL)            // derived at runtime
   put('docs/pr-assets/pr-1/evidence.png', PIXEL)                               // nothing
   // Figure fragments: .tex inside a figures/ directory is an asset, reached by \input.
-  put('whitepaper/figures/fig-drawn.tex', '% a live fragment\n')               // \input by a chapter
-  put('whitepaper/figures/pd-language-swiss.tex', '% edition override\n')      // \input via \pdedition
-  put('whitepaper/single-writer-kernel.tex',                                   // an ENTRY POINT, never an asset
+  put('book/figures/fig-drawn.tex', '% a live fragment\n')               // \input by a chapter
+  put('book/figures/pd-language-swiss.tex', '% edition override\n')      // \input via \pdedition
+  put('book/single-writer-kernel.tex',                                   // an ENTRY POINT, never an asset
     '\\input{figures/fig-drawn}\n\\input{figures/pd-language}\n')
-  put('whitepaper/figures/pd-language.tex',
+  put('book/figures/pd-language.tex',
     '\\ifdefined\\pdedition\\input{figures/pd-language-\\pdedition}\\fi\n')
 
   // ── References, each in the shape the real repo uses ───────────────────────
@@ -142,30 +142,30 @@ describe('check-orphan-assets', () => {
   // ── 2. referenced assets are NOT named ──────────────────────────────────────
   test('a plate reachable ONLY through a LaTeX macro parameter is not an orphan', () => {
     const o = orphans()
-    assert.ok(!o.has('website-v2/public/whitepaper/plates/swiss/chapter-anchor.jpg'))
-    assert.ok(!o.has('website-v2/public/whitepaper/plates/swiss/chapter-bonded.jpg'))
-    const why = run('--why', 'website-v2/public/whitepaper/plates/swiss/chapter-anchor.jpg').stdout
+    assert.ok(!o.has('book/plates/swiss/chapter-anchor.jpg'))
+    assert.ok(!o.has('book/plates/swiss/chapter-bonded.jpg'))
+    const why = run('--why', 'book/plates/swiss/chapter-anchor.jpg').stdout
     assert.match(why, /\[pattern\] plates\/swiss\/chapter-#1\.jpg/)
   })
 
   test('a plate reachable ONLY through a JS template literal is not an orphan', () => {
     const o = orphans()
-    assert.ok(!o.has('website-v2/public/whitepaper/plates/chapter-anchor.jpg'))
-    const why = run('--why', 'website-v2/public/whitepaper/plates/chapter-anchor.jpg').stdout
+    assert.ok(!o.has('book/plates/chapter-anchor.jpg'))
+    const why = run('--why', 'book/plates/chapter-anchor.jpg').stdout
     assert.match(why, /\[pattern\] whitepaper\/plates\/chapter-\$\{prefix\}\.jpg/)
   })
 
   test('an extension-less \\input and a runtime-derived dark sibling are not orphans', () => {
     const o = orphans()
-    assert.ok(!o.has('website-v2/public/whitepaper/figures/fig-live.pdf'))
+    assert.ok(!o.has('book/figures/fig-live.pdf'))
     assert.ok(!o.has('website-v2/public/img/manifesto/collision-dark.webp'))
   })
 
   // ── 1. a genuinely unreferenced asset IS named ──────────────────────────────
   test('adding an unreferenced asset makes the check name it', () => {
-    put('website-v2/public/whitepaper/plates/swiss/mutant-plate.jpg', PIXEL)
+    put('book/plates/swiss/mutant-plate.jpg', PIXEL)
     try {
-      assert.ok(orphans().has('website-v2/public/whitepaper/plates/swiss/mutant-plate.jpg'))
+      assert.ok(orphans().has('book/plates/swiss/mutant-plate.jpg'))
       const { code, stderr } = run('--check')
       assert.equal(code, 1, '--check must fail on an orphan inside a deny-list directory')
       assert.match(stderr, /mutant-plate\.jpg/)
@@ -178,7 +178,7 @@ describe('check-orphan-assets', () => {
   test('deleting the ONLY template-literal reference turns its plate into an orphan', () => {
     rmSync(join(SANDBOX, 'website-v2/src/bookPlates.ts'))
     try {
-      assert.ok(orphans().has('website-v2/public/whitepaper/plates/chapter-anchor.jpg'))
+      assert.ok(orphans().has('book/plates/chapter-anchor.jpg'))
     } finally {
       seed()
     }
@@ -188,9 +188,9 @@ describe('check-orphan-assets', () => {
     rmSync(join(SANDBOX, 'website-v2/public/whitepaper/mega-swiss-plates.tex'))
     try {
       const o = orphans()
-      assert.ok(o.has('website-v2/public/whitepaper/plates/swiss/chapter-anchor.jpg'))
-      assert.ok(o.has('website-v2/public/whitepaper/plates/swiss/chapter-bonded.jpg'))
-      assert.ok(o.has('website-v2/public/whitepaper/figures/fig-live.pdf'))
+      assert.ok(o.has('book/plates/swiss/chapter-anchor.jpg'))
+      assert.ok(o.has('book/plates/swiss/chapter-bonded.jpg'))
+      assert.ok(o.has('book/figures/fig-live.pdf'))
     } finally {
       seed()
     }
@@ -221,10 +221,10 @@ describe('check-orphan-assets', () => {
   })
 
   test('an allow-list entry suppresses the gate but the report still lists the file', () => {
-    put('website-v2/public/whitepaper/plates/swiss/mutant-plate.jpg', PIXEL)
+    put('book/plates/swiss/mutant-plate.jpg', PIXEL)
     put('scripts/orphan-assets-allow.json', JSON.stringify({
       allow: [{
-        path: 'website-v2/public/whitepaper/plates/swiss/mutant-plate.jpg',
+        path: 'book/plates/swiss/mutant-plate.jpg',
         reason: 'a deliberate spare render kept for the next edition',
       }],
     }))
@@ -268,19 +268,19 @@ describe('check-orphan-assets', () => {
   // ── Figure fragments and the deny directory's stricter contract ─────────────
   test('a figure fragment reached only through a LaTeX macro-expanded \\input is not an orphan', () => {
     const o = orphans()
-    assert.ok(!o.has('whitepaper/figures/pd-language-swiss.tex'),
+    assert.ok(!o.has('book/figures/pd-language-swiss.tex'),
       '\\input{figures/pd-language-\\pdedition} must be read as a wildcard, not a literal')
-    assert.ok(!o.has('whitepaper/figures/fig-drawn.tex'))
+    assert.ok(!o.has('book/figures/fig-drawn.tex'))
     // The chapter source itself is an entry point, compiled directly, and must never
     // be counted as an asset — nothing in the repo references it by path.
-    assert.ok(!o.has('whitepaper/single-writer-kernel.tex'))
+    assert.ok(!o.has('book/single-writer-kernel.tex'))
   })
 
   test('deleting the chapter that \\inputs a fragment turns the fragment into an orphan', () => {
-    rmSync(join(SANDBOX, 'whitepaper/single-writer-kernel.tex'))
+    rmSync(join(SANDBOX, 'book/single-writer-kernel.tex'))
     try {
       const o = orphans()
-      assert.ok(o.has('whitepaper/figures/fig-drawn.tex'))
+      assert.ok(o.has('book/figures/fig-drawn.tex'))
       const { code, stderr } = run('--check')
       assert.equal(code, 1)
       assert.match(stderr, /fig-drawn\.tex/)
@@ -290,12 +290,12 @@ describe('check-orphan-assets', () => {
   })
 
   test('a bare directory mention does NOT vouch for files inside a deny directory', () => {
-    put('website-v2/public/whitepaper/plates/swiss/unused-render.jpg', PIXEL)
+    put('book/plates/swiss/unused-render.jpg', PIXEL)
     // Prose naming the directory — the shape a changelog entry takes.
     put('changelog.d/plates.md',
-      'Thirteen plates live under `website-v2/public/whitepaper/plates/swiss/`.\n')
+      'Thirteen plates live under `book/plates/swiss/`.\n')
     try {
-      assert.ok(orphans().has('website-v2/public/whitepaper/plates/swiss/unused-render.jpg'),
+      assert.ok(orphans().has('book/plates/swiss/unused-render.jpg'),
         'naming the directory must not vouch for every plate ever dropped into it')
       assert.equal(run('--check').code, 1)
     } finally {

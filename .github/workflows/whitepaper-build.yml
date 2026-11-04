@@ -39,35 +39,33 @@ on:
   push:
     branches: [main, claude/papers-feature-branches-hb055f]
     paths:
-      - 'website-v2/public/whitepaper/**/*.tex'
-      - 'whitepaper/**/*.tex'
+      - 'book/**'
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
-      - 'whitepaper/textbook.json'
-      - 'whitepaper/citation-margin-entries.json'
-      - 'whitepaper/citation-shortform-overrides.json'
+      - 'book/textbook.json'
+      - 'book/citation-margin-entries.json'
+      - 'book/citation-shortform-overrides.json'
       - 'scripts/harbor-research/check_book_caption_margins.py'
       - 'scripts/harbor-research/check_book_exercise_navigation.py'
       - 'tests/harbor-research/test_book_exercise_navigation.py'
       - 'scripts/harbor-research/page_overflow.py'
       - 'scripts/harbor-research/run_pdf_checks.py'
-      - 'website-v2/public/whitepaper/plates/**'
+      - 'book/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
     paths:
-      - 'website-v2/public/whitepaper/**/*.tex'
-      - 'whitepaper/**/*.tex'
+      - 'book/**'
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
-      - 'whitepaper/textbook.json'
-      - 'whitepaper/citation-margin-entries.json'
-      - 'whitepaper/citation-shortform-overrides.json'
+      - 'book/textbook.json'
+      - 'book/citation-margin-entries.json'
+      - 'book/citation-shortform-overrides.json'
       - 'scripts/harbor-research/check_book_caption_margins.py'
       - 'scripts/harbor-research/check_book_exercise_navigation.py'
       - 'tests/harbor-research/test_book_exercise_navigation.py'
       - 'scripts/harbor-research/page_overflow.py'
       - 'scripts/harbor-research/run_pdf_checks.py'
-      - 'website-v2/public/whitepaper/plates/**'
+      - 'book/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
   # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
@@ -129,7 +127,7 @@ jobs:
 
       # The TeX container has no JavaScript runtime; generate the Book's body,
       # front-matter map, and bibliography from the canonical chapter sources
-      # and whitepaper/textbook.json first.
+      # and book/textbook.json first.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -564,10 +562,8 @@ jobs:
         run: |
           set -euo pipefail
           touched="$(git diff --name-only "$BASE_SHA"...HEAD -- \
-            'whitepaper/figures/**' \
-            'website-v2/public/whitepaper/figures/**' \
-            'whitepaper/*.tex' \
-            'website-v2/public/whitepaper/*.tex' || true)"
+            'book/figures/**' \
+            'book/*.tex' || true)"
           if [ -n "$touched" ]; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             echo "PR touches figure-gates scope:"
@@ -647,7 +643,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          changed="$(git diff --name-only "$BASE_SHA"...HEAD -- whitepaper/figures website-v2/public/whitepaper/figures \
+          changed="$(git diff --name-only "$BASE_SHA"...HEAD -- book/figures \
             | grep -E '\.tex$' | xargs -r -n1 basename | sed 's/\.tex$//' || true)"
           # Not everything in figures/ is a figure. The Book's preamble \inputs
           # its apparatus from the same directory -- the palette, the hyperlink
@@ -670,7 +666,7 @@ jobs:
           # edges to a fixed point instead; five rounds is far more than the
           # two the tree has, and the loop exits as soon as nothing is added.
           apparatus="$(grep -oE '\\input\{figures/[a-z0-9-]+\}' \
-            website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex \
+            book/coordination-papers-mega-volume-preamble.tex \
             | sed 's|.*figures/||; s|}||' | sort -u)"
           # `if`, not `[ -f ... ] && grep`, and `|| true` on the grep: this step
           # runs under `set -euo pipefail`, where a test that fails on the last
@@ -680,7 +676,7 @@ jobs:
           # rediscovering a third time.
           for _ in 1 2 3 4 5; do
             more="$(for f in $apparatus; do
-              for d in website-v2/public/whitepaper/figures whitepaper/figures; do
+              for d in book/figures; do
                 if [ -f "$d/$f.tex" ]; then
                   grep -oE '\\input\{figures/[a-z0-9-]+\}' "$d/$f.tex" \
                     | sed 's|.*figures/||; s|}||' || true
@@ -722,7 +718,7 @@ jobs:
           # erased by the next `render_figure_audit.py --write`.
           multifig=""
           for stem in $changed; do
-            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+            for d in book/figures docs/harbor-research/figures; do
               [ -f "$d/$stem.tex" ] || continue
               count=$(grep -c '\\begin{figure' "$d/$stem.tex" || true)
               if [ "${count:-0}" -gt 1 ]; then
@@ -745,7 +741,7 @@ jobs:
                 continue
                 ;;
             esac
-            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+            for d in book/figures docs/harbor-research/figures; do
               [ -f "$d/$stem.tex" ] || continue
               if grep -q '\\begin{tikzpicture}' "$d/$stem.tex"; then
                 drawings="$drawings $stem"
@@ -794,7 +790,7 @@ jobs:
           while IFS= read -r stem; do
             [ -n "$stem" ] || continue
             frag=""
-            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+            for d in book/figures docs/harbor-research/figures; do
               if [ -f "$d/$stem.tex" ]; then frag="$d/$stem.tex"; break; fi
             done
             if [ -z "$frag" ]; then

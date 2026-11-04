@@ -95,7 +95,7 @@ const ASSET_ROOTS = [
   'website-v2/public/',
   'website-v2/docs/',
   'website-v2/screenshots/',
-  'whitepaper/',
+  'book/',
 ]
 
 // ── Where references can live ──────────────────────────────────────────────────
@@ -122,23 +122,19 @@ const SKIP_DIRS = [
 // file ever land here?" — if yes, it does not belong in this list. Kept short on
 // purpose; see DENY_REASONS for the argument per entry.
 const DENY_DIRS = [
-  'website-v2/public/whitepaper/plates/',
-  'website-v2/public/whitepaper/figures/',
-  'whitepaper/figures/',
+  'book/plates/',
+  'book/figures/',
 ]
 const DENY_REASONS = {
-  'website-v2/public/whitepaper/plates/':
+  'book/plates/':
     'every plate exists to be printed by a Book edition or shown by the site; ' +
     'check_plate_provenance.py already fails a plate with no provenance entry, so a ' +
     'plate that reaches neither a TeX \\includegraphics nor a site literal is a render ' +
     'that was never wired up',
-  'website-v2/public/whitepaper/figures/':
+  'book/figures/':
     'a figure fragment is reached by \\input from a chapter or paper; one nothing ' +
     '\\inputs prints nowhere in any edition',
-  'whitepaper/figures/':
-    'same contract as the site copy of the figure tree, and the consolidation plan ' +
-    'moves files between the two — a move that drops the last \\input is exactly the ' +
-    'failure this gate is for',
+
 }
 
 const ALLOW_FILE = 'scripts/orphan-assets-allow.json'

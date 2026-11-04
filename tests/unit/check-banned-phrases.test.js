@@ -65,13 +65,13 @@ describe('check-banned-phrases config and glob matching', () => {
       '.github/workflows/foo.md',
       'website-v2/src/pages/Foo.tsx',
       'website-v2/public/llms.txt',
-      'whitepaper/single-writer-kernel.tex',
-      'website-v2/public/whitepaper/single-writer-kernel.tex',
+      'book/single-writer-kernel.tex',
+      'website-v2/public/book/single-writer-kernel.tex',
       'docs/harbor-research/tex/paper1.tex',
       // JSON whose string values render into prose a reader sees.
       'docs/harbor-research/library-index.json',
-      'whitepaper/textbook.json',
-      'whitepaper/figures/figure-register.json',
+      'book/textbook.json',
+      'book/figures/figure-register.json',
       'docs/harbor-research/exposition/figures/figcheck/fig-anchor-card-lifecycle.json',
       'docs/harbor-research/exposition/marginalia-candidates.json',
     ];

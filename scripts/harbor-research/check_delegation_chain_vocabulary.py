@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 r"""Chapter 1 promises never to write bare "delegation chain" again. This is the promise.
 
-WHY THIS EXISTS. `whitepaper/single-writer-kernel.tex`'s subsection *Two
+WHY THIS EXISTS. `book/single-writer-kernel.tex`'s subsection *Two
 delegation chains, one dangerous name* splits one phrase into two objects --
 the **authorization chain**, the cryptographic hop-bound attenuation-monotonic
 chain of signatures that proves who authorized whom, and the **coordination

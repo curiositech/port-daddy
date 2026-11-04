@@ -1,7 +1,7 @@
 """Unit tests for chapter_lint.py.
 
 Each test builds a tiny synthetic .tex fixture (and, where the check needs
-it, a throwaway directory laid out like the real repo -- whitepaper/figures/
+it, a throwaway directory laid out like the real repo -- book/figures/
 pd-pedagogy.tex at its root -- so find_pd_pedagogy_file's upward search
 resolves exactly the way it would from a real chapter) rather than running
 against the Book's own chapters, which drift over time as they get fixed.
@@ -25,7 +25,7 @@ spec.loader.exec_module(chapter_lint)
 # (an \AtBeginDocument block re-\long\def-ing five names) for
 # neutralized_macro_names to parse, without the real file's full apparatus.
 MINIMAL_PD_PEDAGOGY = r"""
-% minimal stand-in for whitepaper/figures/pd-pedagogy.tex
+% minimal stand-in for book/figures/pd-pedagogy.tex
 \AtBeginDocument{
   \long\def\keyidea#1{\par#1\par}%
   \long\def\pitfall#1{\par#1\par}%
@@ -44,17 +44,17 @@ def write(path: Path, text: str) -> Path:
 
 class RepoFixture:
     """A throwaway directory rooted like the repo, with a real (if minimal)
-    whitepaper/figures/pd-pedagogy.tex, so a chapter placed under
-    <root>/whitepaper/ resolves find_pd_pedagogy_file the same way a real
+    book/figures/pd-pedagogy.tex, so a chapter placed under
+    <root>/book/ resolves find_pd_pedagogy_file the same way a real
     chapter does."""
 
     def __init__(self, pd_pedagogy_text: str = MINIMAL_PD_PEDAGOGY):
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
-        write(self.root / "whitepaper" / "figures" / "pd-pedagogy.tex", pd_pedagogy_text)
+        write(self.root / "book" / "figures" / "pd-pedagogy.tex", pd_pedagogy_text)
 
     def chapter(self, body: str, name: str = "chapter.tex") -> Path:
-        return write(self.root / "whitepaper" / name, body)
+        return write(self.root / "book" / name, body)
 
     def cleanup(self):
         self._tmp.cleanup()
@@ -187,7 +187,7 @@ class TestPdPedagogyDrivenDeadMacros(RepoFixtureTestCase):
     def test_find_pd_pedagogy_file_walks_upward_from_the_chapter(self):
         chapter = self.fixture.chapter("\\section{One}\n")
         found = chapter_lint.find_pd_pedagogy_file(chapter)
-        self.assertEqual(found, (self.fixture.root / "whitepaper" / "figures" / "pd-pedagogy.tex").resolve())
+        self.assertEqual(found, (self.fixture.root / "book" / "figures" / "pd-pedagogy.tex").resolve())
 
     def test_find_pd_pedagogy_file_returns_none_when_absent(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -199,7 +199,7 @@ class TestPdPedagogyDrivenDeadMacros(RepoFixtureTestCase):
         self.assertEqual(chapter_lint.neutralized_macro_names(Path("/no/such/pd-pedagogy.tex")), set())
 
     def test_neutralized_macro_names_parses_the_real_committed_file(self):
-        real_path = Path(__file__).resolve().parents[3] / "whitepaper" / "figures" / "pd-pedagogy.tex"
+        real_path = Path(__file__).resolve().parents[3] / "book" / "figures" / "pd-pedagogy.tex"
         names = chapter_lint.neutralized_macro_names(real_path)
         # \pdthesis joined the block when the 21 section theses stopped
         # pretending to be pull quotes; \pullquote stays as its alias so no
@@ -246,7 +246,7 @@ class TestExercisesAtChapterEnd(RepoFixtureTestCase):
 
     def test_a_later_decoy_section_mentioning_exercises_does_not_fool_it(self):
         # The defect this fixture exists for, straight from
-        # website-v2/public/whitepaper/spawn-to-person.tex: a section titled
+        # book/spawn-to-person.tex: a section titled
         # "Open problems (the starred exercises, collected)" sits AFTER the
         # real \section{Exercises}, contains no clusters of its own, and --
         # under the old "last title containing the word wins" rule -- was
@@ -400,7 +400,7 @@ class TestLabelledInterludeFloor(RepoFixtureTestCase):
         )
 
     def test_zero_labelled_interludes_is_reported_as_review_not_pass(self):
-        # whitepaper/legible-swarm.tex in miniature: a chapter that runs a
+        # book/legible-swarm.tex in miniature: a chapter that runs a
         # philosopher as its spine through ordinary prose, with no section
         # titled Interlude anywhere. The old floor counted 0 and printed
         # PASS -- a clean verdict on precisely the chapter with the worst
@@ -625,7 +625,7 @@ class TestConsolidatedReportAndStrictExit(RepoFixtureTestCase):
     def test_missing_file_exits_two(self):
         buf = io.StringIO()
         with redirect_stdout(buf):
-            status = chapter_lint.main([str(self.fixture.root / "whitepaper" / "no-such-chapter.tex")])
+            status = chapter_lint.main([str(self.fixture.root / "book" / "no-such-chapter.tex")])
         self.assertEqual(status, 2)
 
     def test_single_chapter_default_is_the_single_chapter_report(self):

@@ -26,7 +26,7 @@ Every prose-adjacent check this repository ships measures **structure**:
 
 That is not an oversight, it is a boundary: structure is cheap to check and
 followability is not. But the boundary has a cost, and the cost has a name.
-`whitepaper/single-writer-kernel.tex:439`, §1.3 "The kernel as seven organs",
+`book/single-writer-kernel.tex:439`, §1.3 "The kernel as seven organs",
 satisfies every floor above — and the author's verdict on it was:
 
 > *"This paragraph is insane — kernel demon organs. I know what the kernel is,
@@ -54,13 +54,13 @@ Six defects, and which layer catches each.
 Layer 1 fires on five of the six, seven findings across two paragraphs:
 
 ```
-whitepaper/single-writer-kernel.tex:435  metaphor-never-instantiated  organ x5
-whitepaper/single-writer-kernel.tex:439  caption-carries-the-fact     SQLite/WAL, WAL
-whitepaper/single-writer-kernel.tex:439  metaphor-domain-collision    anatomy + medicine
-whitepaper/single-writer-kernel.tex:471  metaphor-domain-collision    anatomy + architecture
-whitepaper/single-writer-kernel.tex:471  artifact-register-drift      "the paper's"
-whitepaper/single-writer-kernel.tex:471  undefined-slash-pair         resource/exclusion
-whitepaper/single-writer-kernel.tex:471  undefined-slash-pair         obligation/enforcement
+book/single-writer-kernel.tex:435  metaphor-never-instantiated  organ x5
+book/single-writer-kernel.tex:439  caption-carries-the-fact     SQLite/WAL, WAL
+book/single-writer-kernel.tex:439  metaphor-domain-collision    anatomy + medicine
+book/single-writer-kernel.tex:471  metaphor-domain-collision    anatomy + architecture
+book/single-writer-kernel.tex:471  artifact-register-drift      "the paper's"
+book/single-writer-kernel.tex:471  undefined-slash-pair         resource/exclusion
+book/single-writer-kernel.tex:471  undefined-slash-pair         obligation/enforcement
 ```
 
 ---
@@ -257,7 +257,7 @@ can merge both.
 ```json
 [
   {
-    "file": "whitepaper/single-writer-kernel.tex",
+    "file": "book/single-writer-kernel.tex",
     "line": 439,
     "section": "The kernel as seven organs",
     "paragraph": "the full paragraph as the reader meets it",
@@ -296,7 +296,7 @@ can merge both.
 
 ## 6. Corpus baseline and the honest false-positive count
 
-Run over all eight chapters from `whitepaper/textbook.json` at the time of
+Run over all eight chapters from `book/textbook.json` at the time of
 writing:
 
 | Rule | Findings | Honest read |
@@ -341,12 +341,12 @@ with `--summary` and update the table in the same commit.
 ## 7. Running it
 
 ```bash
-# every chapter in whitepaper/textbook.json (never a hard-coded list)
+# every chapter in book/textbook.json (never a hard-coded list)
 python3 skills/textbook-craft/scripts/readers_eye.py --summary
 
 # one chapter, everything, no display cap
 python3 skills/textbook-craft/scripts/readers_eye.py \
-    whitepaper/single-writer-kernel.tex --limit 0
+    book/single-writer-kernel.tex --limit 0
 
 # one rule, as JSON, to feed a report or the judge pass
 python3 skills/textbook-craft/scripts/readers_eye.py \

@@ -12,8 +12,8 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURE = ROOT / "whitepaper/figures/legible-swarm-split-ranker.tex"
-CHAPTER = ROOT / "whitepaper/legible-swarm.tex"
+FIGURE = ROOT / "book/figures/legible-swarm-split-ranker.tex"
+CHAPTER = ROOT / "book/legible-swarm.tex"
 
 
 def strict_reversals(left, right):

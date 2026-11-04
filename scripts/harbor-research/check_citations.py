@@ -11,8 +11,8 @@ offline, reproducible — no arXiv/DOI network lookups.
 Corpora (three LaTeX bibliographies, all `thebibliography`/`\\bibitem`/`\\cite`,
 not BibTeX):
   1. docs/harbor-research/tex/*.tex       — the Harbor Research Program papers
-  2. whitepaper/*.tex                     — Coordination Papers chapters (subset)
-  3. website-v2/public/whitepaper/*.tex   — Coordination Papers chapters (rest)
+  2. book/*.tex                     — Coordination Papers chapters (subset)
+  3. book/*.tex   — Coordination Papers chapters (rest)
                                              + the mega-volume assembly files
 
 Each corpus directory is globbed non-recursively (`*.tex` only) so the file
@@ -64,8 +64,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 
 CORPUS_PATTERNS = [
     "docs/harbor-research/tex/*.tex",
-    "whitepaper/*.tex",
-    "website-v2/public/whitepaper/*.tex",
+    "book/*.tex",
 ]
 
 BIBLIOGRAPHY_MD = "docs/harbor-research/deep-dives/BIBLIOGRAPHY.md"

@@ -6,8 +6,8 @@ import fs from 'node:fs';
 // even open. The chapter source is what the assertions below were written
 // against, and it is what the successor test named in ROUTING.json reads.
 const paperPaths = {
-  'single-writer-kernel': 'whitepaper/single-writer-kernel.tex',
-  'harbor-economy': 'website-v2/public/whitepaper/harbor-economy.tex'
+  'single-writer-kernel': 'book/single-writer-kernel.tex',
+  'harbor-economy': 'book/harbor-economy.tex'
 };
 
 const expectedContracts = {

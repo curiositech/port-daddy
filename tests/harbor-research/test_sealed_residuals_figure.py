@@ -6,7 +6,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIG = ROOT/'website-v2/public/whitepaper/figures/fig-sealed-residuals-converge.tex'
+FIG = ROOT/'book/figures/fig-sealed-residuals-converge.tex'
 
 
 def contract(source):

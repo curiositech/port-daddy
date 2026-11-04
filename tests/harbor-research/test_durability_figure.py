@@ -7,7 +7,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / 'whitepaper/figures/fig-swk-durability-dramatization.tex'
+SOURCE = ROOT / 'book/figures/fig-swk-durability-dramatization.tex'
 
 
 def contract(text):

@@ -170,22 +170,22 @@ class AtlasCoverageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             fake_root = Path(directory)
             (fake_root / "scripts").mkdir()
-            (fake_root / "whitepaper").mkdir()
+            (fake_root / "book").mkdir()
             (fake_root / "scripts/build-whitepapers.sh").write_text(
                 'PAPERS=(\n'
                 '  "$PUB|coordination-papers-mega-volume.tex|'
                 '$PUB/coordination-papers-mega-volume.pdf"\n'
-                '  "whitepaper|ninth-chapter.tex|$PUB/ninth-chapter.pdf"\n'
+                '  "book|ninth-chapter.tex|$PUB/ninth-chapter.pdf"\n'
                 ')\n',
                 encoding="utf-8",
             )
-            (fake_root / "whitepaper/textbook.json").write_text(
-                (repo_root / "whitepaper/textbook.json").read_text(encoding="utf-8"),
+            (fake_root / "book/textbook.json").write_text(
+                (repo_root / "book/textbook.json").read_text(encoding="utf-8"),
                 encoding="utf-8",
             )
             drift = coverage.canonical_root_drift(fake_root, roots)
         self.assertEqual(
-            drift, ["build-whitepapers:extra=whitepaper/ninth-chapter.tex"]
+            drift, ["build-whitepapers:extra=book/ninth-chapter.tex"]
         )
 
     def test_canonical_root_parity_rejects_swapped_volume_mapping(self) -> None:

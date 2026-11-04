@@ -190,7 +190,7 @@
         7
       ],
       "statement": "The bond ledger's Merkle binding is sketched in EasyCrypt with three admitted tactics, and EasyCrypt doesn't run in CI, so right now this is a proof outline that a person reviewed rather than a proof a machine checked. The manifest grades it partial until the admits are discharged and the tool is pinned.",
-      "source": "whitepaper/corpus.json"
+      "source": "book/corpus.json"
     },
     {
       "id": "c2-take-rate",
@@ -965,7 +965,7 @@
     }
   ],
   "estate": {
-    "manifest": "whitepaper/corpus.json",
+    "manifest": "book/corpus.json",
     "formalArtifacts": 36,
     "researchProgramArtifacts": 8,
     "ci": {

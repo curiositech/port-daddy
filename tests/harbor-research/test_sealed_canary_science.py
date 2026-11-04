@@ -14,7 +14,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-OWNER = ROOT/'website-v2/public/whitepaper/sealed-harbor.tex'
+OWNER = ROOT/'book/sealed-harbor.tex'
 A4 = ROOT/'skills/harbor-results/scripts/a4_canary_sprt.py'
 PDF = Path(os.environ.get('BOOK_OPERATING_PDF', ROOT/'.cache/book-operating-20260920/coordination-papers-mega-volume.pdf'))
 spec = importlib.util.spec_from_file_location('dp_static_helpers', Path(__file__).with_name('test_sealed_dp_accounting.py'))
@@ -107,7 +107,7 @@ class SourceContract(unittest.TestCase):
         self.assertEqual(1-.2**0,0)
 
     def test_compact_margin_credits_keep_complete_source_identity(self):
-        entries=json.loads((ROOT/'whitepaper/citation-margin-entries.json').read_text())
+        entries=json.loads((ROOT/'book/citation-margin-entries.json').read_text())
         for key,title in [('wald','Sequential tests of statistical hypotheses'),
                           ('wald-wolfowitz','Optimum character of the sequential probability ratio test'),
                           ('jpbb04','Fast portscan detection using sequential hypothesis testing')]:

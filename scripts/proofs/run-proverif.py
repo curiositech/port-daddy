@@ -18,7 +18,7 @@ under .gitignore's blanket `*.log` rule.
 `skills/pd-relay-zero-trust/templates/proverif-relay.pv` is deliberately NOT
 in scope: it is a skill teaching template (open TODO queries, no committed
 evidence, not a claim about a real Port Daddy protocol) and is tracked as
-RETIRED in whitepaper/corpus.json instead of run here.
+RETIRED in book/corpus.json instead of run here.
 
 Two modes, mutually exclusive:
 

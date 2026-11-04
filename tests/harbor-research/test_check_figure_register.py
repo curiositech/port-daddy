@@ -49,9 +49,9 @@ def textbook_json() -> str:
     return json.dumps({
         "chapters": [
             {"number": 1, "id": "chone", "title": "Chapter One", "prefix": "c1",
-             "source": "whitepaper/chone.tex"},
+             "source": "book/chone.tex"},
             {"number": 2, "id": "chtwo", "title": "Chapter Two", "prefix": "c2",
-             "source": "whitepaper/chtwo.tex"},
+             "source": "book/chtwo.tex"},
         ],
     })
 
@@ -76,12 +76,12 @@ class FixtureRepo:
                  include_fragment: bool = True, chapter_body: str = "",
                  extra_fragments: dict[str, str] | None = None):
         self.root = tmp
-        write(tmp / "whitepaper" / "textbook.json", textbook_json())
+        write(tmp / "book" / "textbook.json", textbook_json())
         # The chapter sources textbook.json points at. Checks 6/7 read these
         # for `\input{figures/...}` sites and for chapter-declared labels, so
         # a fixture that exercises them needs the files to exist.
-        write(tmp / "whitepaper" / "chone.tex", chapter_body or "% chapter one\n")
-        write(tmp / "whitepaper" / "chtwo.tex", "% chapter two\n")
+        write(tmp / "book" / "chone.tex", chapter_body or "% chapter one\n")
+        write(tmp / "book" / "chtwo.tex", "% chapter two\n")
         write(
             tmp / "docs" / "harbor-research" / "exposition" / "figures" / "FIGURE-REGISTER.md",
             "# Figure register\n\n"
@@ -97,11 +97,11 @@ class FixtureRepo:
         if include_fragment:
             # A real fragment declares the id the register names it by.
             write(
-                tmp / "whitepaper" / "figures" / "fig-c1-thing.tex",
+                tmp / "book" / "figures" / "fig-c1-thing.tex",
                 "% a fragment\n\\label{fig:c1-thing}\n",
             )
         for name, body in (extra_fragments or {}).items():
-            write(tmp / "whitepaper" / "figures" / f"{name}.tex", body)
+            write(tmp / "book" / "figures" / f"{name}.tex", body)
 
     def run(self) -> subprocess.CompletedProcess:
         return subprocess.run(

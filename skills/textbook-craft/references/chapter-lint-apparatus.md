@@ -41,7 +41,7 @@ only above the ceiling; input/metadata errors still exit 2. It can allow one
 new failure to offset one repaired failure, so it is not a per-floor debt
 allowlist or chapter approval. Remeasure current source with the accepted
 apparatus declarations before setting a CI budget; an old report is not a
-baseline. The active Book policy in `whitepaper/chapter-apparatus.json`
+baseline. The active Book policy in `book/chapter-apparatus.json`
 selects only the eight authored recap sections and eight grouped exercise
 collections. Comparative literature sections and all substantive teaching,
 proof, status, threat-model, handoff and conclusion sections stay body.

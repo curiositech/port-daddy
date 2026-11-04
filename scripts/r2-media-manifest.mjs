@@ -3,7 +3,7 @@
 //
 // THE RULE THIS REPO KEEPS BREAKING. A manifest and a tree that must agree,
 // with neither deriving from the other, is two sources of truth wearing one
-// hat; whichever one a change forgets, nothing notices. `whitepaper/corpus.json`
+// hat; whichever one a change forgets, nothing notices. `book/corpus.json`
 // answers that by *discovering* every on-disk formal artifact and failing when
 // the manifest does not cover it. ADR-0130 states the general form: a file whose
 // true source of truth is "the current state of many other files" is GENERATED

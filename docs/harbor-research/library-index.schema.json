@@ -127,9 +127,9 @@
       "required": ["file", "chapter", "prefix", "labels", "sections"],
       "additionalProperties": false,
       "properties": {
-        "file": { "type": "string", "description": "Repo-relative path to the chapter .tex file (whitepaper/textbook.json's \"source\")." },
-        "chapter": { "type": "integer", "minimum": 1, "description": "The chapter number from whitepaper/textbook.json." },
-        "prefix": { "type": "string", "description": "The chapter's \\pdchapterprefix, must equal whitepaper/textbook.json's \"prefix\" for this chapter (checked by check (e))." },
+        "file": { "type": "string", "description": "Repo-relative path to the chapter .tex file (book/textbook.json's \"source\")." },
+        "chapter": { "type": "integer", "minimum": 1, "description": "The chapter number from book/textbook.json." },
+        "prefix": { "type": "string", "description": "The chapter's \\pdchapterprefix, must equal book/textbook.json's \"prefix\" for this chapter (checked by check (e))." },
         "labels": {
           "type": "array",
           "items": { "type": "string" },

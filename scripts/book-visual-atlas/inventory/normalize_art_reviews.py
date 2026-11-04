@@ -1,7 +1,7 @@
 """Normalize provenance and bind the nine reviewed chapter panels to source."""
 import json,hashlib,re
 from pathlib import Path
-p=Path('.scratch/visual-atlas/reviews/inventory/art.json');reviews=json.loads(p.read_text());atlas=json.loads(Path('.scratch/visual-atlas/inventory/atlas.json').read_text());lookup={i['id']:i for i in atlas['items']};pre=Path('website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex');body=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');ch0=Path('website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex')
+p=Path('.scratch/visual-atlas/reviews/inventory/art.json');reviews=json.loads(p.read_text());atlas=json.loads(Path('.scratch/visual-atlas/inventory/atlas.json').read_text());lookup={i['id']:i for i in atlas['items']};pre=Path('book/coordination-papers-mega-volume-preamble.tex');body=Path('.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex');ch0=Path('book/coordination-papers-mega-volume-chapter-0.tex')
 titles={286:(0,'Foundations and Prerequisites'),304:(1,'The Single-Writer Kernel'),345:(2,'The Anchor Protocol'),383:(3,'The Sealed Harbor'),422:(4,'The Legible Swarm'),505:(5,'From Spawn to Person'),565:(6,'The Harbor Economy'),622:(7,'The Bonded Commons'),655:(8,'The Federated Harbor')}
 for r in reviews:
  i=lookup[r['id']];n=int(r['id'][1:]);prov=r['provenance'];

@@ -22,7 +22,7 @@ test('every chapter carries its own art key in the complete contents', () => {
 });
 
 test('the shared layout links chapter plates and rejects missing images', () => {
-  const preamble = readFileSync(new URL('../../website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex', import.meta.url), 'utf8');
+  const preamble = readFileSync(new URL('../../book/coordination-papers-mega-volume-preamble.tex', import.meta.url), 'utf8');
   assert.ok(preamble.includes('\\newcommand{\\pdcontentschaptermeta}[4]'));
   assert.ok(preamble.includes('\\hyperref[chap:#1]{\\includegraphics'));
   assert.ok(preamble.includes('\\PackageError{pd-book-contents}{Missing chapter plate'));

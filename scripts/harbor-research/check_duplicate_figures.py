@@ -37,11 +37,11 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-BOOK_PREAMBLE = REPO / 'website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex'
-TEXTBOOK = REPO / 'whitepaper/textbook.json'
+BOOK_PREAMBLE = REPO / 'book/coordination-papers-mega-volume-preamble.tex'
+TEXTBOOK = REPO / 'book/textbook.json'
 FIGURE_DIRS = [
-    REPO / 'website-v2/public/whitepaper/figures',
-    REPO / 'whitepaper/figures',
+    REPO / 'book/figures',
+    REPO / 'book/figures',
 ]
 
 INPUT_RE = re.compile(r'\\input\{figures/([a-z0-9-]+)\}')

@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { contrastRatio, relativeLuminance, AA } from '../scripts/wcag.mjs'
@@ -40,10 +39,13 @@ const bookBlockTokens = {
   pdblockProtocol: '--book-block-protocol',
   pdblockNeutral: '--book-block-neutral',
 }
-const bookBlockHelpers = [
-  join(websiteRoot, '..', 'whitepaper', 'figures', 'pd-semantic-blocks.tex'),
-  join(websiteRoot, 'public', 'whitepaper', 'figures', 'pd-semantic-blocks.tex'),
-]
+const bookRoot = join(websiteRoot, '..', 'book')
+const bookBlockHelper = join(bookRoot, 'figures', 'pd-semantic-blocks.tex')
+function temporaryPaletteDirectory(prefix: string) {
+  const scratch = join(websiteRoot, '..', '.cache', 'palette-tests')
+  mkdirSync(scratch, { recursive: true })
+  return mkdtempSync(join(scratch, prefix))
+}
 
 function runGuard(args: string[] = []) {
   const r = spawnSync('node', [guard, ...args], { cwd: websiteRoot, encoding: 'utf8' })
@@ -89,18 +91,20 @@ describe('check-figure-palette.mjs', () => {
     for (const [name, hex] of Object.entries(bookBlockValues)) {
       expect(css).toContain(`${bookBlockTokens[name as keyof typeof bookBlockTokens]}: #${hex.toLowerCase()}`)
     }
-    expect(readFileSync(bookBlockHelpers[0], 'utf8')).toBe(readFileSync(bookBlockHelpers[1], 'utf8'))
+    const helper = readFileSync(bookBlockHelper, 'utf8')
+    const declarations = [...helper.matchAll(/\\definecolor\{(pdblock[A-Za-z]+)\}\{HTML\}\{([0-9A-Fa-f]{6})\}/g)]
+    expect(declarations).toHaveLength(Object.keys(bookBlockValues).length)
+    expect(Object.fromEntries(declarations.map((match) => [match[1], match[2].toUpperCase()]))).toEqual(bookBlockValues)
 
     const otherTex = [] as string[]
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir)) {
         const path = join(dir, entry)
         if (statSync(path).isDirectory()) walk(path)
-        else if (path.endsWith('.tex') && !bookBlockHelpers.includes(path)) otherTex.push(path)
+        else if (path.endsWith('.tex') && path !== bookBlockHelper) otherTex.push(path)
       }
     }
-    walk(join(websiteRoot, 'public', 'whitepaper'))
-    walk(join(websiteRoot, '..', 'whitepaper'))
+    walk(bookRoot)
     for (const path of otherTex) {
       const text = readFileSync(path, 'utf8')
       for (const name of Object.keys(bookBlockValues)) expect(text).not.toMatch(new RegExp(`\\b${name}\\b`))
@@ -108,7 +112,7 @@ describe('check-figure-palette.mjs', () => {
   })
 
   test('rejects an approved hue or Book role outside the exact helper files', () => {
-    const path = join(websiteRoot, 'public', 'whitepaper', 'figures', `.palette-negative-${process.pid}.tex`)
+    const path = join(bookRoot, 'figures', `.palette-negative-${process.pid}.tex`)
     writeFileSync(path, [
       '\\definecolor{pdblockProof}{HTML}{B33F35}',
       '\\definecolor{pdblockSpeculation}{HTML}{B33F35}',
@@ -124,7 +128,7 @@ describe('check-figure-palette.mjs', () => {
   })
 
   test('FAILS when an edge ink is paled or detached from its Book token (negative control)', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'pd-book-palette-'))
+    const dir = temporaryPaletteDirectory('pd-book-palette-')
     try {
       const paled = readFileSync(realTokens, 'utf8').replace('--book-block-proof: #b33f35', '--book-block-proof: #d9b4af')
       expect(paled).not.toBe(readFileSync(realTokens, 'utf8'))
@@ -147,7 +151,7 @@ describe('check-figure-palette.mjs', () => {
   })
 
   test('FAILS when an ink is paled below its floor (the negative control)', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'pd-palette-'))
+    const dir = temporaryPaletteDirectory('pd-palette-')
     try {
       const paled = readFileSync(realTokens, 'utf8').replace('--story-rust: #7a4514', '--story-rust: #b07a44')
       expect(paled).not.toBe(readFileSync(realTokens, 'utf8')) // the substitution actually happened

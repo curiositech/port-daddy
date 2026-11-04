@@ -32,11 +32,11 @@ const generatorSource = readFileSync(
   'utf8',
 );
 const collectedVolumeSource = readFileSync(
-  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'),
+  resolve('book/coordination-papers-mega-volume.tex'),
   'utf8',
 );
 const seamsSource = readFileSync(
-  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex'),
+  resolve('book/coordination-papers-mega-volume-seams.tex'),
   'utf8',
 );
 
@@ -72,7 +72,7 @@ test('Locke on consent and Locke on identity retain different source identities'
   const shortforms = loadCiteShortforms();
   assert.match(shortforms.get('locke1689'), /Second Treatise/);
   assert.match(shortforms.get('locke1689identity'), /Essay Concerning/);
-  const identityChapter = readFileSync(resolve('website-v2/public/whitepaper/spawn-to-person.tex'), 'utf8');
+  const identityChapter = readFileSync(resolve('book/spawn-to-person.tex'), 'utf8');
   assert.doesNotMatch(identityChapter, /\\(?:pd)?cite\{locke1689\}/);
   assert.match(identityChapter, /\\bibitem\{locke1689identity\}/);
 });
@@ -167,7 +167,7 @@ test('textbook.json is the single source of record and is internally consistent'
 });
 
 test('textbook.json validation fails closed on structural drift', () => {
-  const base = JSON.parse(readFileSync(resolve('whitepaper/textbook.json'), 'utf8'));
+  const base = JSON.parse(readFileSync(resolve('book/textbook.json'), 'utf8'));
   const clone = () => JSON.parse(JSON.stringify(base));
 
   const gap = clone();
@@ -264,10 +264,11 @@ test('Book chapters shed their paper apparatus and open on their first section',
   assert.doesNotMatch(stripped, /Volume Context|Keywords|Reading time|locator|An abstract/);
 });
 
-test('the committed shared textbook map matches textbook.json in both copies', () => {
+test('the committed shared textbook map matches textbook.json from its single canonical file', () => {
   assert.deepEqual(sharedMapDrift(), []);
-  const [first, second] = sharedMapTargets.map((target) => readFileSync(resolve(target), 'utf8'));
-  assert.equal(first, second);
+  assert.deepEqual(sharedMapTargets, ['book/figures/pd-textbook-map.tex']);
+  const actual = readFileSync(resolve(sharedMapTargets[0]), 'utf8');
+  assert.equal(actual, renderTextbookMap(loadTextbook()));
   const rendered = renderTextbookMap(loadTextbook());
   assert.match(rendered, /\\providecommand\{\\pdchaptercount\}\{8\}/);
   assert.match(rendered, /pdchapternumberofswk\\endcsname\{1\}/);
@@ -281,12 +282,12 @@ test('the committed shared textbook map matches textbook.json in both copies', (
 // from the page in silence. Every prefix the generated map defines is correct by
 // construction; the only way in is a use site, so the use sites are what this
 // checks.
-const prefixSourceRoots = ['whitepaper', 'website-v2/public/whitepaper'];
+const prefixSourceRoots = ['book'];
 // The generated map is where the prefixes are DEFINED, so it is the one file
 // whose \csname names are not use sites. Regenerate it, don't lint it.
 const prefixDefinitionFiles = new Set([
-  'whitepaper/figures/pd-textbook-map.tex',
-  'website-v2/public/whitepaper/figures/pd-textbook-map.tex',
+  'book/figures/pd-textbook-map.tex',
+  'book/figures/pd-textbook-map.tex',
 ]);
 
 function texSourcesUnder(root) {
@@ -315,20 +316,20 @@ const prefixReferencePatterns = [
 // appear without this test failing, so a scratch file, a measurement probe or
 // an abandoned draft cannot quietly become part of the Book's figure corpus.
 // To add one deliberately, add it here and say in the PR why it stays.
-const figureDirs = ['whitepaper/figures', 'website-v2/public/whitepaper/figures'];
+const figureDirs = ['book/figures'];
 const knownUnreferencedFragments = [
-  'website-v2/public/whitepaper/figures/appendix-figures.tex',
+  'book/figures/appendix-figures.tex',
   // These two predate the pd-figure-language system, carry their own
   // \documentclass, and DO NOT COMPILE -- `I do not know the key '/tikz/ellipse'`
   // and `Undefined control sequence` respectively, on main as well as here. They
   // are unreferenced AND broken, which is the strongest case in the corpus for
   // deletion; they are listed rather than deleted because removing a figure is a
   // decision for whoever owns the chapter, not for a typography PR.
-  'website-v2/public/whitepaper/figures/diag-magic-link.tex',
-  'website-v2/public/whitepaper/figures/diag-sybil-attack.tex',
+  'book/figures/diag-magic-link.tex',
+  'book/figures/diag-sybil-attack.tex',
   // Superseded by fig-anchor-four-phases; kept for out-of-tree consumers.
-  'website-v2/public/whitepaper/figures/fig-anchor-phases.tex',
-  'website-v2/public/whitepaper/figures/fig-he-assurance-sieve.tex',
+  'book/figures/fig-anchor-phases.tex',
+  'book/figures/fig-he-assurance-sieve.tex',
   // Rival-variant comparison drawings ("the six rival variants as drawable
   // fragments", the figure-rivals-and-mermaid gallery): six candidate
   // redraws were produced, three won and are \input by their chapters
@@ -337,72 +338,28 @@ const knownUnreferencedFragments = [
   // kept on disk for the gallery's own side-by-side comparison rather than
   // wired into the Book. Deliberately unreferenced by design, not an
   // oversight.
-  'website-v2/public/whitepaper/figures/fig-bc-graduated-trigger.tex',
-  'website-v2/public/whitepaper/figures/fig-bc-oracle-audit-rate.tex',
-  'website-v2/public/whitepaper/figures/tab-bc-settlement-rule.tex',
+  'book/figures/fig-bc-graduated-trigger.tex',
+  'book/figures/fig-bc-oracle-audit-rate.tex',
+  'book/figures/tab-bc-settlement-rule.tex',
 ];
 const stagedUnreferencedFragments = JSON.parse(
-  readFileSync(resolve('whitepaper/figure-staging.json'), 'utf8'),
+  readFileSync(resolve('book/figure-staging.json'), 'utf8'),
 ).fragments;
 
-// The shared figure apparatus exists TWICE -- once under whitepaper/figures and
-// once under website-v2/public/whitepaper/figures -- because the standalone
-// chapters and the Book each resolve `figures/...` against their own directory.
-// Seven files are currently in that position, pd-figure-language.tex among them,
-// and until this test they were kept in step by hand. That is the same
-// two-lists-with-nothing-checking-them defect as every other one this PR is
-// about, and it is the one with the sharpest consequence: the twins define the
-// house styles, so a fragment that loads the stale copy draws in a style set
-// nobody reviewed.
-//
-// The pairs are DISCOVERED, not listed. A twin added later is covered the day it
-// appears, with nobody remembering to come back and add it here -- which is the
-// whole difference between a check and a comment. Byte-for-byte, including
-// comments: the comments in pd-figure-language.tex carry the measurements the
-// styles rest on, and a measurement that is true in one copy and stale in the
-// other is exactly the drift worth catching.
-//
-// If this ever needs to be one file rather than two, the fix is a build step
-// that writes one from the other, and this test is what tells you the two are
-// currently identical enough for that to be safe.
-const sharedApparatusDirs = ['whitepaper/figures', 'website-v2/public/whitepaper/figures'];
-
-test('the shared figure apparatus is identical in both figure directories', () => {
-  const [a, b] = sharedApparatusDirs;
-  const inA = new Set(
-    readdirSync(resolve(a), { withFileTypes: true })
-      .filter((e) => e.isFile() && e.name.endsWith('.tex'))
-      .map((e) => e.name),
-  );
-  const twins = readdirSync(resolve(b), { withFileTypes: true })
-    .filter((e) => e.isFile() && e.name.endsWith('.tex') && inA.has(e.name))
-    .map((e) => e.name)
-    .sort();
-
-  // A guard on the guard: if the discovery ever finds nothing, this test would
-  // pass while checking zero files. The apparatus is not going to drop to zero
-  // by accident, so an empty result means the directories moved and this test
-  // has quietly stopped being a test.
-  assert.ok(
-    twins.length > 0,
-    `no .tex file exists in both ${a} and ${b} — either the layout changed or this test is checking nothing`,
-  );
-
-  const drifted = twins.filter(
-    (name) => readFileSync(resolve(`${a}/${name}`), 'utf8') !== readFileSync(resolve(`${b}/${name}`), 'utf8'),
-  );
-  assert.deepEqual(
-    drifted,
-    [],
-    `these files exist in both figure directories and their contents have drifted apart: ${drifted.join(', ')}. `
-      + 'They are one thing kept in two places; edit both, or the chapters and the Book draw in different styles.',
-  );
+// All chapters share one real source tree; derived website assets must not carry TeX.
+test('Book TeX has one canonical directory with no legacy source copies', () => {
+  assert.ok(readdirSync(resolve('book/figures')).filter((name) => name.endsWith('.tex')).length > 0);
+  for (const oldRoot of ['whitepaper', 'website-v2/public/whitepaper']) {
+    if (!existsSync(resolve(oldRoot))) continue;
+    const files = readdirSync(resolve(oldRoot), { recursive: true });
+    assert.deepEqual(files.filter((name) => name.endsWith('.tex')), [], `${oldRoot} must contain no authored TeX`);
+  }
 });
 
 test('no fragment joins the figure corpus without a chapter that inputs it', () => {
   const inputRe = /\\input\{figures\/([A-Za-z0-9._-]+?)(?:\.tex)?\}/g;
   const inputted = new Set();
-  for (const root of ['whitepaper', 'website-v2/public/whitepaper']) {
+  for (const root of ['book']) {
     for (const entry of readdirSync(resolve(root), { withFileTypes: true })) {
       if (!entry.isFile() || !entry.name.endsWith('.tex')) continue;
       const source = readFileSync(resolve(`${root}/${entry.name}`), 'utf8');
@@ -461,13 +418,11 @@ test('a mistyped chapter prefix is caught rather than expanding to nothing', () 
   assert.equal(declared.has(good[0][1]), true);
 });
 
-test('the shared palette and hyperlink files are byte-identical in both source trees', () => {
-  for (const name of ['pd-palette.tex', 'pd-hyperlinks.tex', 'pd-figure-language.tex', 'pd-pedagogy.tex']) {
-    assert.equal(
-      readFileSync(resolve(`whitepaper/figures/${name}`), 'utf8'),
-      readFileSync(resolve(`website-v2/public/whitepaper/figures/${name}`), 'utf8'),
-      `${name} drifted between whitepaper/figures and website-v2/public/whitepaper/figures`,
-    );
+test('shared palette and hyperlink files live in the canonical figure tree', () => {
+  for (const name of ['pd-palette.tex', 'pd-hyperlinks.tex']) {
+    assert.ok(readFileSync(resolve('book/figures', name), 'utf8').trim().length > 0);
+    assert.equal(existsSync(resolve('whitepaper/figures', name)), false);
+    assert.equal(existsSync(resolve('website-v2/public/whitepaper/figures', name)), false);
   }
 });
 
@@ -480,7 +435,7 @@ test('one complete contents renderer decorates the live ToC with metadata, witho
   assert.deepEqual(artKeys, textbook.parts.map((part) => part.numeral));
   for (const numeral of artKeys) {
     for (const edition of ['', 'swiss/', 'technical/']) {
-      assert.ok(existsSync(resolve(`website-v2/public/whitepaper/plates/${edition}part-${numeral}.jpg`)));
+      assert.ok(existsSync(resolve(`book/plates/${edition}part-${numeral}.jpg`)));
     }
   }
   assert.equal((contents.match(/\\pdtableofcontents/g) ?? []).length, 1);
@@ -503,7 +458,7 @@ test('solutions add navigable per-chapter entries and the reader guide starts on
   const chapters = loadTextbook().chapters;
   const solutions = renderSolutions(chapters);
   assert.equal((solutions.match(/\\addcontentsline\{toc\}\{section\}/g) ?? []).length, chapters.length);
-  const map = readFileSync(resolve('website-v2/public/whitepaper/figures/fig-book-reader-map.tex'), 'utf8');
+  const map = readFileSync(resolve('book/figures/fig-book-reader-map.tex'), 'utf8');
   const leftProse = map.indexOf('\\pdreaderleftprose');
   const rightPage = map.indexOf('\\label{book:reader-right}');
   assert.ok(leftProse > map.indexOf('\\label{book:reader-left}'));
@@ -811,7 +766,7 @@ test('explicit margin-page boundary survives legacy page-break cleanup', () => {
   const cleaned = cleanStandaloneChrome(source);
   assert.doesNotMatch(cleaned, /\\clearpage\b/);
   assert.match(cleaned, /Before\.\s*\\pdmarginpagebreak\s*After\./);
-  const pedagogy = readFileSync(resolve('whitepaper/figures/pd-pedagogy.tex'), 'utf8');
+  const pedagogy = readFileSync(resolve('book/figures/pd-pedagogy.tex'), 'utf8');
   assert.ok(pedagogy.includes('\\newcommand{\\pdmarginpagebreak}{\\clearpage}'));
 });
 
@@ -974,7 +929,7 @@ test('two genuinely different papers by the same authors in the same year stay d
 // --- Wave 16 marginalia: \pdcite, \pdprov, \pdprovedon in Book vs standalone
 
 test('the assembled Book enables margin references without a special driver', () => {
-  const root = readFileSync(resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'), 'utf8');
+  const root = readFileSync(resolve('book/coordination-papers-mega-volume.tex'), 'utf8');
   const enabled = root.indexOf('\\providecommand{\\pdEnableMarginCitations}{1}');
   const renderer = root.indexOf('\\input{figures/pd-book-citations.tex}');
   assert.ok(enabled >= 0 && renderer > enabled, 'default Book must enable margin sources before loading the renderer');
@@ -1141,8 +1096,8 @@ test("no chapter source defines a Reader's Map or an abstract, and neither reach
 
 
 test('authored foundations exercises have a deferred chapter-zero solution file', () => {
-  const root = readFileSync(new URL('../website-v2/public/whitepaper/coordination-papers-mega-volume.tex', import.meta.url), 'utf8');
-  const source = readFileSync(new URL('../website-v2/public/whitepaper/coordination-papers-mega-volume-chapter-0.tex', import.meta.url), 'utf8');
+  const root = readFileSync(new URL('../book/coordination-papers-mega-volume.tex', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../book/coordination-papers-mega-volume-chapter-0.tex', import.meta.url), 'utf8');
   assert.match(root, /\\Opensolutionfile\{pdsol\}\[book-sol-prereq\][\s\S]*?\\input\{coordination-papers-mega-volume-chapter-0\.tex\}[\s\S]*?\\Closesolutionfile\{pdsol\}/);
   assert.equal(sourceDeclaresExercises(source), true);
   const keys = [...source.matchAll(/\\begin\{pdexercise\}(?:\[[^\]]*\])?\{([^}]+)\}/g)].map(m => m[1]);

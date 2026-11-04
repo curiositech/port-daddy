@@ -18,7 +18,7 @@
  *   pd*  — the Book's semantic palette (story palette v2, one hue per meaning),
  *          declared once per source tree in figures/pd-palette.tex and kept in
  *          LOCKSTEP with the light tokens: this script fails if a pd* hex and
- *          its token disagree, or if the two committed copies differ.
+ *          its token disagree, or if a canonical helper differs from the registry.
  *   pdblock* — the Book's semantic-block edge inks, declared only in the two
  *          exact pd-semantic-blocks.tex mirrors and kept in lockstep with the
  *          separate --book-block-* CSS registry.
@@ -35,10 +35,7 @@ import { contrastRatio } from './wcag.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')             // repo root from website-v2/scripts
-const FIG_DIRS = [
-  join(REPO, 'website-v2', 'public', 'whitepaper'),
-  join(REPO, 'whitepaper'),                      // explainable quartet (when present)
-]
+const FIG_DIRS = [join(REPO, 'book')]
 
 // Brand palette the figures are allowed to define (upper-case, no #).
 const ALLOWED_HEX = new Set([
@@ -77,7 +74,7 @@ const ALLOWED_HEX = new Set([
 ])
 
 // pd* color -> the light token it must equal. figures/pd-palette.tex is the
-// single TeX declaration; both committed copies must match each other and the
+// single TeX declaration; the canonical file must match the
 // tokens. Change a hue in tokens.semantic.css (+ BRAND.md) first, then here.
 const PD_TOKEN_LOCKSTEP = {
   pdcobalt: '--brand-primary',
@@ -108,8 +105,7 @@ const PD_TOKEN_LOCKSTEP = {
 // exact so an unrelated figure cannot smuggle in a new accent by reusing a
 // familiar pdblock name.
 const BOOK_BLOCK_FILES = [
-  'whitepaper/figures/pd-semantic-blocks.tex',
-  'website-v2/public/whitepaper/figures/pd-semantic-blocks.tex',
+  'book/figures/pd-semantic-blocks.tex',
 ]
 const BOOK_BLOCK_HEX = {
   pdblockProof: 'B33F35',
@@ -198,10 +194,7 @@ const GROUNDS = [
 const GROUND_ONLY_IF_UNUSED = ['pdcreamstrong']
 const BRAND_MD = join(REPO, 'website-v2', 'docs', 'design', 'BRAND.md')
 
-const PD_PALETTE_COPIES = [
-  join(REPO, 'website-v2', 'public', 'whitepaper', 'figures', 'pd-palette.tex'),
-  join(REPO, 'whitepaper', 'figures', 'pd-palette.tex'),
-]
+const PD_PALETTE_FILES = [join(REPO, 'book', 'figures', 'pd-palette.tex')]
 // `--tokens <path>` points the guard at another token file. It exists so the
 // contrast pass can be proved to FAIL: the test hands it a copy with one ink
 // paled and expects exit 1. It is not for production use; the real file is
@@ -245,7 +238,7 @@ for (const dir of FIG_DIRS) {
           violations.push(`${rel}:${i + 1}  off-brand hex #${hex}${why}`)
         }
       }
-      // A Book semantic role is only legal inside its two committed helper
+      // A Book semantic role is only legal inside its canonical helper
       // mirrors. This catches arbitrary direct uses even when the hex itself
       // happens to be one of the approved nine values.
       for (const name of BOOK_BLOCK_NAME_SET) {
@@ -261,7 +254,7 @@ for (const dir of FIG_DIRS) {
   }
 }
 
-// 3) pd* lockstep: the TeX palette equals the light tokens, in both copies.
+// 3) pd* lockstep: the TeX palette equals the light tokens, in the canonical file.
 function lightTokens(css) {
   // The first `:root {` block is the light theme; dark themes follow it.
   const start = css.indexOf(':root')
@@ -291,10 +284,8 @@ function mixHex(foreground, background, foregroundShare) {
 }
 try {
   const tokens = lightTokens(readFileSync(TOKENS_CSS, 'utf8'))
-  const copies = PD_PALETTE_COPIES.map((p) => ({ path: p, text: readFileSync(p, 'utf8') }))
-  if (copies[0].text !== copies[1].text) {
-    violations.push(`pd-palette.tex drifted between ${copies[0].path.replace(REPO + '/', '')} and ${copies[1].path.replace(REPO + '/', '')} (must be byte-identical)`)
-  }
+  const copies = PD_PALETTE_FILES.map((p) => ({ path: p, text: readFileSync(p, 'utf8') }))
+
   const declared = new Map()
   for (const m of copies[0].text.matchAll(/\\definecolor\{(pd[a-z]+)\}\{HTML\}\{([0-9A-Fa-f]{6})\}/g)) {
     declared.set(m[1], m[2].toUpperCase())
@@ -311,15 +302,13 @@ try {
   }
 
   // The semantic helper is not pd-palette.tex and therefore gets its own
-  // exact registry. Both mirrors must contain exactly the approved role set,
+  // exact registry. The canonical file must contain exactly the approved role set,
   // the owner-approved values, and the CSS token values.
   const bookCopies = BOOK_BLOCK_FILES.map((relative) => ({
     relative,
     text: readFileSync(join(REPO, relative), 'utf8'),
   }))
-  if (bookCopies[0].text !== bookCopies[1].text) {
-    violations.push(`pd-semantic-blocks.tex drifted between ${BOOK_BLOCK_FILES[0]} and ${BOOK_BLOCK_FILES[1]} (must be byte-identical)`)
-  }
+
   const bookDeclared = new Map()
   for (const m of bookCopies[0].text.matchAll(/\\definecolor\{(pdblock[A-Za-z]+)\}\{HTML\}\{([0-9A-Fa-f]{6})\}/g)) {
     if (bookDeclared.has(m[1])) violations.push(`Book semantic helper: duplicate \\definecolor{${m[1]}}`)

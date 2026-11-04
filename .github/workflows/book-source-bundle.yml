@@ -1,0 +1,93 @@
+name: Book source bundle
+
+on:
+  pull_request:
+    paths:
+      - 'book/**'
+      - 'scripts/build-book-source.py'
+      - 'scripts/test_build_book_source.py'
+      - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/prepare-book-fonts.py'
+      - 'scripts/verify-book-source-download.mjs'
+      - 'scripts/test_verify_book_source_download.mjs'
+      - 'website-v2/public/whitepaper/coordination-papers-mega-volume-source.json'
+      - 'website-v2/public/_redirects'
+      - '.github/workflows/book-source-bundle.yml'
+      - 'LICENSE'
+  push:
+    branches: ['**']
+    paths:
+      - 'book/**'
+      - 'scripts/build-book-source.py'
+      - 'scripts/test_build_book_source.py'
+      - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/prepare-book-fonts.py'
+      - 'scripts/verify-book-source-download.mjs'
+      - 'scripts/test_verify_book_source_download.mjs'
+      - 'website-v2/public/whitepaper/coordination-papers-mega-volume-source.json'
+      - 'website-v2/public/_redirects'
+      - '.github/workflows/book-source-bundle.yml'
+      - 'LICENSE'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extracted-source-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    container:
+      image: texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Require available build dependencies
+        run: |
+          command -v python3
+          command -v xelatex
+          node --version
+      - name: Test deterministic packaging and rejection paths
+        run: python3 -m unittest discover -s scripts -p test_build_book_source.py -v
+      - name: Test public download integrity checks
+        run: node --test scripts/test_verify_book_source_download.mjs
+      - name: Check committed source receipt and public redirect
+        run: python3 scripts/build-book-source.py check
+      - name: Rebuild the source archive from the exact checkout
+        run: python3 scripts/build-book-source.py build --r2-manifest .cache/book-source/r2-manifest.json
+      - name: Extract outside the repository and compile the entire Book
+        run: |
+          set -eu
+          python3 scripts/build-book-source.py extract --archive .cache/book-source/coordination-papers-mega-volume-source.tar.gz --destination "$RUNNER_TEMP/book-source-clean"
+          cd "$RUNNER_TEMP/book-source-clean/port-daddy-book-source"
+          test ! -e .git
+          bash book/BUILDING.sh
+      - name: Retain extracted-build proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-source-extracted-proof
+          include-hidden-files: true
+          path: |
+            ${{ runner.temp }}/book-source-clean/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.log
+            ${{ runner.temp }}/book-source-clean/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.fls
+            ${{ runner.temp }}/book-source-clean/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume/book-font-profile.json
+            ${{ runner.temp }}/book-source-clean/port-daddy-book-source/SOURCE-MANIFEST.json
+          if-no-files-found: error
+      # Content addressing permits safe branch publication without a mutable
+      # production pointer. Fork PRs have no credentials and never upload.
+      - name: Publish the verified immutable source archive to Cloudflare R2
+        if: github.event_name == 'push'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/sync-r2-media.mjs --manifest .cache/book-source/r2-manifest.json
+      - name: Verify the published object by an unauthenticated download
+        if: github.event_name == 'push'
+        run: node scripts/verify-book-source-download.mjs

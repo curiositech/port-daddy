@@ -10,7 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 A3 = ROOT/'skills/harbor-results/scripts/a3_epsilon_ledger.py'
-OWNER = ROOT/'website-v2/public/whitepaper/sealed-harbor.tex'
+OWNER = ROOT/'book/sealed-harbor.tex'
 
 
 def computational_signature(source):
@@ -91,7 +91,7 @@ class SourceContract(unittest.TestCase):
         self.assertNotIn('exactly which accounting to quote', source)
 
     def test_compact_credits_preserve_source_identity(self):
-        entries = json.loads((ROOT/'whitepaper/citation-margin-entries.json').read_text())
+        entries = json.loads((ROOT/'book/citation-margin-entries.json').read_text())
         source = OWNER.read_text()
         for key, author, title in (
                 ('drv', 'Dwork, Rothblum', 'Boosting and differential privacy'),

@@ -6,7 +6,7 @@ import sys
 import unittest
 
 ROOT=Path(__file__).resolve().parents[2]
-CHAPTER=ROOT/'website-v2/public/whitepaper/spawn-to-person.tex'
+CHAPTER=ROOT/'book/spawn-to-person.tex'
 OPEN=r'\begin{pdexample}{The Swap Gain and the Attested Flip}'
 CLOSE=r'\end{pdexample}'
 NOTE=r'\pdsourceaside{Worked checks: \texttt{b5\_engine\_substitution.py}, seed 20260816, verified: swap gain, participation threshold, deterrence bond and attested flip. The $c_H=0.7$ answer applies the same threshold formula.}'

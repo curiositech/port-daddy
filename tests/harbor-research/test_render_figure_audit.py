@@ -144,14 +144,14 @@ class TestRenderFigureAudit(unittest.TestCase):
         spec.loader.exec_module(module)
 
         textbook = json.loads(
-            (REPO_ROOT / "whitepaper" / "textbook.json").read_text(encoding="utf-8")
+            (REPO_ROOT / "book" / "textbook.json").read_text(encoding="utf-8")
         )
         declared = sorted(c["number"] for c in textbook["chapters"])
         mapped = sorted(n for _, n in module.PREFIX_TO_CHAPTER)
 
         self.assertEqual(
             mapped, declared,
-            msg="PREFIX_TO_CHAPTER and whitepaper/textbook.json disagree about "
+            msg="PREFIX_TO_CHAPTER and book/textbook.json disagree about "
                 "which chapters exist; add or remove the prefix row to match",
         )
 

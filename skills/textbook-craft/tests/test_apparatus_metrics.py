@@ -105,14 +105,14 @@ Scene.\begin{pdexample}{B}x\end{pdexample}
         source = self.fixture.chapter(r"\section{Review} Prompts.")
         alias = self.fixture.root / "alias.tex"
         alias.symlink_to(source)
-        metadata = self.metadata({"whitepaper/chapter.tex": [self.declaration(title="Review")]})
+        metadata = self.metadata({"book/chapter.tex": [self.declaration(title="Review")]})
         with redirect_stdout(io.StringIO()) as out:
             self.assertEqual(chapter_lint.main([str(alias), "--repo-root", str(self.fixture.root), "--apparatus", str(metadata), "--json"]), 0)
         self.assertEqual(json.loads(out.getvalue())["section_metrics"][0]["role"], "review")
 
     def test_metadata_error_ignores_generous_failure_budget(self):
         source = self.fixture.chapter(r"\section{Body} Prose.")
-        metadata = self.metadata({"whitepaper/chapter.tex": [self.declaration(title="Removed")]})
+        metadata = self.metadata({"book/chapter.tex": [self.declaration(title="Removed")]})
         self.assertEqual(self.run_cli(source, "--apparatus", str(metadata), "--max-blocking", "999"), 2)
 
     def test_duplicate_json_and_source_aliases_rejected(self):
@@ -120,19 +120,19 @@ Scene.\begin{pdexample}{B}x\end{pdexample}
         metadata = write(self.fixture.root / "bad.json", '{"version":1,"chapters":{},"chapters":{}}')
         self.assertEqual(self.run_cli(source, "--apparatus", str(metadata)), 2)
         (self.fixture.root / "alias.tex").symlink_to(source)
-        metadata = self.metadata({"whitepaper/chapter.tex": [], "alias.tex": []})
+        metadata = self.metadata({"book/chapter.tex": [], "alias.tex": []})
         self.assertEqual(self.run_cli(source, "--apparatus", str(metadata)), 2)
 
     def test_missing_or_escaping_source_rejected(self):
         source = self.fixture.chapter(r"\section{Body} Prose.")
-        for missing in ["whitepaper/missing.tex", "../outside.tex", str(source)]:
+        for missing in ["book/missing.tex", "../outside.tex", str(source)]:
             metadata = self.metadata({missing: []})
             self.assertEqual(self.run_cli(source, "--apparatus", str(metadata)), 2)
 
     def test_unselected_chapter_stale_selector_is_not_silently_ignored(self):
         source = self.fixture.chapter(r"\section{Body} Prose.")
         self.fixture.chapter(r"\section{Two} Prose.", "two.tex")
-        metadata = self.metadata({"whitepaper/two.tex": [self.declaration(title="Deleted")]})
+        metadata = self.metadata({"book/two.tex": [self.declaration(title="Deleted")]})
         self.assertEqual(self.run_cli(source, "--apparatus", str(metadata)), 2)
 
     def test_budget_boundary_and_strict_are_distinct_from_report_only(self):
@@ -162,11 +162,11 @@ class TestCorpusGatePipeline(RepoFixtureTestCase):
 \section{Related work} Context.\begin{pdexample}{R}x\end{pdexample}
 \section{Limitations} Boundary.\begin{pdexample}{L}x\end{pdexample}
 """)
-        write(self.fixture.root / "whitepaper/textbook.json", json.dumps({
-            "chapters": [{"source": "whitepaper/chapter.tex"}]
+        write(self.fixture.root / "book/textbook.json", json.dumps({
+            "chapters": [{"source": "book/chapter.tex"}]
         }))
-        self.metadata = write(self.fixture.root / "whitepaper/chapter-apparatus.json", json.dumps({
-            "version": 1, "chapters": {"whitepaper/chapter.tex": [
+        self.metadata = write(self.fixture.root / "book/chapter-apparatus.json", json.dumps({
+            "version": 1, "chapters": {"book/chapter.tex": [
                 {"label": "sec:review", "role": "review", "reason": "Authored recap"},
                 {"label": "sec:exercises", "role": "exercises", "reason": "Authored practice"},
             ]}

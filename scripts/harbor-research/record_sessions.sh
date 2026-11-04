@@ -5,14 +5,14 @@
 # checked-in text is stable across runs. Usage:
 #   scripts/harbor-research/record_sessions.sh            # (re)record all
 #   scripts/harbor-research/record_sessions.sh --check    # exit 1 on drift
-# Output fragments live under whitepaper/figures/session-*.tex and are \input
+# Output fragments live under book/figures/session-*.tex and are \input
 # by the chapters like figures.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 PD="node bin/port-daddy-cli.js"
 PROFILE=demo
 PORT=9877
-OUT=whitepaper/figures
+OUT=book/figures
 MODE=${1:-record}
 TMP=$(mktemp -d)
 trap 'timeout 30 $PD daemon stop $PROFILE >/dev/null 2>&1 || true; rm -rf "$TMP"' EXIT
@@ -119,7 +119,7 @@ wrap "the multi-hop attack on version 6, and version 7 closing it" "$TMP/s5.txt"
 status=0
 for f in "$TMP"/session-*.tex; do
   b=$(basename "$f")
-  case "$b" in session-swk-*) OUT=whitepaper/figures;; *) OUT=website-v2/public/whitepaper/figures;; esac
+  case "$b" in session-swk-*) OUT=book/figures;; *) OUT=book/figures;; esac
   if [ "$MODE" = "--check" ]; then
     if ! diff -q "$f" "$OUT/$b" >/dev/null 2>&1; then echo "DRIFT: $OUT/$b"; diff "$OUT/$b" "$f" || true; status=1; fi
   else

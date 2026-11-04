@@ -42,10 +42,10 @@ REPO = Path(__file__).resolve().parents[2]
 # Where the Book's sources live. Figure fragments are included: a fragment with
 # an unpaired environment breaks the Book exactly as a chapter does.
 CORPUS_GLOBS = (
-    "whitepaper/*.tex",
-    "whitepaper/figures/*.tex",
-    "website-v2/public/whitepaper/*.tex",
-    "website-v2/public/whitepaper/figures/*.tex",
+    "book/*.tex",
+    "book/figures/*.tex",
+    "book/*.tex",
+    "book/figures/*.tex",
 )
 
 BEGIN = re.compile(r"\\begin\s*\{([A-Za-z@*]+)\}")

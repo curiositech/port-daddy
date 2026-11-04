@@ -4,7 +4,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIG = ROOT / 'website-v2/public/whitepaper/figures/fig-sealed-leakage-ledger.tex'
+FIG = ROOT / 'book/figures/fig-sealed-leakage-ledger.tex'
 
 
 def contract(source):

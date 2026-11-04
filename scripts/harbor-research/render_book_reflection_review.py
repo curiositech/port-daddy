@@ -14,7 +14,7 @@ import unicodedata
 
 import fitz
 
-PLATES = Path(__file__).resolve().parents[2] / 'website-v2/public/whitepaper/plates/interstitial'
+PLATES = Path(__file__).resolve().parents[2] / 'book/plates/interstitial'
 
 
 def check_plate_text(page, key, art_rect, metadata):

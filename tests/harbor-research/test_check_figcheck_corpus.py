@@ -2,7 +2,7 @@
 r"""Fixture-based tests for scripts/harbor-research/check_figcheck_corpus.py.
 
 stdlib-only (unittest, tempfile, subprocess, json). Each test builds a tiny
-repository under a tempdir -- a whitepaper/textbook.json, one or two chapter
+repository under a tempdir -- a book/textbook.json, one or two chapter
 sources, their figures/ directories, and a figcheck/ directory -- and runs
 the real script against it with --repo-root. One test runs the script against
 this repository itself and expects the committed records and the live corpus
@@ -44,17 +44,17 @@ class Fixture:
 
     def __init__(self, root: Path):
         self.root = root
-        self.chapter = Path("whitepaper/ch-one.tex")
-        (root / "whitepaper" / "figures").mkdir(parents=True)
+        self.chapter = Path("book/ch-one.tex")
+        (root / "book" / "figures").mkdir(parents=True)
         (root / FIGCHECK_REL).mkdir(parents=True)
-        (root / "whitepaper" / "textbook.json").write_text(
+        (root / "book" / "textbook.json").write_text(
             json.dumps({"chapters": [{"number": 1, "id": "one", "source": str(self.chapter)}]}),
             encoding="utf-8",
         )
         self.inputs: list[str] = []
 
     def fragment(self, stem: str, body: str = TIKZ, inputted: bool = True) -> None:
-        (self.root / "whitepaper" / "figures" / f"{stem}.tex").write_text(body, encoding="utf-8")
+        (self.root / "book" / "figures" / f"{stem}.tex").write_text(body, encoding="utf-8")
         if inputted:
             self.inputs.append(stem)
 
@@ -159,13 +159,13 @@ class TestCorpusRule(unittest.TestCase):
             root = Path(tmp)
             fx = Fixture(root)
             fx.healthy("fig-a")
-            (root / "whitepaper" / "two" / "figures").mkdir(parents=True)
-            (root / "whitepaper" / "two" / "figures" / "fig-b.tex").write_text(TIKZ, encoding="utf-8")
-            (root / "whitepaper" / "two" / "ch-two.tex").write_text(
+            (root / "book" / "two" / "figures").mkdir(parents=True)
+            (root / "book" / "two" / "figures" / "fig-b.tex").write_text(TIKZ, encoding="utf-8")
+            (root / "book" / "two" / "ch-two.tex").write_text(
                 "\\begin{document}\\input{figures/fig-b}\\end{document}\n", encoding="utf-8")
-            (root / "whitepaper" / "textbook.json").write_text(json.dumps({"chapters": [
-                {"number": 1, "id": "one", "source": "whitepaper/ch-one.tex"},
-                {"number": 2, "id": "two", "source": "whitepaper/two/ch-two.tex"},
+            (root / "book" / "textbook.json").write_text(json.dumps({"chapters": [
+                {"number": 1, "id": "one", "source": "book/ch-one.tex"},
+                {"number": 2, "id": "two", "source": "book/two/ch-two.tex"},
             ]}), encoding="utf-8")
             listing = run(root, "--list")
             self.assertEqual(listing.returncode, 0, listing.stdout + listing.stderr)
@@ -179,9 +179,9 @@ class TestCorpusRule(unittest.TestCase):
             root = Path(tmp)
             fx = Fixture(root)
             fx.healthy("fig-a")
-            (root / "whitepaper" / "textbook.json").write_text(json.dumps({"chapters": [
-                {"number": 1, "id": "one", "source": "whitepaper/ch-one.tex"},
-                {"number": 2, "id": "gone", "source": "whitepaper/not-here.tex"},
+            (root / "book" / "textbook.json").write_text(json.dumps({"chapters": [
+                {"number": 1, "id": "one", "source": "book/ch-one.tex"},
+                {"number": 2, "id": "gone", "source": "book/not-here.tex"},
             ]}), encoding="utf-8")
             res = run(root)
             self.assertEqual(res.returncode, 2, res.stdout + res.stderr)

@@ -70,7 +70,7 @@ the same page. `audit_sidenote_baselines.py` exposes shifts caused by stacking.
 Resolve them editorially or through page composition; never treat the allocator's
 ability to squeeze everything above the footer as design acceptance.
 
-Placement: website-v2/public/whitepaper/figures/pd-margin-layout.tex.
+Placement: book/figures/pd-margin-layout.tex.
 Reusable forms: figures/pd-margin-evidence.tex in that same directory.
 
 ~~~tex

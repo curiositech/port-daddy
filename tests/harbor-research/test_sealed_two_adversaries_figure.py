@@ -6,8 +6,8 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-FIG = ROOT / 'website-v2/public/whitepaper/figures/fig-sealed-two-adversaries.tex'
-OWNER = ROOT / 'website-v2/public/whitepaper/sealed-harbor.tex'
+FIG = ROOT / 'book/figures/fig-sealed-two-adversaries.tex'
+OWNER = ROOT / 'book/sealed-harbor.tex'
 
 
 def contract(source):

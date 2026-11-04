@@ -5,7 +5,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-SKETCHES = ROOT / "website-v2/public/whitepaper/figures/pd-margin-sketches.tex"
+SKETCHES = ROOT / "book/figures/pd-margin-sketches.tex"
 
 
 class MarginSketchTests(unittest.TestCase):
@@ -69,15 +69,15 @@ class MarginSketchTests(unittest.TestCase):
         self.assertIn("x=1pt,y=1pt", source)
 
     def test_one_leviathan_and_three_portrait_anchors(self):
-        legible = (ROOT / "whitepaper/legible-swarm.tex").read_text()
-        bonded = (ROOT / "website-v2/public/whitepaper/agent-transactions-whitepaper.tex").read_text()
+        legible = (ROOT / "book/legible-swarm.tex").read_text()
+        bonded = (ROOT / "book/agent-transactions-whitepaper.tex").read_text()
         self.assertEqual(legible.count(r"\pdmarginfigure{leviathan}"), 1)
         self.assertEqual(legible.count(r"\pdmarginfigure{hobbes}"), 1)
         for person in ("sen", "hickman"):
             self.assertEqual(bonded.count("\\pdmarginfigure{" + person + "}"), 1)
 
     def test_delegation_summary_keeps_direct_issuance_alternative(self):
-        anchor = (ROOT / "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex").read_text()
+        anchor = (ROOT / "book/anchor-protocol-whitepaper.tex").read_text()
         table = anchor[anchor.index(r"\label{tab:proverif-results}"):]
         table = table[:table.index(r"\end{table}")]
         self.assertIn(r"\text{IssuedRoot}(a)", table)

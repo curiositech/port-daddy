@@ -20,7 +20,7 @@
     -balanced extent, not a fixed character window that can borrow a
     neighboring claim's tag).
   - **`no_tinted_box_macros`** — a legacy `\newcommand` that draws a
-    `fill=` node is dead only if `whitepaper/figures/pd-pedagogy.tex`'s own
+    `fill=` node is dead only if `book/figures/pd-pedagogy.tex`'s own
     `\AtBeginDocument` block actually re-`\long\def`'s that exact macro
     name (parsed from the file itself, not inferred from whether the
     chapter happens to `\input` it — see SKILL.md's Page grammar section).
@@ -59,14 +59,14 @@
   unmet is reported (status `WARN`) but never trips `--strict`. Given more than one
   chapter, or `--table`, the report becomes one consolidated table (chapter,
   floor, status, detail) instead of N separate reports; given no chapter at
-  all, the chapter list is read from `whitepaper/textbook.json` (the same
+  all, the chapter list is read from `book/textbook.json` (the same
   convention `skills/tufte-evidence-design/scripts/margin_lint.py` uses), so
   neither this script's CLI nor its CI step hard-codes the Book's chapter
-  paths. Tested on `whitepaper/single-writer-kernel.tex` (see
+  paths. Tested on `book/single-writer-kernel.tex` (see
   `examples/chapter1-lint-report.txt`) and, consolidated across all eight
   Book chapters, in `examples/consolidated-lint-report.txt` — the same
   report `library-checks.yml`'s CI step reads using
-  `--apparatus whitepaper/chapter-apparatus.json --max-blocking 15`. The
+  `--apparatus book/chapter-apparatus.json --max-blocking 15`. The
   ceiling is the current measured debt, not a clean chapter verdict, and
   the step is required. Invalid metadata fails independently of the budget. Unit tests:
   `tests/test_chapter_lint.py` and `tests/test_apparatus_metrics.py`
@@ -88,7 +88,7 @@ author-declared, and the ceiling measures known debt rather than approval.
   `abstraction-run`, `artifact-register-drift`, `caption-carries-the-fact`,
   `metaphor-domain-collision`, `metaphor-never-instantiated`,
   `undefined-slash-pair`. Given no chapter it reads the chapter list from
-  `whitepaper/textbook.json`, the same convention `chapter_lint.py` uses.
+  `book/textbook.json`, the same convention `chapter_lint.py` uses.
   Exit 0 when nothing is reported, 1 under `--strict` when something is,
   2 when a file cannot be read; `--selftest` runs the clean-vs-bad fixture
   pair and reports whether they separate. Stdlib only. Advisory in CI on

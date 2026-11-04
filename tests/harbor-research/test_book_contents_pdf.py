@@ -154,8 +154,8 @@ class AssembledBookContentsTests(unittest.TestCase):
         self.assertNotIn("References", titles, "Full references live beside their first use")
         self.assertEqual(sum(title.startswith("Chapter ") for title in titles), self.chapter_count)
         root = Path(__file__).resolve().parents[2]
-        manifest = json.loads((root / "whitepaper/textbook.json").read_text())
-        plates = root / "website-v2/public/whitepaper/plates"
+        manifest = json.loads((root / "book/textbook.json").read_text())
+        plates = root / "book/plates"
         # Verify image identities, not just resource count. Chapter0 and the
         # four reflection entries also have real visual locators in the ToC.
         expected = {f"part-{part['numeral']}.jpg" for part in manifest["parts"]}

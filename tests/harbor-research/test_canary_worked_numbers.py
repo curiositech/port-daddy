@@ -23,7 +23,7 @@ class CanaryWorkedNumbers(unittest.TestCase):
 
     def test_active_example_uses_correct_rounded_value(self):
         root = Path(__file__).resolve().parents[2]
-        source = (root / "website-v2/public/whitepaper/sealed-harbor.tex").read_text()
+        source = (root / "book/sealed-harbor.tex").read_text()
         self.assertIn(r"1-0.992^{100}\approx0.552", source)
         self.assertNotIn(r"1-0.992^{100}=0.553", source)
 

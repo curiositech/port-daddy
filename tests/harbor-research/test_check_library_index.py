@@ -41,7 +41,7 @@ TWIN_HEADER = """\
 % TWIN-LOCATION NOTICE. This file is one of the shared homes for the same
 % results; edit every listed home or the drift checker fails.
 %   Standalone paper : docs/harbor-research/tex/paper1.tex (S1)
-%   Chapter          : whitepaper/testchap.tex (Chapter 1, Test Chapter)
+%   Chapter          : book/testchap.tex (Chapter 1, Test Chapter)
 %   Index ids        : TEST1
 %   Check            : python3 scripts/harbor-research/check_library_index.py
 %   System document  : docs/harbor-research/LIBRARY-SYSTEM.md
@@ -69,7 +69,7 @@ The statement of foo.
 """
 
 
-def textbook_json(prefix: str = "tc", chapter_source: str = "whitepaper/testchap.tex") -> str:
+def textbook_json(prefix: str = "tc", chapter_source: str = "book/testchap.tex") -> str:
     return json.dumps({
         "$schema": "./textbook.schema.json",
         "edition": {"title": "Test Edition"},
@@ -108,7 +108,7 @@ def base_entry(**overrides) -> dict:
         },
         "chapters": [
             {
-                "file": "whitepaper/testchap.tex",
+                "file": "book/testchap.tex",
                 "chapter": 1,
                 "prefix": "tc",
                 "labels": ["thm:foo"],
@@ -135,13 +135,13 @@ class FixtureRepo:
                  paper_extra: str = "", chapter_extra: str = "",
                  chapter_prefix: str = "tc", textbook_prefix: str = "tc"):
         self.root = tmp
-        write(tmp / "whitepaper" / "textbook.json", textbook_json(prefix=textbook_prefix))
+        write(tmp / "book" / "textbook.json", textbook_json(prefix=textbook_prefix))
         write(
             tmp / "docs" / "harbor-research" / "tex" / "paper1.tex",
             PAPER1_BODY.format(header=TWIN_HEADER if with_twin_headers else "", extra=paper_extra),
         )
         write(
-            tmp / "whitepaper" / "testchap.tex",
+            tmp / "book" / "testchap.tex",
             CHAPTER_BODY.format(
                 header=TWIN_HEADER if with_twin_headers else "",
                 extra=chapter_extra,
@@ -190,7 +190,7 @@ class TestCheckA_Existence(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             repo = FixtureRepo(Path(tmp))
             entry = base_entry()
-            entry["chapters"][0]["file"] = "whitepaper/does-not-exist.tex"
+            entry["chapters"][0]["file"] = "book/does-not-exist.tex"
             repo.write_index([entry])
             result = run_checker(repo.root)
             self.assertEqual(result.returncode, 1)
@@ -227,7 +227,7 @@ class TestCheckB_Coverage(unittest.TestCase):
             )
             repo.write_index(
                 [base_entry()],
-                allow=[{"id": "def:stray", "file": "whitepaper/testchap.tex", "reason": "test fixture stray def"}],
+                allow=[{"id": "def:stray", "file": "book/testchap.tex", "reason": "test fixture stray def"}],
             )
             result = run_checker(repo.root)
             self.assertEqual(result.returncode, 0, msg=result.stdout)
@@ -242,7 +242,7 @@ class TestCheckB_Coverage(unittest.TestCase):
             result = run_checker(repo.root)
             self.assertEqual(result.returncode, 1)
             self.assertIn("has no \\label", result.stdout)
-            self.assertIn("unlabeled-env:whitepaper/testchap.tex:", result.stdout)
+            self.assertIn("unlabeled-env:book/testchap.tex:", result.stdout)
 
     def test_unlabeled_environment_passes_when_allow_listed_by_synthetic_id(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -253,15 +253,15 @@ class TestCheckB_Coverage(unittest.TestCase):
             # The lemma opens right after the \end{theorem} block that CHAPTER_BODY
             # already contains, plus the blank \begin{document} etc. -- rather than
             # hardcode the exact line number (fragile), discover it from the file.
-            chapter_text = (repo.root / "whitepaper" / "testchap.tex").read_text()
+            chapter_text = (repo.root / "book" / "testchap.tex").read_text()
             line_no = next(
                 i for i, line in enumerate(chapter_text.splitlines(), start=1)
                 if line.startswith("\\begin{lemma}")
             )
-            synthetic_id = f"unlabeled-env:whitepaper/testchap.tex:{line_no}"
+            synthetic_id = f"unlabeled-env:book/testchap.tex:{line_no}"
             repo.write_index(
                 [base_entry()],
-                allow=[{"id": synthetic_id, "file": "whitepaper/testchap.tex", "reason": "test fixture, no label allowed"}],
+                allow=[{"id": synthetic_id, "file": "book/testchap.tex", "reason": "test fixture, no label allowed"}],
             )
             result = run_checker(repo.root)
             self.assertEqual(result.returncode, 0, msg=result.stdout)
@@ -272,7 +272,7 @@ class TestCheckC_Drift(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             # Chapter body's own template already prints "42"; overwrite it away.
             repo = FixtureRepo(Path(tmp))
-            chapter_path = repo.root / "whitepaper" / "testchap.tex"
+            chapter_path = repo.root / "book" / "testchap.tex"
             chapter_path.write_text(chapter_path.read_text().replace("42", "forty-two"))
             repo.write_index([base_entry()])
             result = run_checker(repo.root)
@@ -307,7 +307,7 @@ class TestCheckD_TwinHeader(unittest.TestCase):
             # Corrupt paper1's header so it no longer names its chapter partner.
             paper_path = repo.root / "docs" / "harbor-research" / "tex" / "paper1.tex"
             paper_path.write_text(
-                paper_path.read_text().replace("whitepaper/testchap.tex", "whitepaper/somewhere-else.tex")
+                paper_path.read_text().replace("book/testchap.tex", "book/somewhere-else.tex")
             )
             repo.write_index([base_entry()])
             result = run_checker(repo.root)
@@ -333,7 +333,7 @@ class TestCheckD_TwinHeader(unittest.TestCase):
             # so this test isolates check (d), not check (b).
             repo.write_index(
                 [entry],
-                allow=[{"id": "thm:foo", "file": "whitepaper/testchap.tex", "reason": "unused in this fixture"}],
+                allow=[{"id": "thm:foo", "file": "book/testchap.tex", "reason": "unused in this fixture"}],
             )
             result = run_checker(repo.root)
             self.assertEqual(result.returncode, 0, msg=result.stdout)
@@ -414,7 +414,7 @@ class TestMalformedIndex(unittest.TestCase):
             self.assertIn("duplicate entry id", result.stderr)
 
     def test_repeated_allow_row_for_one_file_is_a_clean_fatal_error(self) -> None:
-        row = {"id": "def:stray", "file": "whitepaper/testchap.tex", "reason": "first reason"}
+        row = {"id": "def:stray", "file": "book/testchap.tex", "reason": "first reason"}
         with TemporaryDirectory() as tmp:
             repo = FixtureRepo(
                 Path(tmp),
@@ -440,7 +440,7 @@ class TestMalformedIndex(unittest.TestCase):
             repo.write_index(
                 [base_entry()],
                 allow=[
-                    {"id": "def:stray", "file": "whitepaper/testchap.tex", "reason": "this chapter's instance"},
+                    {"id": "def:stray", "file": "book/testchap.tex", "reason": "this chapter's instance"},
                     {"id": "def:stray", "file": "docs/harbor-research/tex/paper1.tex", "reason": "the other instance"},
                 ],
             )

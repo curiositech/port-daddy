@@ -198,7 +198,7 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
     from the preamble that actually sets them.
     """
 
-    GEOMETRY = Path(__file__).resolve().parents[2] / "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex"
+    GEOMETRY = Path(__file__).resolve().parents[2] / "book/coordination-papers-mega-volume-preamble.tex"
 
     def geometry(self):
         text = self.GEOMETRY.read_text(encoding="utf-8")

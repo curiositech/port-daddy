@@ -23,7 +23,7 @@ from tempfile import TemporaryDirectory
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CHECKER = REPO_ROOT / "skills" / "textbook-craft" / "scripts" / "readers_eye.py"
-SPECIMEN = REPO_ROOT / "whitepaper" / "single-writer-kernel.tex"
+SPECIMEN = REPO_ROOT / "book" / "single-writer-kernel.tex"
 
 
 def run_checker(files, extra=None) -> subprocess.CompletedProcess:
@@ -48,7 +48,7 @@ def rules(findings) -> set:
     return {f["rule"] for f in findings}
 
 
-#: whitepaper/single-writer-kernel.tex:439-471 exactly as it read on
+#: book/single-writer-kernel.tex:439-471 exactly as it read on
 #: 2026-09-14 (commit 104959367), before the organ metaphor was fixed for
 #: real in response to direct human review ("Why are you calling it
 #: organs??? ... Please, change the name.", PR #10237). That fix retired the
@@ -107,7 +107,7 @@ warrants.
 
 
 class TestSpecimen(unittest.TestCase):
-    """A frozen snapshot of whitepaper/single-writer-kernel.tex:439, section
+    """A frozen snapshot of book/single-writer-kernel.tex:439, section
     1.3 'The kernel as seven organs' -- the paragraph this check was built
     for (see SPECIMEN_TEXT above for why it is frozen rather than live).
     If these fail, the check is wrong; the specimen is not."""
@@ -357,7 +357,7 @@ class TestCLI(unittest.TestCase):
             import readers_eye  # noqa: PLC0415
         finally:
             sys.path.pop(0)
-        textbook = json.loads((REPO_ROOT / "whitepaper" / "textbook.json").read_text(encoding="utf-8"))
+        textbook = json.loads((REPO_ROOT / "book" / "textbook.json").read_text(encoding="utf-8"))
         expected = [str(REPO_ROOT / ch["source"]) for ch in textbook["chapters"]]
         self.assertEqual(readers_eye.default_chapter_sources(str(REPO_ROOT)), expected)
 

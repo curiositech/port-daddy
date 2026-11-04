@@ -5,10 +5,10 @@
 % Protocol-only open-font geometry, independent of the publication edition.
 \def\pdedition{maritime}
 \makeatletter
-\edef\input@path{{\pdprotocolroot/website-v2/public/whitepaper/}}
+\edef\input@path{{\pdprotocolroot/book/}}
 \makeatother
-\input{\pdprotocolroot/website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex}
-\graphicspath{{\pdprotocolroot/website-v2/public/whitepaper/}}
+\input{\pdprotocolroot/book/coordination-papers-mega-volume-preamble.tex}
+\graphicspath{{\pdprotocolroot/book/}}
 \ifdefstring{\pdprotocolfontprofile}{heros-open}{%
   \AtBeginDocument{\setmainfont{texgyreheros-regular.otf}[BoldFont=texgyreheros-bold.otf,
     ItalicFont=texgyreheros-italic.otf,BoldItalicFont=texgyreheros-bolditalic.otf]}}{%

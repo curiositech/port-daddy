@@ -10,7 +10,7 @@ import { TABLE_OF_CONTENTS, TEXTBOOK, chapterRoleLabel, type WhitePaper } from '
  * separate reading order, dependency DAG, or nesting diagram any more: the
  * order is the dependency order (each chapter stands on the ones before it,
  * and each proving chapter follows the chapter whose promises it keeps), and
- * every number here comes from whitepaper/textbook.json via ./textbook.json.
+ * every number here comes from book/textbook.json via ./textbook.json.
  *
  * Each row carries the chapter's question (the sentence its opening page asks)
  * rather than a page count or a per-chapter PDF: the Book is one document, and

@@ -33,13 +33,13 @@ import check_delegation_chain_vocabulary as dcv  # noqa: E402
 
 # The four uses the workflow records, as (path, allow-key snippet).
 RECORDED = [
-    ("whitepaper/single-writer-kernel.tex",
+    ("book/single-writer-kernel.tex",
      "attenuation-monotonic delegation chain of digital signatures"),
-    ("whitepaper/legible-swarm.tex",
+    ("book/legible-swarm.tex",
      "attenuation-monotonic delegation chain (a security object"),
-    ("website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+    ("book/anchor-protocol-whitepaper.tex",
      r"Delegation chain authenticity (\S\ref{sec:delegation}"),
-    ("website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+    ("book/agent-transactions-whitepaper.tex",
      "Delegation chain replay & ProVerif at depth 3"),
 ]
 ALLOW = {f"{p}:{k}" for p, k in RECORDED}
@@ -162,7 +162,7 @@ class TestAgainstTheRealCorpus(unittest.TestCase):
     def test_an_exception_recorded_for_one_use_does_not_cover_another(self):
         """The defect this guard exists for, grafted back in (on a copy)."""
         with corpus_copy() as (root, paths):
-            target = root / "website-v2/public/whitepaper/agent-transactions-whitepaper.tex"
+            target = root / "book/agent-transactions-whitepaper.tex"
             original = target.read_text(encoding="utf-8")
             injected = original.replace(
                 "Capabilities can only shrink along the authorization chain, never grow.",
@@ -176,7 +176,7 @@ class TestAgainstTheRealCorpus(unittest.TestCase):
     def test_reverting_the_fix_reports_again_so_it_measures_the_defect(self):
         """Both directions: the check tracks the text, not a coincidence."""
         with corpus_copy() as (root, paths):
-            target = root / "whitepaper/single-writer-kernel.tex"
+            target = root / "book/single-writer-kernel.tex"
             original = target.read_text(encoding="utf-8")
             reverted = original.replace(
                 "cryptographic\nauthorization chain this kernel ships",
@@ -196,7 +196,7 @@ class TestAgainstTheRealCorpus(unittest.TestCase):
         """The guard on the guard: no test here may write to a tracked file."""
         before = {p: p.read_bytes() for p in self.paths if p.is_file()}
         with corpus_copy() as (root, paths):
-            (root / "whitepaper/single-writer-kernel.tex").write_text(
+            (root / "book/single-writer-kernel.tex").write_text(
                 "Authority narrows along the delegation chain.\n", encoding="utf-8")
             self.assertEqual(len(dcv.find_bare(paths, ALLOW)), 1)
         self.assertEqual({p: p.read_bytes() for p in before}, before)

@@ -13,13 +13,13 @@ import { describe, expect, test } from '@jest/globals';
 // the shared review evidence that still names it.
 const paths = {
   catalog: 'website-v2/src/data/whitePapers.ts',
-  source: 'website-v2/public/whitepaper/spawn-to-person.tex',
-  keystone: 'website-v2/public/whitepaper/figures/tab-keystone-split.tex',
+  source: 'book/spawn-to-person.tex',
+  keystone: 'book/figures/tab-keystone-split.tex',
   // \BUILT/\BUILTWEAK/\DESIGNED/\VISION used to be defined again in this
   // chapter's own preamble; they are now defined once, for every chapter and
   // the Book, in the shared file this chapter \input{}s (see
   // check_duplicate_macros.py). The maturity-word assertion below reads both.
-  pedagogy: 'website-v2/public/whitepaper/figures/pd-pedagogy.tex',
+  pedagogy: 'book/figures/pd-pedagogy.tex',
   contact: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-contact-sheet.png',
   tour: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-tour.gif',
   proof: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/proof-manifest.md',

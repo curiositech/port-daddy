@@ -34,14 +34,14 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 CHAPTERS = [
-    "whitepaper/single-writer-kernel.tex",
-    "whitepaper/legible-swarm.tex",
-    "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-    "website-v2/public/whitepaper/sealed-harbor.tex",
-    "website-v2/public/whitepaper/spawn-to-person.tex",
-    "website-v2/public/whitepaper/harbor-economy.tex",
-    "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-    "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+    "book/single-writer-kernel.tex",
+    "book/legible-swarm.tex",
+    "book/anchor-protocol-whitepaper.tex",
+    "book/sealed-harbor.tex",
+    "book/spawn-to-person.tex",
+    "book/harbor-economy.tex",
+    "book/agent-transactions-whitepaper.tex",
+    "book/federated-harbor-whitepaper.tex",
 ]
 
 POINTER = re.compile(r"^\\pdexercisepointer(one)?\*?\{.*$", re.M)

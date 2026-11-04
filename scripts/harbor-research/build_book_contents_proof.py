@@ -14,8 +14,8 @@ import fitz
 
 def build_proof(book_path, output, edition):
     root = Path(__file__).resolve().parents[2]
-    manifest = json.loads((root / 'whitepaper/textbook.json').read_text())
-    plate_root = root / 'website-v2/public/whitepaper/plates'
+    manifest = json.loads((root / 'book/textbook.json').read_text())
+    plate_root = root / 'book/plates'
     if edition != 'maritime':
         plate_root /= edition
     output.mkdir(parents=True, exist_ok=True)

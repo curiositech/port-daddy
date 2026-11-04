@@ -62,9 +62,17 @@ try {
         const bounds = await link.boundingBox()
         assert(bounds.height >= 44 && bounds.width >= 44, name + ': chapter touch target')
       }
+      const spreads = main.getByRole('link', { name: 'Read facing pages (PDF)' })
+      const source = main.getByRole('link', { name: 'Download LaTeX source (.tar.gz)' })
+      assert.equal(await source.getAttribute('href'), '/whitepaper/coordination-papers-mega-volume-source.tar.gz')
       await pdf.focus()
-      await page.keyboard.press('Tab')
-      assert.equal(await chapters.first().evaluate((link) => link === document.activeElement), true, name + ': keyboard order from PDF to first chapter')
+      for (const link of [spreads, source, chapters.first()]) {
+        await page.keyboard.press('Tab')
+        assert.equal(await link.evaluate((element) => element === document.activeElement), true, name + ': keyboard reading/download order')
+        const bounds = await link.boundingBox()
+        assert(bounds.height >= 44 && bounds.width >= 44, name + ': download touch target')
+        assert.equal(await link.evaluate((element) => getComputedStyle(element).outlineStyle), 'solid', name + ': visible download focus')
+      }
       assert.equal(await chapters.first().evaluate((link) => getComputedStyle(link).outlineStyle), 'solid', name + ': visible keyboard focus')
       const summary = main.locator('summary')
       await summary.scrollIntoViewIfNeeded()

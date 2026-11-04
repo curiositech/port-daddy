@@ -40,8 +40,7 @@ import re
 import sys
 
 TEX_GLOBS = [
-    "whitepaper/**/*.tex",
-    "website-v2/public/whitepaper/**/*.tex",
+    "book/**/*.tex",
 ]
 # Token/component files where the CSS custom property could be reached from
 # component code -- everything under src, plus the token file itself (which

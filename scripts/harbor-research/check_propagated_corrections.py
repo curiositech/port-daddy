@@ -401,38 +401,38 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "reconciliation table exists with a status column",
                 present=r"\\label\{tab:op-status\}",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "table's OP-1 row must say Open (matches the design-not-yet-shipped state)",
                 present=r"OP-1 & Fair exclusion without a scheduler & \\Open &",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "the adjacency contract's explicit non-provisions still list OP-1 as not provided",
                 present=r"does \\emph\{not\} provide fair/queued exclusion \(OP-1\)",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "the master Open Problems list must not claim OP-1 is closed/solved",
                 absent=r"\$\\bigstar\$\s*OP-1[^.\n]*\]\s*Status:\s*\\Closed",
                 present=r"\$\\bigstar\$ OP-1 --- Fair exclusion without a scheduler\.\] Status: \\Open",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "table's OP-3 (runtime parity) row must say Open, not solved",
                 present=r"OP-3 & Cross-runtime soundness \(I11\) & \\Open &",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "table's OP-9 (SO_PEERCRED / same-machine adversary) row must say Open",
                 present=r"OP-9 & Same-machine adversary & \\Open &",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "table's OP-10 (selective checkpointing) row must say Open",
                 present=r"OP-10 & Per-write-path durability & \\Open &",
             ),
@@ -451,12 +451,12 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "alg:close comment marks DELTA_ORACLE/AST_ASSERTION as not-yet-shipped",
                 present=r"\(OP-5, specified only\) would add DELTA_ORACLE and AST_ASSERTION here",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "book/single-writer-kernel.tex",
                 "the shipped oracle-kind set (the actual enum literal) must not include the two new kinds",
                 absent=r"\{RELEASED_CLAIM,\s*MERGED_COMMIT,\s*PASSING_TEST,\s*POLICY_SUBCHECK,\s*(DELTA_ORACLE|AST_ASSERTION)",
             ),
@@ -474,18 +474,18 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "whitepaper/legible-swarm.tex",
+                "book/legible-swarm.tex",
                 "prose must not claim the sidecar architecture is already established",
                 absent=r"the architecture establishes two separate pipelines",
                 present=r"The design uses two reader-facing heads over evidence that may share a store",
             ),
             Check(
-                "whitepaper/legible-swarm.tex",
+                "book/legible-swarm.tex",
                 "Oversight Head must carry an explicit \\Vision (not-yet-built) tag",
                 present=r"Oversight Head \(\$R_2\$, \\Vision\)",
             ),
             Check(
-                "whitepaper/legible-swarm.tex",
+                "book/legible-swarm.tex",
                 "Appendix A must carry a row for the sidecar",
                 present=r"Oversight head / SLM sidecar \(air-gapped digest authoring\) & \\Vision",
             ),
@@ -504,13 +504,13 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "website-v2/public/whitepaper/spawn-to-person.tex",
+                "book/spawn-to-person.tex",
                 "pitfall box must not claim OP-4 is solved/instant",
                 absent=r"is now solved via[\s\S]{0,20}Event-Sourced Neural Rehydration|turning[^.]*instantly",
                 present=r"\\DESIGNED, not \\BUILT",
             ),
             Check(
-                "website-v2/public/whitepaper/spawn-to-person.tex",
+                "book/spawn-to-person.tex",
                 "S10 open-problems entry must not claim OP-4 is Solved",
                 absent=r"Solved via \\textbf\{Event-Sourced Neural Rehydration\}",
                 present=r"\\DESIGNED\\ candidate answer",
@@ -532,7 +532,7 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                "book/federated-harbor-whitepaper.tex",
                 "S6.2's clearinghouse language must not assert the escrow as closed/settled",
                 absent=r"2-of-3 Multisig Clearinghouse",
                 present=r"candidate design, not a closed result",
@@ -541,19 +541,19 @@ ITEMS: list[Item] = [
                 # The topology figure became a table shared by chapters 6 and 8
                 # (Textbook Edition, wave 11); the settlement row must still
                 # state the custody bound as conditional on the gate.
-                "website-v2/public/whitepaper/figures/tab-fh-topology.tex",
+                "book/figures/tab-fh-topology.tex",
                 "topology table's settlement row must be conditional, not an unconditional invariant",
                 absent=r"Non-Custodial: Can Refuse, Cannot Redirect",
                 present=r"(?:holds only if the settlement gate holds|bound custody unconditionally: the bound needs the settlement gate)",
             ),
             Check(
-                "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+                "book/figures/fig-fh-settlement.tex",
                 "settlement figure must name its custody assumptions, not an unconditional authority invariant",
                 absent=r"Authority Invariant",
                 present=r"(?:Custody Assumption|the custody assumption: whitelist, fee cap, one terminal transition)",
             ),
             Check(
-                "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
+                "book/figures/fig-fh-xfer-ceremony.tex",
                 # The revised sequence contains no settlement promise at all.
                 # Keep rejecting the old unconditional claim, but do not
                 # require an unrelated custody box to be added back to it.

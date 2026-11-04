@@ -20,6 +20,8 @@ describe('book reading and navigation', () => {
     const pdf = within(main).getByRole('link', { name: 'Read book (PDF)' })
     expect(pdf.getAttribute('href')).toBe(COLLECTED_VOLUME.pdfPath)
     expect(within(main).getByRole('link', { name: 'Read facing pages (PDF)' }).getAttribute('href')).toBe(COLLECTED_VOLUME.spreadsPdfPath)
+    expect(within(main).getByRole('link', { name: 'Download LaTeX source (.tar.gz)' }).getAttribute('href')).toBe(COLLECTED_VOLUME.sourceArchivePath)
+    expect(main.textContent).toContain('Builds with open fonts')
     expect(main.textContent).toContain(`${COLLECTED_VOLUME.pages} pages`)
     expect(screen.queryByRole('tablist')).toBeNull()
     const outline = within(main).getByRole('region', { name: 'Inside the book' })

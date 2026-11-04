@@ -28,7 +28,7 @@ live". This script is the thing that keeps the index honest:
   (d) twin header -- both files of every folded pair carry the TWIN-LOCATION
                       NOTICE header (naming each other and the entry's id).
   (e) prefix      -- every chapter source's \\newcommand{\\pdchapterprefix}{...}
-                      equals whitepaper/textbook.json's prefix for that chapter,
+                      equals book/textbook.json's prefix for that chapter,
                       and the entry's own "prefix"/"chapter" fields agree with it.
   (f) LIBRARY-INDEX.md -- --write-md regenerates it; --check-md fails if stale.
 
@@ -63,7 +63,7 @@ REPO_ROOT = cc.REPO_ROOT  # overridable below for tests, via --repo-root
 INDEX_REL = "docs/harbor-research/library-index.json"
 SCHEMA_REL = "docs/harbor-research/library-index.schema.json"
 MD_REL = "docs/harbor-research/LIBRARY-INDEX.md"
-TEXTBOOK_REL = "whitepaper/textbook.json"
+TEXTBOOK_REL = "book/textbook.json"
 
 THM_FAMILY_ENVS = ["theorem", "lemma", "proposition", "corollary", "definition", "conjecture"]
 LABEL_PREFIXES = ["thm", "lem", "prop", "cor", "def", "conj"]

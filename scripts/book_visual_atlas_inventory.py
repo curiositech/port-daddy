@@ -28,7 +28,7 @@ def main():
     out=a.output;out.mkdir(parents=True,exist_ok=True)
     for d in ['crops','contexts','sources']: (out/d).mkdir(exist_ok=True)
     aux=(a.build/'coordination-papers-mega-volume.aux').read_text();caps=caption_records(aux);owners=exhibit_records(aux)
-    files=list(Path('website-v2/public/whitepaper').glob('*.tex'))+list(Path('whitepaper').rglob('*.tex'))+list(a.build.glob('*.tex')); sources={p:p.read_text() for p in files};labelmap={}
+    files=list(Path('book').glob('*.tex'))+list(Path('book').rglob('*.tex'))+list(a.build.glob('*.tex')); sources={p:p.read_text() for p in files};labelmap={}
     for p,t in sources.items():
         for m in re.finditer(r'\\label\{([^}]+)\}|\[([^]\n]+)\]',t):
             key=m[1] or m[2]
@@ -143,12 +143,12 @@ def main():
         dependencies=[]
         for rel in re.findall(r'\\input\{([^}]+)\}',source['excerpt']):
             rel=rel if rel.endswith('.tex') else rel+'.tex'
-            choices=[Path(source['path']).parent/rel,Path('whitepaper')/rel,Path('website-v2/public/whitepaper')/rel]
+            choices=[Path(source['path']).parent/rel,Path('book')/rel,Path('book')/rel]
             dep=next((p for p in choices if p.exists()),None)
             if dep:dependencies.append(source_record(dep,dep.read_text(),0,len(dep.read_text())))
         item['sourceDependencies']=dependencies
         if 'fig:book-reader-map' in item.get('captionRecord',{}).get('labels',[]):
-            full=Path('whitepaper/figures/fig-book-reader-map.tex');item['source']=source_record(full,full.read_text(),0,len(full.read_text()))
+            full=Path('book/figures/fig-book-reader-map.tex');item['source']=source_record(full,full.read_text(),0,len(full.read_text()))
             leftlabel=next((tex_groups(tex_groups(line)[1])[3] for line in aux.splitlines() if line.startswith('\\newlabel{book:reader-left}')),None);left=names.get(leftlabel) if leftlabel else None
             if left:
                 page=left['page']+1;pg=doc[page-1];cp=f'crops/{item["id"]}-left.png';ctx=f'contexts/page-{page:04d}.png';pg.get_pixmap(matrix=fitz.Matrix(1.1,1.1),alpha=False).save(out/cp)
@@ -156,7 +156,7 @@ def main():
                 item['occurrences'].insert(0,dict(page=page,printedPage=pg.get_label(),bbox=list(pg.rect),crop=cp,context=ctx,part='first half of explicitly split source figure'))
     # Decoded pixel identity connects raster placements to actual shipped assets.
     assetmap={}
-    for asset in Path('website-v2/public/whitepaper/plates').rglob('*'):
+    for asset in Path('book/plates').rglob('*'):
         if asset.suffix.lower() not in ('.jpg','.jpeg','.png','.webp'):continue
         try:identity=hashlib.md5(Image.open(asset).convert('RGB').tobytes()).hexdigest()
         except Exception:continue

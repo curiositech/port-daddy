@@ -12,7 +12,7 @@ import { describe, expect, test } from '@jest/globals';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const preamblePath = resolve(
   repoRoot,
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex',
+  'book/coordination-papers-mega-volume-preamble.tex',
 );
 // The maturity vocabulary (\Built/\BuiltWeak/\Designed/\Vision) used to be
 // defined a second time here, duplicating the chapter preambles; it is now
@@ -21,7 +21,7 @@ const preamblePath = resolve(
 // preamble \input{}s.
 const pedagogyPath = resolve(
   repoRoot,
-  'website-v2/public/whitepaper/figures/pd-pedagogy.tex',
+  'book/figures/pd-pedagogy.tex',
 );
 
 describe('collected-volume LaTeX preamble', () => {

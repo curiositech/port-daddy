@@ -11,7 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_DIR = Path("/Users/erichowens/.gemini/antigravity/brain/7c266e41-224e-46d3-8d23-bb0d02aa8bfc")
-WP_DIR = REPO_ROOT / "website-v2/public/whitepaper"
+WP_DIR = REPO_ROOT / "book"
 CACHE_BUILD = REPO_ROOT / ".cache/whitepaper-build/coordination-papers-mega-volume"
 
 def render():
