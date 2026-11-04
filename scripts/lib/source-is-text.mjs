@@ -97,6 +97,7 @@ export const ALLOWED_BINARY_SOURCE = new Set([]);
  * @type {Set<string>}
  */
 export const ALLOWED_NON_TEXT_PATTERNS = new Set([
+  'website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.pdf', // Generated PDF with a long text header; never text-diff or text-merge.
   'whitepaper-foundlings/**/*.png', // LFS-tracked archival screenshots, PR #10105
   'whitepaper-foundlings/**/*.pdf', // LFS-tracked archival PDFs, PR #10105
   'skill_candidates/**/*.pdf', // LFS-tracked archival PDF, PR #10105
