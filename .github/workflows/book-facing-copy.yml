@@ -47,3 +47,20 @@ jobs:
         run: node --test website-v2/scripts/check-book-spreads.test.mjs
       - name: Verify the committed reading formats belong together
         run: node website-v2/scripts/check-book-spreads.mjs
+
+  refresh-environment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+      - name: Verify conversion in the Book refresh environment
+        run: |
+          set -eu
+          apt-get update && apt-get install -y python3-venv
+          python3 -m venv "$RUNNER_TEMP/book-facing-env"
+          "$RUNNER_TEMP/book-facing-env/bin/python" -m pip install -r scripts/harbor-research/requirements-pdf.txt
+          "$RUNNER_TEMP/book-facing-env/bin/python" -m unittest discover -s scripts -p test_build_facing_pdf.py -v

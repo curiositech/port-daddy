@@ -62,6 +62,20 @@ describe('whitepaper-build keeps the Book out of ordinary diffs', () => {
     );
   });
 
+  test('an authorized refresh regenerates and stages both reading formats before metadata', () => {
+    const refresh = stepNamed('Refresh the facing copy with an authorized Book refresh');
+    expect(refresh).toContain("steps.regen.outputs.carry == 'true'");
+    expect(refresh).toContain("github.event_name == 'workflow_dispatch' && inputs.refresh_book && github.ref_name != 'main'");
+    expect(refresh).toContain('bash scripts/build-spreads.sh');
+    expect(refresh).toContain('node website-v2/scripts/check-book-spreads.mjs');
+    expect(workflow.indexOf('name: Refresh the facing copy')).toBeLessThan(
+      workflow.indexOf('name: Carry the derived metadata'),
+    );
+    const commit = stepNamed('Commit rebuilt PDFs and their derived metadata (same-repo branch)');
+    expect(commit).toContain('git add website-v2/public/whitepaper/*.pdf');
+    expect(commit).toContain('website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.json');
+  });
+
   test('chapter PDFs are deliberately left alone', () => {
     // Only the Book is frozen. A chapter PDF is chapter-scoped: two PRs collide
     // on one only by editing the same chapter, which is a real conflict a
