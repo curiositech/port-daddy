@@ -246,8 +246,11 @@ jobs:
           name: freshly-built-editions
           if-no-files-found: error
           retention-days: 1
+          include-hidden-files: true
+          # The publication PDF may already have been restored above. Take the
+          # fresh build output that matches the caption inventory below.
           path: |
-            website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
+            .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
 
       # Caption coverage comes from the converged build inventory, not a
       # hand-selected list of figures. Keep this sidecar out of the website.

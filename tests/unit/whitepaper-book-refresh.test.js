@@ -17,6 +17,7 @@ const workflow = readFileSync(
 );
 
 const BOOK = 'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf';
+const PROOF = '.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf';
 
 function stepNamed(name) {
   const start = workflow.indexOf(`      - name: ${name}`);
@@ -41,7 +42,9 @@ describe('whitepaper-build keeps the Book out of ordinary diffs', () => {
     // job judges the page this run made, and a Book that no longer compiles has
     // to fail here rather than at release.
     const upload = stepNamed('Hand the freshly built Book to the type-over-art check');
-    expect(upload).toContain(BOOK);
+    expect(upload).toContain(PROOF);
+    expect(upload).not.toContain(BOOK);
+    expect(upload).toContain('include-hidden-files: true');
     expect(upload).toContain('if-no-files-found: error');
 
     // The restore runs after the upload, or the cover check would judge the
