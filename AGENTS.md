@@ -512,7 +512,11 @@ current `.tex` sources.
    and verify the hash after copying. Retain the source, font-profile, build,
    PDF-gate and facing-spread receipts. Keep private font files out of Git and
    CI artifacts.
-3. With that PDF on disk, run the metadata fixer and then its strict check from
+3. With that PDF on disk, run `bash scripts/build-spreads.sh` to regenerate the
+   public facing-page PDF and its source-bound receipt. This preserves text and
+   PDF navigation; website builds reject a missing or stale derivative. Publish
+   both PDFs and `coordination-papers-mega-volume-spreads.json` together.
+   Then run the metadata fixer and its strict check from
    `website-v2`: `npx tsx scripts/check-whitepaper-metadata.ts --fix`, then the
    same command without `--fix`. From the repository root, run
    `python3 scripts/whitepaper-plates/render_cover_plate.py --write` and `--check`,

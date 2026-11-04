@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run generate:seo && npm run generate:skill-audit",
+    "prebuild": "node scripts/check-book-spreads.mjs && npm run generate:seo && npm run generate:skill-audit",
     "build": "tsc -b && vite build",
     "postbuild": "tsx scripts/inject-route-html.mjs && node scripts/prune-pages-assets.mjs",
     "snap:routes": "tsx scripts/snap-routes.mjs",
@@ -17,7 +17,7 @@
     "optimize:visuals": "node scripts/generate-gemini-assets.mjs --optimize-existing",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test": "vitest run && npm run test:interface-contrast",
+    "test": "vitest run && node --test scripts/check-book-spreads.test.mjs && npm run test:interface-contrast",
     "test:paper8-review": "node scripts/test-paper8-review-regressions.mjs",
     "generate:seo": "tsx scripts/generate-seo-artifacts.mjs",
     "generate:skill-audit": "node scripts/generate-skill-audit.mjs",

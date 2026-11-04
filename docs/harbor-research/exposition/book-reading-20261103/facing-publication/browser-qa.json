@@ -1,0 +1,454 @@
+{
+  "scope": "New Book reading-format link; browser checks of the composed /whitepaper page. Local Vite proof, not production proof.",
+  "browser": "145.0.7632.6",
+  "observations": [
+    {
+      "name": "1440-light-normal",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "mainWidth": 1152,
+      "rootFont": "16px",
+      "theme": "light",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 160,
+          "right": 345,
+          "width": 185,
+          "height": 49.59375,
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "16px",
+          "background": "rgb(0, 63, 184)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 160,
+          "right": 366.484375,
+          "width": 206.484375,
+          "height": 44,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "16px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "1440-light-text200",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "mainWidth": 1440,
+      "rootFont": "32px",
+      "theme": "light",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 32,
+          "right": 401.984375,
+          "width": 369.984375,
+          "height": 99.1875,
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "32px",
+          "background": "rgb(0, 63, 184)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 32,
+          "right": 444.96875,
+          "width": 412.96875,
+          "height": 88,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "32px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "1440-dark-normal",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "mainWidth": 1152,
+      "rootFont": "16px",
+      "theme": "dark",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 160,
+          "right": 345,
+          "width": 185,
+          "height": 49.59375,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "16px",
+          "background": "rgb(125, 180, 255)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 160,
+          "right": 366.484375,
+          "width": 206.484375,
+          "height": 44,
+          "color": "rgb(245, 243, 237)",
+          "fontSize": "16px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "1440-dark-text200",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "mainWidth": 1440,
+      "rootFont": "32px",
+      "theme": "dark",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 32,
+          "right": 401.984375,
+          "width": 369.984375,
+          "height": 99.1875,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "32px",
+          "background": "rgb(125, 180, 255)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 32,
+          "right": 444.96875,
+          "width": 412.96875,
+          "height": 88,
+          "color": "rgb(245, 243, 237)",
+          "fontSize": "32px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "720-light-normal",
+      "viewport": 720,
+      "pageWidth": 720,
+      "mainWidth": 720,
+      "rootFont": "16px",
+      "theme": "light",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 16,
+          "right": 201,
+          "width": 185,
+          "height": 49.59375,
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "16px",
+          "background": "rgb(0, 63, 184)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 16,
+          "right": 222.484375,
+          "width": 206.484375,
+          "height": 44,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "16px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "720-light-text200",
+      "viewport": 720,
+      "pageWidth": 720,
+      "mainWidth": 720,
+      "rootFont": "32px",
+      "theme": "light",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 32,
+          "right": 272,
+          "width": 240,
+          "height": 201.5625,
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "32px",
+          "background": "rgb(0, 63, 184)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 32,
+          "right": 272,
+          "width": 240,
+          "height": 134.375,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "32px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "720-dark-normal",
+      "viewport": 720,
+      "pageWidth": 720,
+      "mainWidth": 720,
+      "rootFont": "16px",
+      "theme": "dark",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 16,
+          "right": 201,
+          "width": 185,
+          "height": 49.59375,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "16px",
+          "background": "rgb(125, 180, 255)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 16,
+          "right": 222.484375,
+          "width": 206.484375,
+          "height": 44,
+          "color": "rgb(245, 243, 237)",
+          "fontSize": "16px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "720-dark-text200",
+      "viewport": 720,
+      "pageWidth": 720,
+      "mainWidth": 720,
+      "rootFont": "32px",
+      "theme": "dark",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 32,
+          "right": 272,
+          "width": 240,
+          "height": 201.5625,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "32px",
+          "background": "rgb(125, 180, 255)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 32,
+          "right": 272,
+          "width": 240,
+          "height": 134.375,
+          "color": "rgb(245, 243, 237)",
+          "fontSize": "32px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "390-light-normal",
+      "viewport": 390,
+      "pageWidth": 390,
+      "mainWidth": 390,
+      "rootFont": "16px",
+      "theme": "light",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 116,
+          "right": 374,
+          "width": 258,
+          "height": 49.59375,
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "16px",
+          "background": "rgb(0, 63, 184)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 116,
+          "right": 322.484375,
+          "width": 206.484375,
+          "height": 44,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "16px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "390-light-text200",
+      "viewport": 390,
+      "pageWidth": 390,
+      "mainWidth": 390,
+      "rootFont": "32px",
+      "theme": "light",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 232,
+          "right": 358,
+          "width": 126,
+          "height": 713.4375,
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "32px",
+          "background": "rgb(0, 63, 184)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 232,
+          "right": 358,
+          "width": 126,
+          "height": 390.3125,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "32px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "390-dark-normal",
+      "viewport": 390,
+      "pageWidth": 390,
+      "mainWidth": 390,
+      "rootFont": "16px",
+      "theme": "dark",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 116,
+          "right": 374,
+          "width": 258,
+          "height": 49.59375,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "16px",
+          "background": "rgb(125, 180, 255)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 116,
+          "right": 322.484375,
+          "width": 206.484375,
+          "height": 44,
+          "color": "rgb(245, 243, 237)",
+          "fontSize": "16px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "390-dark-text200",
+      "viewport": 390,
+      "pageWidth": 390,
+      "mainWidth": 390,
+      "rootFont": "32px",
+      "theme": "dark",
+      "coverLoaded": true,
+      "links": [
+        {
+          "text": "Read book (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume.pdf",
+          "x": 232,
+          "right": 358,
+          "width": 126,
+          "height": 713.4375,
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "32px",
+          "background": "rgb(125, 180, 255)"
+        },
+        {
+          "text": "Read facing pages (PDF) \u2192",
+          "href": "/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+          "x": 232,
+          "right": 358,
+          "width": 126,
+          "height": 390.3125,
+          "color": "rgb(245, 243, 237)",
+          "fontSize": "32px",
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    }
+  ],
+  "keyboard": [
+    {
+      "class": "book-read",
+      "text": "Read book (PDF) \u2192",
+      "outline": "solid",
+      "outlineWidth": "3px",
+      "tabs": 9
+    },
+    {
+      "class": "book-spreads",
+      "text": "Read facing pages (PDF) \u2192",
+      "outline": "solid",
+      "outlineWidth": "3px",
+      "tabs": 10
+    }
+  ],
+  "forcedColors": {
+    "enabled": true,
+    "pageWidth": 1280,
+    "viewport": 1280,
+    "linkColor": "rgb(0, 0, 159)",
+    "focusOutline": "solid"
+  },
+  "checks": {
+    "noHorizontalOverflow": true,
+    "linksWithinViewport": true,
+    "bothLinksKeyboardReachable": true,
+    "visibleKeyboardFocus": true,
+    "touchTargets44px": true,
+    "coverLoaded": true,
+    "text200Verified": true
+  },
+  "layout_guard": {
+    "result": "26 reported entries in 10 configurations",
+    "scope_assessment": "No finding concerns either reading-format link. Hidden skip-link geometry is reported without accounting for CSS clipping. The existing fixed text-size control overlaps chapter arrows at 720px and 390px; retained as a whole-page limitation, not called a pass.",
+    "report_file": "layout-report.json"
+  },
+  "visual_review": {
+    "desktop": "Both formats are distinct and readable. The canonical PDF remains the primary action; the facing copy has a subordinate text link and screen-size guidance.",
+    "mobile": "Both links fit at 390px and retain readable labels. The cover remains adjacent to the reading choices. At doubled root text size, labels wrap and remain inside the viewport.",
+    "artifacts": [
+      "1440-light-normal.png",
+      "1440-dark-normal.png",
+      "390-light-normal.png",
+      "390-dark-normal.png",
+      "390-light-text200.png",
+      "keyboard-facing-link.png",
+      "forced-colors.png",
+      "keyboard-reading-formats.gif",
+      "book-facing-spread.png"
+    ]
+  }
+}

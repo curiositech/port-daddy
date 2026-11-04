@@ -17,6 +17,7 @@
 .book-read { display: inline-flex; gap: .75rem; align-items: center; justify-content: space-between; min-height: 3rem; margin-top: 1rem; padding: .75rem 1rem; background: var(--brand-primary); color: var(--brand-primary-foreground); font-weight: 700; text-decoration: none; }
 .book-read:hover { text-decoration: underline; text-underline-offset: .2em; }
 .book-file-info { margin-top: .5rem; }
+.book-spreads { display: inline-flex; align-items: center; gap: .5rem; min-height: 2.75rem; margin-top: .5rem; padding-block: .5rem; font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
 .book-cover { grid-area: cover; display: block; width: 100%; height: auto; border: 2px solid var(--border-strong); }
 .book-contents { border-top: 2px solid var(--border-strong); padding-top: 1.5rem; }
 .book-contents > h2 { font-size: 1.75rem; font-weight: 700; line-height: 1.2; }

@@ -42,6 +42,7 @@ import { fileURLToPath } from 'node:url'
 import { Project, SyntaxKind, type ObjectLiteralExpression } from 'ts-morph'
 import { COLLECTED_VOLUME, WHITE_PAPERS, type CollectedVolumeEdition } from '../src/data/whitePapers'
 import { RESEARCH_PAPERS } from '../src/data/researchPapers'
+import { checkBookSpreads } from './check-book-spreads.mjs'
 import {
   formatDriftFailure,
   formatFloorFailure,
@@ -466,6 +467,16 @@ function formatReport(reports: DriftReport[], absSourcePath: string, displayPath
 }
 
 function main(argv: string[]): number {
+  // A digest refresh must not bless a facing copy made from different Book bytes.
+  // Run before --fix and before the optional local pdfinfo skip.
+  try {
+    checkBookSpreads({ repoRoot })
+  } catch (err) {
+    console.error(`Book facing copy failed: ${(err as Error).message}`)
+    console.error('Run scripts/build-spreads.sh after accepting the canonical Book PDF; commit both formats and their conversion receipt together.')
+    return 1
+  }
+
   const fix = argv.includes('--fix')
 
   for (const edition of missingEditions) {
