@@ -1,0 +1,16 @@
+{
+  "pdf": {
+    "sha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
+    "bytes": 17652169,
+    "pages": 844
+  },
+  "sourceDateEpoch": 1700000000,
+  "engine": "XeTeX 3.141592653-2.6-0.999998 (TeX Live 2026)",
+  "logSha256": "0650c3c7f1cf32f3696cf0d76e17dffb6d5224ded82d77c32daf92ed4bfc30dd",
+  "recorderSha256": "b29d1d1cdd0e8eb74918e59d069e39c5a878b26faf01cacd7149260d54484d50",
+  "overfullHboxes": 0,
+  "sourceInputCount": 147,
+  "generatedInputCount": 19,
+  "externalInputCount": 271,
+  "compilation": "three XeLaTeX passes; converged"
+}

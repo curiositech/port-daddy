@@ -3,23 +3,23 @@
   "status": "pass",
   "source": {
     "file": "coordination-papers-mega-volume.pdf",
-    "sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
-    "bytes": 17652261,
+    "sha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
+    "bytes": 17652169,
     "pages": 844
   },
   "output": {
     "file": "coordination-papers-mega-volume-spreads.pdf",
-    "sha256": "25e092cf12c8b42a22634168d9cb8341508b75f1f656980901459f6a40623631",
-    "bytes": 18583792,
+    "sha256": "31fb02e17790c06aafc158e01305f33a00400638eee052edd289035988e091dc",
+    "bytes": 18583781,
     "pages": 423
   },
   "builder": {
     "file": "build_facing_pdf.py",
     "sha256": "cb9b4b142dec04169dde3995f1d1c4267be1ec90ceb16b06b854235f679a1da5",
-    "pymupdf": "1.26.7"
+    "pymupdf": "1.28.2"
   },
   "verification": {
-    "glyphs": 1342203,
+    "glyphs": 1342182,
     "links": 3562,
     "bookmarks": 475,
     "named_destinations": 4203,

@@ -1,0 +1,164 @@
+checking 1 PDF(s): coordination-papers-mega-volume.pdf
+
+== check_book_caption_margins.py -- coordination-papers-mega-volume.pdf ==
+$ /Users/erichowens/coding/tmp/book-publication-tools-20261103/bin/python /Users/erichowens/coding/tmp/book-canonical-source-20261103/scripts/harbor-research/check_book_caption_margins.py .scratch/canonical-source/suisse-extracted/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+263 Book captions checked; 0 placement failures
+
+== check_book_exercise_navigation.py -- coordination-papers-mega-volume.pdf ==
+$ /Users/erichowens/coding/tmp/book-publication-tools-20261103/bin/python /Users/erichowens/coding/tmp/book-canonical-source-20261103/scripts/harbor-research/check_book_exercise_navigation.py .scratch/canonical-source/suisse-extracted/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+Exercise navigation: 212 labels, 212 rendered headings, 0 issues
+
+== audit_book_layout.py -- coordination-papers-mega-volume.pdf ==
+$ /Users/erichowens/coding/tmp/book-publication-tools-20261103/bin/python /Users/erichowens/coding/tmp/book-canonical-source-20261103/scripts/harbor-research/audit_book_layout.py .scratch/canonical-source/suisse-extracted/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+844 pages; 1465/1465 margin objects; 0 margin issues; 96 pages in whitespace review
+
+== page_overflow.py -- coordination-papers-mega-volume.pdf ==
+$ /Users/erichowens/coding/tmp/book-publication-tools-20261103/bin/python /Users/erichowens/coding/tmp/book-canonical-source-20261103/scripts/harbor-research/page_overflow.py .scratch/canonical-source/suisse-extracted/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+-- 0 page/kind rows with loss (ink past the paper edge or past the full width)
+-- advisory: 74 pictures set past the column by the safety net (redraw to the column):
+p 40 +108.0 pt  Figure 0.8.
+p 42 +108.0 pt  
+p 78 +108.0 pt  
+p 97 +108.0 pt  
+p100 +108.0 pt  Table 1.2.
+p101 + 95.9 pt  Figure 1.2.
+p112 +108.0 pt  Figure 1.6 isolates that guard as a four‑step sequence:
+p117 + 81.4 pt  Figure 1.8 draws that split as a delta on the shipped machin
+p123 + 71.3 pt  Figure 1.11.
+p128 +108.0 pt  
+p146 +107.5 pt  Figure 1.17 names the three continuity subsystems and states
+p170 +108.0 pt  
+p194 +108.0 pt  Table 2.1.
+p199 + 48.8 pt  
+p202 +108.0 pt  
+p205 + 53.9 pt  Figure 2.7.
+p207 + 86.1 pt  
+p249 + 74.4 pt  
+p261 + 67.3 pt  
+p269 + 65.5 pt  
+p270 +108.0 pt  
+p278 +108.0 pt  
+p284 + 86.3 pt  Figure 3.11.
+p286 + 99.3 pt  
+p287 +108.0 pt  
+p304 +108.0 pt  Table 4.2 groups the failures in the opening scenario by the
+p309 +108.0 pt  
+p315 + 95.9 pt  
+p316 +108.0 pt  
+p321 + 92.2 pt  
+p331 +109.7 pt  
+p336 + 96.1 pt  
+p349 + 64.9 pt  
+p352 +108.0 pt  
+p361 +102.7 pt  
+p366 +108.0 pt  Figure 4.15 holds the routing order fixed and compares two p
+p382 +108.0 pt  Table 4.12.
+p413 +106.1 pt  
+p426 +108.0 pt  
+p429 +100.7 pt  
+p435 + 93.0 pt  
+p440 +108.0 pt  
+p446 +108.0 pt  
+p447 +100.4 pt  
+p455 + 86.7 pt  
+p479 + 92.8 pt  
+p507 + 64.8 pt  
+p510 +108.0 pt  
+p515 +100.0 pt  
+p515 + 88.9 pt  
+p518 +108.0 pt  
+p520 +108.0 pt  
+p551 +108.0 pt  
+p561 + 80.1 pt  
+p584 +108.0 pt  
+p588 +108.0 pt  
+p600 +108.0 pt  
+p601 + 86.9 pt  Figure 7.5.
+p607 +108.0 pt  
+p609 +108.0 pt  
+p613 + 83.8 pt  
+p619 + 83.3 pt  
+p626 +108.0 pt  
+p642 +108.0 pt  
+p669 + 80.2 pt  
+p683 + 71.2 pt  
+p689 + 68.6 pt  
+p696 + 91.1 pt  Table 8.3 records the matched‑evidence counts. The same har‑
+p709 + 70.0 pt  Figure 8.11 shows the three‑step protocol. To unpack the fig
+p711 + 97.9 pt  
+p712 +108.0 pt  
+p718 +108.0 pt  
+p722 +107.7 pt  Table 8.4 lays out all three protocols side by side.
+p727 + 87.8 pt  
+-- 0 margin-column collisions (two pieces of text in the same vertical space):
+-- 0 page(s) with column text below the text block's foot (over the running foot):
+
+== page_spills.py -- coordination-papers-mega-volume.pdf ==
+$ /Users/erichowens/coding/tmp/book-publication-tools-20261103/bin/python /Users/erichowens/coding/tmp/book-canonical-source-20261103/scripts/harbor-research/page_spills.py .scratch/canonical-source/suisse-extracted/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+text foot at 653.7 pt; 53 finding(s): 0 O, 0 H, 53 W
+  W p.   5  292 pt empty above the foot; next page starts with 'vi'
+  W p.   9  171 pt empty above the foot; next page starts with 'Contents'
+  W p.  14  422 pt empty above the foot; next page starts with 'Contents'
+  W p.  18  185 pt empty above the foot; next page starts with 'Contents'
+  W p.  27  175 pt empty above the foot; next page starts with '4'
+  W p.  52  212 pt empty above the foot; next page starts with 'Chapter 0. Foundations and Prerequisites'
+  W p.  82  187 pt empty above the foot; next page starts with 'Chapter 0. Foundations and Prerequisites'
+  W p.  88  458 pt empty above the foot; next page starts with ''
+  W p.  95  273 pt empty above the foot; next page starts with '72'
+  W p. 115  343 pt empty above the foot; next page starts with '92'
+  W p. 119  192 pt empty above the foot; next page starts with '96'
+  W p. 122  197 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 164  302 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 186  535 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 196  341 pt empty above the foot; next page starts with 'Chapter 2. The Anchor Protocol'
+  W p. 211  419 pt empty above the foot; next page starts with '188'
+  W p. 223  239 pt empty above the foot; next page starts with '200'
+  W p. 224  157 pt empty above the foot; next page starts with 'Chapter 2. The Anchor Protocol'
+  W p. 252  213 pt empty above the foot; next page starts with 'Chapter 3. The Sealed Harbor'
+  W p. 262  252 pt empty above the foot; next page starts with 'Chapter 3. The Sealed Harbor'
+  W p. 263  303 pt empty above the foot; next page starts with '240'
+  W p. 271  302 pt empty above the foot; next page starts with '248'
+  W p. 299  163 pt empty above the foot; next page starts with 'Part II'
+  W p. 315  181 pt empty above the foot; next page starts with '292'
+  W p. 316  259 pt empty above the foot; next page starts with ''
+  W p. 343  354 pt empty above the foot; next page starts with '320'
+  W p. 405  506 pt empty above the foot; next page starts with '382'
+  W p. 424  452 pt empty above the foot; next page starts with ''
+  W p. 430  261 pt empty above the foot; next page starts with 'Chapter 5. From Spawn to Person'
+  W p. 431  188 pt empty above the foot; next page starts with '408'
+  W p. 453  151 pt empty above the foot; next page starts with '430'
+  W p. 501  500 pt empty above the foot; next page starts with '478'
+  W p. 513  185 pt empty above the foot; next page starts with '490'
+  W p. 573  535 pt empty above the foot; next page starts with '550'
+  W p. 578  302 pt empty above the foot; next page starts with ''
+  W p. 611  244 pt empty above the foot; next page starts with '588'
+  W p. 634  375 pt empty above the foot; next page starts with 'Chapter 7. The Bonded Commons'
+  W p. 659  418 pt empty above the foot; next page starts with '636'
+  W p. 678  220 pt empty above the foot; next page starts with ''
+  W p. 693  267 pt empty above the foot; next page starts with '670'
+  W p. 733  298 pt empty above the foot; next page starts with '710'
+  W p. 737  497 pt empty above the foot; next page starts with '714'
+  W p. 741  224 pt empty above the foot; next page starts with '718'
+  W p. 810  389 pt empty above the foot; next page starts with 'Appendices'
+  W p. 823  223 pt empty above the foot; next page starts with '800'
+  W p. 824  290 pt empty above the foot; next page starts with 'Appendices'
+  W p. 826  223 pt empty above the foot; next page starts with 'Appendices'
+  W p. 828  209 pt empty above the foot; next page starts with 'Appendices'
+  W p. 829  182 pt empty above the foot; next page starts with '806'
+  W p. 830  196 pt empty above the foot; next page starts with 'Appendices'
+  W p. 832  199 pt empty above the foot; next page starts with 'Appendices'
+  W p. 834  236 pt empty above the foot; next page starts with 'Appendices'
+  W p. 844  402 pt empty above the foot; next page starts with ''
+
+== check_cover_title_band.py -- /Users/erichowens/coding/tmp/book-canonical-source-20261103/.scratch/canonical-source/suisse-extracted/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume ==
+$ /Users/erichowens/coding/tmp/book-publication-tools-20261103/bin/python /Users/erichowens/coding/tmp/book-canonical-source-20261103/scripts/whitepaper-plates/check_cover_title_band.py --pdf-dir /Users/erichowens/coding/tmp/book-canonical-source-20261103/.scratch/canonical-source/suisse-extracted/port-daddy-book-source/.cache/whitepaper-build/coordination-papers-mega-volume
+maritime-cover: clean band 39.3% of the plate (floor 30%)
+swiss-cover: clean band 33.2% of the plate (floor 30%)
+swiss: every line of type over a plate clears WCAG AA
+type over art: every registered page leaves its type legible
+
+run_pdf_checks: 1 PDF(s), 5 per-PDF check(s), 1 per-directory check(s) -- all clean

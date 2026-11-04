@@ -1,0 +1,15 @@
+{
+  "baselineSha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+  "candidateSha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
+  "pages": 844,
+  "identicalGlyphPositionPages": 840,
+  "changedPhysicalPages": [
+    750,
+    751,
+    752,
+    813
+  ],
+  "sameBookmarks": true,
+  "reader": "1.28.2",
+  "scope": "All pages compared by text glyph and bounding box; this does not compare raster or vector artwork pixels."
+}

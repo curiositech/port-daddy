@@ -1,0 +1,337 @@
+{
+  "schemaVersion": 2,
+  "sourcePr": 10349,
+  "mergedSourceCommit": "0f1d4bd26740e5d5ba208e78c191cf702ef650f5",
+  "acceptedPdfSha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
+  "status": "PASS",
+  "scope": "Reconciles the actual accepted compilation inputs, all eight authored chapter sources, every source-package inventory entry, and a fresh current-source assembly. This is not a new TeX compilation or a full operating-system dependency audit.",
+  "directInputs": {
+    "receipt": "consumed-inputs.json",
+    "compared": 147,
+    "acceptedEqualsMergedEqualsPublication": true,
+    "mismatches": [],
+    "limitation": "XeTeX sees generated chapter bodies, so this comparison alone does not establish the authored chapter or transitive generator-input boundary."
+  },
+  "chapters": {
+    "count": 8,
+    "matched": 8,
+    "files": [
+      {
+        "id": "single-writer-kernel",
+        "path": "book/single-writer-kernel.tex",
+        "bytes": 237467,
+        "sha256": "0a22c845e0c33f61c0287f82a858c9fb032268dcb796d414e42ce0a5c077c56f",
+        "acceptedEqualsMergedEqualsPublication": true
+      },
+      {
+        "id": "anchor-protocol",
+        "path": "book/anchor-protocol-whitepaper.tex",
+        "bytes": 148392,
+        "sha256": "a00111183eece41f96c46cbb8347a065f3a262a629880f5627313561838a5d77",
+        "acceptedEqualsMergedEqualsPublication": true
+      },
+      {
+        "id": "sealed-harbor",
+        "path": "book/sealed-harbor.tex",
+        "bytes": 111695,
+        "sha256": "2e5802e27f1149c751c3a4102ffd6921145c40945dc716173ff62096607855a2",
+        "acceptedEqualsMergedEqualsPublication": true
+      },
+      {
+        "id": "legible-swarm",
+        "path": "book/legible-swarm.tex",
+        "bytes": 290047,
+        "sha256": "e86d35251ee0568fe20892b42489d5264d0ff228071cc3a852bfb893d5809cda",
+        "acceptedEqualsMergedEqualsPublication": true
+      },
+      {
+        "id": "spawn-to-person",
+        "path": "book/spawn-to-person.tex",
+        "bytes": 226189,
+        "sha256": "e53625ae182e9efe70573df24e262f14753a04a890ead9dcf1ed7fe5d2cb15a6",
+        "acceptedEqualsMergedEqualsPublication": true
+      },
+      {
+        "id": "harbor-economy",
+        "path": "book/harbor-economy.tex",
+        "bytes": 203818,
+        "sha256": "6e6d7ae42b97f06d502318421ac8ccb6142913e07a79dd8aa373217018855fbf",
+        "acceptedEqualsMergedEqualsPublication": true
+      },
+      {
+        "id": "bonded-commons",
+        "path": "book/agent-transactions-whitepaper.tex",
+        "bytes": 220960,
+        "sha256": "6d8246888a37e5e62140b329661f6aa50376c348e3f97d8d0b13496c706ccf39",
+        "acceptedEqualsMergedEqualsPublication": true
+      },
+      {
+        "id": "federated-harbor",
+        "path": "book/federated-harbor-whitepaper.tex",
+        "bytes": 182285,
+        "sha256": "479ac2a4f7640e549d4424c4cfc1802fc741be23c45517db68431f5af183d3f9",
+        "acceptedEqualsMergedEqualsPublication": true
+      }
+    ],
+    "chapterZero": {
+      "path": "book/coordination-papers-mega-volume-chapter-0.tex",
+      "sha256": "6c9e23df44fc314c89161095a03ed6c20c2e706d679b8ea52903bb8a43cf4ceb",
+      "acceptedEqualsMergedEqualsPublication": true
+    }
+  },
+  "assemblyEquivalence": {
+    "command": "node scripts/generate-mega-whitepaper.mjs .cache/source-reconciliation/current-assembly",
+    "acceptedBuildDirectory": ".cache/whitepaper-build/coordination-papers-mega-volume",
+    "currentOutputDirectory": ".cache/source-reconciliation/current-assembly",
+    "acceptedExtractionModified": false,
+    "generatedFilesCompared": 9,
+    "allByteIdentical": true,
+    "outputs": [
+      {
+        "file": "mega-volume-bibliography.tex",
+        "bytes": 54120,
+        "sha256": "bc0f4fbd1060845e7516f1cd4d84b06413ae8adbefa02b2aad4895b3a08fe479",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": false
+      },
+      {
+        "file": "mega-volume-body.tex",
+        "bytes": 1953745,
+        "sha256": "8121b4ca91751f2b50852d8d7db0cca746a677780d6bb15e0f5a2f7bbd98cfbe",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": true
+      },
+      {
+        "file": "mega-volume-cite-aliases.tex",
+        "bytes": 20780,
+        "sha256": "e5769e7a51087be519280327fb0f58f1588325b8eb5ab02d8fa7db0afb386fdc",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": true
+      },
+      {
+        "file": "mega-volume-contents.tex",
+        "bytes": 2744,
+        "sha256": "ca297b3c05ecccbaf854d7a53dd6e099e51b5333341321d31b05cf49d5f55374",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": true
+      },
+      {
+        "file": "mega-volume-generation.json",
+        "bytes": 3722,
+        "sha256": "dbb70f90734d5b0fad98ad97a96901c70c67ab709f279ef5d853dfcc6e392653",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": false
+      },
+      {
+        "file": "mega-volume-map.tex",
+        "bytes": 13843,
+        "sha256": "ac9b487d9f7b404b2bd9f7f837aeac36f7fa82d22ccf39d7584de264eddef602",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": false
+      },
+      {
+        "file": "mega-volume-margin-references.tex",
+        "bytes": 56137,
+        "sha256": "2e78cd584e320c786b167242425d9a29b168106b17692db58dd1ad3a50510ad9",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": true
+      },
+      {
+        "file": "mega-volume-mechanized.tex",
+        "bytes": 46478,
+        "sha256": "463a8cc842d1434ab2fef7b6d89724dd597b5b7ec282b233f234ce1923712307",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": true
+      },
+      {
+        "file": "mega-volume-solutions.tex",
+        "bytes": 5501,
+        "sha256": "4f5e66edb33b6b04621ea6a67382ce5b4dc947c901b56e1dfed08bef61fcd2c4",
+        "matchesAcceptedCompilation": true,
+        "boundInConsumedInputs": true
+      }
+    ],
+    "recordedGeneratedStreamsVerified": 19,
+    "recordedGeneratedStreamMismatches": [],
+    "reason": "The fresh current-source assembly includes the generator expansion of chapter and figure inputs. Its recorded TeX outputs exactly match the streams hashed for the accepted PDF, closing the raw-chapter/transitive-generator gap in the direct XeTeX input list."
+  },
+  "sourceInventory": {
+    "originalExtractionManifestSha256": "4ff68ce28dddbdaaa8a6f3f3111292f6c39489e2d5fcefcd97d49776ccb02cc2",
+    "originalExtractionEntries": 513,
+    "actualAcceptedBookHasNoUnlistedOrMissingFiles": true,
+    "originalManifestIsFinalAcceptedSnapshot": false,
+    "originalManifestHashMismatches": [
+      {
+        "path": "book/anchor-protocol-whitepaper.tex",
+        "originalManifestSha256": "e10dd1b37532fdf05b9c62a19cf21c8b05f37454c4d90eec89738ad16b3314bd",
+        "actualAcceptedExtractionSha256": "a00111183eece41f96c46cbb8347a065f3a262a629880f5627313561838a5d77",
+        "reason": "Authored keep-with-next correction used in the accepted final compilation."
+      },
+      {
+        "path": "book/book-sol-anchor.tex",
+        "originalManifestSha256": "c812920b04d11993488aec067a7b0bcafee4f7ce6c1e22d6dd5efff01503bb32",
+        "actualAcceptedExtractionSha256": "ba71201f1f303c21b4f4892a708c91d9aafa84eabbb48bc18b9693bcc9d5f01d",
+        "reason": "Unused generated solution duplicate; removed from the merged canonical sources."
+      }
+    ],
+    "publicationReceipt": "website-v2/public/whitepaper/coordination-papers-mega-volume-source.json",
+    "publicationReceiptSha256": "73b7f9f3692a1127683903ec5a7ad2da091fa6c0879935441f3378474b266071",
+    "publicationEntries": 507,
+    "publicationArchiveSha256": "ad8a352ab58dfafaef24d4ce15907b86e33db2a4f3e8cf880049d5c68ce860dd",
+    "publicationSourceSha256": "51b12dd49716667bd0ece3f3bdb67cf66e8795dce7f6567e7e0bbb83992f5022",
+    "sharedEntries": 505,
+    "acceptedEqualsMergedCount": 497,
+    "acceptedEqualsPublicationCount": 496,
+    "changedFromAcceptedToMergedCount": 8,
+    "changedFromAcceptedToPublicationCount": 9,
+    "removedCount": 8,
+    "addedCount": 2,
+    "differences": [
+      {
+        "path": "book/caption-layout-fixture.tex",
+        "acceptedExtractionSha256": "167384948d614e9140f2863f4afda24dd622093b6bd108b14c2122a96d565112",
+        "mergedSha256": "e1d958b716bcb102b66d249aefd7e2e1029acd5bbd0e0bd701ae8a28ac7e5917",
+        "publicationSha256": "e1d958b716bcb102b66d249aefd7e2e1029acd5bbd0e0bd701ae8a28ac7e5917",
+        "mergedEqualsPublication": true,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Standalone test entry point now uses the bundled canonical fixture; not a Book compilation input."
+      },
+      {
+        "path": "book/caption-layout-no-persistence-fixture.tex",
+        "acceptedExtractionSha256": "50a63d3c3fcf3100a0cc4c740811ab93be0c49888f89f024d4c616a77be4bf4b",
+        "mergedSha256": "6e57c58a8f22155854edf777f95bb2f5c4861ac80970739fdba38d76837a335f",
+        "publicationSha256": "6e57c58a8f22155854edf777f95bb2f5c4861ac80970739fdba38d76837a335f",
+        "mergedEqualsPublication": true,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Standalone test entry point now uses the bundled canonical fixture; not a Book compilation input."
+      },
+      {
+        "path": "book/figures/diag-magic-link.tex",
+        "acceptedExtractionSha256": "50c367702a46beed6aafd69c7c2ee4823d724bbcf9998c38dcc620cf83d0e31d",
+        "mergedSha256": "d4718bef4d645c56959f25ee62f489e350429a789b615df57263e1ff5fa8c344",
+        "publicationSha256": "d4718bef4d645c56959f25ee62f489e350429a789b615df57263e1ff5fa8c344",
+        "mergedEqualsPublication": true,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Unplaced standalone supporting figure: required math/shape imports, centered actor labels, and nonconflicting capnode style."
+      },
+      {
+        "path": "book/figures/diag-sybil-attack.tex",
+        "acceptedExtractionSha256": "3d6c4b405b042c39893d280c6cfcf937384df48f48f9327ff3305163173c69a4",
+        "mergedSha256": "b539e31e8788345b0dac7fb3c3f910b18df7392a0c542f5c91d7f03bb2db4a42",
+        "publicationSha256": "b539e31e8788345b0dac7fb3c3f910b18df7392a0c542f5c91d7f03bb2db4a42",
+        "mergedEqualsPublication": true,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Unplaced standalone supporting figure: required amsmath import."
+      },
+      {
+        "path": "book/figures/fig-bc-oracle-audit-rate.tex",
+        "acceptedExtractionSha256": "6c9b1596a44f58b6e1b42734775505f7d7a05ec54615300caff3f51658355fe1",
+        "mergedSha256": "250bfbdd7be5650244ea6618512fcf651fbcc7e598b1639676354d4191d9e588",
+        "publicationSha256": "250bfbdd7be5650244ea6618512fcf651fbcc7e598b1639676354d4191d9e588",
+        "mergedEqualsPublication": true,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Unplaced supporting figure: shortened model-conditional caption and breakable provenance paths."
+      },
+      {
+        "path": "book/margin-apparatus-fixture.tex",
+        "acceptedExtractionSha256": "411cfc4fe161d8a64d47f8fdeaf682c227b8cec64bfc8dc608c3c0464eb826dd",
+        "mergedSha256": "ff30caf9e7cd91dd08f6061a481d2bb9d7bca6bce31c37853d97788b302cdb5e",
+        "publicationSha256": "ff30caf9e7cd91dd08f6061a481d2bb9d7bca6bce31c37853d97788b302cdb5e",
+        "mergedEqualsPublication": true,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Standalone test entry point now uses the bundled canonical fixture; not a Book compilation input."
+      },
+      {
+        "path": "book/plates/PROVENANCE.json",
+        "acceptedExtractionSha256": "affbfc3a8eedd60948fc742a89bb12050c507c4669ea1b2d848a7554ff1cba30",
+        "mergedSha256": "affbfc3a8eedd60948fc742a89bb12050c507c4669ea1b2d848a7554ff1cba30",
+        "publicationSha256": "ec4ef9009b608e6116dde478a338205d0e7afff060376b0b4ca3934fedbeacb8",
+        "mergedEqualsPublication": false,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Publication-only cover metadata now identifies the accepted PDF hash; image bytes are unchanged and independently match a fresh page-one render."
+      },
+      {
+        "path": "book/serve_wysiwyg.py",
+        "acceptedExtractionSha256": "ee862ed05dda1402df977ec0124f96286940588513aef67863a5993058e79b2a",
+        "mergedSha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6",
+        "publicationSha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6",
+        "mergedEqualsPublication": true,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Editor helper no longer writes legacy source twins; not invoked in Book assembly or compilation."
+      },
+      {
+        "path": "scripts/build-book-source.py",
+        "acceptedExtractionSha256": "040ba644e3c0aa0affcb7f697e938d9131205bf735eae28aa49c4d6670c458fc",
+        "mergedSha256": "e4baaab6f004ea6cfa79b43b12f5918cc340c07d5833d4cf678c2aa351b33717",
+        "publicationSha256": "e4baaab6f004ea6cfa79b43b12f5918cc340c07d5833d4cf678c2aa351b33717",
+        "mergedEqualsPublication": true,
+        "presentInDirectConsumedInputs": false,
+        "disposition": "Packaging validation rejects generated solution streams in canonical sources; not invoked by the Book generator or XeTeX."
+      }
+    ],
+    "removed": [
+      {
+        "path": "book/book-sol-anchor.tex",
+        "acceptedExtractionSha256": "ba71201f1f303c21b4f4892a708c91d9aafa84eabbb48bc18b9693bcc9d5f01d",
+        "disposition": "Unused generated solution duplicate removed from canonical sources. Actual compilation streams remain separately hash-recorded under the build cache; current assembly remains byte-identical."
+      },
+      {
+        "path": "book/book-sol-bonded.tex",
+        "acceptedExtractionSha256": "76830dee3670c2a31cf666604341c082e8383fbedbd77ee6afa9807876668e8b",
+        "disposition": "Unused generated solution duplicate removed from canonical sources. Actual compilation streams remain separately hash-recorded under the build cache; current assembly remains byte-identical."
+      },
+      {
+        "path": "book/book-sol-fh.tex",
+        "acceptedExtractionSha256": "6b997bbc1d11b0989dbf4ce0f74250b094e4578c43f7ace1bf786989a9d8d259",
+        "disposition": "Unused generated solution duplicate removed from canonical sources. Actual compilation streams remain separately hash-recorded under the build cache; current assembly remains byte-identical."
+      },
+      {
+        "path": "book/book-sol-he.tex",
+        "acceptedExtractionSha256": "b1ecf286153b3c57ed36617bbe0f16d3fff07abdd55e43a0fe3517f12530b2e2",
+        "disposition": "Unused generated solution duplicate removed from canonical sources. Actual compilation streams remain separately hash-recorded under the build cache; current assembly remains byte-identical."
+      },
+      {
+        "path": "book/book-sol-ls.tex",
+        "acceptedExtractionSha256": "91b19a0512ddb19a5cb89bf72cb844ae710bf42e52084adde807f692bead1524",
+        "disposition": "Unused generated solution duplicate removed from canonical sources. Actual compilation streams remain separately hash-recorded under the build cache; current assembly remains byte-identical."
+      },
+      {
+        "path": "book/book-sol-sealed.tex",
+        "acceptedExtractionSha256": "654de205e5c1a44b9b226934e6a7ddd34dcd1d0622b5cb24c25ffdc00936e2e9",
+        "disposition": "Unused generated solution duplicate removed from canonical sources. Actual compilation streams remain separately hash-recorded under the build cache; current assembly remains byte-identical."
+      },
+      {
+        "path": "book/book-sol-stp.tex",
+        "acceptedExtractionSha256": "6ea60ca6e3e0cc83e3d751ebe2d380183f88339f660c52aacd988c8284ac2fe6",
+        "disposition": "Unused generated solution duplicate removed from canonical sources. Actual compilation streams remain separately hash-recorded under the build cache; current assembly remains byte-identical."
+      },
+      {
+        "path": "book/book-sol-swk.tex",
+        "acceptedExtractionSha256": "79fa4d29c459cf17eea6d94a3e808debfc3186edafe31f9c31ff61bd34ea5711",
+        "disposition": "Unused generated solution duplicate removed from canonical sources. Actual compilation streams remain separately hash-recorded under the build cache; current assembly remains byte-identical."
+      }
+    ],
+    "added": [
+      {
+        "path": "book/fixtures/caption-layout-fixture.tex",
+        "mergedSha256": "d05b9f7d869b3571441bb03f0047c48706873f1f12d51cc804278e205a387d1a",
+        "publicationSha256": "d05b9f7d869b3571441bb03f0047c48706873f1f12d51cc804278e205a387d1a",
+        "disposition": "Canonical standalone regression fixture, bundled so the fixture entry points build without repository test directories; not part of the Book assembly."
+      },
+      {
+        "path": "book/fixtures/margin-apparatus-fixture.tex",
+        "mergedSha256": "eb60c2e7c1a8cce324001d30814aa22d3da1c4a28a09d8cfecfb306cd6a1257d",
+        "publicationSha256": "eb60c2e7c1a8cce324001d30814aa22d3da1c4a28a09d8cfecfb306cd6a1257d",
+        "disposition": "Canonical standalone regression fixture, bundled so the fixture entry points build without repository test directories; not part of the Book assembly."
+      }
+    ],
+    "mergedToPublicationChanges": [
+      "book/plates/PROVENANCE.json"
+    ]
+  },
+  "limits": [
+    "The extraction manifest predates the final keep-with-next repair; its two mismatches are disclosed above. The final consumed-input receipt and unchanged recorded generated TeX streams bind the actual accepted compilation.",
+    "External TeX packages and privately licensed Suisse fonts remain separately recorded in consumed-inputs.json and font-profile.json. The public source bundle uses open fonts by default and is not claimed to reproduce the Suisse pagination or PDF bytes.",
+    "All nine assembly outputs were compared, including six named in the accepted XeTeX generated-input receipt. Equality of output bytes does not prove broader mathematical or aesthetic correctness."
+  ]
+}
