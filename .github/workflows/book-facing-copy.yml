@@ -1,0 +1,49 @@
+name: Book facing copy
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/build_facing_pdf.py'
+      - 'scripts/test_build_facing_pdf.py'
+      - 'scripts/build-spreads.sh'
+      - 'scripts/harbor-research/requirements-pdf.txt'
+      - 'website-v2/public/whitepaper/coordination-papers-mega-volume*.pdf'
+      - 'website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.json'
+      - 'website-v2/scripts/check-book-spreads*'
+      - '.github/workflows/book-facing-copy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build_facing_pdf.py'
+      - 'scripts/test_build_facing_pdf.py'
+      - 'scripts/build-spreads.sh'
+      - 'scripts/harbor-research/requirements-pdf.txt'
+      - 'website-v2/public/whitepaper/coordination-papers-mega-volume*.pdf'
+      - 'website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.json'
+      - 'website-v2/scripts/check-book-spreads*'
+      - '.github/workflows/book-facing-copy.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  facing-copy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: pip install -r scripts/harbor-research/requirements-pdf.txt
+      - name: Exercise conversion geometry and PDF navigation
+        run: python3 -m unittest discover -s scripts -p test_build_facing_pdf.py -v
+      - name: Exercise publication freshness failures
+        run: node --test website-v2/scripts/check-book-spreads.test.mjs
+      - name: Verify the committed reading formats belong together
+        run: node website-v2/scripts/check-book-spreads.mjs

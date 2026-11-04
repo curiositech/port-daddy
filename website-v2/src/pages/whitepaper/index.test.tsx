@@ -19,6 +19,7 @@ describe('book reading and navigation', () => {
     expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(TEXTBOOK.edition.title)
     const pdf = within(main).getByRole('link', { name: 'Read book (PDF)' })
     expect(pdf.getAttribute('href')).toBe(COLLECTED_VOLUME.pdfPath)
+    expect(within(main).getByRole('link', { name: 'Read facing pages (PDF)' }).getAttribute('href')).toBe(COLLECTED_VOLUME.spreadsPdfPath)
     expect(main.textContent).toContain(`${COLLECTED_VOLUME.pages} pages`)
     expect(screen.queryByRole('tablist')).toBeNull()
     const outline = within(main).getByRole('region', { name: 'Inside the book' })

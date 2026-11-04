@@ -1,0 +1,128 @@
+{
+  "light@1280": {
+    "violations": [
+      "COLLISION  'Skip to main content' (div#root > div.light > a.sr-only.bg-[var(--brand-primary)])\n           overlaps 'Port Daddy' (header.sticky.top-0 > div.mx-auto.w-full > a.inline-flex.shrink-0 > span.inline-flex.items-center > span.whitespace-nowrap.font-display)  by 67x3px",
+      "OVERFLOW   div#root > div.light > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.light > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 1,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "light@1100": {
+    "violations": [
+      "OVERFLOW   div#root > div.light > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.light > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 0,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "light@860": {
+    "violations": [
+      "OVERFLOW   div#root > div.light > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.light > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 0,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "light@720": {
+    "violations": [
+      "COLLISION  'Aa' (div#root > div.light > div.fixed.bottom-4 > button.flex.h-11)\n           overlaps '\u2192' (li > a.book-chapter-link > span > span.book-chapter-title > span)  by 15x12px",
+      "OVERFLOW   div#root > div.light > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.light > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 1,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "light@390": {
+    "violations": [
+      "COLLISION  'Aa' (div#root > div.light > div.fixed.bottom-4 > button.flex.h-11)\n           overlaps '\u2192' (li > a.book-chapter-link > span > span.book-chapter-title > span)  by 15x16px",
+      "OVERFLOW   div#root > div.light > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.light > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 1,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "dark@1280": {
+    "violations": [
+      "COLLISION  'Skip to main content' (div#root > div.dark > a.sr-only.bg-[var(--brand-primary)])\n           overlaps 'Port Daddy' (header.sticky.top-0 > div.mx-auto.w-full > a.inline-flex.shrink-0 > span.inline-flex.items-center > span.whitespace-nowrap.font-display)  by 67x3px",
+      "OVERFLOW   div#root > div.dark > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.dark > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 1,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "dark@1100": {
+    "violations": [
+      "OVERFLOW   div#root > div.dark > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.dark > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 0,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "dark@860": {
+    "violations": [
+      "OVERFLOW   div#root > div.dark > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.dark > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 0,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "dark@720": {
+    "violations": [
+      "COLLISION  'Aa' (div#root > div.dark > div.fixed.bottom-4 > button.flex.h-11)\n           overlaps '\u2192' (li > a.book-chapter-link > span > span.book-chapter-title > span)  by 15x12px",
+      "OVERFLOW   div#root > div.dark > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.dark > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 1,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  },
+  "dark@390": {
+    "violations": [
+      "COLLISION  'Aa' (div#root > div.dark > div.fixed.bottom-4 > button.flex.h-11)\n           overlaps '\u2192' (li > a.book-chapter-link > span > span.book-chapter-title > span)  by 15x16px",
+      "OVERFLOW   div#root > div.dark > a.sr-only.bg-[var(--brand-primary)] clips content (147px wide, 25px tall): 'Skip to main content'",
+      "TEXT-ESCAPE 'Skip to main content' spills its container (right +147, bottom +21px) @ div#root > div.dark > a.sr-only.bg-[var(--brand-primary)]"
+    ],
+    "counts": {
+      "collisions": 1,
+      "overflow": 1,
+      "escape": 1,
+      "pageScroll": 0
+    }
+  }
+}

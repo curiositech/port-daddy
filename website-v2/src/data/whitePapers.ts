@@ -234,6 +234,8 @@ export interface CollectedVolumeEdition {
 
 /** The bound edition is the Book itself, not an eighth paper. */
 export interface CollectedVolume {
+  /** Facing-page reading format derived from the canonical PDF. */
+  spreadsPdfPath: string
   id: string
   title: string
   subtitle: string
@@ -252,6 +254,7 @@ export interface CollectedVolume {
 
 export const COLLECTED_VOLUME: CollectedVolume = {
   id: 'coordination-papers-mega-volume',
+  spreadsPdfPath: '/whitepaper/coordination-papers-mega-volume-spreads.pdf',
   title: TEXTBOOK.edition.title,
   subtitle: `${TEXTBOOK.edition.subtitle}, unified by one claim: ${TEXTBOOK.edition.claim}`,
   pdfPath: `/whitepaper/${TEXTBOOK.edition.pdf}`,

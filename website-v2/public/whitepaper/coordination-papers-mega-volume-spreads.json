@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "source": {
+    "file": "coordination-papers-mega-volume.pdf",
+    "sha256": "786155328b3cb3a48bf12f2c273949b06b963d0202b723b4609df5da253eefed",
+    "bytes": 17652261,
+    "pages": 844
+  },
+  "output": {
+    "file": "coordination-papers-mega-volume-spreads.pdf",
+    "sha256": "25e092cf12c8b42a22634168d9cb8341508b75f1f656980901459f6a40623631",
+    "bytes": 18583792,
+    "pages": 423
+  },
+  "builder": {
+    "file": "build_facing_pdf.py",
+    "sha256": "cb9b4b142dec04169dde3995f1d1c4267be1ec90ceb16b06b854235f679a1da5",
+    "pymupdf": "1.26.7"
+  },
+  "verification": {
+    "glyphs": 1342203,
+    "links": 3562,
+    "bookmarks": 475,
+    "named_destinations": 4203,
+    "blank_halves": 2,
+    "coordinate_tolerance_pt": 0.025,
+    "maximum_coordinate_error_pt": 0.0001220703125,
+    "exact_character_streams": true,
+    "every_character_position_checked": true,
+    "bookmark_states_checked": true
+  },
+  "pairing": "blank/cover, then physical pages2/3,4/5,...; trailing blank when required",
+  "scale": 1,
+  "geometry_scope": "unrotated pages, CropBox=MediaBox, origin(0,0)",
+  "navigation_scope": "URI, direct internal goto, XYZ named destinations, outline hierarchy/styles/targets; other navigation fails closed"
+}

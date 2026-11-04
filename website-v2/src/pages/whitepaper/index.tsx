@@ -64,6 +64,8 @@ export default function WhitepaperPage() {
           <p className="book-edition">{TEXTBOOK.edition.version} · {TEXTBOOK.edition.date}</p>
           <a className="book-read" href={COLLECTED_VOLUME.pdfPath}>Read book (PDF) <span aria-hidden="true">→</span></a>
           <p className="book-file-info">{COLLECTED_VOLUME.pages} pages · about {Math.round(COLLECTED_VOLUME.sizeKb / 1024)} MB · free</p>
+          <a className="book-spreads" href={COLLECTED_VOLUME.spreadsPdfPath}>Read facing pages (PDF) <span aria-hidden="true">→</span></a>
+          <p className="book-file-info">Two-page spreads for larger screens.</p>
         </div>
         <img
           className="book-cover"
