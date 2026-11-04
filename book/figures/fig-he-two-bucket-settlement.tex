@@ -1,0 +1,39 @@
+% Reader question: where do payment reserves and collateral go on each outcome?
+% Exact arithmetic of sec:one-settlement; units are credits (CR), no cross-currency sum.
+% Row flows, not proportional Sankey widths. Payouts total560; wallet net deltas sum0.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd value state,text width=4.6cm,align=center,minimum height=1.25cm] at (2.5,5.4)
+    {Bob's payment reserve: $460$\\$400$ bounty + $50$ lease + $10$ licence};
+  \node[pd identity state,text width=4.6cm,align=center,minimum height=1.25cm] at (8.15,5.4)
+    {Alice's performance collateral: $100$\\Returned or slashed; never a bounty};
+  \node[pd title,anchor=west] at (0,4.1) {Disbursement (CR)};
+  \node[pd title,anchor=east] at (7,4.1) {Success};
+  \node[pd title,anchor=east] at (10.6,4.1) {Partial $40\%$};
+  \draw[pd rule] (0,3.75)--(10.6,3.75);
+  \foreach \y/\recipient/\success/\partial in {
+    3.35/{Alice: earned bounty}/400/160,
+    2.75/{Alice: returned collateral}/100/40,
+    2.15/{Dana: runtime lease}/50/50,
+    1.55/{Carol: metered licence}/8/0,
+    .95/{Bob: unused payment reserve}/2/250,
+    .35/{Commons: slashed collateral}/0/60}{
+    \node[pd label,anchor=west] at (0,\y) {\recipient};
+    \node[pd label,anchor=east] at (7,\y) {$\success$};
+    \node[pd label,anchor=east] at (10.6,\y) {$\partial$};}
+  \draw[pd rule] (0,-.05)--(10.6,-.05);
+  \node[pd title,anchor=west] at (0,-.45) {Total out = total deposited};
+  \node[pd title,anchor=east] at (7,-.45) {$560$};
+  \node[pd title,anchor=east] at (10.6,-.45) {$560$};
+  \node[pd note,anchor=north west,text width=10.6cm] at (0,-1.05)
+    {Licence payable only on Success; delivered runtime payable on Partial.
+     Each column is an alternative outcome of the same funded plan.};
+\end{tikzpicture}
+\caption{Separate payment and performance-collateral balances settle by
+different rules. Success meters $16$ files at $0.5$ CR each. Partial pays
+$40\%$ of the bounty and returns $40\%$ of the bond; the other $60$ CR goes to
+the commons. Amounts are disbursements, not net earnings. [constructed example]}
+\label{fig:he-two-bucket-settlement}
+\end{figure}

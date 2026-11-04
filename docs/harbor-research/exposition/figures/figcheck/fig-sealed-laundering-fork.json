@@ -1,0 +1,87 @@
+{
+  "figure": "fig-sealed-laundering-fork",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 8.0,
+    "textwidth_cm": 11.43
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T9": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T10": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "warn",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T7",
+          "severity": "warn",
+          "page": 0,
+          "content_width_pt": 427.5,
+          "textwidth_pt": 324.0,
+          "message": "drawn content is 15.08cm wide, wider than the 11.43cm chapter textwidth"
+        }
+      ]
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.2565,
+      "edge_density": 0.055,
+      "distinct_colors": 1673,
+      "flags": [
+        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "pass",
+    "failed_checks": [],
+    "warned_checks": [
+      "T7"
+    ]
+  }
+}

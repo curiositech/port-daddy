@@ -2113,7 +2113,11 @@ defining relation transfers: halving a set costs one question and eliminates
 half the candidates only when positives are rare in the set. The misread to
 preempt: twenty questions finds \emph{one} answer in $\log_2 F$ queries; with $k$
 answers the tree forks, and the accounting below is precisely the price of the
-forking.
+forking. Figure~\ref{fig:legible-halving-tree} follows one positive through
+a sixteen-item set: each negative answer removes a whole branch.
+
+\input{figures/fig-legible-halving-tree}
+
 \begin{pdclaim}{Theorem}{Zoom Advantage}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:zoom-advantage}
@@ -2175,8 +2179,14 @@ $\{iF/k:0\le i<k\}$. Every node at depth $d\le b$ contains a positive, so all
 $2^{b+1}-1=2k-1$ nodes down to depth $b$ are queried; below depth $b$ exactly $k$
 nodes per level are positive, each is split at levels $b,\dots,a-1$, and each split
 queries two children; the total is $(2k-1)+2k(a-b)=2k\log_2(F/k)+2k-1$. The
-density form follows by dividing $F$ by the bound, and the step function
-$d(2\lceil\log_2(1/d)\rceil+4)$ first touches $1$ at $d=1/12$.
+density form follows by dividing $F$ by the bound. On
+$2^{-m}\le d<2^{-(m-1)}$, its denominator is the linear function
+$d(2m+4)$; the ratio is therefore hyperbolic on each such interval.
+For $m\ge5$ the denominator is below $1$ throughout the interval;
+for $m=4$ it equals $12d$, crossing $1$ at $d=1/12$;
+for $m\le3$ it exceeds $1$ throughout the interval. The endpoint $d=1$
+also has denominator $4$. Thus the certificate exceeds $1$ exactly when
+$d<1/12$.
 \end{proof}
 
 \input{figures/legible-swarm-zoom-advantage}
@@ -2211,8 +2221,8 @@ $d=k/F=(p-\delta)/f$. This worst-case bound certifies a strict query saving
 when $d<1/12$, equivalently $f>12(p-\delta)$; at equality it certifies a tie.
 Failure of this sufficient certificate does not prove that adaptive inspection
 is slower on a particular placement of positives;
-the measured mean crossover is about twice as forgiving, $d\approx0.165$
-[internal, \texttt{zoom\_bound\_check.py}]. At $p{=}0.05$, $\delta{=}0$ the window
+for example, $F=128$ and $k=16$ evenly spread positives have $d=1/8$
+yet require only $Q=127<128$ queries, by the tightness formula above. At $p{=}0.05$, $\delta{=}0$ the window
 certifies a strict saving only at $f>0.60$: the digest must flag over $60\%$ of the night's artifacts
 before the second stage is guaranteed to beat reading the flags. Inside the window
 the flags stage one adds are cheap in the second stage, because $k$ is fixed by the
@@ -2252,7 +2262,9 @@ the rate: the two-constraint rate $R(\delta,f)$ drops to $0.1864$ bits at $f=0.1
 
 For the zoom side, the script's own $k\log_2(F/k)$ column at $F=2500$ flagged, $k=10$ critical reads $79.7\approx80$: an order-of-magnitude sanity check, tiny next to $2500$ flat opens.
 
-The simulated adaptive-halving harness measures $163.7$ opens at that same point, comfortably inside the $200$-open guaranteed worst case quoted above, for a realized
+The separate \texttt{b1\_frontier.py} harness samples both a flagged subset
+and its positives, rather than sampling positive positions directly. Its
+$150$ placements measure a mean of $163.7$ queries at that same point, comfortably inside the $200$-open guaranteed worst case quoted above, for a realized
 \[
 2500/163.7\approx15.3\times
 \]
@@ -2481,7 +2493,6 @@ dispute. Both sides show \emph{ordinal ranks}, with 1 highest, rather than
 putting capability scores and expected losses on incompatible numerical
 scales. Neither the left-to-right direction nor the panel order denotes time.
 
-\pdmarginanalogy{ls-sextant-mirror}{}{ch04-sextant-index-mirror}{Like a navigator bringing index and horizon mirrors into alignment with a sextant, the split ranker reconciles discovery relevance with operator attention instead of forcing them into one distorted optic.}%
 \input{figures/legible-swarm-split-ranker}
 
 With a one-item budget, the router selects A while Mira selects B. Their
@@ -2491,6 +2502,8 @@ not establish that conflict: if Mira were indifferent between A and B, she
 could accept the router's order. Tied ranks belong at the same height, not
 at invented adjacent positions. The figure has no ties and makes no claim
 about the size of either reader's preference.
+
+\pdmarginanalogy{ls-sextant-mirror}{}{ch04-sextant-index-mirror}{Like a navigator bringing index and horizon mirrors into alignment with a sextant, the split ranker reconciles discovery relevance with operator attention instead of forcing them into one distorted optic.}%
 
 \begin{pdclaim}{Theorem}{No Universal Monotone Identification of the Two Heads}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2531,12 +2544,11 @@ an order, contradiction.
 
 Hence the heads optimize genuinely different objectives; they
 may share candidate generation and decay, but the scoring head must be chosen per
-reader. \qed
+reader.
 \end{proof}
 
-\noindent\Proved\ --- as the instance of a stronger characterization. The argument
-above shows only that \emph{this} pair of heads cannot be identified. The general
-fact says when sharing \emph{is} safe, which is the statement a designer needs.
+The argument above shows only that \emph{this} pair of heads cannot be
+identified. The general characterization below states when sharing is safe.
 
 \paragraph{When agreement is enough.}
 The upper panel gives the useful converse: different objectives can share a

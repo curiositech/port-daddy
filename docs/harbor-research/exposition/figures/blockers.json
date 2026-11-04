@@ -134,6 +134,16 @@
     }
   },
   {
+    "id": "fig-he-deontic-frontier",
+    "fragment": "book/figures/fig-he-deontic-frontier.tex",
+    "chapter": 6,
+    "checks_failed": [
+      "T3"
+    ],
+    "first_seen": "2026-11-04",
+    "waiver": null
+  },
+  {
     "id": "fig-he-float-plan",
     "fragment": "book/figures/fig-he-float-plan.tex",
     "chapter": 6,

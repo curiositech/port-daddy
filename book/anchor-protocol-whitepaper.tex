@@ -356,7 +356,7 @@ Figure~\ref{fig:anchor-handshake-ladder} puts that ceremony on a clock: who sign
 
 For depth-$N$ chains, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop must produce a fresh nonce and bind the previous and next identities into its signature so that an attacker who intercepts a single hop cannot splice it into a different chain.
 
-Macaroons are the inspiration, but two older literatures own the property being checked here, and supply the right vocabulary for the comparison. SPKI/SDSI's certificate-chain reduction is a calculus for asking exactly this question --- does the chain only ever narrow as it lengthens? --- and answering it by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the per-hop subset check the Harbor performs is that reduction carried out one link at a time. And Miller's object-capability discipline --- no ambient authority, a capability as the only route to any authority at all, worked out for concurrent and mutually suspicious distributed components~\pdcite{miller2006robustcomposition} --- is the conceptual peer of this protocol's capability/permission split, closer than Dennis and Van Horn's founding 1966 statement. The corresponding design rule is to restrict a capability at issuance as well as checking the chain at verification, so that the chain check is defense in depth rather than the only line. The v6 verifier of \S\ref{sec:attn-soundness} provides a concrete counterexample: checking each hop against the root instead of its parent admits a downstream re-grant.
+Macaroons are the inspiration, but two older literatures own the property being checked here, and supply the right vocabulary for the comparison. SPKI/SDSI's certificate-chain reduction is a calculus for asking exactly this question --- does the chain only ever narrow as it lengthens? --- and answering it by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the per-hop subset check the Harbor performs is that reduction carried out one link at a time. And Miller's object-capability discipline --- no ambient authority, a capability as the only route to any authority at all, worked out for concurrent and mutually suspicious distributed components~\pdcite{miller2006robustcomposition} --- is the conceptual peer of this protocol's capability/permission split, closer than Dennis and Van Horn's founding 1966 statement. The corresponding design rule is to restrict a capability at issuance as well as checking the chain at verification, so that the chain check is defense in depth rather than the only line. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} provides a concrete counterexample: checking against the root instead of each immediate parent admits a downstream re-grant.
 
 \input{figures/fig-anchor-delegation-inline}
 
@@ -784,6 +784,16 @@ function Harbor.VerifyToken(tok, pk_h, expected_harbor):
 \textbf{Security Property:} The secrecy of $sk_{harbor}$ and the unforgeability of Ed25519~\pdcite{bernstein2012high} ensure that only the legitimate Daemon can issue valid Harbor Cards.
 
 \subsubsection{Phase 3: Multi-hop Delegation}\label{sec:delegation}
+
+Let $r$ mean read permission and $w$ write permission. If $A$ holds
+$\{r,w\}$ but delegates only $\{r\}$ to $B$, then $B$ cannot restore $w$
+when delegating to $C$. Yet $C$'s requested $\{r,w\}$ is still a subset of
+$A$'s rights. A root-only comparison therefore misses exactly the restriction
+that $B$ inherited. Figure~\ref{fig:anchor-v6v7-escalation} holds the chain
+fixed while changing the comparison target. Each link must first be
+authenticated; the subset check then uses that link's immediate parent.
+
+\input{figures/fig-anchor-v6v7-escalation}
 
 Algorithm~\ref{alg:delegation} presents the authorization chain verification, inspired by Macaroons~\pdcite{birgisson2014macaroons}.
 
@@ -1756,23 +1766,18 @@ single difference:
 \input{figures/session-anchor-v6-attack}
 
 
-\paragraph{Multi-hop scope.} Property~\ref{thm:attn-sound} is
-single-hop (Daemon $\to A \to$ verifier). Multi-hop delegation has a sharper
-obligation: a verifier that checks the \emph{final} capability against the
-\emph{root} accepts a non-monotonic middle hop. \texttt{harbor\_card\_v6\_multihop\_attack.pv}
-mechanizes exactly this --- $A{:}\texttt{write} \to B{:}\texttt{read} \to
-C{:}\texttt{write}$ is accepted (ProVerif: escalation reachable). The fix,
-\texttt{harbor\_card\_v7\_multihop\_fixed.pv}, verifies each hop against its
-\emph{immediate parent} ($\mathrm{is\_subset}(\mathit{final},\mathit{mid}) \wedge
-\mathrm{is\_subset}(\mathit{mid},\mathit{root})$) and ProVerif proves the same
-chain rejected. The runtime delegation verifier --- and the cross-harbor
-recompute $\mathrm{att}_B \circ \mathrm{att}_A$ --- must be per-hop, never
-final-vs-root. Figure~\ref{fig:anchor-v6v7-escalation} draws the same chain
-under both verifiers side by side: v6's single final-vs-root check and v7's
-two hop-vs-parent checks, so the one comparison that moves is visible rather
-than implied by the file names.
-
-\input{figures/fig-anchor-v6v7-escalation}
+\paragraph{Multi-hop scope and evidence.}
+Property~\ref{thm:attn-sound} is single-hop (Daemon $\to A\to$ verifier).
+The chain in Figure~\ref{fig:anchor-v6v7-escalation} has two delegations.
+\path{analyses/harbor_card_v6_multihop_attack.pv} models the root-only
+comparison; its committed result makes escalating acceptance reachable.
+\path{analyses/harbor_card_v7_multihop_fixed.pv} authenticates each link and
+checks both $\mathrm{is\_subset}(\mathit{mid},\mathit{root})$ and
+$\mathrm{is\_subset}(\mathit{final},\mathit{mid})$; its committed result
+makes that acceptance unreachable. The paired model checks have this fixed
+chain depth. The extension to arbitrary finite chains uses the per-hop
+subset argument of \S\ref{sec:delegation}, not an unbounded-depth
+mechanized result.
 
 \pdexercisepointer{\ref{ex:anchor-multihop-induction}}{\ref{ex:anchor-macaroon-discharge}}{\pageref{ex:anchor-multihop-induction}}
 

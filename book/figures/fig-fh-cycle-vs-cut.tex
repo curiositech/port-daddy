@@ -24,31 +24,29 @@
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\cax{1.50}   \def\pbx{7.10}   \def\rad{1.25}
   \node[pd title,anchor=north,text width=4.0cm,align=center] at (\cax,2.85)
-    {the 6-cycle: disagreement closes a cycle};
+    {6-cycle\\closes a visible loop};
   \foreach \i in {1,...,6}
     {\node[pd state,circle,minimum size=6.2mm,inner sep=0pt] (c\i)
        at ({\cax+\rad*cos(90-60*(\i-1))},{\rad*sin(90-60*(\i-1))}) {\i};}
   \foreach \i/\j in {1/2,2/3,3/4,4/5,5/6}
     {\draw[pd rule] (c\i) -- (c\j);}
-  \draw[pd breach rule,line width=1.3pt] (c6) -- (c1);
-  \node[pd breach label,anchor=west] at (\cax+\rad+0.25,0.55) {disagreeing edge};
+  \draw[pd breach rule] (c6) -- (c1);
   \node[pd label,anchor=north,text width=3.6cm,align=center] at (\cax,-1.75)
-    {$r=1.2247$: visible};
+    {$r=1.2247$};
 
   \node[pd title,anchor=north,text width=4.6cm,align=center] at (\pbx,2.85)
-    {the 6-path: same disagreement, no cycle};
+    {6-path\\has no visible loop};
   \foreach \i in {1,...,6}
     {\node[pd state,circle,minimum size=6.2mm,inner sep=0pt] (p\i)
        at ({\pbx-2.15+(\i-1)*0.86},0.30) {\i};}
   \foreach \i/\j in {1/2,2/3,4/5,5/6}
     {\draw[pd rule] (p\i) -- (p\j);}
-  \draw[pd breach rule,line width=1.3pt] (p3) -- (p4);
-  \node[pd breach label,anchor=south] at ({\pbx-0.43},0.65) {disagreeing edge};
-  \draw[pd hairline,dashed] (p6) to[out=-55,in=-125] (p1);
-  \node[pd label,anchor=north,text width=3.4cm,align=center] at (\pbx,-0.55)
-    {no edge closes a cycle};
+  \draw[pd breach rule] (p3) -- (p4);
   \node[pd label,anchor=north,text width=3.6cm,align=center] at (\pbx,-1.75)
-    {$r=0$: invisible};
+    {$r=0$};
+  % One shared legend in its own lane; labels never enter the other panel.
+  \draw[pd breach rule] (2.15,-2.75)--(3.15,-2.75);
+  \node[pd label,anchor=west] at (3.4,-2.75) {edge perturbation of size $3$};
 \end{tikzpicture}
 \caption{One-edge perturbation of size 3: the cycle residual is $1.2247$; the path residual is zero. This is an edge-cochain diagnostic. Authenticated endpoint claims can be compared directly on either topology. Analytic construction.}
 \label{fig:fh-cycle-vs-cut}

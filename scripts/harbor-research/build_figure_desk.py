@@ -1134,16 +1134,17 @@ def main() -> int:
             print(f"wrote {rel} ({len(content)} bytes)")
 
     if args.bundle:
-        # the publishable bundle: the page, then its data beside it. The page
-        # images (pages/*.jpg) and the contact sheets are not emitted here --
-        # they are already published, and republishing keeps any file the
-        # publish does not name.
+        # Preserve hosted historical images; include every newly receipted
+        # immutable snapshot and its mapping beside the generated desk data.
         root_out = os.path.abspath(args.bundle)
         out = os.path.join(root_out, "data")
         os.makedirs(out, exist_ok=True)
         for rel, content in outputs:
             with open(os.path.join(out, os.path.basename(rel)), "w", encoding="utf-8") as fh:
                 fh.write(content)
+        from refresh_figure_desk_pages import bundle_snapshot_assets
+        snapshot_count = bundle_snapshot_assets(REPO_ROOT, root_out)
+        print(f"bundled {snapshot_count} immutable snapshot images and their provenance")
         idx = abspath(INDEX_REL)
         if os.path.isfile(idx):
             with open(idx, encoding="utf-8") as fh:

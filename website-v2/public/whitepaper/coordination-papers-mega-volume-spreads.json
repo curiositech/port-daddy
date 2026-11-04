@@ -3,26 +3,26 @@
   "status": "pass",
   "source": {
     "file": "coordination-papers-mega-volume.pdf",
-    "sha256": "31babb958fcdb31e353726484f775d073c7d994e24b6c11ae8d2382a68f4288b",
-    "bytes": 17652169,
-    "pages": 844
+    "sha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+    "bytes": 17655424,
+    "pages": 846
   },
   "output": {
     "file": "coordination-papers-mega-volume-spreads.pdf",
-    "sha256": "31fb02e17790c06aafc158e01305f33a00400638eee052edd289035988e091dc",
-    "bytes": 18583781,
-    "pages": 423
+    "sha256": "75d366548e7d66c76cd91b48d723286cdc38d796de84add8b12b5efd1f75367a",
+    "bytes": 18588662,
+    "pages": 424
   },
   "builder": {
     "file": "build_facing_pdf.py",
     "sha256": "cb9b4b142dec04169dde3995f1d1c4267be1ec90ceb16b06b854235f679a1da5",
-    "pymupdf": "1.28.2"
+    "pymupdf": "1.26.7"
   },
   "verification": {
-    "glyphs": 1342182,
-    "links": 3562,
+    "glyphs": 1345822,
+    "links": 3568,
     "bookmarks": 475,
-    "named_destinations": 4203,
+    "named_destinations": 4211,
     "blank_halves": 2,
     "coordinate_tolerance_pt": 0.025,
     "maximum_coordinate_error_pt": 0.0001220703125,

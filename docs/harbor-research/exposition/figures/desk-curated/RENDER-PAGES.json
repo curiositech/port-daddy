@@ -63,7 +63,7 @@
   "fig-fh-xfer-ceremony": 416,
   "fig-fh-revocation-gossip": 419,
   "fig-fh-revocation-regime": 420,
-  "fig-fh-cycle-vs-cut": 424,
+  "fig-fh-cycle-vs-cut": 671,
   "fig-fh-settlement": 430,
   "fig-pareto-dominance": 375,
   "fig-sybil-deposit-floor": 376,
@@ -83,17 +83,17 @@
   "fig-swk-race-dramatization": 600,
   "fig-swk-recovery-pipeline": 600,
   "fig-swk-rehydration-pipeline": 600,
-  "fig-swk-taint-automaton": 600,
+  "fig-swk-taint-automaton": 781,
   "fig-swk-ticket-lock-delta": 600,
-  "fig-anchor-v6v7-escalation": 600,
+  "fig-anchor-v6v7-escalation": 641,
   "fig-anchor-verification-stack": 600,
   "fig-sealed-controllability-quadrant": 600,
   "fig-sealed-dual-attestation": 600,
-  "fig-sealed-laundering-fork": 600,
+  "fig-sealed-laundering-fork": 731,
   "fig-sealed-leakage-ledger": 600,
   "fig-sealed-receipt-provenance": 600,
   "fig-sealed-residuals-converge": 600,
-  "fig-sealed-three-principals": 600,
+  "fig-sealed-three-principals": 751,
   "fig-sealed-two-adversaries": 600,
   "fig-sealed-work-order-schema": 600,
   "legible-swarm-completion-verifier": 600,
@@ -102,15 +102,15 @@
   "legible-swarm-inception-canary": 600,
   "legible-swarm-rate-regime": 600,
   "legible-swarm-sa-levels": 600,
-  "legible-swarm-zoom-advantage": 600,
+  "legible-swarm-zoom-advantage": 791,
   "fig-stp-audit-amortization": 600,
   "fig-stp-dependency-spine": 600,
-  "fig-stp-engine-swap-regime": 600,
+  "fig-stp-engine-swap-regime": 761,
   "fig-stp-handoff-coverage": 600,
-  "fig-stp-resurrection-soundness": 600,
+  "fig-stp-resurrection-soundness": 771,
   "fig-he-conflict-kinds": 600,
-  "fig-he-conflict-witness": 600,
-  "fig-he-deontic-frontier": 600,
+  "fig-he-conflict-witness": 691,
+  "fig-he-deontic-frontier": 701,
   "fig-he-deterrence-convention": 600,
   "fig-he-ms-wedge": 600,
   "fig-he-rater-ladder": 600,
@@ -122,24 +122,448 @@
   "fig-bonded-isolation-ladder": 600,
   "fig-bonded-merkle-forest": 600,
   "fig-bonded-regiment-boundary": 600,
-  "fig-bonded-session-lifecycle": 600,
+  "fig-bonded-session-lifecycle": 651,
   "fig-bonded-sybil-deposit-floor-tikz": 376,
   "fig-bonded-trust-collision": 600,
   "fig-pareto-dominance-tikz": 375,
   "fig-sen-pareto-locking": 600,
-  "fig-fh-cochain-hand": 600,
+  "fig-fh-cochain-hand": 661,
   "fig-fh-conservation-ledger": 600,
   "fig-fh-settle-protocol": 600,
   "fig-fh-sovereignty-fence": 600,
   "fig-fh-sponsor-lifecycle": 600,
   "fig-fh-visible-topology": 600,
-  "fig-fh-worked-example": 600,
+  "fig-fh-worked-example": 681,
   "tab-fh-partition": 600,
   "tab-fh-revocation-rules": 600,
   "tab-fh-sheaf-harness": 600,
   "tab-fh-topology": 600,
-  "tab-fh-witness-log": 600
+  "tab-fh-witness-log": 600,
+  "fig-he-two-bucket-settlement": 711,
+  "fig-legible-halving-tree": 721,
+  "fig-sealed-release-lattice": 741
  },
  "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other.",
- "_new_figure_pages": "Keys 601/611/621/631 are reserved image slots for new 2026-09-27 figures; each pNNN.jpg is rendered from its true Book page (65/186/187/229), while FIGS[].bookPage records that page. Existing keys and saved region notes are unchanged."
+ "_new_figure_pages": "Keys 601/611/621/631 are reserved image slots for new 2026-09-27 figures; each pNNN.jpg is rendered from its true Book page (65/186/187/229), while FIGS[].bookPage records that page. Existing keys and saved region notes are unchanged.",
+ "snapshots": {
+  "640": {
+   "pdfPage": 217,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "9a8bb4f92fe6ef20d41a46f05192dd0cade6ae1868052bf0440407b666f42dc9",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "641": {
+   "pdfPage": 218,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "8ec9a3b6464837656aa3d0727c8daae587f15dc41a128e08205c00d615e9406f",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-anchor-v6v7-escalation"
+  },
+  "642": {
+   "pdfPage": 219,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "0e4c24037efcf52937c0c335d8536e98dbc833be80be32682f702c1982742926",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "650": {
+   "pdfPage": 640,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "3de541d01419a269cad55ebf7ac80286aca04749a46cb62010e5f93be97ed6ee",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "651": {
+   "pdfPage": 641,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "c1edcaa0e21773d78db957699d0c1853f28a8275183633506c067c3aaacdeeff",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-bonded-session-lifecycle"
+  },
+  "652": {
+   "pdfPage": 642,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "40bdc21a73a0cfba8b05f92252f2ec46bfe3e6ff29b4f2ca7ba46e7271c4d45d",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "660": {
+   "pdfPage": 693,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "8f3de32a5a39d921e5b72627aec7d1e005178f9de118fdde00e085a648719f0c",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "661": {
+   "pdfPage": 694,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "4e9bb44e3b63f7a40d7eb7f3d0703ef7e71c0fd48b72739d26150417865f6a9a",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-fh-cochain-hand"
+  },
+  "662": {
+   "pdfPage": 695,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "19a5682c10b1ce378eb351e6757b6a57ad3df3486678787a873fdd045f008130",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "670": {
+   "pdfPage": 694,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "4e9bb44e3b63f7a40d7eb7f3d0703ef7e71c0fd48b72739d26150417865f6a9a",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "671": {
+   "pdfPage": 695,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "19a5682c10b1ce378eb351e6757b6a57ad3df3486678787a873fdd045f008130",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-fh-cycle-vs-cut"
+  },
+  "672": {
+   "pdfPage": 696,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "c5457251a34156d274d6405152fcde329cfbbfd1b5668268f1a54ee8b1748ba7",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "680": {
+   "pdfPage": 716,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "999629aa62541d4237ef2a1a53dfb2b36d9065148933dd205871fd3f29f7b232",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "681": {
+   "pdfPage": 717,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "c91302c84bac1678c01716c6956b39285e79d77a4d5358fb33abd30d4c2f121b",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-fh-worked-example"
+  },
+  "682": {
+   "pdfPage": 718,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "1ab81534f39df46904c5adae8df718bbd43abd146969fd4c36a6fe62405e33dd",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "690": {
+   "pdfPage": 526,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "8ebbf54dfe163b82a525794f79d64d132e376460409485511971eb3f98f37156",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "691": {
+   "pdfPage": 527,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "8959bf018db160452a2d5643e8f85a6525b139a2c9a00c63561bc53f1a0607d3",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-he-conflict-witness"
+  },
+  "692": {
+   "pdfPage": 528,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "5a1100d15f3d0559946f56ce574e04baa4a298cd7a1e9cb31c682c9dfb79d34b",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "700": {
+   "pdfPage": 529,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "06ba6dd37c069fbd731dbc80e69d7d982deb84dde9d8efeecd18fa1937bd5761",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "701": {
+   "pdfPage": 530,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "6b9c3f50a44b25948f1a65403b7d4f24107ee98b1282701e17a97ab1f251584b",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-he-deontic-frontier"
+  },
+  "702": {
+   "pdfPage": 531,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "d25ab1b3268388c61f8af7160e9d6d7f70a486f0e69ed895b2daddf39d4532c7",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "710": {
+   "pdfPage": 534,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "255404486551fe2c7a12fd0376271809e1d02f4fa9012603e8e2a8c76821e032",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "711": {
+   "pdfPage": 535,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "a1077c10e2ccdb16b2be2bd9e8df06e87ac8667d616cc6f3b9a5f58762195cc1",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-he-two-bucket-settlement"
+  },
+  "712": {
+   "pdfPage": 536,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "742d7cbfc57002c626f55458cf90e71e9657b276108d856909609299b8fa5f25",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "720": {
+   "pdfPage": 357,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "ec6d3bdab98e1fd86ca6dbcda12552535c97f0911922bc30f0adca3b671bcc74",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "721": {
+   "pdfPage": 358,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "bfc0d55c20fa683dd2acfe3848bac15750593eda0edfc220f79a2fa42ce889f1",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-legible-halving-tree"
+  },
+  "722": {
+   "pdfPage": 359,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "c73ae7d050a6cc7208e3700f7ba137f7f374539997802bd09279328163afef82",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "730": {
+   "pdfPage": 273,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "292915b9de33c30d29c759bc1190e5cec35e4a22fce9b2f9cfb36c7e30b7ff5d",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "731": {
+   "pdfPage": 274,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "223c7639764773fa0d7913d018cf397972c336c11c5b7dfbb5e95f68c38c857b",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-sealed-laundering-fork"
+  },
+  "732": {
+   "pdfPage": 275,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "406643fb571daa45a79e309877ec2d951af9cccb2c02105e5ec7e0f0c452a23b",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "740": {
+   "pdfPage": 261,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "1d4d107d05394a09f5df368e8001fb50892a88ba345c59249e660954b56421d8",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "741": {
+   "pdfPage": 262,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "1bf2db76413479fb6865dc2aa286b9ca00f5b056e54f38b99fa4fdb0035cb4d5",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-sealed-release-lattice"
+  },
+  "742": {
+   "pdfPage": 263,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "c603e42e241d67d14fc90601530c843b11c9e87daecde43a154a5284e6a49a23",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "750": {
+   "pdfPage": 250,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "571332d4776f12fa1b3a728e4bf941f0c2330207a30dd4cac696da5df9740058",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "751": {
+   "pdfPage": 251,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "a542511030440945620d27ace2d7e372dbf94ab4a60caad2c980851f994b456a",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-sealed-three-principals"
+  },
+  "752": {
+   "pdfPage": 252,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "aadb7778750f37168290f0d92fef6e91a2ebd02a7fd0c73a0696385c9eb18b24",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "760": {
+   "pdfPage": 460,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "4dc20aed5792273ec5043085ad7bc0c1bbc45192859cf9535533fc3b0ba62567",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "761": {
+   "pdfPage": 461,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "208322239c158229d706421479543fe0033a18849e84f578a7f711059a2cfcf2",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-stp-engine-swap-regime"
+  },
+  "762": {
+   "pdfPage": 462,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "975562f7d491d41d48529f08158c69ee4ad15c675f5bac7009df5624931e12a4",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "770": {
+   "pdfPage": 461,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "208322239c158229d706421479543fe0033a18849e84f578a7f711059a2cfcf2",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "771": {
+   "pdfPage": 462,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "975562f7d491d41d48529f08158c69ee4ad15c675f5bac7009df5624931e12a4",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-stp-resurrection-soundness"
+  },
+  "772": {
+   "pdfPage": 463,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "58c6247fd85f10a752fef98912670bf0967d9a9b207d703da8a469204ffe8807",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "780": {
+   "pdfPage": 134,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "44c4d3b2613d7aeeca46ddc271974f7195471dc902b5e9e30407d84b6a2407dd",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "781": {
+   "pdfPage": 135,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "cd18eb964f414198974fd62e58b5987ad997ca0c3e439794d4bc2c4fea5235e0",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-swk-taint-automaton"
+  },
+  "782": {
+   "pdfPage": 136,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "fb678a3f1487e186e0482066bf0c0229822f32dd82b4f20529624eae18769d88",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "790": {
+   "pdfPage": 359,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "c73ae7d050a6cc7208e3700f7ba137f7f374539997802bd09279328163afef82",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "791": {
+   "pdfPage": 360,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "84afab46d66bb9fae20e0f36803aa7dbbe00485b1e5ffd1653219ea8d29ea10d",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "legible-swarm-zoom-advantage"
+  },
+  "792": {
+   "pdfPage": 361,
+   "sourceSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+   "imageSha256": "a4ae64eb3a3a1a78a830cb4438673fc2d0f50d7117db07a0545b3874a250dfab",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  }
+ },
+ "snapshotFigures": [
+  "fig-anchor-v6v7-escalation",
+  "fig-bonded-session-lifecycle",
+  "fig-fh-cochain-hand",
+  "fig-fh-cycle-vs-cut",
+  "fig-fh-worked-example",
+  "fig-he-conflict-witness",
+  "fig-he-deontic-frontier",
+  "fig-he-two-bucket-settlement",
+  "fig-legible-halving-tree",
+  "fig-sealed-laundering-fork",
+  "fig-sealed-release-lattice",
+  "fig-sealed-three-principals",
+  "fig-stp-engine-swap-regime",
+  "fig-stp-resurrection-soundness",
+  "fig-swk-taint-automaton",
+  "legible-swarm-zoom-advantage"
+ ],
+ "_snapshot_note": "snapshots maps immutable review image slots to their true PDF page and source SHA. Old images and region-note filenames remain unchanged; slot numbers are not Book pages."
 }

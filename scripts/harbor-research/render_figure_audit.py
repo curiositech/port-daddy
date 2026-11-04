@@ -82,6 +82,7 @@ PREFIX_TO_CHAPTER = (
     ("fig-anchor-", 2),
     ("fig-sealed-", 3),
     ("legible-swarm-", 4),
+    ("fig-legible-", 4),
     ("fig-stp-", 5),
     ("fig-he-", 6),
     ("fig-bonded-", 7),

@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40162963,
+    "bytes": 40167702,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/ad8a352ab58dfafaef24d4ce15907b86e33db2a4f3e8cf880049d5c68ce860dd.tar.gz",
-    "sha256": "ad8a352ab58dfafaef24d4ce15907b86e33db2a4f3e8cf880049d5c68ce860dd",
-    "url": "https://media.portdaddy.dev/book/source/sha256/ad8a352ab58dfafaef24d4ce15907b86e33db2a4f3e8cf880049d5c68ce860dd.tar.gz"
+    "key": "book/source/sha256/bbd3a0468a6d4b7544021ccfad8155e2165c55d4f4e559afc60f307efd2303b6.tar.gz",
+    "sha256": "bbd3a0468a6d4b7544021ccfad8155e2165c55d4f4e559afc60f307efd2303b6",
+    "url": "https://media.portdaddy.dev/book/source/sha256/bbd3a0468a6d4b7544021ccfad8155e2165c55d4f4e559afc60f307efd2303b6.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,10 +16,10 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "ef80e20cde046e9d8e36cd667dfed037272a6d7db8bd220b39684c9d9e559806",
+  "manifestSha256": "b816f2ca21d90b070ba20388e50860cba3335beaf5ec8ba51289b9cebf7100b8",
   "schemaVersion": 1,
   "source": {
-    "fileCount": 507,
+    "fileCount": 511,
     "files": [
       {
         "bytes": 1202,
@@ -40,16 +40,16 @@
         "sha256": "cc87d30a2fd82dec82037aa4846d99b22d0335abd5a37eaece9011bea3093122"
       },
       {
-        "bytes": 220960,
+        "bytes": 221038,
         "mode": 420,
         "path": "book/agent-transactions-whitepaper.tex",
-        "sha256": "6d8246888a37e5e62140b329661f6aa50376c348e3f97d8d0b13496c706ccf39"
+        "sha256": "a1d807faf81f881a304f8fd4b772783b080611355517a0656ff33a5f36b6f39b"
       },
       {
-        "bytes": 148392,
+        "bytes": 148600,
         "mode": 420,
         "path": "book/anchor-protocol-whitepaper.tex",
-        "sha256": "a00111183eece41f96c46cbb8347a065f3a262a629880f5627313561838a5d77"
+        "sha256": "97cfa01bddaca63aaa45ef40874a76bed34d9594c4f371c13226a09c72c5b7b5"
       },
       {
         "bytes": 262,
@@ -166,10 +166,10 @@
         "sha256": "7360e70e81810b7e9f764a4381fb22a94bd006d0707aa1fa2a862f2cde893f84"
       },
       {
-        "bytes": 182285,
+        "bytes": 182545,
         "mode": 420,
         "path": "book/federated-harbor-whitepaper.tex",
-        "sha256": "479ac2a4f7640e549d4424c4cfc1802fc741be23c45517db68431f5af183d3f9"
+        "sha256": "91b6037a2b84fbdb638a9efa8765c6370f133821f84965e9df28e9e1dc3ea1c5"
       },
       {
         "bytes": 644,
@@ -292,10 +292,10 @@
         "sha256": "73b863daa10643a6aaa22cf42fff452a350d22251120de31257c8920bf841449"
       },
       {
-        "bytes": 4347,
+        "bytes": 2323,
         "mode": 420,
         "path": "book/figures/fig-anchor-v6v7-escalation.tex",
-        "sha256": "e83c672fd6b3fa6117a36572c12bf23bdf1a5c891c0258770ca6e6018c19a359"
+        "sha256": "d605f98727e46b334e6e155d432cf8d40bb5fc2a9bdc89d0a84af01b8682e22f"
       },
       {
         "bytes": 3035,
@@ -370,10 +370,10 @@
         "sha256": "ed9a33ca1d12d504331516bf5d4f43ec49228b5587e1befb3f273f08fe7415a0"
       },
       {
-        "bytes": 6008,
+        "bytes": 3024,
         "mode": 420,
         "path": "book/figures/fig-bonded-session-lifecycle.tex",
-        "sha256": "32bbe0cfc67bfd20bb8825d2bf29bb5d7e771fe55c9402cff39a1b2fd7dd56e8"
+        "sha256": "200ba1a03bfb4541fe6887001c1aff167c6ba251bfc0aac00e26069a4e0692dd"
       },
       {
         "bytes": 3876,
@@ -556,10 +556,10 @@
         "sha256": "c0d09a49acd0404e2835102aa4ce1e1bf8433b7018a44467565131d346beb5ff"
       },
       {
-        "bytes": 5186,
+        "bytes": 2833,
         "mode": 420,
         "path": "book/figures/fig-fh-cochain-hand.tex",
-        "sha256": "dbecb35762f1564270bfd97e6a3d4ac4140daa46751638d7791ad7a53f2667f6"
+        "sha256": "cacbad578ed8c88ae2ca8e832bb6d5241f3a171a4b517872005f5f82bc1445b5"
       },
       {
         "bytes": 3384,
@@ -568,10 +568,10 @@
         "sha256": "b6a0595172db961e06613cd244840d6df427e3ba88bad25a20ac29118e29be94"
       },
       {
-        "bytes": 3031,
+        "bytes": 2832,
         "mode": 420,
         "path": "book/figures/fig-fh-cycle-vs-cut.tex",
-        "sha256": "21afb1c04455f3c3c17fe0fe96301a499d61250e986a2f6997f420f51997753f"
+        "sha256": "7678369c22be2bdf697a0c44e81f1634aa73746719b9f655c2dc92e762ba05ba"
       },
       {
         "bytes": 3862,
@@ -622,10 +622,10 @@
         "sha256": "a504d6be9fb9b91b80ce8394746b7c854541e5f1ab1254dd17b3ad8a57682a1a"
       },
       {
-        "bytes": 7262,
+        "bytes": 3096,
         "mode": 420,
         "path": "book/figures/fig-fh-worked-example.tex",
-        "sha256": "55edacedddaa32388a0ad13b285662ad23a3ae5b1c468c7c6ec06b8c58a95dd8"
+        "sha256": "c807ccd2509d8d28fbc8c608f18ea1d904acbc0a5f572eb5a09dfb074a956665"
       },
       {
         "bytes": 2590,
@@ -664,10 +664,10 @@
         "sha256": "9cfdfcd3a2637407dcab50f81c1336e036461b60b15a2e0477c44f29accc6916"
       },
       {
-        "bytes": 3444,
+        "bytes": 1942,
         "mode": 420,
         "path": "book/figures/fig-he-conflict-witness.tex",
-        "sha256": "50b19c5ec18ead7b6e6c1616a56b9bc1933353f61fb2da37e806ade784799a57"
+        "sha256": "75007dc0051f19fef1e2196a06fc1a979a029bbdf3d566b85956f5ea681ca75d"
       },
       {
         "bytes": 2819,
@@ -676,10 +676,10 @@
         "sha256": "45b813e92bf2a29c67e289c50c1713554aa0353eb02fe8d8620ea826d103436f"
       },
       {
-        "bytes": 3223,
+        "bytes": 2410,
         "mode": 420,
         "path": "book/figures/fig-he-deontic-frontier.tex",
-        "sha256": "2e2c1b0c3e1c361e642770bd285db8171433ef3f27eccff1dd197cef27d2ad96"
+        "sha256": "e3edf76af1becd436dcfe2a7550621e0f3cea0f52f733ebdf6db6f8ceacc0c23"
       },
       {
         "bytes": 2425,
@@ -724,6 +724,18 @@
         "sha256": "9ba6f78c62f6709ecc5ffc6f8f356db09ceeb5eb4d7583b37de724f7c3b02fa4"
       },
       {
+        "bytes": 2186,
+        "mode": 420,
+        "path": "book/figures/fig-he-two-bucket-settlement.tex",
+        "sha256": "da310d397ad6ef1ee348ed08f9400ec764791a0fdadcc304a7afdf85e7503689"
+      },
+      {
+        "bytes": 2043,
+        "mode": 420,
+        "path": "book/figures/fig-legible-halving-tree.tex",
+        "sha256": "a85f6185e3515e1faeb0483bb3590a39355afb294b9f19e7f7c9ec4e28936ff2"
+      },
+      {
         "bytes": 2289,
         "mode": 420,
         "path": "book/figures/fig-magic-link-inline.tex",
@@ -754,10 +766,10 @@
         "sha256": "e1daba826561dab88adcdeaa3f7aba22d2db232c6e928d314bbf07de2ba19c74"
       },
       {
-        "bytes": 2216,
+        "bytes": 2301,
         "mode": 420,
         "path": "book/figures/fig-sealed-laundering-fork.tex",
-        "sha256": "33b49463ea073e27301bfc5922c7bff0282751db37b948ffaf4505a7a787c194"
+        "sha256": "e9126443670bf7b0aecb83dfca02d6b77401993d6ef5874cb3935f2fe54f7205"
       },
       {
         "bytes": 3887,
@@ -790,16 +802,22 @@
         "sha256": "06b858c73a78873af1b821a0cb15cfa30b7423be7d229b133886e2b2625fb996"
       },
       {
+        "bytes": 1989,
+        "mode": 420,
+        "path": "book/figures/fig-sealed-release-lattice.tex",
+        "sha256": "d51ace16c9245910227ce64170c9376c19a6a8c3ef3c1bf620f3b1fb6a89f3ad"
+      },
+      {
         "bytes": 4897,
         "mode": 420,
         "path": "book/figures/fig-sealed-residuals-converge.tex",
         "sha256": "0ac8fcce5d711f9d5943b5ce213eaff3f910831dac727eede5e7b6577bd46c20"
       },
       {
-        "bytes": 3266,
+        "bytes": 2058,
         "mode": 420,
         "path": "book/figures/fig-sealed-three-principals.tex",
-        "sha256": "bf4945163c78ccf0ff166e6b12addfd5cf38052e14fa258983a6c20cfe91177f"
+        "sha256": "84aa02d547ac9f84f77eb1c0c51f42e2483d60d0433085e6987ef7a41db91c09"
       },
       {
         "bytes": 4263,
@@ -940,10 +958,10 @@
         "sha256": "26a9fb820aae9ba1d66fbe91747befe5ac9512695e6025613d7b6041a2b0243a"
       },
       {
-        "bytes": 2537,
+        "bytes": 2101,
         "mode": 420,
         "path": "book/figures/fig-stp-engine-swap-regime.tex",
-        "sha256": "06d5b6825a55bda561c07011632157b4d970470dfbeefe433f06147d2054565f"
+        "sha256": "aaf6b0e2661386acbace781e55b071161db728926b6dfa00d336104809507a78"
       },
       {
         "bytes": 3496,
@@ -988,10 +1006,10 @@
         "sha256": "20b91cc643f2025b329fd3dfb7b21558d49c306c63d48ff1027a40a49ff51a4a"
       },
       {
-        "bytes": 2521,
+        "bytes": 1804,
         "mode": 420,
         "path": "book/figures/fig-stp-resurrection-soundness.tex",
-        "sha256": "bbacb0209c8b9a539147cb8699b0c95f96e5cf095e80fda7e1bdffbf2ffed535"
+        "sha256": "2becf5fc0b40afad33f57b25ada060fc4550c27ae2666c07651cc0f086e85608"
       },
       {
         "bytes": 3750,
@@ -1144,10 +1162,10 @@
         "sha256": "21053207cb29b74a3ca9a3b1717606c7974347ffd26d8b7c0c3bd670f740c535"
       },
       {
-        "bytes": 2846,
+        "bytes": 2751,
         "mode": 420,
         "path": "book/figures/fig-swk-taint-automaton.tex",
-        "sha256": "adbab647746fd7d766cd203ce7cb99e982c2b86411276e2f6deb7310ee573501"
+        "sha256": "0bc283a85229c61fefc0bf66e24d32dc4365291785fd6c6bd64f8979229a3d6a"
       },
       {
         "bytes": 2467,
@@ -1312,10 +1330,10 @@
         "sha256": "f2295c3f285884f696b79a7379385431194955d3994e9f4e3e79ec30d0e264a6"
       },
       {
-        "bytes": 3168,
+        "bytes": 2691,
         "mode": 420,
         "path": "book/figures/legible-swarm-zoom-advantage.tex",
-        "sha256": "970a99eb12cf3df1ee27602d929379a69d6685b4c9f30dec8a07fe7380c09be6"
+        "sha256": "3ad204d2090dd0943a66e3fb9c5baa75a99dae5ae8bdf26aa88432c336e1613e"
       },
       {
         "bytes": 6436,
@@ -1672,6 +1690,12 @@
         "sha256": "390a0a567031b107d1ef221363a756f381d09a80385b209745a9f4c3b793d61f"
       },
       {
+        "bytes": 20913,
+        "mode": 420,
+        "path": "book/figures/swiss-bundle-provenance.json",
+        "sha256": "eb45df8d16302a9b2cd4343ea7a799a4c4cec3ad0fd6f63919f919ad0f205de8"
+      },
+      {
         "bytes": 2817,
         "mode": 420,
         "path": "book/figures/swk-unknown-effect.tex",
@@ -1858,16 +1882,16 @@
         "sha256": "2f548ebe7b4e535e4e5e9a3d6f7bff4436387e837c0925fef782be2736b6f982"
       },
       {
-        "bytes": 203818,
+        "bytes": 203496,
         "mode": 420,
         "path": "book/harbor-economy.tex",
-        "sha256": "6e6d7ae42b97f06d502318421ac8ccb6142913e07a79dd8aa373217018855fbf"
+        "sha256": "ff6806da544164b580d33dbe096a358dcc076fef2c158fd4ee72e712449a239d"
       },
       {
-        "bytes": 290047,
+        "bytes": 290603,
         "mode": 420,
         "path": "book/legible-swarm.tex",
-        "sha256": "e86d35251ee0568fe20892b42489d5264d0ff228071cc3a852bfb893d5809cda"
+        "sha256": "b3d50a45b998bc8d4a0a4b13e5b7918af401cbeebb376cdf16aa2d0db1a197fa"
       },
       {
         "bytes": 1076,
@@ -1879,7 +1903,7 @@
         "bytes": 27125,
         "mode": 420,
         "path": "book/plates/PROVENANCE.json",
-        "sha256": "ec4ef9009b608e6116dde478a338205d0e7afff060376b0b4ca3934fedbeacb8"
+        "sha256": "b94cb0a03c9ff54a519686267eb894d86bb108ea50fc05f0546e7b1bcdfbf7ae"
       },
       {
         "bytes": 7961,
@@ -2998,10 +3022,10 @@
         "sha256": "c247729812923c2e0043a0698ddbb063d95262febf439340e60232680636cab5"
       },
       {
-        "bytes": 111695,
+        "bytes": 111754,
         "mode": 420,
         "path": "book/sealed-harbor.tex",
-        "sha256": "2e5802e27f1149c751c3a4102ffd6921145c40945dc716173ff62096607855a2"
+        "sha256": "46d9958d15af2f905d6d0ceb2cd37f8c8de8dfc257fc7d571042f0b71ad2d316"
       },
       {
         "bytes": 4064,
@@ -3016,10 +3040,10 @@
         "sha256": "0a22c845e0c33f61c0287f82a858c9fb032268dcb796d414e42ce0a5c077c56f"
       },
       {
-        "bytes": 226189,
+        "bytes": 226185,
         "mode": 420,
         "path": "book/spawn-to-person.tex",
-        "sha256": "e53625ae182e9efe70573df24e262f14753a04a890ead9dcf1ed7fe5d2cb15a6"
+        "sha256": "9ba0c8b921b7bdcb2752a00e01fb1ad301d5b339be283770c01ecea829adcd5d"
       },
       {
         "bytes": 10209,
@@ -3064,6 +3088,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "51b12dd49716667bd0ece3f3bdb67cf66e8795dce7f6567e7e0bbb83992f5022"
+    "sha256": "02e92871a2534e87c5e1c80ebba2509c2f030993b333102e8d26923176caaf2a"
   }
 }

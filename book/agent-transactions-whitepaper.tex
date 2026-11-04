@@ -1566,14 +1566,15 @@ architecture: initialization, the complete transition relation, financial
 recipients, and monitoring rules are omitted. The bounded accounting artifact
 is identified separately in Appendix~\ref{app:mech}.
 
-Read the state machine as five English sentences before reading any syntax. An agent may not \texttt{Begin} without posting positive escrow. A file \texttt{Claim} always succeeds and only ever informs---it never blocks. \texttt{Commit} clears a session's claims and locks together. A \texttt{Reap} demotes an unresponsive agent to \texttt{abandoned} and queues it for \texttt{Salvage}. Notes grow monotonically while a session is active; destructive \texttt{Dismiss} is outside that property. The excerpt below expresses these lifecycle rules; a complete executable specification would still need the omitted initialization and transition definitions.
+Read the state machine as five English sentences before reading any syntax. An agent may not \texttt{Begin} without posting positive escrow. A file \texttt{ClaimFile} requires an active registered session; it records an advisory claim without excluding another claimant. \texttt{Commit} clears a session's claims and locks together. A \texttt{Reap} demotes an unresponsive agent to \texttt{abandoned} and queues it for \texttt{Salvage}. Notes grow monotonically while a session is active; destructive \texttt{Dismiss} is outside that property. The excerpt below expresses these lifecycle rules; a complete executable specification would still need the omitted initialization and transition definitions.
 
 \subsection{State and Actions}
 
-Figure~\ref{fig:bonded-session-lifecycle} draws this same lifecycle as a state machine before the TLA$^{+}$ excerpt states its actions: one honest path settles a session, and a crash detours it through Reap to either a successor's Salvage or a permanent Dismiss.
+Figure~\ref{fig:bonded-session-lifecycle} separates the session status from the recovery queue. A crash changes the heartbeat; Reap later abandons and queues the session. Salvage marks the queue entry for a successor, while Dismiss deletes the retained session.
 
 \input{figures/fig-bonded-session-lifecycle}
 
+\Needspace{19\baselineskip}
 \begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: State Variables}]
 ---- MODULE BondedCommons ----
 EXTENDS Naturals, Sequences, FiniteSets
