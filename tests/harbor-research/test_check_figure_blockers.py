@@ -51,54 +51,29 @@ def run(root: Path, *extra: str) -> subprocess.CompletedProcess:
 
 class TestCheckFigureBlockers(unittest.TestCase):
     def test_committed_blockers_json_matches_its_triage(self) -> None:
-        """This repo's blockers.json carried these entries at its triage date --
-        that is the whole point of turning figcheck into a release blocker (see
-        this directory's README.md, "Waivers" section). This test pins the
-        current, known counts so a change in them is a deliberate, reviewed act
-        (a new waiver seeded, or a figure actually fixed), not silent drift.
+        """Preserve raw measurements independently of visual acceptance.
 
-        The counts moved on 2026-09-14, when the records were re-derived
-        against the live \\input-derived corpus instead of the corpus of an
-        earlier wave: 61 entries became 21. Twenty-seven records described
-        fragments no chapter ships any more and were deleted outright, and of
-        the 52 that survived, 22 figures had been redrawn clean since their
-        record was written -- their entries went with them.
-
-        Of the 21 that remain, 20 are waived as figures the Wave 11 triage
-        condemned and scheduled, so their defects are a dated backlog rather
-        than news, and all 20 expire on one date so the backlog comes up for
-        review together. One is NOT waived and must stay that way:
-        fig-stp-deterrence-regime is triaged `keep` on a note that reads
-        "figcheck clean", and the fresh compile finds a drawn line through a
-        label (T4). A `keep` that is no longer clean is exactly the thing this
-        gate exists to surface, so it blocks until the figure or the triage row
-        is corrected -- which is a chapter-source edit, and a later wave's work.
-        The negative controls for both waiver rules live in the tests below, on
-        fixtures; this one only records what the real register says.
-
-        The count moved again on 2026-09-15 (PR #10191): renaming bare
-        hhink/hhamber colours to the pd-prefixed rule/direct-label styles in
-        fig-anchor-card-lifecycle and fig-swk-controllability-quadrant pulled
-        both into the figure-gate's Book-preamble compile scope for the first
-        time, surfacing two more pre-existing Wave 11 backlog defects (2.7
-        restyle, T2/T3; 1.10 redraw, T4) that the corpus had simply never
-        measured before. Their figcheck/*.json records were regenerated
-        against that compile and both are waived on the same Wave 11 terms as
-        the other 20, so 21/20 became 23/22; fig-stp-deterrence-regime is
-        still the one figure that stays unwaived."""
+        The 22 dated backlog waivers remain intact. Deterrence's T4 failure
+        and the deontic frontier's two natural math-script T3 flags are both
+        unwaived. Independent visual review does not rewrite a raw finding.
+        """
         result = subprocess.run(
             [sys.executable, str(SCRIPT), "--verbose", "--as-of", "2026-09-15"],
             capture_output=True, text=True, cwd=REPO_ROOT,
         )
         self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
-        self.assertIn("23 total, 22 waived, 1 failure(s)", result.stdout)
-        self.assertIn("fig-stp-deterrence-regime", result.stdout)
+        self.assertIn("24 total, 22 waived, 2 failure(s)", result.stdout)
+        self.assertIn("'fig-stp-deterrence-regime' fails ['T4'] and carries no waiver", result.stdout)
+        self.assertIn("'fig-he-deontic-frontier' fails ['T3'] and carries no waiver", result.stdout)
+        entries = json.loads((REPO_ROOT / BLOCKERS_REL).read_text())
+        self.assertEqual({row["id"] for row in entries if row["waiver"] is None},
+                         {"fig-stp-deterrence-regime", "fig-he-deontic-frontier"})
 
     def test_committed_triage_waivers_expire_without_renewal(self) -> None:
         """The snapshot test must not hide the real register's expiry boundary.
 
         All 22 dated waivers expire on October 31. On November 1 none counts
-        as valid, while the separately unwaived deterrence figure still fails.
+        as valid, while both separately unwaived figures still fail.
         The production checker retains its default of today's date.
         """
         result = subprocess.run(
@@ -106,7 +81,7 @@ class TestCheckFigureBlockers(unittest.TestCase):
             capture_output=True, text=True, cwd=REPO_ROOT,
         )
         self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
-        self.assertIn("23 total, 0 waived, 23 failure(s)", result.stdout)
+        self.assertIn("24 total, 0 waived, 24 failure(s)", result.stdout)
         self.assertEqual(result.stdout.count("waiver expired 2026-10-31"), 22)
         self.assertIn("'fig-stp-deterrence-regime' fails ['T4'] and carries no waiver", result.stdout)
 

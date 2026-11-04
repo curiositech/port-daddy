@@ -147,7 +147,11 @@ class TestRenderFigureAudit(unittest.TestCase):
             (REPO_ROOT / "book" / "textbook.json").read_text(encoding="utf-8")
         )
         declared = sorted(c["number"] for c in textbook["chapters"])
-        mapped = sorted(n for _, n in module.PREFIX_TO_CHAPTER)
+        mapped = sorted({n for _, n in module.PREFIX_TO_CHAPTER})
+        prefixes = [prefix for prefix, _ in module.PREFIX_TO_CHAPTER]
+        self.assertEqual(len(prefixes), len(set(prefixes)), "Duplicate prefix obscures its chapter")
+        self.assertEqual(module.chapter_for_stem("fig-legible-halving-tree"), 4)
+        self.assertEqual(module.chapter_for_stem("legible-swarm-zoom-advantage"), 4)
 
         self.assertEqual(
             mapped, declared,

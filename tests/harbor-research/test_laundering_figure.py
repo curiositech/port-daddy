@@ -89,7 +89,8 @@ class LaunderingFigureTests(unittest.TestCase):
         self.assertEqual(source.count(r"{$g(x)$\\$x\bmod2$}"), 2)
         for required in (r"\SGMeasuredFigure{sealed-laundering-fork}",
                          r"$t=f(s)=\lfloor s/2\rfloor$", r"$(A,B)$",
-                         r"\texttt{submit} has no payload",
+                         "C1 release request: no worker-supplied payload",
+                         "the gate reads committed $s$, not worker register $t$.",
                          "outside C1's committed-input model", r"$0=0$", r"$0\ne1$"):
             self.assertIn(required, source)
         for forbidden in (r"\resizebox", r"\scalebox", r"\tiny", r"\scriptsize"):
@@ -123,7 +124,8 @@ class LaunderingFigureTests(unittest.TestCase):
             self.assertEqual(page.get_label(), fields[1])
             text = " ".join(page.get_text().split())
             for expected in ("Committed input", "Worker computes", "Same gate",
-                             "Current C1:", "has no payload", "Erin sees"):
+                             "C1 release request:", "no worker-supplied payload",
+                             "the gate reads committed s, not worker register t.", "Erin sees"):
                 self.assertIn(expected, text)
             for pair, count in (("(0,2)", 1), ("(0,0)", 1), ("(0,1)", 2)):
                 self.assertGreaterEqual(text.replace(" ", "").count(pair), count)

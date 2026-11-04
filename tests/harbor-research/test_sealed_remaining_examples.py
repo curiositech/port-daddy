@@ -103,6 +103,16 @@ class RemainingExamples(unittest.TestCase):
                 with self.subTest(example=index, change=new), self.assertRaises(AssertionError):
                     check(meta, mutant)
 
+    def test_release_lattice_cannot_substitute_a_singleton_or_swap_owners(self):
+        meta, text = next((meta, text) for meta, text in blocks()
+                          if "Four Label States" in meta["heading"])
+        for old, new in ((r"\emptyset", r"\{\emptyset\}"),
+                         ("Derek's\ndelegated declassification authority", "Erin's\ndelegated declassification authority"),
+                         ("only with Erin's", "only with Derek's")):
+            self.assertIn(old, text)
+            with self.subTest(change=new), self.assertRaises(AssertionError):
+                check(meta, text.replace(old, new, 1))
+
     def test_important_display_demotion_is_rejected(self):
         for meta, text in blocks():
             if not meta['displays']:
