@@ -306,7 +306,7 @@ $16\times0.5=8$\,\textsc{cr} releases to Carol on green settlement --- on the
 \emph{same} escrow row that, in the same job, also locks Alice's $400$\,\textsc{cr}
 labor bounty and a $100$\,\textsc{cr} performance bond
 (\S\ref{sec:one-settlement} settles the whole $560$\,\textsc{cr} row by hand and
-checks it sums to zero).
+checks that the net wallet changes sum to zero).
 \emph{Now you try:} before reading on, guess whether
 Carol's $8$\,\textsc{cr} and Alice's $400$\,\textsc{cr} clear through one
 ledger operation or two --- C2 is the claim that it is one.
@@ -950,7 +950,9 @@ $\mathsf{O}(l_1\vee\dots\vee l_k)$ under discharge-choice semantics (the agent
 picks which disjunct to discharge). 
 
 Conflict-freedom of a policy set becomes
-NP-complete.
+NP-complete, already for families of three-disjunct clause obligations.
+The number of obligations is part of the input; a single fixed disjunction
+is not the hardness claim.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
@@ -974,10 +976,11 @@ assignment extracted from each conflict-free selection [internal,
 
 Figure~\ref{fig:he-deontic-frontier} draws the two theorems side by side on
 the identical rule vocabulary, so the one added rule kind is the only visible
-difference. Read together, the two theorems are a dichotomy at a designed boundary, in the
-sense Schaefer made standard for satisfiability~\pdcite{schaefer78}: on one side
-of a single expressive choice the problem is polynomial, on the other
-NP-complete, and the language designer is offered nothing in between. The same
+difference. Read together, the theorems locate a tractable fragment and a strictly more
+expressive language with an NP-complete decision problem. This follows the
+study of satisfiability boundaries exemplified by Schaefer~\pdcite{schaefer78};
+it does not classify every intermediate restriction or preclude fast solutions
+to particular instances. The same
 step is familiar one formalism over, where the simple temporal problem is
 polynomial and admitting disjunctions of difference constraints makes
 consistency NP-complete~\pdcite{dmp91,sk00}; the claim here is the location of the
@@ -1134,7 +1137,7 @@ quality. A known, inspectable skill can instead support an upfront licence.
 
 Section~\ref{sec:three-sides} considered labor, capital, and IP as alternative
 ways to buy the refactor. This example combines them in one transaction against
-one escrow object, then checks that the balances sum to zero.
+one escrow object, then checks that the net wallet changes sum to zero.
 
 \paragraph{The three-sided settlement, dramatized.} Bob posts one float plan for
 the $1{,}200$-line refactor, with three line items. \emph{Labor:} a $400$\,\textsc{cr}
@@ -1151,21 +1154,10 @@ metered licence bills only the $16$ files the skill actually touched, so
 $16 \times 0.5 = 8$\,\textsc{cr} releases to Carol and the unused $2$\,\textsc{cr}
 returns to Bob. Alice's bond is refunded as collateral, not income.
 
-\begin{center}\small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.0cm} r >{\raggedright\arraybackslash}X@{}}
-\toprule
-\textbf{Wallet} & \textbf{Net delta} & \textbf{Why} \\
-\midrule
-Bob (requester)      & $-458$ & $-460$ escrowed, $+2$ unmetered licence returned \\
-Alice (labor, side 1)& $+400$ & bounty; bond $-100$ in, $+100$ back, nets $0$ \\
-Dana (capital, side 2)& $+50$ & lease fee on the leased specialist \\
-Carol (IP, side 3)   & $+8$   & $16$ files metered at $0.5$\,\textsc{cr} \\
-Commons              & $+0$   & nothing slashed on a Success settlement \\
-\midrule
-\textbf{Sum}         & $\mathbf{0}$ & escrow $560 \to 0$; supply unchanged \\
-\bottomrule
-\end{tabularx}
-\end{center}
+Figure~\ref{fig:he-two-bucket-settlement} keeps the two funding sources separate
+and gives both contractual outcomes.
+
+\input{figures/fig-he-two-bucket-settlement}
 
 \noindent Check it on one line: $-458 + 400 + 50 + 8 + 0 = 0$. Three sides, three
 privately-informed counterparties, three different reputation keys --- and one

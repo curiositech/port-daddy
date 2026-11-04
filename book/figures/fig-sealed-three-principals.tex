@@ -1,57 +1,39 @@
-% Fragment: fig-sealed-three-principals.tex -- the three parties who must
-% never see each other's plaintext, and the one boundary that seals all
-% three lines of sight at once.
-%
-% Reader question: which three parties must never see each other's
-% plaintext, and what single mechanism seals all three lines of sight?
-% Claim: Derek, Erin, and the cloud operator form a triangle of mutual
-% "must not see" constraints, and one boundary (not three separate ones)
-% seals every edge of that triangle at once.
-% Evidence: "The scene" paragraph, website-v2/public/whitepaper/
-% sealed-harbor.tex, Sec. sealed-problem ("Derek owns sensitive financial
-% data D. Erin owns a valuable agent system M... Derek must not receive
-% M, Erin must not receive D, and the cloud operator hosting the
-% computation must receive neither.").
-% Must distinguish: three named parties, not two -- the counter-read this
-% figure exists to correct is a reader who thinks only Derek-versus-Erin
-% needs separating and forgets the host; and one enclosing boundary, not
-% three pairwise fences, since the room seals all three sight-lines with a
-% single mechanism.
-% Grammar chosen: relation map, three principal nodes in a triangle with
-% explicit "must not see" edges on every side, the whole triangle enclosed
-% by one trust-boundary rectangle (the S12 Dolev-Yao convention already
-% used for the room elsewhere in this chapter).
-% Grammar rejected: three separate two-party boxes (Derek|Erin,
-% Derek|cloud, Erin|cloud) -- that draws three fences where the chapter's
-% claim is exactly that one mechanism does the sealing, not three.
-% Five-second test: count the boundaries drawn -- one rectangle, around
-% all three parties and all three edges, not a fence per pair.
-% QA: beauty_lint warns B7 (sub-point near-alignment noise between
-% rotated edge-tags and node centres); justified, not fixed.
+% Reader question: where may Derek's data and Erin's model meet in plaintext?
+% Claim: only the attested workload admits both; all three principals remain
+% outside its confidentiality boundary. Release is separately authorized.
+% Evidence: sealed-harbor.tex, sec:sealed-problem and sec:sealed-design.
+% Grammar: containment plus directed inputs; not a triangle enclosed by a room.
+% Counter-read: an attested workload is not proof against every hardware channel.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd focus outline,minimum width=2.6cm,align=center]
-    (DEREK) at (0,3.6) {Derek\\\itshape holds $D$};
-  \node[pd focus outline,minimum width=2.6cm,align=center]
-    (ERIN) at (6.2,3.6) {Erin\\\itshape holds $M$};
-  \node[pd focus outline,minimum width=2.9cm,align=center]
-    (CLOUD) at (3.1,0.4) {cloud operator\\\itshape holds neither};
-  \draw[pd breach rule] (DEREK) -- (ERIN);
-  \node[pd tag,anchor=south] at ($(DEREK)!0.5!(ERIN)$) {must not see};
-  \draw[pd breach rule] (DEREK) -- (CLOUD);
-  \node[pd tag,anchor=east,rotate=52] at ($(DEREK)!0.5!(CLOUD)$) {must not see};
-  \draw[pd breach rule] (ERIN) -- (CLOUD);
-  \node[pd tag,anchor=west,rotate=-52] at ($(ERIN)!0.5!(CLOUD)$) {must not see};
-  \begin{scope}[on background layer]
-    \node[pd trust boundary,fit={(DEREK)(ERIN)(CLOUD)},inner sep=16pt]
-      (ROOM) {};
-  \end{scope}
-  \node[pd title,anchor=south west] at (ROOM.north west) {the sealed room};
-  \node[pd note,anchor=north,align=center,text width=6.6cm]
-    at (3.1,-1.55) {one boundary seals all three sight-lines at once};
+  \node[pd actor,minimum width=2.6cm] (D) at (1.4,4.4)
+    {Derek\\owns data $D$};
+  \node[pd actor,minimum width=2.6cm] (E) at (8.8,4.4)
+    {Erin\\owns model $M$};
+  \draw[pd trust boundary] (2.5,.4) rectangle (7.7,3.3);
+  \node[pd title,anchor=north] at (5.1,3.12) {attested confidential workload};
+  \node[pd focus state,minimum width=3.6cm] (W) at (5.1,2.1)
+    {compute with $D$ and $M$};
+  \node[pd label,anchor=north,text width=4.2cm] at (5.1,1.35)
+    {plaintext meets only here};
+  \draw[pd arrow] (D.south) -- (1.4,2.1) -- (W.west);
+  \node[pd label] at (1.25,1.65) {encrypted $D$};
+  \draw[pd arrow] (E.south) -- (8.8,2.1) -- (W.east);
+  \node[pd label] at (8.95,1.65) {encrypted $M$};
+  \node[pd actor,minimum width=3.3cm] (H) at (5.1,-.7)
+    {cloud operator\\hosts the workload};
+  \draw[pd guide] (H.north) -- (5.1,.4);
+  \node[pd note,anchor=north,text width=9.8cm,align=center] at (5.1,-1.45)
+    {Derek receives no model plaintext; Erin receives no data plaintext.\\
+     The host is outside the confidentiality boundary.};
 \end{tikzpicture}
-\caption{The room must keep Erin's model from Derek, Derek's data from Erin, and both from the cloud operator. One mechanism must satisfy all three separations. [internal]}
+\caption{The sealed room contains the computation, not its owners or host.
+Derek supplies data and Erin supplies a model over encrypted input channels;
+attestation binds their release to the intended workload. Authorized outputs
+leave through separate release gates. The claim assumes the chapter's
+confidential-computing boundary and does not eliminate excluded hardware
+side channels.}
 \label{fig:sealed-three-principals}
 \end{figure}

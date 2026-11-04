@@ -1746,22 +1746,23 @@ in $2$, engine-history shedding in $2$, liability stranding in $2$ [internal,
 \texttt{b5\_engine\_substitution.py}].
 \end{pdclaim}
 
-Figure~\ref{fig:stp-resurrection-soundness} brings the three continuity conditions
-and principal-scoped sanction record to one cutover check. A missing condition
-refuses migration; the counterexamples above explain why each is needed.
+Figure~\ref{fig:stp-resurrection-soundness} pairs each safeguard with the
+shortest modeled failure when it is removed. Principal-scoped sanctions are a
+standing premise; clauses (i)--(iii) govern provider migration. The action
+counts describe the bounded model, not elapsed recovery time.
 
 \input{figures/fig-stp-resurrection-soundness}
 
-\paragraph{The wrong turn.} A first pass keyed sanctions the way it keyed
-prices, per (principal, engine), and the intact protocol failed
-Definition~\ref{def:sanction-respecting} in one step with no migration
-involved: work dishonestly on one engine key, keep acting at full score on the
-sibling key. The fix is the scope lemma's one line, price per (principal,
-engine) and sanction per principal, and it is the same rule that closes
+\paragraph{Why sanctions attach to the principal.} Suppose sanctions are
+keyed like prices, per (principal, engine). An agent can violate
+Definition~\ref{def:sanction-respecting} without migrating: work dishonestly
+on one engine key, then act at full score on its sibling. The scope lemma
+blocks this escape by pricing per (principal, engine) and sanctioning per
+principal. The same rule closes
 skill-versioning's escape (a sanctioned \texttt{v1} must not act clean through
 \texttt{v2}): one lemma, two doors. The resume button and provider migration
-therefore ship with their own security property and the three attacks it was
-tested against, by name. The composition with the no-mint law of
+therefore require the stated security property and its three migration
+safeguards. The composition with the no-mint law of
 \S\ref{sec:continuity} is exact: migration moves a score whole, with its
 sources closed, and forking splits one with a debit. Both are the same
 conservation law, so an adversary cannot arbitrage between the resurrection

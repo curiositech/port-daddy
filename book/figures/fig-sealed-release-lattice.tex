@@ -1,0 +1,38 @@
+% Reader question: whose authority removes each release restriction?
+% Claim: joins may add owners; removing D requires Derek and removing E Erin.
+% Evidence: sealed-harbor.tex, Four Label States example and whole-worker taint.
+% Grammar: Hasse diamond for union; a separate keyed edge table for release.
+% Counter-read: declassifying one artifact never resets whole-worker taint.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title] at (2.8,4.6) {Add restrictions by union};
+  \node[pd focus state,minimum width=1.5cm] (DE) at (2.8,3.7) {$\{D,E\}$};
+  \node[pd state,minimum width=1.5cm] (D) at (1.2,2.0) {$\{D\}$};
+  \node[pd state,minimum width=1.5cm] (E) at (4.4,2.0) {$\{E\}$};
+  \node[pd state,minimum width=1.5cm] (N) at (2.8,.3) {$\emptyset$};
+  \draw[pd arrow] (N) -- (D);
+  \draw[pd arrow] (N) -- (E);
+  \draw[pd arrow] (D) -- (DE);
+  \draw[pd arrow] (E) -- (DE);
+  \node[pd note,anchor=north] at (2.8,-.3) {upward edges need no release authority};
+
+  \node[pd title,anchor=west] at (6.05,4.6) {Remove by owner authority};
+  \node[pd focus label,anchor=west] at (6.05,3.65) {Derek may remove $D$};
+  \node[pd label,anchor=west,align=left] at (6.05,2.8)
+    {$\{D\}\longrightarrow\emptyset$\\[5pt]
+     $\{D,E\}\longrightarrow\{E\}$};
+  \draw[pd hairline] (6.05,1.9) -- (10.15,1.9);
+  \node[pd focus label,anchor=west] at (6.05,1.4) {Erin may remove $E$};
+  \node[pd label,anchor=west,align=left] at (6.05,.55)
+    {$\{E\}\longrightarrow\emptyset$\\[5pt]
+     $\{D,E\}\longrightarrow\{D\}$};
+\end{tikzpicture}
+\caption{Four artifact labels and four owner-controlled release steps.
+An arrow in the diamond adds a restriction; the table names the authority
+needed to remove one. A release gate may exercise delegated authority within
+its contract. Releasing an artifact does not make the worker clean: after a
+secret read, whole-worker taint persists until job destruction.}
+\label{fig:sealed-release-lattice}
+\end{figure}

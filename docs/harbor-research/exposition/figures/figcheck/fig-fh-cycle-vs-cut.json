@@ -3,7 +3,7 @@
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+    "textwidth_cm": 11.43
   },
   "checks": {
     "T1": {
@@ -36,23 +36,42 @@
       "count": 0,
       "findings": []
     },
+    "T9": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T10": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
     "T6": {
       "status": "pass",
       "count": 0,
       "findings": []
     },
     "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+      "status": "warn",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T7",
+          "severity": "warn",
+          "page": 0,
+          "content_width_pt": 399.3,
+          "textwidth_pt": 324.0,
+          "message": "drawn content is 14.09cm wide, wider than the 11.43cm chapter textwidth"
+        }
+      ]
     }
   },
   "ink": [
     {
       "page": 0,
-      "ink_fraction": 0.1293,
-      "edge_density": 0.0706,
-      "distinct_colors": 1881,
+      "ink_fraction": 0.1215,
+      "edge_density": 0.0758,
+      "distinct_colors": 727,
       "flags": [
         "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
       ]
@@ -61,6 +80,8 @@
   "summary": {
     "result": "pass",
     "failed_checks": [],
-    "warned_checks": []
+    "warned_checks": [
+      "T7"
+    ]
   }
 }

@@ -1,0 +1,481 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "kind": "operator-supplied archive",
+    "filename": "portdaddy_swiss_figures_bundle.zip",
+    "sha256": "c010a0df4472b80ef6825df252c86d959e9a76a9cbd8814db00ecb0966fb81b8",
+    "authorship": "not specified in the supplied archive",
+    "files": [
+      {
+        "path": "portdaddy_swiss_compendium.pdf",
+        "bytes": 333318,
+        "sha256": "e5468d18c00e9b998ee45146a40331a884ff83c07c543c9a1e2bc8844b465dc6"
+      },
+      {
+        "path": "tex/portdaddy_swiss_figures_tikz.tex",
+        "bytes": 34294,
+        "sha256": "73d2ea422d98fbc4c659b92ce7b37d8cb9808028ecc40280f213d5120fc7a038"
+      },
+      {
+        "path": "tex/portdaddy_swiss_compendium_lualatex.tex",
+        "bytes": 46366,
+        "sha256": "0a8bcff3426c8e611ba816b9e5828b724234b5f45ea47d4b281cf11fe60ad55e"
+      },
+      {
+        "path": "tex/standalone/Fig_1_7B_Gate_the_Channel_Never_the_Token_Two_State_Taint_Automaton.tex",
+        "bytes": 7674,
+        "sha256": "96b1101f0b8d851d82b871112a9c59427fe4c3ba68541f0a6a97bd0521cd06a6"
+      },
+      {
+        "path": "renders/Fig_1_7B_Gate_the_Channel_Never_the_Token_Two_State_Taint_Automaton.png",
+        "bytes": 287511,
+        "sha256": "f2e45a73de4a893fa39bb16aade7e1c2b5b7577b6c613ab9a91b6fc772b50f9e"
+      },
+      {
+        "path": "tex/standalone/Fig_2_14_Multi_Hop_Re_Escalation_Attack_v6_vs_Inductive_Per_Hop_Verifier_v7.tex",
+        "bytes": 7800,
+        "sha256": "374be3a54723aff928fe5393156ddcd9725bbe01165bd2a3355a760fd538289c"
+      },
+      {
+        "path": "renders/Fig_2_14_Multi_Hop_Re_Escalation_Attack_v6_vs_Inductive_Per_Hop_Verifier_v7.png",
+        "bytes": 262420,
+        "sha256": "baf20cb21e251092cfeeb3c939babc713194af4f02f29ba5c514bce3f8189379"
+      },
+      {
+        "path": "tex/standalone/Fig_3_3B_Four_Free_Upward_Joins_Four_Owner_Locked_Exits_and_the_Laundering_Fork.tex",
+        "bytes": 7812,
+        "sha256": "5971eeea2739605b708df845225fb01e58cc847470a81a4f64d89baca50b2f3f"
+      },
+      {
+        "path": "renders/Fig_3_3B_Four_Free_Upward_Joins_Four_Owner_Locked_Exits_and_the_Laundering_Fork.png",
+        "bytes": 261576,
+        "sha256": "a5e08bbed79abc4c61657f209feba86ad1aa0b743f4ef2e10426408f463add2f"
+      },
+      {
+        "path": "tex/standalone/Fig_4_14B_Adaptive_Binary_Splitting_Tree_and_d_1_12_Sparsity_Phase_Boundary.tex",
+        "bytes": 7657,
+        "sha256": "0fbdafdc346446c051bc70c807dcebdc2a197d4628a6b320c0486e5f1c8eb727"
+      },
+      {
+        "path": "renders/Fig_4_14B_Adaptive_Binary_Splitting_Tree_and_d_1_12_Sparsity_Phase_Boundary.png",
+        "bytes": 276207,
+        "sha256": "1f6850d4c5b18efd5d14667b4428dc183e5d15881da78e5ee3547349d25435c2"
+      },
+      {
+        "path": "tex/standalone/Fig_5_8B_Unattested_Lemons_Spiral_vs_Attested_Flip_and_Resurrection_Guards.tex",
+        "bytes": 7773,
+        "sha256": "dd2e30f52a1ed31bb544bcb75d36292d05798bb2315b99acf25f8ef6d20aca79"
+      },
+      {
+        "path": "renders/Fig_5_8B_Unattested_Lemons_Spiral_vs_Attested_Flip_and_Resurrection_Guards.png",
+        "bytes": 279952,
+        "sha256": "9f3e095a63ed5e52d7f11c06e55b5f11bfab076b01c1d1f9bbc55da5266fb8f5"
+      },
+      {
+        "path": "tex/standalone/Fig_6_4B_Tractable_Monotone_Commitment_Fragment_vs_Disjunctive_3_SAT_Cliff.tex",
+        "bytes": 7936,
+        "sha256": "9a20665106f0fe5abd16600089b8b94e75b48bed37d54b2fd3b7a5e5ba6f57a0"
+      },
+      {
+        "path": "renders/Fig_6_4B_Tractable_Monotone_Commitment_Fragment_vs_Disjunctive_3_SAT_Cliff.png",
+        "bytes": 291670,
+        "sha256": "1e428be6bed6235f29e8e7767d00c0b5eaf02b163dfd2d06d71775c94544fb6d"
+      },
+      {
+        "path": "tex/standalone/Fig_7_9B_Two_Segregated_Escrow_Buckets_and_Six_Action_TLA_State_Spine.tex",
+        "bytes": 8562,
+        "sha256": "64378070a5339c0382a01f97f26d14ac10ea8c26c588a5221e9c254b68400d2e"
+      },
+      {
+        "path": "renders/Fig_7_9B_Two_Segregated_Escrow_Buckets_and_Six_Action_TLA_State_Spine.png",
+        "bytes": 298160,
+        "sha256": "5da29e88861a73d7b2b6dd717cdf5aeaec0de99f73015babe4a749d19dbfa8ba"
+      },
+      {
+        "path": "tex/standalone/Fig_8_5B_Why_Direct_Sender_Equality_Beats_Sheaf_Residuals_and_Three_Harbor_Timeline.tex",
+        "bytes": 9028,
+        "sha256": "0e2eb659046ee748630e1f326d9475a5692deec5602f966d26236bd04115a1bb"
+      },
+      {
+        "path": "renders/Fig_8_5B_Why_Direct_Sender_Equality_Beats_Sheaf_Residuals_and_Three_Harbor_Timeline.png",
+        "bytes": 269999,
+        "sha256": "f707a4c4ca6e210ac61e4d1ea4b2727f23bf6c8eba0859ecadcbae0e0e51d7d8"
+      },
+      {
+        "path": "renders/bonus_book_palette/plate1_ch3_redesign.png",
+        "bytes": 467899,
+        "sha256": "6c5ba586c8fbe9e7b15e0d8f238bf138c3e904873e1519ff7e6327308c6b387e"
+      },
+      {
+        "path": "renders/bonus_book_palette/plate2_ch4_ch6_new.png",
+        "bytes": 542646,
+        "sha256": "0dcbc18f7a8416d3443bd89a6cbaf8d3c1ed32be92160a93b6064b5f49ae94b7"
+      },
+      {
+        "path": "MANIFEST.txt",
+        "bytes": 2925,
+        "sha256": "0716869ffa88d036235ef4d0d2a4d6264842242a1c357854fc26d5b71c350312"
+      }
+    ]
+  },
+  "integration": {
+    "canonicalRoot": "book/",
+    "rendering": "Native vector TeX using the shared Book figure language and typography. Supplied proposal-page headers, grids and register footers are not reader-facing figure content.",
+    "adviceScope": "The supplied archive contains eight local figure-design briefs and two bonus plates; no separate book-restructuring memo was present.",
+    "items": [
+      {
+        "id": "channel-and-confinement",
+        "figureLabels": [
+          "fig:swk-taint-automaton",
+          "fig:sealed-three-principals"
+        ],
+        "treatment": "Retain the focused controllability automaton; adapt the exterior-principal and protected-worker containment design.",
+        "claimCorrections": [
+          "The empty label is the empty set, not a set containing it.",
+          "Channel controllability and enclave confidentiality are separate claims."
+        ]
+      },
+      {
+        "id": "delegation",
+        "figureLabels": [
+          "fig:anchor-v6v7-escalation"
+        ],
+        "treatment": "Adapt aligned authority chains with the same rights sets and a visible failed parent-child check.",
+        "claimCorrections": [
+          "Root-only and every-hop rules describe mechanisms, not manuscript history.",
+          "Scope attenuation assumes valid authentication and the stated verifier model."
+        ]
+      },
+      {
+        "id": "labels-and-laundering",
+        "figureLabels": [
+          "fig:sealed-release-lattice",
+          "fig:sealed-laundering-fork"
+        ],
+        "treatment": "Add a native four-label lattice; retain the existing hand-computable laundering counterexample.",
+        "claimCorrections": [
+          "Owner-authorized release is distinct from input integrity.",
+          "A general t=f(s) diagram must not replace the specific checked arithmetic example."
+        ]
+      },
+      {
+        "id": "adaptive-inspection",
+        "figureLabels": [
+          "fig:legible-halving-tree",
+          "fig:zoom-advantage"
+        ],
+        "treatment": "Add a small fully countable pruning trace and correct the ceiling-aware guarantee plot.",
+        "claimCorrections": [
+          "The 1/12 boundary certifies the stated bound; it is not an exact empirical crossover.",
+          "The curve is piecewise hyperbolic, with jumps, not a staircase.",
+          "Independent sample designs produce different means; report each with its own provenance."
+        ]
+      },
+      {
+        "id": "engine-and-continuity",
+        "figureLabels": [
+          "fig:stp-engine-swap-regime",
+          "fig:stp-resurrection-soundness"
+        ],
+        "treatment": "Separate conditional payoff comparison from migration safeguard evidence.",
+        "claimCorrections": [
+          "Attestation does not itself enforce price pass-through.",
+          "The supplied universal lemons spiral is not established.",
+          "Zero bounded-model violations is not general software correctness."
+        ]
+      },
+      {
+        "id": "rule-closure-and-complexity",
+        "figureLabels": [
+          "fig:he-conflict-witness",
+          "fig:he-deontic-frontier"
+        ],
+        "treatment": "Show the exact inferred conflict before a qualified feasibility frontier.",
+        "claimCorrections": [
+          "Use fixture intervals and the manuscript indexed bound.",
+          "NP-completeness concerns growing families of clause obligations, not one binary choice.",
+          "Finding a satisfying assignment and verifying one are different tasks."
+        ]
+      },
+      {
+        "id": "custody-and-recovery",
+        "figureLabels": [
+          "fig:he-two-bucket-settlement",
+          "fig:bonded-session-lifecycle"
+        ],
+        "treatment": "Separate the two custody balances from session and recovery-queue transitions.",
+        "claimCorrections": [
+          "Returned collateral is not income.",
+          "Payment, slashing and invented lifecycle states do not follow from the displayed TLA excerpt."
+        ]
+      },
+      {
+        "id": "observation-and-federation",
+        "figureLabels": [
+          "fig:fh-cochain-hand",
+          "fig:fh-worked-example"
+        ],
+        "treatment": "Separate a matched-evidence detector comparison from the multi-harbor incident sequence.",
+        "claimCorrections": [
+          "Signed claims require matching sender, coordinate and context for direct comparison.",
+          "209 is a fixture outcome count, not a universal detection guarantee.",
+          "An ideal gossip lower bound is not a revocation completion deadline."
+        ]
+      }
+    ],
+    "editorialPrinciples": [
+      "Preserve the causal progression from local writes through delegation, confinement, supervision, durable identity, exchange, settlement and federation.",
+      "Teach a concrete failure and a hand-checkable trace before the general claim; state its hypotheses and reuse the example at the point of application.",
+      "Replace counterpart illustrations rather than accumulating proposal plates. Give each figure one question; split unrelated mechanisms at their actual points of use.",
+      "Distinguish theorem, design requirement, bounded-model result and sampled experiment. Put useful conditions in captions and production bookkeeping in provenance.",
+      "The figure briefs do not establish a case for wholesale chapter reordering. Chapters 4, 6 and 7 remain candidates for a separate case-first pacing pass."
+    ],
+    "relatedPlacementRepairs": [
+      {
+        "figureLabel": "fig:split-ranker",
+        "repair": "Place the competing margin illustration after the explanation so the caption remains beside the diagram."
+      },
+      {
+        "figureLabel": "fig:bonded-session-lifecycle",
+        "repair": "Reserve space for the short state-variable listing so a floating figure cannot interrupt it."
+      },
+      {
+        "figureLabel": "fig:fh-cycle-vs-cut",
+        "repair": "Use a shared perturbation legend with its own lane, preserving the cycle and path residuals."
+      },
+      {
+        "claimLabel": "def:fh-sovereignty",
+        "repair": "Reserve the definition heading, introduction and first clause together."
+      }
+    ]
+  },
+  "validation": {
+    "status": "accepted for this integration scope",
+    "date": "2026-11-04",
+    "baseCommit": "aa55c417d2f5d6cf74f3059ff6f65ae89c0db05c",
+    "changedTexSources": {
+      "book/agent-transactions-whitepaper.tex": "a1d807faf81f881a304f8fd4b772783b080611355517a0656ff33a5f36b6f39b",
+      "book/anchor-protocol-whitepaper.tex": "97cfa01bddaca63aaa45ef40874a76bed34d9594c4f371c13226a09c72c5b7b5",
+      "book/federated-harbor-whitepaper.tex": "91b6037a2b84fbdb638a9efa8765c6370f133821f84965e9df28e9e1dc3ea1c5",
+      "book/figures/fig-anchor-v6v7-escalation.tex": "d605f98727e46b334e6e155d432cf8d40bb5fc2a9bdc89d0a84af01b8682e22f",
+      "book/figures/fig-bonded-session-lifecycle.tex": "200ba1a03bfb4541fe6887001c1aff167c6ba251bfc0aac00e26069a4e0692dd",
+      "book/figures/fig-fh-cochain-hand.tex": "cacbad578ed8c88ae2ca8e832bb6d5241f3a171a4b517872005f5f82bc1445b5",
+      "book/figures/fig-fh-cycle-vs-cut.tex": "7678369c22be2bdf697a0c44e81f1634aa73746719b9f655c2dc92e762ba05ba",
+      "book/figures/fig-fh-worked-example.tex": "c807ccd2509d8d28fbc8c608f18ea1d904acbc0a5f572eb5a09dfb074a956665",
+      "book/figures/fig-he-conflict-witness.tex": "75007dc0051f19fef1e2196a06fc1a979a029bbdf3d566b85956f5ea681ca75d",
+      "book/figures/fig-he-deontic-frontier.tex": "e3edf76af1becd436dcfe2a7550621e0f3cea0f52f733ebdf6db6f8ceacc0c23",
+      "book/figures/fig-he-two-bucket-settlement.tex": "da310d397ad6ef1ee348ed08f9400ec764791a0fdadcc304a7afdf85e7503689",
+      "book/figures/fig-legible-halving-tree.tex": "a85f6185e3515e1faeb0483bb3590a39355afb294b9f19e7f7c9ec4e28936ff2",
+      "book/figures/fig-sealed-laundering-fork.tex": "e9126443670bf7b0aecb83dfca02d6b77401993d6ef5874cb3935f2fe54f7205",
+      "book/figures/fig-sealed-release-lattice.tex": "d51ace16c9245910227ce64170c9376c19a6a8c3ef3c1bf620f3b1fb6a89f3ad",
+      "book/figures/fig-sealed-three-principals.tex": "84aa02d547ac9f84f77eb1c0c51f42e2483d60d0433085e6987ef7a41db91c09",
+      "book/figures/fig-stp-engine-swap-regime.tex": "aaf6b0e2661386acbace781e55b071161db728926b6dfa00d336104809507a78",
+      "book/figures/fig-stp-resurrection-soundness.tex": "2becf5fc0b40afad33f57b25ada060fc4550c27ae2666c07651cc0f086e85608",
+      "book/figures/fig-swk-taint-automaton.tex": "0bc283a85229c61fefc0bf66e24d32dc4365291785fd6c6bd64f8979229a3d6a",
+      "book/figures/legible-swarm-zoom-advantage.tex": "3ad204d2090dd0943a66e3fb9c5baa75a99dae5ae8bdf26aa88432c336e1613e",
+      "book/harbor-economy.tex": "ff6806da544164b580d33dbe096a358dcc076fef2c158fd4ee72e712449a239d",
+      "book/legible-swarm.tex": "b3d50a45b998bc8d4a0a4b13e5b7918af401cbeebb376cdf16aa2d0db1a197fa",
+      "book/sealed-harbor.tex": "46d9958d15af2f905d6d0ceb2cd37f8c8de8dfc257fc7d571042f0b71ad2d316",
+      "book/spawn-to-person.tex": "9ba0c8b921b7bdcb2752a00e01fb1ad301d5b339be283770c01ecea829adcd5d"
+    },
+    "freshNumericalChecks": [
+      {
+        "script": "skills/harbor-results/scripts/zoom_bound_check.py",
+        "sha256": "5577c055c50eec77521346e0a6a7487d5af3b6db2121e69cb5cc7e896cc99294",
+        "exitCode": 0,
+        "result": "F=2500,k=10: mean162.6,maximum183,bound200; adversarial and random placements respect the bound."
+      },
+      {
+        "script": "skills/harbor-results/scripts/b1_frontier.py",
+        "sha256": "4a02e23cb8f8f9446de043886daf5cea0990db55166852595503438ae0e438f6",
+        "exitCode": 0,
+        "result": "Separate150-placement flagged-subset design: mean163.7, ratio15.3; not the same sampling design as zoom_bound_check."
+      },
+      {
+        "script": "skills/harbor-results/scripts/b5_engine_substitution.py",
+        "sha256": "dc1599833b5ae5b55330a7497174b00993bee6f48ad8808348efd781212bff40",
+        "exitCode": 0,
+        "result": "Gain0.3; quality-contingent gap0.6 gives gain-0.3; bounded747-state search at depth7,467post-migration, shortest ablations1/2/2/2."
+      },
+      {
+        "script": "skills/harbor-results/scripts/b4_deontic_fragment.py",
+        "sha256": "644dcfc468d0ab7b96192849f98cc422d0ee69f4d874fb4b666fb7c89f7d9ac2",
+        "exitCode": 0,
+        "result": "3000policies,885conflicted,zero oracle disagreements; Horn-ablation misses100; sixteen3SAT encodings agree with the oracle."
+      },
+      {
+        "script": "skills/harbor-results/scripts/sheaf_harness_v2.py",
+        "sha256": "9116d5ec9498e183b99c7e561b207a14796541a09a00e7bc1467ebe9ec7fc7f0",
+        "exitCode": 0,
+        "result": "1800matched-evidence trials:1101both detectors,0residual-only,209direct-only,490neither. Fixture evidence, not live telemetry."
+      }
+    ],
+    "independentArithmetic": {
+      "halving16ItemsOnePositiveQueries": 9,
+      "evenlySpread128Items16PositivesQueries": 127,
+      "edgeResiduals": [
+        1.5,
+        0,
+        0
+      ],
+      "successDisbursements": 560,
+      "partialDisbursements": 560,
+      "netWalletSumEachOutcome": 0
+    },
+    "delegationEvidence": "Committed paired ProVerif model verdicts inspected; no fresh prover execution claimed. Fixed-depth model evidence is distinct from finite-chain subset transitivity.",
+    "fragments": {
+      "count": 16,
+      "nativeVector": true,
+      "bookFontProfile": "suisse",
+      "overfullBoxes": 0,
+      "hardGeometryPasses": 15,
+      "reviewedExceptions": [
+        {
+          "figure": "fig-he-deontic-frontier",
+          "check": "T3",
+          "count": 2,
+          "assessment": "Natural mathematical super/subscript bounding rectangles overlap; rendered glyphs are disjoint. Raw findings remain in the committed figcheck record."
+        }
+      ],
+      "typography": "Nominal Book labels8.72pt; house mono identifiers7.83pt and mathematical scripts6.36pt. No diagram scaling."
+    },
+    "book": {
+      "pdfSha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
+      "pages": 846,
+      "bytes": 17655424,
+      "overfullHboxes": 0,
+      "overfullVboxes": 0,
+      "undefinedReferences": 0,
+      "captionPlacementsChecked": 266,
+      "exerciseLabelsChecked": 212,
+      "marginObjectsChecked": 1469,
+      "registeredPdfCheckGroupsPassed": 6
+    },
+    "visualReview": {
+      "spreads": 33,
+      "allChapterOpeners": 9,
+      "affectedFiguresAndAdjacentPlacementRepairs": [
+        {
+          "label": "fig:swk-taint-automaton",
+          "number": "1.14",
+          "folio": "111",
+          "physicalPage": 135,
+          "leftPage": 134
+        },
+        {
+          "label": "fig:anchor-v6v7-escalation",
+          "number": "2.10",
+          "folio": "194",
+          "physicalPage": 218,
+          "leftPage": 218
+        },
+        {
+          "label": "fig:sealed-three-principals",
+          "number": "3.1",
+          "folio": "227",
+          "physicalPage": 251,
+          "leftPage": 250
+        },
+        {
+          "label": "fig:sealed-release-lattice",
+          "number": "3.4",
+          "folio": "238",
+          "physicalPage": 262,
+          "leftPage": 262
+        },
+        {
+          "label": "fig:sealed-laundering-fork",
+          "number": "3.8",
+          "folio": "250",
+          "physicalPage": 274,
+          "leftPage": 274
+        },
+        {
+          "label": "fig:legible-halving-tree",
+          "number": "4.14",
+          "folio": "334",
+          "physicalPage": 358,
+          "leftPage": 358
+        },
+        {
+          "label": "fig:zoom-advantage",
+          "number": "4.15",
+          "folio": "336",
+          "physicalPage": 360,
+          "leftPage": 360
+        },
+        {
+          "label": "fig:split-ranker",
+          "number": "4.16",
+          "folio": "344",
+          "physicalPage": 368,
+          "leftPage": 368
+        },
+        {
+          "label": "fig:stp-engine-swap-regime",
+          "number": "5.9",
+          "folio": "437",
+          "physicalPage": 461,
+          "leftPage": 460
+        },
+        {
+          "label": "fig:stp-resurrection-soundness",
+          "number": "5.10",
+          "folio": "438",
+          "physicalPage": 462,
+          "leftPage": 462
+        },
+        {
+          "label": "fig:he-conflict-witness",
+          "number": "6.3",
+          "folio": "503",
+          "physicalPage": 527,
+          "leftPage": 526
+        },
+        {
+          "label": "fig:he-deontic-frontier",
+          "number": "6.4",
+          "folio": "506",
+          "physicalPage": 530,
+          "leftPage": 530
+        },
+        {
+          "label": "fig:he-two-bucket-settlement",
+          "number": "6.6",
+          "folio": "511",
+          "physicalPage": 535,
+          "leftPage": 534
+        },
+        {
+          "label": "fig:bonded-session-lifecycle",
+          "number": "7.13",
+          "folio": "617",
+          "physicalPage": 641,
+          "leftPage": 640
+        },
+        {
+          "label": "fig:fh-cochain-hand",
+          "number": "8.7",
+          "folio": "670",
+          "physicalPage": 694,
+          "leftPage": 694
+        },
+        {
+          "label": "fig:fh-cycle-vs-cut",
+          "number": "8.8",
+          "folio": "671",
+          "physicalPage": 695,
+          "leftPage": 694
+        },
+        {
+          "label": "fig:fh-worked-example",
+          "number": "8.13",
+          "folio": "693",
+          "physicalPage": 717,
+          "leftPage": 716
+        }
+      ],
+      "scope": "All integrated figure fragments, affected facing spreads and every chapter opener plus following spread; not a new line-by-line audit of all846pages. Final changed spreads independently reviewed; unchanged spread bytes compared."
+    }
+  }
+}

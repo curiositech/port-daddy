@@ -236,6 +236,7 @@ $D_A$ (Alice's daemon) is the only party that minted the card, the only party th
 The failure also shows item~4 by its absence: acceptance is $D_B$'s call alone, and no amount of well-formedness at $A$ can compel it.
 Once the transfer ceremony of \S\ref{sec:fh-xfer} lets $D_B$ mint a derived card, sovereignty over what that derived card does to $B$'s own database still belongs to $D_B$, never to $D_A$ --- exactly the boundary the property characterization below draws.
 \end{pdexample}
+\Needspace{12\baselineskip}
 \begin{pdclaim}{Design invariant}{Harbor Sovereignty}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:fh-sovereignty}
@@ -600,9 +601,12 @@ the lie on $3\!-\!0$ but sever $1\!-\!2$. Now $g_K=(0,0,3)$ on three visible
 links and $x=(0,0,3,3)$ reproduces it exactly: $r=0$ again. The loop is still
 there in $G_c$; it is gone from $K_c$, and the residual can only see $K_c$.
 This is the residual's visibility clause, checkable in four numbers.
-A direct comparison of the two received endpoint values still sees a
-disagreement of $3$ on the relayed edge whenever both reports remain visible.
-The zero residual on the chain is not an all-clear for those raw claims.
+A direct checker instead groups authenticated reports by sender, shared
+coordinate and claim context (such as the same snapshot or prefix). If the
+equivocator's two reports with values differing by $3$ remain visible, that
+comparison detects the contradiction without a cycle. Comparing different
+senders or different epochs would not establish equivocation. The zero
+residual on the chain is not an all-clear for the raw claims.
 
 \emph{Now
 you try:} $C_8$, lie of size $2$ on the relayed edge: $2/\sqrt8=0.7071$; the same
@@ -1244,8 +1248,8 @@ The four primitives are easier to read against a concrete case. We work the exam
 
 Figure~\ref{fig:fh-worked-example} shows the admission precondition and the
 whole incident end to end across the three harbors, escrow, and witness log,
-with six marked steps before the subsections below walk through them one at a
-time.
+with six marked events grouped into transfer, damage, settlement and revocation
+in the subsections below.
 
 \input{figures/fig-fh-worked-example}
 

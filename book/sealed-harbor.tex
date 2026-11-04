@@ -413,7 +413,7 @@ inference endpoint would be a third principal the contract never admitted.
 The lattice the next paragraph reaches for is small enough to count on your
 fingers, and the count \emph{is} the mechanism. Two owners, Derek and Erin,
 means two clauses, so a value inside the room sits in one of $2^2=4$ label
-states: $\{\}$, $\{D\}$, $\{E\}$, $\{D,E\}$. Derek's data enters at $\{D\}$ and
+states: $\emptyset$, $\{D\}$, $\{E\}$, $\{D,E\}$. Derek's data enters at $\{D\}$ and
 Erin's model at $\{E\}$; the instant the worker computes with both, whatever it
 produced sits at $\{D,E\}$.
 
@@ -426,12 +426,12 @@ All four downward edges are locked, and --- this is
 the part worth doing by hand --- they're locked \emph{by owner}: the two that
 drop $D$, namely
 \[
-\{D\}\to\{\}\text{ and }\{D,E\}\to\{E\},
+\{D\}\to\emptyset\text{ and }\{D,E\}\to\{E\},
 \]
 open only with Derek's
 delegated declassification authority, and the two that drop $E$, namely
 \[
-\{E\}\to\{\}\text{ and }\{D,E\}\to\{D\},
+\{E\}\to\emptyset\text{ and }\{D,E\}\to\{D\},
 \]
 only with Erin's.
 
@@ -441,6 +441,8 @@ why the aggregate-feedback channel to Erin is \emph{Derek's} gate and not hers:
 the artifact she receives is one that has had Derek's clause dropped, and only
 Derek can drop it.
 \end{pdexample}
+
+\input{figures/fig-sealed-release-lattice}
 
 \pdmarginanalogy{sealed-specimen-provenance}{Provenance is not correctness}{sealed-specimen}{A tag and seal suggest provenance, not correctness. Digital receipts must bind their claims cryptographically.}
 
