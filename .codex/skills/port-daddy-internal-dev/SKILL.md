@@ -132,6 +132,9 @@ repo-specific mechanics:
   `\pdcopyreviewfalse` for publication; editorial review sheets are not Book pages.
   Record the rendered hash, source tree, gates, and visual findings. A local proof
   and an authorized hosted Book refresh are separate delivery states.
+  When the accepted PDF changes, run `bash scripts/build-spreads.sh` before the
+  metadata check. Commit the facing PDF and its source-bound JSON receipt with
+  the canonical Book; website builds verify both file hashes before publishing.
 - **Skill matching.** If you're missing a matching skill, use Jury-rig when the
   local runtime is explicitly enabled. When it is halted, do not invoke `pd`, its
   MCP server, hooks, daemon, or any substitute runtime; read the applicable
