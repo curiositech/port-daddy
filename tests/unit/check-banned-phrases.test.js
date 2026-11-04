@@ -9,8 +9,7 @@
  */
 import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
@@ -66,7 +65,7 @@ describe('check-banned-phrases config and glob matching', () => {
       'website-v2/src/pages/Foo.tsx',
       'website-v2/public/llms.txt',
       'book/single-writer-kernel.tex',
-      'website-v2/public/book/single-writer-kernel.tex',
+      'book/figures/fig-example.tex',
       'docs/harbor-research/tex/paper1.tex',
       // JSON whose string values render into prose a reader sees.
       'docs/harbor-research/library-index.json',
@@ -141,7 +140,9 @@ describe('check-banned-phrases CLI (end-to-end)', () => {
   let tmpDir;
 
   test('a hit in an in-scope file fails the gate and names file:line:phrase', () => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'banned-phrases-test-'));
+    const scratch = join(repo, '.cache', 'banned-phrases-tests');
+    mkdirSync(scratch, { recursive: true });
+    tmpDir = mkdtempSync(join(scratch, 'case-'));
     const target = join(tmpDir, 'dirty.md');
     writeFileSync(target, 'Line one is fine.\nThis one is LOAD-BEARING and someone was held To Account.\n');
     const { code, stderr } = run(target);
@@ -152,7 +153,9 @@ describe('check-banned-phrases CLI (end-to-end)', () => {
   });
 
   test('a JSON file with the phrase in a string value fails the gate', () => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'banned-phrases-test-'));
+    const scratch = join(repo, '.cache', 'banned-phrases-tests');
+    mkdirSync(scratch, { recursive: true });
+    tmpDir = mkdtempSync(join(scratch, 'case-'));
     const target = join(tmpDir, 'library-index.json');
     writeFileSync(
       target,

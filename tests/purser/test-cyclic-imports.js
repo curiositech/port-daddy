@@ -15,8 +15,8 @@ test('generator rejects a transitive TeX import cycle with a useful receipt', {
   const root = makeFixture();
   try {
     injectAfterDocumentStart(root, 'book/legible-swarm.tex', '\\input{purser-cycle-a}');
-    writeFixture(root, 'whitepaper/purser-cycle-a.tex', '\\input{purser-cycle-b}\n');
-    writeFixture(root, 'whitepaper/purser-cycle-b.tex', '\\input{purser-cycle-a}\n');
+    writeFixture(root, 'book/purser-cycle-a.tex', '\\input{purser-cycle-b}\n');
+    writeFixture(root, 'book/purser-cycle-b.tex', '\\input{purser-cycle-a}\n');
     const result = runGenerator(root);
 
     assert.notEqual(result.status, 0);

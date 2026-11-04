@@ -18,7 +18,7 @@ test('generator rejects a citation with no chapter-local bibliography entry', {
 
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /citation purserMissingCitation has no local bibliography entry/u);
-    assert.match(result.stderr, /whitepaper\/legible-swarm\.tex/u);
+    assert.match(result.stderr, /book\/legible-swarm\.tex/u);
   } finally {
     cleanupFixture(root);
   }

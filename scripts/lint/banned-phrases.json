@@ -18,7 +18,6 @@
     "website-v2/public/**/*.txt",
     "website-v2/public/**/*.html",
     "book/**/*.tex",
-    "book/**/*.tex",
     "docs/harbor-research/**/*.tex",
     "docs/harbor-research/library-index.json",
     "docs/harbor-research/program.json",

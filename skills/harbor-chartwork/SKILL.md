@@ -13,11 +13,11 @@ metadata:
 
 # Harbor Chartwork
 
-Three TikZ figure corpora feed the Harbor library: `book/figures/`
-and `book/figures/` (the seven chapter whitepapers, `hh*`-palette house style), and
-`docs/harbor-research/figures/` (the seven research papers, `harborblue`/`shipred`/`seagreen`
-palette). Every fragment is a bare `.tex` file `\input` at point of use -- none carries its
-own `\documentclass` (six orphaned `website-v2/figures/diag-*.tex` files excepted), so none
+Two TikZ figure corpora feed the Harbor library: `book/figures/`
+(the collected Book, `hh*`-palette house style) and
+`docs/harbor-research/figures/` (the research papers,
+`harborblue`/`shipred`/`seagreen` palette). Every fragment is a bare `.tex` file `\input` at point of use -- none carries its
+own `\documentclass` (standalone `book/figures/diag-*.tex` studies excepted), so none
 compiles or previews on its own without help.
 
 This skill is the toolsmith's half of chartwork: deterministic scripts that compile a lone
@@ -29,7 +29,7 @@ pending, see below) for the book's author to write.
 ## When to use
 
 Use this skill whenever you are drafting a new figure, revising an existing one, or auditing
-the corpus for compile/lint/geometry problems -- in any of the three directories above.
+the corpus for compile/lint/geometry problems -- in either directory above.
 
 Do **not** use it for matplotlib/raster plots, web/SVG UI components, slide decks, or prose
 exposition. For choosing a figure's *semantic form* in the whitepaper corpus specifically
@@ -57,7 +57,7 @@ python3 scripts/contact_sheet.py ~/coding/tmp/chartwork/*/*.pdf --out ~/coding/t
 
 A fragment passes this skill's QA when steps 1-3 all pass (step 3's T6/T7 are warn-only).
 None of these tools rewrites a fragment; they only report. `scripts/build_corpus_audit.py`
-runs the whole loop over every fragment in all three corpora at once and regenerates
+runs the whole loop over every fragment in both corpora at once and regenerates
 `references/corpus-audit.md` -- re-run it after any figure change to refresh that inventory.
 
 ## Scripts
@@ -68,7 +68,7 @@ runs the whole loop over every fragment in all three corpora at once and regener
 | `scripts/compile_fragment.sh FRAGMENT.tex [--preamble research\|book] [--out DIR]` | Wraps the fragment in the real Book or research preamble (read from the real source at run time, not hand-copied) and compiles it: tectonic when one is present, otherwise a local TeX Live through `latexmk -xelatex` (see *Local TeX Live* below). Book fragments auto-select `book`; the retired A4 `chapter` mode is rejected. Writes `DIR/<stem>.pdf` + `.log`. **Exit 0** a PDF was produced; **1** a real TeX error (the first `!` line is printed); **2** usage error, or neither tectonic nor a local LaTeX engine can be found; **3** nothing to draw -- LaTeX reported no error and no pages, which is what a style or apparatus file under `figures/` does, and which a caller must not read as a compile failure. |
 | `scripts/figcheck.py PDF [--json OUT] [--md OUT] [--min-font-pt 7] [--textwidth-cm 16.3] [--dash-dpi 150]` | Ten PyMuPDF checks (T1-T10) on a compiled fragment PDF; T6/T7 are warn-only, T8 (drawing or text colliding with the caption) and T9 (a dash whose on-length, gap or stroke falls under a device pixel at `--dash-dpi`) fail. T9 is the one check that answers a question no source linter can: whether a dash pattern present in the source and named in the caption actually arrives on the page. T10 fails when the drawing itself uses more than one text family (the caption, the identifier face and math excluded) -- the one check that looks at the thing a reader notices first, and the one that caught a figure passing T1-T9 clean while setting two labels in the body serif and the rest in grotesk. T10 is NOT in the CI gate's failing set; the condition for adding it is in check_figure_gate_results.py. Exit 0 clean, 1 on a T1-T5, T8, T9 or T10 failure. |
 | `scripts/contact_sheet.py PDF... --out sheet.png [--cols 4] [--dpi 150]` | Renders page 0 of each PDF to a captioned thumbnail grid (Pillow). A missing/broken PDF becomes a labeled placeholder cell. |
-| `scripts/build_corpus_audit.py [--out PATH] [--skip-compile]` | Runs the whole loop over all three corpora and (re)writes `references/corpus-audit.md`. `--skip-compile` runs precheck only, for a fast pass. |
+| `scripts/build_corpus_audit.py [--out PATH] [--skip-compile]` | Runs the whole loop over both corpora and (re)writes `references/corpus-audit.md`. `--skip-compile` runs precheck only, for a fast pass. |
 
 ## Local TeX Live (when there is no tectonic)
 
@@ -122,8 +122,8 @@ listings, hyperref and cleveref in one document:
 
 ```bash
 skills/harbor-chartwork/scripts/compile_fragment.sh \
-  website-v2/public/book/figures/fig-swk-stack-map.tex --preamble book \
-  --out /tmp/chartwork/probe
+  book/figures/fig-swk-stack-map.tex --preamble book \
+  --out ~/coding/tmp/chartwork/probe
 ```
 
 **What the local engine does and does not give you.**
@@ -152,7 +152,7 @@ system` owns semantic form (what a whitepaper figure should be) and its own atla
 checker; it does not reach the research corpus or run any of the checks here. This skill adds
 what neither had: a script that actually compiles a bare fragment standalone (required before
 either of the other two's renderers can run against a whitepaper fragment in isolation), a
-source lint pass, and one inventory spanning all three corpora together.
+source lint pass, and one inventory spanning both corpora together.
 
 ## References
 

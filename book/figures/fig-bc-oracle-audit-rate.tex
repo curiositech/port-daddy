@@ -62,21 +62,15 @@
   \end{axis}
 \end{tikzpicture}
 \vspace{2mm}
-\caption{\textbf{The default human-audit sample is roughly twice the detection
-rate the cartel model demands, and a halved sample is not.} The amber curve is
-the chapter's own fragility threshold, the per-round detection probability at
-which a colluding oracle pair stops preferring the cartel, drawn from
-$(\pi_C-(1-\delta)\pi_D)/(L+\delta\pi_D)$ at the supplied payoffs
-$\pi_C=5/3$, $\pi_D=4.95$, $L=25$; below it collusion still pays. Because the
-human-audit sampling rate is the oracle layer's detection probability, the
-protocol's default $\sigma=10\%$ is the flat teal rule, and it clears the
-threshold at every patience the model admits -- $0.0478$ at $\delta=0.95$, and
-never more than $0.0557$ even as $\delta\to1$. A $5\%$ sample clears it only
-until $\delta=0.964$; past that the cheaper sample silently licenses exactly the
-2-of-3 oracle collusion the audit exists to price. The threshold is
-model-conditional: a different payoff spread, event timing, or monitoring model
-moves the whole curve, and the deployed detector is not claimed to attain it.
-[verified; \texttt{figures/data/oracle-audit-threshold.csv} from
-\texttt{figures/data/make-figure-data.py}, deterministic]}
+\caption{\textbf{Ten per cent clears the model's detection threshold;
+five per cent fails beyond $\delta\approx0.964$.} The amber curve is
+$(\pi_C-(1-\delta)\pi_D)/(L+\delta\pi_D)$ with $\pi_C=5/3$,
+$\pi_D=4.95$, and $L=25$; below it, collusion pays. The threshold is
+$0.0478$ at $\delta=0.95$ and approaches $0.0557$ as $\delta\to1$.
+Under the chapter's monitoring model, audit sampling rate $\sigma$ equals
+detection probability. Different payoffs, timing, or monitoring move the
+curve; no deployed detection rate is measured here.
+Data: \texttt{figures/\allowbreak data/\allowbreak oracle-audit-\allowbreak threshold.csv}, generated deterministically
+by \texttt{figures/\allowbreak data/\allowbreak make-figure-\allowbreak data.py}.}
 \label{fig:bc-oracle-audit-rate}
 \end{figure}

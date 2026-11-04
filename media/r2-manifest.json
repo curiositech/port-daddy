@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 404,
-    "distinctObjects": 369,
-    "bytes": 123884697,
-    "distinctBytes": 121207677
+    "assets": 405,
+    "distinctObjects": 370,
+    "bytes": 123955619,
+    "distinctBytes": 121278599
   },
   "assets": [
     {
@@ -456,6 +456,13 @@
       "sha256": "c0587f3121959bc970b276fbfb0d1dc91fe61898a93ff6e8b0dffb41761cd2d5",
       "key": "sha256/c0/c0587f3121959bc970b276fbfb0d1dc91fe61898a93ff6e8b0dffb41761cd2d5.webm",
       "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/book-canonical-source/oracle-audit-caption-proof.png",
+      "bytes": 70922,
+      "sha256": "029ba48e6e1c27dff585310bc34474d3cbe1b31cad6c9eff511d5702fb18b303",
+      "key": "sha256/02/029ba48e6e1c27dff585310bc34474d3cbe1b31cad6c9eff511d5702fb18b303.png",
+      "contentType": "image/png"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-card-lifecycle.webp",

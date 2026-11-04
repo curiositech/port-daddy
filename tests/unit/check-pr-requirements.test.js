@@ -447,7 +447,7 @@ describe('check-pr-requirements guard', () => {
       ['a mixed-case figures dir', 'docs/x/Figures/b.png'],
       ['a mixed-case hyphenated plate dir', 'docs/pr-assets/Swiss-Plates/d.jpg'],
       ['an upper-case plates dir', 'docs/x/PLATES/d.jpg'],
-      ['a capitalised whitepaper tree', 'Whitepaper/corpus.json'],
+      ['a capitalised canonical Book tree', 'Book/corpus.json'],
       ['a capitalised chartwork skill', 'skills/Harbor-Chartwork/SKILL.md'],
     ])('%s is still figure territory', (_label, path) => {
       const { code, stderr } = run('--body-file', fixture('figure-visual-exempt.md'), '--changed', `${path},changelog.d/9914-x.md`);

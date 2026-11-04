@@ -13,3 +13,9 @@ and text contrast passed. This is browser evidence, not physical-device certific
 
 The source archive compiles with redistributed open fonts. Published Suisse typography
 requires a separately licensed font directory; private fonts are never in the archive.
+
+The oracle-audit caption proof shows the supporting chart with its complete caption
+inside the margin. All three supporting studies that failed standalone compilation
+now compile. The oracle chart passes figcheck; the two standalone diagrams remain
+unplaced studies with geometry findings, not publication-approved Book figures.
+None of these three files is consumed by the accepted 844-page Book.
