@@ -1,0 +1,445 @@
+{
+  "worktree": "/Users/erichowens/coding/tmp/book-download-text-scale-20261104",
+  "branch": "codex/book-download-text-scale-20261104",
+  "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/book-download-text-scale-20261104",
+  "base": "33c5b83f52422fc9d76fd2827115b8093deb76e9",
+  "owned_changes": [
+    "website-v2/src/pages/whitepaper/book.css",
+    "website-v2/scripts/check-book-browser.mjs"
+  ],
+  "skills": [
+    "beautiful-gui-design",
+    "swiss-modern-website-design",
+    "layout-overflow-guard"
+  ],
+  "css_rationale": "Named inline-size Book container; a20rem container query follows computed root text size and reflows copy, reading, cover to one column when the paired measure is too narrow. Existing semantic palette, DOM reading order, normal390px and desktop composition retained.",
+  "browser": {
+    "layouts": 16,
+    "all_passed": true,
+    "report": "browser-report.json",
+    "normal_390_primary_bottom": 432.546875,
+    "checks": [
+      "Book heading/fonts/decoded cover readiness",
+      "requested text enlargement applied",
+      "whole-word PDF/facing/source labels",
+      "primary label maximum3lines",
+      "44px targets",
+      "PDF/facing/source/chapter keyboard sequence",
+      "visible focus",
+      "8unique chapters",
+      "chapter navigation and return",
+      "native disclosure",
+      "zero axe violations",
+      "zero custom contrast failures",
+      "no horizontal overflow",
+      "no nested scroll regions",
+      "Book h1 whole-word wrapping"
+    ]
+  },
+  "negative_control": {
+    "target": "https://portdaddy.dev/whitepaper",
+    "receipt": "before-download-readability.json",
+    "exit": 1,
+    "pdf_width": 126,
+    "pdf_height": 713.4375,
+    "pdf_lines": 13,
+    "read_word_lines": 4,
+    "book_word_lines": 4,
+    "pdf_token_lines": 5
+  },
+  "after_200": [
+    {
+      "layout": "390x844-light-text200",
+      "root_font_px": 32,
+      "heading": {
+        "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+        "width": 326,
+        "height": 268.75,
+        "fontSize": "48px",
+        "words": 10,
+        "lines": 5,
+        "fragmentedWords": []
+      },
+      "downloads": [
+        {
+          "label": "Read book (PDF)",
+          "width": 326,
+          "height": 150.375,
+          "fontSize": "32px",
+          "words": 3,
+          "lines": 2,
+          "fragmentedWords": []
+        },
+        {
+          "label": "Read facing pages (PDF)",
+          "width": 326,
+          "height": 134.375,
+          "fontSize": "32px",
+          "words": 4,
+          "lines": 2,
+          "fragmentedWords": []
+        },
+        {
+          "label": "Download LaTeX source (.tar.gz)",
+          "width": 326,
+          "height": 134.375,
+          "fontSize": "32px",
+          "words": 4,
+          "lines": 2,
+          "fragmentedWords": []
+        }
+      ]
+    },
+    {
+      "layout": "320x740-light-text200",
+      "root_font_px": 32,
+      "heading": {
+        "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+        "width": 256,
+        "height": 376.25,
+        "fontSize": "48px",
+        "words": 10,
+        "lines": 7,
+        "fragmentedWords": []
+      },
+      "downloads": [
+        {
+          "label": "Read book (PDF)",
+          "width": 256,
+          "height": 201.5625,
+          "fontSize": "32px",
+          "words": 3,
+          "lines": 3,
+          "fragmentedWords": []
+        },
+        {
+          "label": "Read facing pages (PDF)",
+          "width": 256,
+          "height": 134.375,
+          "fontSize": "32px",
+          "words": 4,
+          "lines": 2,
+          "fragmentedWords": []
+        },
+        {
+          "label": "Download LaTeX source (.tar.gz)",
+          "width": 256,
+          "height": 185.5625,
+          "fontSize": "32px",
+          "words": 4,
+          "lines": 3,
+          "fragmentedWords": []
+        }
+      ]
+    },
+    {
+      "layout": "390x844-dark-text200",
+      "root_font_px": 32,
+      "heading": {
+        "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+        "width": 326,
+        "height": 268.75,
+        "fontSize": "48px",
+        "words": 10,
+        "lines": 5,
+        "fragmentedWords": []
+      },
+      "downloads": [
+        {
+          "label": "Read book (PDF)",
+          "width": 326,
+          "height": 150.375,
+          "fontSize": "32px",
+          "words": 3,
+          "lines": 2,
+          "fragmentedWords": []
+        },
+        {
+          "label": "Read facing pages (PDF)",
+          "width": 326,
+          "height": 134.375,
+          "fontSize": "32px",
+          "words": 4,
+          "lines": 2,
+          "fragmentedWords": []
+        },
+        {
+          "label": "Download LaTeX source (.tar.gz)",
+          "width": 326,
+          "height": 134.375,
+          "fontSize": "32px",
+          "words": 4,
+          "lines": 2,
+          "fragmentedWords": []
+        }
+      ]
+    },
+    {
+      "layout": "320x740-dark-text200",
+      "root_font_px": 32,
+      "heading": {
+        "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+        "width": 256,
+        "height": 376.25,
+        "fontSize": "48px",
+        "words": 10,
+        "lines": 7,
+        "fragmentedWords": []
+      },
+      "downloads": [
+        {
+          "label": "Read book (PDF)",
+          "width": 256,
+          "height": 201.5625,
+          "fontSize": "32px",
+          "words": 3,
+          "lines": 3,
+          "fragmentedWords": []
+        },
+        {
+          "label": "Read facing pages (PDF)",
+          "width": 256,
+          "height": 134.375,
+          "fontSize": "32px",
+          "words": 4,
+          "lines": 2,
+          "fragmentedWords": []
+        },
+        {
+          "label": "Download LaTeX source (.tar.gz)",
+          "width": 256,
+          "height": 185.5625,
+          "fontSize": "32px",
+          "words": 4,
+          "lines": 3,
+          "fragmentedWords": []
+        }
+      ]
+    }
+  ],
+  "visual_review": {
+    "book_download_reflow": "pass",
+    "inspected": [
+      "390x844-light-text200-downloads-viewport.png",
+      "1440x1000-dark-viewport.png",
+      "844x390-dark-text200-downloads-viewport.png",
+      "390x844-light-viewport.png",
+      "320x740-dark-text200-downloads-viewport.png",
+      "768x900-light-text200-viewport.png",
+      "320x740-light-text200-viewport.png"
+    ],
+    "whole_site_acceptance": false,
+    "out_of_scope_findings": [
+      "Existing global site header wordmark/menu crowd at200%text.",
+      "Existing fixed Aa typography widget covers content, including title/facing link in320px enlarged-text captures.",
+      "Normal1440px shellSearch label truncates beside shortcut.",
+      "The geometric skill also flags intentionally clipped sr-only skip link; these are false positives, not Book content defects."
+    ],
+    "book_title_reflow": "pass"
+  },
+  "supplemental_geometry": {
+    "scope": "Existing shared-shell findings remain documented under visual_review; intentionally clipped sr-only controls are excluded from Book content findings."
+  },
+  "unit_checks": {
+    "book_ui_and_data_tests": 31,
+    "result": "pass",
+    "command": "vitest run src/pages/whitepaper/index.test.tsx src/data/whitePapers.test.ts"
+  },
+  "other_checks": [
+    "node --check website-v2/scripts/check-book-browser.mjs passed",
+    "git diff --check passed"
+  ],
+  "runtime": "No local Port Daddy invoked. Isolated Vite only on127.0.0.1:4189; no user-facing localhost link.",
+  "limits": "Axecolor-contrast incomplete for decorative aria-hidden arrows; custom contrast has nofailures. Browser proof does not certify whole-site WCAG conformance.",
+  "title_negative_control": {
+    "receipt": "before-title-readability.json",
+    "exit": 1,
+    "width": 256,
+    "height": 604.6875,
+    "fontSize": "60px",
+    "lines": 9,
+    "fragmentedWords": [
+      {
+        "text": "Governing",
+        "lines": 2
+      }
+    ]
+  },
+  "title_correction": "1.5rem h1 only inside the narrow computed-font container:48px at200%, preserving whole words and a1.5:1 title/body hierarchy.",
+  "desktop_boundary_correction": {
+    "rule": "Above the40rem viewport breakpoint, collapse the Book intro when its computed-font container is at most33rem:10rem cover +3rem gutter +20rem reading measure.",
+    "negative_controls": [
+      "boundary-before-768-light",
+      "boundary-before-768-dark",
+      "boundary-before-844-light",
+      "boundary-before-844-dark"
+    ],
+    "after": [
+      {
+        "layout": "768x900-light-text200",
+        "heading": {
+          "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "width": 704,
+          "height": 447.96875,
+          "fontSize": "80px",
+          "words": 10,
+          "lines": 5,
+          "fragmentedWords": []
+        },
+        "downloads": [
+          {
+            "label": "Read book (PDF)",
+            "width": 704,
+            "height": 99.1875,
+            "fontSize": "32px",
+            "words": 3,
+            "lines": 1,
+            "fragmentedWords": []
+          },
+          {
+            "label": "Read facing pages (PDF)",
+            "width": 412.96875,
+            "height": 88,
+            "fontSize": "32px",
+            "words": 4,
+            "lines": 1,
+            "fragmentedWords": []
+          },
+          {
+            "label": "Download LaTeX source (.tar.gz)",
+            "width": 523.609375,
+            "height": 88,
+            "fontSize": "32px",
+            "words": 4,
+            "lines": 1,
+            "fragmentedWords": []
+          }
+        ]
+      },
+      {
+        "layout": "844x390-light-text200",
+        "heading": {
+          "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "width": 780,
+          "height": 358.375,
+          "fontSize": "80px",
+          "words": 10,
+          "lines": 4,
+          "fragmentedWords": []
+        },
+        "downloads": [
+          {
+            "label": "Read book (PDF)",
+            "width": 780,
+            "height": 99.1875,
+            "fontSize": "32px",
+            "words": 3,
+            "lines": 1,
+            "fragmentedWords": []
+          },
+          {
+            "label": "Read facing pages (PDF)",
+            "width": 412.96875,
+            "height": 88,
+            "fontSize": "32px",
+            "words": 4,
+            "lines": 1,
+            "fragmentedWords": []
+          },
+          {
+            "label": "Download LaTeX source (.tar.gz)",
+            "width": 523.609375,
+            "height": 88,
+            "fontSize": "32px",
+            "words": 4,
+            "lines": 1,
+            "fragmentedWords": []
+          }
+        ]
+      },
+      {
+        "layout": "768x900-dark-text200",
+        "heading": {
+          "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "width": 704,
+          "height": 447.96875,
+          "fontSize": "80px",
+          "words": 10,
+          "lines": 5,
+          "fragmentedWords": []
+        },
+        "downloads": [
+          {
+            "label": "Read book (PDF)",
+            "width": 704,
+            "height": 99.1875,
+            "fontSize": "32px",
+            "words": 3,
+            "lines": 1,
+            "fragmentedWords": []
+          },
+          {
+            "label": "Read facing pages (PDF)",
+            "width": 412.96875,
+            "height": 88,
+            "fontSize": "32px",
+            "words": 4,
+            "lines": 1,
+            "fragmentedWords": []
+          },
+          {
+            "label": "Download LaTeX source (.tar.gz)",
+            "width": 523.609375,
+            "height": 88,
+            "fontSize": "32px",
+            "words": 4,
+            "lines": 1,
+            "fragmentedWords": []
+          }
+        ]
+      },
+      {
+        "layout": "844x390-dark-text200",
+        "heading": {
+          "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+          "width": 780,
+          "height": 358.375,
+          "fontSize": "80px",
+          "words": 10,
+          "lines": 4,
+          "fragmentedWords": []
+        },
+        "downloads": [
+          {
+            "label": "Read book (PDF)",
+            "width": 780,
+            "height": 99.1875,
+            "fontSize": "32px",
+            "words": 3,
+            "lines": 1,
+            "fragmentedWords": []
+          },
+          {
+            "label": "Read facing pages (PDF)",
+            "width": 412.96875,
+            "height": 88,
+            "fontSize": "32px",
+            "words": 4,
+            "lines": 1,
+            "fragmentedWords": []
+          },
+          {
+            "label": "Download LaTeX source (.tar.gz)",
+            "width": 523.609375,
+            "height": 88,
+            "fontSize": "32px",
+            "words": 4,
+            "lines": 1,
+            "fragmentedWords": []
+          }
+        ]
+      }
+    ],
+    "preservation": "All12 prior layout headingReadability and primaryBounds records are exactly unchanged; phone video evidence remains valid."
+  }
+}

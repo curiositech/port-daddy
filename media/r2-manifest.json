@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 405,
-    "distinctObjects": 370,
-    "bytes": 123955619,
-    "distinctBytes": 121278599
+    "assets": 415,
+    "distinctObjects": 380,
+    "bytes": 126139754,
+    "distinctBytes": 123462734
   },
   "assets": [
     {
@@ -463,6 +463,76 @@
       "sha256": "029ba48e6e1c27dff585310bc34474d3cbe1b31cad6c9eff511d5702fb18b303",
       "key": "sha256/02/029ba48e6e1c27dff585310bc34474d3cbe1b31cad6c9eff511d5702fb18b303.png",
       "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/1440x1000-dark-viewport.png",
+      "bytes": 161504,
+      "sha256": "d08a3edf354b2e60c9d348a151ca1ce1cb5fbca72849870b83a97017a01b1c8e",
+      "key": "sha256/d0/d08a3edf354b2e60c9d348a151ca1ce1cb5fbca72849870b83a97017a01b1c8e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/320x740-dark-text200-downloads-viewport.png",
+      "bytes": 43912,
+      "sha256": "b541f385aa98f125359acef75601da3376294492a40570bf0a98c4f18f21e92c",
+      "key": "sha256/b5/b541f385aa98f125359acef75601da3376294492a40570bf0a98c4f18f21e92c.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/320x740-light-text200-viewport.png",
+      "bytes": 44775,
+      "sha256": "69c7e6458a8d6730ff726b8df707a4dc568283b401a1f33481976a1982f5971b",
+      "key": "sha256/69/69c7e6458a8d6730ff726b8df707a4dc568283b401a1f33481976a1982f5971b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/390x844-light-text200-downloads-viewport.png",
+      "bytes": 57740,
+      "sha256": "e5a8eb8d3d39be8fb0a75782860d553563d1a4b96a0c2d1ce710f23b661166bb",
+      "key": "sha256/e5/e5a8eb8d3d39be8fb0a75782860d553563d1a4b96a0c2d1ce710f23b661166bb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/390x844-light-viewport.png",
+      "bytes": 86729,
+      "sha256": "7f835c533477ae2a8d9b76fa32129432fa9e488ef7c80b4495376b8fab3ad9b9",
+      "key": "sha256/7f/7f835c533477ae2a8d9b76fa32129432fa9e488ef7c80b4495376b8fab3ad9b9.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/768x900-light-text200-viewport.png",
+      "bytes": 85958,
+      "sha256": "df08ede9b670e61662d1a2206ae2876d643732003f3216dab1dc46fa934ab4eb",
+      "key": "sha256/df/df08ede9b670e61662d1a2206ae2876d643732003f3216dab1dc46fa934ab4eb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/844x390-dark-text200-downloads-viewport.png",
+      "bytes": 37789,
+      "sha256": "f0534e897eae6f170281fcd0def5377f7983cde1718962665688ad3040463a20",
+      "key": "sha256/f0/f0534e897eae6f170281fcd0def5377f7983cde1718962665688ad3040463a20.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/before-phone-text200.png",
+      "bytes": 21173,
+      "sha256": "0a47377b0bfc70daa9e47f79cb87e11ab8ab35f0dd50e21963c672aa4037426f",
+      "key": "sha256/0a/0a47377b0bfc70daa9e47f79cb87e11ab8ab35f0dd50e21963c672aa4037426f.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/book-phone-390-dark-text200.webm",
+      "bytes": 865577,
+      "sha256": "152c087072c30eb8d767e806bf4c77354f4afa25b8ea3e440e911c2ecb0a27d9",
+      "key": "sha256/15/152c087072c30eb8d767e806bf4c77354f4afa25b8ea3e440e911c2ecb0a27d9.webm",
+      "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/book-download-text-scale/book-phone-390-light-text200.webm",
+      "bytes": 778978,
+      "sha256": "5c0cc2ce0a0970b502aa12dc8d0dc225883db5855a727ed840670e1add945bf8",
+      "key": "sha256/5c/5c0cc2ce0a0970b502aa12dc8d0dc225883db5855a727ed840670e1add945bf8.webm",
+      "contentType": "video/webm"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-card-lifecycle.webp",

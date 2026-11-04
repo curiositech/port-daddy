@@ -1,5 +1,6 @@
 /* Book document layout: no viewport lock, tabs, or inner scrolling regions. */
 .book-page {
+  container: book / inline-size;
   max-width: 72rem;
   margin-inline: auto;
   padding: 2rem 1rem 4rem;
@@ -51,4 +52,25 @@
   .book-intro h1 { font-size: 1.875rem; }
   .book-claim { font-size: 1rem; }
   .book-cover { width: 5.25rem; }
+}
+
+/* The cover and download labels need a readable measure, including when only
+   text is enlarged. Container rem units follow the computed root font size;
+   viewport media-query rem units alone do not respond to this preference. */
+@container book (max-width: 20rem) {
+  .book-intro { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "reading" "cover"; align-items: start; }
+  .book-intro h1 { font-size: 1.5rem; }
+  .book-read { width: 100%; }
+  .book-cover { width: 5.25rem; }
+}
+
+/* The desktop composition needs 10rem of cover, 3rem of gutter, and at least
+   20rem of reading measure. Let enlarged text trigger its own collapse before
+   that measure is squeezed, even when the viewport is wider than mobile. */
+@media (width > 40rem) {
+  @container book (max-width: 33rem) {
+    .book-intro { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "reading" "cover"; row-gap: 1.5rem; }
+    .book-read { width: 100%; }
+    .book-cover { width: min(100%, 10rem); }
+  }
 }

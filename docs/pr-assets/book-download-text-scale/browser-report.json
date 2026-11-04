@@ -1,0 +1,1794 @@
+[
+  {
+    "name": "320x740-light",
+    "renderedFontSize": 16,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 288,
+      "height": 80.625,
+      "fontSize": "24px",
+      "words": 10,
+      "lines": 3,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 16,
+      "y": 388.390625,
+      "width": 288,
+      "height": 49.59375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 288,
+        "height": 49.59375,
+        "fontSize": "16px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 206.484375,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 261.8125,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 75,
+      "minRatio": 8.177859782333167,
+      "minNormalRatio": 8.177859782333167,
+      "minLargeRatio": 8.638453962653948,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 5453,
+      "height": 6193,
+      "viewport": 740
+    }
+  },
+  {
+    "name": "390x844-light",
+    "renderedFontSize": 16,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 358,
+      "height": 100.78125,
+      "fontSize": "30px",
+      "words": 10,
+      "lines": 3,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 116,
+      "y": 382.953125,
+      "width": 258,
+      "height": 49.59375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 258,
+        "height": 49.59375,
+        "fontSize": "16px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 206.484375,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 258,
+        "height": 67.1875,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 2,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 75,
+      "minRatio": 8.177859782333167,
+      "minNormalRatio": 8.177859782333167,
+      "minLargeRatio": 8.638453962653948,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 4411,
+      "height": 5255,
+      "viewport": 844
+    }
+  },
+  {
+    "name": "844x390-light",
+    "renderedFontSize": 16,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 604,
+      "height": 134.390625,
+      "fontSize": "40px",
+      "words": 10,
+      "lines": 3,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 16,
+      "y": 397.375,
+      "width": 185,
+      "height": 49.59375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 185,
+        "height": 49.59375,
+        "fontSize": "16px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 206.484375,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 261.8125,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 76,
+      "minRatio": 8.177859782333167,
+      "minNormalRatio": 8.177859782333167,
+      "minLargeRatio": 8.638453962653948,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 3395,
+      "height": 3785,
+      "viewport": 390
+    }
+  },
+  {
+    "name": "1440x1000-light",
+    "renderedFontSize": 16,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 624,
+      "height": 134.390625,
+      "fontSize": "40px",
+      "words": 10,
+      "lines": 3,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 160,
+      "y": 397.375,
+      "width": 185,
+      "height": 49.59375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 185,
+        "height": 49.59375,
+        "fontSize": "16px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 206.484375,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 261.8125,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 85,
+      "minRatio": 8.177859782333167,
+      "minNormalRatio": 8.177859782333167,
+      "minLargeRatio": 8.638453962653948,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 2785,
+      "height": 3785,
+      "viewport": 1000
+    }
+  },
+  {
+    "name": "390x844-light-text200",
+    "renderedFontSize": 32,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 326,
+      "height": 268.75,
+      "fontSize": "48px",
+      "words": 10,
+      "lines": 5,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 32,
+      "y": 1105.046875,
+      "width": 326,
+      "height": 150.375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 326,
+        "height": 150.375,
+        "fontSize": "32px",
+        "words": 3,
+        "lines": 2,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 326,
+        "height": 134.375,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 2,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 326,
+        "height": 134.375,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 2,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 75,
+      "minRatio": 8.177859782333167,
+      "minNormalRatio": 99,
+      "minLargeRatio": 8.177859782333167,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 21487,
+      "height": 22331,
+      "viewport": 844
+    }
+  },
+  {
+    "name": "320x740-light-text200",
+    "renderedFontSize": 32,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 256,
+      "height": 376.25,
+      "fontSize": "48px",
+      "words": 10,
+      "lines": 7,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 32,
+      "y": 1452.90625,
+      "width": 256,
+      "height": 201.5625
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 256,
+        "height": 201.5625,
+        "fontSize": "32px",
+        "words": 3,
+        "lines": 3,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 256,
+        "height": 134.375,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 2,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 256,
+        "height": 185.5625,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 3,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 75,
+      "minRatio": 8.177859782333167,
+      "minNormalRatio": 99,
+      "minLargeRatio": 8.177859782333167,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 29734,
+      "height": 30474,
+      "viewport": 740
+    }
+  },
+  {
+    "name": "768x900-light-text200",
+    "renderedFontSize": 32,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 704,
+      "height": 447.96875,
+      "fontSize": "80px",
+      "words": 10,
+      "lines": 5,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 32,
+      "y": 1111.140625,
+      "width": 704,
+      "height": 99.1875
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 704,
+        "height": 99.1875,
+        "fontSize": "32px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 412.96875,
+        "height": 88,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 523.609375,
+        "height": 88,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 76,
+      "minRatio": 8.177859782333167,
+      "minNormalRatio": 99,
+      "minLargeRatio": 8.177859782333167,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 10451,
+      "height": 11351,
+      "viewport": 900
+    }
+  },
+  {
+    "name": "844x390-light-text200",
+    "renderedFontSize": 32,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 780,
+      "height": 358.375,
+      "fontSize": "80px",
+      "words": 10,
+      "lines": 4,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 32,
+      "y": 963.953125,
+      "width": 780,
+      "height": 99.1875
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 780,
+        "height": 99.1875,
+        "fontSize": "32px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 412.96875,
+        "height": 88,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 523.609375,
+        "height": 88,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 76,
+      "minRatio": 8.177859782333167,
+      "minNormalRatio": 99,
+      "minLargeRatio": 8.177859782333167,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 10149,
+      "height": 10539,
+      "viewport": 390
+    }
+  },
+  {
+    "name": "320x740-dark",
+    "renderedFontSize": 16,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 288,
+      "height": 80.625,
+      "fontSize": "24px",
+      "words": 10,
+      "lines": 3,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 16,
+      "y": 388.390625,
+      "width": 288,
+      "height": 49.59375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 288,
+        "height": 49.59375,
+        "fontSize": "16px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 206.484375,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 261.8125,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 75,
+      "minRatio": 8.782072285688347,
+      "minNormalRatio": 8.782072285688347,
+      "minLargeRatio": 12.773941806068532,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 5453,
+      "height": 6193,
+      "viewport": 740
+    }
+  },
+  {
+    "name": "390x844-dark",
+    "renderedFontSize": 16,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 358,
+      "height": 100.78125,
+      "fontSize": "30px",
+      "words": 10,
+      "lines": 3,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 116,
+      "y": 382.953125,
+      "width": 258,
+      "height": 49.59375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 258,
+        "height": 49.59375,
+        "fontSize": "16px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 206.484375,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 258,
+        "height": 67.1875,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 2,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 75,
+      "minRatio": 8.782072285688347,
+      "minNormalRatio": 8.782072285688347,
+      "minLargeRatio": 12.773941806068532,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 4411,
+      "height": 5255,
+      "viewport": 844
+    }
+  },
+  {
+    "name": "844x390-dark",
+    "renderedFontSize": 16,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 604,
+      "height": 134.390625,
+      "fontSize": "40px",
+      "words": 10,
+      "lines": 3,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 16,
+      "y": 397.375,
+      "width": 185,
+      "height": 49.59375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 185,
+        "height": 49.59375,
+        "fontSize": "16px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 206.484375,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 261.8125,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 76,
+      "minRatio": 8.782072285688347,
+      "minNormalRatio": 8.782072285688347,
+      "minLargeRatio": 12.773941806068532,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 3395,
+      "height": 3785,
+      "viewport": 390
+    }
+  },
+  {
+    "name": "1440x1000-dark",
+    "renderedFontSize": 16,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 624,
+      "height": 134.390625,
+      "fontSize": "40px",
+      "words": 10,
+      "lines": 3,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 160,
+      "y": 397.375,
+      "width": 185,
+      "height": 49.59375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 185,
+        "height": 49.59375,
+        "fontSize": "16px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 206.484375,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 261.8125,
+        "height": 44,
+        "fontSize": "16px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 85,
+      "minRatio": 8.782072285688347,
+      "minNormalRatio": 8.782072285688347,
+      "minLargeRatio": 12.773941806068532,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 2785,
+      "height": 3785,
+      "viewport": 1000
+    }
+  },
+  {
+    "name": "390x844-dark-text200",
+    "renderedFontSize": 32,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 326,
+      "height": 268.75,
+      "fontSize": "48px",
+      "words": 10,
+      "lines": 5,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 32,
+      "y": 1105.046875,
+      "width": 326,
+      "height": 150.375
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 326,
+        "height": 150.375,
+        "fontSize": "32px",
+        "words": 3,
+        "lines": 2,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 326,
+        "height": 134.375,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 2,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 326,
+        "height": 134.375,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 2,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 75,
+      "minRatio": 8.782072285688347,
+      "minNormalRatio": 99,
+      "minLargeRatio": 8.782072285688347,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 21487,
+      "height": 22331,
+      "viewport": 844
+    }
+  },
+  {
+    "name": "320x740-dark-text200",
+    "renderedFontSize": 32,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 256,
+      "height": 376.25,
+      "fontSize": "48px",
+      "words": 10,
+      "lines": 7,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 32,
+      "y": 1452.90625,
+      "width": 256,
+      "height": 201.5625
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 256,
+        "height": 201.5625,
+        "fontSize": "32px",
+        "words": 3,
+        "lines": 3,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 256,
+        "height": 134.375,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 2,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 256,
+        "height": 185.5625,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 3,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 75,
+      "minRatio": 8.782072285688347,
+      "minNormalRatio": 99,
+      "minLargeRatio": 8.782072285688347,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 29734,
+      "height": 30474,
+      "viewport": 740
+    }
+  },
+  {
+    "name": "768x900-dark-text200",
+    "renderedFontSize": 32,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 704,
+      "height": 447.96875,
+      "fontSize": "80px",
+      "words": 10,
+      "lines": 5,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 32,
+      "y": 1111.140625,
+      "width": 704,
+      "height": 99.1875
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 704,
+        "height": 99.1875,
+        "fontSize": "32px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 412.96875,
+        "height": 88,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 523.609375,
+        "height": 88,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 76,
+      "minRatio": 8.782072285688347,
+      "minNormalRatio": 99,
+      "minLargeRatio": 8.782072285688347,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 10451,
+      "height": 11351,
+      "viewport": 900
+    }
+  },
+  {
+    "name": "844x390-dark-text200",
+    "renderedFontSize": 32,
+    "headingReadability": {
+      "label": "Governing AI Agents: The Harbor, the Person, and the Economy",
+      "width": 780,
+      "height": 358.375,
+      "fontSize": "80px",
+      "words": 10,
+      "lines": 4,
+      "fragmentedWords": []
+    },
+    "primaryBounds": {
+      "x": 32,
+      "y": 963.953125,
+      "width": 780,
+      "height": 99.1875
+    },
+    "downloadReadability": [
+      {
+        "label": "Read book (PDF)",
+        "width": 780,
+        "height": 99.1875,
+        "fontSize": "32px",
+        "words": 3,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Read facing pages (PDF)",
+        "width": 412.96875,
+        "height": 88,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      },
+      {
+        "label": "Download LaTeX source (.tar.gz)",
+        "width": 523.609375,
+        "height": 88,
+        "fontSize": "32px",
+        "words": 4,
+        "lines": 1,
+        "fragmentedWords": []
+      }
+    ],
+    "nestedScrollers": [],
+    "accessibility": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".book-read > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-spreads:nth-child(6) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "section[aria-labelledby=\"part-machine\"] > ol > li:nth-child(1) > .book-chapter-link[data-discover=\"true\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"anchor-protocol\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"sealed-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"legible-swarm\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"spawn-to-person\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"harbor-economy\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"bonded-commons\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"federated-harbor\"] > span:nth-child(2) > .book-chapter-title > span[aria-hidden=\"true\"]"
+            ],
+            [
+              ".book-edition-link[data-discover=\"true\"]:nth-child(4) > span[aria-hidden=\"true\"]"
+            ],
+            [
+              "a[href$=\"rounds\"] > span[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    "contrast": {
+      "checked": 76,
+      "minRatio": 8.782072285688347,
+      "minNormalRatio": 99,
+      "minLargeRatio": 8.782072285688347,
+      "failed": [],
+      "overflow": false,
+      "scheme": "normal"
+    },
+    "naturalScroll": {
+      "y": 10149,
+      "height": 10539,
+      "viewport": 390
+    }
+  }
+]
