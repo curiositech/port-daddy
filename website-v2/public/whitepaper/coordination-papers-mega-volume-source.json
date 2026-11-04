@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40163043,
+    "bytes": 40162933,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/12343e282e978d110824d3032e574d3a2b68e20968f66fbe47c2adbcf399e5fa.tar.gz",
-    "sha256": "12343e282e978d110824d3032e574d3a2b68e20968f66fbe47c2adbcf399e5fa",
-    "url": "https://media.portdaddy.dev/book/source/sha256/12343e282e978d110824d3032e574d3a2b68e20968f66fbe47c2adbcf399e5fa.tar.gz"
+    "key": "book/source/sha256/78ffc95429a02cde354c7ba0cdd022154e1a429050120e42bf5393915efa613d.tar.gz",
+    "sha256": "78ffc95429a02cde354c7ba0cdd022154e1a429050120e42bf5393915efa613d",
+    "url": "https://media.portdaddy.dev/book/source/sha256/78ffc95429a02cde354c7ba0cdd022154e1a429050120e42bf5393915efa613d.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "ba9f47117b6bd253b4a15b9c40b8f144091a25058e7ece6279c1787a04873cdc",
+  "manifestSha256": "9a504b376aa9ba67cd0a600aae17aaf1f3722f3a336a330fa31d8038106667e7",
   "schemaVersion": 1,
   "source": {
     "fileCount": 507,
@@ -226,16 +226,16 @@
         "sha256": "caaf58a2f8a2692c5c202ef93356d6a6aaf8f1c3b880ef31de04f18eddc4903c"
       },
       {
-        "bytes": 3937,
+        "bytes": 3996,
         "mode": 420,
         "path": "book/figures/diag-magic-link.tex",
-        "sha256": "50c367702a46beed6aafd69c7c2ee4823d724bbcf9998c38dcc620cf83d0e31d"
+        "sha256": "d4718bef4d645c56959f25ee62f489e350429a789b615df57263e1ff5fa8c344"
       },
       {
-        "bytes": 3726,
+        "bytes": 3747,
         "mode": 420,
         "path": "book/figures/diag-sybil-attack.tex",
-        "sha256": "3d6c4b405b042c39893d280c6cfcf937384df48f48f9327ff3305163173c69a4"
+        "sha256": "b539e31e8788345b0dac7fb3c3f910b18df7392a0c542f5c91d7f03bb2db4a42"
       },
       {
         "bytes": 2707,
@@ -322,10 +322,10 @@
         "sha256": "03a90b08b80c8eae132a037d3be141e352ecb3f4bfd3eed1ef6b26630bfff74a"
       },
       {
-        "bytes": 4491,
+        "bytes": 4042,
         "mode": 420,
         "path": "book/figures/fig-bc-oracle-audit-rate.tex",
-        "sha256": "6c9b1596a44f58b6e1b42734775505f7d7a05ec54615300caff3f51658355fe1"
+        "sha256": "250bfbdd7be5650244ea6618512fcf651fbcc7e598b1639676354d4191d9e588"
       },
       {
         "bytes": 4616,
@@ -3064,6 +3064,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "a220699522407199b23faf550e3c5df021a56f0c99492dcc07c03fbe8b5c783c"
+    "sha256": "7f87b91d429570d50fedc8504c800a244aa18503b2b6abbac0d9921bcabfee63"
   }
 }

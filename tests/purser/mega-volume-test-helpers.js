@@ -55,10 +55,6 @@ export function makeFixture() {
   cpSync(resolve(subjectRoot, 'scripts/prepare-book-fonts.py'),
     resolve(root, 'scripts/prepare-book-fonts.py'));
   copyTexTree(resolve(subjectRoot, 'book'), resolve(root, 'book'));
-  copyTexTree(
-    resolve(subjectRoot, 'book'),
-    resolve(root, 'book'),
-  );
   return root;
 }
 

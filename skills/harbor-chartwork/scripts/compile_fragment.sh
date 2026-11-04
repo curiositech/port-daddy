@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # compile_fragment.sh -- compile one Harbor TikZ figure fragment standalone.
 #
-# Wraps a bare `\input`-only fragment (from book/figures,
-# book/figures, or docs/harbor-research/figures) in a minimal document that
+# Wraps a bare `\input`-only fragment (from book/figures
+# or docs/harbor-research/figures) in a minimal document that
 # loads the SAME preamble pieces the assembled Book or research paper would load,
 # then compiles it with tectonic. This is the only way to render a fragment on
 # its own: none of
-# the three corpora's fragments carry a `\documentclass` of their own (bar six
-# orphaned website-v2/figures/diag-*.tex files -- see below), so they cannot be
+# the two corpora's fragments carry a `\documentclass` of their own (standalone
+# book/figures/diag-*.tex studies excepted -- see below), so they cannot be
 # compiled directly.
 #
 # Preamble fidelity, not reinvention: Book figures always read the assembled
@@ -237,7 +237,7 @@ WRAPPER="$BUILD/wrapper.tex"
 MAIN_JOBNAME="wrapper"
 
 # --- fragment already carries its own \documentclass: compile as-is --------
-# (Six website-v2/figures/diag-*.tex fragments predate the pd-figure-language
+# (The book/figures/diag-*.tex studies predate the pd-figure-language
 # system and are already complete standalone documents. Any future fragment
 # that similarly declares its own class is handled the same way: it needs no
 # wrapping, and wrapping it would double up \documentclass and fail to build.)

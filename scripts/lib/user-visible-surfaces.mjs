@@ -126,7 +126,7 @@ export const TYPESET_SOURCE_RE = /\.tex$/i
 export function isFigureSurface(file) {
   // Matched case-INSENSITIVELY, unlike `isUserVisibleSurface` below. Git stores
   // paths case-sensitively, so `Figures/` and `figures/` are two different
-  // directories here, and `Whitepaper/` is a tree the enumerated list would not
+  // directories here, and `Book/` is a tree the enumerated list would not
   // recognise. A contributor who capitalises a directory would then create a
   // figure tree this rule cannot see — which is the exact gap the shape-based
   // tests exist to close, reopened by an accident of spelling. The corpus is all

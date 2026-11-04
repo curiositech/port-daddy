@@ -25,7 +25,7 @@
     },
     {
       "path": "book/figures/diag-magic-link.tex",
-      "reason": "Pre-existing orphan named as such in docs/harbor-research/critique-ledger.json ('the orphaned diag-magic-link.tex in the same figures directory'), and shown with no consuming document in skills/harbor-chartwork/references/corpus-audit.md. It also fails to compile today, so wiring it up is a redraw, not a one-line \\input."
+      "reason": "Pre-existing orphan named as such in docs/harbor-research/critique-ledger.json ('the orphaned diag-magic-link.tex in the same figures directory'), and shown with no consuming document in skills/harbor-chartwork/references/corpus-audit.md. Its standalone dependencies are explicit and compile-tested; it remains unplaced, and adopting it still requires a design review."
     },
     {
       "path": "book/figures/diag-sybil-attack.tex",

@@ -1,7 +1,8 @@
 % Magic-link single-use atomicity diagram (binds runtime to .pv private channel).
 \documentclass[border=10pt,tikz]{standalone}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,decorations.pathmorphing,shapes.symbols}
+\usepackage{amsmath}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,decorations.pathmorphing,shapes.symbols,shapes.geometric}
 
 % Harbor Heritage palette
 \definecolor{sand}{HTML}{E9DCC4}
@@ -17,11 +18,11 @@
 \begin{tikzpicture}[
   font=\sffamily\small,
   node distance=4mm and 6mm,
-  actor/.style={draw=ebony,fill=sand,rounded corners=2pt,
+  actor/.style={align=center,draw=ebony,fill=sand,rounded corners=2pt,
                 inner sep=4pt,minimum height=8mm,thick},
   ch/.style={draw=ebony,fill=paper,inner sep=4pt,minimum width=22mm,thick,
              font=\sffamily\footnotesize},
-  cap/.style={draw=cobalt,fill=paper,thick,minimum width=10mm,
+  capnode/.style={draw=cobalt,fill=paper,thick,minimum width=10mm,
               minimum height=6mm,inner sep=2pt},
   ev/.style={ellipse,draw=teal,fill=paper,thick,inner sep=3pt,
              font=\sffamily\footnotesize},
@@ -40,7 +41,7 @@
 % Channel cap (private channel ch\_tk holds exactly one cap)
 \node[ch,right=22mm of issuer.east,anchor=west] (chTk)
   {private channel \texttt{ch\_tk}};
-\node[cap,below=2mm of chTk] (capBox) {cap};
+\node[capnode,below=2mm of chTk] (capBox) {cap};
 
 % SQL UPDATE statement box
 \node[ch,below=18mm of chTk,anchor=north,
