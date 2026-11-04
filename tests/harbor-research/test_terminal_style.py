@@ -9,7 +9,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / 'book'
+BOOK = ROOT / 'book'
 ROLLBACK_SHA256 = 'bd837108cbdebb30afc4ff9332b87a6d6023bb6b4be2b8b3d3195831d03a5be2'
 TERMINAL_SHA256 = '4f9b6488b237757d5cb615ccd07502fa99774826839e2a99017784bdb2596f1a'
 LICENSE_SHA256 = 'b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57'
@@ -20,12 +20,8 @@ def compact(text):
 
 
 class TerminalStyle(unittest.TestCase):
-    def test_shared_sources_remain_identical(self):
-        self.assertEqual((ROOT / 'book/figures/pd-pedagogy.tex').read_bytes(),
-                         (WEB / 'figures/pd-pedagogy.tex').read_bytes())
-
     def test_full_frame_uses_shared_hooks_and_preserves_verbatim_terminator(self):
-        source = (WEB / 'figures/pd-pedagogy.tex').read_text()
+        source = (BOOK / 'figures/pd-pedagogy.tex').read_text()
         terminal = source.split(r'\lstnewenvironment{pdsession}', 1)[1].split('% pdsampledata', 1)[0]
         for token in (r'\pdblockbefore{Terminal transcript}', r'\pdblockafter{Terminal transcript}',
                       r'\def\@currenvir{pdsession}', r'\def\@currenvir{tcolorbox}',
@@ -34,12 +30,12 @@ class TerminalStyle(unittest.TestCase):
         self.assertNotIn(r'\pd@sessionedge', source)
         self.assertNotIn(r'\rule{.18\pd@sessionwidth}', terminal)
         self.assertNotIn('fractional top rule', source)
-        shared = (WEB / 'figures/pd-semantic-blocks.tex').read_text()
+        shared = (BOOK / 'figures/pd-semantic-blocks.tex').read_text()
         for state in ('unbroken', 'first', 'middle', 'last'):
             self.assertIn('overlay ' + state + r'={\pdblock@frame}', shared)
 
     def test_native_size_wraps_without_scaling(self):
-        source = (WEB / 'figures/pd-pedagogy.tex').read_text()
+        source = (BOOK / 'figures/pd-pedagogy.tex').read_text()
         terminal = source.split(r'\lstdefinestyle{pdsession}', 1)[1].split('% pdsampledata', 1)[0]
         for token in (r'\fontsize{8.6}{10.6}', 'keepspaces=true', 'breaklines=true',
                       'breakatwhitespace=false', 'breakindent=2em', 'upquote=true', r'literate={-}{{\char45}}1'):
@@ -49,7 +45,7 @@ class TerminalStyle(unittest.TestCase):
         self.assertNotIn(r'\scalebox', terminal)
 
     def test_synthetic_feedpaper_stays_separate_and_neutral(self):
-        source = (WEB / 'figures/pd-pedagogy.tex').read_text()
+        source = (BOOK / 'figures/pd-pedagogy.tex').read_text()
         sample = source.split(r'\newtcblisting{pdsampledata}', 1)[1].split('% ---------------------------------------------------------------------------', 1)[0]
         for token in ('SAMPLE DATA', 'colframe=pdinkmuted!62,colback=pdinkmuted!5', 'circle[radius=1.35pt]'):
             self.assertIn(token, sample)
@@ -58,7 +54,7 @@ class TerminalStyle(unittest.TestCase):
     def test_canonical_recorded_excerpt_exact_bytes(self):
         # Pins comments, caption, whitespace, blank lines, command, and stdout.
         # Deliberate research updates must explicitly revise this reviewed hash.
-        self.assertEqual(hashlib.sha256((WEB / 'figures/session-fh-rollback.tex').read_bytes()).hexdigest(), ROLLBACK_SHA256)
+        self.assertEqual(hashlib.sha256((BOOK / 'figures/session-fh-rollback.tex').read_bytes()).hexdigest(), ROLLBACK_SHA256)
 
     def test_fixture_reuses_excerpt_and_has_no_machine_specific_paths(self):
         fixture = (ROOT / 'tests/harbor-research/fixtures/terminal-style-book.tex').read_text()
@@ -71,10 +67,9 @@ class TerminalStyle(unittest.TestCase):
             self.assertNotIn(path, fixture)
 
     def test_official_svg_and_full_license(self):
-        for directory in (ROOT / 'book', WEB):
-            assets = directory / 'figures/lucide'
-            self.assertEqual(hashlib.sha256((assets / 'terminal.svg').read_bytes()).hexdigest(), TERMINAL_SHA256)
-            self.assertEqual(hashlib.sha256((assets / 'LICENSE').read_bytes()).hexdigest(), LICENSE_SHA256)
+        assets = BOOK / 'figures/lucide'
+        self.assertEqual(hashlib.sha256((assets / 'terminal.svg').read_bytes()).hexdigest(), TERMINAL_SHA256)
+        self.assertEqual(hashlib.sha256((assets / 'LICENSE').read_bytes()).hexdigest(), LICENSE_SHA256)
         vendor = (ROOT / 'scripts/harbor-research/vendor_lucide_book_icons.sh').read_text()
         self.assertIn('951813ce76a859d4d8b145366972cbb237147a4e', vendor)
         self.assertRegex(vendor, r'file-text\s+terminal.*?; do')
@@ -106,7 +101,7 @@ class RenderedTerminalStyle(unittest.TestCase):
         self.assertIn('SAMPLE DATA', self.text)
 
     def test_recorded_text_survives_wrapping(self):
-        original = (WEB / 'figures/session-fh-rollback.tex').read_text()
+        original = (BOOK / 'figures/session-fh-rollback.tex').read_text()
         body = original.split(r'\begin{pdsession}', 1)[1].split('\n', 1)[1].split(r'\end{pdsession}', 1)[0]
         captured = (self.path.parent / 'terminal-inventory.txt').read_text()
         for line in (body + captured).splitlines():

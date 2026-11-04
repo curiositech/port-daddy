@@ -14,7 +14,7 @@ test('every chapter carries its own art key in the complete contents', () => {
     assert.ok(entry?.endsWith(`{${chapter.prefix}}`), `Missing art key for ${chapter.title}`);
     for (const edition of ['', 'swiss/', 'technical/']) {
       const key = edition === 'technical/' ? chapter.number : chapter.prefix;
-      const plate = fileURLToPath(new URL(`../../website-v2/public/whitepaper/plates/${edition}chapter-${key}.jpg`, import.meta.url));
+      const plate = fileURLToPath(new URL(`../../book/plates/${edition}chapter-${key}.jpg`, import.meta.url));
       assert.ok(existsSync(plate), `Missing ${edition || 'maritime/'}${chapter.prefix} plate`);
     }
   }
