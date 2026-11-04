@@ -23,7 +23,7 @@ a secondary site that quotes it, the source line says so explicitly.
 
 Two house artifacts were read directly (not fetched) before this research and
 are cited throughout as primary context, not as "sources" in the bibliographic
-sense: `docs/harbor-research/figures/CONVENTION.md` (the two-figure-kind
+sense: `CONVENTION.md` (archived as SRC-098 in `docs/harbor-research/OMNI-LEDGER.md`) (the two-figure-kind
 convention: plain-`tikzpicture` relation maps vs. `pgfplots` regime diagrams,
 both compiled from flat `.tex` fragments, no raster) and
 `book/figures/pd-palette.tex` (the ink/cream/accent

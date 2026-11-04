@@ -77,9 +77,9 @@
   implementation (fetched directly from GitHub) compared against this
   repository's actual state — `\pdmarginfigure` implemented,
   `\pdgloss` planned but not yet built (per
-  `docs/harbor-research/exposition/HANDOFF-TEXTBOOK.md`) — plus concrete
+  `HANDOFF-TEXTBOOK.md` (archived as SRC-069 in `docs/harbor-research/OMNI-LEDGER.md`)) — plus concrete
   per-chapter marginalia placement notes drawn from
-  `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md` and
+  `MARGINALIA-PLACEMENT.md` (archived as SRC-072 in `docs/harbor-research/OMNI-LEDGER.md`) and
   `READING-FLOW-AUDIT.md`.
 - `references/web-application.md`: the same doctrines applied to
   `website-v2` docs pages.

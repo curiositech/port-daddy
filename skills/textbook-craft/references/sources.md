@@ -19,14 +19,14 @@ are checked mechanically.
 
 ## Primary seed (Tier A, read in full for this skill)
 
-- `docs/harbor-research/exposition/TEXTBOOK-CRAFT.md` — the research memo this
+- `TEXTBOOK-CRAFT.md` (archived as SRC-079 in `docs/harbor-research/OMNI-LEDGER.md`) — the research memo this
   skill is built from (Halmos read page-by-page; Axler, SICP, Feynman, Knuth,
   Spivak, Strang, Sipser, CLRS, Pierce, MacKay, Osborne–Rubinstein and a dozen
   more economics/game-theory texts at Tier B; Lakatos and Pólya at Tier B;
   Lamport and Tao read in full; two specimen papers, Lizzeri 1994 and van der
   Meyden 2007, read section by section). Its own Tier A/B/C markings are
   preserved verbatim in `references/canon.md`.
-- `docs/harbor-research/exposition/READING-FLOW-AUDIT.md` — the measured
+- `READING-FLOW-AUDIT.md` (archived as SRC-076 in `docs/harbor-research/OMNI-LEDGER.md`) — the measured
   reading-flow findings (F1–F7) on the Book's actual rendered pages: kinds per
   page, back-references per page, time-to-first-checkable-fact, and the eight
   reader archetypes (A1–A8). `scripts/chapter_lint.py`'s floors and the page
@@ -34,11 +34,11 @@ are checked mechanically.
   reproduce F1 (exercises interrupting the argument), F2 (five tinted content
   kinds), F3/F5 (long runs with nothing to look at) or F7 (back matter losing
   its running head).
-- `docs/harbor-research/exposition/HANDOFF-TEXTBOOK.md` — the settled design
+- `HANDOFF-TEXTBOOK.md` (archived as SRC-069 in `docs/harbor-research/OMNI-LEDGER.md`) — the settled design
   contracts (page grammar, three editions, `skills/harbor-chartwork` as the
   figure authority) and the standing instruction that thin material is
   developed, not decorated.
-- `docs/harbor-research/exposition/memo-solution-key.md` — *The Harbor After
+- `memo-solution-key.md` (archived as SRC-097 in `docs/harbor-research/OMNI-LEDGER.md`) — *The Harbor After
   the Harbor*'s exercise solution key, read for its own two governing rules
   (quoted in `references/exercise-design.md` and in `SKILL.md`'s honesty
   ledger): repair a false premise instead of answering it as asked, and give

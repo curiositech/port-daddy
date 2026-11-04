@@ -64,6 +64,27 @@ class SourceBundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "stale"):
             bundle.check(self.root, self.receipt)
 
+    def test_generated_solution_streams_cannot_shadow_authored_answers(self):
+        self.build()
+        accepted = self.archive.read_bytes()
+        receipt = self.receipt.read_bytes()
+        redirects = (self.root / "website-v2/public/_redirects").read_bytes()
+        for name in ("book-sol-anchor.tex", "sol-anchor.tex",
+                     "fixtures/book-sol-anchor.tex", "fixtures/sol-anchor.tex"):
+            with self.subTest(name=name):
+                stale = self.root / "book" / name
+                stale.parent.mkdir(parents=True, exist_ok=True)
+                stale.write_text("Stale generated answer that must not override the chapter.\n")
+                with self.assertRaisesRegex(ValueError, "Generated solution stream"):
+                    self.build()
+                with self.assertRaisesRegex(ValueError, "Generated solution stream"):
+                    bundle.check(self.root, self.receipt)
+                self.assertEqual(self.archive.read_bytes(), accepted)
+                self.assertEqual(self.receipt.read_bytes(), receipt)
+                self.assertEqual((self.root / "website-v2/public/_redirects").read_bytes(), redirects)
+                stale.unlink()
+        bundle.check(self.root, self.receipt)
+
     def test_missing_chapter_and_external_registry_path_fail(self):
         (self.root / "book/chapter.tex").unlink()
         with self.assertRaisesRegex(ValueError, "Chapter is not contained"):

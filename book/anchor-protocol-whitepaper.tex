@@ -2048,6 +2048,7 @@ Read \path{analyses/harbor_card_v6_multihop_attack.pv}. State the attack in word
 \begin{pdsolution}{ex:anchor-multihop-attack}
 The root holds \texttt{cap\_write}. Honest $A$ correctly attenuates to \texttt{cap\_read} for $B$ --- a legitimate restriction. Malicious $B$, holding only that read-capped delegation, signs a \emph{new} delegation to $C$ carrying \texttt{cap\_write}: an authority $B$ never held, forged with $B$'s own legitimately-issued delegation key, not by breaking any signature. \texttt{NaiveVerifier} unwraps the two-hop chain and checks \texttt{is\_subset(final\_cap, root\_cap)} --- the final capability against the root only --- and never re-derives what the intermediate hop actually held. Because \texttt{cap\_write} is a subset of the root, the check passes and $C$ is accepted with full write authority, although $B$ itself only ever held read. This is hop-2 escalation: a child re-grants an authority its own parent narrowed away, and a root-vs-final comparison is structurally blind to it.
 
+\Needspace{6\baselineskip}
 Pinned output (\path{analyses/harbor_card_v6_results.txt}):
 \begin{lstlisting}
 The event Accepted(id_c_1,harbor_id,cap_write) is executed at {43} in copy a_10.
@@ -2062,6 +2063,7 @@ ProVerif does not merely report the query false; it exhibits the concrete trace 
 \begin{pdsolution}{ex:anchor-multihop-fix}
 The only change is in the verifier: v6's single check \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} becomes two checks in sequence, \texttt{is\allowbreak\_subset(mid\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} for hop~1 ($A \to B$ against the root) \emph{and} \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{mid\allowbreak\_cap)} for hop~2 ($B \to C$ against what $B$ actually held). Same malicious $B$, same forged \texttt{cap\_write} delegation, same query --- only the verifier's comparison target moves from ``root'' to ``immediate parent.''
 
+\Needspace{6\baselineskip}
 Pinned output (\path{analyses/harbor_card_v7_results.txt}):
 \begin{lstlisting}
 RESULT not event(Accepted(cc_2,harbor_id[],cap_write)) is true.
@@ -2077,10 +2079,12 @@ Both models share a grant chain --- a first-party caveat folded into the root HM
 
 v1's verifier folds the grant's own signature into the binding, \texttt{bound = hmac(BIND0, (g\_sig, d1))}, not just the discharge chain. A discharge minted for the low-authority grant's signature cannot satisfy the high-authority grant's binding check: HMAC is modeled as a one-way keyed PRF with no destructor, so the attacker can replay the low discharge's bytes verbatim but cannot recompute the high-authority binding without the private caveat key only the daemon holds.
 
+\Needspace{6\baselineskip}
 Pinned output, v1 (\path{analyses/macaroon_discharge_v1_results.txt}):
 \begin{lstlisting}
 RESULT event(RelayAuthorizes(s)) ==> event(DaemonIssuesDischarge(s)) is true.
 \end{lstlisting}
+\Needspace{6\baselineskip}
 Pinned output, v2 (\path{analyses/macaroon_discharge_v2_naive_unsound_results.txt}):
 \begin{lstlisting}
 RESULT event(RelayAuthorizesNaive(s)) ==> event(DaemonIssuesDischarge(s)) is false.

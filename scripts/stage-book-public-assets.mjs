@@ -5,6 +5,15 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const allowed = new Set(['.jpg', '.jpeg', '.png', '.webp', '.svg', '.pdf', '.json', '.txt']);
+
+/** Exact source → public projection, shared with the reverse reachability guard. */
+export function publicBookAssetPath(sourcePath) {
+  const match = /^book\/(figures|plates)\/(.+)$/.exec(sourcePath);
+  if (!match || (match[1] === 'plates' && match[2].startsWith('originals/'))) return null;
+  const name = match[2].split('/').at(-1);
+  if (!allowed.has(extname(name).toLowerCase()) && name !== 'LICENSE') return null;
+  return `website-v2/public/whitepaper/${match[1]}/${match[2]}`;
+}
 export function stageBookAssets(repoRoot) {
   let count = 0;
   for (const family of ['figures', 'plates']) {
@@ -19,8 +28,10 @@ export function stageBookAssets(repoRoot) {
           // Original-source preservation is for the downloadable source bundle.
           if (family === 'plates' && path === 'originals') continue;
           visit(path);
-        } else if (entry.isFile() && (allowed.has(extname(path).toLowerCase()) || entry.name === 'LICENSE')) {
-          const target = join(destination, path);
+        } else if (entry.isFile()) {
+          const publicPath = publicBookAssetPath(`book/${family}/${path}`);
+          if (!publicPath) continue;
+          const target = join(repoRoot, publicPath);
           mkdirSync(dirname(target), { recursive: true });
           copyFileSync(join(source, path), target);
           count += 1;

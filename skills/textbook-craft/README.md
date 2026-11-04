@@ -50,10 +50,10 @@ textbook-craft/
 
 ## Seed and provenance
 
-Built from `docs/harbor-research/exposition/TEXTBOOK-CRAFT.md` (the research
+Built from `TEXTBOOK-CRAFT.md` (archived as SRC-079 in `docs/harbor-research/OMNI-LEDGER.md`) (the research
 memo), `READING-FLOW-AUDIT.md` (measured reading-flow findings on the Book's
 own rendered pages), `HANDOFF-TEXTBOOK.md` (the settled design contracts),
-`docs/harbor-research/exposition/memo-solution-key.md` (the exercise
+`memo-solution-key.md` (archived as SRC-097 in `docs/harbor-research/OMNI-LEDGER.md`) (the exercise
 solution-key's own two governing rules), `book/figures/pd-pedagogy.tex`
 (the actual macro vocabulary), and `skills/harbor-exposition/SKILL.md` (the
 seven-moves style this skill is downstream of, not a duplicate of) — extended

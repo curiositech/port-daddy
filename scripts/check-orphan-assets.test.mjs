@@ -23,7 +23,6 @@ import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -62,7 +61,9 @@ function json(...args) {
  *  this, so no test can leak a mutation into the next one. */
 function seed() {
   if (SANDBOX) rmSync(SANDBOX, { recursive: true, force: true })
-  SANDBOX = mkdtempSync(join(tmpdir(), 'orphan-assets-'))
+  const scratch = join(REPO, '.cache', 'orphan-asset-tests')
+  mkdirSync(scratch, { recursive: true })
+  SANDBOX = mkdtempSync(join(scratch, 'orphan-assets-'))
   mkdirSync(join(SANDBOX, 'scripts'), { recursive: true })
 
   // ── Assets, in the trees the checker scopes itself to ──────────────────────
@@ -86,7 +87,7 @@ function seed() {
   // ── References, each in the shape the real repo uses ───────────────────────
   // A LaTeX macro parameter — the Swiss plate file's actual mechanism.
   put(
-    'website-v2/public/whitepaper/mega-swiss-plates.tex',
+    'book/mega-swiss-plates.tex',
     '\\newcommand{\\pdchapterplate}[2]{%\n' +
       '  \\IfFileExists{plates/swiss/chapter-#1.jpg}{%\n' +
       '    \\includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}}{}}\n' +
@@ -155,6 +156,33 @@ describe('check-orphan-assets', () => {
     assert.match(why, /\[pattern\] whitepaper\/plates\/chapter-\$\{prefix\}\.jpg/)
   })
 
+  test('a canonical plate reached by its public URL is live without a tracked public copy', () => {
+    assert.ok(!orphans().has('book/plates/jacket.jpg'))
+    assert.match(run('--why', 'book/plates/jacket.jpg').stdout,
+      /\[literal\] whitepaper\/plates\/jacket\.jpg/)
+    rmSync(join(SANDBOX, 'website-v2/src/LibraryBanner.tsx'))
+    try {
+      assert.ok(orphans().has('book/plates/jacket.jpg'))
+    } finally {
+      seed()
+    }
+  })
+
+  test('a public URL cannot vouch for unpublished original plates or TeX sources', () => {
+    put('book/plates/originals/private-source.jpg', PIXEL)
+    put('book/figures/unpublished-source.tex', '% not a public asset\n')
+    put('website-v2/src/FakePublicReferences.ts',
+      'const originals = "/whitepaper/plates/originals/private-source.jpg";\n' +
+      'const source = "/whitepaper/figures/unpublished-source.tex";\n')
+    try {
+      const o = orphans()
+      assert.ok(o.has('book/plates/originals/private-source.jpg'))
+      assert.ok(o.has('book/figures/unpublished-source.tex'))
+    } finally {
+      seed()
+    }
+  })
+
   test('an extension-less \\input and a runtime-derived dark sibling are not orphans', () => {
     const o = orphans()
     assert.ok(!o.has('book/figures/fig-live.pdf'))
@@ -185,7 +213,7 @@ describe('check-orphan-assets', () => {
   })
 
   test('deleting the ONLY LaTeX macro reference turns both Swiss plates into orphans', () => {
-    rmSync(join(SANDBOX, 'website-v2/public/whitepaper/mega-swiss-plates.tex'))
+    rmSync(join(SANDBOX, 'book/mega-swiss-plates.tex'))
     try {
       const o = orphans()
       assert.ok(o.has('book/plates/swiss/chapter-anchor.jpg'))

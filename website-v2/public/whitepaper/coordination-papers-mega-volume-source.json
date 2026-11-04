@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40221763,
+    "bytes": 40163043,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/f34c9bb0fda5433e1579f9ad92776a556cc6331a95c2a78488108bb5b593dbf9.tar.gz",
-    "sha256": "f34c9bb0fda5433e1579f9ad92776a556cc6331a95c2a78488108bb5b593dbf9",
-    "url": "https://media.portdaddy.dev/book/source/sha256/f34c9bb0fda5433e1579f9ad92776a556cc6331a95c2a78488108bb5b593dbf9.tar.gz"
+    "key": "book/source/sha256/12343e282e978d110824d3032e574d3a2b68e20968f66fbe47c2adbcf399e5fa.tar.gz",
+    "sha256": "12343e282e978d110824d3032e574d3a2b68e20968f66fbe47c2adbcf399e5fa",
+    "url": "https://media.portdaddy.dev/book/source/sha256/12343e282e978d110824d3032e574d3a2b68e20968f66fbe47c2adbcf399e5fa.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,10 +16,10 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "05ad67254fe34835254386353065c045b3c597b199d04d860b29c164a5fdc752",
+  "manifestSha256": "ba9f47117b6bd253b4a15b9c40b8f144091a25058e7ece6279c1787a04873cdc",
   "schemaVersion": 1,
   "source": {
-    "fileCount": 515,
+    "fileCount": 507,
     "files": [
       {
         "bytes": 1202,
@@ -46,58 +46,10 @@
         "sha256": "6d8246888a37e5e62140b329661f6aa50376c348e3f97d8d0b13496c706ccf39"
       },
       {
-        "bytes": 148284,
+        "bytes": 148392,
         "mode": 420,
         "path": "book/anchor-protocol-whitepaper.tex",
-        "sha256": "e10dd1b37532fdf05b9c62a19cf21c8b05f37454c4d90eec89738ad16b3314bd"
-      },
-      {
-        "bytes": 16074,
-        "mode": 420,
-        "path": "book/book-sol-anchor.tex",
-        "sha256": "c812920b04d11993488aec067a7b0bcafee4f7ce6c1e22d6dd5efff01503bb32"
-      },
-      {
-        "bytes": 24156,
-        "mode": 420,
-        "path": "book/book-sol-bonded.tex",
-        "sha256": "76830dee3670c2a31cf666604341c082e8383fbedbd77ee6afa9807876668e8b"
-      },
-      {
-        "bytes": 23604,
-        "mode": 420,
-        "path": "book/book-sol-fh.tex",
-        "sha256": "6b997bbc1d11b0989dbf4ce0f74250b094e4578c43f7ace1bf786989a9d8d259"
-      },
-      {
-        "bytes": 29067,
-        "mode": 420,
-        "path": "book/book-sol-he.tex",
-        "sha256": "b1ecf286153b3c57ed36617bbe0f16d3fff07abdd55e43a0fe3517f12530b2e2"
-      },
-      {
-        "bytes": 33021,
-        "mode": 420,
-        "path": "book/book-sol-ls.tex",
-        "sha256": "91b19a0512ddb19a5cb89bf72cb844ae710bf42e52084adde807f692bead1524"
-      },
-      {
-        "bytes": 7217,
-        "mode": 420,
-        "path": "book/book-sol-sealed.tex",
-        "sha256": "654de205e5c1a44b9b226934e6a7ddd34dcd1d0622b5cb24c25ffdc00936e2e9"
-      },
-      {
-        "bytes": 21595,
-        "mode": 420,
-        "path": "book/book-sol-stp.tex",
-        "sha256": "6ea60ca6e3e0cc83e3d751ebe2d380183f88339f660c52aacd988c8284ac2fe6"
-      },
-      {
-        "bytes": 22018,
-        "mode": 420,
-        "path": "book/book-sol-swk.tex",
-        "sha256": "79fa4d29c459cf17eea6d94a3e808debfc3186edafe31f9c31ff61bd34ea5711"
+        "sha256": "a00111183eece41f96c46cbb8347a065f3a262a629880f5627313561838a5d77"
       },
       {
         "bytes": 262,
@@ -3088,10 +3040,10 @@
         "sha256": "3df6a53db6fc31eaac75d9b6418e9f2f7a8ab66d8a55f267e1f38bf766aa243b"
       },
       {
-        "bytes": 13611,
+        "bytes": 14131,
         "mode": 420,
         "path": "scripts/build-book-source.py",
-        "sha256": "040ba644e3c0aa0affcb7f697e938d9131205bf735eae28aa49c4d6670c458fc"
+        "sha256": "e4baaab6f004ea6cfa79b43b12f5918cc340c07d5833d4cf678c2aa351b33717"
       },
       {
         "bytes": 18441,
@@ -3112,6 +3064,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "d6f5d8d12f6b69a117a54126f8acc33aa4ff83a6f4e393902e6546e7ed40c1e7"
+    "sha256": "a220699522407199b23faf550e3c5df021a56f0c99492dcc07c03fbe8b5c783c"
   }
 }

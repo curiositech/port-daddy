@@ -133,7 +133,7 @@ CI wiring and a consolidated report:
 
 ## v1.0.0 (2026-09-07)
 
-- Initial skill, built from `docs/harbor-research/exposition/TEXTBOOK-CRAFT.md`
+- Initial skill, built from `TEXTBOOK-CRAFT.md` (archived as SRC-079 in `docs/harbor-research/OMNI-LEDGER.md`)
   (seed research memo), `READING-FLOW-AUDIT.md`, `HANDOFF-TEXTBOOK.md`,
   `memo-solution-key.md`, `book/figures/pd-pedagogy.tex`, and
   `skills/harbor-exposition/SKILL.md`, extended with web research (Rudin,
