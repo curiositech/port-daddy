@@ -1,7 +1,7 @@
 # The chapter template
 
 The exact page-1/page-2 sequence, sourced from
-`docs/harbor-research/exposition/TEXTBOOK-CRAFT.md` §7.1, with the apparatus
+`TEXTBOOK-CRAFT.md` (archived as SRC-079 in `docs/harbor-research/OMNI-LEDGER.md`) §7.1, with the apparatus
 vocabulary from `book/figures/pd-pedagogy.tex` bound to each element.
 Follow this order; do not reorder it without a reason a reviewer could check
 against `references/canon.md`.
@@ -112,7 +112,7 @@ In order:
 
 ## Design constraints (settled, do not relitigate per chapter)
 
-From `docs/harbor-research/exposition/HANDOFF-TEXTBOOK.md` §3: trim 7×10 in,
+From `HANDOFF-TEXTBOOK.md` (archived as SRC-069 in `docs/harbor-research/OMNI-LEDGER.md`) §3: trim 7×10 in,
 one-sided, 4.5 in text column, 1.3 in margin column always on the right. A
 content kind is signalled by typography and the margin — never a tinted
 rectangle (`SKILL.md` §Page grammar has the full table). Color for navigation,

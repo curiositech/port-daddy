@@ -80,6 +80,14 @@ def source_files(root: Path) -> tuple[list[dict], dict[str, bytes]]:
         name = path.relative_to(root).as_posix()
         if path.name == ".gitignore":
             continue
+        # answers.sty emits these streams while compiling the authored chapter
+        # exercises. A stale copy beside the root can shadow the new stream in
+        # the build directory and silently publish obsolete solutions.
+        if path.match("book-sol-*.tex") or path.match("sol-*.tex"):
+            raise ValueError(
+                f"Generated solution stream in canonical source directory: {name}; "
+                "keep solution bodies in the chapter manuscripts and build outputs in .cache"
+            )
         if path.suffix not in EXTENSIONS and not path.name.startswith("LICENSE"):
             raise ValueError(f"Unexpected file in canonical source directory: {name}")
         names.add(name)

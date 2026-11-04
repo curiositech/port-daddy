@@ -95,7 +95,7 @@ see the gap.
 
 ## Solution-key rules (project-internal, quoted verbatim)
 
-From `docs/harbor-research/exposition/memo-solution-key.md`, itself quoting
+From `memo-solution-key.md` (archived as SRC-097 in `docs/harbor-research/OMNI-LEDGER.md`), itself quoting
 *The Harbor After the Harbor*'s own solution key (memo page 13):
 
 > "Where an exercise depends on a false premise in the manuscript, the

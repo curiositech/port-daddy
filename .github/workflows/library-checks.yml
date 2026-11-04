@@ -50,6 +50,8 @@ on:
       - 'scripts/lint/**'
       - 'scripts/check-orphan-assets.mjs'
       - 'scripts/check-orphan-assets.test.mjs'
+      - 'scripts/stage-book-public-assets.mjs'
+      - 'scripts/stage-book-public-assets.test.mjs'
       - 'scripts/orphan-assets-allow.json'
       - '.github/workflows/library-checks.yml'
   push:
@@ -84,6 +86,8 @@ on:
       - 'scripts/lint/**'
       - 'scripts/check-orphan-assets.mjs'
       - 'scripts/check-orphan-assets.test.mjs'
+      - 'scripts/stage-book-public-assets.mjs'
+      - 'scripts/stage-book-public-assets.test.mjs'
       - 'scripts/orphan-assets-allow.json'
       - '.github/workflows/library-checks.yml'
   # Merge queue: run unconditionally so a required check context always
@@ -243,7 +247,7 @@ jobs:
       # marks everything referenced passes "it ran green" forever, so the suite
       # deletes the last reference to a live asset and asserts it appears.
       - name: Orphan-asset check mutation tests (both directions)
-        run: node --test scripts/check-orphan-assets.test.mjs
+        run: node --test scripts/check-orphan-assets.test.mjs scripts/stage-book-public-assets.test.mjs
 
       # The only steps here that are not stdlib-only. They have to decode a
       # plate's pixels to find where its artwork starts, and render a page to

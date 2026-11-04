@@ -71,6 +71,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync, existsSync } from 'node:fs'
 import { dirname, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { publicBookAssetPath } from './stage-book-public-assets.mjs'
 
 const SELF = 'check-orphan-assets'
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -185,8 +186,8 @@ const inAssetRoots = (p) => ASSET_ROOTS.some((r) => p.startsWith(r))
  * or paper, and one nothing inputs prints in no edition — but a `.tex` file in
  * general is not: the chapter sources and the standalone papers one directory up
  * are ENTRY POINTS, compiled directly, and nothing in the repo references them by
- * path. The `figures/` directory is what separates the two, and it is how both
- * whitepaper trees are actually laid out.
+ * path. The `figures/` directory is what separates the two, and it is how the canonical
+ * Book source tree is laid out.
  */
 const isFigureFragment = (p) =>
   extOf(p) === 'tex' && (p.includes('/figures/') || p.startsWith('figures/'))
@@ -392,7 +393,11 @@ function reachedFromOutside(file, idx) {
  */
 function evidence(asset, idx) {
   const out = []
-  const sfx = suffixes(asset)
+  // The site still refers to /whitepaper/ URLs, while authored art lives in
+  // book/. Only assets the real staging rule publishes inherit that URL alias;
+  // fonts, source TeX and preserved originals cannot be kept alive by fake URLs.
+  const publicPath = publicBookAssetPath(asset)
+  const sfx = [...new Set([...suffixes(asset), ...(publicPath ? suffixes(publicPath) : [])])]
   const noExt = asset.replace(/\.[^./]+$/, '')
 
   for (const s of sfx) {
