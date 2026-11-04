@@ -47,10 +47,7 @@ class CaptionClearanceRecovery(unittest.TestCase):
         self.assertIn("which later section closes the deferred one", recalls[1])
 
     def test_body_recall_never_disables_margin_shipout(self):
-        copies = [ROOT / p / "figures/pd-pedagogy.tex" for p in
-                  ("book", "book")]
-        self.assertEqual(copies[0].read_bytes(), copies[1].read_bytes())
-        source = copies[0].read_text()
+        source = (ROOT / "book/figures/pd-pedagogy.tex").read_text()
         body = source.split(r"\NewEnviron{pdrecitationbody}", 1)[1].split(
             r"\NewEnviron{pdrecitation}", 1)[0]
         self.assertNotIn(r"\pdmargincolumnfalse", body)
