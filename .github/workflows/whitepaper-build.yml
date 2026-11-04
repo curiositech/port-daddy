@@ -351,6 +351,16 @@ jobs:
           fi
           emit true "The render moved a committed PDF; its derived metadata travels with it."
 
+      - name: Refresh the facing copy with an authorized Book refresh
+        if: steps.regen.outputs.carry == 'true' && github.event_name == 'workflow_dispatch' && inputs.refresh_book && github.ref_name != 'main'
+        run: |
+          set -euo pipefail
+          apt-get update && apt-get install -y python3-venv
+          python3 -m venv "$RUNNER_TEMP/book-facing-env"
+          "$RUNNER_TEMP/book-facing-env/bin/python" -m pip install -r scripts/harbor-research/requirements-pdf.txt
+          BOOK_PYTHON="$RUNNER_TEMP/book-facing-env/bin/python" bash scripts/build-spreads.sh
+          node website-v2/scripts/check-book-spreads.mjs
+
       # pdfinfo reads the page count the digests record, and the metadata script
       # is TypeScript. Both are installed only on the path that actually commits,
       # so the ordinary no-op run still costs this job nothing.
@@ -408,6 +418,7 @@ jobs:
           # was already adrift the step above healed it on disk, and a healed file
           # that is not committed is the same lag this change exists to close.
           git add -- website-v2/public/whitepaper/publication-digests.json \
+                     website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.json \
                      website-v2/src/data/whitePapers.ts \
                      website-v2/src/data/researchPapers.ts
           echo "Changed PDFs and the derived metadata that describes them:"
