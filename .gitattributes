@@ -49,4 +49,4 @@ docs/harbor-research/exposition/figures/page-context/**/*.webp filter=lfs diff=l
 docs/pr-assets/figure-rivals/**/*.webp filter=lfs diff=lfs merge=lfs -text
 
 # Facing PDFs can begin with a long text object; never diff or merge them as text.
-website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.pdf binary
+website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.pdf -text -diff -merge

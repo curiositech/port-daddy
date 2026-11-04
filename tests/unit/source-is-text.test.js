@@ -134,6 +134,12 @@ describe('source stays text, greppable, and mergeable', () => {
     });
   });
 
+  test('the published facing PDF is binary for text conversion, diff and merge', () => {
+    const path = 'website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.pdf';
+    const attrs = checkTextAttributes([path], ['text', 'diff', 'merge'], REPO_ROOT);
+    expect(attrs[path]).toEqual({ text: 'unset', diff: 'unset', merge: 'unset' });
+  });
+
   test('the binary-source allowlist is still empty', () => {
     // Extracting the scan into scripts/lib/source-is-text.mjs turned this
     // allowlist from a module-private const in a test file into an exported
