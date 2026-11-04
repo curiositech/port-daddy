@@ -1026,13 +1026,17 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const binDir = join(pdHome, 'bin');
     const marker = join(pdHome, 'failed-once');
     const count = join(pdHome, 'probe-count');
+    const entered = join(pdHome, 'probe-entered');
+    const release = join(pdHome, 'probe-release');
+    const input = join(pdHome, 'probe-input.json');
     mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), [
       '#!/bin/sh',
       `printf x >> '${count}'`,
       `if [ ! -f '${marker}' ]; then touch '${marker}'; exit 127; fi`,
-      'sleep 0.08',
+      `touch '${entered}'`,
+      `while [ ! -f '${release}' ]; do sleep 0.02; done`,
       'exit 0',
       '',
     ].join('\n'), { mode: 0o755 });
@@ -1042,6 +1046,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const env = {
       ...process.env,
       PD_HOME: pdHome,
+      PD_HOOK_DEADLINE_MS: '8000',
       PD_HOOK_FAILURE_THRESHOLD: '1',
       PD_HOOK_SLOW_MS: '10000',
       PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
@@ -1053,18 +1058,49 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     fields[4] = '0'; // cooldown elapsed: next caller may become the sole probe
     writeFileSync(statePath, `${fields.join('\t')}\n`);
 
+    // Inert callers can exit without reading stdin. A finite file keeps pipe
+    // timing/EPIPE out of this test of the breaker's exclusive probe lease.
+    writeFileSync(input, '{}');
     const run = () => new Promise<void>((resolve, reject) => {
-      const child = spawn(wrapper, [], { cwd: REPO, env, stdio: ['pipe', 'ignore', 'pipe'] });
-      child.on('error', reject);
-      child.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`probe exited ${code}`)));
-      child.stdin.end('{}');
-    });
-    await Promise.all([run(), run()]);
+      const descriptor = openSync(input, 'r');
+      try {
+        const child = spawn(wrapper, [], { cwd: REPO, env, stdio: [descriptor, 'ignore', 'ignore'] });
+        child.once('error', reject);
+        child.once('close', (code, signal) => code === 0
+          ? resolve()
+          : reject(new Error(`probe exited ${code} (${signal ?? 'no signal'})`)));
+      } finally {
+        closeSync(descriptor);
+      }
+    }).then(() => null, (error: unknown) => error instanceof Error ? error : new Error(String(error)));
 
-    expect(readFileSync(count, 'utf8')).toBe('xx');
+    // Hold the successful probe until the competing caller has completed.
+    // Starting both promises together does not guarantee overlapping children.
+    let probeFinished = false;
+    const probe = run().then((result) => { probeFinished = true; return result; });
+    let probeResult: Error | null | undefined;
+    try {
+      const enteredBy = Date.now() + 3000;
+      while (!existsSync(entered)) {
+        if (probeFinished) throw new Error('probe exited before entering the barrier');
+        if (Date.now() >= enteredBy) throw new Error('probe did not enter the barrier within 3000ms');
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(probeFinished).toBe(false);
+      expect(await run()).toBeNull();
+      expect(probeFinished).toBe(false);
+      expect(readFileSync(count, 'utf8')).toBe('xx');
+    } finally {
+      // Release even when entry, the concurrent call, or an assertion fails;
+      // observe completion immediately so no rejection or child is abandoned.
+      try { writeFileSync(release, ''); }
+      finally { probeResult = await probe; }
+    }
+
+    expect(probeResult).toBeNull();
     expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
     expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-prompt.failures'))).toBe(false);
-  });
+  }, 20000); // Let both bounded child deadlines and finally cleanup finish on failure.
 
   test('falls back to GNU stat when the BSD probe exits zero with nonnumeric output', () => {
     const pdHome = join(SANDBOX, 'gnu-stat-home');
