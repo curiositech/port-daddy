@@ -177,6 +177,13 @@ jobs:
                && git cat-file -e "$base^{commit}" 2>/dev/null; then
               if git diff --quiet "$base"...HEAD -- scripts/build-whitepapers.sh; then
                 bash scripts/build-whitepapers.sh --changed-since "$base"
+                # The downstream cover/caption checks require a fresh Book and
+                # its matching inventory even for derivative-only changes.
+                # Rebuild the unchanged Book here on both determinism passes.
+                if bash scripts/build-whitepapers.sh --list-unchanged-since "$base" \
+                   | grep -qx 'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf'; then
+                  bash scripts/build-whitepapers.sh coordination-papers-mega-volume
+                fi
               else
                 bash scripts/build-whitepapers.sh
               fi
