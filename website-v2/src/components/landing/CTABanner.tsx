@@ -37,7 +37,7 @@ export function CTABanner() {
   return (
     <section className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] py-[var(--space-8)] lg:py-[var(--section-space-y)]">
       <PageContainer width="wide">
-        <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.96fr)_minmax(24rem,0.74fr)] lg:items-start">
+        <div className="grid grid-cols-1 gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.96fr)_minmax(24rem,0.74fr)] lg:items-start">
           <div className="grid gap-[var(--space-5)]">
             <div className="space-y-[var(--space-4)]">
               <PanelEyebrow>Install Port Daddy</PanelEyebrow>
@@ -53,7 +53,7 @@ export function CTABanner() {
               </PanelBody>
             </div>
 
-            <div className="grid gap-[var(--space-3)] md:grid-cols-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-[var(--space-3)]">
               {START_PATHS.map((path) => {
                 const Icon = path.icon
                 return (
@@ -77,21 +77,21 @@ export function CTABanner() {
             </div>
 
             <div className="flex flex-wrap gap-[var(--space-3)]">
-              <Button asChild variant="primary" size="lg">
+              <Button asChild variant="primary" size="lg" className="max-w-full whitespace-normal text-center">
                 <Link to="/mac-preview#download">
-                  <MonitorCheck size={16} />
+                  <MonitorCheck size={16} className="size-4 shrink-0" />
                   Get the Mac app
                 </Link>
               </Button>
-              <Button asChild variant="secondary" size="lg">
+              <Button asChild variant="secondary" size="lg" className="max-w-full whitespace-normal text-center">
                 <Link to="/whitepaper">
-                  <FileText size={16} />
-                  Read the papers
+                  <FileText size={16} className="size-4 shrink-0" />
+                  Read the book
                 </Link>
               </Button>
-              <Button asChild variant="secondary" size="lg">
+              <Button asChild variant="secondary" size="lg" className="max-w-full whitespace-normal text-center">
                 <a href="https://github.com/curiositech/port-daddy" target="_blank" rel="noreferrer">
-                  <Github size={16} />
+                  <Github size={16} className="size-4 shrink-0" />
                   View source on GitHub
                 </a>
               </Button>

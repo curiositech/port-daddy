@@ -177,7 +177,7 @@ describe('public shell contracts', () => {
     expect(deck).toContain('useReducedMotion')
   })
 
-  test('homepage keeps both public papers visible from the landing CTA', () => {
+  test('homepage links chapter summaries to the collected Book', () => {
     const cta = read('./components/landing/CTABanner.tsx')
     const paperData = read('./data/whitePapers.ts')
 
@@ -194,7 +194,7 @@ describe('public shell contracts', () => {
     expect(paperData).toContain('/whitepaper/bonded-commons')
     expect(paperData).not.toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
     expect(paperData).not.toContain('/whitepaper/agent-transactions-whitepaper.pdf')
-    expect(cta).toContain('Read the papers')
+    expect(cta).toContain('Read the book')
     // The "Coordination feedback" / "Dogfood restore" sub-panel was
     // stripped intentionally per the 2026-05-20 IA audit — it was
     // internal build-process commentary at the closing CTA, which is

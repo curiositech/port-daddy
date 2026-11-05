@@ -22,9 +22,9 @@ export function CliBackendValueProp() {
       className="border-t-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]"
     >
       <PageContainer width="wide">
-        <SurfacePanel className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <div className="space-y-[var(--space-5)]">
-            <PanelTitle as="h2" size="display" className="max-w-[18ch]">
+        <SurfacePanel className="grid grid-cols-1 gap-[var(--space-6)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div className="min-w-0 space-y-[var(--space-5)]">
+            <PanelTitle as="h2" size="display" className="max-w-[18ch] hyphens-auto [overflow-wrap:anywhere]">
               Your AI subscription already pays for the fleet.
             </PanelTitle>
             <PanelBody className="max-w-[44rem]">
