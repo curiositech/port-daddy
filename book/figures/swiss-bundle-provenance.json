@@ -486,7 +486,7 @@
     "scope": "Complete source reading of Chapters0-8, exercises, solutions, seams and appendices; scoped primary-source and finite arithmetic checks; all facing pages at contact-sheet scale, selected spreads at readable size and complete final pixel comparison. This is not an independent proof of every theorem or a live runtime validation.",
     "sourceSha256": {
       "book/agent-transactions-whitepaper.tex": "7a0385b33fdc300f85ca709d7f94d6cf293fd28dfc9a54d10f124919bf4aa9e3",
-      "book/anchor-protocol-whitepaper.tex": "cf2f1934f1f7ec2bc81b1302b8ac7ef50ce27536d20581530b1a3f2970f27535",
+      "book/anchor-protocol-whitepaper.tex": "61e46c02a7e4f1a2b50a0b051ae1eedcf64575f33a13aa3473afc69a23336608",
       "book/coordination-papers-mega-volume-appendices.tex": "4c5b0f8fed63abac37ba35c436cfb66a636a6add2089c61ac1fe7b1906454e04",
       "book/coordination-papers-mega-volume-chapter-0.tex": "0acbdfc7e30b619be9f3f5ce2fbac058a9b21504b467353edad0589138c4854e",
       "book/coordination-papers-mega-volume-seams.tex": "31aa2be6a301d8b4c1c505ad7bcf7603362572446dc0c8948fc3cb2410b2308a",
@@ -1009,6 +1009,26 @@
       },
       "readerEye": "Diagnostic heuristic findings were reviewed; exit0 is not a claim of universal prose quality."
     },
-    "numericalScope": "Historical integration experiments in validation.freshNumericalChecks retain their original provenance. This editorial review does not claim a fresh repetition of those experiments."
+    "numericalScope": "Historical integration experiments in validation.freshNumericalChecks retain their original provenance. This editorial review does not claim a fresh repetition of those experiments.",
+    "openFontProof": {
+      "profile": "open-proof",
+      "pages": 771,
+      "sha256": "e9eddd1de2af16e99f7e8f7541bad4d342f77c6776f85633432117e0556662ca",
+      "pdfCheckGroupsPassed": 6,
+      "captionsChecked": 266,
+      "captionPlacementFailures": 0,
+      "inspectedSpreads": [
+        [
+          190,
+          191
+        ],
+        [
+          202,
+          203
+        ]
+      ],
+      "scope": "The complete manuscript compiles with included open fonts. The six PDF gates pass, and the two table-caption spreads were directly inspected. This proof uses different typography from the published Suisse edition.",
+      "publicationRebuildSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce"
+    }
   }
 }

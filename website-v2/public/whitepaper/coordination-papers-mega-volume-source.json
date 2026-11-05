@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40156128,
+    "bytes": 40156402,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/1b0ca6b9b1b070c5321651104d17e5a499e24f16ffdba5ac416c8ffe33d8697e.tar.gz",
-    "sha256": "1b0ca6b9b1b070c5321651104d17e5a499e24f16ffdba5ac416c8ffe33d8697e",
-    "url": "https://media.portdaddy.dev/book/source/sha256/1b0ca6b9b1b070c5321651104d17e5a499e24f16ffdba5ac416c8ffe33d8697e.tar.gz"
+    "key": "book/source/sha256/b894a4e4d7b68c4d3965030da2ac9ed8a1eed902b54c4d830562caacf3205071.tar.gz",
+    "sha256": "b894a4e4d7b68c4d3965030da2ac9ed8a1eed902b54c4d830562caacf3205071",
+    "url": "https://media.portdaddy.dev/book/source/sha256/b894a4e4d7b68c4d3965030da2ac9ed8a1eed902b54c4d830562caacf3205071.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "584600ac6787d38c92c7a6102795f4f6ffcc12cfdd061dd9f2ee652e565aef57",
+  "manifestSha256": "b4b346a56866ce5139a69aba82d8cc111a5abf3960640d93342de500967c0cd2",
   "schemaVersion": 1,
   "source": {
     "fileCount": 511,
@@ -46,10 +46,10 @@
         "sha256": "7a0385b33fdc300f85ca709d7f94d6cf293fd28dfc9a54d10f124919bf4aa9e3"
       },
       {
-        "bytes": 147859,
+        "bytes": 148219,
         "mode": 420,
         "path": "book/anchor-protocol-whitepaper.tex",
-        "sha256": "cf2f1934f1f7ec2bc81b1302b8ac7ef50ce27536d20581530b1a3f2970f27535"
+        "sha256": "61e46c02a7e4f1a2b50a0b051ae1eedcf64575f33a13aa3473afc69a23336608"
       },
       {
         "bytes": 262,
@@ -1690,10 +1690,10 @@
         "sha256": "390a0a567031b107d1ef221363a756f381d09a80385b209745a9f4c3b793d61f"
       },
       {
-        "bytes": 37591,
+        "bytes": 38325,
         "mode": 420,
         "path": "book/figures/swiss-bundle-provenance.json",
-        "sha256": "5f73d9c6792ba9b06e53a16cb98233e976ae56a40b87da18aeb79d07c8e9a373"
+        "sha256": "d8d89370c406e28115d8ad14d2477df8a339cc22ea4ae5d88fa94805e6e1c073"
       },
       {
         "bytes": 2817,
@@ -3088,6 +3088,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "0a5bc3105695ed68f3ae2519670799740a7ca259a4d2cdbb0044991bb2c0b375"
+    "sha256": "333eed16299e4491a0278f59edce7d1f730e153dfdd9a39432dbc32b9bd86de3"
   }
 }

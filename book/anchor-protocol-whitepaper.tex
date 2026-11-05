@@ -577,6 +577,11 @@ No finite worst-case freshness bound holds under an unbounded partition.
 
 Following the industry standard set by AWS (s2n-tls~\pdcite{aws2022s2n}) and Microsoft (Project Everest~\pdcite{bhargavan2017everest}), we decoupled the verification of the \textit{protocol design} from the verification of the \textit{implementation}. The full stack has three layers (Table~\ref{tab:anchor-verification-stack}): symbolic protocol analysis at the top, bounded model checking on the Rust source in the middle, and runtime conformance tests against the deployed binary at the bottom. Each layer's obligations flow downward; each layer's evidence flows back up. The stack is sound only if every bridge --- symbolic-to-source and source-to-deployed --- holds.
 
+% Give the open-font proof a fresh margin for this table and its citations.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
+
 \begin{table}[H]
 \centering
 \caption{Tools discharge claims within each layer. Model-to-source correspondence and source-to-running-binary correspondence remain separate human assertions; none of these tools closes either gap. [internal]}
@@ -1066,6 +1071,11 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 \bottomrule
 \end{tabularx}
 \end{table}
+
+% Give the open-font proof a fresh margin for this table and its citations.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
 
 \Needspace*{22\baselineskip}% the [H] table below is about 17 rows: keep the heading with it (stranded on printed p. 198, 2026-10-14 edition)
 \subsection{Security Properties}
