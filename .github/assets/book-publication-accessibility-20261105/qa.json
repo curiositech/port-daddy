@@ -1,0 +1,363 @@
+{
+  "date": "2026-11-05",
+  "scope": "Two homepage components, local Chromium preview; production verification follows deployment.",
+  "cases": [
+    {
+      "width": 390,
+      "scale": 100,
+      "theme": "light",
+      "geometry": {
+        "width": 390,
+        "scroll": 390
+      },
+      "labels": [
+        {
+          "text": "Get the Mac app",
+          "href": "/mac-preview#download",
+          "left": 24,
+          "right": 228.640625,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "Read the book",
+          "href": "/whitepaper",
+          "left": 24,
+          "right": 215.234375,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "View source on GitHub",
+          "href": "https://github.com/curiositech/port-daddy",
+          "left": 24,
+          "right": 289.671875,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "headingCollisions": []
+    },
+    {
+      "width": 390,
+      "scale": 100,
+      "theme": "dark",
+      "geometry": {
+        "width": 390,
+        "scroll": 390
+      },
+      "labels": [
+        {
+          "text": "Get the Mac app",
+          "href": "/mac-preview#download",
+          "left": 24,
+          "right": 228.640625,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "Read the book",
+          "href": "/whitepaper",
+          "left": 24,
+          "right": 215.234375,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "View source on GitHub",
+          "href": "https://github.com/curiositech/port-daddy",
+          "left": 24,
+          "right": 289.671875,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "headingCollisions": []
+    },
+    {
+      "width": 390,
+      "scale": 200,
+      "theme": "light",
+      "geometry": {
+        "width": 390,
+        "scroll": 390
+      },
+      "labels": [
+        {
+          "text": "Get the Mac app",
+          "href": "/mac-preview#download",
+          "left": 24,
+          "right": 366,
+          "height": 141.59375,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "Read the book",
+          "href": "/whitepaper",
+          "left": 24,
+          "right": 366,
+          "height": 141.59375,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "View source on GitHub",
+          "href": "https://github.com/curiositech/port-daddy",
+          "left": 24,
+          "right": 366,
+          "height": 186.390625,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "headingCollisions": []
+    },
+    {
+      "width": 390,
+      "scale": 200,
+      "theme": "dark",
+      "geometry": {
+        "width": 390,
+        "scroll": 390
+      },
+      "labels": [
+        {
+          "text": "Get the Mac app",
+          "href": "/mac-preview#download",
+          "left": 24,
+          "right": 366,
+          "height": 141.59375,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "Read the book",
+          "href": "/whitepaper",
+          "left": 24,
+          "right": 366,
+          "height": 141.59375,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "View source on GitHub",
+          "href": "https://github.com/curiositech/port-daddy",
+          "left": 24,
+          "right": 366,
+          "height": 186.390625,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "headingCollisions": []
+    },
+    {
+      "width": 1440,
+      "scale": 100,
+      "theme": "light",
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440
+      },
+      "labels": [
+        {
+          "text": "Get the Mac app",
+          "href": "/mac-preview#download",
+          "left": 32,
+          "right": 236.640625,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "Read the book",
+          "href": "/whitepaper",
+          "left": 248.640625,
+          "right": 439.875,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "View source on GitHub",
+          "href": "https://github.com/curiositech/port-daddy",
+          "left": 451.875,
+          "right": 717.546875,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "headingCollisions": []
+    },
+    {
+      "width": 1440,
+      "scale": 100,
+      "theme": "dark",
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440
+      },
+      "labels": [
+        {
+          "text": "Get the Mac app",
+          "href": "/mac-preview#download",
+          "left": 32,
+          "right": 236.640625,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "Read the book",
+          "href": "/whitepaper",
+          "left": 248.640625,
+          "right": 439.875,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "View source on GitHub",
+          "href": "https://github.com/curiositech/port-daddy",
+          "left": 451.875,
+          "right": 717.546875,
+          "height": 50.390625,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "headingCollisions": []
+    },
+    {
+      "width": 1440,
+      "scale": 200,
+      "theme": "light",
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440
+      },
+      "labels": [
+        {
+          "text": "Get the Mac app",
+          "href": "/mac-preview#download",
+          "left": 32,
+          "right": 437.28125,
+          "height": 96.796875,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "Read the book",
+          "href": "/whitepaper",
+          "left": 32,
+          "right": 410.453125,
+          "height": 96.796875,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "View source on GitHub",
+          "href": "https://github.com/curiositech/port-daddy",
+          "left": 32,
+          "right": 559.328125,
+          "height": 96.796875,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "headingCollisions": []
+    },
+    {
+      "width": 1440,
+      "scale": 200,
+      "theme": "dark",
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440
+      },
+      "labels": [
+        {
+          "text": "Get the Mac app",
+          "href": "/mac-preview#download",
+          "left": 32,
+          "right": 437.28125,
+          "height": 96.796875,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "Read the book",
+          "href": "/whitepaper",
+          "left": 32,
+          "right": 410.453125,
+          "height": 96.796875,
+          "whiteSpace": "normal"
+        },
+        {
+          "text": "View source on GitHub",
+          "href": "https://github.com/curiositech/port-daddy",
+          "left": 32,
+          "right": 559.328125,
+          "height": 96.796875,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "headingCollisions": []
+    }
+  ],
+  "validation": {
+    "websiteTests": 337,
+    "testRuntime": "Node 22",
+    "typecheck": "passed",
+    "independentReview": "approved-with-scope-boundary",
+    "findings": [],
+    "sourceHashes": {
+      "website-v2/src/components/landing/CTABanner.tsx": "60c5098e9dec3385b4bcfe02b7e43e38e8129ba8948fa9ce87fe180a11b68908",
+      "website-v2/src/components/landing/CliBackendValueProp.tsx": "8185d976bc57ba0821c887e15ccb8a668e058dddaa60bd1fec0084f90d33fbe0",
+      "website-v2/src/public-shell-contracts.test.ts": "25a1549b8dfdb9a1e16c67fcb46f31dc53147e0b12d00897679e82365103baad"
+    }
+  },
+  "limits": [
+    "200% means root-font enlargement, not browser zoom.",
+    "Pre-existing 320px/200% overflow in Tube, control-panel, capability and testimonial sections is outside this two-component repair.",
+    "No claim of complete accessibility certification."
+  ],
+  "assets": [
+    {
+      "name": "closing-actions-dark-enlarged",
+      "sha256": "2ab8aa538c67a55e94fcc1dd7e19583e405057005e2484d9ec15bd8c9499ff5a",
+      "bytes": 63538,
+      "url": "https://media.portdaddy.dev/sha256/2a/2ab8aa538c67a55e94fcc1dd7e19583e405057005e2484d9ec15bd8c9499ff5a.png"
+    },
+    {
+      "name": "closing-actions-light-enlarged",
+      "sha256": "db2e500bd075b422a592be46b227ff50b675cdd4565bdbcb3b44405ff8f0c039",
+      "bytes": 62655,
+      "url": "https://media.portdaddy.dev/sha256/db/db2e500bd075b422a592be46b227ff50b675cdd4565bdbcb3b44405ff8f0c039.png"
+    },
+    {
+      "name": "closing-actions-wide",
+      "sha256": "ea81c01e7ef77ee949d8dcbe60ffc2f8c088cbd7071e599d2cde289e0775900e",
+      "bytes": 290318,
+      "url": "https://media.portdaddy.dev/sha256/ea/ea81c01e7ef77ee949d8dcbe60ffc2f8c088cbd7071e599d2cde289e0775900e.png"
+    },
+    {
+      "name": "closing-cards-desktop-enlarged",
+      "sha256": "33802dd5c3898bf32908f6b1b8176750cb3856fe8218788659bc049e79b0aedd",
+      "bytes": 253639,
+      "url": "https://media.portdaddy.dev/sha256/33/33802dd5c3898bf32908f6b1b8176750cb3856fe8218788659bc049e79b0aedd.png"
+    },
+    {
+      "name": "homepage-enlarged-text-navigation",
+      "sha256": "a5de882389ed9c3ce7fa4f0bc2a48a72953f8f921f296b8ea284b6e3cc9e039f",
+      "bytes": 526259,
+      "url": "https://media.portdaddy.dev/sha256/a5/a5de882389ed9c3ce7fa4f0bc2a48a72953f8f921f296b8ea284b6e3cc9e039f.webm"
+    },
+    {
+      "name": "subscription-heading-dark-enlarged",
+      "sha256": "0fd1282eb84ed8b03907ac0f6182276683b2f28cb237cd3a1280c8a693414628",
+      "bytes": 59037,
+      "url": "https://media.portdaddy.dev/sha256/0f/0fd1282eb84ed8b03907ac0f6182276683b2f28cb237cd3a1280c8a693414628.png"
+    },
+    {
+      "name": "subscription-heading-light-enlarged",
+      "sha256": "20bdc4702ad33eca71b910faa00d984e4696fedd6c134c526bf23eea7e1c6c74",
+      "bytes": 58128,
+      "url": "https://media.portdaddy.dev/sha256/20/20bdc4702ad33eca71b910faa00d984e4696fedd6c134c526bf23eea7e1c6c74.png"
+    }
+  ]
+}

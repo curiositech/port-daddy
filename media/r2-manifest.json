@@ -31,12 +31,61 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 429,
-    "distinctObjects": 394,
-    "bytes": 129372295,
-    "distinctBytes": 126695275
+    "assets": 436,
+    "distinctObjects": 401,
+    "bytes": 130685869,
+    "distinctBytes": 128008849
   },
   "assets": [
+    {
+      "path": ".github/assets/book-publication-accessibility-20261105/closing-actions-dark-enlarged.png",
+      "bytes": 63538,
+      "sha256": "2ab8aa538c67a55e94fcc1dd7e19583e405057005e2484d9ec15bd8c9499ff5a",
+      "key": "sha256/2a/2ab8aa538c67a55e94fcc1dd7e19583e405057005e2484d9ec15bd8c9499ff5a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-publication-accessibility-20261105/closing-actions-light-enlarged.png",
+      "bytes": 62655,
+      "sha256": "db2e500bd075b422a592be46b227ff50b675cdd4565bdbcb3b44405ff8f0c039",
+      "key": "sha256/db/db2e500bd075b422a592be46b227ff50b675cdd4565bdbcb3b44405ff8f0c039.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-publication-accessibility-20261105/closing-actions-wide.png",
+      "bytes": 290318,
+      "sha256": "ea81c01e7ef77ee949d8dcbe60ffc2f8c088cbd7071e599d2cde289e0775900e",
+      "key": "sha256/ea/ea81c01e7ef77ee949d8dcbe60ffc2f8c088cbd7071e599d2cde289e0775900e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-publication-accessibility-20261105/closing-cards-desktop-enlarged.png",
+      "bytes": 253639,
+      "sha256": "33802dd5c3898bf32908f6b1b8176750cb3856fe8218788659bc049e79b0aedd",
+      "key": "sha256/33/33802dd5c3898bf32908f6b1b8176750cb3856fe8218788659bc049e79b0aedd.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-publication-accessibility-20261105/homepage-enlarged-text-navigation.webm",
+      "bytes": 526259,
+      "sha256": "a5de882389ed9c3ce7fa4f0bc2a48a72953f8f921f296b8ea284b6e3cc9e039f",
+      "key": "sha256/a5/a5de882389ed9c3ce7fa4f0bc2a48a72953f8f921f296b8ea284b6e3cc9e039f.webm",
+      "contentType": "video/webm"
+    },
+    {
+      "path": ".github/assets/book-publication-accessibility-20261105/subscription-heading-dark-enlarged.png",
+      "bytes": 59037,
+      "sha256": "0fd1282eb84ed8b03907ac0f6182276683b2f28cb237cd3a1280c8a693414628",
+      "key": "sha256/0f/0fd1282eb84ed8b03907ac0f6182276683b2f28cb237cd3a1280c8a693414628.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-publication-accessibility-20261105/subscription-heading-light-enlarged.png",
+      "bytes": 58128,
+      "sha256": "20bdc4702ad33eca71b910faa00d984e4696fedd6c134c526bf23eea7e1c6c74",
+      "key": "sha256/20/20bdc4702ad33eca71b910faa00d984e4696fedd6c134c526bf23eea7e1c6c74.png",
+      "contentType": "image/png"
+    },
     {
       "path": ".github/assets/book-salvage-claims-20261105/book-contents-spread.png",
       "bytes": 288894,
