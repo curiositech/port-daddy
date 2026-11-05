@@ -1,3 +1,4 @@
+import { StudioSignature } from '@/components/site/StudioSignature'
 import { Link } from 'react-router-dom'
 import {
   chapterRecordFor,
@@ -130,6 +131,9 @@ export default function WhitepaperPage() {
           </ul>
         </div>
       </details>
+      <footer className="book-studio-credit">
+        <StudioSignature />
+      </footer>
     </main>
   )
 }
