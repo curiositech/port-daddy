@@ -1068,6 +1068,11 @@
   \begingroup\color{hhgray}\pdcaptionface\footnotesize
     \@dottedtocline{3}{2.4em}{5em}{#1}{#2}%
   \endgroup}
+\fancypagestyle{pdcontentsopening}{%
+  \fancyhf{}%
+  \fancyfoot[LE,RO]{\rmfamily\small\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+}
 \newcommand{\pdtableofcontents}{%
   \clearpage
   \newgeometry{inner=0.8in,outer=0.2in,top=0.85in,bottom=0.95in}%
@@ -1081,6 +1086,7 @@
     \fancyfoot[LE,RO]{\rmfamily\small\thepage}%
     \hypersetup{linkcolor=hhink}%
     \pd@tocpart=0 \pd@tocchapter=0 \pd@tocafterpartfalse
+    \thispagestyle{pdcontentsopening}%
     \phantomsection\label{book:contents}%
     \pdfbookmark[0]{Contents}{book.contents}%
     {\pddisplayface\Huge\bfseries Contents\par}%

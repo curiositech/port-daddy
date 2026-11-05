@@ -112,7 +112,7 @@ export default function PaperDetailPage() {
                 <BracketLabel className="border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]">
                   Start here
                 </BracketLabel>
-                <PanelTitle as="h2" size="section" className="max-w-[14ch] text-[var(--brand-primary-foreground)]">
+                <PanelTitle as="h2" size="section" tone="primary" className="max-w-[14ch]">
                   The big idea, in one paragraph.
                 </PanelTitle>
               </div>

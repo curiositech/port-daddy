@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40156402,
+    "bytes": 40157761,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/b894a4e4d7b68c4d3965030da2ac9ed8a1eed902b54c4d830562caacf3205071.tar.gz",
-    "sha256": "b894a4e4d7b68c4d3965030da2ac9ed8a1eed902b54c4d830562caacf3205071",
-    "url": "https://media.portdaddy.dev/book/source/sha256/b894a4e4d7b68c4d3965030da2ac9ed8a1eed902b54c4d830562caacf3205071.tar.gz"
+    "key": "book/source/sha256/d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512.tar.gz",
+    "sha256": "d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512",
+    "url": "https://media.portdaddy.dev/book/source/sha256/d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "b4b346a56866ce5139a69aba82d8cc111a5abf3960640d93342de500967c0cd2",
+  "manifestSha256": "b16d4b26920ffbf8d5a7eaba93c210f274c0e9126769c3bfbafb2d3d56f044bd",
   "schemaVersion": 1,
   "source": {
     "fileCount": 511,
@@ -40,16 +40,16 @@
         "sha256": "cc87d30a2fd82dec82037aa4846d99b22d0335abd5a37eaece9011bea3093122"
       },
       {
-        "bytes": 210799,
+        "bytes": 212921,
         "mode": 420,
         "path": "book/agent-transactions-whitepaper.tex",
-        "sha256": "7a0385b33fdc300f85ca709d7f94d6cf293fd28dfc9a54d10f124919bf4aa9e3"
+        "sha256": "454104b3a42dbb80cc83bc5cfea4ecf6fdf24a42f6c85afceb7b3ed1d78b8114"
       },
       {
-        "bytes": 148219,
+        "bytes": 150456,
         "mode": 420,
         "path": "book/anchor-protocol-whitepaper.tex",
-        "sha256": "61e46c02a7e4f1a2b50a0b051ae1eedcf64575f33a13aa3473afc69a23336608"
+        "sha256": "010d3abf2fa630d53737b21d969c944bbf8b2f6ce08be2c26f94919eea2084b6"
       },
       {
         "bytes": 262,
@@ -67,7 +67,7 @@
         "bytes": 130143,
         "mode": 420,
         "path": "book/chapter-0-prerequisites.tex",
-        "sha256": "69a1e5de61e5cb53d52472efa65defa829b91addc5617797b5e9c1c40a480e87"
+        "sha256": "4b5d50796dac913bd50da4e913298267ddcd9004d1cfc0d5966ecd10ca5f6032"
       },
       {
         "bytes": 3858,
@@ -94,10 +94,10 @@
         "sha256": "4c5b0f8fed63abac37ba35c436cfb66a636a6add2089c61ac1fe7b1906454e04"
       },
       {
-        "bytes": 108261,
+        "bytes": 108812,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-chapter-0.tex",
-        "sha256": "0acbdfc7e30b619be9f3f5ce2fbac058a9b21504b467353edad0589138c4854e"
+        "sha256": "774ecd83db6acab662b441c7888199e77486aea21ebc78279d9b1c82d81c12fc"
       },
       {
         "bytes": 30257,
@@ -112,10 +112,10 @@
         "sha256": "371de29ca9e350d73870beae90f2d8e17f6d69735b840d3d0f88c43622206088"
       },
       {
-        "bytes": 64825,
+        "bytes": 65001,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-preamble.tex",
-        "sha256": "45b4912c5d1aa10701598e74d6d120b7ace389ca3c548fc4c5ba2a3c6797c48f"
+        "sha256": "ecb675750b99b30e591f5b50859f5410b562dcf90039a398078aa0318ac175c0"
       },
       {
         "bytes": 8639,
@@ -124,10 +124,10 @@
         "sha256": "31aa2be6a301d8b4c1c505ad7bcf7603362572446dc0c8948fc3cb2410b2308a"
       },
       {
-        "bytes": 14733,
+        "bytes": 13599,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
-        "sha256": "76349e0601fe7f58e2f77ea1ea24761963d7f8bb566fe9388d208746496b14b5"
+        "sha256": "eb6dec45aa21972b01e4a789c81cfd046cba70bdeee7ebadabf0347c68073e40"
       },
       {
         "bytes": 253,
@@ -148,16 +148,16 @@
         "sha256": "9e1c31d3bf17058dc0157c67b046f1d3ca49e4dd90afb6532de7538a506627f3"
       },
       {
-        "bytes": 13586,
+        "bytes": 15633,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume.tex",
-        "sha256": "668b98b212c5c45c2c630598ab51262c55f74bbf9dd4b372355a3ce38f3ee8c0"
+        "sha256": "172eadb87199b23bea81ef6c276f1adf256143358da904b74f53cf1a4e9fb82f"
       },
       {
-        "bytes": 32890,
+        "bytes": 35794,
         "mode": 420,
         "path": "book/corpus.json",
-        "sha256": "87f2518e77516a342dfffb4979b78711ceb88ce00faef26e43987481d3294ca5"
+        "sha256": "03e56df1fb4bf7119206fe71ec4f6a2fd11d10ed8ff78e6a08f6517b49e74042"
       },
       {
         "bytes": 5235,
@@ -166,10 +166,10 @@
         "sha256": "7360e70e81810b7e9f764a4381fb22a94bd006d0707aa1fa2a862f2cde893f84"
       },
       {
-        "bytes": 179342,
+        "bytes": 180161,
         "mode": 420,
         "path": "book/federated-harbor-whitepaper.tex",
-        "sha256": "54b89dfd53536cfb801c298ac14b0c2aa7909911e3e51269633c0f4002571647"
+        "sha256": "42290e4cac6a3db236902b7f25a37d49da314b14d8af432b8a8e76d4da794246"
       },
       {
         "bytes": 644,
@@ -1582,10 +1582,10 @@
         "sha256": "76411e4226c33a0bca5d8928d4efab0daade992e51f081916b96ebd451821bd0"
       },
       {
-        "bytes": 13842,
+        "bytes": 13844,
         "mode": 420,
         "path": "book/figures/pd-textbook-map.tex",
-        "sha256": "fc47c347351e6ba8998d16aed3cd47387e4ec53b930f96bc61a4433077eb2171"
+        "sha256": "fe1ff66b3df3d9d16bd75fa8dcd0f5805dc1271d37822c994b999b534930a144"
       },
       {
         "bytes": 236,
@@ -1882,16 +1882,16 @@
         "sha256": "2f548ebe7b4e535e4e5e9a3d6f7bff4436387e837c0925fef782be2736b6f982"
       },
       {
-        "bytes": 196713,
+        "bytes": 198058,
         "mode": 420,
         "path": "book/harbor-economy.tex",
-        "sha256": "7f70f7aa61c6577ba26c668baae89d163feeedae5602c5cc7332f7b3ee67008d"
+        "sha256": "34a961f5bb36338a98bfe9b765c8bc4307352a149a752faed2c5cf68fa5d2a2a"
       },
       {
-        "bytes": 281227,
+        "bytes": 282570,
         "mode": 420,
         "path": "book/legible-swarm.tex",
-        "sha256": "807c9d272115ddc587f0ed47abe2195a51e462f4078d665243caa8f052614b99"
+        "sha256": "b8f8e3f5b241f23f8d4375f50ae2900cf6e181665bc2c09d7df0edda36e73aad"
       },
       {
         "bytes": 1076,
@@ -3022,10 +3022,10 @@
         "sha256": "c247729812923c2e0043a0698ddbb063d95262febf439340e60232680636cab5"
       },
       {
-        "bytes": 114926,
+        "bytes": 115520,
         "mode": 420,
         "path": "book/sealed-harbor.tex",
-        "sha256": "d8a96061916ad9e84fb2bac88df6986d85f2838d4715c25aa455989881ff961b"
+        "sha256": "43a374c426ae868c5a02a1b0f955c0c557e917228a11e5fc215cd5766adf0d50"
       },
       {
         "bytes": 4064,
@@ -3034,22 +3034,22 @@
         "sha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6"
       },
       {
-        "bytes": 238209,
+        "bytes": 238293,
         "mode": 420,
         "path": "book/single-writer-kernel.tex",
-        "sha256": "e36078158e8d4620a3cc5a1fba842b3632c77b6376b74d8950bf335e9dabc84b"
+        "sha256": "d2d2a1714143d2fe8fea5b640eb326d657410dc41e41841e3258d3cbe6716ae5"
       },
       {
-        "bytes": 222460,
+        "bytes": 222265,
         "mode": 420,
         "path": "book/spawn-to-person.tex",
-        "sha256": "24f6c186d07bb6bba883a3258e7dcc6ea5ca6cc2181afb397b3716312e40e190"
+        "sha256": "5bb3607eca97563de7f89dc8aa0b07e0eddc6b45d3375c971b96e45c4c094001"
       },
       {
-        "bytes": 10208,
+        "bytes": 10210,
         "mode": 420,
         "path": "book/textbook.json",
-        "sha256": "c4ce9741497ba5a514d39f08ac1047c09de3059b19bb3feaf794ffe88397b3c0"
+        "sha256": "5a436b78db5d81a1ccd7c5a76b5b550d055ab3a3d00d2b3a67c74164b52bea85"
       },
       {
         "bytes": 5399,
@@ -3088,6 +3088,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "333eed16299e4491a0278f59edce7d1f730e153dfdd9a39432dbc32b9bd86de3"
+    "sha256": "615371c9dbfcda3c699b5270e22fe73b9c2f373f831ca84327cb37a1dc73601a"
   }
 }

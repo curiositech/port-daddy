@@ -12,7 +12,7 @@ name: Proofs (TLA+ / Z3 / ProVerif / Kani / Monte Carlo)
 #   - proofs/relay/WebhookDelivery.tla             (TLA+ via TLC, 2 configs)
 #   - proofs/bonded/pareto/threat-bands.mjs        (Monte Carlo)
 #   - every analyses/** and proofs/** .pv model (ProVerif)
-#   - the three #[kani::proof] harnesses in core/harbor-card-rs (Kani)
+#   - the decoded-policy, attenuation, comparator and parser harnesses in core/harbor-card-rs (Kani)
 #   - the 20 skills/harbor-results/scripts/*.py result-checkers (R1-R17)
 #   - scripts/check-whitepaper-corpus.mjs (the estate's own WIRED/RETIRED
 #     manifest, so an unregistered formal artifact fails closed)
@@ -485,23 +485,14 @@ jobs:
           name: proverif-estate-summary
           path: proverif-estate-summary.md
 
-  # ── Kani: the harnesses that never ran ───────────────────────────────────────
-  # core/harbor-card-rs carries three #[kani::proof] harnesses (added in
-  # anticipation of this job -- Cargo.toml already allow-lists `cfg(kani)`) but
-  # nothing ever installed kani-verifier or ran `cargo kani`, so they never
-  # executed even once.
-  #
-  # proof_verify_logic_only is genuinely expensive: even with its crypto/decode
-  # internals stubbed, CBMC still bit-blasts a fully symbolic 32-byte
-  # core::str::from_utf8 validation plus the stub's own concrete-input call
-  # into curve25519-dalek's field arithmetic. Verified locally to run for
-  # 40+ CPU-minutes at 99%+ CPU before this comment was written (still running
-  # when this job was authored) -- timeout-minutes below is generous on
-  # purpose. If this becomes a real per-PR tax, consider moving it to a
-  # schedule/nightly trigger instead of pull_request/push.
+  # ── Kani: post-decoding decisions, attenuation, and comparator ────────────
+  # The signed-token path and the harness share validate_decoded_claims.
+  # The finite capability grammars and list/hop bounds are explicit in
+  # src/kani_claims.rs. CI requires reachable acceptance AND rejection paths,
+  # then checks that removing expiry/ceiling checks produces counterexamples.
   kani-harbor-card:
     if: github.event_name != 'merge_group' && github.event_name != 'schedule'
-    name: Kani / harbor-card-rs (comparator and attenuation harnesses)
+    name: Kani / harbor-card-rs (decoded claims and attenuation)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -529,41 +520,40 @@ jobs:
           cargo install --locked kani-verifier --version 0.67.0
           cargo kani setup
 
-      - name: Run the two fast #[kani::proof] harnesses
+      - name: Run decoded-policy and capability harnesses
         run: |
           set -euo pipefail
-          # proof_verify_logic_only is the expensive one (an hour of CPU on the
-          # curve25519 unwinding); it runs nightly in kani-harbor-card-parser
-          # so every pull request still gets the two harnesses that finish in
-          # minutes. -Z stubbing is harmless here and keeps the flags identical.
-          cargo kani -Z stubbing --harness proof_constant_time_behavior --harness proof_capability_attenuation | tee kani.log
+          cargo kani --harness proof_constant_time_behavior \
+            --harness proof_decoded_claims_policy \
+            --harness proof_decoded_channel_authority \
+            --harness proof_decoded_delegation_two_hops \
+            --harness proof_capability_attenuation | tee kani.log
+          python3 -m unittest discover -s scripts -p test_kani_log.py
+          python3 scripts/check-kani-log.py kani.log
 
-      - name: Assert both harnesses verified successfully
+      - name: Require counterexamples for removed policy checks
         run: |
           set -euo pipefail
-          if grep -q "Complete - 2 successfully verified harnesses, 0 failures, 2 total." kani.log; then
-            echo "PASS: comparator and attenuation harnesses verified."
-          else
-            echo "FAIL: expected both harnesses to verify cleanly."
-            tail -80 kani.log
-            exit 1
-          fi
+          python3 scripts/check-kani-negative-controls.py
 
-      - name: Upload Kani output
+      - name: Upload Kani output and negative controls
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kani-harbor-card-log
-          path: core/harbor-card-rs/kani.log
+          include-hidden-files: true
+          path: |
+            core/harbor-card-rs/kani.log
+            core/harbor-card-rs/.cache/kani-negative-controls/*.log
+            core/harbor-card-rs/.cache/kani-negative-controls/receipt.json
 
   # The parser harness: bit-precise symbolic UTF-8 validation plus concrete
   # curve25519 arithmetic under #[kani::unwind(128)]. Measured at 50+ CPU-minutes
-  # without concluding in a sandbox, so it runs on the nightly schedule (and on
-  # demand) rather than on every pull request. It is still the proof workflow:
-  # a red nightly is a red estate.
+  # without concluding locally, so it runs only on explicit workflow_dispatch,
+  # not on pull requests. No recurring parser run is configured.
   kani-harbor-card-parser:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    name: Kani / harbor-card-rs (parser harness, nightly)
+    if: github.event_name == 'workflow_dispatch'
+    name: Kani / harbor-card-rs (parser harness, manual)
     runs-on: ubuntu-latest
     timeout-minutes: 150
     defaults:

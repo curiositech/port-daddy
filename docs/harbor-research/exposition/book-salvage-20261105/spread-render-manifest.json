@@ -1,0 +1,1832 @@
+{
+  "pdfSha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+  "pages": 817,
+  "openers": [
+    {
+      "title": "0 Foundations and Prerequisites",
+      "page": 26,
+      "left": 26
+    },
+    {
+      "title": "1 The Single-Writer Kernel",
+      "page": 80,
+      "left": 80
+    },
+    {
+      "title": "2 The Anchor Protocol",
+      "page": 178,
+      "left": 178
+    },
+    {
+      "title": "3 The Sealed Harbor",
+      "page": 238,
+      "left": 238
+    },
+    {
+      "title": "4 The Legible Swarm",
+      "page": 292,
+      "left": 292
+    },
+    {
+      "title": "5 From Spawn to Person",
+      "page": 402,
+      "left": 402
+    },
+    {
+      "title": "6 The Harbor Economy",
+      "page": 492,
+      "left": 492
+    },
+    {
+      "title": "7 The Bonded Commons",
+      "page": 564,
+      "left": 564
+    },
+    {
+      "title": "8 The Federated Harbor",
+      "page": 648,
+      "left": 648
+    }
+  ],
+  "figures": [
+    {
+      "label": "fig:swk-taint-automaton",
+      "number": "1.14",
+      "folio": "98",
+      "physicalPage": 122,
+      "leftPage": 122
+    },
+    {
+      "label": "fig:anchor-card-lifecycle",
+      "number": "2.8",
+      "folio": "172",
+      "physicalPage": 196,
+      "leftPage": 196
+    },
+    {
+      "label": "fig:anchor-v6v7-escalation",
+      "number": "2.10",
+      "folio": "181",
+      "physicalPage": 205,
+      "leftPage": 204
+    },
+    {
+      "label": "fig:sealed-three-principals",
+      "number": "3.1",
+      "folio": "215",
+      "physicalPage": 239,
+      "leftPage": 238
+    },
+    {
+      "label": "fig:sealed-release-lattice",
+      "number": "3.4",
+      "folio": "225",
+      "physicalPage": 249,
+      "leftPage": 248
+    },
+    {
+      "label": "fig:sealed-laundering-fork",
+      "number": "3.8",
+      "folio": "238",
+      "physicalPage": 262,
+      "leftPage": 262
+    },
+    {
+      "label": "fig:legible-halving-tree",
+      "number": "4.14",
+      "folio": "323",
+      "physicalPage": 347,
+      "leftPage": 346
+    },
+    {
+      "label": "fig:zoom-advantage",
+      "number": "4.15",
+      "folio": "325",
+      "physicalPage": 349,
+      "leftPage": 348
+    },
+    {
+      "label": "fig:split-ranker",
+      "number": "4.16",
+      "folio": "333",
+      "physicalPage": 357,
+      "leftPage": 356
+    },
+    {
+      "label": "fig:stp-engine-swap-regime",
+      "number": "5.9",
+      "folio": "417",
+      "physicalPage": 441,
+      "leftPage": 440
+    },
+    {
+      "label": "fig:stp-resurrection-soundness",
+      "number": "5.10",
+      "folio": "418",
+      "physicalPage": 442,
+      "leftPage": 442
+    },
+    {
+      "label": "fig:judge-market",
+      "number": "5.12",
+      "folio": "432",
+      "physicalPage": 456,
+      "leftPage": 456
+    },
+    {
+      "label": "fig:he-two-bucket-settlement",
+      "number": "6.3",
+      "folio": "486",
+      "physicalPage": 510,
+      "leftPage": 510
+    },
+    {
+      "label": "fig:he-conflict-witness",
+      "number": "6.4",
+      "folio": "488",
+      "physicalPage": 512,
+      "leftPage": 512
+    },
+    {
+      "label": "fig:he-deontic-frontier",
+      "number": "6.5",
+      "folio": "491",
+      "physicalPage": 515,
+      "leftPage": 514
+    },
+    {
+      "label": "fig:bonded-isolation-ladder",
+      "number": "7.3",
+      "folio": "552",
+      "physicalPage": 576,
+      "leftPage": 576
+    },
+    {
+      "label": "fig:bonded-session-lifecycle",
+      "number": "7.15",
+      "folio": "598",
+      "physicalPage": 622,
+      "leftPage": 622
+    },
+    {
+      "label": "fig:fh-cochain-hand",
+      "number": "8.6",
+      "folio": "651",
+      "physicalPage": 675,
+      "leftPage": 674
+    },
+    {
+      "label": "fig:fh-cycle-vs-cut",
+      "number": "8.8",
+      "folio": "653",
+      "physicalPage": 677,
+      "leftPage": 676
+    },
+    {
+      "label": "fig:fh-worked-example",
+      "number": "8.13",
+      "folio": "675",
+      "physicalPage": 699,
+      "leftPage": 698
+    },
+    {
+      "label": "fig:he-rater-ladder",
+      "number": "6.S2",
+      "folio": "749",
+      "physicalPage": 773,
+      "leftPage": 772
+    }
+  ],
+  "changedProseMatches": {
+    "book/coordination-papers-mega-volume-chapter-0.tex": [
+      {
+        "page": 27,
+        "text": "Begin with proposals, admitted effects and retained records. For an"
+      },
+      {
+        "page": 27,
+        "text": "implementation-oriented first pass, read these opening definitions, then the"
+      },
+      {
+        "page": 27,
+        "text": "when a commitment, message or resource limit becomes relevant. The"
+      },
+      {
+        "page": 27,
+        "text": "classical-agent comparisons and transformer calculations are reference material"
+      },
+      {
+        "page": 27,
+        "text": "for the mechanisms' assumptions; read their worked examples before the formalism."
+      },
+      {
+        "page": 29,
+        "text": "its recorded authority, obligations and witnessed history can remain"
+      },
+      {
+        "page": 29,
+        "text": "attributable when a worker is replaced. This is an engineering convention,"
+      },
+      {
+        "page": 29,
+        "text": "not a claim of consciousness, moral status or legal personhood."
+      }
+    ],
+    "book/single-writer-kernel.tex": [
+      {
+        "page": 106,
+        "text": "carries conversation metadata, not an operation key or an effect receipt. Message identifiers and replay guards do not by themselves"
+      },
+      {
+        "page": 111,
+        "text": "about how strong each lever actually is --- is the security core of this chapter."
+      },
+      {
+        "page": 147,
+        "text": "A security argument depends on its threat model. The kernel deliberately"
+      },
+      {
+        "page": 168,
+        "text": "most dangerous kind of error this argument can contain,"
+      },
+      {
+        "page": 174,
+        "text": "self-contained systems argument. This appendix records the concrete grounding: the"
+      }
+    ],
+    "book/anchor-protocol-whitepaper.tex": [
+      {
+        "page": 201,
+        "text": "A secure protocol is useless if the implementation contains buffer overflows or timing leaks. The Rust core isolates token verification and capability predicates so that each can be checked under a stated input domain. A proof of one predicate does not certify the whole core."
+      },
+      {
+        "page": 206,
+        "text": "primitives and bounds token input to 32 bytes; the decoded-claims harnesses"
+      },
+      {
+        "page": 206,
+        "text": "call the production predicates without cryptographic or decoding stubs. The deployed library still needs compiler, FFI, and calling-path"
+      },
+      {
+        "page": 207,
+        "text": "issued-at, expiry, and not-before guards. It is reached only after signature"
+      },
+      {
+        "page": 207,
+        "text": "verification and JSON decoding in this path. Channel authorization is a"
+      },
+      {
+        "page": 207,
+        "text": "further call; revocation requires the caller's authoritative store. Calling"
+      },
+      {
+        "page": 207,
+        "text": "the decoded predicate by itself does not authenticate a card."
+      },
+      {
+        "page": 208,
+        "text": "Six harnesses address distinct obligations. The four in"
+      },
+      {
+        "page": 208,
+        "text": "inputs and capability structures. The parser and comparator harnesses live"
+      },
+      {
+        "page": 208,
+        "text": "that hold on every admitted input and reachable examples of the behaviors"
+      },
+      {
+        "page": 208,
+        "text": "find such an example; it is not an assumption restricting the input."
+      },
+      {
+        "page": 208,
+        "text": "let (hv, iat, exp, now): (i64, i64, i64, i64) ="
+      },
+      {
+        "page": 208,
+        "text": "let actual = validate_decoded_claims(&c, now);"
+      },
+      {
+        "page": 208,
+        "text": "kani::cover!(actual.is_ok(), \"decoded claims accepted\");"
+      },
+      {
+        "page": 208,
+        "text": "The temporal oracle uses widened arithmetic, so it checks the production"
+      },
+      {
+        "page": 208,
+        "text": "function's saturating clock-skew calculation against a different expression."
+      },
+      {
+        "page": 208,
+        "text": "All signed 64-bit timestamps and version values are admitted, including the"
+      },
+      {
+        "page": 208,
+        "text": "clock boundary. The seven reachability obligations include successful"
+      },
+      {
+        "page": 208,
+        "text": "acceptance and each rejection class. Empty identity strings in this harness"
+      },
+      {
+        "page": 208,
+        "text": "are deliberate: this predicate checks time and version, not issuer,"
+      },
+      {
+        "page": 209,
+        "text": "Take a genuinely signed version-2 card issued at 950, expiring at 1000,"
+      },
+      {
+        "page": 209,
+        "text": "At 1001 it is expired; at 979 it is not yet valid. Publishing to"
+      },
+      {
+        "page": 209,
+        "text": "signs these claims, runs the real decoder and signature verifier, and checks"
+      },
+      {
+        "page": 209,
+        "text": "these outcomes. The Kani policy harness instead quantifies over decoded"
+      },
+      {
+        "page": 209,
+        "text": "fields. The test connects one real signed card to those predicates; it is"
+      },
+      {
+        "page": 209,
+        "text": "not a proof of the decoder or signature algorithm."
+      },
+      {
+        "page": 209,
+        "text": "grandchild's operation. A root-only comparison accepts the escalation; the"
+      },
+      {
+        "page": 209,
+        "text": "immediate-parent comparison rejects it. This is the concrete failure that"
+      },
+      {
+        "page": 209,
+        "text": "the two-hop harness requires to be reachable. [internal]"
+      },
+      {
+        "page": 209,
+        "text": "The channel harness admits one grant with operation"
+      },
+      {
+        "page": 209,
+        "text": "An independent finite-case oracle checks the actual channel matcher, and"
+      },
+      {
+        "page": 209,
+        "text": "three covers require authorized, unauthorized, and lifetime-invalid cases."
+      },
+      {
+        "page": 209,
+        "text": "The two-hop harness uses the same operation and pattern grammar, one grant"
+      },
+      {
+        "page": 209,
+        "text": "at each of root, child, and grandchild, and arbitrary absent or unsigned"
+      },
+      {
+        "page": 209,
+        "text": "checks imply direct root coverage and preserve both ceilings. Five covers"
+      },
+      {
+        "page": 209,
+        "text": "require accepted chains, rejected second hops, the root-only blind spot,"
+      },
+      {
+        "page": 209,
+        "text": "and accepted chains with each kind of ceiling. These are predicates over"
+      },
+      {
+        "page": 209,
+        "text": "decoded grants; the crate has no signed delegation-chain verifier."
+      },
+      {
+        "page": 209,
+        "text": "The flat-string FFI predicate has its own contract: opaque rights, with no"
+      },
+      {
+        "page": 209,
+        "text": "channel-glob interpretation. Its harness quantifies over lists of at most"
+      },
+      {
+        "page": 209,
+        "text": "two entries drawn from four one-byte rights, including duplicates and empty"
+      },
+      {
+        "page": 209,
+        "text": "lists, and compares acceptance to bit-set inclusion. Two covers require a"
+      },
+      {
+        "page": 210,
+        "text": "harness establishes the result for arbitrary strings or arbitrary list sizes."
+      },
+      {
+        "page": 210,
+        "text": "The comparator harness calls the real comparator on all pairs of 16-byte"
+      },
+      {
+        "page": 210,
+        "text": "arrays and checks absence of panic, not constant time on hardware. The"
+      },
+      {
+        "page": 210,
+        "text": "base64 decoding, and signature verification. Its decoder returns an error"
+      },
+      {
+        "page": 210,
+        "text": "or 32 zero bytes; the zero-byte header is invalid JSON. Consequently that"
+      },
+      {
+        "page": 210,
+        "text": "harness reaches neither decoded claims nor successful card acceptance."
+      },
+      {
+        "page": 210,
+        "text": "The decoded-policy proofs do not remove this parser-refinement obligation."
+      },
+      {
+        "page": 210,
+        "text": "The proof workflow runs the comparator and four decoded/capability harnesses"
+      },
+      {
+        "page": 210,
+        "text": "on pull requests; the parser runs only in its separate manually dispatched job."
+      },
+      {
+        "page": 210,
+        "text": "A log checker requires all 17 cover obligations to be satisfied as well as"
+      },
+      {
+        "page": 210,
+        "text": "successful assertion checks. Two negative controls rerun actual harnesses"
+      },
+      {
+        "page": 210,
+        "text": "on isolated source copies: deleting expiry rejection must falsify the"
+      },
+      {
+        "page": 210,
+        "text": "named temporal assertion, and deleting ceiling attenuation must falsify"
+      },
+      {
+        "page": 210,
+        "text": "the named rate-preservation assertion. A compilation failure does not count"
+      },
+      {
+        "page": 210,
+        "text": "as a successful control. The run logs and mutation receipt are retained as"
+      },
+      {
+        "page": 210,
+        "text": "workflow artifacts. Source presence and workflow wiring are not a passing"
+      },
+      {
+        "page": 210,
+        "text": "what can be claimed. Local validation with Kani~0.67.0 passes all five"
+      },
+      {
+        "page": 210,
+        "text": "per-change harnesses and all 17 covers. Both negative controls produce the"
+      },
+      {
+        "page": 210,
+        "text": "required named counterexamples. The native Rust suite passes 103 tests,"
+      },
+      {
+        "page": 210,
+        "text": "including the signed-card example and an exhaustive check that all 256"
+      },
+      {
+        "page": 210,
+        "text": "selector values generate exactly the documented finite grammars. These"
+      },
+      {
+        "page": 210,
+        "text": "results establish the stated bounded obligations; they do not certify"
+      },
+      {
+        "page": 210,
+        "text": "cryptographic primitives, arbitrary strings, or daemon integration."
+      },
+      {
+        "page": 235,
+        "text": "For each of the six Kani harnesses above, state exactly which obligation is checked and name one stronger claim a reader might wrongly draw from it."
+      },
+      {
+        "page": 733,
+        "text": "The decoded lifetime harness checks the real post-decoding predicate over all"
+      },
+      {
+        "page": 733,
+        "text": "channel harness checks its finite operation, pattern, and request grammar;"
+      },
+      {
+        "page": 733,
+        "text": "the two-hop harness checks transitivity and ceiling preservation for one"
+      },
+      {
+        "page": 733,
+        "text": "grant per hop under that grammar. Their limits exclude arbitrary strings,"
+      },
+      {
+        "page": 733,
+        "text": "multi-entry structured grants, cryptographic authentication, and a signed"
+      },
+      {
+        "page": 733,
+        "text": "chain parser. The flat-string attenuation harness checks lists of at most"
+      },
+      {
+        "page": 733,
+        "text": "two opaque rights drawn from four symbols, including empty lists and"
+      },
+      {
+        "page": 733,
+        "text": "duplicates. It is a quantified bounded check, not an unbounded proof."
+      },
+      {
+        "page": 733,
+        "text": "point, workflow, and evidence policy. A reachability cover supplies an"
+      },
+      {
+        "page": 733,
+        "text": "accepted or rejected witness; a universal assertion supplies the bounded"
+      },
+      {
+        "page": 733,
+        "text": "property. Both are required here to distinguish the stated acceptance policy from a"
+      },
+      {
+        "page": 235,
+        "text": "None of this chapter's ProVerif models, and none of its six Kani harnesses, says anything about most of what the running daemon does at a socket. Using only what this chapter already states about the Kani harnesses' scope, write the one-paragraph boundary a reader must hold before trusting ``verified'' as a description of the deployed binary. Then say what a stronger harness would need to add."
+      },
+      {
+        "page": 733,
+        "text": "The Kani harnesses check source predicates within their stated domains."
+      },
+      {
+        "page": 733,
+        "text": "The decoded lifetime and capability checks use production functions; the"
+      },
+      {
+        "page": 733,
+        "text": "parser uses stubs and cannot accept a card. Neither the finite capability"
+      },
+      {
+        "page": 733,
+        "text": "grammars nor the 16-byte comparator establish arbitrary-input correctness"
+      },
+      {
+        "page": 733,
+        "text": "or hardware timing. None proves cryptography, caller-side issuer/audience"
+      },
+      {
+        "page": 733,
+        "text": "binding, revocation freshness, FFI integration, or complete mediation of"
+      },
+      {
+        "page": 733,
+        "text": "daemon effects. ProVerif proves properties of a symbolic protocol model;"
+      },
+      {
+        "page": 733,
+        "text": "matching that model to source and matching source to a running binary are"
+      },
+      {
+        "page": 733,
+        "text": "Stronger evidence would cover arbitrary channel strings, multi-entry"
+      },
+      {
+        "page": 733,
+        "text": "structured grants, a real signed-chain acceptance path, and the decoding"
+      },
+      {
+        "page": 733,
+        "text": "refinement between bytes and claims. A successful signed-token regression"
+      },
+      {
+        "page": 733,
+        "text": "connects one example through the pipeline; it cannot establish that"
+      },
+      {
+        "page": 733,
+        "text": "refinement universally. The expiry and ceiling negative controls show that"
+      },
+      {
+        "page": 733,
+        "text": "the decoded assertions detect those particular broken guards. They do not"
+      },
+      {
+        "page": 733,
+        "text": "license a claim about unrelated guards, integration paths, or the entire"
+      }
+    ],
+    "book/sealed-harbor.tex": [
+      {
+        "page": 250,
+        "text": "For the checkout diagnosis, the first secret read labels the worker; it does"
+      },
+      {
+        "page": 250,
+        "text": "not end the computation. The worker may continue reasoning and using tools"
+      },
+      {
+        "page": 250,
+        "text": "inside the room under the work order. A request to an outside tool is itself"
+      },
+      {
+        "page": 250,
+        "text": "an output and needs an authorized release channel. When a result is ready,"
+      },
+      {
+        "page": 250,
+        "text": "the worker submits it to the pre-authorized slot: the gate checks the declared"
+      },
+      {
+        "page": 250,
+        "text": "release function, recipient, schema and remaining budget before anything"
+      },
+      {
+        "page": 250,
+        "text": "leaves. An approved release does not clear the worker's taint. Later turns"
+      },
+      {
+        "page": 250,
+        "text": "remain subject to the same gates until the job is destroyed."
+      },
+      {
+        "page": 250,
+        "text": "Each party receives an audience-redacted signed receipt, Merkle-anchored in"
+      }
+    ],
+    "book/legible-swarm.tex": [
+      {
+        "page": 294,
+        "text": "what Alice authorizes, which evidence a completion must carry, and when she"
+      },
+      {
+        "page": 294,
+        "text": "must inspect it. These sections develop the operating rules for the checkout"
+      },
+      {
+        "page": 294,
+        "text": "job; the later mathematics measures constraints on those rules."
+      },
+      {
+        "page": 294,
+        "text": "how a directory selects candidates, and what compaction can lose. A reader"
+      },
+      {
+        "page": 295,
+        "text": "example, so that the formal error events retain their operational meaning."
+      },
+      {
+        "page": 313,
+        "text": "bounded critique--refine protocol. This is the single-operator tool's local analog of the"
+      },
+      {
+        "page": 337,
+        "text": "Alice now has a rule for deciding what counts as an acceptable repair and"
+      },
+      {
+        "page": 337,
+        "text": "which events require her attention. The remaining question is whether the"
+      },
+      {
+        "page": 337,
+        "text": "information reaching her can support that decision within her inspection"
+      },
+      {
+        "page": 337,
+        "text": "budget. For Wren's patch, a digest that omits the unrelated migration can"
+      },
+      {
+        "page": 337,
+        "text": "preserve every displayed link and still omit the decisive defect. We now"
+      },
+      {
+        "page": 337,
+        "text": "measure that loss: first by counting the distinctions a summary must retain,"
+      },
+      {
+        "page": 337,
+        "text": "then by studying selection and compaction. The bounds price particular"
+      },
+      {
+        "page": 337,
+        "text": "information guarantees; they do not replace the authorization and evidence"
+      },
+      {
+        "page": 393,
+        "text": "Alice authorize work, inspect supporting evidence and record unfinished"
+      },
+      {
+        "page": 393,
+        "text": "obligations before any cross-operator market exists. Its contract is already"
+      },
+      {
+        "page": 393,
+        "text": "substantial: revocable authority, verifiable zoom targets, calibrated demands"
+      },
+      {
+        "page": 394,
+        "text": "additional identity, evaluation and settlement rules are needed when another"
+      },
+      {
+        "page": 396,
+        "text": "the failure this chapter argues against, so each row carries its evidence."
+      },
+      {
+        "page": 396,
+        "text": "it; this chapter uses those markers as follows:"
+      }
+    ],
+    "book/spawn-to-person.tex": [
+      {
+        "page": 423,
+        "text": "the agent cannot freely re-pick. Otherwise a restart may sever the link"
+      },
+      {
+        "page": 423,
+        "text": "between an obligation and the party expected to discharge it."
+      },
+      {
+        "page": 435,
+        "text": "counterparty; bonds and sanctions must remain attributable to it."
+      },
+      {
+        "page": 435,
+        "text": "This chapter uses that distinction to bind a spawned agent's outcomes to an"
+      },
+      {
+        "page": 435,
+        "text": "identifiable principal: the counterparty must know who is answerable for them."
+      },
+      {
+        "page": 445,
+        "text": "not an established property of the reference implementation."
+      }
+    ],
+    "book/harbor-economy.tex": [
+      {
+        "page": 494,
+        "text": "and which evidence authorizes each transfer. We then check conservation, whether the commitments can coexist,"
+      },
+      {
+        "page": 508,
+        "text": "adverse selection: when buyers cannot distinguish quality, a pooled price can"
+      },
+      {
+        "page": 509,
+        "text": "outcomes are proposed responses. Their effect depends on reliable grading and"
+      },
+      {
+        "page": 509,
+        "text": "attributable records; a Merkle proof authenticates those records, not their"
+      },
+      {
+        "page": 509,
+        "text": "quality. A known, inspectable skill can instead support an upfront licence."
+      },
+      {
+        "page": 509,
+        "text": "ways to buy the refactor. This example combines them in one transaction against"
+      },
+      {
+        "page": 509,
+        "text": "one escrow object, then checks that the net wallet changes sum to zero."
+      },
+      {
+        "page": 509,
+        "text": "and passes, and the authorized repair merges without unrelated migrations. The"
+      },
+      {
+        "page": 509,
+        "text": "returns to Bob. Alice's bond is refunded as collateral, not income."
+      },
+      {
+        "page": 509,
+        "text": "privately-informed counterparties, three different reputation keys --- and one"
+      },
+      {
+        "page": 509,
+        "text": "invariant, because the lease and the licence are line items on the one float plan"
+      },
+      {
+        "page": 510,
+        "text": "The settlement example balances the payments, but its promises must also fit"
+      },
+      {
+        "page": 510,
+        "text": "together. A profiling lease might require production access while the task"
+      },
+      {
+        "page": 510,
+        "text": "contract forbids it. Before accepting both, the authority needs to detect the"
+      },
+      {
+        "page": 510,
+        "text": "conflict and show which commitments caused it. This section gives an explicit"
+      },
+      {
+        "page": 510,
+        "text": "input language and a checkable witness for that decision. It does not decide"
+      },
+      {
+        "page": 510,
+        "text": "which party's preferred rule ought to prevail."
+      },
+      {
+        "page": 510,
+        "text": "Cheap detection is a language-design choice, not a claim about deontic"
+      },
+      {
+        "page": 511,
+        "text": "We first derive one conflict by hand, then state the input grammar, the"
+      },
+      {
+        "page": 511,
+        "text": "polynomial decision procedure, and the expressive extension that changes"
+      },
+      {
+        "page": 511,
+        "text": "The conflict is visible once all the accepted rules have been applied."
+      },
+      {
+        "page": 511,
+        "text": "Three rules over two intervals show why the checker must derive the facts"
+      },
+      {
+        "page": 511,
+        "text": "that activate an obligation before comparing it with a prohibition."
+      },
+      {
+        "page": 528,
+        "text": "under this chapter's availability and privacy requirements. An HTLC comparison does not"
+      },
+      {
+        "page": 545,
+        "text": "from three to five reviewers reduce the miss probability more or less than"
+      },
+      {
+        "page": 545,
+        "text": "reviewer's reduction. In this common-rate model, two additional correlated"
+      },
+      {
+        "page": 545,
+        "text": "reviewers therefore buy less absolute risk reduction than the preceding one."
+      },
+      {
+        "page": 557,
+        "text": "The harbor-master makes a swarm legible and accountable for one operator"
+      },
+      {
+        "page": 558,
+        "text": "this chapter does not yet prove which corner the full market sacrifices. The bones are good and the floor is built; the spine the"
+      },
+      {
+        "page": 563,
+        "text": "types and transfers and prove its incentive and participation properties. This"
+      },
+      {
+        "page": 563,
+        "text": "chapter has not done so, hence makes no stronger allocation claim."
+      }
+    ],
+    "book/agent-transactions-whitepaper.tex": [
+      {
+        "page": 566,
+        "text": "being mistaken for a proof of cooperation. Finally,"
+      },
+      {
+        "page": 566,
+        "text": "extend beyond one machine; its proposed security requirements remain separate"
+      },
+      {
+        "page": 583,
+        "text": "This dual---mutable view, immutable substrate---is what lets coordination signals evolve without compromising the evidentiary guarantees the rest of the chapter depends on."
+      },
+      {
+        "page": 590,
+        "text": "This subsection is intentionally short: full governance design is outside this chapter's scope. The point is that the bonded commons admits a clean, mechanizable appeals path---it is not the case that advisory claims plus bonding produces a regime where mistakes are unappealable."
+      },
+      {
+        "page": 634,
+        "text": "extension of the local commons. Its complete security claim remains unproved;"
+      },
+      {
+        "page": 634,
+        "text": "a check of one component does not establish the composition."
+      },
+      {
+        "page": 634,
+        "text": "intended recovery-root claim. The requirements and the evidence for"
+      },
+      {
+        "page": 634,
+        "text": "individual properties are kept separate below."
+      },
+      {
+        "page": 634,
+        "text": "Suppose a recovery token has passed its validity checks and its database row"
+      },
+      {
+        "page": 634,
+        "text": "one atomic update that writes a consumption time only while that field is"
+      },
+      {
+        "page": 634,
+        "text": "null. If request A commits first, it changes one row. Request B then changes"
+      },
+      {
+        "page": 634,
+        "text": "zero rows and must fail: two attempts have produced one consumption."
+      },
+      {
+        "page": 634,
+        "text": "This constructed trace checks the role of atomicity. It does not establish"
+      },
+      {
+        "page": 634,
+        "text": "who controls the mailbox, whether the token was issued to the right person,"
+      },
+      {
+        "page": 634,
+        "text": "or whether recovered keys remain secret. Those are separate obligations of"
+      },
+      {
+        "page": 635,
+        "text": "The implementation choice (a particular cloud platform, an on-prem HSM, a self-hosted Tang server) lives in companion design documents. These requirements do not certify any such implementation; a candidate must supply evidence for properties (1)--(5) and for their composition."
+      }
+    ],
+    "book/federated-harbor-whitepaper.tex": [
+      {
+        "page": 655,
+        "text": "It is worth saying what the federation is not, so that the rest of the chapter does not have to keep refuting positions it never took."
+      },
+      {
+        "page": 672,
+        "text": "The purpose of the topology here is diagnostic: identify which communication"
+      },
+      {
+        "page": 672,
+        "text": "links leave cycle checks blind, produce a certificate when visible differences"
+      },
+      {
+        "page": 672,
+        "text": "cannot fit one consistent assignment, and measure the least unrestricted"
+      },
+      {
+        "page": 672,
+        "text": "numerical correction that would restore consistency. Effective resistance"
+      },
+      {
+        "page": 672,
+        "text": "will quantify the sensitivity to an offset on one edge. If the auditor already"
+      },
+      {
+        "page": 672,
+        "text": "has comparable signed claims from the same sender and snapshot, direct"
+      },
+      {
+        "page": 672,
+        "text": "comparison retains information that an edge residual can discard. The value"
+      },
+      {
+        "page": 672,
+        "text": "of the geometric calculation is therefore its topology audit and repair"
+      },
+      {
+        "page": 672,
+        "text": "analysis, not superior detection from those same complete records."
+      }
+    ]
+  },
+  "renders": [
+    {
+      "left": 6,
+      "file": "p006-007.png",
+      "sha256": "f29f45e023d70c1cfb1559ac3d04aa40c90e57ff2f531e8e88ea65997990f731"
+    },
+    {
+      "left": 8,
+      "file": "p008-009.png",
+      "sha256": "08283dc36d9ba6dda534b6d0e56f91b51451d462c025086e71fb2a206ca675c7"
+    },
+    {
+      "left": 10,
+      "file": "p010-011.png",
+      "sha256": "8a6aee6b9304e3ff63d743171a2968afc8fca616cd39311690dba4bb4fb1be9d"
+    },
+    {
+      "left": 12,
+      "file": "p012-013.png",
+      "sha256": "9a5fbed885b5a11abe4bae4266a75cbd61d9ab8c3e445b0e571a598c2d04a874"
+    },
+    {
+      "left": 14,
+      "file": "p014-015.png",
+      "sha256": "b27c19275d49dfcb2285c78cba2d11f4164fdb7432fed5fa9d86210f18c3e92b"
+    },
+    {
+      "left": 16,
+      "file": "p016-017.png",
+      "sha256": "c9be6bce4a62582a393e85bb8bc5130f6a2dbc14fe8192d19f129ddf127e9723"
+    },
+    {
+      "left": 18,
+      "file": "p018-019.png",
+      "sha256": "556b55ace3d6b9d54af9e7a479075643971ac7a9409148c03575e9cea4bf5a4a"
+    },
+    {
+      "left": 20,
+      "file": "p020-021.png",
+      "sha256": "5faca056f40866a67310e8ca6db80475ff7e9721a8cde659c6cd787ff8a3dc26"
+    },
+    {
+      "left": 22,
+      "file": "p022-023.png",
+      "sha256": "ad7cc98690f60f75b511b747194198322a57761e7393b51ff53ebe934b08412a"
+    },
+    {
+      "left": 24,
+      "file": "p024-025.png",
+      "sha256": "c23066470c31e500709a2897a58e2812c7f2b642a3268c498aea11bf00043ec5"
+    },
+    {
+      "left": 26,
+      "file": "p026-027.png",
+      "sha256": "7684784e70b405c8e2c17dd416bb29c2c3dbe1b317e1fd3c21a55997208e631e"
+    },
+    {
+      "left": 28,
+      "file": "p028-029.png",
+      "sha256": "7bf2b0af3c02c0bb33d5c27dc19cb3ed205bc66fc2de413339ad1455bd8db8fe"
+    },
+    {
+      "left": 44,
+      "file": "p044-045.png",
+      "sha256": "64665706b58c2ef4d894b9fbf2b283f5829d5b91e512c14af7259e2b6e36742b"
+    },
+    {
+      "left": 54,
+      "file": "p054-055.png",
+      "sha256": "87a16fd285169b16b5f6f2b9ac470d440b41f94fcb511e1be1e9240e42aba3d3"
+    },
+    {
+      "left": 58,
+      "file": "p058-059.png",
+      "sha256": "7085eb929c64f22c8024f188e446f42e88436941939eba5fcd91d7faf7ecefad"
+    },
+    {
+      "left": 60,
+      "file": "p060-061.png",
+      "sha256": "9aece48a6baa2a1bb1f03cd82d0eb0c751822f05abd52039c5bc564182aee21c"
+    },
+    {
+      "left": 70,
+      "file": "p070-071.png",
+      "sha256": "250a6ea93b8b4ffe2d7caf88a2dbe5932006fd91c83a78ce49949c6580cfc45a"
+    },
+    {
+      "left": 80,
+      "file": "p080-081.png",
+      "sha256": "e95f085a2f7bc540c569a77cc533c5b681181de75c28c325b0f9651555d8990d"
+    },
+    {
+      "left": 82,
+      "file": "p082-083.png",
+      "sha256": "77d154b543b93e2770a596c779ac803dd24c351c79582420ffa1dbd56a022c8d"
+    },
+    {
+      "left": 84,
+      "file": "p084-085.png",
+      "sha256": "5f9042e1899cac94030678d9bab046d2829a0e3715244c031d1312e05332bea2"
+    },
+    {
+      "left": 102,
+      "file": "p102-103.png",
+      "sha256": "517008cb75cf6ae4be9ddee955e991aa2e41db6da845624a63204c4914203b6e"
+    },
+    {
+      "left": 106,
+      "file": "p106-107.png",
+      "sha256": "cd281b514dc4b6b6ccbcb755e9e7197a3de80019985016b93b4b50d5f0212282"
+    },
+    {
+      "left": 110,
+      "file": "p110-111.png",
+      "sha256": "0665ee7abdb4fb1f2acd1793b28aeeab8f693214f34d815cf156095b732018a9"
+    },
+    {
+      "left": 114,
+      "file": "p114-115.png",
+      "sha256": "cbdd87572176db2896c87fe638b10d418e566b922f43cf93363df08702dce30a"
+    },
+    {
+      "left": 118,
+      "file": "p118-119.png",
+      "sha256": "a4dfce217cd75051c824461c9bec078b5e63eed77aca61a92859b4ff560bfd14"
+    },
+    {
+      "left": 122,
+      "file": "p122-123.png",
+      "sha256": "02fbf18e1029a045eb4449d67ced55b69fcb303ee88bdc30b26ddd4378eb66cc"
+    },
+    {
+      "left": 128,
+      "file": "p128-129.png",
+      "sha256": "86a2f5490d1a52149d1f18906e843d79775fac01a52b7ff0f7449471784a70f5"
+    },
+    {
+      "left": 146,
+      "file": "p146-147.png",
+      "sha256": "4bffc0641d3722616e44cccecc69a09f2a1fd4860065b4db1cd59393e8c9682c"
+    },
+    {
+      "left": 168,
+      "file": "p168-169.png",
+      "sha256": "98f2d1c6a84c3b3ac2d8badd5adc989e9ff5885174b046619972090e947d16d1"
+    },
+    {
+      "left": 174,
+      "file": "p174-175.png",
+      "sha256": "f1bc1b3c325529eb3eae6ad5a88bf273b67bc7c80d9e8c37ab7a44cff40e0837"
+    },
+    {
+      "left": 178,
+      "file": "p178-179.png",
+      "sha256": "7ef849df35c7e7d2ae3ec8572e35cabbe57e1a37966f26fb1389a185c1133319"
+    },
+    {
+      "left": 180,
+      "file": "p180-181.png",
+      "sha256": "8d7238c5b3ffd17f5eb0153951380e38755bc52bbb807a29d23cdca3e12f90c7"
+    },
+    {
+      "left": 184,
+      "file": "p184-185.png",
+      "sha256": "caae061d9996082f3198b9c8637fc1e6e4acd0bf99711ac2373dbeca5515dc3e"
+    },
+    {
+      "left": 196,
+      "file": "p196-197.png",
+      "sha256": "e87bfa461dd6eb0fcad6ab409043802b5803592f72d72ea7f9ed082cef057c6c"
+    },
+    {
+      "left": 198,
+      "file": "p198-199.png",
+      "sha256": "f0cacd53a8ec20d6fa2a7f8a52e159a49553dcdaaf2c9e2a03a1a4a1f83d6570"
+    },
+    {
+      "left": 200,
+      "file": "p200-201.png",
+      "sha256": "6a23417128a44746927d95f83d787d9b14f573907326c271f8c70c96286f1eb5"
+    },
+    {
+      "left": 202,
+      "file": "p202-203.png",
+      "sha256": "1f471badb573e3648b8915cab13a1d33e9806f1d7465442a3bf344843860f157"
+    },
+    {
+      "left": 204,
+      "file": "p204-205.png",
+      "sha256": "aa39fa5080202b780e1156cb623f08e38db820bca2beaa9f379b445895f3b60a"
+    },
+    {
+      "left": 206,
+      "file": "p206-207.png",
+      "sha256": "7148ad1b14bba27bc45e8a06d24e18d2d28037b535ed463901619072d6f491c4"
+    },
+    {
+      "left": 208,
+      "file": "p208-209.png",
+      "sha256": "0f7ea759fe0e203f57c4bf280009eff8ae79b2dcf5e9b41591f3b1a4d32cc83d"
+    },
+    {
+      "left": 210,
+      "file": "p210-211.png",
+      "sha256": "501dbae4fbea0d0c4bf18717b0d870dc0db77d38ad3084e92bcf9a9274bea6ae"
+    },
+    {
+      "left": 212,
+      "file": "p212-213.png",
+      "sha256": "8b126513327fb948c5048086d21abcca6f253a2908c35620ad67d2c27227cbc7"
+    },
+    {
+      "left": 218,
+      "file": "p218-219.png",
+      "sha256": "171317fa436749a34cdbc53790b596ad572d3e582cc965e57bdeed110e91aa46"
+    },
+    {
+      "left": 226,
+      "file": "p226-227.png",
+      "sha256": "6c7b4a9555ba466e1f52d807d140da1531062d7ec3892184cd68bcbb963b0a34"
+    },
+    {
+      "left": 228,
+      "file": "p228-229.png",
+      "sha256": "f36b1bc3623d84ada48dbb0bf454ede992662180296723ff86a7e7bf4532d5cf"
+    },
+    {
+      "left": 230,
+      "file": "p230-231.png",
+      "sha256": "c71e0593750610777f4383c4e40bc1cc2c5cc162c2edf327792cdd27be03c914"
+    },
+    {
+      "left": 234,
+      "file": "p234-235.png",
+      "sha256": "af163544b5f40dd28d00b8ea6aa6ee3b6815b780b3ba018c4755667e491f6f20"
+    },
+    {
+      "left": 238,
+      "file": "p238-239.png",
+      "sha256": "5be17788b3c79d271cf8947900bd6a6c9002db10157f7fe25db220cc733554e9"
+    },
+    {
+      "left": 240,
+      "file": "p240-241.png",
+      "sha256": "d666a7f82c5127aab974c770cf5578cb055e71491d293b29a80f509beb835a72"
+    },
+    {
+      "left": 248,
+      "file": "p248-249.png",
+      "sha256": "3bd5d75ba83a6e89d56ccceca8aa20e4c56e397e4bde147a61ebd9115a0b0cd4"
+    },
+    {
+      "left": 250,
+      "file": "p250-251.png",
+      "sha256": "c10d174e1045d385e87ef8ccd8cf6e5355876932fb08caca4893c2adc36fcc82"
+    },
+    {
+      "left": 252,
+      "file": "p252-253.png",
+      "sha256": "9c4eea0e4926b93df149ebf96eb70117814995fde7724d6d26fdf58e76b73b61"
+    },
+    {
+      "left": 262,
+      "file": "p262-263.png",
+      "sha256": "71315aa8722e11b29ce42ee0b85c911002c22e09c4b7164c57542102c6b4e56f"
+    },
+    {
+      "left": 266,
+      "file": "p266-267.png",
+      "sha256": "1c3661b932b11135ac2866a9b6b04a5ed132832db898edaa4d0c22f00e5d55f3"
+    },
+    {
+      "left": 274,
+      "file": "p274-275.png",
+      "sha256": "19a2f3d1b57c7b4bb6b13a67b5a20090da36d867add5092c0a284ad51389c750"
+    },
+    {
+      "left": 292,
+      "file": "p292-293.png",
+      "sha256": "6ed0ebe7fa41d3730e3b2a0ea0b864942c4a45b84a3bd10eaac454e75d5e04ef"
+    },
+    {
+      "left": 294,
+      "file": "p294-295.png",
+      "sha256": "24db5a164fbd175bd531f05a5974b2d4739a70959fba6ea4bf58205e12deb1a7"
+    },
+    {
+      "left": 312,
+      "file": "p312-313.png",
+      "sha256": "8bcf2b469a451948d7dbf0183c6262a5ca84699e4224bbf6ad65138d447c81a8"
+    },
+    {
+      "left": 336,
+      "file": "p336-337.png",
+      "sha256": "d4c2bbfda690eb647826f183722940d06e3966544c31150c2f0774dd9b0c7379"
+    },
+    {
+      "left": 340,
+      "file": "p340-341.png",
+      "sha256": "eaa32598be0912c8319224df3766db9bd6b6c5ca68d1f8519a36663ec31ad236"
+    },
+    {
+      "left": 346,
+      "file": "p346-347.png",
+      "sha256": "7c3c4e6a72509f66804bf4eac2b6f383bc6338049556afe541c0ed107b58c1e9"
+    },
+    {
+      "left": 348,
+      "file": "p348-349.png",
+      "sha256": "c35298c86a3b8f607f5bb382b605a5f652cf4d4316f99e4c474e391d1546db38"
+    },
+    {
+      "left": 356,
+      "file": "p356-357.png",
+      "sha256": "829087ee6508d57d33e33644206787ee05954675f5821d86feb11b832333b2ef"
+    },
+    {
+      "left": 392,
+      "file": "p392-393.png",
+      "sha256": "ace9942e62b1d17b3e9a007c3421a02de2abff514ce44a6c99b748627dd02acc"
+    },
+    {
+      "left": 394,
+      "file": "p394-395.png",
+      "sha256": "29ac6400cfbb07758f3d5e97ea5d6ebb93a1d5baf7f56e0e28a122763aee1532"
+    },
+    {
+      "left": 396,
+      "file": "p396-397.png",
+      "sha256": "b9192a5e6fc6a5958f98411c480a806236fadec56f1434ab8ccbaa06911b2dcc"
+    },
+    {
+      "left": 402,
+      "file": "p402-403.png",
+      "sha256": "350ed17e73c1ca990e6bae8a30b0c3892e5527c153a898c016c3e62d3bbe6ac0"
+    },
+    {
+      "left": 404,
+      "file": "p404-405.png",
+      "sha256": "b6d4311d62f4b2b792a9f65b521262a0fc0e817ffb9d0fa11541b7f6ef6b3ecd"
+    },
+    {
+      "left": 418,
+      "file": "p418-419.png",
+      "sha256": "c5d1ca7e938e167a5c8d6b69f85d7a011fc388e353e0dbcdc4296c7df38af9d8"
+    },
+    {
+      "left": 422,
+      "file": "p422-423.png",
+      "sha256": "f4e6d1969475eada16d704066399c370f13d64d4e20b0f25ed8dfaf19ba83238"
+    },
+    {
+      "left": 434,
+      "file": "p434-435.png",
+      "sha256": "fdc1e100873657242ff54767b698df6399b907e3181bd4acdc538c75aba1bb97"
+    },
+    {
+      "left": 436,
+      "file": "p436-437.png",
+      "sha256": "8012da8222d68cab3b91a1776e5d2e5808754356def05eeb841c453f65411e64"
+    },
+    {
+      "left": 440,
+      "file": "p440-441.png",
+      "sha256": "876e8559cfe240e9a378a012d02bc8f876fb0dde8f9c4d3fc5205bf3ebe575fa"
+    },
+    {
+      "left": 442,
+      "file": "p442-443.png",
+      "sha256": "56ff31686924b1bfc7e9573b8f4dd6bda83d845f37f46a80984bb83f7e71fb23"
+    },
+    {
+      "left": 444,
+      "file": "p444-445.png",
+      "sha256": "5d74c821b268a50f8cfb45c36c8cce9db6d51ccc95f0976057a24f049b7ed60e"
+    },
+    {
+      "left": 456,
+      "file": "p456-457.png",
+      "sha256": "fe795d29876c7ebeb770d4716c96faa26a2e2af84474942e7c397d1e6fa02450"
+    },
+    {
+      "left": 466,
+      "file": "p466-467.png",
+      "sha256": "da4b5161cbb32208578417d56122e8e037e1fd2b924212b3bb971af2063dabee"
+    },
+    {
+      "left": 476,
+      "file": "p476-477.png",
+      "sha256": "e088567ad21723b7cb3f3a353e867454d05a6ca6ea862121bfb506585b1681e2"
+    },
+    {
+      "left": 492,
+      "file": "p492-493.png",
+      "sha256": "adff1cba7a278a96d0fdb68557adec63f9d4c29e1cf31ff74d03f30ea7bebf81"
+    },
+    {
+      "left": 494,
+      "file": "p494-495.png",
+      "sha256": "9b886d2e065a421dc9c668c44e0ddcf0c338300d55936b4c87e6313e02eb5ace"
+    },
+    {
+      "left": 496,
+      "file": "p496-497.png",
+      "sha256": "a72a2b299f2588d12b4536bb9be4da1c7e4736fd46a128927cd6f0e40158be6d"
+    },
+    {
+      "left": 508,
+      "file": "p508-509.png",
+      "sha256": "2791bd539d55ba345638e5190e7a39402d3de7b16a9707059022b91fe2194549"
+    },
+    {
+      "left": 510,
+      "file": "p510-511.png",
+      "sha256": "f2de5526faf06275acda9bff519caa02fd5e171677cada72e6d692d579562da4"
+    },
+    {
+      "left": 512,
+      "file": "p512-513.png",
+      "sha256": "19c0eb84f984272e2775d31d6f743328d2ac05d318fbb4bb5d6e569778cf0257"
+    },
+    {
+      "left": 514,
+      "file": "p514-515.png",
+      "sha256": "2b5b7c672ec9f1e19af288f8825991f0417012edaf07d0e14759f0ba05a48cd3"
+    },
+    {
+      "left": 518,
+      "file": "p518-519.png",
+      "sha256": "8d65f6f68dde48b5f619bd217a9d00a7126431090e14bfbafd5f374f176cd85c"
+    },
+    {
+      "left": 528,
+      "file": "p528-529.png",
+      "sha256": "8e1d6c2b1d257fa61d8b74723d64cdec12c0d9eb10e0ddf89afbca5a63cf955c"
+    },
+    {
+      "left": 544,
+      "file": "p544-545.png",
+      "sha256": "dda35120241b71cb4d7d25997e0e018119d73f1670a6c1e53e2b8db51b78ad3b"
+    },
+    {
+      "left": 548,
+      "file": "p548-549.png",
+      "sha256": "f6e9c810a9ebdbe43c24f6adaa184bad55ba3ca55fcd9bd365e8673568277d63"
+    },
+    {
+      "left": 556,
+      "file": "p556-557.png",
+      "sha256": "a8f4175e96a6782c04b2e24be370c873d08f10d409aceb21518472c6f5854591"
+    },
+    {
+      "left": 558,
+      "file": "p558-559.png",
+      "sha256": "a271268ede989211ecf3ece01d90f7c1ec88f4a31edbbd9a9b79715583144a76"
+    },
+    {
+      "left": 562,
+      "file": "p562-563.png",
+      "sha256": "344efde682a44d03895dff26a9a9292a12dbdd2aa4a104f7148d856ba7f59a4b"
+    },
+    {
+      "left": 564,
+      "file": "p564-565.png",
+      "sha256": "f6f2ee73d287c3b862aee724493518cfed30f91eea77ec4e0dfd99128c02578b"
+    },
+    {
+      "left": 566,
+      "file": "p566-567.png",
+      "sha256": "e3dca8f9f2ce32734c2a46984c8f2878ee67fecde5f9122bee0698b59971d76f"
+    },
+    {
+      "left": 576,
+      "file": "p576-577.png",
+      "sha256": "88c554a0e6343b18e084594faacd4dfe4967993e9bb0ce7e5c636f85d817743b"
+    },
+    {
+      "left": 582,
+      "file": "p582-583.png",
+      "sha256": "77a279cc6f9f94a6615738c192701502ff6056b830e781dc8abb34c953af085e"
+    },
+    {
+      "left": 590,
+      "file": "p590-591.png",
+      "sha256": "6b32754d201744342df28f0f3e71e88925d7226a34832bb640abd98183d19038"
+    },
+    {
+      "left": 598,
+      "file": "p598-599.png",
+      "sha256": "4f0526a7f6bbe2d18217bde1e13755c4bc47a613864e78b8b433405446166603"
+    },
+    {
+      "left": 610,
+      "file": "p610-611.png",
+      "sha256": "394489b7791f9354471cde76f55f5423308a2d0ed5fcb4143a6af99a1417df74"
+    },
+    {
+      "left": 618,
+      "file": "p618-619.png",
+      "sha256": "754afef50369be7cf340ece50e439604d4c53969acb59b802bbfc824591e90c2"
+    },
+    {
+      "left": 622,
+      "file": "p622-623.png",
+      "sha256": "5f4dec55250d4c0630685012ed2f86f50fff4d118ab78c7f2115288e32e99631"
+    },
+    {
+      "left": 626,
+      "file": "p626-627.png",
+      "sha256": "dd572723c9f9911a8419383d8f5846be62770bc8c85a8bd5b15894c6763873c5"
+    },
+    {
+      "left": 634,
+      "file": "p634-635.png",
+      "sha256": "137b6cd4e7036ef17308f70ce69e76ea5b6a83c74d6d18cd04673d877a14b484"
+    },
+    {
+      "left": 642,
+      "file": "p642-643.png",
+      "sha256": "f3bda8a7b429a3902554638d12f275293bec11328fd0e42199176ce43debb5c3"
+    },
+    {
+      "left": 644,
+      "file": "p644-645.png",
+      "sha256": "4dd407763804da04d214597c1bae718681e83e030ed2fe20b0e2868a35f48c3e"
+    },
+    {
+      "left": 648,
+      "file": "p648-649.png",
+      "sha256": "b3957b6e7b2eb575296f500a12487008c97f6091c182fdf54d17cef6191bf6ca"
+    },
+    {
+      "left": 650,
+      "file": "p650-651.png",
+      "sha256": "115dc1aec070ea23509a949e161090c2bf6e6b197614f8fc542b42c0f15c732e"
+    },
+    {
+      "left": 654,
+      "file": "p654-655.png",
+      "sha256": "308e6287eea4976adb650e0943d26343047fab7821e5315165fcf73506ae8053"
+    },
+    {
+      "left": 660,
+      "file": "p660-661.png",
+      "sha256": "2833896ba00a06a88b0d3834ff2e09efe46081f88f7d510882fe08c59136c44e"
+    },
+    {
+      "left": 666,
+      "file": "p666-667.png",
+      "sha256": "26e87b8d7831ad0724dc251d217846ff3ba942b9c0f539b685e3eee08a702d5c"
+    },
+    {
+      "left": 672,
+      "file": "p672-673.png",
+      "sha256": "dcf66a84f066f2a07f812c2619e42268c4dcf66b054b36cc92866a74b91a0bf1"
+    },
+    {
+      "left": 674,
+      "file": "p674-675.png",
+      "sha256": "4674ab7bfd10ee97e2a94a8508f66eb2e986af4908df21d89ac9aded03589863"
+    },
+    {
+      "left": 676,
+      "file": "p676-677.png",
+      "sha256": "32e98189f07630fce03a4b17ff53b188f240c60599e535c76667a2515eb3c66a"
+    },
+    {
+      "left": 678,
+      "file": "p678-679.png",
+      "sha256": "2c99431a0857d8eb1e15b729cbfb4238468396f8575a2ee3bdcfbbd01b998eff"
+    },
+    {
+      "left": 698,
+      "file": "p698-699.png",
+      "sha256": "a9f921d0387f06d02295a524668597289a50ce88fd4dc00c5a575f3b0374763a"
+    },
+    {
+      "left": 702,
+      "file": "p702-703.png",
+      "sha256": "d79bae3bc56772deaab33126670f96961b6d9479aa16e2c7a3a22632d2960f58"
+    },
+    {
+      "left": 712,
+      "file": "p712-713.png",
+      "sha256": "4c809c2db74ed3534b4c969bc7a95848f1fd2d2a06dfa516f349e9613abc37f8"
+    },
+    {
+      "left": 716,
+      "file": "p716-717.png",
+      "sha256": "ecc19fdb7ce51b33b92ebed93f3b6075d90e85624dc84feb16f459813e6503e6"
+    },
+    {
+      "left": 718,
+      "file": "p718-719.png",
+      "sha256": "2ecebdd7ed981c3a293049678deae81251a42674347ff0a6395f8f19b67ccca3"
+    },
+    {
+      "left": 730,
+      "file": "p730-731.png",
+      "sha256": "23e3dd06a5e7d8111e3b5d818224c8964da4cd9ddcf64b0314d7fc75f173c0ca"
+    },
+    {
+      "left": 732,
+      "file": "p732-733.png",
+      "sha256": "45eddbdc01a7e5ba12f87499a0264540ce6b14099760cb02ccd68133d9ed6b5d"
+    },
+    {
+      "left": 734,
+      "file": "p734-735.png",
+      "sha256": "7b2981b1b2103d97df29d0304cc1b5aba66b707330a62367aaf4ae132422159c"
+    },
+    {
+      "left": 772,
+      "file": "p772-773.png",
+      "sha256": "68bb9d44874b2f36ca01524ffe383f65cff240092d3b9805f8022861cac835cb"
+    },
+    {
+      "left": 778,
+      "file": "p778-779.png",
+      "sha256": "31f1b65ddb91925a163d285c1697286d6f2b638ffac833f00cc45f44106da3a6"
+    },
+    {
+      "left": 782,
+      "file": "p782-783.png",
+      "sha256": "0d7cfd3305ce4c7a709b2c8109d4e6d334d21dcc3d012bc6911ac777dc9a570b"
+    },
+    {
+      "left": 796,
+      "file": "p796-797.png",
+      "sha256": "7fccbb234dd8c8de6a8fd6a71d12c0154e6735a5e2140ba1b4eb146a3820be70"
+    },
+    {
+      "left": 798,
+      "file": "p798-799.png",
+      "sha256": "9578ae9e49750a0c9dd964fb27fe9d623d95b036f6605efba3e712a1606ed279"
+    },
+    {
+      "left": 810,
+      "file": "p810-811.png",
+      "sha256": "730d90f2df757bae606b96d7c40e42d7b8c7cff9b52969452cf6d6a0a804311a"
+    }
+  ],
+  "contactSheets": [
+    {
+      "file": "contact-01.jpg",
+      "firstLeft": 0,
+      "lastLeft": 22
+    },
+    {
+      "file": "contact-02.jpg",
+      "firstLeft": 24,
+      "lastLeft": 46
+    },
+    {
+      "file": "contact-03.jpg",
+      "firstLeft": 48,
+      "lastLeft": 70
+    },
+    {
+      "file": "contact-04.jpg",
+      "firstLeft": 72,
+      "lastLeft": 94
+    },
+    {
+      "file": "contact-05.jpg",
+      "firstLeft": 96,
+      "lastLeft": 118
+    },
+    {
+      "file": "contact-06.jpg",
+      "firstLeft": 120,
+      "lastLeft": 142
+    },
+    {
+      "file": "contact-07.jpg",
+      "firstLeft": 144,
+      "lastLeft": 166
+    },
+    {
+      "file": "contact-08.jpg",
+      "firstLeft": 168,
+      "lastLeft": 190
+    },
+    {
+      "file": "contact-09.jpg",
+      "firstLeft": 192,
+      "lastLeft": 214
+    },
+    {
+      "file": "contact-10.jpg",
+      "firstLeft": 216,
+      "lastLeft": 238
+    },
+    {
+      "file": "contact-11.jpg",
+      "firstLeft": 240,
+      "lastLeft": 262
+    },
+    {
+      "file": "contact-12.jpg",
+      "firstLeft": 264,
+      "lastLeft": 286
+    },
+    {
+      "file": "contact-13.jpg",
+      "firstLeft": 288,
+      "lastLeft": 310
+    },
+    {
+      "file": "contact-14.jpg",
+      "firstLeft": 312,
+      "lastLeft": 334
+    },
+    {
+      "file": "contact-15.jpg",
+      "firstLeft": 336,
+      "lastLeft": 358
+    },
+    {
+      "file": "contact-16.jpg",
+      "firstLeft": 360,
+      "lastLeft": 382
+    },
+    {
+      "file": "contact-17.jpg",
+      "firstLeft": 384,
+      "lastLeft": 406
+    },
+    {
+      "file": "contact-18.jpg",
+      "firstLeft": 408,
+      "lastLeft": 430
+    },
+    {
+      "file": "contact-19.jpg",
+      "firstLeft": 432,
+      "lastLeft": 454
+    },
+    {
+      "file": "contact-20.jpg",
+      "firstLeft": 456,
+      "lastLeft": 478
+    },
+    {
+      "file": "contact-21.jpg",
+      "firstLeft": 480,
+      "lastLeft": 502
+    },
+    {
+      "file": "contact-22.jpg",
+      "firstLeft": 504,
+      "lastLeft": 526
+    },
+    {
+      "file": "contact-23.jpg",
+      "firstLeft": 528,
+      "lastLeft": 550
+    },
+    {
+      "file": "contact-24.jpg",
+      "firstLeft": 552,
+      "lastLeft": 574
+    },
+    {
+      "file": "contact-25.jpg",
+      "firstLeft": 576,
+      "lastLeft": 598
+    },
+    {
+      "file": "contact-26.jpg",
+      "firstLeft": 600,
+      "lastLeft": 622
+    },
+    {
+      "file": "contact-27.jpg",
+      "firstLeft": 624,
+      "lastLeft": 646
+    },
+    {
+      "file": "contact-28.jpg",
+      "firstLeft": 648,
+      "lastLeft": 670
+    },
+    {
+      "file": "contact-29.jpg",
+      "firstLeft": 672,
+      "lastLeft": 694
+    },
+    {
+      "file": "contact-30.jpg",
+      "firstLeft": 696,
+      "lastLeft": 718
+    },
+    {
+      "file": "contact-31.jpg",
+      "firstLeft": 720,
+      "lastLeft": 742
+    },
+    {
+      "file": "contact-32.jpg",
+      "firstLeft": 744,
+      "lastLeft": 766
+    },
+    {
+      "file": "contact-33.jpg",
+      "firstLeft": 768,
+      "lastLeft": 790
+    },
+    {
+      "file": "contact-34.jpg",
+      "firstLeft": 792,
+      "lastLeft": 814
+    },
+    {
+      "file": "contact-35.jpg",
+      "firstLeft": 816,
+      "lastLeft": 816
+    }
+  ],
+  "scope": "All facing pages at contact-sheet scale; opener and literal changed-prose matches plus integrated figures at print-readable resolution. Human inspection recorded separately."
+}

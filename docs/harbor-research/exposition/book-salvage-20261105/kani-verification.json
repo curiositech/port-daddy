@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-05",
+  "branch": "codex/book-salvage-claims-20261105",
+  "tool": "cargo-kani 0.67.0",
+  "platform": "aarch64-apple-darwin",
+  "proof": {
+    "harnessesPassed": 5,
+    "harnessesFailed": 0,
+    "coversSatisfied": 17,
+    "coversTotal": 17,
+    "elapsedSeconds": 102.22,
+    "maxResidentBytes": 3174301696,
+    "log": "kani-harnesses.log.gz",
+    "uncompressedLogSha256": "0808913dedf94517636417f868acfd5051eef73d8af189d34d28bbdf91425d79"
+  },
+  "negativeControls": {
+    "intendedCounterexamples": 2,
+    "elapsedSeconds": 24.59,
+    "maxResidentBytes": 1618952192,
+    "log": "kani-controls.log.gz",
+    "receipt": "kani-negative-controls.json",
+    "uncompressedLogSha256": "5b663f0245ca3c307d5bb23d352e4f9e55bf1124da5815d2920f26edb10a1a4b"
+  },
+  "nativeTests": {
+    "passed": 103,
+    "failed": 0,
+    "log": "native-tests.log.gz",
+    "uncompressedLogSha256": "961c349a7774247d00ab375bd71b25153a97fb9f26d3f9e3abb84c0eaeb0dcd2"
+  },
+  "evidenceGateTests": 7,
+  "sourceSha256": {
+    "Cargo.toml": "ab46443190ea9ccfb29d9178ec74fd5fbffabc947977873b186bb92ffd6eadbe",
+    "Cargo.lock": "8cb65baf011f4a4be7dd715e7fbb9159a40214d5ca215ff771c7a8e6356ba205",
+    "src/kani_claims.rs": "5e8eb1316fde7d0bab7319e9875f6685e343fc9ab42ed1972999aca803843edf",
+    "src/kani_claims_domain.rs": "95cd76f76347224238a609640ca1f36e3f66bcb2c0125d73d976d42f05e07eb1",
+    "src/lib.rs": "d886615fbcd5ce7c2dde13787bc5b64f695bb6365d95c4f57fc6510c062f3489"
+  },
+  "hostedStatus": "not run by child; parent owns PR/CI",
+  "parserHarness": "Manual/on-demand,32-byte symbolic input,stubs,unwind128; not run in this slice.",
+  "evidenceScope": "Local execution of the five named harnesses and two deliberately broken policy controls; parser, cryptography and deployed complete mediation are outside this receipt."
+}

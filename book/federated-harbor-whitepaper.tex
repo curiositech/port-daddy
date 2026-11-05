@@ -144,7 +144,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{September 2026\\Version 1.1 (textbook edition)}
+\date{\pdeditiondate\\Version 1.1 (textbook edition)}
 % ─── Document ────────────────────────────────────────────────────────────────
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
@@ -207,7 +207,7 @@ scenarios, not claims of an end-to-end deployment.
 This chapter closes the book. \pdchapref{anchor}{The Anchor Protocol} supplies the cryptographic-token substrate; \pdchapref{bonded}{The Bonded Commons} supplies the economic and governance model; this chapter specifies the federation boundary. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's authorization chain across a trust boundary; \S\ref{sec:fh-revocation} extends its revocation mesh; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
 The design requires no global consensus over all work events. This choice
 differs from ledger-backed constructions such as ETHDKG~\pdcite{schindler2019ethdkg};
-it is not a claim that federation generally requires a blockchain. The cost of that simplification is that we cannot lean on a chain for ordering, equivocation detection, or settlement; we must construct each of those primitives from peer gossip plus a federated witness log. The advantage is that the design composes cleanly with the local-first, single-operator-machine architecture of the prior two papers.
+it is not a claim that federation generally requires a blockchain. The cost of that simplification is that we cannot lean on a chain for ordering, equivocation detection, or settlement; we must construct each of those primitives from peer gossip plus a federated witness log. The advantage is that the design composes cleanly with the local-first, single-operator-machine architecture developed in \pdchapref{he}{The Harbor Economy} and \pdchapref{bonded}{The Bonded Commons}.
 \subsection{Which obligation each protocol carries}\label{sec:fh-contributions}
 Transfer determines what the destination may authorize. Revocation determines
 what it currently knows about dependencies. Evidence comparison determines
@@ -301,10 +301,10 @@ A witness log $W$ is admissible for the Federated Harbor if it provides:
 \item \textbf{Threshold publishability.} The act of publishing $R_X^{(e)}$ to $W$ does not require $D_X$ to trust any other party; the cross-signatures collected from other daemons in the federation are an auditor convenience, not an authorization gate.
 \end{enumerate}
 \end{pdclaim}
-This list is intentionally close in shape to the five properties of the Admissible KMS in \pdchapref{bonded}{The Bonded Commons} (``Federated Sovereign''). The Bonded paper used the same posture --- characterizing the property surface, then exhibiting a concrete construction that satisfied it --- and we follow that pattern. Section~\ref{sec:fh-formal} sketches one concrete instantiation built on Certificate Transparency-style append-only logs~\pdcite{laurie2013ct} cross-witnessed in the Sigstore/Rekor pattern~\pdcite{newman2022sigstore}; the substrate need not be unique.
+This list is intentionally close in shape to the five properties of the Admissible KMS in \pdchapref{bonded}{The Bonded Commons} (``Federated Sovereign''). That chapter specifies the required properties and sketches a candidate construction whose intended security claim remains unproved. We likewise separate the requirements from the evidence for a construction. Section~\ref{sec:fh-formal} sketches one concrete instantiation built on Certificate Transparency-style append-only logs~\pdcite{laurie2013ct} cross-witnessed in the Sigstore/Rekor pattern~\pdcite{newman2022sigstore}; the substrate need not be unique.
 \subsection{What the federation is not}\label{sec:fh-not}
-It is worth saying what the federation is not, so that the rest of the paper does not have to keep refuting positions it never took.
-The federation is \emph{not} a consensus protocol. There is no global agreement on the order of events; there is per-harbor monotonicity (epoch roots only extend), there is cross-harbor witnessing (each root is published to a shared log), and there is detectable equivocation. None of these require harbors to agree on a global order, and the prior papers' designs explicitly avoid that overhead.
+It is worth saying what the federation is not, so that the rest of the chapter does not have to keep refuting positions it never took.
+The federation is \emph{not} a consensus protocol. There is no global agreement on the order of events; there is per-harbor monotonicity (epoch roots only extend), there is cross-harbor witnessing (each root is published to a shared log), and there is detectable equivocation. None of these require harbors to agree on a global order, and the preceding chapters' designs explicitly avoid that overhead.
 The federation is \emph{not} a hub-and-spoke topology with a privileged coordinator. The witness log is replicable; in practice a small set of mutually-witnessing log instances suffices, and any harbor can read from any of them. The hub-and-spoke failure mode --- one well-funded coordinator captures the federation by becoming everyone's only witness --- is a real risk we discuss in \S\ref{sec:fh-failure-modes}, and the structural pushback is gossip-based witness redundancy.
 The federation is \emph{not} a permissionless market in identities. New harbors enter through the admission ceremony of \S\ref{sec:fh-admission}, which requires either a pre-existing bond or an existing harbor sponsor. This is by design; the cost is that the federation is invitation-bounded, the benefit is that Sybil attacks against the federation~\pdcite{douceur2002sybil} cost the attacker as much per identity as honest entry does.
 Figure~\ref{fig:fh-sovereignty-fence} returns to Alice's refused database
@@ -588,6 +588,16 @@ Rebuilding with unchanged hash functions can reproduce the same false positive;
 rebuilding repairs a stale or damaged cache, not every fingerprint collision. Spurious revocations injected by an attacker into a peer's log are rejected on first attempt to verify against the witness log. The discipline is: \emph{local filters are advisory read-caches; the event and witness logs are authoritative}.
 
 \subsection{Visible discrepancies and their certificates}\label{sec:fh-sheaf}
+
+The purpose of the topology here is diagnostic: identify which communication
+links leave cycle checks blind, produce a certificate when visible differences
+cannot fit one consistent assignment, and measure the least unrestricted
+numerical correction that would restore consistency. Effective resistance
+will quantify the sensitivity to an offset on one edge. If the auditor already
+has comparable signed claims from the same sender and snapshot, direct
+comparison retains information that an edge residual can discard. The value
+of the geometric calculation is therefore its topology audit and repair
+analysis, not superior detection from those same complete records.
 
 \pdmarginanalogy{fh-traverse-compass}{}{ch08-closed-traverse-compass}{Like a surveyor checking whether measured bearings close around a traverse, the residual tests consistency around visible loops. A discrepancy calls for investigation; it does not by itself identify dishonesty.}%
 Three harbors compare one numerical coordinate at a common snapshot. Orient
@@ -1857,7 +1867,7 @@ This chapter describes federation as ``not a consensus protocol'' (\S\ref{sec:fh
 \begin{pdsolution}{ex:fh-synthesis}
 The design does not require one global total order over every harbor's events: each harbor maintains its own epoch history, and cross-witnessing can expose inconsistent signed views when those views meet. Accounting nevertheless needs an authoritative custody record and atomic, amount-preserving terminal transitions for each bond. The Cross-Harbor Bucket Partition (Design Invariant~\ref{prop:fh-cross-cons}) states that obligation; its prose sketch is not an executable model-checking result. The available TLC transcript verifies the separate single-machine Conservation model at its finite configuration. Neither that transcript nor the cross-harbor partition proves deployment-level agreement or custody enforcement. An eventual cross-harbor model must specify the communication, failure, and atomicity assumptions under which those transitions can actually be implemented.
 
-Calling the Federated Harbor ``a project institution, not merely two machines sharing a repository'' means the paper's actual claim is broader than any one protocol: an authoritative event/work-unit graph, per-principal policy, local effect mediators, causal messages, evidence, roles, and explicit governance over conflicts, of which the transfer ceremony, revocation mesh, and settlement escrow are three essential pieces, not the whole structure. A roadmap or a stated intention is versioned forecast, not truth, and a contradiction detector (the witness log's equivocation check) produces evidence for a \emph{named principal or role} to decide against, rather than deciding by itself. The paper's own posture --- consensus only where it is cheap and structurally necessary (the small authoritative metadata core: epoch roots, admission records), federation everywhere else (the actual work artifacts) --- is the concrete answer to the framing question of \S\ref{sec:fh-intro}: two machines needed more than a shared repository, and what they needed is exactly the institution this chapter specifies one layer of.
+Calling the Federated Harbor ``a project institution, not merely two machines sharing a repository'' means this chapter's claim is broader than any one protocol: an authoritative event/work-unit graph, per-principal policy, local effect mediators, causal messages, evidence, roles, and explicit governance over conflicts, of which the transfer ceremony, revocation mesh, and settlement escrow are three essential pieces, not the whole structure. A roadmap or a stated intention is versioned forecast, not truth, and a contradiction detector (the witness log's equivocation check) produces evidence for a \emph{named principal or role} to decide against, rather than deciding by itself. The chapter's proposed division --- consensus only where it is cheap and structurally necessary (the small authoritative metadata core: epoch roots, admission records), federation everywhere else (the actual work artifacts) --- is the concrete answer to the framing question of \S\ref{sec:fh-intro}: two machines needed more than a shared repository, and what they needed is exactly the institution this chapter specifies one layer of.
 \end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -2091,7 +2101,7 @@ Gabriele Farina.
 
 \section{Verification Status}\label{app:fh-mech}
 
-\paragraph{Artifact registry.} The cross-paper status table in Bonded Commons~\pdcite{owens2026bonded} carries the items that are shared across the series; this appendix lists only the items specific to the Federated Harbor.
+\paragraph{Artifact registry.} The shared verification-status table in \pdchapref{bonded}{The Bonded Commons}~\pdcite{owens2026bonded} carries the items that are shared across the series; this appendix lists only the items specific to the Federated Harbor.
 
 \renewcommand{\arraystretch}{1.15}
 {\small

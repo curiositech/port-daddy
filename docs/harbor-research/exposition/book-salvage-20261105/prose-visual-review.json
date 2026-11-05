@@ -1,0 +1,29 @@
+{
+  "reviewedAt": "2026-11-05T12:56:15.605574+00:00",
+  "reviewer": "salvage_explanatory_prose",
+  "pdfSha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+  "pages": 817,
+  "inheritedReview": {
+    "receipt": ".scratch/salvage/spread-review-prose-cc9df0.json",
+    "pdfSha256": "cc9df0fe78f6f7b59b580cb3e323558380f97ef1df9a47e2f721c3ca0560d464",
+    "basis": "815 of817 page render hashes are identical at108dpi, including all12Landmarks and bothflowrepairs. Changed pages independently reviewed below.",
+    "differential": ".scratch/salvage/render-differential.json",
+    "sha256": "cf54ad0c5f5034410f046ba87a0cb66c5fbe5cabbe18e0725abcd7c1f8d87f35",
+    "internallyValidatedEntries": 817
+  },
+  "freshSpreadReview": [
+    {
+      "file": "p210-211.png",
+      "sha256": "501dbae4fbea0d0c4bf18717b0d870dc0db77d38ad3084e92bcf9a9274bea6ae",
+      "verdict": "Parser workflow correctly described as manually dispatched; paragraph and exercise margin reference readable without collision or clipping."
+    },
+    {
+      "file": "p798-799.png",
+      "sha256": "9578ae9e49750a0c9dd964fb27fe9d623d95b036f6605efba3e712a1606ed279",
+      "verdict": "Proof artifact table manual/on-demand parser status readable, continued table aligned, no clipping/collision."
+    }
+  ],
+  "openFindings": [],
+  "browserReceipt": ".scratch/salvage/browser-proof/receipt.json",
+  "browserVideo": "Actual Playwright VP8 recording1440x1100,10.8seconds. Public localpreview only; source transport shim explicitly declared; production checks separate."
+}

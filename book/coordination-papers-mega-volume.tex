@@ -175,6 +175,46 @@ retained evidence without reconstructing information they omit. These limits
 are part of the argument, because later mechanisms depend on them.
 \end{abstract}
 
+\clearpage
+\ifodd\value{page}\else\null\thispagestyle{empty}\newpage\fi
+\thispagestyle{plain}
+\phantomsection\label{book:preface}
+\pdfbookmark[0]{Preface}{book.preface}
+{\pddisplayface\Huge\bfseries Preface\par}
+\vspace{14pt}
+
+A green test result can accompany a deleted assertion. A convincing account
+of a repair can describe a different revision from the one delivered. Two
+capable workers can undo each other's changes, and a worker that disappears
+can leave a payment, a promise or a disputed result behind. These failures
+make a practical demand: somebody must be able to reconstruct what was
+allowed, what happened and what is still owed.
+
+Generating a candidate repair is one part of that work. Accepting it requires
+an agreement about the task and evidence tied to the delivered result.
+Recovering from an interruption requires records that outlive the interrupted
+process. Sharing work with another operator adds a further question: which
+claims can that operator check without trusting the account that produced
+them? The book follows these questions from a local write to a disputed
+cross-machine transaction.
+
+The central engineering choice is where to put the decision that admits an
+effect. A prompt may ask a worker to preserve a test. A mediated write can
+refuse a prohibited change, provided the rule and its inputs are available
+at that boundary. Where the machine cannot decide, an evaluator, an operator
+or an agreed dispute process must take responsibility. Naming that boundary
+is part of designing the system.
+
+We use a single constructed repair job to make these responsibilities
+visible. Its workers can fail in different ways; its rules can be inspected
+and challenged. The examples are invitations to check the reasoning, not
+claims about an end-to-end deployment. The proofs and experiments state the
+smaller questions they actually answer.
+
+An accountable system gives its operator a way to continue after the
+convincing answer has turned out to be wrong. That is the standard this
+book asks its mechanisms to meet.
+
 \newcommand{\pdreaderleftprose}{%
 On a first reading, follow the chapter sequence and the recurring checkout
 repair. Each stage adds one contract the next stage needs. For a selective

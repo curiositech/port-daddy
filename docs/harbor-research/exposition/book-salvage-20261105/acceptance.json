@@ -1,0 +1,42 @@
+{
+  "status": "local-publication-candidate-accepted",
+  "date": "2026-11-05",
+  "editionDate": "5 November 2026",
+  "pdf": {
+    "sha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+    "pages": 817,
+    "bytes": 16520833
+  },
+  "fontProfile": "suisse",
+  "pdfGates": 6,
+  "visualReview": {
+    "contactSheets": 35,
+    "readableSpreadRenderings": 128,
+    "humanScope": "All nine openers and following spreads, all twelve Landmarks, changed prose and integrated figures as itemized in the three visual reviews. All contact sheets inspected; this is not an assertion of line-by-line theorem re-verification.",
+    "finalRasterComparison": {
+      "unchanged": 815,
+      "freshlyInspectedPages": [
+        210,
+        799
+      ]
+    }
+  },
+  "sourceArchive": {
+    "bytes": 40157761,
+    "contentType": "application/gzip",
+    "file": "coordination-papers-mega-volume-source.tar.gz",
+    "key": "book/source/sha256/d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512.tar.gz",
+    "sha256": "d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512",
+    "url": "https://media.portdaddy.dev/book/source/sha256/d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512.tar.gz"
+  },
+  "sourceGateGroups": 30,
+  "researchUnitSuite": {
+    "tests": 953,
+    "skipped": 121
+  },
+  "sourceMerge": null,
+  "artifactMerge": null,
+  "deployment": null,
+  "publicReadback": null,
+  "releaseBoundary": "Only source changes go in the source PR; separate artifact PR after source merge publishes these exact accepted bytes following consumed-input reconciliation."
+}

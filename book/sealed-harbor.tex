@@ -122,7 +122,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{September 2026\\Version 1.0 (textbook edition)}
+\date{\pdeditiondate\\Version 1.0 (textbook edition)}
 % ─── Document ────────────────────────────────────────────────────────────
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
@@ -456,8 +456,19 @@ declassification authority delegated by that owner, and the only exits are the
 two declassification gates, Derek's and Erin's, each executing a declared
 release function, with exactly three pre-authorized channels: a rich result to
 Derek; fixed-schema, aggregated or differentially private feedback to Erin; a
-padded public receipt to both. Each party receives an audience-redacted signed
-receipt, Merkle-anchored in both principals' ledgers:
+padded public receipt to both.
+
+For the checkout diagnosis, the first secret read labels the worker; it does
+not end the computation. The worker may continue reasoning and using tools
+inside the room under the work order. A request to an outside tool is itself
+an output and needs an authorized release channel. When a result is ready,
+the worker submits it to the pre-authorized slot: the gate checks the declared
+release function, recipient, schema and remaining budget before anything
+leaves. An approved release does not clear the worker's taint. Later turns
+remain subject to the same gates until the job is destroyed.
+
+Each party receives an audience-redacted signed receipt, Merkle-anchored in
+both principals' ledgers:
 {\small\[
 \begin{aligned}
 R=\mathrm{Sign}\bigl(\, & H(C),\,H(\text{attestation}),\,H(\text{inputs}),\,H(M),\,H(\text{output ciphertext}),\\

@@ -1,0 +1,73 @@
+{
+  "reviewer": "/root/salvage_chapter_structure",
+  "kind": "Independent adversarial source review of Rust harnesses and evidence gates; reviewer did not author the Rust harnesses or log/negative-control scripts. Reviewer authored registry and structural exposition and is not an independent reviewer of those files.",
+  "worktree": "/Users/erichowens/coding/tmp/book-salvage-claims-20261105",
+  "branch": "codex/book-salvage-claims-20261105",
+  "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/book-salvage-claims-20261105",
+  "baseHead": "856b3ccb156ae243e9e438cb1f8787a6d087f953",
+  "verdict": "Scoped approval after one scheduling mismatch was fixed. No remaining actionable mathematical, vacuity or evidence-gate defect found within the stated bounded contracts. Fresh exact-source solver evidence remains parent-owned because the final Rust comment correction changes its hash.",
+  "findings": [
+    {
+      "id": "manual-parser-lane",
+      "severity": "P2",
+      "status": "fixed",
+      "problem": "No schedule event exists in proofs.yml; nightly/scheduled descriptions and the test of an inert schedule conditional incorrectly suggested recurring execution.",
+      "fix": "Preserved manual-only operation, removed the inert parser schedule branch, aligned workflow/docs/registry/source comment, parsed actual workflow YAML, and added negative controls for absent manual trigger, parser enabled on PRs and recurring schedule.",
+      "no_new_automation": true
+    }
+  ],
+  "checks": {
+    "temporal_oracle": "Every i64 hv/iat/exp/now and optional i64 nbf is admitted without assumptions. Widened i128 addition is independent of production saturating_add; equivalence holds at i64::MAX. Seven actual-result covers force successful acceptance plus each rejection class and the saturating boundary.",
+    "channel_oracle": "Finite-case channel oracle uses the exact eight-pattern/six-concrete-request grammar; operation admin/same-op semantics and returned grant identity are asserted. Authentication, arbitrary strings, multi-grant selection and rate/payload enforcement remain outside scope. Lifetime validity is checked separately; covers do not establish an integrated signed-token pipeline.",
+    "delegation": "One grant at each of three nodes, four operations, eight patterns and arbitrary optional u64 ceilings. Transitivity and each finite ceiling are asserted. Five covers exclude always-reject and always-accept degeneracies and expose root-only re-escalation. No signed-chain verifier, arbitrary depth or multi-entry structured-grant claim is made.",
+    "flat_subset": "All zero-to-two-entry lists over four one-byte opaque rights, duplicates and empties included. Independent bitmask inclusion oracle and nonempty acceptance/rejection covers.",
+    "input_constructors": "Explicit fixed-capacity character writes produce exactly documented finite grammars. Native 256-selector equivalence test accompanies the Kani copy-model workaround; no policy stub or extra assumption introduced.",
+    "production_refactor": "Version/time checks moved into private validate_decoded_claims preserving original guard order and arithmetic. Signed verify still calls it after signature and JSON checks; verify_for_channel then checks capability.",
+    "nonvacuity_gate": "Each of five named harness blocks must report SUCCESSFUL without FAILED, have its exact cover-count pair, appear exactly once, and end in the exact five-success summary. CI uses pipefail so solver failure cannot be hidden by tee.",
+    "negative_controls": "Isolated source copies require a unique mutation site, nonzero exit, VERIFICATION FAILED and the named failed assertion. Compilation failure alone is rejected. Receipts are removed before run and only rewritten after both controls pass. Timeouts kill the process group.",
+    "parser_scope": "Separate manually dispatched parser job, 32-byte valid UTF-8 with a dot and unwind128; stubs cannot decode valid header JSON, so no successful-card or cryptography proof is claimed. Comparator only claims no panic on 16-byte pairs.",
+    "registry_prose": "All six harness names, paths, finite bounds and proof exclusions match corpus and Anchor. Current policies distinguish local evidence from workflow wiring; no hosted verdict asserted by this review."
+  },
+  "tests_run": [
+    "whitepaper-corpus.test.js:14 passed, including three manual-trigger mutation cases",
+    "test_kani_log.py:7 passed",
+    "test_review_math_boundaries.py:26 passed",
+    "check-kani-log.py on prior final-verified-harnesses.log:5 harnesses/17 covers passed",
+    "check_research_program.py --sync:35 results/39 formal artifacts/13 open problems/1 study; mirror identical",
+    "git diff --check:passed"
+  ],
+  "solver_rerun": "Not rerun by reviewer. Parent will rerun five harnesses and both controls on frozen files.",
+  "receipt_source_mismatch_after_comment_only_fix": [
+    "src/lib.rs"
+  ],
+  "sourceSha256": {
+    "core/harbor-card-rs/src/kani_claims.rs": "5e8eb1316fde7d0bab7319e9875f6685e343fc9ab42ed1972999aca803843edf",
+    "core/harbor-card-rs/src/kani_claims_domain.rs": "95cd76f76347224238a609640ca1f36e3f66bcb2c0125d73d976d42f05e07eb1",
+    "core/harbor-card-rs/src/lib.rs": "d886615fbcd5ce7c2dde13787bc5b64f695bb6365d95c4f57fc6510c062f3489",
+    "core/harbor-card-rs/Cargo.toml": "ab46443190ea9ccfb29d9178ec74fd5fbffabc947977873b186bb92ffd6eadbe",
+    "core/harbor-card-rs/Cargo.lock": "8cb65baf011f4a4be7dd715e7fbb9159a40214d5ca215ff771c7a8e6356ba205",
+    "core/harbor-card-rs/scripts/check-kani-log.py": "a5a55e74626a392980bfeaaa6fd62717f308cca556496da27fa05bd5c8992fa9",
+    "core/harbor-card-rs/scripts/check-kani-negative-controls.py": "81097427d6ed7e2c66619c9f69089ed249578254d7d51991d774809371f3e540",
+    "core/harbor-card-rs/scripts/test_kani_log.py": "e4ea1604e4a34862c297edddbfbf8ae31c071bededef466f9157d0a98907b190",
+    ".github/workflows/proofs.yml": "7f43afc027d953eebf0dddf5c6f37aa5e7b3e398b35597a089f9bfc8865a7ef5",
+    "book/corpus.json": "03e56df1fb4bf7119206fe71ec4f6a2fd11d10ed8ff78e6a08f6517b49e74042",
+    "book/anchor-protocol-whitepaper.tex": "010d3abf2fa630d53737b21d969c944bbf8b2f6ce08be2c26f94919eea2084b6",
+    "tests/unit/whitepaper-corpus.test.js": "04f428498c2f2d8c81f58b1b249501a839bdaf220036da9dbe165127d615640e",
+    "docs/harbor-research/program.json": "d2d8471f5ad93f3af6219c2eb61486d54c72aeb9ca9a5adb5d3f9c9b40f86f80",
+    "website-v2/src/data/harborResearchProgram.json": "d2d8471f5ad93f3af6219c2eb61486d54c72aeb9ca9a5adb5d3f9c9b40f86f80"
+  },
+  "frozen_correction_files": [
+    ".github/workflows/proofs.yml",
+    "book/anchor-protocol-whitepaper.tex",
+    "book/corpus.json",
+    "core/harbor-card-rs/src/lib.rs",
+    "tests/unit/whitepaper-corpus.test.js",
+    "docs/harbor-research/program.json",
+    "website-v2/src/data/harborResearchProgram.json"
+  ],
+  "limitations": [
+    "No hosted CI verdict, deployment proof or full parser rerun established.",
+    "Independent review applies to Rust harnesses and evidence scripts; registry/docs are cross-checked rather than independently authored approval.",
+    "Tool/model soundness remains an assumption; the observed constructor issue is documented rather than called a production matcher flaw."
+  ]
+}

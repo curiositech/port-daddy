@@ -1,0 +1,141 @@
+checking 1 PDF(s): coordination-papers-mega-volume.pdf
+
+== check_book_caption_margins.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-salvage-claims-20261105/scripts/harbor-research/check_book_caption_margins.py .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+266 Book captions checked; 0 placement failures
+
+== check_book_exercise_navigation.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-salvage-claims-20261105/scripts/harbor-research/check_book_exercise_navigation.py .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+Exercise navigation: 212 labels, 212 rendered headings, 0 issues
+
+== audit_book_layout.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-salvage-claims-20261105/scripts/harbor-research/audit_book_layout.py .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+817 pages; 1440/1440 margin objects; 0 margin issues; 73 pages in whitespace review
+
+== page_overflow.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-salvage-claims-20261105/scripts/harbor-research/page_overflow.py .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+-- 0 page/kind rows with loss (ink past the paper edge or past the full width)
+-- advisory: 71 pictures set past the column by the safety net (redraw to the column):
+p 31 +108.0 pt
+p 33 + 71.3 pt
+p 64 +108.0 pt
+p 85 +108.0 pt
+p 87 +104.7 pt  Table 1.1.
+p 89 + 95.9 pt
+p101 + 38.6 pt
+p104 +108.0 pt
+p110 +108.0 pt  Figure 1.11.
+p115 +108.0 pt
+p134 +107.5 pt
+p157 +108.0 pt
+p182 +108.0 pt  Figure 2.2 contrasts that clamped request with a shorter eig
+p187 + 48.8 pt  Figure 2.4 puts that ceremony on a clock: who signs what, in
+p189 +108.0 pt  Figure 2.5.
+p193 + 53.9 pt  Figure 2.7.
+p195 + 86.1 pt
+p236 +108.0 pt
+p250 +108.0 pt
+p257 + 65.5 pt
+p259 + 74.1 pt
+p265 + 52.9 pt
+p272 + 86.3 pt
+p274 + 96.1 pt
+p275 + 90.0 pt
+p276 +108.0 pt
+p295 +108.0 pt  Table 4.1 groups the failures in the opening scenario by the
+p303 + 95.9 pt
+p304 +108.0 pt
+p309 + 92.2 pt
+p319 +109.7 pt
+p324 + 96.1 pt
+p337 + 64.9 pt
+p341 +108.0 pt
+p351 +102.7 pt
+p357 + 84.3 pt  Figure 4.16.
+p371 + 60.2 pt  Figure 4.17.
+p403 +106.1 pt
+p410 +108.0 pt
+p413 +100.7 pt
+p423 + 83.6 pt  Table 5.3 compares two records. At 𝑟(𝑖) = 50, a new identity
+p429 + 56.9 pt  Table 5.4.
+p430 +108.0 pt
+p437 + 86.7 pt
+p461 + 92.8 pt
+p495 +108.0 pt
+p501 +100.0 pt  Figure 6.1.
+p503 + 56.6 pt
+p505 + 70.6 pt
+p534 +108.0 pt
+p545 + 80.1 pt
+p571 +108.0 pt
+p584 +108.0 pt
+p585 + 86.9 pt  Figure 7.7.
+p591 +108.0 pt
+p593 +108.0 pt
+p597 + 83.8 pt
+p603 + 83.3 pt
+p609 + 95.1 pt
+p625 + 99.6 pt
+p630 +108.0 pt
+p652 +108.0 pt
+p666 +108.0 pt
+p672 +108.0 pt  Table 8.3.
+p680 + 91.1 pt  Table 8.4 records the matched‑evidence counts. The same har‑
+p692 + 93.1 pt
+p695 + 97.9 pt
+p696 +108.0 pt
+p701 + 75.1 pt
+p706 +107.7 pt
+p711 + 87.8 pt
+-- 0 margin-column collisions (two pieces of text in the same vertical space):
+-- 0 page(s) with column text below the text block's foot (over the running foot):
+
+== page_spills.py -- coordination-papers-mega-volume.pdf ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-salvage-claims-20261105/scripts/harbor-research/page_spills.py .cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.pdf
+text foot at 653.6 pt; 37 finding(s): 0 O, 0 H, 37 W
+  W p.   5  292 pt empty above the foot; next page starts with ''
+  W p.  19  197 pt empty above the foot; next page starts with 'Contents'
+  W p.  35  157 pt empty above the foot; next page starts with '12'
+  W p.  83  273 pt empty above the foot; next page starts with '60'
+  W p. 102  204 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 106  177 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 109  197 pt empty above the foot; next page starts with '86'
+  W p. 126  260 pt empty above the foot; next page starts with 'Chapter 1. The Single‑Writer Kernel'
+  W p. 151  273 pt empty above the foot; next page starts with '128'
+  W p. 173  535 pt empty above the foot; next page starts with '150'
+  W p. 211  239 pt empty above the foot; next page starts with '188'
+  W p. 216  274 pt empty above the foot; next page starts with 'Chapter 2. The Anchor Protocol'
+  W p. 249  155 pt empty above the foot; next page starts with '226'
+  W p. 251  303 pt empty above the foot; next page starts with '228'
+  W p. 274  218 pt empty above the foot; next page starts with 'Chapter 3. The Sealed Harbor'
+  W p. 289  353 pt empty above the foot; next page starts with 'Part II'
+  W p. 305  360 pt empty above the foot; next page starts with ''
+  W p. 332  427 pt empty above the foot; next page starts with 'Chapter 4. The Legible Swarm'
+  W p. 339  506 pt empty above the foot; next page starts with '316'
+  W p. 394  462 pt empty above the foot; next page starts with 'Chapter 4. The Legible Swarm'
+  W p. 408  161 pt empty above the foot; next page starts with ''
+  W p. 414  217 pt empty above the foot; next page starts with 'Chapter 5. From Spawn to Person'
+  W p. 415  187 pt empty above the foot; next page starts with '392'
+  W p. 475  303 pt empty above the foot; next page starts with '452'
+  W p. 558  360 pt empty above the foot; next page starts with 'Chapter 6. The Harbor Economy'
+  W p. 595  192 pt empty above the foot; next page starts with '572'
+  W p. 617  218 pt empty above the foot; next page starts with '594'
+  W p. 632  196 pt empty above the foot; next page starts with 'Chapter 7. The Bonded Commons'
+  W p. 660  298 pt empty above the foot; next page starts with 'Chapter 8. The Federated Harbor'
+  W p. 661  220 pt empty above the foot; next page starts with ''
+  W p. 677  197 pt empty above the foot; next page starts with '654'
+  W p. 705  520 pt empty above the foot; next page starts with '682'
+  W p. 716  234 pt empty above the foot; next page starts with 'Chapter 8. The Federated Harbor'
+  W p. 720  399 pt empty above the foot; next page starts with 'Solutions to the exercises'
+  W p. 724  224 pt empty above the foot; next page starts with 'Solutions to the exercises'
+  W p. 793  389 pt empty above the foot; next page starts with '770'
+  W p. 817  402 pt empty above the foot; next page starts with ''
+
+== check_cover_title_band.py -- /Users/erichowens/coding/tmp/book-salvage-claims-20261105/.cache/whitepaper-build/coordination-papers-mega-volume ==
+$ /opt/anaconda3/bin/python3 /Users/erichowens/coding/tmp/book-salvage-claims-20261105/scripts/whitepaper-plates/check_cover_title_band.py --pdf-dir /Users/erichowens/coding/tmp/book-salvage-claims-20261105/.cache/whitepaper-build/coordination-papers-mega-volume
+maritime-cover: clean band 39.3% of the plate (floor 30%)
+swiss-cover: clean band 33.2% of the plate (floor 30%)
+swiss: every line of type over a plate clears WCAG AA
+type over art: every registered page leaves its type legible
+
+run_pdf_checks: 1 PDF(s), 5 per-PDF check(s), 1 per-directory check(s) -- all clean

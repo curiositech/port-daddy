@@ -170,7 +170,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{September 2026\\Version 1.2 (textbook edition)}
+\date{\pdeditiondate\\Version 1.2 (textbook edition)}
 % ─── Document ────────────────────────────────────────────────────────────────
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
@@ -236,6 +236,18 @@ Hobbes' question of a common authority supplies a comparison, not a theorem
 that software agents are people or that a central daemon is the only solution
 \pdcite{hobbes1651}. The proposed authority must itself be inspectable and
 revocable; Section~\ref{sec:consent-canon} tests the political analogy's limits.
+
+\paragraph{Two routes through the argument.}
+For \emph{supervision decisions}, follow Sections~\ref{sec:intro}--\ref{sec:operator}:
+what Alice authorizes, which evidence a completion must carry, and when she
+must inspect it. These sections develop the operating rules for the checkout
+job; the later mathematics measures constraints on those rules.
+
+For \emph{information bounds}, continue through
+Sections~\ref{sec:readpoverty}--\ref{sec:tokens}: how much a summary must preserve,
+how a directory selects candidates, and what compaction can lose. A reader
+starting there should first read the opening case and the verifiable-zoom
+example, so that the formal error events retain their operational meaning.
 
 \subsection{The failure taxonomy}\label{sec:taxonomy}
 Table~\ref{tab:taxonomy} groups the failures in the opening scenario by
@@ -789,7 +801,7 @@ A swarm reviewing its own work can repeat the same error. Agreement alone does
 not supply the independently checkable evidence required by
 Invariant~\ref{prop:verifiable-zoom}. The proposed quality organ is therefore
 \emph{adversarial and conflict-free}: a reviewer with no stake in the work, running a
-bounded critique--refine protocol. This is the wedge's local analog of the
+bounded critique--refine protocol. This is the single-operator tool's local analog of the
 \emph{neutral evaluators} --- the independent rating agencies --- that \pdchapref{stp}{From Spawn to Person} and \pdchapref{he}{The Harbor Economy}
 federate across operators: the same conflict-free-judge discipline, scoped
 first to one operator and then opened to a market.
@@ -1252,7 +1264,7 @@ Choosing escalation at indifference gives the rule $u\ge u^\star$.
 Increasing $\delta$ can only shrink the escalation set. If alarm load is
 nonincreasing and miss loss nondecreasing in $\delta$, the debits meeting both
 limits form an interval, possibly empty or unbounded. If both aggregate
-functions are continuous, that interval is closed; a finite
+functions are continuous, that \mbox{interval} is closed; a finite
 $[\delta_{\min},\delta_{\max}]$ also requires a finite upper boundary.
 \end{pdclaim}
 \begin{proof}
@@ -1687,6 +1699,16 @@ introducing a second catalogue of product modes.
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Read-poverty: when inspection falls behind}\label{sec:readpoverty}
 % ═════════════════════════════════════════════════════════════════════════════
+
+Alice now has a rule for deciding what counts as an acceptable repair and
+which events require her attention. The remaining question is whether the
+information reaching her can support that decision within her inspection
+budget. For Wren's patch, a digest that omits the unrelated migration can
+preserve every displayed link and still omit the decisive defect. We now
+measure that loss: first by counting the distinctions a summary must retain,
+then by studying selection and compaction. The bounds price particular
+information guarantees; they do not replace the authorization and evidence
+rules established above.
 
 \pdmarginanalogy{ls-attention-annunciator}{}{ch04-selective-attention-annunciator}{Like a shipboard annunciator dropping a signal flag only when a monitored circuit faults, selective attention suppresses routine traffic to present only actionable exceptions.}%
 Suppose an operator can inspect six short updates per minute. Two workers each
@@ -3929,10 +3951,10 @@ or whether the evidence is valid. The required checkpoint fidelity depends on
 the task; preserving a reviewable outcome history need not restore a running
 process.
 That non-forgeable identity is a \BuiltWeak{} single-operator primitive in the
-wedge: daemon-minted \texttt{actor-souls} and a bounded newcomer pool ship, while universal
+local tool: daemon-minted \texttt{actor-souls} and a bounded newcomer pool ship, while universal
 write-boundary enforcement does not. The
 proposed cross-operator attestation is an additional mechanism whose trust
-assumptions and implementation the economy paper must declare.
+assumptions and implementation \pdchapref{he}{The Harbor Economy} must declare.
 \item \textbf{The completion ledger} --- in the target design, every verified
 completion (and every loud-failed one) becomes an outcome event. Today durable
 commitments, oracle-bound closure, and overdue detection form a partial witness
@@ -3942,7 +3964,7 @@ reputation layer is the \emph{scorer}. The split-ranker substrate
 are the candidate-generation and trust-signal scaffolding the reputation head consumes.
 \item \textbf{The consent grant as a priceable object} --- a hosted-trust offering is
 the transfer of a consent grant (Invariant~\ref{def:consent}) to a third party, which the
-economy paper prices.
+pricing model in \pdchapref{he}{The Harbor Economy} must specify.
 \item \textbf{Operator-attention economics} --- the loss in
 \S\ref{sec:operator} offers a model for pricing inspection and errors when
 supervising a rented fleet. Estimating those costs and checking the inspection
@@ -3953,9 +3975,17 @@ The Leviathan that makes your swarm legible to you, without lying to you with a 
 map, is the product. Everything above it --- federation, the market --- is a second
 Leviathan made of the first.
 
+\keyidea[Local oversight comes before markets]{A single-operator tool can help
+Alice authorize work, inspect supporting evidence and record unfinished
+obligations before any cross-operator market exists. Its contract is already
+substantial: revocable authority, verifiable zoom targets, calibrated demands
+on attention and honest completion records. The later chapters ask what
+additional identity, evaluation and settlement rules are needed when another
+operator must rely on those records.}
+
 \subsection{The open problems, as a map}\label{sec:openproblems}
 
-Table~\ref{tab:open} consolidates the starred exercises into the paper's open-problem
+Table~\ref{tab:open} consolidates the starred exercises into the chapter's open-problem
 surface, with the rung each couples to. They are genuine research problems, not
 homework dressed up.
 
@@ -3982,19 +4012,11 @@ judgment, neither of which the succession price covers
 (Ex.~\ref{ex:ls-succession-corner}) & $\star\star$ & \S\ref{sec:succession-corner} \\
 \bottomrule
 \end{tabular}
-\caption{The paper's open problems, consolidated from the starred exercises, with
+\caption{The chapter's open problems, consolidated from the starred exercises, with
 difficulty and the mechanism each couples to. Several couple this layer forward to the
 identity-and-reputation layer, which is the seam the accompanying chapters carry.}
 \label{tab:open}
 \end{table}
-
-\keyidea[Local oversight comes before markets]{The wedge is a single-player product a solo developer pays for \emph{today} ---
-no economy, no cryptography, no second operator. It justifies the authority (the swarm
-is a state of nature; consent to a \emph{legible local} Leviathan is rational), sets
-the product's quality bar (legibility-with-zoom, verifiable targets, SDT-spined
-friction, honest completion), and connects forward (legible continuity is the
-foundation of any future market). Build the harbor first; the trade comes when
-the ships do.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
@@ -4350,7 +4372,7 @@ them being built. This appendix --- and \emph{only} this appendix --- records th
 concrete engineering status of each mechanism in the reference implementation, named
 \emph{Port Daddy}. We use four honest labels, with one rule for the whole table:
 confusing what is \emph{implemented} with what is merely \emph{specified} is itself
-the failure the paper argues against, so each row carries its evidence.
+the failure this chapter argues against, so each row carries its evidence.
 
 \smallskip
 \noindent\Built\ = code exists in the reference implementation today; \BuiltWeak\ =
@@ -4361,7 +4383,7 @@ in this chapter with no design document yet.
 \smallskip
 \noindent A second key, in the same grammar, labels \emph{claims} rather than code.
 Every formal result in this chapter carries exactly one of these markers directly under
-it, and the paper carries no free-text status notes outside them:
+it; this chapter uses those markers as follows:
 \Verified\ = independently re-derived and checked numerically, or subjected to a
 pre-registered falsification sweep, outside this document; \Proved\ = argued here with
 a proof or proof sketch and not independently checked; \Unproved\ = stated as a design

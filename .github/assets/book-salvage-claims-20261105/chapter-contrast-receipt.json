@@ -1,0 +1,155 @@
+{
+  "capturedAt": "2026-11-05T12:58:47.156Z",
+  "scope": "Actual local chapter-page panel screenshots and computed contrast. Book PDF/download evidence is separately frozen; these checks do not cover a production deployment.",
+  "url": "http://127.0.0.1:8138/whitepaper/single-writer-kernel",
+  "cases": [
+    {
+      "width": 1440,
+      "height": 1100,
+      "theme": "light",
+      "file": "chapter-primer-desktop-light.png",
+      "sha256": "67771e80a54ccbacbd14ae7305fa47f96c750216881b8cf968444ae4b53dfebd",
+      "background": "rgb(0, 63, 184)",
+      "items": [
+        {
+          "tag": "SPAN",
+          "text": "Start here",
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "14px",
+          "fontWeight": "500",
+          "contrast": 8.177859782333167
+        },
+        {
+          "tag": "H2",
+          "text": "The big idea, in one paragraph.",
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "53.6px",
+          "fontWeight": "700",
+          "contrast": 8.177859782333167
+        },
+        {
+          "tag": "P",
+          "text": "Many programs on one laptop want the same scarce things at the same time: a netw",
+          "color": "rgb(237, 244, 255)",
+          "fontSize": "18px",
+          "fontWeight": "400",
+          "contrast": 7.900151473179579
+        }
+      ],
+      "viewport": 1440,
+      "scroll": 1440,
+      "pageErrors": []
+    },
+    {
+      "width": 1440,
+      "height": 1100,
+      "theme": "dark",
+      "file": "chapter-primer-desktop-dark.png",
+      "sha256": "c4fea453e46190cb8065aac2451eb907ffc56c78b1f2f575d1173b69c3257403",
+      "background": "rgb(125, 180, 255)",
+      "items": [
+        {
+          "tag": "SPAN",
+          "text": "Start here",
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "14px",
+          "fontWeight": "500",
+          "contrast": 8.782072285688347
+        },
+        {
+          "tag": "H2",
+          "text": "The big idea, in one paragraph.",
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "53.6px",
+          "fontWeight": "700",
+          "contrast": 8.782072285688347
+        },
+        {
+          "tag": "P",
+          "text": "Many programs on one laptop want the same scarce things at the same time: a netw",
+          "color": "rgb(40, 54, 74)",
+          "fontSize": "18px",
+          "fontWeight": "400",
+          "contrast": 5.734305850523725
+        }
+      ],
+      "viewport": 1440,
+      "scroll": 1440,
+      "pageErrors": []
+    },
+    {
+      "width": 390,
+      "height": 1100,
+      "theme": "light",
+      "file": "chapter-primer-phone-light.png",
+      "sha256": "34a9af6c9f9561b3fe663dbbc94a778aef2b19bf5c211af537061b0cd662745e",
+      "background": "rgb(0, 63, 184)",
+      "items": [
+        {
+          "tag": "SPAN",
+          "text": "Start here",
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "14px",
+          "fontWeight": "500",
+          "contrast": 8.177859782333167
+        },
+        {
+          "tag": "H2",
+          "text": "The big idea, in one paragraph.",
+          "color": "rgb(251, 247, 239)",
+          "fontSize": "34.4px",
+          "fontWeight": "700",
+          "contrast": 8.177859782333167
+        },
+        {
+          "tag": "P",
+          "text": "Many programs on one laptop want the same scarce things at the same time: a netw",
+          "color": "rgb(237, 244, 255)",
+          "fontSize": "18px",
+          "fontWeight": "400",
+          "contrast": 7.900151473179579
+        }
+      ],
+      "viewport": 390,
+      "scroll": 390,
+      "pageErrors": []
+    },
+    {
+      "width": 390,
+      "height": 1100,
+      "theme": "dark",
+      "file": "chapter-primer-phone-dark.png",
+      "sha256": "1bd3ed0942eb64424efa5301545d5e820c1ccf2c4fb21ab0340989bb083708fb",
+      "background": "rgb(125, 180, 255)",
+      "items": [
+        {
+          "tag": "SPAN",
+          "text": "Start here",
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "14px",
+          "fontWeight": "500",
+          "contrast": 8.782072285688347
+        },
+        {
+          "tag": "H2",
+          "text": "The big idea, in one paragraph.",
+          "color": "rgb(18, 18, 18)",
+          "fontSize": "34.4px",
+          "fontWeight": "700",
+          "contrast": 8.782072285688347
+        },
+        {
+          "tag": "P",
+          "text": "Many programs on one laptop want the same scarce things at the same time: a netw",
+          "color": "rgb(40, 54, 74)",
+          "fontSize": "18px",
+          "fontWeight": "400",
+          "contrast": 5.734305850523725
+        }
+      ],
+      "viewport": 390,
+      "scroll": 390,
+      "pageErrors": []
+    }
+  ]
+}

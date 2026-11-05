@@ -16,6 +16,20 @@ const PART_INK: Record<string, string> = {
   pdgold: 'var(--ui-ink-gold)',
 }
 
+/** Thematic art sits beside the outline; mechanisms remain in the chapter diagrams. */
+const PART_ART: Record<string, { file: string; alt: string; caption: string }> = {
+  machine: {
+    file: 'fig-ch0-lifecycle-hooks.jpg',
+    alt: 'A gear enclosed by a dark boundary, with a red stop at its edge.',
+    caption: 'An action can be refused where it crosses a controlled boundary.',
+  },
+  market: {
+    file: 'fig-ch0-cnp-settlement.jpg',
+    alt: 'Two locks beside a shared compartment.',
+    caption: 'Work shared between operators needs an agreement about who may release the funds.',
+  },
+}
+
 /** One navigable outline; chapter destinations are explicitly labelled overviews. */
 function BookContents() {
   return (
@@ -28,6 +42,7 @@ function BookContents() {
             <span className="book-part-number">Part {part.numeral}</span>
             {part.title}
           </h3>
+          <div className={`book-part-body${PART_ART[part.id] ? ' book-part-illustrated' : ''}`}>
           <ol className="book-chapters">
             {part.papers.map((paper) => {
               const record = chapterRecordFor(paper.id)
@@ -44,6 +59,20 @@ function BookContents() {
               )
             })}
           </ol>
+          {PART_ART[part.id] && (
+            <figure className="book-part-art">
+              <img
+                src={`/whitepaper/plates/swiss/${PART_ART[part.id].file}`}
+                width={1376}
+                height={768}
+                alt={PART_ART[part.id].alt}
+                loading="lazy"
+                decoding="async"
+              />
+              <figcaption>{PART_ART[part.id].caption}</figcaption>
+            </figure>
+          )}
+          </div>
         </section>
       ))}
     </section>

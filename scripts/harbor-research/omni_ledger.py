@@ -170,6 +170,14 @@ def render_text(data=None):
             out += ['**Correction dispositions:**', '']
             out += [f'- **{c["issue"]}:** {c["disposition"]}' for c in r['corrections']]
             out.append('')
+        for entry in r.get('editorial_changelog', []):
+            out += [f'**Editorial log — {entry["date"]}** ({entry["status"]}; manuscript dated {entry["manuscript_date"]}). Kept outside the published book and source download.', '']
+            out += ['- ' + item for item in entry['items']]
+            out.append('')
+            if entry.get('exclusions'):
+                out += ['**Excluded after review:**', '']
+                out += ['- ' + item for item in entry['exclusions']]
+                out.append('')
         if r.get('next_protocol'):
             out += ['**Next bounded research protocol:**', '']
             for key, value in r['next_protocol'].items():

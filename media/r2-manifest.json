@@ -31,12 +31,110 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 415,
-    "distinctObjects": 380,
-    "bytes": 126139754,
-    "distinctBytes": 123462734
+    "assets": 429,
+    "distinctObjects": 394,
+    "bytes": 129372295,
+    "distinctBytes": 126695275
   },
   "assets": [
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-contents-spread.png",
+      "bytes": 288894,
+      "sha256": "8a6aee6b9304e3ff63d743171a2968afc8fca616cd39311690dba4bb4fb1be9d",
+      "key": "sha256/8a/8a6aee6b9304e3ff63d743171a2968afc8fca616cd39311690dba4bb4fb1be9d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-decoded-claims-spread.png",
+      "bytes": 342273,
+      "sha256": "0f7ea759fe0e203f57c4bf280009eff8ae79b2dcf5e9b41591f3b1a4d32cc83d",
+      "key": "sha256/0f/0f7ea759fe0e203f57c4bf280009eff8ae79b2dcf5e9b41591f3b1a4d32cc83d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-desktop-200-percent.png",
+      "bytes": 264391,
+      "sha256": "4847fc7f7abc7c605c34c366c01a880486896ec34a96fed3414a814aaa557d35",
+      "key": "sha256/48/4847fc7f7abc7c605c34c366c01a880486896ec34a96fed3414a814aaa557d35.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-desktop-dark.png",
+      "bytes": 211823,
+      "sha256": "726a27031e76f5200392ce584765c63f49829c9141c0edd886bdd188416bdf8b",
+      "key": "sha256/72/726a27031e76f5200392ce584765c63f49829c9141c0edd886bdd188416bdf8b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-desktop-light.png",
+      "bytes": 210828,
+      "sha256": "a4aee1e91eeae4d19e461c0531703c7fa2c5a7dd90fc254651668c9dfbfa42af",
+      "key": "sha256/a4/a4aee1e91eeae4d19e461c0531703c7fa2c5a7dd90fc254651668c9dfbfa42af.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-phone-200-percent.png",
+      "bytes": 81217,
+      "sha256": "27c01b76a02dd59dc297316a4632ce53da5463e0707acc20674ed977af173156",
+      "key": "sha256/27/27c01b76a02dd59dc297316a4632ce53da5463e0707acc20674ed977af173156.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-phone-dark.png",
+      "bytes": 84944,
+      "sha256": "1f42d3333951db4bed8634e0f4eb74a55939736c6ff139b1127dc6bbbfa07e37",
+      "key": "sha256/1f/1f42d3333951db4bed8634e0f4eb74a55939736c6ff139b1127dc6bbbfa07e37.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-phone-light.png",
+      "bytes": 83991,
+      "sha256": "f61487348eed551c7d0e774847e170d16d7bd5e82b74d64c0b7f8e97ceea5849",
+      "key": "sha256/f6/f61487348eed551c7d0e774847e170d16d7bd5e82b74d64c0b7f8e97ceea5849.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-preface-spread.png",
+      "bytes": 154437,
+      "sha256": "f29f45e023d70c1cfb1559ac3d04aa40c90e57ff2f531e8e88ea65997990f731",
+      "key": "sha256/f2/f29f45e023d70c1cfb1559ac3d04aa40c90e57ff2f531e8e88ea65997990f731.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/book-public-navigation.webm",
+      "bytes": 1102890,
+      "sha256": "6371b1d6365ba958df34bfb063e0eaa126918278041cdd25329b70789e9f0517",
+      "key": "sha256/63/6371b1d6365ba958df34bfb063e0eaa126918278041cdd25329b70789e9f0517.webm",
+      "contentType": "video/webm"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/chapter-primer-desktop-dark.png",
+      "bytes": 99316,
+      "sha256": "c4fea453e46190cb8065aac2451eb907ffc56c78b1f2f575d1173b69c3257403",
+      "key": "sha256/c4/c4fea453e46190cb8065aac2451eb907ffc56c78b1f2f575d1173b69c3257403.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/chapter-primer-desktop-light.png",
+      "bytes": 98390,
+      "sha256": "67771e80a54ccbacbd14ae7305fa47f96c750216881b8cf968444ae4b53dfebd",
+      "key": "sha256/67/67771e80a54ccbacbd14ae7305fa47f96c750216881b8cf968444ae4b53dfebd.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/chapter-primer-phone-dark.png",
+      "bytes": 104902,
+      "sha256": "1bd3ed0942eb64424efa5301545d5e820c1ccf2c4fb21ab0340989bb083708fb",
+      "key": "sha256/1b/1bd3ed0942eb64424efa5301545d5e820c1ccf2c4fb21ab0340989bb083708fb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-salvage-claims-20261105/chapter-primer-phone-light.png",
+      "bytes": 104245,
+      "sha256": "34a9af6c9f9561b3fe663dbbc94a778aef2b19bf5c211af537061b0cd662745e",
+      "key": "sha256/34/34a9af6c9f9561b3fe663dbbc94a778aef2b19bf5c211af537061b0cd662745e.png",
+      "contentType": "image/png"
+    },
     {
       "path": ".github/assets/relay-github-429-classification/ships-rate-limited.png",
       "bytes": 41107,

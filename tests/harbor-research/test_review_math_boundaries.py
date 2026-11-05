@@ -4,6 +4,7 @@ These are synthetic arithmetic/linear-algebra checks, not deployment evidence,
 empirical workload studies, or substitutes for the manuscript's proofs.
 """
 import itertools
+import json
 import math
 import unittest
 from fractions import Fraction as F
@@ -135,9 +136,42 @@ class ReviewMathBoundaries(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         rust = (root / 'core/harbor-card-rs/src/lib.rs').read_text()
         tex = (root / 'book/anchor-protocol-whitepaper.tex').read_text()
-        pattern = r'#\[kani::unwind\((\d+)\)\]\s*fn proof_verify_logic_only'
-        self.assertEqual(re.search(pattern, rust).group(1),
-                         re.search(pattern, tex).group(1))
+        corpus = json.loads((root / 'book/corpus.json').read_text())
+        parser_entries = [entry for entry in corpus['formalArtifacts']
+                          if entry.get('harnessName') == 'proof_verify_logic_only']
+        self.assertEqual(len(parser_entries), 1)
+        policy = parser_entries[0]['evidencePolicy']
+
+        def check_bounds(source, chapter, evidence_policy):
+            # Anchor to the parser function, not a comment or another harness.
+            source_bounds = re.findall(
+                r'(?m)^[ \t]*#\[kani::unwind\((\d+)\)\]\s*'
+                r'fn proof_verify_logic_only\b', source)
+            # The book presents the decoded-policy listing and states the
+            # separate parser bound in prose; a duplicate parser listing is
+            # neither required nor authoritative.
+            chapter_bounds = re.findall(
+                r'32-byte\s+parser\s+harness\s+has\s+unwind\s+bound\s+(\d+)',
+                chapter)
+            policy_bounds = re.findall(r'\bunwind\s+(\d+)\b', evidence_policy)
+            self.assertEqual(source_bounds, ['128'])
+            self.assertEqual(chapter_bounds, source_bounds)
+            self.assertEqual(policy_bounds, source_bounds)
+
+        check_bounds(rust, tex, policy)
+        # A stale or missing bound on any of the three surfaces must still
+        # fail. These controls keep this wording repair from weakening the gate.
+        for name, source, chapter, evidence_policy in (
+            ('source drift', rust.replace('#[kani::unwind(128)]', '#[kani::unwind(64)]'), tex, policy),
+            ('chapter drift', rust, tex.replace('parser harness has unwind bound 128',
+                                                'parser harness has unwind bound 64'), policy),
+            ('registry drift', rust, tex, policy.replace('unwind 128', 'unwind 64')),
+            ('missing chapter bound', rust, tex.replace('parser harness has unwind bound 128',
+                                                        'parser harness has a bounded unwind'), policy),
+        ):
+            with self.subTest(control=name):
+                with self.assertRaises(AssertionError):
+                    check_bounds(source, chapter, evidence_policy)
 
     def test_market_handoff_has_one_canonical_label(self):
         root = Path(__file__).resolve().parents[2]

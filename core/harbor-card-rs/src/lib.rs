@@ -348,6 +348,45 @@ fn ceiling_is_attenuated(root: Option<u64>, sub: Option<u64>) -> bool {
     }
 }
 
+/// The post-decoding policy used by the signed-token acceptance path.
+///
+/// This private function is not an authenticator: `verify` calls it only after
+/// signature verification and JSON decoding. Keeping the policy separate lets
+/// Kani quantify over decoded fields without stubbing them to invalid JSON.
+/// Key selection, decoding, signatures, issuer/audience binding, and revocation
+/// remain outside the decoded-policy proof.
+fn validate_decoded_claims(claims: &HarborCardClaims, now_ts: i64) -> Result<(), HarborError> {
+    if claims.hv != HARBOR_CARD_VERSION {
+        return Err(HarborError::WrongVersion {
+            expected: HARBOR_CARD_VERSION,
+            actual: claims.hv,
+        });
+    }
+
+    // Issued-at validation (Rust-only, see the divergence note above). A
+    // token dated after its own expiry is incoherent; a token dated
+    // meaningfully into the future is clock-skew abuse or a forgery attempt.
+    if claims.iat > claims.exp {
+        return Err(HarborError::Malformed);
+    }
+    if claims.iat > now_ts.saturating_add(MAX_CLOCK_SKEW_SECS) {
+        return Err(HarborError::IssuedInFuture);
+    }
+
+    if now_ts > claims.exp {
+        return Err(HarborError::Expired);
+    }
+
+    // `nbf == 0` is treated as absent to match auth.ts's JS-truthiness test.
+    if let Some(nbf) = claims.nbf {
+        if nbf != 0 && now_ts < nbf {
+            return Err(HarborError::NotYetValid);
+        }
+    }
+
+    Ok(())
+}
+
 impl HarborCardVerifier {
     /// Build a verifier from a raw 32-byte Ed25519 public key.
     ///
@@ -534,33 +573,7 @@ impl HarborCardVerifier {
         payload_bytes.zeroize();
         let claims = claims?;
 
-        if claims.hv != HARBOR_CARD_VERSION {
-            return Err(HarborError::WrongVersion {
-                expected: HARBOR_CARD_VERSION,
-                actual: claims.hv,
-            });
-        }
-
-        // Issued-at validation (Rust-only, see the divergence note above). A
-        // token dated after its own expiry is incoherent; a token dated
-        // meaningfully into the future is clock-skew abuse or a forgery attempt.
-        if claims.iat > claims.exp {
-            return Err(HarborError::Malformed);
-        }
-        if claims.iat > now_ts.saturating_add(MAX_CLOCK_SKEW_SECS) {
-            return Err(HarborError::IssuedInFuture);
-        }
-
-        if now_ts > claims.exp {
-            return Err(HarborError::Expired);
-        }
-
-        // `nbf == 0` is treated as absent to match auth.ts's JS-truthiness test.
-        if let Some(nbf) = claims.nbf {
-            if nbf != 0 && now_ts < nbf {
-                return Err(HarborError::NotYetValid);
-            }
-        }
+        validate_decoded_claims(&claims, now_ts)?;
 
         Ok(claims)
     }
@@ -620,8 +633,8 @@ mod stubs {
 // `#[kani::unwind(128)]` below: the bound must clear the per-byte loops that run over the 32-byte
 // symbolic token: `from_utf8` validation and the (stubbed-input) base64
 // decode. 128 leaves headroom above 32 without making the parser harness,
-// which is the nightly job, take hours; the two fast harnesses below have
-// no data-dependent loops and use the default bound.
+// which is the manual job, take hours. The decoded-claims and capability
+// harnesses in kani_claims use separately stated finite domains and bounds.
 #[cfg(kani)]
 #[kani::proof]
 #[kani::stub(HarborCardVerifier::internal_pk_from_bytes, stubs::pk_from_bytes_stub)]
@@ -647,15 +660,13 @@ fn proof_constant_time_behavior() {
     let _ = HarborCardVerifier::constant_time_compare(&a, &b);
 }
 
+// Decoded-policy and capability harnesses exercise the same predicates used
+// above; bounds, successful paths, and rejected paths are explicit in the module.
+#[cfg(any(kani, test))]
+mod kani_claims_domain;
+
 #[cfg(kani)]
-#[kani::proof]
-fn proof_capability_attenuation() {
-    let root = vec!["read".to_string(), "write".to_string()];
-    let mut sub = vec!["read".to_string()];
-    assert!(HarborCardVerifier::verify_capability_subset(&root, &sub));
-    sub.push("admin".to_string());
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &sub));
-}
+mod kani_claims;
 
 // ─── FFI / Shared Library Boundary ──────────────────────────────────────────
 
@@ -802,6 +813,50 @@ mod tests {
             "jti": "abc123",
             "cap": [{"op": "sub", "channel": "logs.*"}],
         })
+    }
+
+    #[test]
+    fn decoded_policy_is_reached_by_real_signed_cards() {
+        let (key, verifier) = test_verifier();
+        let mut c = claims_with(950, 1000);
+        c["nbf"] = serde_json::json!(980);
+        let token = issue_token(&key, &c);
+        let admitted = verifier
+            .verify_for_channel(&token, 990, "sub", "logs.build")
+            .unwrap();
+        assert_eq!(admitted.sub, "agent-1");
+        assert_eq!(admitted.jti, "abc123");
+        assert_eq!(admitted.exp, 1000);
+        assert!(matches!(
+            verifier.verify(&token, 1001),
+            Err(HarborError::Expired)
+        ));
+        assert!(matches!(
+            verifier.verify(&token, 979),
+            Err(HarborError::NotYetValid)
+        ));
+        assert!(matches!(
+            verifier.verify_for_channel(&token, 990, "pub", "logs.build"),
+            Err(HarborError::InsufficientCapability)
+        ));
+        c["iat"] = serde_json::json!(1001);
+        let incoherent = issue_token(&key, &c);
+        assert!(matches!(
+            verifier.verify(&incoherent, 990),
+            Err(HarborError::Malformed)
+        ));
+    }
+
+    #[test]
+    fn root_only_subset_check_misses_a_decoded_second_hop_escalation() {
+        let root = [cap("admin", "a*")];
+        let child = [cap("sub", "ab")];
+        let leaf = [cap("pub", "ab")];
+        assert!(verify_capability_subset_structured(&root, &child));
+        assert!(verify_capability_subset_structured(&root, &leaf));
+        assert!(!verify_capability_subset_structured(&child, &leaf));
+        assert!(capability_matches(&child, "sub", "ab").is_some());
+        assert!(capability_matches(&child, "pub", "ab").is_none());
     }
 
     #[test]
