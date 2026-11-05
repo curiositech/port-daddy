@@ -55,7 +55,7 @@ def check_nomint(text):
 
 
 def check_trade(text):
-    require_groups(text, [r"Theorem~\ref{thm:ms} requires a tradeoff", "Any mechanism satisfying",
+    require_groups(text, ["The following particular double auction", "Any mechanism satisfying",
                          "Take Bob's value", "Integrating over the whole square",
                          "Efficient trade is possible", "Counting opportunities",
                          "These are properties"])
@@ -67,12 +67,37 @@ def check_trade(text):
                            r"M^{-2}\int_0^{M/4}x(M-x)\,dx=5M/192",
                            r"5/32=15.625\%"])
     for required in ["drawn independently and uniformly", "not evidence for this illustrative distribution",
+                     "does not identify which property the whole harbor market must sacrifice",
                      "has Bob bid and Alice ask, respectively", r"\emph{all draws}",
                      r"\emph{efficient opportunities}", "not a universal inefficiency percentage",
                      "not measurements of the harbor market", "[internal; algebra shown]",
                      r"\pdcite{chatterjee1983}"]:
         if required not in " ".join(text.split()):
             raise AssertionError("Trade scope, denominator or provenance changed: " + required)
+
+
+def grant_example(source):
+    start = source.index(r"\scene{Alice, 3:25 p.m.}{")
+    return source[start:source.index(r"\end{pdclaim}", start)]
+
+
+def check_grant(text):
+    flat = " ".join(text.split())
+    for phrase in ["Alice grants two hours of low-stakes, reversible",
+                   "original acceptance test remains intact",
+                   "test deletion fails the preserved-test condition",
+                   "migration change is outside the subtree",
+                   "force-push is outside the grant",
+                   "no permission to execute them",
+                   "Its scope must include the acceptance-preservation rule, not merely a path glob",
+                   r"\textsc{stakes-ceiling}\ s_{\max}",
+                   r"\textsc{reversibility-floor}\ v_{\min}",
+                   r"\textsc{ttl},\ \textsc{revocable}",
+                   "preserving the original checkout acceptance test, for two hours",
+                   "neither unrelated changes nor deployment"]:
+        if phrase not in flat:
+            raise AssertionError("Consent scope or scene/formal agreement changed: " + phrase)
+    require_groups(text, ["Alice grants", "The tuple below"])
 
 
 class DecompressedBlocks(unittest.TestCase):
@@ -82,13 +107,22 @@ class DecompressedBlocks(unittest.TestCase):
     def test_trade_keeps_three_denominators_and_model_scope_distinct(self):
         check_trade(example(TRADE.read_text(), "Efficient Trade That the Mechanism Still Refuses"))
 
-    def test_mara_grant_and_observable_consequences_are_separate(self):
-        text = SWARM.read_text().split(r"\scene{Mira, 3:25 p.m.}{", 1)[1].split(r"\begin{pdclaim}", 1)[0]
-        require_groups(text, ["Burned by the morning's chaos", "The grant is a single line"])
-        for phrase in ["auto-land reversible diffs under low stakes", "next two hours",
-                       r"She does \emph{not} grant migration", r"$v_{\min}$",
-                       "escalated to her instead of executed"]:
-            self.assertIn(phrase, " ".join(text.split()))
+    def test_alice_grant_and_observable_consequences_are_separate(self):
+        check_grant(grant_example(SWARM.read_text()))
+
+    def test_grant_rejects_duration_and_scope_drift(self):
+        text = grant_example(SWARM.read_text())
+        for old, new in [("two hours", "24 hours"),
+                         ("preserved-test condition", "path condition"),
+                         ("no permission to execute", "permission to execute"),
+                         ("preserving the original checkout acceptance test",
+                          "replacing the original checkout acceptance test")]:
+            with self.subTest(change=new):
+                self.assertIn(old, " ".join(text.split()))
+                mutant = re.sub(re.escape(old).replace(r"\ ", r"\s+"), new, text)
+                self.assertNotEqual(mutant, text)
+                with self.assertRaises(AssertionError):
+                    check_grant(mutant)
 
     def test_tower_assumptions_threshold_recurrence_and_depth_are_separate(self):
         source = SPAWN.read_text()

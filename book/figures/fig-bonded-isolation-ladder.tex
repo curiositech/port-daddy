@@ -1,26 +1,14 @@
 % Brief (tikz-diagram-craft). Register row ch7-11 (should).
-% Reader question: how do the three isolation tiers order, and what does
-%   each buy or cost?
-% Claim: the three tiers strictly order by strength (I0 subset I1 subset
-%   I2); I1 is the default; choosing I1 vs I2 is an economics decision
-%   (Section 5), not a security one.
-% Evidence: book/agent-transactions-whitepaper.tex
-%   Definition (Isolation Levels), sec:isolation: I0 none (shared working
-%   directory, no conflict detection, maximum parallelism, no safety); I1
-%   advisory (shared directory, file claims registered, conflicts detected
-%   and reported but not enforced -- the default); I2 structural (separate
-%   git worktrees, filesystem-level isolation, conflicts deferred to
-%   sequential merge).
-% Must distinguish: the strict ordering by strength from what each rung
-%   adds relative to the one below; I1 as the default from I0/I2 as
-%   deliberate choices; the I1-vs-I2 choice as economic, forward-pointing
-%   to Section 5's Sen-grounded argument.
-% Grammar chosen: three-rung ordered ladder (Hasse-style containment), each
-%   rung naming what it adds and its cost, weakest at the bottom. Rejected:
-%   a plain enumerated list, which the chapter already gives in prose and
-%   would not show the strict-subset ordering the definition states.
-% Five-second test: a reader reads bottom-to-top as "less safety, more
-%   parallelism" and top-to-bottom as the reverse, with I1 marked default.
+% Reader question: what changes between shared editing, advisory claims,
+% and separate working copies?
+% Claim: advisory claims report overlap; worktrees separate ordinary edits.
+% Neither mechanism alone confines access or guarantees conflict-free merges.
+% Evidence: book/agent-transactions-whitepaper.tex, sec:isolation.
+% I1 is the chapter's declared default, not a measured deployment frequency.
+% Must distinguish: claim reporting, edit separation, and access confinement.
+% Grammar: a vertical mechanism comparison; arrows name the added mechanism,
+% not a security order, set containment, or universal parallelism tradeoff.
+% Five-second test: identify what reports overlap and what separates edits.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdgold}%
@@ -30,30 +18,29 @@
   \tikzset{rung/.style={pd label,minimum width=\ldw cm,minimum height=2.3cm,
     draw,line width=.9pt,align=left,text width=6.9cm,inner xsep=8pt,inner ysep=8pt}}
   \node[rung,pd focus fill,line width=1.6pt] (i2) at (0,{2*\ldy})
-    {\textbf{$I_2$ Structural} --- separate git worktrees; filesystem-level
-     isolation, agents cannot observe each other's intermediate state;
-     conflicts deferred to sequential merge};
+    {\textbf{$I_2$ Structural} --- separate git worktrees keep ordinary
+     edits in separate working copies; access is not confined, and
+     integration conflicts remain possible};
   \node[rung] (i1) at (0,\ldy)
     {\textbf{$I_1$ Advisory} --- shared working directory; file claims
-     registered with the commons authority; conflicts detected and
-     reported, not enforced};
+     registered with the commons authority; claim overlaps reported,
+     writes not blocked};
   \node[rung] (i0) at (0,0)
     {\textbf{$I_0$ None} --- shared working directory; no conflict
-     detection; maximum parallelism, no safety};
+     reporting; ordinary edits share the same files};
   \draw[pd focus arrow] (i0.north) -- (i1.south);
   \draw[pd focus arrow] (i1.north) -- (i2.south);
-  \node[pd label,anchor=west] at (.38,{.5*\ldy}) {stronger};
-  \node[pd label,anchor=west] at (.38,{1.5*\ldy}) {stronger};
+  \node[pd label,anchor=west] at (.38,{.5*\ldy}) {report claims};
+  \node[pd label,anchor=west,align=left] at (.38,{1.5*\ldy}) {separate working\\copies};
   \node[pd kind,anchor=west] at ({\ldw/2+.55},\ldy) {the default};
   \draw[pd hairline] (i1.east) -- ++(.25,0);
   \node[pd note,anchor=north west,text width=2.7cm] at ({\ldw/2+.55},{\ldy-.65})
-    {choosing $I_1$ versus $I_2$: an economics decision, Section 5};
+    {advisory claims do not block writes};
 \end{tikzpicture}
-\caption{The three isolation tiers order strictly by strength, weakest to
-strongest: none, advisory, structural. $I_1$ (advisory) is the default --- file claims
-are registered and reported but never block. Moving up buys more safety at
-the cost of parallelism; the choice between $I_1$ and $I_2$ specifically
-is not a security decision but an economics one, argued in Section 5.
+\caption{Three editing arrangements. Advisory claims report overlap;
+separate worktrees separate ordinary edits. $I_1$ is the chapter's declared
+default. The arrows name mechanisms, not a security order: shared credentials
+may still permit access across worktrees, and integration conflicts remain.
 [internal]}
 \label{fig:bonded-isolation-ladder}
 \end{figure}

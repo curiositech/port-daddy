@@ -27,154 +27,148 @@
 
 \newcommand{\pdchapteropeningswk}{%
   \pdbookrail{\pdchapterquestion}{%
-    Six agents may agree about a file and still overwrite one another. A log can
-    report the collision after the fact; only a mediated writer can refuse the
-    second effect before it lands. This chapter identifies that local writer,
-    separates preventable rules from detect-only claims, and states the work-unit
-    invariants that every later institution assumes. R5 and R8 set the boundary.}%
+    Alice's workers have two repairs based on revision~7. The first question is
+    whether the second may still write after the first commits. This chapter
+    locates the admission boundary, traces a stale request and a crash, and
+    distinguishes a recorded conflict from a prevented effect.}%
 }
 
 \newcommand{\pdchapterhandoffswk}{%
   \pdbookrail{What \pdchapref{anchor}{The Anchor Protocol} receives}{%
-    Under the stated transaction and mediation assumptions, admitted local effects
-    have a serial history, a fencing epoch, and a place to attach receipts.
-    The writer decides which requests take effect; it does not yet identify
-    who may ask it to. The next chapter turns authority into a key-bound,
-    attenuating, revocable object, so that every request the kernel admits
-    arrives with a checked pedigree.}%
+    The repair now has a work-unit record, version checks and a stated recovery
+    contract. These mechanisms distinguish a current proposal from a stale one;
+    they do not determine who owns the repository. Next Bob must grant Alice
+    precisely the authority needed for the job, including what her workers may
+    inherit.}%
 }
 
 \newcommand{\pdchapteropeninganchor}{%
   \pdbookrail{\pdchapterquestion}{%
-    Identity answers who signed; it does not answer what the signer may do.
-    Anchor therefore checks every delegation edge, binds the grant to a key and
-    audience, narrows scope and lifetime, and preserves revocation ancestry.
-    The formal claim concerns the checked protocol and Rust paths, while R5
-    explains which surrounding policy promises can become admission gates.}%
+    Bob permits a checkout repair, not an unrelated migration or deployment.
+    Alice delegates part of that work to Heron. This chapter follows the grant
+    through signing, narrowing, presentation and revocation. The receiver must
+    verify both the credential and its authority over the requested resource.}%
 }
 
 \newcommand{\pdchapterhandoffanchor}{%
   \pdbookrail{What \pdchapref{sealed}{The Sealed Harbor} receives}{%
-    A request now arrives with authenticated, narrowing authority, and the kernel
-    that admits it keeps one durable history. Some work needs more than an
-    authorized writer: it needs a room in which two parties who trust neither
-    each other nor the venue can still get one answer out. The next chapter
-    builds that room and prices what can leave it through the slot.}%
+    A verified grant can identify the permitted resource and action. It does
+    not answer every disclosure question. Suppose diagnosis needs Derek's
+    private checkout records and Erin's private model: neither owner has given
+    Bob or Alice unrestricted access. The next chapter specifies how an answer
+    may leave while their inputs remain subject to separate release policies.}%
 }
 
 \newcommand{\pdchapteropeningsealed}{%
   \pdbookrail{\pdchapterquestion}{%
-    A model owner and a data owner want a shared answer while keeping their
-    respective inputs private. The kernel refuses a write it has not
-    authorized and the Anchor checks who asked; neither says what may leave a
-    room through the only slot in its wall. This chapter builds the sealed room:
-    one work order, two fences, two gates, and four properties, each stated at
-    the strength its check earns. R9, R10, and R11 govern its strongest claims.}%
+    Derek supplies confidential records; Erin supplies the diagnostic model.
+    They want a useful checkout diagnosis without releasing either input to
+    the other party. We first write the work order and trace the permitted
+    output, then state the channel, host and verifier assumptions needed to
+    justify the confidentiality claims.}%
 }
 
 \newcommand{\pdchapterhandoffsealed}{%
   \pdbookrail{What \pdchapref{ls}{The Legible Swarm} receives}{%
-    The machine's proposed contract combines an ordered writer, checked
-    authority, and explicit release gates. Each guarantee retains its stated
-    trust, observation, and channel assumptions. An operator may now receive
-    a permitted result without seeing the private inputs or internal computation.
-    The next chapter studies that evidence boundary alongside a second limit:
-    even visible events can arrive faster than a person can inspect them.
-    What must a summary preserve, and when must the reader open the evidence?}%
+    Alice may receive a permitted diagnosis without seeing the private evidence
+    behind it. Other evidence is visible but too voluminous to read in full.
+    These are different limits. The next chapter asks which observations a
+    supervisor needs to distinguish a real repair from a deleted test or an
+    overbroad patch, and how a summary should direct that inspection.}%
 }
 
 % ---- Part II: The Operator -----------------------------------------------
 
 \newcommand{\pdchapteropeningls}{%
   \pdbookrail{\pdchapterquestion}{%
-    A swarm can produce more events than its operator can read, and some
-    underlying evidence may be private. The resulting scarcity is not cured
-    by a smoother summary: an omitted artifact may be decisive. This chapter
-    bounds zero-miss inspection in a stated model, gives an extractive-summary
-    example in which a successor and an operator need different records, and
-    derives an attention rule from explicit error costs. R1--R4, R14, and R16
-    state the assumptions behind those results.}%
+    Drake deletes the failing test. Wren fixes the defect but includes an
+    unrelated migration. Heron contributes an acceptable repair. All three can
+    produce an encouraging status line. This chapter asks what Alice must
+    inspect, which records a successor needs, and how those demands compete
+    for limited attention. Each bound uses an explicit observation model.}%
 }
 
 \newcommand{\pdchapterhandoffls}{%
   \pdbookrail{What \pdchapref{stp}{From Spawn to Person} receives}{%
-    The operator now has a disciplined read surface: claims remain linked to
-    artifacts, attention is priced, and uncertainty is visible. A process can
-    still die, restart under a new model, or shed its local memory. The next
-    chapter asks what must persist so yesterday's act can still be attributed
-    tomorrow.}%
+    The supervisor can now ask which artifact supports a claim and which
+    uncertainty remains. Tomorrow, however, Heron's process may be gone.
+    To attribute its contribution and recover what it still owes, the next
+    chapter separates an execution instance from a persistent participant and
+    the principal responsible for it.}%
 }
 
 % ---- Part III: The Person ------------------------------------------------
 
 \newcommand{\pdchapteropeningstp}{%
   \pdbookrail{\pdchapterquestion}{%
-    Accountability cannot attach to a disposable process name. It needs a
-    durable identity, a named principal, an outcome history, and rules for
-    migration that do not erase sanctions or mint reputation. This chapter
-    builds that continuity without pretending software has a human soul. R12,
-    R13, and B6 govern its economic and protocol claims.}%
+    Heron's process exits before all of its work is settled. A replacement can
+    load the patch, but a new process label does not say which obligations or
+    sanctions remain. This chapter defines the continuity needed to connect
+    those records, then tests what reputation can and cannot mean under reset,
+    migration and changing execution models.}%
 }
 
 \newcommand{\pdchapterhandoffstp}{%
   \pdbookrail{What \pdchapref{he}{The Harbor Economy} receives}{%
-    A successor inherits bounded history and obligations, not new credit.
-    The next chapter asks how that attributed work can be exchanged, and
-    separates value, collateral, evidence, and settlement.}%
+    A persistent participant links the repair to a responsible principal and
+    retained outcomes. It does not make the work valuable or the reports true.
+    The next chapter gives Bob and Alice an explicit purchase contract, with
+    separate payment, collateral, evidence and settlement rules.}%
 }
 
 % ---- Part IV: The Market -------------------------------------------------
 
 \newcommand{\pdchapteropeninghe}{%
   \pdbookrail{\pdchapterquestion}{%
-    A payment rail moves money; a market must also identify the parties, state
-    what performance means, reserve the right funds, and decide what happens
-    when evidence disagrees. This chapter constructs that market from four
-    separate monetary buckets and explicit oracles. R7 and R13--R15 delimit the
-    audit, substitution, escalation, and specialization claims.}%
+    Bob buys the repair from Alice, who may also lease a runtime and use a
+    metered skill. A labor price alone does not determine what each party
+    receives after success, partial delivery or failure. This chapter follows
+    those amounts through a worked ledger before generalizing the allocation,
+    verification and incentive questions.}%
 }
 
 \newcommand{\pdchapterhandoffhe}{%
   \pdbookrail{What \pdchapref{bonded}{The Bonded Commons} receives}{%
-    The proposed contracts name a principal, a grade, a bond, and a settlement
-    rule. They still need evidence-admission rules, accounting invariants, and
-    limits on remedies. The next chapter formalizes these obligations and
-    distinguishes its bounded model checks from runtime and economic assumptions.}%
+    The contract names the parties, reserves and settlement rule. A disputed
+    result still needs a procedure: who may submit evidence, who decides, and
+    what remedy the decision authorizes. The next chapter keeps those questions
+    separate from the immediate recovery of a worker that has gone silent.}%
 }
 
 \newcommand{\pdchapteropeningbonded}{%
   \pdbookrail{\pdchapterquestion}{%
-    Attribution without consequence is only a diary; consequence without
-    admissible evidence is arbitrary. This chapter turns the local writer into
-    an institution by joining capability bounds, witnessed records, audits,
-    appeals, and conserved settlement. R7--R11, R15, R17, and the R8 machine
-    state exactly what has been proved, checked, or left conditional.}%
+    Heron's heartbeat stops while its contribution is being reviewed. Alice
+    needs to recover the work; Bob may also contest whether the contract was
+    satisfied. Silence alone decides neither question. This chapter develops
+    recovery, adjudication and settlement as distinct procedures, then checks
+    their stated accounting and incentive conditions.}%
 }
 
 \newcommand{\pdchapterhandoffbonded}{%
   \pdbookrail{What \pdchapref{fh}{The Federated Harbor} receives}{%
-    The local model now separates authorization, observation, adjudication,
-    and settlement, with explicit conditions for each.
-    The final chapter asks which capabilities and records may cross to a
-    second operator without giving either machine authority over the other.}%
+    The local institution now has separate rules for admission, recovery,
+    evidence, adjudication and settlement. The repair must next run on a
+    staging host governed by another operator. The final chapter asks which
+    records travel, which authority must be granted there, and which
+    disagreements the available observations can expose.}%
 }
 
 \newcommand{\pdchapteropeningfh}{%
   \pdbookrail{\pdchapterquestion}{%
-    The Relay design carries harbor-scoped events over outbound HTTPS and
-    SSE; event delivery alone neither replicates daemon state nor establishes
-    consensus between operators. Local admission remains local. R6 and
-    CR-1/2/3 then study a different question: under which observation and
-    topology assumptions can relayed reports certify an inconsistency?}%
+    A staging operator receives the repair's signed receipts. They can help
+    establish what an identified sender reported; they do not grant access to
+    the staging machine. This chapter follows local authorization across the
+    boundary, then asks when communication paths can witness inconsistent
+    reports and when they leave a fault unobservable.}%
 }
 
 \newcommand{\pdchapterhandofffh}{%
   \pdbookrail{The conclusion of the book}{%
-    The principles developed here form one discipline. Mediate every effect that must be
-    prevented; let delegated authority only narrow; preserve enough evidence for
-    a human to challenge the system; attach actions to a durable principal and
-    work unit; make settlement conserve value; and cross organizational
-    boundaries by exchanging verifiable records rather than by exporting
-    sovereignty. Better models help inside this discipline. They do not replace
-    it.}%
+    The checkout job has acquired a sequence of inspectable contracts: what
+    may change, who may authorize it, what may be disclosed, what evidence a
+    reader needs, what survives replacement, how money is conserved, and who
+    decides a dispute. Each contract preserves its own assumptions. Together
+    they provide questions and mechanisms for designing accountable work;
+    the book does not establish that every proposed component has been
+    deployed or that their composition removes every failure.}%
 }

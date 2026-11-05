@@ -1007,10 +1007,10 @@
   "critiqueLedger": {
     "source": "docs/harbor-research/critique-ledger.json",
     "total": 897,
-    "done": 635,
+    "done": 636,
     "declined": 242,
     "inWave": 0,
-    "blocked": 19,
+    "blocked": 18,
     "other": 1
   }
 }

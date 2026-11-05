@@ -101,8 +101,8 @@ test('renderMechanizedClaims sorts rows by id within a method table, independent
 test('renderMechanizedClaims escapes TeX specials in prose fields but leaves \\path{} arguments raw', () => {
   const rendered = renderMechanizedClaims(fixtureManifest());
   // Ampersand and underscore in evidencePolicy prose are escaped. A formal
-  // artifact always prints its own evidencePolicy (required by the schema
-  // for every formalArtifact, wired or retired) rather than ci.reason.
+  // artifact retains its own evidencePolicy (required by the schema
+  // for every formalArtifact, wired or retired), plus a distinct retirement reason.
   // (collapseBreakHints, not just a raw match: evidence-policy prose now
   // also gets a defensive \allowbreak after hyphens/underscores/slashes --
   // see texEscapeBreakable's own comment for the real overfull \hbox, in a
@@ -151,7 +151,7 @@ test('renderMechanizedClaims labels a Kani row with its harness function alongsi
   const rendered = collapseBreakHints(renderMechanizedClaims(fixtureManifest()));
   assert.match(
     rendered,
-    /\\path\{core\/fixture-rs\/src\/lib\.rs\}\\ \(\\texttt\{proof\\_fixture\\_case\}\)/,
+    /\\path\{core\/fixture-rs\/src\/lib\.rs\}\\par \\textbf\{Harness:\} \\texttt\{proof\\_fixture\\_case\}/,
   );
 });
 
@@ -213,7 +213,7 @@ test('renderMechanizedClaims falls back to ci.reason (retired) or an em dash (wi
   const rendered = collapseBreakHints(renderMechanizedClaims(manifest));
   // Wired research artifact: no evidencePolicy field exists for its kind, so
   // the cell reads the house "not applicable" mark rather than inventing text.
-  assert.match(rendered, /\\texttt\{monte-fixture\} & \\path\{proofs\/fixture\/simulate\.mjs\} & \\texttt\{monte-carlo-fixture\} & \\textsc\{current\} & --- \\\\/);
+  assert.match(rendered, /\\textbf\{Claim:\} \\texttt\{monte-fixture\}\\par\\smallskip \\textbf\{Artifact:\} \\path\{proofs\/fixture\/simulate\.mjs\}\\par\\smallskip \\textbf\{CI:\} \\texttt\{monte-carlo-fixture\}\\par \\textbf\{Status:\} \\textsc\{current\} & --- \\\\/);
   // Retired research artifact: ci.reason is real, recorded content, so it
   // fills the evidence-policy column instead of a bare dash.
   assert.match(rendered, /superseded \\& no longer run/);
@@ -307,7 +307,7 @@ test('the registered R-script suite breaks into page-breakable rows without losi
       'only rows after the first repeat the suite identity with a continuation marker');
     const chunk = chunks[index];
     assert.ok(chunk.length <= 7, 'each row stays within the page-breakable path limit');
-    assert.match(row, /\\texttt\{harbor-results-estate\} & \\textsc\{current\} & ---/);
+    assert.match(row, /\\textbf\{CI:\} \\texttt\{harbor-results-estate\}\\par \\textbf\{Status:\} \\textsc\{current\} & ---/);
     if (chunk.length > 1) {
       assert.match(row, new RegExp(`\\\\textit\\{\\(${chunk.length} files\\)\\}`));
     } else {
@@ -353,5 +353,88 @@ test('artifact filenames preserve every character while long basenames wrap with
   const tables = rendered.slice(rendered.indexOf('\\begin{xltabular}'));
   for (const match of tables.matchAll(/\\path\{([^{}]*)\}/g)) {
     assert.ok([...match[1]].length <= 10, `unbreakable path segment: ${match[1]}`);
+  }
+});
+
+
+test('artifact records keep labeled identity and execution fields beside a wide evidence column', () => {
+  const manifest = fixtureManifest();
+  manifest.formalArtifacts[0].ci.job.push('second-verification-job');
+  const rendered = collapseBreakHints(renderMechanizedClaims(manifest));
+  const tables = rendered.match(/\\begin\{xltabular\}[\s\S]*?\\end\{xltabular\}/g) ?? [];
+  const header = '\\textbf{Artifact record} & \\textbf{Evidence policy} \\\\';
+  for (const table of tables) {
+    assert.equal(table.split(header).length - 1, 2, 'repeat the two-column header on continuation pages');
+    assert.match(table, /\\multicolumn\{2\}/, 'continuation marker spans the complete record');
+    // Equal-sum X weights allocate 40% / 60% of the usable measure.
+    assert.match(table, /\\hsize=\.8\\hsize/);
+    assert.match(table, /\\hsize=1\.2\\hsize/);
+    const records = table.split('\n').filter((line) => line.startsWith('\\textbf{Claim:}'));
+    for (const record of records) {
+      assert.equal((record.match(/(?<!\\)&/g) ?? []).length, 1, 'exactly two record cells');
+      for (const field of ['Claim', 'Artifact', 'CI', 'Status']) {
+        assert.ok(record.includes(`\\textbf{${field}:}`), `missing explicit ${field} label`);
+      }
+    }
+  }
+  const record = rendered.split('\n').find((line) => line.includes('\\texttt{zzz-last-proverif}'));
+  assert.match(record, /\\texttt\{proverif-estate\}, \\texttt\{second-verification-job\}/);
+  assert.match(record, /\\textsc\{current\}/);
+  assert.match(record, / & checked \\& verified, with an under\\_score in it \\\\/);
+  assert.doesNotMatch(renderMechanizedClaims(loadCorpus()), /\\(?:footnotesize|scriptsize|tiny)\b/,
+    'even multi-path records retain the table type size');
+});
+
+test('retired formal records retain both their evidence policy and distinct retirement reason', () => {
+  const rendered = collapseBreakHints(renderMechanizedClaims(fixtureManifest()));
+  const record = rendered.split('\n').find((line) => line.includes('\\texttt{aaa-first-proverif}'));
+  assert.match(record, /\\textbf\{CI:\} retired/);
+  assert.match(record, /\\textbf\{Status:\} \\textsc\{historical\}/);
+  assert.match(record, / & first \\& foremost, now retired/);
+  assert.match(record, /\\textbf\{Retirement reason:\} superseded \\& no longer run/);
+  const manifest = fixtureManifest();
+  delete manifest.formalArtifacts[1].ci.reason;
+  assert.throws(() => renderMechanizedClaims(manifest), /reason must be a non-empty string/);
+});
+
+
+test('evidence and retirement prose preserve ordinary words while inline paths and identifiers remain breakable', () => {
+  const manifest = fixtureManifest();
+  manifest.formalArtifacts[0].evidencePolicy = 'transcript regenerated; documentation verifies NoUnilateralDeviationPositive in docs/reports/FORMAL_VERIFICATION_ANCHOR_V3.md; checked & verified';
+  manifest.formalArtifacts[1].ci.reason = 'retirement documentation superseded by proofs/new_policy.pv';
+  const rendered = renderMechanizedClaims(manifest);
+  const row = rendered.split('\n').find((line) => collapseBreakHints(line).includes('\\texttt{zzz-last-proverif}'));
+  const evidence = row.slice(row.indexOf(' & ') + 3);
+  assert.match(evidence, /transcript regenerated; documentation verifies/);
+  assert.doesNotMatch(evidence, /regene\\allowbreak |docume\\allowbreak /);
+  assert.match(evidence, /No\\allowbreak Unilateral\\allowbreak Deviation\\allowbreak Positive/);
+  assert.match(evidence, /docs\/\\allowbreak reports\/\\allowbreak FORMAL\\_\\allowbreak VERIFICATION\\_\\allowbreak ANCHOR\\_\\allowbreak V3\.md/);
+  assert.match(evidence, /checked \\& verified/);
+  const retired = rendered.split('\n').find((line) => collapseBreakHints(line).includes('\\texttt{aaa-first-proverif}'));
+  assert.match(retired, /retirement documentation superseded by proofs\/\\allowbreak new\\_\\allowbreak policy\.pv/);
+  // Identifier-only chunking still protects long claim/CI/harness segments.
+  assert.match(row, /\\texttt\{prover\\allowbreak if-\\allowbreak estate\}/);
+  assert.doesNotMatch(rendered, /\\allowb\\allowbreak /);
+});
+
+
+test('every method reserves its final footer height on continuation pages', () => {
+  const rendered = renderMechanizedClaims(loadCorpus());
+  const tables = rendered.match(/\\begin\{xltabular\}[\s\S]*?\\end\{xltabular\}/g) ?? [];
+  assert.ok(tables.length > 1);
+  for (const table of tables) {
+    const footer = table.match(/\\endhead\s*([\s\S]*?)\\endfoot\s*([\s\S]*?)\\endlastfoot/);
+    assert.ok(footer, 'an ordinary footer must reserve space before the final footer is selected');
+    assert.equal(footer[1].trim(), '\\bottomrule');
+    assert.equal(footer[2].trim(), footer[1].trim(), 'equal footer heights prevent a header-only final page');
+    assert.match(table.slice(table.indexOf('\\endlastfoot')), /\\textbf\{Claim:\}/,
+      'real data records still follow the headers and footer definitions');
+    const records = table.split('\n').filter((line) => line.startsWith('\\textbf{Claim:}'));
+    assert.match(records.at(-1), /\\\\\*$/,
+      'the final data row stays with the closing rule without a trailing gap');
+    assert.doesNotMatch(records.at(-1), /\\addlinespace/);
+    for (const row of records.slice(0, -1)) {
+      assert.match(row, /\\\\ \\addlinespace$/, 'other records retain page-breakable spacing');
+    }
   }
 });

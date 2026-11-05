@@ -160,14 +160,35 @@ class SemanticBlocks(unittest.TestCase):
                             matches.append(page.number)
                 self.assertEqual(len(matches), 1, heading)
 
-    def test_citation_capacity_break_survives_generation(self):
+    def test_citation_context_and_vrf_reservation_survive_generation(self):
         generated = ROOT / ".cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex"
         if not generated.exists():
             self.skipTest("run Book generator first")
         body = generated.read_text()
-        normative = r"\\pagebreak\[4\]\s+Nor is the pattern new in normative conflict"
-        self.assertIsNotNone(re.search(normative, body),
-                             "Normative-conflict citation break lost in generation")
+        # The complete-PDF margin-capacity gate and spread review decide fit.
+        # Physical pp. 548–549 of the reviewed candidate hold both full sources
+        # cleanly without the former forced break. Preserve the citation-bearing
+        # argument, not a pagination command invalidated by surrounding prose.
+        normative = (r"\\paragraph\{Normative conflict and workflow compliance\.\}\s+"
+                     r"Nor is the pattern new in normative conflict checking specifically,"
+                     r"[^\n]*(?:\n(?!\n)[^\n]*)*")
+        match = re.search(normative, body)
+        source = (ROOT / "book/harbor-economy.tex").read_text()
+        original = re.search(normative, source)
+        self.assertIsNotNone(match, "Normative-conflict paragraph lost in generation")
+        self.assertIsNotNone(original, "Normative-conflict source paragraph lost")
+        self.assertIn(r"\pdcite{ctgvb2020,ctgvb2021}", original.group())
+        self.assertRegex(match.group(), r"\\pdcite\{mega\d+,mega\d+\}")
+        # The generator renumbers local citations; all surrounding exposition
+        # must survive exactly, including the scope and complexity distinction.
+        citation = r"\\pdcite\{[^}]+\}"
+        self.assertEqual(re.sub(citation, "CITATION", original.group()),
+                         re.sub(citation, "CITATION", match.group()))
+        for phrase in ("eight variants", r"\emph{full} compliance", "coNP-complete"):
+            self.assertIn(phrase, match.group())
+        mutant = body.replace(r"\paragraph{Normative conflict and workflow compliance.}", "", 1)
+        self.assertNotEqual(mutant, body)
+        self.assertIsNone(re.search(normative, mutant))
         # Reserve body space for the long VRF first-use source. Do not defer
         # the source independently or weaken the measured margin-capacity gate.
         opening = "Second, the proposed system uses"

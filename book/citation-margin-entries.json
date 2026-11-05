@@ -271,14 +271,14 @@
   },
   {
     "key": "mega213",
-    "original": "Universal Commerce Protocol. Google, Shopify, et al.\nSpecification and reference implementation, Apache-2.0, 2026.\n\\texttt{https://ucp.dev}; \\texttt{github.com/Universal-Commerce-Protocol/ucp}.",
-    "margin": "Universal Commerce Protocol (Google, Shopify, et al.). \\emph{Specification and reference implementation, Apache-2.0}, 2026. \\href{https://ucp.dev}{Source}; \\href{https://github.com/Universal-Commerce-Protocol/ucp}{Source}.",
+    "original": "Universal Commerce Protocol. Google, Shopify, et al.\nSpecification and reference implementation, Apache-2.0, 2026.\n\\url{https://ucp.dev/specification/overview/}; \\texttt{github.com/Universal-Commerce-Protocol/ucp}.",
+    "margin": "Universal Commerce Protocol (Google, Shopify, et al.). \\emph{Specification and reference implementation, Apache-2.0}, 2026. \\href{https://ucp.dev/specification/overview/}{Source}; \\href{https://github.com/Universal-Commerce-Protocol/ucp}{Source}.",
     "reason": "Preserves the full title phrase, named organizations, year, and both existing source targets as labelled href links."
   },
   {
     "key": "mega214",
-    "original": "Agent Payments Protocol (AP2): Mandates.\nVerifiable-credential authorization chain (SD-JWT+kb checkout mandate, JWS\ndetached-content merchant authorization, JCS canonicalization), 2026.\n\\texttt{https://ap2-protocol.org}; UCP extension at\n\\texttt{ucp.dev/documentation/ucp-and-ap2/}.",
-    "margin": "Agent Payments Protocol (AP2): \\emph{Mandates}, 2026. \\href{https://ap2-protocol.org}{Source}; \\href{https://ucp.dev/documentation/ucp-and-ap2/}{Source}.",
+    "original": "Agent Payments Protocol (AP2): Mandates.\nVerifiable-credential authorization chain (SD-JWT+kb checkout mandate, JWS\ndetached-content merchant authorization, JCS canonicalization), 2026.\n\\url{https://github.com/google-agentic-commerce/AP2}; UCP extension at\n\\texttt{ucp.dev/documentation/ucp-and-ap2/}.",
+    "margin": "Agent Payments Protocol (AP2): \\emph{Mandates}, 2026. \\href{https://github.com/google-agentic-commerce/AP2}{Source}; \\href{https://ucp.dev/documentation/ucp-and-ap2/}{Source}.",
     "reason": "Keeps the complete named work title, year, and both existing source targets; removes only the explanatory mechanism annotation."
   },
   {
@@ -286,12 +286,6 @@
     "original": "Agentic Commerce Protocol. OpenAI \\& Stripe, 2025.\n\\texttt{https://agenticcommerce.dev}.",
     "margin": "OpenAI \\& Stripe. \\emph{Agentic Commerce Protocol}, 2025. \\href{https://agenticcommerce.dev}{Source}.",
     "reason": "Retains the identifiable organizations, complete title, year, and exact source target."
-  },
-  {
-    "key": "mega216",
-    "original": "DataDome. ``Agent Trust Management and the Universal\nCommerce Protocol,'' 2026.\n\\path{datadome.co/agent-trust-management/universal-commerce-protocol/}.",
-    "margin": "DataDome. \\emph{Agent Trust Management and the Universal Commerce Protocol}, 2026. \\href{https://datadome.co/agent-trust-management/universal-commerce-protocol/}{Source}.",
-    "reason": "Preserves the full report title, organization, year, and exact existing target while removing quotation and line-wrap markup."
   },
   {
     "key": "mega008",

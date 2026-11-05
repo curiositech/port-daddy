@@ -192,9 +192,10 @@ process start time computes $t+3 > t$ and refuses it.
 Nothing about the card
 differs between the two readings --- every cryptographic check passes in both
 --- so the entire decision rests on a comparison the token cryptography never
-sees. That is why \S\ref{sec:limitations} lists this as a boundary rather than
-as a property, and why the fix is a runtime conformance test rather than a
-theorem. [internal]
+sees. The stronger comparison describes a required defense, not the current IPC
+implementation: its peer extractor returns an unknown PID and checks a
+self-reported agent identifier against registration. Section~\ref{sec:limitations}
+keeps process binding open. A passing token proof cannot close it. [internal]
 \end{pdexample}
 In a multi-agent development environment, agents operate concurrently to read files, spin up test servers, and execute commands, and this introduces three concrete failure modes on \texttt{localhost}:
 \begin{enumerate}
@@ -232,36 +233,20 @@ and revocation. This ordering explains their security dependencies, not a releas
 schedule or a claim that every mechanism is deployed
 (Figure~\ref{fig:anchor-four-phases}; Table~\ref{tab:anchor-four-phases}).
 \input{figures/fig-anchor-four-phases}
-\begin{table}[H]
-\centering
-\caption{The four phases as a lookup table, restating Figure~\ref{fig:anchor-four-phases}'s flow in row form. Threat closure is cumulative, not substitutive. Each phase closes one attack
-surface, and the last column is why no later phase reopens it: every phase adds a check
-that a later phase changes the key or the chain of, never the party that performs it.
-[internal]}
-\label{tab:anchor-four-phases}
-\small
-\renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
-\toprule
-\textbf{Phase} & \textbf{Mechanism} & \textbf{Attack surface closed} & \textbf{Stays closed because} \\
-\midrule
-1 & HS256 pinning: the verifier takes the algorithm from policy & header-selected algorithm (algorithm confusion) & the algorithm is never read from the token; later phases change the key type, not who chooses \\
-2 & Ed25519 identity: the daemon signs with a private key, verifiers hold only the public key & shared-secret theft & no verifier holds a secret that could mint a card; a stolen public key mints nothing \\
-3 & delegation: a child card carries its parent chain, checked as a subset at every hop & downstream privilege growth & the subset check is per hop and monotone, so no later hop widens scope or lifetime \\
-4 & revocation: epoch filters gossiped between daemons and consulted at every acceptance & post-issue authority (a leaked card that should die before its TTL) & acceptance requires the current epoch, so every daemon that holds the epoch refuses the revoked card \\
-\bottomrule
-\end{tabularx}
-\end{table}
-Figure~\ref{fig:anchor-four-phases} draws the same table as a staircase: each
-threat's row turns from red (open) to the chapter hue (closed) at the phase
-that closes it, and the closure frontier moves strictly rightward, so no
-later phase reopens a threat an earlier one closed.
+
+Follow one row in Figure~\ref{fig:anchor-four-phases}: separating signing
+from verification does not remove the need to pin the algorithm. Each later
+mechanism retains the preceding checks. Appendix~\ref{app:anchor-mech} keeps
+Table~\ref{tab:anchor-four-phases} as a mechanism-by-mechanism reference.
 A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent. A child's expiry is the earlier of its parent's expiry and the requested expiry. A request for twenty minutes under a parent with ten minutes left therefore produces a ten-minute card; an already-signed child claiming the longer expiry must fail verification. Rights and expiry can narrow or stay unchanged, never widen. Figure~\ref{fig:anchor-capability-attenuation} separates a valid child, a request clamped before signing, and a refused rights expansion.
 \pdmarginanalogy{anchor-reduced-key}{A smaller set of permissions}{reduced-key}{Removing teeth suggests removing authority. A capability must also bind that restriction cryptographically.}
 \begin{pdexample}{A Child Card under a Parent with Ten Minutes Left}
 \setlength{\parskip}{4pt plus 1pt}
-A parent card holds \texttt{fs:read} and \texttt{db:write} with 10 minutes of
-lifetime remaining. A request for \texttt{db:write} for 20 minutes is clamped before signing:
+For Bob's checkout repair, suppose Alice has authority to read the checkout
+repository and write its isolated test database. In this simplified card those
+resource-bound rights are abbreviated \texttt{fs:read} and \texttt{db:write};
+neither denotes access to every file or to production. Alice delegates the
+database-testing step to Heron with 10 minutes left on her parent card. A request for \texttt{db:write} for 20 minutes is clamped before signing:
 its rights fit, but the issuer grants only the parent's remaining 10 minutes.
 A request for 8 minutes receives 8. In contrast, if an already-signed child
 \emph{claims} 20 remaining minutes, verification refuses it. Issuance chooses
@@ -316,6 +301,32 @@ Figure~\ref{fig:anchor-alg-confusion} shows the two verifier paths side by side:
 
 \input{figures/fig-anchor-alg-confusion}
 
+\begin{pdexample}{pinning is not skipping validation}
+\setlength{\parskip}{4pt plus 1pt}
+The Rust \texttt{verify} function first checks the token's three-part structure
+and verifies its signature with the fixed Ed25519 verifier. It then decodes
+the authenticated header and explicitly rejects
+\texttt{header.alg != SUPPORTED\_ALG}. This is validation against policy,
+not permission for the token to choose another verification algorithm.
+
+The payload must also decode, have the supported version, and pass the
+issued-at, expiry and applicable not-before checks.
+
+Channel authorization is
+an additional check in \texttt{verify\_for\_channel}; revocation belongs to
+the caller's store. An authentic, unexpired card is not necessarily authorized
+for this channel or still unrevoked.
+
+Design invariant~\ref{prop:alg-pinning} therefore does not justify deleting
+the header check.
+
+Nor does the bounded Kani harness exercise all these guards:
+its zero-byte decode reaches header JSON rejection before the algorithm or
+payload checks. This account is checked against the source, not a new runtime
+or model-checking result.
+[internal]
+\end{pdexample}
+
 \subsection{Phase 2: Asymmetric Identity (Ed25519)}
 
 The asymmetric profile uses \textbf{Ed25519 (EdDSA)}~\pdcite{bernstein2012high,josefsson2017edwards} so agents can verify peer credentials without holding the issuer's signing secret. Ed25519 provides deterministic signatures with small keys and signatures.
@@ -363,6 +374,14 @@ Macaroons are the inspiration, but two older literatures own the property being 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
 
 \pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
+Alice withdraws Heron's test-database write grant three minutes into its
+ten-minute lifetime. A local verifier that has recorded the revocation must
+refuse the next use. A remote verifier that has received no update cannot
+infer Alice's decision from an otherwise valid signature; without a stricter
+freshness policy, it may accept until expiry. Figure~\ref{fig:anchor-revocation-gossip}
+will compare those two verifiers. The problem has two parts: representing
+local denials correctly and getting those denials to other decision points.
+
 Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A linear scan of $n$ revocation IDs costs $O(n)$; an exact hash-set index can instead provide expected $O(1)$ lookup. The probabilistic index below trades space against extra authoritative lookups, not against the necessity of linear scanning. The protocol gossips an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks, not the lossy cuckoo-filter encodings themselves. To maintain $O(1)$ read performance, each daemon continually projects its event log into a local, ephemeral cuckoo filter~\pdcite{fan2014cuckoo} (Figure~\ref{fig:anchor-cuckoo-inline}).
 
 \paragraph{Why filters cannot be merged bitwise.} A cuckoo-filter slot stores
@@ -507,15 +526,6 @@ A revoked card cannot be un-revoked within its TTL.
 If an operator decides the revocation was erroneous, they must issue a new card.
 \end{pdclaim}
 
-\begin{pdclaim}{Theorem}{Conditional Gossip Expectation}
-\setlength{\parskip}{4pt plus 1pt}
-\label{prop:fresh}
-Let $\Delta$ be the duration of one gossip round. Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $m$ daemons in expected $\Theta(\Delta\log m)$ time.\marginnote{\input{figures/spark-revocation-gossip}\par
-An ideal schedule informs $1,2,4,8$ of eight peers in rounds $0,1,2,3$. Random contacts need not attain it.}
-
-No finite worst-case freshness bound holds under an unbounded partition.
-\end{pdclaim}
-
 \begin{pdexample}{A Possible Trace Is Not a Deadline}
 \setlength{\parskip}{4pt plus 1pt}
 Take five daemons and two-second rounds. In a favorable push schedule, each
@@ -535,10 +545,23 @@ daemon and it receives nothing until delivery resumes, as in
 Figure~\ref{fig:anchor-revocation-gossip}. [internal; illustrative schedule]
 \end{pdexample}
 
+\begin{pdclaim}{Theorem}{Conditional Gossip Expectation}
+\setlength{\parskip}{4pt plus 1pt}
+\label{prop:fresh}
+Let $\Delta$ be the duration of one gossip round. Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $m$ daemons in expected $\Theta(\Delta\log m)$ time.\marginnote{\input{figures/spark-revocation-gossip}\par
+An ideal schedule informs $1,2,4,8$ of eight peers in rounds $0,1,2,3$. Random contacts need not attain it.}
+
+No finite worst-case freshness bound holds under an unbounded partition.
+\end{pdclaim}
+
+
+
 
 \paragraph{Soundness preservation.} Revocation strictly narrows acceptance, so existing ProVerif soundness proofs (Property~\ref{thm:injective}) are unaffected. The new proof obligation is small: revocation is \emph{enforced}, which follows by inspection of the verification path---the revocation check is unconditional and precedes admission. One active card has exactly two terminal exits, explicit revocation or natural expiry; neither exit can return that card to the accepted set (Figure~\ref{fig:anchor-card-lifecycle}). A correction is fresh issuance under a new card ID, not a transition of the old card.
 
 \input{figures/fig-anchor-card-lifecycle}
+% Keep the exhibit caption with its figure; later margin objects start anew.
+\pdmarginpagebreak
 
 \paragraph{Privacy.} A Dolev-Yao adversary observing all gossip traffic learns the revoked-card IDs, leaking which agents have been disciplined. For an organization's own daemons, this is acceptable audit transparency. Stronger privacy is available by encoding revocations as salted hashes $H(\texttt{kid}, \texttt{salt})$ where the salt rotates daily, stored encrypted under a harbor session key.
 
@@ -674,7 +697,7 @@ Key decoding returns a fixed key; base64 decoding returns either an error or 32 
 
 The reported absence of panics and out-of-bounds accesses applies only to paths reached under these stubs.
 
-In particular, the zero-byte decoded payload is not valid claims JSON: this harness does not exercise successful card acceptance. Longer tokens and the real cryptographic primitives lie outside its claim.
+In particular, the zero-byte decoded header is not valid header JSON: this harness does not exercise successful card acceptance. Longer tokens and the real cryptographic primitives lie outside its claim.
 \end{pdclaim}
 
 \begin{pdclaim}{Design invariant}{Secret-Independent Source Control Flow}
@@ -697,9 +720,9 @@ required. The symbols $\bot$ and $\top$ mean rejection and acceptance.
 Appendix~\ref{app:proverif} abstract its parsing obligations.
 
 To read a chain, keep two keys separate. The daemon signs a root card naming
-Alice's public key. Alice signs Bob's child card, so that child must be
-verified under Alice's authenticated key, not the daemon's. Bob's key then
-verifies Bob's next delegation. Each signature both checks the current link
+Alice's public key. Alice signs Heron's child card, so that child must be
+verified under Alice's authenticated key, not the daemon's. Heron's key then
+verifies Heron's next delegation. Each signature both checks the current link
 and supplies the authenticated identity needed for the next one.
 
 \subsubsection{Phase 1: Symmetric HS256 with Algorithm Pinning}
@@ -785,7 +808,10 @@ function Harbor.VerifyToken(tok, pk_h, expected_harbor):
 
 \subsubsection{Phase 3: Multi-hop Delegation}\label{sec:delegation}
 
-Let $r$ mean read permission and $w$ write permission. If $A$ holds
+Let $r$ mean read permission and $w$ write permission on the same authorized
+resource. In the checkout case, Alice ($A$) may read and repair the payment
+module but gives Heron ($B$) a read-only review task. If Heron delegates that
+review to Finch ($C$), Finch must remain read-only. In symbols, if $A$ holds
 $\{r,w\}$ but delegates only $\{r\}$ to $B$, then $B$ cannot restore $w$
 when delegating to $C$. Yet $C$'s requested $\{r,w\}$ is still a subset of
 $A$'s rights. A root-only comparison therefore misses exactly the restriction
@@ -848,26 +874,13 @@ function Harbor.VerifyChain(chain, pk_daemon):
 \section{One source crate, different verification scopes}\label{sec:implementation}
 % ═════════════════════════════════════════════════════════════════════════════
 
-What is shared between proof and deployment is the \textbf{crate}, not the coverage. The
-open-source Rust crate \texttt{harbor-card-rs} is compiled to a C dynamic library
-(\texttt{cdylib}) and called from the Node.js daemon via FFI through the daemon's
-runtime-enforcement (Arbiter) module, and the Kani harnesses are compiled from that
-same source rather than from a reference model written alongside it.
-
-That is worth having, and it is worth being exact about what it buys. It removes the
-failure mode that weakens many verification efforts --- a specification that drifts
-from the artifact, because they were never the same artifact. It does not make the
-proofs coextensive with the code. The harnesses are \emph{bounded}: they stub the
-cryptography and cap the parser's input at 32 bytes, which is smaller than the
-64-byte Ed25519 signature a real token carries, let alone a whole Harbor Card. What
-Kani establishes is therefore a memory-safety and no-panic result about the token
-delimiter parser on small inputs with signature verification abstracted away, and the
-security of the signature scheme rests on the ProVerif model and on Ed25519 itself,
-not on these harnesses. Section~\ref{sec:correct}'s status table, its caption, and
-Exercises~\ref{ex:anchor-kani-scope} and~\ref{ex:anchor-model-vs-code} all say this
-too; the point of saying it here is that a reader meets the section title first.
-Kani also checks the source under \texttt{cfg(kani)} rather than the shipped shared
-library, so one further gap --- the compiler's --- stays open behind all of it.
+The \texttt{harbor-card-rs} crate supplies both the source compiled into the
+C dynamic library and the bounded Kani harnesses. Sharing source reduces one
+kind of drift; it does not make their coverage identical. The harnesses use
+\texttt{cfg(kani)}, replace three primitives, and bound the parser input to
+32 bytes. The deployed library still needs compiler, FFI, and calling-path
+evidence. The source excerpts below let the reader trace exactly where the
+harness stops, using the three-layer map of Table~\ref{tab:anchor-verification-stack}.
 
 \subsection{Core Verification Logic}
 
@@ -884,10 +897,19 @@ pub fn verify(&self, token: &str, now_ts: i64)
         msg.as_bytes(), &sig_bytes);
     sig_bytes.zeroize();  // Scrub signature from memory
     sig_result?;
+    let mut header_bytes = Self::internal_decode_b64(parts[0])?;
+    let header: Result<HarborCardHeader, _> =
+        serde_json::from_slice(&header_bytes);
+    header_bytes.zeroize();
+    if header?.alg != SUPPORTED_ALG {
+        return Err(HarborError::UnsupportedAlgorithm);
+    }
     let mut payload_bytes = Self::internal_decode_b64(parts[1])?;
-    let claims: HarborCardClaims =
-        serde_json::from_slice(&payload_bytes)?;
-    payload_bytes.zeroize();  // Scrub payload from memory
+    let claims: Result<HarborCardClaims, _> =
+        serde_json::from_slice(&payload_bytes);
+    payload_bytes.zeroize();
+    let claims = claims?;
+    // Version, issued-at and not-before checks omitted here.
     if claims.exp < now_ts {
         return Err(HarborError::Expired);
     }
@@ -902,38 +924,13 @@ pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
 }
 \end{lstlisting}
 
+The excerpt omits supported-version, issued-at, and not-before guards; they
+remain required. Channel authorization is a further call, and revocation
+requires the caller's authoritative store. Notice the path the bounded
+harness actually reaches: its zero-byte decode fails at header JSON parsing,
+before any claims can be accepted.
+
 Key implementation details: \texttt{zeroize} requests that cryptographic material be overwritten when dropped, reducing residual-secret exposure without proving that no copy survives. The comparator avoids source-level early return on secret byte values. That is useful hygiene, not a hardware constant-time guarantee; compiler, cache, and microarchitectural behavior remain outside this source argument.
-
-\subsection{FFI Bridge to the Node.js Daemon}
-
-The Rust crate exports two C-ABI functions consumed by the TypeScript daemon:
-
-\begin{lstlisting}[style=rust, caption={FFI Exports — Called from the daemon's Arbiter module}]
-#[no_mangle]
-pub extern "C" fn harbor_constant_time_compare(
-    a: *const u8, a_len: usize,
-    b: *const u8, b_len: usize
-) -> bool { /* ... */ }
-
-#[no_mangle]
-pub extern "C" fn harbor_verify_caps_subset_json(
-    root_json: *const c_char, root_len: usize,
-    sub_json: *const c_char, sub_len: usize
-) -> bool { /* ... */ }
-\end{lstlisting}
-
-The daemon's \texttt{arbiter} module binds these at startup:
-
-\begin{lstlisting}[caption={TypeScript FFI Binding (daemon-side Arbiter)}]
-constantTimeCompare: lib.func(
-  'bool harbor_constant_time_compare(
-     const uint8_t *a, size_t a_len,
-     const uint8_t *b, size_t b_len)'),
-verifyCapsSubset: lib.func(
-  'bool harbor_verify_caps_subset_json(
-     const char *root_json, size_t root_len,
-     const char *sub_json, size_t sub_len)')
-\end{lstlisting}
 
 \subsection{Kani Verification Harnesses}
 
@@ -1053,8 +1050,9 @@ Table~\ref{tab:threat-closure} closes the loop on the three failure modes of \S\
 \midrule
 Port squatting (``Ghost in the Harbor'') &
 \S\ref{sec:correct}, Arbiter invariant \texttt{PID\allowbreak\_SQUATTING} &
-Cards bind to the connecting process via the daemon's socket-credential check; the Arbiter flags a port claimed by a PID other than its holder &
-Detection is post-commit, and the binding is an OS check outside the ProVerif model. See \S\ref{sec:limitations}, ``A program is not a person'' \\
+The Arbiter flags a port claimed by a PID other than its recorded holder;
+software registration checks do not establish kernel-authenticated process identity &
+Detection is post-commit; kernel peer credentials and process-lifetime binding remain runtime obligations outside the ProVerif model. See \S\ref{sec:limitations}, ``A program is not a person'' \\
 \addlinespace
 Resource contention (shared-state corruption) &
 App.~\ref{sec:anchor-limitations-boundaries}; SQLite single-writer &
@@ -1076,17 +1074,17 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 \centering
 \caption{ProVerif checks the model. Kani checks bounded crate harnesses: a 32-byte parser with stubbed cryptography, a 16-byte comparator, and two subset vectors. Neither alone proves the deployed implementation correct.}
 \label{tab:properties}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lll l@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lll@{}}
 \toprule
-\textbf{Property} & \textbf{Verified} & \textbf{Tool} & \textbf{Deployed} & \textbf{Reference} \\
+\textbf{Property} & \textbf{Verified} & \textbf{Tool} & \textbf{Deployed} \\
 \midrule
-Master Key Secrecy & Yes & ProVerif & --- & \pdcite{blanchet2016modeling} \\
-Algorithm Confusion Immunity & Yes & ProVerif & --- & \pdcite{mclean2015critical} \\
-Authenti\-cation correspondence & Yes & ProVerif & --- & \pdcite{lowe1997hierarchy} \\
-Delegation Integrity & Yes & ProVerif & --- & \pdcite{birgisson2014macaroons} \\
-No-panic parsing (bounded) & Bounded & Kani & Yes (FFI) & \pdcite{aws2022kani} \\
-Secret-independent source branching & By inspection & --- & Yes (FFI) & \pdcite{brumley2011remote} \\
-Capability subset check & Two vectors & Kani & Yes (FFI) & \pdcite{birgisson2014macaroons} \\
+Master Key Secrecy~\pdcite{blanchet2016modeling} & Yes & ProVerif & --- \\
+Algorithm Confusion Immunity~\pdcite{mclean2015critical} & Yes & ProVerif & --- \\
+Authenti\-cation correspondence~\pdcite{lowe1997hierarchy} & Yes & ProVerif & --- \\
+Delegation Integrity~\pdcite{birgisson2014macaroons} & Yes & ProVerif & --- \\
+No-panic parsing (bounded)~\pdcite{aws2022kani} & Bounded & Kani & Yes (FFI) \\
+Secret-independent source branching~\pdcite{brumley2011remote} & By inspection & --- & Yes (FFI) \\
+Capability subset check~\pdcite{birgisson2014macaroons} & Two vectors & Kani & Yes (FFI) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1121,8 +1119,27 @@ the other user cannot open. Faster gossip does not prevent credential theft.
 \end{pdexample}
 
 \begin{enumerate}
-  \item \textbf{Delegation-chain depth.} The symbolic proof of delegation soundness (Table~\ref{tab:anchor-status}, ``\texttt{chain-replay.pv}'') is machine-checked at the fixed model depth~3; it is \emph{not} a proof for unbounded chain length. ProVerif's unbounded-session guarantee quantifies over the number of protocol \emph{sessions}, not over the number of hops in a single authorization chain, which is a fixed structural bound in the modeled process. Extending the proof to unbounded depth (via recursive replication of the delegation process) is future work. The current depth bound is a \emph{spawn-time} policy check (\texttt{assessDelegation} in \texttt{lib/tube-spawner-router.ts}, \texttt{HARD\_MAX\_DELEGATION\_DEPTH}\,=\,8, default~4) applied when a spawn request arrives; it is \emph{not} a verification-time invariant. The cryptographic chain verifier (\texttt{lib/delegation-chain.ts}) accepts arbitrary chain depth, and the attenuation monitor (\texttt{lib/cap-attenuation-monitor.ts}) enforces only per-hop capability monotonicity---not total depth. Machine-enforced depth at verification time is a planned hardening item.
-  \item \textbf{A program is not a person.} A Harbor Card authenticates a \emph{capability holder}, not a human and not, by itself, a process. The ``Ghost in the Harbor'' scenario of \S\ref{sec:problem} is really a PID-binding gap: nothing in the token cryptography stops a \emph{different} process from presenting a card whose original bearer has died, because the card says what may be done, not who is doing it. Port Daddy binds cards to the connecting process outside the token, via the daemon's socket-credential check at connection time (\texttt{SO\_PEERCRED} on Linux, \texttt{LOCAL\_PEERCRED}/\texttt{getpeereid} on macOS). Two consequences follow, and both are boundaries rather than guarantees. First, this is enforced by the operating system, not proved by ProVerif: the symbolic model has no notion of a process, so a daemon build that skips or mis-orders the check is unprotected regardless of card validity, and no query in Table~\ref{tab:proverif-results} would notice. Second, the check is only as strong as what it compares. Walk the concrete case: Agent~A holds a card and is running as PID~4021. It crashes at $t$. Three seconds later the OS reuses 4021 for an unrelated Agent~B, which presents A's card scavenged from a shared temp file. A credential check that compares \emph{only} the numeric PID admits B --- the numbers match. The deployed check therefore compares the peer credential against the socket-connection identity established at card issuance and re-validates process start-time, so a reused PID with a later start-time is rejected; a build that compares the bare PID has an open reuse race. That start-time comparison is a runtime conformance test, not a mechanized proof, and it is listed as such rather than as closed.
+  \item \textbf{Delegation-chain depth.} The chain-authenticity model is
+  checked at depth~3. ProVerif's unbounded number of sessions does not make
+  that chain structurally unbounded. Spawn policy and verifier acceptance
+  also have different depth limits: Appendix~\ref{sec:anchor-limitations-boundaries}
+  works the numbers by hand. The per-hop argument proves monotonicity for a
+  finite checked chain, not that every runtime path enforces a depth ceiling.
+  \item \textbf{A program is not a person.} A Harbor Card authenticates a \emph{capability holder}, not a human and not, by itself, a process. The ``Ghost in the Harbor'' scenario of \S\ref{sec:problem} is really a PID-binding gap: nothing in the token cryptography stops a \emph{different} process from presenting a card whose original bearer has died, because the card says what may be done, not who is doing it. The source IPC path does not establish the stronger binding imagined in the
+opening example: \path{lib/ipc-auth.ts} returns PID~0 (unknown) and the daemon's
+own user/group identifiers, then checks a self-reported agent identifier
+against registration. That is not kernel-authenticated peer identity and does
+not demonstrate a process-start-time comparison.
+
+A stronger connection binding must authenticate the peer and distinguish the
+original process lifetime from a recycled numeric PID. In the opening trace,
+comparing only 4021 admits the replacement; checking an authenticated issuance
+binding and a later start time would reject it. Such a mechanism needs source
+and runtime conformance evidence. The symbolic model has no processes, so none
+of its queries can establish that the deployed socket path performs these
+checks. This is the same local-identity boundary identified by
+\pdchapref{swk}{The Single-Writer Kernel}.
+
   \item \textbf{\texttt{localhost} is a real network.} \texttt{localhost} is not a trust boundary. On a shared or multi-user machine any local process --- including one belonging to a different user, or a browser page pointed at \texttt{127.0.0.1} --- can open a TCP connection to a loopback port, and an unprotected transport exposes bearer credentials to any attacker able to observe that traffic. Merely having a different local account does not establish packet-capture capability; the transport threat model must say which access the attacker has. Concretely, a card with a 15-minute TTL sniffed off loopback at minute~1 grants its holder fourteen minutes of the victim agent's full capability set, and revocation (\S\ref{sec:revocation}) can shorten that window only after somebody notices. The recommended deployment is a Unix domain socket whose parent directory is mode \texttt{0700} and owned by the daemon's own user, so that the filesystem, not the protocol, excludes other users; loopback TLS with a pinned daemon certificate is the alternative where cross-user sharing is genuinely required. The Anchor Protocol does not currently \emph{enforce} either: the daemon will speak to whatever transport it is configured with. This is therefore an operational obligation on the deployer, and one of the few places in this chapter where a wrong configuration silently voids a property the rest of the chapter proves.
   \item \textbf{Algorithm confusion at the token-encoding layer.} The delegation models of \S\ref{sec:correct} target chain authenticity and capability-subset soundness; attacks on JWT deployments also target the encoding underneath. RFC~8725 catalogues the \texttt{alg:none} downgrade and the confusion that makes a verifier treat an asymmetric \emph{public} key as an HMAC secret~\pdcite{rfc8725jwtbcp}.
   \path{proofs/anchor/token-verify/algconfusion.pv} compares a pinned and a naive
@@ -1156,31 +1173,7 @@ the other user cannot open. Faster gossip does not prevent credential theft.
 
 A proof helps only where its model matches the implementation and its assumptions hold. A symbolic pinning proof does not remove the parser's validation obligations. The Kani harnesses are bounded and use the \texttt{harbor-card-rs} crate with the substitutions listed in Table~\ref{tab:properties}; the ProVerif attenuation model explicitly admits an insider's escalation attempt before checking that the verifier rejects it (Appendix~\ref{app:phase3}, \S\ref{sec:attn-soundness}). A model that cannot express the attempt cannot establish that boundary. Claims whose mechanization is partial or absent remain \Partial\ or \Open\ in Table~\ref{tab:anchor-status}.
 
-\begin{pdexample}{pinning is not skipping validation}
-\setlength{\parskip}{4pt plus 1pt}
-The Rust \texttt{verify} function first checks the token's three-part structure
-and verifies its signature with the fixed Ed25519 verifier. It then decodes
-the authenticated header and explicitly rejects
-\texttt{header.alg != SUPPORTED\_ALG}. This is validation against policy,
-not permission for the token to choose another verification algorithm.
 
-The payload must also decode, have the supported version, and pass the
-issued-at, expiry and applicable not-before checks.
-
-Channel authorization is
-an additional check in \texttt{verify\_for\_channel}; revocation belongs to
-the caller's store. An authentic, unexpired card is not necessarily authorized
-for this channel or still unrevoked.
-
-Design invariant~\ref{prop:alg-pinning} therefore does not justify deleting
-the header check.
-
-Nor does the bounded Kani harness exercise all these guards:
-its zero-byte decode reaches header JSON rejection before the algorithm or
-payload checks. This account is checked against the source, not a new runtime
-or model-checking result.
-[internal]
-\end{pdexample}
 
 The assurance case combines:
 
@@ -1364,30 +1357,34 @@ Agent Payments Protocol (AP2): Mandates.
 
 \section{Formal Verification Status}\label{app:anchor-mech}
 
+\begin{table}[H]
+\centering
+\caption{The four phases as a lookup table, restating Figure~\ref{fig:anchor-four-phases}'s flow in row form. Threat closure is cumulative, not substitutive. Each phase closes one attack
+surface, and the last column is why no later phase reopens it: every phase adds a check
+that a later phase changes the key or the chain of, never the party that performs it.
+[internal]}
+\label{tab:anchor-four-phases}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Phase} & \textbf{Mechanism} & \textbf{Attack surface closed} & \textbf{Stays closed because} \\
+\midrule
+1 & HS256 pinning: the verifier takes the algorithm from policy & header-selected algorithm (algorithm confusion) & the verification algorithm remains fixed by policy; later phases change the key type, not who chooses \\
+2 & Ed25519 identity: the daemon signs with a private key, verifiers hold only the public key & shared-secret theft & no verifier holds a secret that could mint a card; a stolen public key mints nothing \\
+3 & delegation: a child card carries its parent chain, checked as a subset at every hop & downstream privilege growth & the subset check is per hop and monotone, so no later hop widens scope or lifetime \\
+4 & revocation: epoch filters gossiped between daemons and consulted at every acceptance & post-issue authority (a leaked card that should die before its TTL) & acceptance requires the current epoch, so every daemon that holds the epoch refuses the revoked card \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 \paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. \pdchapref{bonded}{The Bonded Commons} carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 
-\begin{pdexample}{Adding Up the Ledger, and What One Promotion Would Cost}
-\setlength{\parskip}{4pt plus 1pt}
-Count the rows of Table~\ref{tab:anchor-status} by tier: six \Closed, five
-\Partial, one \Open, and
-\[
-6 + 5 + 1 = 12,
-\]
-which is every claim the table
-carries --- a small enough number that a reader can check the caption against
-the body rather than take it.
+The markers summarize different evidence, not interchangeable units of
+security. In particular, promoting the constant-time row would require
+side-channel evidence absent from the source-level comparison argument;
+passing a bounded no-panic harness does not supply it.
 
-Then run the experiment the tiers exist for.
-Promote one row, ``constant-time signature comparison,'' from \Partial\ to
-\Closed: the headline becomes seven of twelve, an improvement of one row and a
-claim of a side-channel result nobody in this chapter has --- the property is
-inherited from an audited library, and \S\ref{sec:limitations} says compiler,
-cache and microarchitecture stay outside it.
-
-That is the whole function of the
-middle tier. It is where a claim sits when the honest verb is ``tested'' and
-the tempting one is ``proved.'' [internal]
-\end{pdexample}
 
 \renewcommand{\arraystretch}{1.15}
 % \footnotesize, not \small: widening the Result column at the other
@@ -1400,7 +1397,7 @@ the tempting one is ``proved.'' [internal]
 {\footnotesize
 \setlength{\tabcolsep}{4pt}
 \begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.18\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
-\caption{The twelve rows carry six \Closed, five \Partial, and one \Open marker. These summarize the named evidence; they are not twelve interchangeable proofs of system security. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}\label{tab:anchor-status}\\
+\caption{The twelve rows carry six \Closed, five \Partial, and one \Open{} marker. These summarize the named evidence; they are not twelve interchangeable proofs of system security. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}\label{tab:anchor-status}\\
 \toprule
 \textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
 \midrule
@@ -1435,6 +1432,38 @@ Mechanized gossip-convergence bound & --- & \Open\ standard expected asymptotics
 \pdthesis{We err toward listing fewer items as closed rather than more.}
 
 % ═════════════════════════════════════════════════════════════════════════════
+
+\subsection{FFI Bridge to the Node.js Daemon}
+
+The Rust crate exports two C-ABI functions consumed by the TypeScript daemon:
+
+\begin{lstlisting}[style=rust, caption={FFI Exports — Called from the daemon's Arbiter module}]
+#[no_mangle]
+pub extern "C" fn harbor_constant_time_compare(
+    a: *const u8, a_len: usize,
+    b: *const u8, b_len: usize
+) -> bool { /* ... */ }
+
+#[no_mangle]
+pub extern "C" fn harbor_verify_caps_subset_json(
+    root_json: *const c_char, root_len: usize,
+    sub_json: *const c_char, sub_len: usize
+) -> bool { /* ... */ }
+\end{lstlisting}
+
+The daemon's \texttt{arbiter} module binds these at startup:
+
+\begin{lstlisting}[caption={TypeScript FFI Binding (daemon-side Arbiter)}]
+constantTimeCompare: lib.func(
+  'bool harbor_constant_time_compare(
+     const uint8_t *a, size_t a_len,
+     const uint8_t *b, size_t b_len)'),
+verifyCapsSubset: lib.func(
+  'bool harbor_verify_caps_subset_json(
+     const char *root_json, size_t root_len,
+     const char *sub_json, size_t sub_len)')
+\end{lstlisting}
+
 
 \section{Full ProVerif Models}\label{app:proverif}
 

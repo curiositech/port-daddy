@@ -53,7 +53,12 @@ class BookEvidenceEditorial(unittest.TestCase):
         self.assertEqual(score - retained, 30)
         self.assertEqual(retained - newcomer, 10)
         source = (WEB / 'spawn-to-person.tex').read_text()
-        self.assertIn(r'he loses $30$ by staying', source)
+        start = source.index(r'\begin{pdexample}{Sanctions at the Newcomer Floor}')
+        text = " ".join(source[start:source.index(r'\end{pdexample}', start)].split())
+        for phrase in (r"$r(i)=90$, retaining the sanctioned identity yields $60$",
+                       "ten points more than a reset",
+                       r"bears the $30$ penalty", r"r(i)=r_0+\Delta=80"):
+            self.assertIn(phrase, text)
 
     def test_cue_guard_rejects_generic_and_missing_heads(self):
         for value in (r"\pitfall{Text}", r"\keyidea[The main point]{Text}",
@@ -118,7 +123,7 @@ class BookEvidenceEditorial(unittest.TestCase):
         expected_placed = {
             "one-printing-press", "reduced-key",
             "sealed-specimen", "map-and-lens",
-            "bond-balance", "movable-type",
+            "bond-balance",
             "ch01-fairness-ticket-dispenser", "ch01-flywheel-governor",
             "ch01-railway-token-staff", "ch01-water-meter-dial",
             "ch02-colander-mesh", "ch02-couriers-dispatch-pouch",
@@ -127,11 +132,11 @@ class BookEvidenceEditorial(unittest.TestCase):
             "ch03-sandglass-flow-orifice", "ch03-two-shutter-shadowbox",
             "ch04-selective-attention-annunciator", "ch04-sextant-index-mirror",
             "ch04-telegraph-sounder-key", "ch04-tide-gauge-staff",
-            "ch05-continuity-rope-splice", "ch05-episodic-card-file",
+            "ch05-continuity-rope-splice",
             "ch05-stagecoach-relay-post", "ch05-stepped-surveyors-pole",
             "ch05-wax-seal-signet",
             "ch06-dockyard-cargo-sling", "ch06-grain-tally-board",
-            "ch06-reusable-printing-block", "ch06-wharf-steelyard-scale",
+            "ch06-reusable-printing-block",
             "ch07-cleanup-repair-kit", "ch07-dual-control-escrow-box",
             "ch07-shear-pin-fuse",
             "ch08-closed-traverse-compass", "ch08-interlocking-railway-lever",
@@ -139,6 +144,12 @@ class BookEvidenceEditorial(unittest.TestCase):
             "ch08-transit-customs-seal",
         }
         self.assertEqual(set(placed), expected_placed)
+        # The explanatory passage carries these ideas without a second object
+        # analogy. Retain the art provenance, but do not restore decoration.
+        for unplaced in ("movable-type", "ch05-episodic-card-file", "ch06-wharf-steelyard-scale"):
+            self.assertNotIn(unplaced, placed)
+            self.assertTrue((WEB / "plates/margin-evidence" / (unplaced + ".pdf")).is_file())
+            self.assertTrue((WEB / "plates/margin-evidence" / (unplaced + ".json")).is_file())
         # movable-type-photo.{jpg,json} (the photograph the generated analogy
         # replaced) were removed on 2026-10-19 with the other unprinted
         # binaries: 8.3 MB nothing input. Its licence record lives in git.

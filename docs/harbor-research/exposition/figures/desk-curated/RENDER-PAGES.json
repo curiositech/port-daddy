@@ -21,7 +21,7 @@
   "fig-anchor-delegation-inline": 93,
   "fig-anchor-cuckoo-inline": 95,
   "fig-anchor-revocation-gossip": 97,
-  "fig-anchor-card-lifecycle": 98,
+  "fig-anchor-card-lifecycle": 801,
   "fig-sealed-pillar-pipeline": 134,
   "fig-sealed-two-worlds": 137,
   "fig-sealed-mutant-grid": 143,
@@ -42,7 +42,7 @@
   "fig-stp-probation-cliff": 251,
   "fig-stp-sybil-whitewash": 253,
   "fig-stp-multidim-reputation": 265,
-  "fig-stp-judge-market": 267,
+  "fig-stp-judge-market": 971,
   "fig-stp-rate-the-raters": 270,
   "fig-stp-deterrence-regime": 273,
   "fig-stp-tombstone": 276,
@@ -63,8 +63,8 @@
   "fig-fh-xfer-ceremony": 416,
   "fig-fh-revocation-gossip": 419,
   "fig-fh-revocation-regime": 420,
-  "fig-fh-cycle-vs-cut": 671,
-  "fig-fh-settlement": 430,
+  "fig-fh-cycle-vs-cut": 851,
+  "fig-fh-settlement": 861,
   "fig-pareto-dominance": 375,
   "fig-sybil-deposit-floor": 376,
   "fig-cartel-folk-theorem": 378,
@@ -83,17 +83,17 @@
   "fig-swk-race-dramatization": 600,
   "fig-swk-recovery-pipeline": 600,
   "fig-swk-rehydration-pipeline": 600,
-  "fig-swk-taint-automaton": 781,
+  "fig-swk-taint-automaton": 991,
   "fig-swk-ticket-lock-delta": 600,
-  "fig-anchor-v6v7-escalation": 641,
+  "fig-anchor-v6v7-escalation": 811,
   "fig-anchor-verification-stack": 600,
   "fig-sealed-controllability-quadrant": 600,
   "fig-sealed-dual-attestation": 600,
-  "fig-sealed-laundering-fork": 731,
+  "fig-sealed-laundering-fork": 931,
   "fig-sealed-leakage-ledger": 600,
   "fig-sealed-receipt-provenance": 600,
   "fig-sealed-residuals-converge": 600,
-  "fig-sealed-three-principals": 751,
+  "fig-sealed-three-principals": 951,
   "fig-sealed-two-adversaries": 600,
   "fig-sealed-work-order-schema": 600,
   "legible-swarm-completion-verifier": 600,
@@ -102,46 +102,46 @@
   "legible-swarm-inception-canary": 600,
   "legible-swarm-rate-regime": 600,
   "legible-swarm-sa-levels": 600,
-  "legible-swarm-zoom-advantage": 791,
+  "legible-swarm-zoom-advantage": 1001,
   "fig-stp-audit-amortization": 600,
   "fig-stp-dependency-spine": 600,
-  "fig-stp-engine-swap-regime": 761,
+  "fig-stp-engine-swap-regime": 961,
   "fig-stp-handoff-coverage": 600,
-  "fig-stp-resurrection-soundness": 771,
+  "fig-stp-resurrection-soundness": 981,
   "fig-he-conflict-kinds": 600,
-  "fig-he-conflict-witness": 691,
-  "fig-he-deontic-frontier": 701,
+  "fig-he-conflict-witness": 881,
+  "fig-he-deontic-frontier": 891,
   "fig-he-deterrence-convention": 600,
   "fig-he-ms-wedge": 600,
-  "fig-he-rater-ladder": 600,
+  "fig-he-rater-ladder": 901,
   "fig-he-skill-lineage": 600,
   "tab-keystone-split": 284,
   "fig-bonded-cartel-folk-theorem-tikz": 378,
   "fig-bonded-conservation-ledger": 600,
   "fig-bonded-inclusion-check": 600,
-  "fig-bonded-isolation-ladder": 600,
+  "fig-bonded-isolation-ladder": 821,
   "fig-bonded-merkle-forest": 600,
   "fig-bonded-regiment-boundary": 600,
-  "fig-bonded-session-lifecycle": 651,
+  "fig-bonded-session-lifecycle": 831,
   "fig-bonded-sybil-deposit-floor-tikz": 376,
   "fig-bonded-trust-collision": 600,
   "fig-pareto-dominance-tikz": 375,
   "fig-sen-pareto-locking": 600,
-  "fig-fh-cochain-hand": 661,
+  "fig-fh-cochain-hand": 841,
   "fig-fh-conservation-ledger": 600,
   "fig-fh-settle-protocol": 600,
   "fig-fh-sovereignty-fence": 600,
   "fig-fh-sponsor-lifecycle": 600,
   "fig-fh-visible-topology": 600,
-  "fig-fh-worked-example": 681,
+  "fig-fh-worked-example": 871,
   "tab-fh-partition": 600,
   "tab-fh-revocation-rules": 600,
   "tab-fh-sheaf-harness": 600,
   "tab-fh-topology": 600,
   "tab-fh-witness-log": 600,
-  "fig-he-two-bucket-settlement": 711,
-  "fig-legible-halving-tree": 721,
-  "fig-sealed-release-lattice": 741
+  "fig-he-two-bucket-settlement": 911,
+  "fig-legible-halving-tree": 921,
+  "fig-sealed-release-lattice": 941
  },
  "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other.",
  "_new_figure_pages": "Keys 601/611/621/631 are reserved image slots for new 2026-09-27 figures; each pNNN.jpg is rendered from its true Book page (65/186/187/229), while FIGS[].bookPage records that page. Existing keys and saved region notes are unchanged.",
@@ -545,22 +545,552 @@
    "width": 840,
    "height": 1200,
    "pageNumbering": "physical-1-based"
+  },
+  "800": {
+   "pdfPage": 193,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "da1677c64a0cae3c1f5192f40ffe9c64ddf645a00f105bbc6281ecf1bb433791",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "801": {
+   "pdfPage": 194,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "d990fe6efe85574e70827ca3eddf8ab8413c67b099225d37e7ca816ef95229db",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-anchor-card-lifecycle"
+  },
+  "802": {
+   "pdfPage": 195,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "9f431c5ebb98eeee3be97ff7aaa9fda588699a426cce2a9018c33600d4cf005f",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "810": {
+   "pdfPage": 203,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "8926083242764d4ccffbf7f9f59007fe15d1cd3d0ecce5d9574bf8dc1f806138",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "811": {
+   "pdfPage": 204,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "f5ef0a04cad25627ad624d67d1b08d7c8adffcd1715d3df597e1a32b09f35a38",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-anchor-v6v7-escalation"
+  },
+  "812": {
+   "pdfPage": 205,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "a5a7b6dd281d5574798d35d2624447a5523e670a522ce945f82a8fea852a1555",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "820": {
+   "pdfPage": 573,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "d2d5c64fb121f8c5240f2c3201647f74e0edc200e874ff8f01a2c9b608aff2cd",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "821": {
+   "pdfPage": 574,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "ca8767067499b06fafe76bc6d8ee43a0c84513b2490df39ebf82ce48bb9cdc5e",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-bonded-isolation-ladder"
+  },
+  "822": {
+   "pdfPage": 575,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "cc73479ecefb152e5779ff645b9181f1911829ef57740fc1254e3dae98116c2a",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "830": {
+   "pdfPage": 619,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "8cb8e72c0c036f63d413130e96e32b2b994faa48df33a43fd549487d4e9fcc0c",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "831": {
+   "pdfPage": 620,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "98e41e8adaa39b19a97e720e892ab3e650e3c992b2bb9ce33446f598c7e10e0d",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-bonded-session-lifecycle"
+  },
+  "832": {
+   "pdfPage": 621,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "53c6bf4e62ecf5ba48e1506a9af747a358bed01f0bab2794d5384ba76e95f2a7",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "840": {
+   "pdfPage": 671,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "421eb1f617d20041d168e5312b6b1f36fdf8598a9f073472e73fe9fa255add69",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "841": {
+   "pdfPage": 672,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "85c53d0ac26d7cfccec20d1b6f4fb190ce90639139ab1e650b1b9fa3e206ee5f",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-fh-cochain-hand"
+  },
+  "842": {
+   "pdfPage": 673,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "7403c437db3684c1ed3ac12df785575aa97f31afad0158657d19bb7aa7156326",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "850": {
+   "pdfPage": 674,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "171f442ea88d2b7d7505cab5b9bfb72ad12d8ca5431582ee392712c891695d30",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "851": {
+   "pdfPage": 675,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "0c1177744857ad100e952d59dc6da887fb9b2c516e76e587b78bfbd8ded96b80",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-fh-cycle-vs-cut"
+  },
+  "852": {
+   "pdfPage": 676,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "032f5bea990afceb57a0a0f6a5adebc49cbe8b18cf5db46e17ef95ea86d98f83",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "860": {
+   "pdfPage": 687,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "983232c4b24e798c32c66d27321ad8020eee01b89f1ed1075f6a9e15283131de",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "861": {
+   "pdfPage": 688,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "9bf49b215a334279fdddaf9a2b668cbd886a506fda68bbdc4e9fbb9d976931b2",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-fh-settlement"
+  },
+  "862": {
+   "pdfPage": 689,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "77de1e2b81d0a3aad49e7c8277130dffa09e0c60a27e47dc2470a585314792f4",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "870": {
+   "pdfPage": 696,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "d7ef2843a97e8c4c2cf7963dc67feb67e3f67b7eb6dea8ad64cf40b94748aa74",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "871": {
+   "pdfPage": 697,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "b43a0851ea9bb6d58f15854017c93c05fca718c220be1a86be1b64c3c42f5ad1",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-fh-worked-example"
+  },
+  "872": {
+   "pdfPage": 698,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "1abfafd16f647739b5a8ac8797f0e6b6eea8c6472ee55eaf3f998b13b2aaaab1",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "880": {
+   "pdfPage": 507,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "9903d568a1efe8f96bb03396a65cbfa53f1e12177e5cea9b2aee52d33cb54b61",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "881": {
+   "pdfPage": 508,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "73aa9159270472b1fe441ce7d4183a28049eb1c2471bcd5c3514d5a5c30fb707",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-he-conflict-witness"
+  },
+  "882": {
+   "pdfPage": 509,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "2feb3992d12864834abc2878240ba228fc30ed5f41662db9392d68d247fc1f3e",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "890": {
+   "pdfPage": 510,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "c500e8a0260aca89a1b6b42edd099f179c5d69264de6916b6d483447b62a75c3",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "891": {
+   "pdfPage": 511,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "a20ea29229495bfb1cf07a9597231935c6a7ffa8fd2038dc202228c6d94bf3fa",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-he-deontic-frontier"
+  },
+  "892": {
+   "pdfPage": 512,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "d54685bc05d4ce14232ea90f091fa119acf2dc78d740518c50278760b922af9e",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "900": {
+   "pdfPage": 770,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "fa490469fa3cc9f2c788493fe9bfcefe3914933dd9fcf18cc7134fb0c88bae90",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "901": {
+   "pdfPage": 771,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "f7d2de825343d5eda20ab66171e4ae6526abb4655031d10053429243f6d954d6",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-he-rater-ladder"
+  },
+  "902": {
+   "pdfPage": 772,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "f77adf004f6e4fbd57902906abaae56538199454f057d2f16b8f2cf439034d73",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "910": {
+   "pdfPage": 514,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "b0d5788885e0ada7b1d3b31483ee87a9f0634db55afab0a97244a707c6d16d96",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "911": {
+   "pdfPage": 515,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "115f801d0790184d00eb4f44932b837b149080c4f863e72fc414af2de0b05f37",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-he-two-bucket-settlement"
+  },
+  "912": {
+   "pdfPage": 516,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "d78d5de7dc84e6269f2db39a90c880ecf0196cc8d8544590506a5663b8915117",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "920": {
+   "pdfPage": 342,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "5ae780893fba68741716195835a28977ed3b58c433a4a2a730c52410b8cd2d3e",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "921": {
+   "pdfPage": 343,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "c6d7ff891810e4e92903428f197de2cd15c8e576ae9f819f5f1ddde6445c2122",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-legible-halving-tree"
+  },
+  "922": {
+   "pdfPage": 344,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "8a3e3976dfdcfc97cb50e0fa8307b486bf456229e912a495148d0ce6edd874be",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "930": {
+   "pdfPage": 259,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "ebb114d408f2cce8cd04481db0604be630fc2272da3712e9bca20874b7f5c40a",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "931": {
+   "pdfPage": 260,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "41f27c94338ff5aa275c572d05715456f36bdb81cfa4181fe0ab10ac9f617dd9",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-sealed-laundering-fork"
+  },
+  "932": {
+   "pdfPage": 261,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "1e78ab95cc4bb850900bb83e58926f22380ef34338f0c0c96af5f6ade63026d7",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "940": {
+   "pdfPage": 246,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "c89f5a2b0b857597802a4776aa0410cefcdca26cde1ca60bebeb0ea6b920b300",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "941": {
+   "pdfPage": 247,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "1d5e978f612f7edca3401482df8a907e8c9d363d297f7652588b3fd2856c5683",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-sealed-release-lattice"
+  },
+  "942": {
+   "pdfPage": 248,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "86178c00050df253230475195d1657bf35a190da0517c329d8d2048c2c84c9a6",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "950": {
+   "pdfPage": 236,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "571332d4776f12fa1b3a728e4bf941f0c2330207a30dd4cac696da5df9740058",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "951": {
+   "pdfPage": 237,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "61ba44605073b17fad6d1f99375896b33f17390faa2907c71b0b42818cd90a2c",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-sealed-three-principals"
+  },
+  "952": {
+   "pdfPage": 238,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "7d4c8b2e3eadaa34321dc81a92661960267972ba9e6d486b70e5e493db750d12",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "960": {
+   "pdfPage": 437,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "dc0882ef1769c3e3c5483195bdd5209d9ba72a4d322402cba0fd7c93922f0f34",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "961": {
+   "pdfPage": 438,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "0a6475cb67c796634726e7320d46026a479641b4dcc8c3e55b61de452ca5cbf7",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-stp-engine-swap-regime"
+  },
+  "962": {
+   "pdfPage": 439,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "0fe8411fb63245c2c8a03937ddb6ceb096f4e5d710832c89184baba37a1f6869",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "970": {
+   "pdfPage": 452,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "29be3129106f504d8b1f2c9bb61b076a2bcc14f52037105c72b35e837434cc62",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "971": {
+   "pdfPage": 453,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "aa8f3f9dc1cc82c170cccf541ff67f1ca7c0b965e9b4aa364996d4061bc79c12",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-stp-judge-market"
+  },
+  "972": {
+   "pdfPage": 454,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "b60233f10ce19526bae13fde5a41e1d00dc157e23ab2de30bcda798b2759b1e2",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "980": {
+   "pdfPage": 438,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "0a6475cb67c796634726e7320d46026a479641b4dcc8c3e55b61de452ca5cbf7",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "981": {
+   "pdfPage": 439,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "0fe8411fb63245c2c8a03937ddb6ceb096f4e5d710832c89184baba37a1f6869",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-stp-resurrection-soundness"
+  },
+  "982": {
+   "pdfPage": 440,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "46f2638aeebb8930c5a69eae1de7838764ea25ef300f66c497b324bfd27bdc08",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "990": {
+   "pdfPage": 119,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "a58b88fc8237a5cff12fea393e6b87af090b62cb0f008d0d2a1d907e275eb56c",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "991": {
+   "pdfPage": 120,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "d4cb621f05699273a1244da20cb4acb1e538b594e36456492f1cc225c5ea7bff",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "fig-swk-taint-automaton"
+  },
+  "992": {
+   "pdfPage": 121,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "55ca16d5ae686b72e864c9ae35f2593613467aa870f0e87cd55878f3202d5502",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "1000": {
+   "pdfPage": 344,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "8a3e3976dfdcfc97cb50e0fa8307b486bf456229e912a495148d0ce6edd874be",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
+  },
+  "1001": {
+   "pdfPage": 345,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "a12b3cde34006e5088a580fef7efe470d755da6499638a1605b1977feab93a6e",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based",
+   "figureId": "legible-swarm-zoom-advantage"
+  },
+  "1002": {
+   "pdfPage": 346,
+   "sourceSha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+   "imageSha256": "385ae428049df65bf77c8a345683093cc8392b0281ad3846364eaceb5093fe20",
+   "width": 840,
+   "height": 1200,
+   "pageNumbering": "physical-1-based"
   }
  },
  "snapshotFigures": [
+  "fig-anchor-card-lifecycle",
   "fig-anchor-v6v7-escalation",
+  "fig-bonded-isolation-ladder",
   "fig-bonded-session-lifecycle",
   "fig-fh-cochain-hand",
   "fig-fh-cycle-vs-cut",
+  "fig-fh-settlement",
   "fig-fh-worked-example",
   "fig-he-conflict-witness",
   "fig-he-deontic-frontier",
+  "fig-he-rater-ladder",
   "fig-he-two-bucket-settlement",
   "fig-legible-halving-tree",
   "fig-sealed-laundering-fork",
   "fig-sealed-release-lattice",
   "fig-sealed-three-principals",
   "fig-stp-engine-swap-regime",
+  "fig-stp-judge-market",
   "fig-stp-resurrection-soundness",
   "fig-swk-taint-automaton",
   "legible-swarm-zoom-advantage"
