@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "source-merged-artifact-publication-pending",
+  "status": "source-merged-artifact-preparation-verified-delivery-tracked-in-pr-10355",
   "editionDate": "5 November 2026",
   "sourceMerge": {
     "pr": 10354,
@@ -181,7 +181,7 @@
   "deployment": null,
   "publicReadback": null,
   "editorialHistory": "The editorial log remains only in the research ledger; it is excluded from the printed Book and public buildable source archive.",
-  "releaseBoundary": "Source merge, input reconciliation, exact accepted PDF copying and local publication derivatives are established. The source archive includes one disclosed non-consumed provenance update. Archive upload, protected artifact merge, deployment and independent full-site byte verification remain separate pending steps.",
+  "releaseBoundary": "Source merge, input reconciliation, exact accepted PDF copying and local publication derivatives are established. The source archive includes one disclosed non-consumed provenance update. This receipt records verified preparation; PR #10355 is the live authority for protected artifact merge, upload, deployment and independent full-site byte verification. No future delivery outcome is asserted here.",
   "postReconciliationInventoryDelta": {
     "status": "explicitly-reviewed-derived-metadata-only",
     "inventoryEntries": 511,
@@ -268,5 +268,7 @@
       "skipped": 122
     },
     "canonicalMetadataTests": 27
-  }
+  },
+  "releaseStatusAuthority": "https://github.com/curiositech/port-daddy/pull/10355",
+  "deliverySnapshot": "Null artifact merge, deployment, upload and public readback fields describe the preparation-time snapshot recorded here. Final protected-merge, deployment and independent live-download evidence is maintained in PR #10355; these nulls are not an assertion that delivery remains pending after that PR records a later outcome."
 }

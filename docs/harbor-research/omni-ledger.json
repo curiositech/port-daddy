@@ -133137,8 +133137,8 @@
       "queue_state": "current_work",
       "priority": "P1",
       "owner": "codex/book-salvage-claims-20261105",
-      "status": "source merged; exact-artifact publication pending",
-      "result": "Confirmed reader-feedback corrections, selective art/prose salvage and bounded decoded-claims verification are implemented. Source PR #10354 merged by protected rebase on 2026-11-05 at f9a5979dd9f7613dc07b774ab118b5d314ccaa62. Merged source bytes and fresh assembly match the accepted 817-page Suisse artifact; artifact publication and live readback remain pending.",
+      "status": "implementation and artifact preparation verified; delivery tracked in PR #10355",
+      "result": "Confirmed reader-feedback corrections, selective art/prose salvage and bounded decoded-claims verification are implemented. Source PR #10354 merged by protected rebase on 2026-11-05 at f9a5979dd9f7613dc07b774ab118b5d314ccaa62. Merged source bytes and fresh assembly match the accepted 817-page Suisse artifact; final artifact delivery evidence is maintained in PR #10355.",
       "assumptions": [
         "Editorial history is kept here, not in the printed book or public source bundle.",
         "The decoded-claims proof concerns bounded post-decoding policy and delegation, not JSON parsing, signatures or deployed complete mediation."
@@ -133158,10 +133158,10 @@
         },
         {
           "path": "docs/harbor-research/exposition/book-salvage-20261105/publication.json",
-          "result": "Source PR #10354 merged at 2026-11-05T14:23:23Z. Reconciliation passed for 511 canonical entries, 132 direct inputs, seven generated compilation inputs, nine supplementary assembly outputs and 271 external inputs. Exact accepted PDF/spreads and the 511-file publication archive are prepared locally; its sole provenance-only inventory difference is disclosed. Artifact merge, upload, deployment and public readback remain pending."
+          "result": "Source PR #10354 merged at 2026-11-05T14:23:23Z. Reconciliation passed for 511 canonical entries, 132 direct inputs, seven generated compilation inputs, nine supplementary assembly outputs and 271 external inputs. Exact accepted PDF/spreads and the 511-file publication archive are prepared locally; its sole provenance-only inventory difference is disclosed. This is a preparation-time snapshot; final artifact merge, upload, deployment and public readback evidence is maintained in PR #10355."
         }
       ],
-      "next": "Publish the exact accepted Suisse PDF and derived spreads with the freshly built source archive in a separate artifact PR; follow protected merge and deployment, then verify full-site download bytes.",
+      "next": "Consult [PR #10355](https://github.com/curiositech/port-daddy/pull/10355) for protected artifact merge, deployment and full-site download receipts. This ledger records verified preparation and does not certify delivery.",
       "acceptance": "Every accepted recommendation is implemented or explicitly adjudicated; actual proof and cover execution is evidenced; current sources/PDF/spreads/archive are consistent and publicly downloadable.",
       "depends_on": [
         "BOOK-EDITORIAL-CONTINUITY-20261104"
@@ -133180,7 +133180,7 @@
         {
           "date": "2026-11-05",
           "manuscript_date": "5 November 2026",
-          "status": "source merged; exact-artifact publication pending",
+          "status": "implementation and artifact preparation verified; delivery tracked in PR #10355",
           "items": [
             "Add brief motivating preface and concise Landmark captions; reuse two inspected thematic illustrations on the book page.",
             "Give deontic compatibility and key custody dedicated sections; retain hypotheses and unproved design boundaries.",
