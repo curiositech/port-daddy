@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "status": "source-merged-artifact-publication-pending",
+  "editionDate": "5 November 2026",
+  "sourceMerge": {
+    "pr": 10354,
+    "url": "https://github.com/curiositech/port-daddy/pull/10354",
+    "commit": "f9a5979dd9f7613dc07b774ab118b5d314ccaa62",
+    "mergedAtUtc": "2026-11-05T14:23:23Z",
+    "method": "rebase",
+    "verification": "Hosted merge verified by the publication coordinator; reconciliation independently checked this commit and its source bytes."
+  },
+  "acceptedPdf": {
+    "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+    "sha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+    "pages": 817,
+    "bytes": 16520833,
+    "fontProfile": "suisse",
+    "role": "Exact accepted local artifact copied into the publication tree; live public-byte verification is pending.",
+    "copiedBytesVerified": true
+  },
+  "sourceAcceptanceReceipts": [
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/acceptance.json",
+      "sha256": "2993949f80d958d3d8304e14b1d8a500ccc98aad08843cf5de283b50ba926769"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/consumed-inputs.json",
+      "sha256": "29e45b5f95ea4668560854005bd67fb1294eb1a17cd1b91a17028d4993a42b65"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/publication-font-profile.json",
+      "sha256": "e8c51745e8fcb8d57d1c06652933a4b8ee789e2b6ef1397dc072c441aff6de62"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/publication-pdf-checks.txt",
+      "sha256": "595a36f033914873d673e8125dbc140f50d25eaf1b52ae918225611ac1a723d7"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/root-visual-review.json",
+      "sha256": "e767aa1e8865c64c3e4950a789867a1db7d823accb9bad501249128c4ed7753b"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/structure-visual-review.json",
+      "sha256": "92a778bcea7f9d8e461d6d0fd76bbc92b08f9d685e999784e9fbe25fcc2c1fb8"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/prose-visual-review.json",
+      "sha256": "b1d67505d56a77db14f158e1dfadb40591da632f1421a371195696a23ccad24f"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/render-differential.json",
+      "sha256": "cf54ad0c5f5034410f046ba87a0cb66c5fbe5cabbe18e0725abcd7c1f8d87f35"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/page-turn-check.json",
+      "sha256": "6d84931e0e1eafe455e8b63e1335e4c65be9c50f74d617cd9788fe006a41947b"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/independent-source-review.json",
+      "sha256": "77d79afc3f5b884e7036dd7a7855f9d21e54150dfca6eec9fdaa72f316936e70"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/extracted-source-build.json",
+      "sha256": "6c3842e20b72c54fce0c0885527dca46d2434b8a3fb2d395fb28a8e6b1465742"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/kani-verification.json",
+      "sha256": "11fe1f360aa59e8e2885dfbcf7028203b04aa251e41d1acea8d5210f73a06092"
+    },
+    {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/source-checks.json",
+      "sha256": "ebe481e1b01f3fe41ef90f48e46549eb1eacd8e0b47e69b3fd5f375b236d0e9b"
+    }
+  ],
+  "reconciliation": {
+    "acceptedPdfSha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+    "acceptedReceiptSha256": "29e45b5f95ea4668560854005bd67fb1294eb1a17cd1b91a17028d4993a42b65",
+    "assemblyWitnessSha256": "c7ecb4506852ec02f8495b0aedc749ba5d2954ab350e3d1829edb449472eb017",
+    "canonicalSourceEntries": 511,
+    "consumedGeneratedInputs": [
+      {
+        "bytes": 151,
+        "comparison": "exact",
+        "path": "pd-book-font-config.tex",
+        "sha256": "d609d936e148163356f312b7786450c771509fd2c117d89cc2d99f02dab34476"
+      },
+      {
+        "bytes": 55377,
+        "comparison": "exact",
+        "path": "mega-volume-margin-references.tex",
+        "sha256": "6172412f8fdb79318648f7d1717f4e6395236ac5640b1498de66feab6fdda716"
+      },
+      {
+        "bytes": 2744,
+        "comparison": "exact",
+        "path": "mega-volume-contents.tex",
+        "sha256": "ca297b3c05ecccbaf854d7a53dd6e099e51b5333341321d31b05cf49d5f55374"
+      },
+      {
+        "bytes": 20389,
+        "comparison": "exact",
+        "path": "mega-volume-cite-aliases.tex",
+        "sha256": "8d7de0a5a2925e1f741379a299a708d329ff1d330673d1c065c2e82365d39357"
+      },
+      {
+        "bytes": 1938653,
+        "comparison": "exact",
+        "path": "mega-volume-body.tex",
+        "sha256": "959f08f567568923af11d7dff8430463d3df409b8949e3a54e8d379e5d998d88"
+      },
+      {
+        "bytes": 5501,
+        "comparison": "exact",
+        "path": "mega-volume-solutions.tex",
+        "sha256": "4f5e66edb33b6b04621ea6a67382ce5b4dc947c901b56e1dfed08bef61fcd2c4"
+      },
+      {
+        "bytes": 48618,
+        "comparison": "exact",
+        "path": "mega-volume-mechanized.tex",
+        "sha256": "db6af1b2ded111c922050aadde7a9e0fb9be6f2a72f622f854465e83b3931265"
+      }
+    ],
+    "directConsumedInputs": 132,
+    "externalInputsMatched": 271,
+    "fontProfile": {
+      "profile": "suisse",
+      "sha256": {
+        "SuisseIntl-Regular.otf": "95312b39168b172604cc55369909e1090c675dcf0004c49e9f07730f4507e24b",
+        "SuisseIntl-RegularItalic.otf": "e583add43c9e859753b5feccff497d0ed492dbb1eae7783a6f16484bc56ebefa",
+        "SuisseIntl-Semibold.otf": "9b8bb1c5f778eda96e9b897438e9e1f6f0787816893d9bf6365a58376c761db7",
+        "SuisseIntl-SemiboldItalic.otf": "cd766b525e050424d1f026278a98367439b84201850dff4ca21cb4491a60a876"
+      }
+    },
+    "freshAssemblyEquivalent": true,
+    "head": "f9a5979dd9f7613dc07b774ab118b5d314ccaa62",
+    "limits": [
+      "This compares input bytes and regenerates assembly; it does not run XeTeX, render spreads, copy a PDF, build an archive or publish.",
+      "The accepted PDF remains the reviewed existing artifact; its bytes must be independently checked before copy. A merged commit alone does not establish byte equivalence.",
+      "External input files are checked at their recorded host paths. This is not a full OS, library, binary or font-renderer dependency audit.",
+      "Archive inventory modes are normalized packaging modes, not a claim that worktree filesystem permissions match.",
+      "Generated solution and auxiliary compilation streams are excluded by the accepted receipt; authored solution bodies and fresh assembly are covered.",
+      "Extra assembly outputs are matched to the pinned supplementary witness, not represented as consumed compilation inputs."
+    ],
+    "mergedCommitAuthority": "Caller supplies the verified landed commit; this helper checks ancestry, not hosted PR state.",
+    "mergedSourceCommit": "f9a5979dd9f7613dc07b774ab118b5d314ccaa62",
+    "reconciliationHelperSha256": "8ef067c32cef4e89cb97a8dc0aa353f38e8f1d87ef4aef6818b6fcb0f19af498",
+    "sourceInputBytesEquivalent": true,
+    "status": "PASS",
+    "supplementaryAssemblyOutputs": 9,
+    "toolchain": "XeTeX 3.141592653-2.6-0.999998 (TeX Live 2026)",
+    "localReceiptSha256": "a5bc299c4bd65b0493b1f330ffe3b84c109278400b3d873c3684733fd3601e94",
+    "runId": "20261105T142442Z-64e14662",
+    "evidenceScope": "Portable projection of the successful local reconciliation receipt; local absolute paths are omitted. No PDF compilation, artifact copy, deployment or live readback is asserted by this check."
+  },
+  "sourceArchive": {
+    "bytes": 40157803,
+    "contentType": "application/gzip",
+    "file": "coordination-papers-mega-volume-source.tar.gz",
+    "key": "book/source/sha256/4c10503293bf06ead0ccdf88e98486c2b56c0b7a0af38839798ce14245dad9f4.tar.gz",
+    "sha256": "4c10503293bf06ead0ccdf88e98486c2b56c0b7a0af38839798ce14245dad9f4",
+    "url": "https://media.portdaddy.dev/book/source/sha256/4c10503293bf06ead0ccdf88e98486c2b56c0b7a0af38839798ce14245dad9f4.tar.gz",
+    "manifestSha256": "9913040c4e4f5cc1a5b7d3f11dab1ab44cf03a536be12bf7ac76d33060a0416f",
+    "sourceSha256": "577afca021a9d28fe7d71933174371f5a803f1c6232852c283c9549cc977b5d1",
+    "fileCount": 511,
+    "receipt": {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-source.json",
+      "sha256": "680252e36c21147465e56a2d712ee7c3abb013de14ac9ac970605bbccde94f8e"
+    },
+    "localArchiveBytesVerified": true,
+    "upload": null,
+    "publicReadback": null,
+    "buildabilityEvidence": {
+      "path": "docs/harbor-research/exposition/book-salvage-20261105/extracted-source-build.json",
+      "scope": "The recorded accepted archive was extracted and built with open fonts. The publication archive differs only in the disclosed non-consumed cover-provenance field. This receipt does not assert a new extracted build of the publication archive."
+    }
+  },
+  "sourceArchiveStatus": "Prepared and hash-verified locally; upload and public readback pending.",
+  "artifactMerge": null,
+  "deployment": null,
+  "publicReadback": null,
+  "editorialHistory": "The editorial log remains only in the research ledger; it is excluded from the printed Book and public buildable source archive.",
+  "releaseBoundary": "Source merge, input reconciliation, exact accepted PDF copying and local publication derivatives are established. The source archive includes one disclosed non-consumed provenance update. Archive upload, protected artifact merge, deployment and independent full-site byte verification remain separate pending steps.",
+  "postReconciliationInventoryDelta": {
+    "status": "explicitly-reviewed-derived-metadata-only",
+    "inventoryEntries": 511,
+    "unchangedEntries": 510,
+    "addedEntries": 0,
+    "removedEntries": 0,
+    "changes": [
+      {
+        "path": "book/plates/PROVENANCE.json",
+        "acceptedRecord": {
+          "bytes": 27125,
+          "mode": 420,
+          "path": "book/plates/PROVENANCE.json",
+          "sha256": "288fa124ec4fafd23744f87335aeb3d3417f74dbde671d3fc1356c340517ad21"
+        },
+        "publicationRecord": {
+          "path": "book/plates/PROVENANCE.json",
+          "sha256": "2731e374409ffb4af9de999bde9b853483557fe6d2ce3155efa9d41e4e635b60",
+          "bytes": 27125,
+          "mode": 420
+        },
+        "consumedByXeTeX": false,
+        "fields": [
+          {
+            "jsonPointer": "/plates/cover-swiss/source_sha256",
+            "before": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+            "after": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa"
+          }
+        ],
+        "reason": "Cover provenance must identify the exact accepted PDF copied for publication. This metadata is included in the source archive but is not an input consumed by XeTeX."
+      }
+    ],
+    "all132DirectConsumedInputsStillMatch": true,
+    "scope": "The initial successful reconciliation applies to the merged source commit. The final source archive has this one disclosed provenance-only difference; it is not claimed byte-identical to the accepted archive or the original complete inventory. No manuscript, layout, asset bytes or assembly input changed."
+  },
+  "facingSpreads": {
+    "source": {
+      "file": "coordination-papers-mega-volume.pdf",
+      "sha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+      "bytes": 16520833,
+      "pages": 817
+    },
+    "output": {
+      "file": "coordination-papers-mega-volume-spreads.pdf",
+      "sha256": "732f0f3da1737283e177b8327bb118f3446f14b9e6cdeba4f1097ab3f135fb2f",
+      "bytes": 17442678,
+      "pages": 409
+    },
+    "receipt": {
+      "path": "website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.json",
+      "sha256": "a233aace5273ee5bda408ec02a5306b60ba232cef23cc9790307160d1983406e"
+    },
+    "copiedBytesVerified": true,
+    "publicReadback": null
+  },
+  "figureDesk": {
+    "acceptedSourceSha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+    "trackedFigures": 21,
+    "newImmutableImages": 63,
+    "historyRetained": true,
+    "mapping": {
+      "path": "docs/harbor-research/exposition/figures/desk-curated/RENDER-PAGES.json",
+      "sha256": "ad64ed875dc7cf712aac226787215fa8054611ff9d4a5ec768f9b9e6b99f15c7"
+    },
+    "localImageBytesVerified": true,
+    "deployment": null
+  },
+  "publicationTreeChecks": {
+    "sourceCheckGroups": 30,
+    "status": "pass",
+    "pdfCheckGroups": 6,
+    "pdfSha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+    "scope": "Fresh checks of the publication tree and the copied accepted PDF with its matching retained AUX and layout audit; no new XeTeX compilation is claimed.",
+    "commands": [
+      "scripts/harbor-research/run_pdf_checks.py on the copied accepted cache PDF",
+      "30 source-check commands enumerated in sourceAcceptanceReceipts/source-checks.json",
+      "scripts/harbor-research/refresh_figure_desk_pages.py --check",
+      "scripts/harbor-research/build_figure_desk.py --check",
+      "scripts/build-book-source.py check",
+      "website-v2/scripts/check-whitepaper-metadata.ts"
+    ],
+    "researchUnitSuite": {
+      "tests": 953,
+      "skipped": 122
+    },
+    "canonicalMetadataTests": 27
+  }
+}
