@@ -7,7 +7,7 @@
       "width": 1440,
       "height": 1100,
       "theme": "light",
-      "file": "chapter-primer-desktop-light.png",
+      "url": "https://media.portdaddy.dev/sha256/67/67771e80a54ccbacbd14ae7305fa47f96c750216881b8cf968444ae4b53dfebd.png",
       "sha256": "67771e80a54ccbacbd14ae7305fa47f96c750216881b8cf968444ae4b53dfebd",
       "background": "rgb(0, 63, 184)",
       "items": [
@@ -44,7 +44,7 @@
       "width": 1440,
       "height": 1100,
       "theme": "dark",
-      "file": "chapter-primer-desktop-dark.png",
+      "url": "https://media.portdaddy.dev/sha256/c4/c4fea453e46190cb8065aac2451eb907ffc56c78b1f2f575d1173b69c3257403.png",
       "sha256": "c4fea453e46190cb8065aac2451eb907ffc56c78b1f2f575d1173b69c3257403",
       "background": "rgb(125, 180, 255)",
       "items": [
@@ -81,7 +81,7 @@
       "width": 390,
       "height": 1100,
       "theme": "light",
-      "file": "chapter-primer-phone-light.png",
+      "url": "https://media.portdaddy.dev/sha256/34/34a9af6c9f9561b3fe663dbbc94a778aef2b19bf5c211af537061b0cd662745e.png",
       "sha256": "34a9af6c9f9561b3fe663dbbc94a778aef2b19bf5c211af537061b0cd662745e",
       "background": "rgb(0, 63, 184)",
       "items": [
@@ -118,7 +118,7 @@
       "width": 390,
       "height": 1100,
       "theme": "dark",
-      "file": "chapter-primer-phone-dark.png",
+      "url": "https://media.portdaddy.dev/sha256/1b/1bd3ed0942eb64424efa5301545d5e820c1ccf2c4fb21ab0340989bb083708fb.png",
       "sha256": "1bd3ed0942eb64424efa5301545d5e820c1ccf2c4fb21ab0340989bb083708fb",
       "background": "rgb(125, 180, 255)",
       "items": [
