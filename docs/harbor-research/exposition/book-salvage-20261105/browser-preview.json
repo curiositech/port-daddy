@@ -5,7 +5,7 @@
   "provenance": "Actual Chromium Playwright recordVideo and screenshots of the local publication preview. Exact source archive bytes served through a narrowly scoped Playwright response shim with application/gzip and attachment headers because Vite incorrectly sends the tar.gz as Content-Encoding:gzip; raw local HTTP bytes are independently hashed. This validates browser interaction and candidate bytes, not the production source redirect. Public pages only; not Porthole, not deployed-site proof.",
   "screenshots": [
     {
-      "file": "book-desktop-light.png",
+      "url": "https://media.portdaddy.dev/sha256/a4/a4aee1e91eeae4d19e461c0531703c7fa2c5a7dd90fc254651668c9dfbfa42af.png",
       "viewport": {
         "width": 1440,
         "height": 1100
@@ -15,7 +15,7 @@
       "bytes": 210828
     },
     {
-      "file": "book-desktop-dark.png",
+      "url": "https://media.portdaddy.dev/sha256/72/726a27031e76f5200392ce584765c63f49829c9141c0edd886bdd188416bdf8b.png",
       "viewport": {
         "width": 1440,
         "height": 1100
@@ -25,7 +25,7 @@
       "bytes": 211823
     },
     {
-      "file": "book-phone-light.png",
+      "url": "https://media.portdaddy.dev/sha256/f6/f61487348eed551c7d0e774847e170d16d7bd5e82b74d64c0b7f8e97ceea5849.png",
       "viewport": {
         "width": 390,
         "height": 844
@@ -35,7 +35,7 @@
       "bytes": 83991
     },
     {
-      "file": "book-phone-dark.png",
+      "url": "https://media.portdaddy.dev/sha256/1f/1f42d3333951db4bed8634e0f4eb74a55939736c6ff139b1127dc6bbbfa07e37.png",
       "viewport": {
         "width": 390,
         "height": 844
@@ -45,7 +45,7 @@
       "bytes": 84944
     },
     {
-      "file": "book-desktop-200-percent.png",
+      "url": "https://media.portdaddy.dev/sha256/48/4847fc7f7abc7c605c34c366c01a880486896ec34a96fed3414a814aaa557d35.png",
       "viewport": {
         "width": 1440,
         "height": 1100
@@ -55,7 +55,7 @@
       "bytes": 264391
     },
     {
-      "file": "book-phone-200-percent.png",
+      "url": "https://media.portdaddy.dev/sha256/27/27c01b76a02dd59dc297316a4632ce53da5463e0707acc20674ed977af173156.png",
       "viewport": {
         "width": 390,
         "height": 1100
@@ -155,7 +155,7 @@
     "heading": "Governing AI Agents: The Harbor, the Person, and the Economy"
   },
   "video": {
-    "file": "book-public-navigation.webm",
+    "url": "https://media.portdaddy.dev/sha256/63/6371b1d6365ba958df34bfb063e0eaa126918278041cdd25329b70789e9f0517.webm",
     "width": 1440,
     "height": 1100,
     "scope": "Landing,scroll to contents,real first-chapter overview navigation,return,keyboard source download,appearance toggle; no desktop/private pages.",
