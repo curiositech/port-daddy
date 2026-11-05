@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Github } from 'lucide-react'
 import { Wordmark } from './primitives'
+import { StudioSignature } from './StudioSignature'
 
 const SITE_LINKS = [
   { label: 'Home', href: '/' },
@@ -40,6 +41,7 @@ export function SiteFooter() {
             files each one has claimed, and the work you can recover when one crashes. The Mac app
             makes all of it visible before anything drifts.
           </p>
+          <StudioSignature />
         </div>
 
         <div className="grid grid-cols-2 gap-[var(--space-5)] lg:col-span-7 lg:grid-cols-4">

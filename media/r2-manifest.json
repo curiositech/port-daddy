@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 436,
-    "distinctObjects": 401,
-    "bytes": 130685869,
-    "distinctBytes": 128008849
+    "assets": 438,
+    "distinctObjects": 403,
+    "bytes": 130928004,
+    "distinctBytes": 128250984
   },
   "assets": [
     {
@@ -267,6 +267,20 @@
       "sha256": "1d9e0a9d45ba410adf2c206988e934830be0eed10ae86952fbfbc3b14bfdaedf",
       "key": "sha256/1d/1d9e0a9d45ba410adf2c206988e934830be0eed10ae86952fbfbc3b14bfdaedf.png",
       "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/studio-signature-10357/book-phone-dark.png",
+      "bytes": 64438,
+      "sha256": "abe6a0371de39f93c81246a934657887bbacdd606e9c911dc670c9e5a72ff019",
+      "key": "sha256/ab/abe6a0371de39f93c81246a934657887bbacdd606e9c911dc670c9e5a72ff019.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/studio-signature-10357/book-studio-navigation.webm",
+      "bytes": 177697,
+      "sha256": "674a89d6868a7e143b0d72ba37d8fb5f1b6e77dbedb0db0f6a634030267a4404",
+      "key": "sha256/67/674a89d6868a7e143b0d72ba37d8fb5f1b6e77dbedb0db0f6a634030267a4404.webm",
+      "contentType": "video/webm"
     },
     {
       "path": "docs/artifacts/conjure/conjure-dag-vello.png",
