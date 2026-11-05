@@ -112,12 +112,19 @@ describe('whitepaper metadata sync', () => {
     )
   })
 
-  test('every chapter status matches the version its LaTeX source declares', () => {
+  test('every chapter uses the canonical edition date and declares its metadata version', () => {
+    const textbookMap = readFileSync(resolve(websiteRoot, '../book/figures/pd-textbook-map.tex'), 'utf8')
+    const editionDate = textbookMap.match(/^\\providecommand\{\\pdeditiondate\}\{([^}]+)\}$/m)
+    expect(editionDate, 'the shared LaTeX map declares the canonical edition date').not.toBeNull()
+    expect(editionDate![1]).toBe(TEXTBOOK.edition.date)
+    expect(COLLECTED_VOLUME.date).toBe(TEXTBOOK.edition.date)
+
     for (const record of TEXTBOOK.chapters) {
       const tex = readFileSync(resolve(websiteRoot, '..', record.source), 'utf8')
-      const match = tex.match(/\\date\{[^\\}]*\\\\Version ([^}]+)\}/)
-      expect(match, `${record.source} declares \\date{...\\\\Version ...}`).not.toBeNull()
+      const match = tex.match(/^\\date\{\\pdeditiondate\\\\Version ([^}]+)\}$/m)
+      expect(match, `${record.source} declares \\date{\\pdeditiondate\\\\Version ...}`).not.toBeNull()
       const paper = WHITE_PAPERS.find((candidate) => candidate.id === record.id)!
+      expect(paper.date).toBe(TEXTBOOK.edition.date)
       expect(paper.status).toBe(`Version ${match![1]}`)
     }
   })
