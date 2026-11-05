@@ -23,6 +23,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [NEXT-P5](#work-next-p5) | Concurrent continuity and unknown-effect recovery | ["5"] | open | Extend to multiple operations, forks, finite dedup retention and authority transfer; test one real adapter. |
 | [NEXT-P7](#work-next-p7) | Evidence acquisition with uncertain answers | ["7"] | open | Specify answer distributions or adversarial objective, packet prices and missingness; compare with exact small-instance optimum. |
 | [BOOK-VISUAL-ATLAS-20261026](#work-book-visual-atlas-20261026) | Preserve the frozen Book visual atlas and separate proposed family generators from current adoption | ["Book"] | frozen local atlas integrity verified; current-render atlas and full generator standardization incomplete | Implement one authoritative layer registry that generates the full stack, reference table and margin ladder, including chapters spanning multiple layers. Then implement typed comparison/accounting/numeric/protocol families and the shared glyph interface. Review a new digest-bound atlas for the accepted publication PDF; retain the frozen 812-page scores as provenance rather than relabeling them. |
+| [BOOK-EDITORIAL-CONTINUITY-20261104](#work-book-editorial-continuity-20261104) | Worked-case exposition and verified Book publication artifacts | ["Book", "Chapter0", "Chapter1", "Chapter2", "Chapter3", "Chapter4", "Chapter5", "Chapter6", "Chapter7", "Chapter8"] | source and print accepted | Maintain the accepted source/PDF bindings and verify hosted bytes when publishing. Merge, deployment and public readback are recorded in the publication PR. |
 | [BOOK-TEXTBOOK-CRAFT-20261103](#work-book-textbook-craft-20261103) | Sequential whole-book exposition and concept-lifecycle review | ["Book", "Chapter0", "Chapter1", "Chapter2", "Chapter3", "Chapter4", "Chapter5", "Chapter6", "Chapter7", "Chapter8"] | complete source reading and accepted print; publication tracked by PR10346 | Use PR #10346 delivery receipts for protected artifact merge, deployment and public-byte verification. Diagram-family standardization remains separate work. |
 | [A5](#work-a5) | Directory-routed message load | [] | source-asserted | Measure load on representative traces against a simple broadcast/filter baseline. |
 | [ART-PLATES](#work-art-plates) | Thesis plates with one facing sentence | ["Book"] | proposed | Decide per opener and render page-size contact sheet. |
@@ -180,6 +181,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [X7](#work-x7) | Rejected H1 fault-count detector | ["8"] | rejected | Use observed assignment obstruction with direct baseline. |
 | [X8](#work-x8) | Rejected minimum-norm harmonic localization | ["8"] | rejected | Require observed class and independent intervention labels. |
 | [X9](#work-x9) | Rejected cohomology inference from absent receipts | ["8"] | rejected | Design authenticated acquisition or conservative stop. |
+| [critique-CA-014](#work-critique-ca-014) | Canonical Float Plan ownership across Chapters 6–8 | ["Book"] | source correction verified | Maintain one canonical schema in Chapter6 and the stated local/federated custody distinctions; current print acceptance is recorded in the Book publication provenance. |
 | [review-synthesis-01](#work-review-synthesis-01) | Paper 2 enforceability priority narrowed | ["paper2"] | historically_adjudicated | Compare current contribution paragraph with both primary papers; correct lineage and Schneider claims. |
 | [review-synthesis-02](#work-review-synthesis-02) | Paper 3 bonded tower novelty survives, theorem statement needs repair | ["paper3"] | historically_adjudicated | Check published version; revise theorem hypotheses and comparative text; price wrongful slashes. |
 | [review-synthesis-03](#work-review-synthesis-03) | Paper 4 adaptive privacy composition corollary contradicted | ["paper4"] | historically_verified | Replace corollary with a valid adaptive filter theorem or narrow it to fixed schedules. |
@@ -663,6 +665,25 @@ The main text should teach these as a small set of worked decisions, with exact 
 **Dependencies:** BOOK-PUBLICATION-20261015
 
 **Sources:** [docs/harbor-research/visual-atlas/README.md](visual-atlas/README.md) — frozen artifact scope; live-source distinction; regression invocation; [docs/harbor-research/visual-atlas/manifest.json](visual-atlas/manifest.json) — frozen PDF identity and evidence hashes; [docs/harbor-research/visual-atlas/validation.json](visual-atlas/validation.json) — 723/405/318/372 integrated-site validation; [docs/harbor-research/visual-atlas-family-proposal.md](visual-atlas-family-proposal.md) — proposed semantic registries, nine family contracts and SVG interface; [scripts/book-visual-atlas/validate.py](../../scripts/book-visual-atlas/validate.py) — asset/source/review structure checks; [scripts/book-visual-atlas/test.cjs](../../scripts/book-visual-atlas/test.cjs) — bounded isolated browser smoke; [book/figures/pd-swiss-evidence.tex](../../book/figures/pd-swiss-evidence.tex) — SGStackLayers and SGMarginLadder duplicated layer lists; [book/figures/pd-figure-language.tex](../../book/figures/pd-figure-language.tex) — existing shared role tokens and shapes
+
+<a id="work-book-editorial-continuity-20261104"></a>
+### BOOK-EDITORIAL-CONTINUITY-20261104: Worked-case exposition and verified Book publication artifacts
+
+**Status:** source and print accepted. **Kind:** editorial and mathematical reconciliation.
+
+**Result or question:** One recurring checkout job carries the reader through state, authority, confinement, supervision, accountable identity, payment, dispute and federation. Definitions, worked traces, formal premises, solutions and summary claims agree. The two-column evidence catalogue preserves every artifact record and fits without orphan continuation pages.
+
+**Assumptions:** Source reading, finite computations, render acceptance and hosted delivery are distinct evidence.; No live-runtime or new scientific-experiment result is claimed by this editorial acceptance.
+
+**Evidence:** book/figures/swiss-bundle-provenance.json publicationReview; 814-page accepted PDF SHA256 583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce; All30 final source/check groups pass;953 research tests,121 skips;77 generator tests.; All6 PDF gates pass;266 captions,212 exercise labels,1437 margin objects and321 citation sources checked.; Four reviewers; all9 openers,34 whole-book contact sheets,206 selected readable spreads; all814 final pages pixel-compared and15 changed spreads re-inspected.
+
+**Next action:** Maintain the accepted source/PDF bindings and verify hosted bytes when publishing. Merge, deployment and public readback are recorded in the publication PR.
+
+**Completion condition:** Known confirmed mathematical, citation, exposition and layout findings resolved; exact final manuscript passes source checks and facing-spread review; the distributed source must also pass extracted-build validation.
+
+**Dependencies:** BOOK-TEXTBOOK-CRAFT-20261103
+
+**Sources:** [book/textbook.json](../../book/textbook.json) — canonical chapter sources; [book/figures/swiss-bundle-provenance.json](../../book/figures/swiss-bundle-provenance.json) — publicationReview
 
 <a id="work-book-textbook-craft-20261103"></a>
 ### BOOK-TEXTBOOK-CRAFT-20261103: Sequential whole-book exposition and concept-lifecycle review
@@ -3581,6 +3602,23 @@ The main text should teach these as a small set of worked decisions, with exact 
 
 **Sources:** [docs/harbor-research/pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf](#source-src-112) — pp. 1,8,11; [docs/harbor-research/pdf/The-Harbor-After-the-Harbor.pdf](#source-src-113) — p. 28
 
+<a id="work-critique-ca-014"></a>
+### critique-CA-014: Canonical Float Plan ownership across Chapters 6–8
+
+**Status:** source correction verified. **Kind:** editorial-correction.
+
+**Result or question:** Chapter 6 owns the Float Plan schema; Chapter 7 specifies its local collateral profile and refers to that schema; Chapter 8 owns the proposed federation custody boundary. Local accounting does not imply deployed federated 2-of-3 custody.
+
+**Assumptions:** Resolution applies to the source hashes recorded in verification, before final PDF acceptance, commit, merge or publication. Historical source assertions remain preserved separately.
+
+**Evidence:** 2026-11-04: book/harbor-economy.tex def:float-plan includes acceptance criteria/evaluation, budgets, bounty/bond, funding principals and settlement; subjective and partial valuation require agreed procedures.; 2026-11-04: book/agent-transactions-whitepaper.tex def:bonded-float-plan explicitly refers to he:def:float-plan; only one raw def:float-plan remains across the owned chapter sources. Its local and proposed federated custody profiles are distinguished.; 2026-11-04: book/federated-harbor-whitepaper.tex sec:fh-escrow states conditional custody assumptions and names 2-of-3 as a candidate, not a closed or deployed result.; check_duplicate_theorems.py: exit 0, 140 labelled statements across 8 chapters, no duplicate labels (0 allowed).; check_library_index.py --check-md: exit 0, no existence/coverage/drift/prefix/Markdown freshness failures.
+
+**Next action:** Maintain one canonical schema in Chapter6 and the stated local/federated custody distinctions; current print acceptance is recorded in the Book publication provenance.
+
+**Completion condition:** One canonical Float Plan schema in Chapter 6; Chapter 7 explicitly references it and defines only a local collateral profile; Chapter 8 owns federation custody; duplicate-label and library-index checks pass. Source acceptance satisfied 2026-11-04. Publication acceptance remains separate.
+
+**Sources:** [docs/harbor-research/critique-ledger.json](critique-ledger.json) — CA-014; [docs/harbor-research/CRITIQUE-LEDGER.md](#source-src-001) — CA-014; current consolidated row, original bytes preserved in omni-sources.zip; [book/harbor-economy.tex](../../book/harbor-economy.tex) — def:float-plan; [book/agent-transactions-whitepaper.tex](../../book/agent-transactions-whitepaper.tex) — def:bonded-float-plan and the immediately following local/federated custody distinction; [book/federated-harbor-whitepaper.tex](../../book/federated-harbor-whitepaper.tex) — sec:fh-escrow; candidate 2-of-3 custody design
+
 <a id="work-review-synthesis-01"></a>
 ### review-synthesis-01: Paper 2 enforceability priority narrowed
 
@@ -4434,7 +4472,7 @@ The main text should teach these as a small set of worked decisions, with exact 
 
 ## Imported adjudications and section records
 
-1670 source assertions remain individually addressable by ID in [the canonical JSON ledger](omni-ledger.json). Their complete text, original statuses, locators and rationale are preserved; they are not automatically current work.
+1669 source assertions remain individually addressable by ID in [the canonical JSON ledger](omni-ledger.json). Their complete text, original statuses, locators and rationale are preserved; they are not automatically current work.
 
 ## Source documents
 

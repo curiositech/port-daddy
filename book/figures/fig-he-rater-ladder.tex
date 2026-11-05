@@ -5,8 +5,8 @@
 % forever in this design?
 % Claim: appeal only ever moves down one rank at a time from a starting
 % rank K, and rank 0 is a protected oracle or a named final authority;
-% since ranks are natural numbers, no infinite ascending chain of judges
-% judging judges is possible.
+% each appeal strictly decreases a natural-number rank, so no infinite
+% appeal chain is possible.
 % Evidence: hand-worked exercise solution (ex:he-rate-the-raters); the
 % well-founded-order argument, deliberately distinct from a convergence
 % proof (none exists for this base case).
@@ -40,9 +40,8 @@
     {protected oracle (objective), or named final authority / quorum
      (preference)};
   \node[pd note,anchor=north west,text width=8.6cm] at (-1.10,{-1.9*\dy})
-    {ranks are natural numbers, so no infinite ascending chain of judges
-     judging judges is possible -- this is a well-founded order, not a
-     convergence proof};
+    {each appeal strictly decreases a natural-number rank, so no infinite
+     appeal chain is possible; termination does not establish accuracy};
 \end{tikzpicture}
 \caption{Each appeal lowers a natural-number rank and stops at rank zero. That endpoint may be a protected oracle or a named final authority; termination does not turn preferences into objective truth. [internal]}
 \label{fig:he-rater-ladder}

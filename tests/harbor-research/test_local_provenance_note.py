@@ -10,10 +10,11 @@ CHAPTER=ROOT/'book/spawn-to-person.tex'
 OPEN=r'\begin{pdexample}{The Swap Gain and the Attested Flip}'
 CLOSE=r'\end{pdexample}'
 NOTE=r'\pdsourceaside{Worked checks: \texttt{b5\_engine\_substitution.py}, seed 20260816, verified: swap gain, participation threshold, deterrence bond and attested flip. The $c_H=0.7$ answer applies the same threshold formula.}'
-# Authorized paragraph/display-math pass; the Chapter 4/5 packet's conservation
-# guard was rerun before repinning. Math, wording and provenance mutations below
-# still fail; this is not an exemption from exact-body protection.
-BODY_SHA='8c7106fd967dd66df6b2c0e197eb5593047ee02500c79bcd5506977894b8a219'
+# Reviewed attested comparison: p_H=theta_H and p_L=theta_L are additional
+# price assumptions, not consequences of attestation. The stated .50/.20
+# payoffs and -.30 swap gain are hand-checked; source, seed, status, body
+# and explicit-price/caveat mutations remain guarded.
+BODY_SHA='61f63beffe9c3f0b80f5245d3d1acd57cbfdbff4a5f0101eca632786bee1d424'
 
 
 def validate(source):
@@ -35,6 +36,19 @@ class ScopedProvenanceTests(unittest.TestCase):
         for a,b in [('at every price','at some price'),('c_H-c_L=0.3','c_H-c_L=0.4')]:
             with self.subTest(change=b), self.assertRaises(AssertionError):
                 validate(source.replace(a,b))
+
+    def test_attested_prices_and_their_independent_assumption_are_required(self):
+        source=CHAPTER.read_text()
+        for old,new in [
+            (r'$p_H=\theta_H=1$ and $p_L=\theta_L=0.4$',
+             r'$p_H=p_L=1$'),
+            ('attestation alone does not imply them',
+             'attestation alone implies them'),
+            ('additionally stipulate the price schedule',
+             'derive the price schedule')]:
+            self.assertIn(old,source)
+            with self.subTest(change=new), self.assertRaises(AssertionError):
+                validate(source.replace(old,new))
 
     def test_other_source_seed_status_and_scope_cannot_be_substituted(self):
         source=CHAPTER.read_text()

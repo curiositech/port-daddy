@@ -3,15 +3,15 @@
   "status": "pass",
   "source": {
     "file": "coordination-papers-mega-volume.pdf",
-    "sha256": "b9b64daf655c1d813ef2d419a1e5622eeb7199e7a4e19d5a0c124e4661cd92b8",
-    "bytes": 17655424,
-    "pages": 846
+    "sha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+    "bytes": 16507250,
+    "pages": 814
   },
   "output": {
     "file": "coordination-papers-mega-volume-spreads.pdf",
-    "sha256": "75d366548e7d66c76cd91b48d723286cdc38d796de84add8b12b5efd1f75367a",
-    "bytes": 18588662,
-    "pages": 424
+    "sha256": "690fd3f5392674c56a95c937d7aaa7dbdabe5e9bdc983594a7f99617f285b083",
+    "bytes": 17421920,
+    "pages": 408
   },
   "builder": {
     "file": "build_facing_pdf.py",
@@ -19,13 +19,13 @@
     "pymupdf": "1.26.7"
   },
   "verification": {
-    "glyphs": 1345822,
-    "links": 3568,
-    "bookmarks": 475,
-    "named_destinations": 4211,
+    "glyphs": 1323798,
+    "links": 3487,
+    "bookmarks": 482,
+    "named_destinations": 4131,
     "blank_halves": 2,
     "coordinate_tolerance_pt": 0.025,
-    "maximum_coordinate_error_pt": 0.0001220703125,
+    "maximum_coordinate_error_pt": 0.000152587890625,
     "exact_character_streams": true,
     "every_character_position_checked": true,
     "bookmark_states_checked": true

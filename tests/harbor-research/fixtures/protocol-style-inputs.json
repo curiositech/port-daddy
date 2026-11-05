@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "scope": "Current protocol fixture inputs; exact hashes are not a rendered acceptance receipt. The September checkpoint remains historical.",
-  "reviewed_source_head": "0821b9893c0cc26c95e65a61c992dd4406d08b00",
+  "reviewed_source_head": "ab50e228e16cbb974797044802c1e82b51cb2a85",
   "changes_reviewed": {
     "coordination-papers-mega-volume-preamble.tex": "Heading-only wrapping, publication copy-review switch, footer text and caption routing; protocol environment contracts unchanged.",
     "coordination-papers-mega-volume-swiss-plates.tex": "Scoped landmark captions and removal of quotation marks from authored prose.",
-    "pd-cite-shortforms.tex": "Verified bibliography key and short-form corrections; follow-up at e0daa29fdb27629f226f804887d22875e155fae9 removes only unused abdulrahman1997pgp and zimmermann1995pgp entries. Historical render receipts retain their original hashes.",
+    "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review; unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance.",
     "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; protocol environments unchanged.",
-    "pd-textbook-map.tex": "Primary-source epigraph wording and edition metadata corrections.",
+    "pd-textbook-map.tex": "Edition date November 2026; chapter structure and primary-source epigraphs preserved.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
     "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required."
   },
@@ -39,8 +39,8 @@
     },
     {
       "path": "book/figures/pd-cite-shortforms.tex",
-      "sha256": "c04d4d63255fcabfd09fd89098b7087f6c8bc15ad02c9c19a3a4380b17dc7eed",
-      "bytes": 27058
+      "sha256": "54780150b4f61b44d23088bba3316ab4af9bb9086bc56031ccf0c74ab0d0ad12",
+      "bytes": 26549
     },
     {
       "path": "book/figures/pd-discharges.tex",
@@ -79,8 +79,8 @@
     },
     {
       "path": "book/figures/pd-textbook-map.tex",
-      "sha256": "ac9b487d9f7b404b2bd9f7f837aeac36f7fa82d22ccf39d7584de264eddef602",
-      "bytes": 13843
+      "sha256": "fc47c347351e6ba8998d16aed3cd47387e4ec53b930f96bc61a4433077eb2171",
+      "bytes": 13842
     }
   ],
   "source_relocation": "Canonical book/ relocation: source-path comments, generated locator header, and fixture import roots updated; no new rendered acceptance claimed. Historical checkpoint hashes remain unchanged."

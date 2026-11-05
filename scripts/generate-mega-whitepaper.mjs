@@ -1232,40 +1232,15 @@ function texPaths(paths, compact = paths.length > MANY_PATHS_THRESHOLD) {
   );
 }
 
-// Escaped text (NOT \path{}'s verbatim scan) with a defensive \allowbreak
-// after every hyphen, escaped underscore, or slash. Needed not only for
-// \texttt{} identifiers (manifest ids, CI job names, Kani harness names) but
-// for plain evidence-policy PROSE too: one row's evidencePolicy names a file
-// inline ("...the Phase-3 claim in docs/reports/FORMAL_VERIFICATION_ANCHOR_
-// V3.md; superseded...") that is not in its structured `paths` array, so
-// texPathBreakable never sees it — its escaped underscores, with no break
-// point of their own, were the actual (if modest) overfull \hbox this
-// emitter hit and fixed.
-// A break after every hyphen, underscore, or slash is not fine-grained
-// enough on its own: the mechanized-claims table's Claim column is
-// 0.15\textwidth (about 49pt), and a single unhyphenated segment between
-// two of those breaks -- "capability", "attenuation", "verification" --
-// can be wider than that on its own, so the segment itself overflows even
-// though the identifier as a whole has plenty of break points. This was a
-// real Overfull \hbox (up to 15.7pt) at several rows, not a hypothetical
-// one. chunkLongRuns re-splits any run of 6+ letters that survived the
-// hyphen/underscore/slash pass, so no unbroken run is ever wider than the
-// narrowest column this text is ever set in; \allowbreak is inert where the
-// line already fits, so this changes nothing for text that was never the
-// problem.
+// Ordinary evidence prose uses natural word hyphenation. Its inline paths
+// still need explicit slash/underscore/hyphen breakpoints, and long named
+// predicates such as NoUnilateralDeviationPositive can break at CamelCase
+// boundaries. Never insert arbitrary six-letter breaks into ordinary words:
+// those render an unmarked split such as "regene / rated" in the book.
 //
-// It has to run on texText's OUTPUT, not its input: texText itself injects
-// multi-letter control words (\textbackslash{}, \textasciitilde{}), and
-// chunking the raw source first would leave those words intact only for
-// texText to inject NEW ones afterward, unprotected. And it has to leave
-// those control words themselves alone -- splitting \split(/(\\[A-Za-z]+)/)
-// keeps each one as one atomic token at an odd index, so only the plain-text
-// pieces between them ever reach the chunker. (The first cut of this ran
-// the chunker AFTER the hyphen/underscore pass instead, on text that by then
-// already contained the literal word "allowbreak" from that pass's own
-// \allowbreak commands -- which the chunker then matched into, corrupting
-// its own output. Order this way, that word never exists yet when the
-// chunker runs.)
+// Monospace identifiers additionally need bounded alphabetic runs. Chunk
+// texText's output before adding separator hints, while leaving TeX control
+// words intact, so neither escaping commands nor \allowbreak corrupt itself.
 const WORD_CHUNK = /([A-Za-z]{6})(?=[A-Za-z])/g;
 function chunkLongRuns(text) {
   return text
@@ -1274,42 +1249,56 @@ function chunkLongRuns(text) {
     .join('');
 }
 
-function texEscapeBreakable(text) {
-  return chunkLongRuns(texText(text)).replace(/(-|\\_|\/|::)/g, '$1\\allowbreak ');
+function texEscapeBreakable(text, identifier = false) {
+  const escaped = texText(text);
+  const breakable = identifier
+    ? chunkLongRuns(escaped)
+    : escaped.replace(/([a-z0-9])(?=[A-Z])/g, '$1\\allowbreak ');
+  return breakable.replace(/(-|\\_|\/|::)/g, '$1\\allowbreak ');
 }
 
 function texCode(text) {
-  return `\\texttt{${texEscapeBreakable(text)}}`;
+  return `\\texttt{${texEscapeBreakable(text, true)}}`;
 }
 
-// Status is one word ("current"/"partial"/"historical") in \textsc. 0.10
-// cleared "current" and "partial" but not "historical" -- ten small-caps
-// letters with no space to break at, hyphenated by LaTeX's own last resort
-// and still overfull by 12.8pt even on the hyphenated remainder: the column
-// was too narrow for it outright, not just tight. 0.13 clears all three; the
-// X (evidence-policy) column gives up the difference, which it can afford.
-const TABLE_COLUMN_SPEC = '@{}>{\\raggedright\\arraybackslash}p{0.15\\textwidth} '
-  + '>{\\raggedright\\arraybackslash}p{0.21\\textwidth} >{\\raggedright\\arraybackslash}p{0.12\\textwidth} '
-  + '>{\\raggedright\\arraybackslash}p{0.13\\textwidth} >{\\raggedright\\arraybackslash}X@{}';
-const TABLE_HEADER_ROW = '\\textbf{Claim} & \\textbf{Artifact} & \\textbf{CI} & \\textbf{Status} & \\textbf{Evidence policy} \\\\';
+// Two weighted X columns divide the usable measure 40:60 after inter-column
+// spacing. Identity, paths and execution status belong together; evidence
+// policy needs prose width rather than the remainder of five narrow columns.
+const TABLE_COLUMN_SPEC = '@{}>{\\hsize=.8\\hsize\\linewidth=\\hsize\\raggedright\\arraybackslash}X '
+  + '>{\\hsize=1.2\\hsize\\linewidth=\\hsize\\raggedright\\arraybackslash}X@{}';
+const TABLE_HEADER_ROW = '\\textbf{Artifact record} & \\textbf{Evidence policy} \\\\';
 
-function renderRow(row, paths = row.paths, continued = false) {
+function renderRow(row, paths = row.paths, continued = false, finalRow = false) {
   const claim = `${texCode(row.id)}${continued ? '\\newline{}\\textit{cont.}' : ''}`;
-  const harness = row.harnessName ? `\\ (${texCode(row.harnessName)})` : '';
-  const artifact = `${texPaths(paths, row.paths.length > MANY_PATHS_THRESHOLD)}${harness}`;
+  // Bounded path chunks retain the table's normal type size at this wider measure.
+  const artifact = texPaths(paths, false);
+  const harness = row.harnessName ? `\\par \\textbf{Harness:} ${texCode(row.harnessName)}` : '';
   const ci = row.ci.status === 'wired' ? row.ci.job.map((job) => texCode(job)).join(', ') : 'retired';
   const status = `\\textsc{${texText(row.status)}}`;
+  const identity = `\\textbf{Claim:} ${claim}\\par\\smallskip `
+    + `\\textbf{Artifact:} ${artifact}${harness}\\par\\smallskip `
+    + `\\textbf{CI:} ${ci}\\par \\textbf{Status:} ${status}`;
   const evidence = row.evidencePolicy
     ? texEscapeBreakable(row.evidencePolicy)
     : row.ci.status === 'retired' ? texEscapeBreakable(row.ci.reason) : '---';
-  return `${claim} & ${artifact} & ${ci} & ${status} & ${evidence} \\\\`;
+  // A formal artifact's policy and recorded retirement reason can differ.
+  // Keep both; research artifacts already use the reason as their evidence.
+  const retirement = row.evidencePolicy && row.ci.status === 'retired'
+    ? `\\par\\smallskip \\textbf{Retirement reason:} ${texEscapeBreakable(row.ci.reason)}`
+    : '';
+  // The final record must carry its closing footer, with no trailing row gap.
+  const end = finalRow ? '\\\\*' : '\\\\ \\addlinespace';
+  return `${identity} & ${evidence}${retirement} ${end}`;
 }
 
-function renderRows(row) {
-  if (row.paths.length <= MAX_PATHS_PER_ROW) return [renderRow(row)];
+function renderRows(row, finalArtifact = false) {
+  if (row.paths.length <= MAX_PATHS_PER_ROW) {
+    return [renderRow(row, row.paths, false, finalArtifact)];
+  }
   const rows = [];
   for (let start = 0; start < row.paths.length; start += MAX_PATHS_PER_ROW) {
-    rows.push(renderRow(row, row.paths.slice(start, start + MAX_PATHS_PER_ROW), start > 0));
+    const finalRow = finalArtifact && start + MAX_PATHS_PER_ROW >= row.paths.length;
+    rows.push(renderRow(row, row.paths.slice(start, start + MAX_PATHS_PER_ROW), start > 0, finalRow));
   }
   return rows;
 }
@@ -1318,9 +1307,9 @@ function renderRows(row) {
  * mega-volume-mechanized.tex — the Book's "Mechanized claims" appendix,
  * generated from book/corpus.json so it can never drift from what CI
  * actually runs (scripts/check-whitepaper-corpus.mjs is the manifest's own
- * checker). One \small, booktabs-style tabularx table per verification
- * method — chunked into several shorter blocks so it can break across pages
- * — sorted by id within each table, with the
+ * checker). One \small, booktabs-style xltabular table per verification
+ * method, with page breaks between bounded records and repeated column heads,
+ * sorted by id within each table, with the
  * method tables themselves in alphabetical order. Takes the parsed manifest
  * object directly (not a path) so a test can hand it a synthetic manifest.
  */
@@ -1375,9 +1364,14 @@ function renderMechanizedClaims(raw, { source = 'book/corpus.json' } = {}) {
       TABLE_HEADER_ROW,
       '\\midrule',
       '\\endhead',
+      // Reserve the final rule's height on every page. An empty ordinary
+      // footer lets longtable strand the taller last footer under a lone
+      // repeated heading, even after all records have already printed.
+      '\\bottomrule',
+      '\\endfoot',
       '\\bottomrule',
       '\\endlastfoot',
-      ...rows.flatMap(renderRows),
+      ...rows.flatMap((row, index) => renderRows(row, index === rows.length - 1)),
       '\\end{xltabular}}',
     );
     lines.push('');

@@ -157,51 +157,13 @@ seal all of them at once, drawn in Figure~\ref{fig:sealed-three-principals}.
 The technical question is what the execution environment can guarantee when
 the data owner and agent owner distrust each other. A computational contract
 specifies permitted releases; it does not settle their legal relationship.
-The systems literature answered a narrower version first: Ryoan
-\pdcite{ryoan16} confines a proprietary module inside an attested enclave so that
-a data owner and a code owner who distrust each other both keep their secrets.
-Ryoan buys its confinement with a module that sees its input once and keeps no
-state between requests in its confinement model. This chapter instead studies
-persistent tool-calling workloads and explicit releases. Table~\ref{tab:sealed-ryoan}
-compares the chosen mechanisms; it is not an impossibility claim about other
-sandbox architectures.
-The other end of that design space is worth naming in the same breath, because it
-is where most deployments actually sit: SCONE \pdcite{scone16} puts an ordinary
-Linux container inside SGX and asks almost nothing of the application, which makes
-it adoptable in a way Ryoan is not, and buys correspondingly less --- it protects
-the workload from the host, not the data owner from the code owner, and a
-container free to open sockets can carry $D$ out through any of them. Between the
-two lies the gap this chapter works in: the stateful, non-DAG, tool-calling
-workload whose releases need an explicit policy beyond transparent execution.
-A mediated gate and accounting ledger are this design's proposal, not the only
-possible solution. A single writer orders accounting; it cannot, by itself,
-provide confinement or determine what an output reveals.
-% The open-font proof needs an empty margin queue here; Suisse keeps its layout.
-\ifdefined\pdbookfontprofile
-  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
-\fi
+The proposal must protect both owners while allowing the agreed answer to
+leave. A single writer orders the accounting but cannot, by itself, confine
+the worker or decide what an answer reveals. The comparison with Ryoan and
+SCONE is collected in Section~\ref{sec:sealed-history}, including
+Table~\ref{tab:sealed-ryoan}; first work through the output the owners are
+actually trying to permit.
 
-\begin{table}[H]\centering\footnotesize
-\caption{Different workload and observation models. Ryoan uses request-oriented
-confinement; the proposed sealed room adds explicit releases and cross-job
-accounting for a persistent agent. Neither closes every side channel.}
-\label{tab:sealed-ryoan}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
-\toprule
- & Ryoan & The sealed room \\
-\midrule
-Workload shape & a request-oriented module, input seen once, no persistent state & a looping, tool-calling agent with state across steps \\
-How leakage is bounded & confinement in the enclave plus fixed-size outputs & explicit gated releases, priced by an $\varepsilon$-ledger and a $q\cdot b$ bit budget \\
-Taint granularity & the whole module & the slot: every release is a declassification event \\
-Model access & the module's code is sealed; no query interface & the model runs inside the domain and is observed only through the contracted query and output interface \\
-Multi-job accounting & none; each request stands alone & the ledger sums spend across jobs and refuses the overdraw \\
-Evasion & constrained within its stated confinement model & canaries detect specified alternatives with stated power, not every evasion \\
-Timing & out of scope & declared out of model; padded and scheduled, not closed \\
-\bottomrule
-\end{tabularx}
-\end{table}
-% Settle the comparison before the following paragraph and worked example.
-\FloatBarrier
 \paragraph{Why blocking tainted outputs is insufficient.}
 Consider a proposed ``silicon-enforced NDA'': tag Erin's agent the moment it
 reads Derek's data, drop any tainted egress packet, and declare that the data
@@ -278,6 +240,23 @@ Section~\ref{sec:sealed-limitations} states, at equal prominence, what none of
 this promises.
 
 \section{One work order, two fences, two gates}\label{sec:sealed-design}
+
+\paragraph{A diagnostic subtask for the checkout repair.}
+Bob's failing checkout test may require a diagnosis using confidential
+transaction records held by Derek and a diagnostic model held by Erin.
+Bob's ownership of the repository grants authority over neither asset.
+Alice therefore cannot delegate access she never received. Derek and Erin
+need a separate agreement specifying what computation may use their secrets
+and which result may reach the repair team. An authorized diagnostic answer
+is evidence for a patch, not permission to export the records or model.
+
+Before listing fields, try changing one concrete term. Derek approves an
+in-room diagnostic tool, but the worker asks to replace it with an external
+inference endpoint. The tool list and permitted recipients change. A broker
+checking the signed canonical work order must refuse the changed contract
+until both owners approve it; accepting the old signature would ignore the
+very permission the digest is meant to bind. A signature alone does not make
+the broker perform that check.
 
 \paragraph{The work order contract.}
 The foundation of mutual confinement between distrustful principals is the
@@ -408,6 +387,13 @@ and volume. Direct outbound TLS is forbidden; permitted services terminate at a
 policy gateway. Because a remote model API is itself a trusted reader of
 plaintext, the model runs \emph{inside} the confidential domain; an external
 inference endpoint would be a third principal the contract never admitted.
+A \emph{label} records whose permission is still needed for a release.
+For two owners, write $\{D\}$ for Derek's restriction and $\{E\}$ for Erin's.
+Combining values takes the union of their labels, called the lattice
+\emph{join}; an authorized removal is a \emph{declassification}. Removing a
+label does not erase a dependence on the secret. It records permission to
+release that dependence through a specified channel.
+
 \begin{pdexample}{Four Label States, Four Locked Doors, Two Keys}
 \setlength{\parskip}{4pt plus 1pt}
 The lattice the next paragraph reaches for is small enough to count on your
@@ -442,7 +428,17 @@ the artifact she receives is one that has had Derek's clause dropped, and only
 Derek can drop it.
 \end{pdexample}
 
+Figure~\ref{fig:sealed-release-lattice} asks which owner can authorize each
+downward edge. For the checkout diagnosis, a candidate computed from both
+secrets starts at $\{D,E\}$. Erin's permission can remove $E$ for the
+contracted result to Derek; Derek's permission can remove $D$ for feedback
+to Erin. Neither operation alone authorizes sending a joint-secret artifact
+to Alice or Bob: the recipient and both owners' permissions must match the
+work order.
+
 \input{figures/fig-sealed-release-lattice}
+% Keep the exhibit caption with its figure; later margin objects start anew.
+\pdmarginpagebreak
 
 \pdmarginanalogy{sealed-specimen-provenance}{Provenance is not correctness}{sealed-specimen}{A tag and seal suggest provenance, not correctness. Digital receipts must bind their claims cryptographically.}
 
@@ -450,11 +446,7 @@ Derek can drop it.
 After the first secret read the entire worker state, and every later emission,
 is tainted until job destruction: decentralized labels in the Myers--Liskov
 style \pdcite{myers-liskov}, owned by mutually distrustful principals, under
-which ordinary computation can only \emph{add} restrictions. A label is the set
-of owners whose permission is still needed for release; combining values
-takes the union of their labels. This operation is the lattice \emph{join}.
-A declassification is the explicitly authorized removal of a restriction,
-not a claim that the result ceased to depend on the secret. This is the same
+which ordinary computation can only \emph{add} restrictions. This is the same
 shape as capability attenuation in \pdchapref{anchor}{The Anchor Protocol},
 where a delegated token never carries more authority than its parent:
 ordinary delegation only shrinks authority. Declassification differs in one
@@ -613,6 +605,29 @@ the board is asked to print. A per-precinct board reporting a precinct with a
 single voter discloses that voter's ballot exactly, and no property of the
 booth prevents it. The room stayed sound; the tally was indiscreet.
 
+\begin{pdexample}{Six Pairs, Two of Them Equal-Parity}
+\setlength{\parskip}{4pt plus 1pt}
+Take two worlds with secrets $0$ and $2$. Both release parity~0. Before a
+release Erin sees the same empty log; afterwards she sees \texttt{(gate,0)}
+in both. A gate that instead forwards the raw secret produces
+\texttt{(gate,0)} versus \texttt{(gate,2)}, a distinguishing \mbox{observation} at
+that step. The checker asks this question for every permitted short schedule,
+not just this trace.
+
+The number of unordered pairs among four secrets is
+\[
+\binom{4}{2}=6.
+\]
+
+Two of them, $(0,2)$ and $(1,3)$, are equal-parity. For those two pairs, the check found identical
+observation logs through every interleaving of at most seven steps\pdprov{c1\_noninterference.py}{20260816}{verified}.
+
+\emph{Now you try:}
+with $g(s)=s\bmod 2$ over secrets $\{0,\dots,7\}$, how many unordered secret
+pairs must a sound room keep Erin-indistinguishable?
+(Exercise~\ref{ex:sealed-pairs}.)
+\end{pdexample}
+
 % Keep the complete opening scope and its two cases beside the longer head.
 % The result and mutation paragraphs may still break naturally afterwards.
 \Needspace{16\baselineskip}
@@ -683,21 +698,7 @@ release produced by the raw-secret mutation.
 \Needspace{34\baselineskip}
 \input{figures/fig-sealed-two-worlds}
 
-\begin{pdexample}{Six Pairs, Two of Them Equal-Parity}
-\setlength{\parskip}{4pt plus 1pt}
-The number of unordered pairs among four secrets is
-\[
-\binom{4}{2}=6.
-\]
 
-Two of them, $(0,2)$ and $(1,3)$, are equal-parity. For those two pairs, the check found identical
-observation logs through every interleaving of at most seven steps\pdprov{c1\_noninterference.py}{20260816}{verified}.
-
-\emph{Now you try:}
-with $g(s)=s\bmod 2$ over secrets $\{0,\dots,7\}$, how many unordered secret
-pairs must a sound room keep Erin-indistinguishable?
-(Exercise~\ref{ex:sealed-pairs}.)
-\end{pdexample}
 
 \paragraph{What it buys.}
 The product's headline sentence in its provable form: \emph{every release is
@@ -837,26 +838,12 @@ required decisions under its observation assumptions. The finite two-run
 check establishes the separate parity-release property to depth seven.
 Together they organize implementation obligations. Neither alone proves
 confinement, bounds all hardware observations, or closes every possible design.
-The taint-drop-egress mechanism of the naive pitch survives
-demoted to what it really is: a containment layer beneath the gate, the
-\pdassurance{Confined} rung of the assurance ladder, not the guarantee. The
-tool-level instruments of \pdchapref{swk}{The Single-Writer Kernel}, the
-guard, the shim, and the hook harness that rides inside a vendor's agent
-loop, sit below even that rung: they are the Observed and Coordinated modes,
-and the room replaces them rather than extending them, because a hook a
-process can decline to invoke gates nothing. What this ladder grades ---
-argued at length where the modes are bought, in
-\pdchapref{swk}{The Single-Writer Kernel} --- is what an adversary would have
-to defeat for one runtime claim about one mechanism to be false. That is a
-third axis, and it is independent of the two public gradings it resembles:
-Sheridan and Verplank's levels of automation, refined into four processing
-stages by Parasuraman, Sheridan and Wickens, grade how much of the
-decide-and-act loop the machine holds rather than the human
-\pdcite{sheridanverplank1978,parasuraman2000}, and the Common Criteria's
-evaluation assurance levels grade how much independent evaluation effort a
-security claim received before deployment \pdcite{cciso15408}. Neither says
-which component's failure would falsify a particular record, which is the only
-question this ladder asks.
+The distinction between a cooperative hook and a compulsory gate from
+\pdchapref{swk}{The Single-Writer Kernel} now matters directly: a worker that
+can bypass a hook can bypass its privacy accounting too. A confined room must
+establish mediation of its declared exits independently of the worker's
+cooperation. The assurance modes classify that dependency; neither a high
+automation level nor an evaluation-effort grade establishes it.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
@@ -937,6 +924,18 @@ advanced composition gives $(\varepsilon',\delta')$-privacy for $0<\delta'<1$, w
 A potentially smaller $\varepsilon'$ costs a positive $\delta'$; it is not a
 stronger pure-DP guarantee. The ledger records declared costs and refuses an
 overdraw. Whether those costs describe private releases is a separate question.
+
+\paragraph{Three requests against a budget of four.}
+Use the two-client instance below, with programs $(2,2)$ and $(1,2)$, and let
+the first requests arrive in the order client~0, client~1, client~0.
+Start at $(\sigma,\Lambda)=(0,())$. The first request costs~2, producing
+$(2,(2))$. The second costs~1, producing $(3,(2,1))$. The third asks for~2:
+$3+2>4$, so it is refused and the state remains $(3,(2,1))$.
+At each step, the balance equals the sum of the journal. Checking the budget,
+appending the entry, and increasing the balance are one transition; splitting
+them would allow two requests to decide against the same stale balance.
+These are declared accounting costs. The arithmetic does not show that an
+arbitrary artifact is a private release.
 
 \begin{pdclaim}{Theorem}{$\varepsilon$-Conservation}
 \label{thm:sealed-conservation}
@@ -1171,6 +1170,32 @@ the leak model:
 Its unit is nats per observed output. A stopping count therefore counts
 outputs, not seconds; a wall-clock claim needs an arrival model as well.
 
+\begin{pdexample}{Three Canaries, One Operating Curve}
+\setlength{\parskip}{4pt plus 1pt}
+Use the recorded example's parameters: $n=10^4$ spans, $c=100$ planted
+canaries, and independent miss probability $\beta=0.2$. For a leak already
+known to carry canaries, the detection probabilities are [verified arithmetic]:
+\[
+\begin{aligned}
+\text{two canaries:}\quad &1-0.04=0.96,\\
+\text{three canaries:}\quad &1-0.008=0.992.
+\end{aligned}
+\]
+
+The operating curve at $m=100$:
+\[
+1-(1-0.01\times0.8)^{100}=1-0.992^{100}\approx0.552
+\]
+by the binomial approximation, against $0.554$ exact\pdprov{a4\_canary\_sprt.py}{20260816}{internal}.
+
+\emph{Now you try:} at the
+same $\beta$, what does a five-canary leak survive with, and can you recover
+the approximate $296.9$ from the formula with a pocket calculator?
+(Exercises~\ref{ex:sealed-power} and \ref{ex:sealed-sprt}.)
+Figure~\ref{fig:sealed-operating-curve} compares exact power, approximate
+stopping counts and reported capped means.
+\end{pdexample}
+
 \begin{pdclaim}{Theorem}{Power}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sealed-power}
@@ -1190,6 +1215,18 @@ carries $K\sim\mathrm{Hypergeom}(n,c,m)$ canaries, so
 \]
 the operating curve.
 \end{pdclaim}
+
+\paragraph{One flag is evidence, not a verdict.}
+For the accumulated log-likelihood $L_n$ defined above, take null flag
+probability $p_0=0.001$ and leak flag probability $p_1=0.01$. A flagged output adds
+$\ln10\approx2.303$ to $L_n$; a non-flag adds
+$\ln(0.99/0.999)\approx-0.00905$. Thus one flag followed by one non-flag
+leaves the score near $2.294$. For nominal targets $\alpha=0.01$ and
+$\gamma=0.05$, the usual upper boundary is $\ln95\approx4.554$, so this
+short trace has not reached an alarm decision. The lower boundary allows a
+null decision; the test can stop either way. The next identity concerns the
+number of observed outputs to that stopping point, not an elapsed-time
+promise for the checkout diagnosis.
 
 % Reserve the complete short statement, including its notation qualification.
 \Needspace{18\baselineskip}
@@ -1263,30 +1300,7 @@ $200{,}000$-output cap is not reported separately: an unresolved capped run
 is counted with non-upper decisions. Those records cannot establish that all
 runs terminated [internal, \texttt{a4\_canary\_sprt.py}].
 
-\begin{pdexample}{Three Canaries, One Operating Curve}
-\setlength{\parskip}{4pt plus 1pt}
-At $\beta=0.2$, the detection probabilities for smuggled canaries are
-[verified]:
-\[
-\begin{aligned}
-\text{two canaries:}\quad &1-0.04=0.96,\\
-\text{three canaries:}\quad &1-0.008=0.992.
-\end{aligned}
-\]
 
-The operating curve at $m=100$:
-\[
-1-(1-0.01\times0.8)^{100}=1-0.992^{100}\approx0.552
-\]
-by the binomial approximation, against $0.554$ exact\pdprov{a4\_canary\_sprt.py}{20260816}{internal}.
-
-\emph{Now you try:} at the
-same $\beta$, what does a five-canary leak survive with, and can you recover
-the approximate $296.9$ from the formula with a pocket calculator?
-(Exercises~\ref{ex:sealed-power} and \ref{ex:sealed-sprt}.)
-Figure~\ref{fig:sealed-operating-curve} compares exact power, approximate
-stopping counts and reported capped means.
-\end{pdexample}
 
 \input{figures/fig-sealed-operating-curve}
 
@@ -1393,6 +1407,13 @@ adjacency assumptions of Section~\ref{sec:sealed-conservation}. Canaries provide
 probabilistic detection evidence, not exhaustive policing of the allowed
 capacity. Contracts may price residual risk, but neither the price nor a clean
 canary run proves that semantic laundering did not occur.
+
+Figure~\ref{fig:sealed-leakage-ledger} asks which observations the contract
+has counted. Apply it to the optional checkout diagnosis: a 64-bit status to
+Erin, a richer result to Derek, and a receipt visible to both are different
+channels with different audiences. A 64-bit limit on the first channel does
+not price the others. Their alphabets, timing and failure outcomes must also
+be declared before anyone quotes a total bound.
 
 \input{figures/fig-sealed-leakage-ledger}
 
@@ -1718,6 +1739,48 @@ Almost nothing in this chapter is new machinery; what is new is which pieces
 were bolted to which, and the honest accounting of what the bolted-together
 thing does not promise. It is worth saying where each piece came from.
 
+\paragraph{The two-owner systems setting.}
+Ryoan~\pdcite{ryoan16} uses protected sandbox instances to confine
+untrusted modules processing secret input. Its request-oriented model lets a
+module process an input once without retaining state about that input between
+requests. SCONE~\pdcite{scone16} uses SGX to protect container processes from
+outside attacks, including attacks by the hosting platform. These are distinct
+threat-model obligations. Protecting an application from its host does not
+by itself prove that an untrusted application cannot disclose its input
+through an output it is allowed to produce.
+
+This chapter proposes persistent tool-calling workloads with explicit release
+policies and cross-job accounting. Table~\ref{tab:sealed-ryoan} compares those
+chosen mechanisms with Ryoan's request-oriented model; it ranks neither
+adoption nor overall security. A single writer orders accounting but supplies
+neither confinement nor a proof of what an output reveals.
+% The open-font proof needs an empty margin queue here; Suisse keeps its layout.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
+
+\begin{table}[H]\centering\footnotesize
+\caption{Different workload and observation models. Ryoan uses request-oriented
+confinement; the proposed sealed room adds explicit releases and cross-job
+accounting for a persistent agent. Neither closes every side channel.}
+\label{tab:sealed-ryoan}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+ & Ryoan & The sealed room \\
+\midrule
+Workload shape & a request-oriented module, input seen once, no persistent state & a looping, tool-calling agent with state across steps \\
+How leakage is bounded & confinement in the enclave plus fixed-size outputs & explicit gated releases, priced by an $\varepsilon$-ledger and a $q\cdot b$ bit budget \\
+Taint granularity & the whole module & the slot: every release is a declassification event \\
+Model access & the module's code is sealed; no query interface & the model runs inside the domain and is observed only through the contracted query and output interface \\
+Multi-job accounting & none; each request stands alone & the ledger sums spend across jobs and refuses the overdraw \\
+Evasion & constrained within its stated confinement model & canaries detect specified alternatives with stated power, not every evasion \\
+Timing & out of scope & declared out of model; padded and scheduled, not closed \\
+\bottomrule
+\end{tabularx}
+\end{table}
+% Settle the comparison before the following paragraph and worked example.
+\FloatBarrier
+
 \paragraph{Noninterference and its proof technique.}
 Noninterference is Goguen and Meseguer's, stated at Oakland in 1982 as a
 property of a security \emph{model} rather than of any particular mechanism
@@ -1770,12 +1833,11 @@ structure Lampson's \emph{Protection} gave operating systems two years later
 better monitor but a sharper statement of where a monitor can be placed at all:
 the controllability result is proved in \pdchapref{swk}{The Single-Writer
 Kernel} and merely applied here, and the caveat that partial observation
-shrinks the enforceable set is Lin and Wonham's \pdcite{lin-wonham}. The
-confinement architecture has a direct systems ancestor in Ryoan
-\pdcite{ryoan16}, which solved the two-suspicious-owners problem first and
-solved it more cleanly than this chapter does, at the price of a stateless
-module; the dual-attested key release follows the attester/verifier/relying-party
-pattern the IETF later standardized \pdcite{rats}.
+shrinks the enforceable set is Lin and Wonham's \pdcite{lin-wonham}. Ryoan's request-oriented confinement of untrusted processing modules
+\pdcite{ryoan16} supplies a concrete systems precedent. The proposed room's
+persistent state and release interface require their own argument. Its
+dual-attested key release follows the attester/verifier/relying-party pattern
+standardized by the IETF \pdcite{rats}.
 
 \paragraph{Pricing what does cross.}
 Treating leakage as a quantity rather than a predicate is quantitative

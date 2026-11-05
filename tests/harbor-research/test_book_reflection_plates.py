@@ -16,7 +16,7 @@ from check_plate_provenance import check_provenance_dir
 PLATES = ROOT / 'book/plates/interstitial'
 SOURCES = {
     'the-controlled-opening': ('book/sealed-harbor.tex', r'\section{Silence except through the slot}'),
-    'the-unseen-boat': ('book/legible-swarm.tex', r'\begin{pdexample}{The Same Pull Request, Rendered Twice}'),
+    'the-unseen-boat': ('book/legible-swarm.tex', r'\begin{pdclaim}{Design invariant}{The One Law: Digest-with-Zoom}'),
     'the-waiting-body': ('book/spawn-to-person.tex', r"\subsection{Locke's memory criterion, and its famous bug}"),
     'the-paper-crossing': ('book/federated-harbor-whitepaper.tex', r'\section{Cross-Harbor Capability Transfer}'),
 }

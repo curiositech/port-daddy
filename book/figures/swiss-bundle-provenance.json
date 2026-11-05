@@ -477,5 +477,538 @@
       ],
       "scope": "All integrated figure fragments, affected facing spreads and every chapter opener plus following spread; not a new line-by-line audit of all846pages. Final changed spreads independently reviewed; unchanged spread bytes compared."
     }
+  },
+  "publicationReview": {
+    "date": "2026-11-04",
+    "status": "accepted manuscript and rendered artifact; hosted delivery recorded separately in the publication PR",
+    "baseCommit": "ab50e228e16cbb974797044802c1e82b51cb2a85",
+    "canonicalRoot": "book/",
+    "scope": "Complete source reading of Chapters0-8, exercises, solutions, seams and appendices; scoped primary-source and finite arithmetic checks; all facing pages at contact-sheet scale, selected spreads at readable size and complete final pixel comparison. This is not an independent proof of every theorem or a live runtime validation.",
+    "sourceSha256": {
+      "book/agent-transactions-whitepaper.tex": "7a0385b33fdc300f85ca709d7f94d6cf293fd28dfc9a54d10f124919bf4aa9e3",
+      "book/anchor-protocol-whitepaper.tex": "cf2f1934f1f7ec2bc81b1302b8ac7ef50ce27536d20581530b1a3f2970f27535",
+      "book/coordination-papers-mega-volume-appendices.tex": "4c5b0f8fed63abac37ba35c436cfb66a636a6add2089c61ac1fe7b1906454e04",
+      "book/coordination-papers-mega-volume-chapter-0.tex": "0acbdfc7e30b619be9f3f5ce2fbac058a9b21504b467353edad0589138c4854e",
+      "book/coordination-papers-mega-volume-seams.tex": "31aa2be6a301d8b4c1c505ad7bcf7603362572446dc0c8948fc3cb2410b2308a",
+      "book/coordination-papers-mega-volume.tex": "668b98b212c5c45c2c630598ab51262c55f74bbf9dd4b372355a3ce38f3ee8c0",
+      "book/federated-harbor-whitepaper.tex": "54b89dfd53536cfb801c298ac14b0c2aa7909911e3e51269633c0f4002571647",
+      "book/figures/fig-bonded-isolation-ladder.tex": "85919bc26f9309eb35f80e2619b656717dcc1622a81939c583968e3eb3bdd6b9",
+      "book/figures/fig-fh-settlement.tex": "b0c74f11fd519e56d5beff353f3af469ba3616b197ed138f552d56ad3156546b",
+      "book/figures/fig-he-rater-ladder.tex": "104d171f0d134e0db715ea59076c806534b2207853638d531fc4fde587f72db5",
+      "book/figures/fig-stp-judge-market.tex": "2bf641d2cb1683c3445e08283c5c4fbce6a3f6b3412fb2411ce42d6b80b60bc5",
+      "book/figures/pd-cite-shortforms.tex": "54780150b4f61b44d23088bba3316ab4af9bb9086bc56031ccf0c74ab0d0ad12",
+      "book/figures/pd-textbook-map.tex": "fc47c347351e6ba8998d16aed3cd47387e4ec53b930f96bc61a4433077eb2171",
+      "book/figures/tab-fh-partition.tex": "bedaa4b5cdc666fbf6d20f29505c73555f6a06fd5f89a1de8855274df74745c8",
+      "book/figures/tab-fh-related-borrow-depart.tex": "984a2f783f7d257c640aff58018fc56da335913e84e868c0dfd31e9b8829a4cc",
+      "book/figures/tab-fh-topology.tex": "96c0cfbe3d659acd5e22672c216605b066b2e540720b9a5ea36ef46b726963bd",
+      "book/harbor-economy.tex": "7f70f7aa61c6577ba26c668baae89d163feeedae5602c5cc7332f7b3ee67008d",
+      "book/legible-swarm.tex": "807c9d272115ddc587f0ed47abe2195a51e462f4078d665243caa8f052614b99",
+      "book/sealed-harbor.tex": "d8a96061916ad9e84fb2bac88df6986d85f2838d4715c25aa455989881ff961b",
+      "book/single-writer-kernel.tex": "e36078158e8d4620a3cc5a1fba842b3632c77b6376b74d8950bf335e9dabc84b",
+      "book/spawn-to-person.tex": "24f6c186d07bb6bba883a3258e7dcc6ea5ca6cc2181afb397b3716312e40e190",
+      "book/textbook.json": "c4ce9741497ba5a514d39f08ac1047c09de3059b19bb3feaf794ffe88397b3c0",
+      "scripts/generate-mega-whitepaper.mjs": "b1db623bdefce512ed0ff4e5645d000894a728d4394ab07f1997f566c1cdb8f4"
+    },
+    "book": {
+      "file": "coordination-papers-mega-volume.pdf",
+      "sha256": "583676aa6e4e7016530142511bfe5094480aff0a19e2a86afdcab84aca6d04ce",
+      "bytes": 16507250,
+      "pages": 814,
+      "overfullHboxes": 0,
+      "overfullVboxes": 0,
+      "undefinedReferences": 0,
+      "pdfCheckGroupsPassed": 6,
+      "captionsChecked": 266,
+      "exerciseLabelsChecked": 212,
+      "marginObjectsChecked": 1437,
+      "citationSourcesChecked": 321,
+      "citationIssues": [],
+      "pageTurnWordSplitCandidates": 0
+    },
+    "visualReview": {
+      "reviewers": 4,
+      "allChapterOpeners": 9,
+      "wholeBookContactSheets": 34,
+      "selectedReadableSpreads": 206,
+      "additionalCatalogueSpreads": 7,
+      "finalPixelComparison": {
+        "dpi": 108,
+        "pages": 814,
+        "unchangedPages": 791,
+        "changedPages": [
+          143,
+          144,
+          554,
+          555,
+          559,
+          560,
+          606,
+          688,
+          794,
+          795,
+          796,
+          797,
+          798,
+          799,
+          800,
+          801,
+          802,
+          803,
+          804,
+          805,
+          806,
+          807,
+          808
+        ],
+        "changedSpreadsInspected": 15
+      },
+      "finalChangedSpreadImages": [
+        {
+          "left": 142,
+          "file": "p142-143.png",
+          "sha256": "05eb8da159f3e0f5cde8894981c1164fcab07e15c77fe088150eb4a2933ac4dd"
+        },
+        {
+          "left": 144,
+          "file": "p144-145.png",
+          "sha256": "042a34eb44998eff8612b3465c3247e99b2c06a6001d73af9a3be108d32dc920"
+        },
+        {
+          "left": 554,
+          "file": "p554-555.png",
+          "sha256": "2c023edba6869c034f870d948f32ffc38f9ac15af65a171e0ef9fb335bf0c2d9"
+        },
+        {
+          "left": 558,
+          "file": "p558-559.png",
+          "sha256": "40fed9bc9fe1e05a38fed30ea145eac856b4fb13879949e291dfa94e318bf215"
+        },
+        {
+          "left": 560,
+          "file": "p560-561.png",
+          "sha256": "8a61a0b14a337e37e79eb60a41c4a3fef032a1eec94d00d6446c16c5630bf925"
+        },
+        {
+          "left": 606,
+          "file": "p606-607.png",
+          "sha256": "7f1d83177794db7c2ab597367661b9b34833114c32af1c079c4cce50ded520da"
+        },
+        {
+          "left": 688,
+          "file": "p688-689.png",
+          "sha256": "e069d7c682260062d44ea3ca49adab8c3b10529077bbda8ebed5d766e105a3d3"
+        },
+        {
+          "left": 794,
+          "file": "p794-795.png",
+          "sha256": "88d2291f54946d6c9f128ec8561e5e943ad985a107ec2588c4627de461cfacb4"
+        },
+        {
+          "left": 796,
+          "file": "p796-797.png",
+          "sha256": "83877e8d370a22169d659e1dce47a411b019238c0446d3b3e27b58f2a1b0b080"
+        },
+        {
+          "left": 798,
+          "file": "p798-799.png",
+          "sha256": "8a8cc0fa81b4fbe5319df379c5e847688904fdce101cf0f2ae0272dc48a47e60"
+        },
+        {
+          "left": 800,
+          "file": "p800-801.png",
+          "sha256": "ea75835eb6e1619adef108efe159136d36f312cc51cc13e500eb1ec71c48b2c1"
+        },
+        {
+          "left": 802,
+          "file": "p802-803.png",
+          "sha256": "c6d5ce3eb016ac84d8eff0e52cc0ecdc191b185282dfcc8d5d7d59c61bdb3bab"
+        },
+        {
+          "left": 804,
+          "file": "p804-805.png",
+          "sha256": "7ee2b6d5416984b3a5198b6d1a23eb2e019682d0a0f7ee6cbd6b18868c87c345"
+        },
+        {
+          "left": 806,
+          "file": "p806-807.png",
+          "sha256": "407a85da2d674c342303254a5ca60005283700edbdea93689df1a482b010f9f7"
+        },
+        {
+          "left": 808,
+          "file": "p808-809.png",
+          "sha256": "7d308ca13f501dca377177f5641ffeb93cd236d18a6555874ae6b11415000a9e"
+        }
+      ],
+      "reviewReceiptSha256": {
+        "ROOT_FINAL_ACCEPTANCE.json": "3dca261145157f3b2f35c1bae0281c6c4dabf396e3f0d9e69a435857fd1cb1ba",
+        "test-repairs/final-visual-review.json": "fed9bb8c81a18b2b4109b5af1ab74b6f3f94beea19648c688e858595f8cb055a",
+        "late/final-visual-review.json": "83c8c7924f02fa44ad2e39725802c7d05b8d0a5434e6559b46a40a10886afdde",
+        "final-review/final-visual-review.json": "f32fcdb536766481242591a6d43b48e6fde52888bea968bed7f081861a9f7f0b"
+      },
+      "findingsRemaining": []
+    },
+    "checks": {
+      "groups": [
+        {
+          "name": "research-unit-suite",
+          "command": [
+            "python3",
+            "-B",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harbor-research",
+            "-p",
+            "test_*.py"
+          ],
+          "exit_code": 0,
+          "seconds": 27.87
+        },
+        {
+          "name": "chapter-order",
+          "command": [
+            "node",
+            "scripts/generate-mega-whitepaper.mjs",
+            "--check-shared"
+          ],
+          "exit_code": 0,
+          "seconds": 0.04
+        },
+        {
+          "name": "library-ledger",
+          "command": [
+            "node",
+            "docs/grand-harbor/checks/check-ledger.mjs"
+          ],
+          "exit_code": 0,
+          "seconds": 0.05
+        },
+        {
+          "name": "generator-tests",
+          "command": [
+            "node",
+            "--test",
+            "scripts/generate-mega-whitepaper.test.mjs",
+            "scripts/generate-mega-mechanized.test.mjs"
+          ],
+          "exit_code": 0,
+          "seconds": 0.23
+        },
+        {
+          "name": "figure-palette",
+          "command": [
+            "node",
+            "website-v2/scripts/check-figure-palette.mjs"
+          ],
+          "exit_code": 0,
+          "seconds": 0.13
+        },
+        {
+          "name": "gold-ink",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_maritime_gold_ink.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.15
+        },
+        {
+          "name": "citations",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_citations.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.42
+        },
+        {
+          "name": "propagated-corrections",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_propagated_corrections.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.15
+        },
+        {
+          "name": "library-index",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_library_index.py",
+            "--check-md"
+          ],
+          "exit_code": 0,
+          "seconds": 0.79
+        },
+        {
+          "name": "critique-ledger",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_critique_ledger.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.13
+        },
+        {
+          "name": "research-program",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_research_program.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.26
+        },
+        {
+          "name": "reviewer-protocol",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_reviewer_protocol.py",
+            "--self-test"
+          ],
+          "exit_code": 0,
+          "seconds": 7.04
+        },
+        {
+          "name": "marginalia-sidecars",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_marginalia_sidecars.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.03
+        },
+        {
+          "name": "plate-provenance",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_plate_provenance.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.07
+        },
+        {
+          "name": "environments",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_tex_environments.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.29
+        },
+        {
+          "name": "duplicate-figures",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_duplicate_figures.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.05
+        },
+        {
+          "name": "duplicate-theorems",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_duplicate_theorems.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.07
+        },
+        {
+          "name": "duplicate-protocols",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_duplicate_protocols.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.07
+        },
+        {
+          "name": "absent-data-captions",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_absent_data_captions.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.1
+        },
+        {
+          "name": "cite-shortforms",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/build_cite_shortforms.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.08
+        },
+        {
+          "name": "discharge-pointers",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/build_discharge_pointers.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.03
+        },
+        {
+          "name": "cite-promotion",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/promote_cites.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.04
+        },
+        {
+          "name": "provenance-promotion",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/promote_provenance.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.03
+        },
+        {
+          "name": "exercise-pointers",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/star_exercise_pointers.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.03
+        },
+        {
+          "name": "atlas-coverage",
+          "command": [
+            "python3",
+            "-B",
+            "skills/whitepaper-figure-system/scripts/check_atlas_coverage.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.11
+        },
+        {
+          "name": "chapter-lint",
+          "command": [
+            "python3",
+            "-B",
+            "skills/textbook-craft/scripts/chapter_lint.py",
+            "--apparatus",
+            "book/chapter-apparatus.json",
+            "--max-blocking",
+            "15"
+          ],
+          "exit_code": 0,
+          "seconds": 0.14
+        },
+        {
+          "name": "readers-eye",
+          "command": [
+            "python3",
+            "-B",
+            "skills/textbook-craft/scripts/readers_eye.py",
+            "--limit",
+            "6"
+          ],
+          "exit_code": 0,
+          "seconds": 1.77
+        },
+        {
+          "name": "figure-register",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_figure_register.py"
+          ],
+          "exit_code": 0,
+          "seconds": 0.14
+        },
+        {
+          "name": "figcheck-corpus",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/check_figcheck_corpus.py",
+            "--verbose"
+          ],
+          "exit_code": 0,
+          "seconds": 0.04
+        },
+        {
+          "name": "figure-audit-render",
+          "command": [
+            "python3",
+            "-B",
+            "scripts/harbor-research/render_figure_audit.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.1
+        }
+      ],
+      "researchTests": {
+        "run": 953,
+        "skipped": 121,
+        "failed": 0
+      },
+      "generatorTestsPassed": 77,
+      "footerBoundaryFixture": {
+        "unreserved": {
+          "pages": 76,
+          "headerOnlyPages": [
+            8,
+            10,
+            12,
+            14,
+            16,
+            18
+          ],
+          "dataRecords": 82,
+          "expectedDataRecords": 82
+        },
+        "fixed": {
+          "pages": 76,
+          "headerOnlyPages": [
+            8,
+            10,
+            12,
+            14
+          ],
+          "dataRecords": 82,
+          "expectedDataRecords": 82
+        },
+        "fixedFinalRow": {
+          "pages": 72,
+          "headerOnlyPages": [],
+          "dataRecords": 82
+        }
+      },
+      "readerEye": "Diagnostic heuristic findings were reviewed; exit0 is not a claim of universal prose quality."
+    },
+    "numericalScope": "Historical integration experiments in validation.freshNumericalChecks retain their original provenance. This editorial review does not claim a fresh repetition of those experiments."
   }
 }

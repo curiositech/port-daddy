@@ -68,10 +68,10 @@ class MarginSketchTests(unittest.TestCase):
         self.assertNotRegex(source, r"\\(?:resizebox|scalebox|tiny|scriptsize|fontsize)\b")
         self.assertIn("x=1pt,y=1pt", source)
 
-    def test_one_leviathan_and_three_portrait_anchors(self):
+    def test_duplicate_leviathan_absent_and_three_portrait_anchors_retained(self):
         legible = (ROOT / "book/legible-swarm.tex").read_text()
         bonded = (ROOT / "book/agent-transactions-whitepaper.tex").read_text()
-        self.assertEqual(legible.count(r"\pdmarginfigure{leviathan}"), 1)
+        self.assertEqual(legible.count(r"\pdmarginfigure{leviathan}"), 0)
         self.assertEqual(legible.count(r"\pdmarginfigure{hobbes}"), 1)
         for person in ("sen", "hickman"):
             self.assertEqual(bonded.count("\\pdmarginfigure{" + person + "}"), 1)

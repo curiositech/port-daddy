@@ -88,6 +88,9 @@ class RemainingExamples(unittest.TestCase):
     def test_reviewed_model_hypotheses_cannot_be_removed(self):
         cases = {0: [('secret is uniform on', 'secret is drawn from'),
                      ('parity of committed $s$', 'parity of arbitrary $t$')],
+                 2: [('at most seven steps', 'arbitrarily many steps'),
+                     (r'\texttt{(gate,2)}', r'\texttt{(gate,0)}'),
+                     ('not just this trace', 'just this trace')],
                  3: [('does not establish', 'establishes'),
                      ('the read is observed', 'the read is unobserved'),
                      ('safe but is no longer exact', 'safe and therefore exact')],

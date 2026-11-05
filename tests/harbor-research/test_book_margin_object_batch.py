@@ -38,6 +38,12 @@ RECORDS = [
 ]
 
 
+# The card-file analogy is deliberately unplaced. Its exact asset provenance
+# remains audited, and a supplied complete PDF must contain neither its image
+# nor its caption.
+UNPLACED = {"ch05-episodic-card-file"}
+
+
 def normalized_text(page):
     import fitz
     return ' '.join(page.get_text(flags=fitz.TEXT_DEHYPHENATE).split()).replace('\u2011', '-')
@@ -99,6 +105,11 @@ class ObjectSources(unittest.TestCase):
                 self.assertTrue(metadata['prompt'])
                 self.assertEqual(metadata['references_uploaded'], [])
                 source = (WEB / chapter).read_text()
+                if stem in UNPLACED:
+                    self.assertNotIn(identifier, source)
+                    self.assertNotIn(stem, source)
+                    self.assertNotIn(caption, source)
+                    continue
                 if r'\pdmarginanalogy{' + identifier in source:
                     macro = r'\pdmarginanalogy{'+identifier+r'}{}{'+stem+'}{'
                     self.assertEqual(source.count(macro), 1)
@@ -127,6 +138,14 @@ class IntegratedObjects(unittest.TestCase):
                     variants = (caption, caption.replace("a splice,", "a wire rope splice,"))
                     matches = [(p, normalized_text(p))
                                for p in doc if any(v in normalized_text(p) for v in variants)]
+                    if stem in UNPLACED:
+                        self.assertEqual(matches, [])
+                        expected_pixels = wrapper_image(ART / (stem+'.pdf'))[2]
+                        self.assertFalse(any(
+                            image['digest'] == expected_pixels
+                            for page in doc
+                            for image in page.get_image_info(hashes=True)))
+                        continue
                     self.assertEqual(len(matches), 1)
                     page, text = matches[0]
                     self.assertIn(owner, text)

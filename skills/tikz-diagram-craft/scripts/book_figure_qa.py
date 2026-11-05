@@ -36,7 +36,7 @@ def _repo():
     try:
         top = Path(subprocess.run(['git', 'rev-parse', '--show-toplevel'],
                                   capture_output=True, text=True, check=True).stdout.strip())
-        if (top / 'whitepaper/textbook.json').exists():
+        if (top / 'book/textbook.json').exists():
             return top
     except (subprocess.CalledProcessError, FileNotFoundError):
         # Expected in non-git environments (or when git is unavailable):
@@ -48,8 +48,8 @@ def _repo():
 REPO = _repo()
 COMPILE = REPO / 'skills/harbor-chartwork/scripts/compile_fragment.sh'
 FIGCHECK = REPO / 'skills/harbor-chartwork/scripts/figcheck.py'
-TEXTBOOK = REPO / 'whitepaper/textbook.json'
-BOOK_FIGS = REPO / 'website-v2/public/whitepaper/figures'
+TEXTBOOK = REPO / 'book/textbook.json'
+BOOK_FIGS = REPO / 'book/figures'
 HARD = {'T1', 'T2', 'T3', 'T4', 'T5', 'T8'}
 
 

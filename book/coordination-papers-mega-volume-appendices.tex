@@ -57,17 +57,12 @@ Observed, a client's willingness to declare at Coordinated, a daemon-owned
 broker at Brokered, the operating system at Confined, a measured environment and
 a conditional key release at Attested.
 
-Two public gradings sit beside this one, and the chapter that buys these modes
-(\pdchapref{swk}{The Single-Writer Kernel}, \S``What it buys'') argues at length
-why all three axes are independent rather than versions of one another.
-Sheridan and Verplank's levels of automation --- refined by Parasuraman,
-Sheridan and Wickens into four processing stages, each with its own level ---
-grade how much of the decide-and-act loop the machine holds rather than the
-human. The Common Criteria's evaluation assurance levels, EAL1 through EAL7,
-grade how much independent evaluation effort a security claim received before
-deployment, and grade it once, for a whole product. This ladder grades neither
-work allocation nor evaluation effort. It grades one runtime claim about one
-mechanism, by what carries it.
+These categories answer a runtime question: what carries this particular
+claim? Automation levels instead describe the allocation of work between
+person and machine, while evaluation assurance describes the scrutiny a
+security claim receives. Chapter~1 develops that comparison. A system can
+have more automation without a stronger admission boundary, or more evaluation
+without a different allocation of decisions.
 
 \subsection{What exists now}
 
@@ -140,8 +135,8 @@ settlement institutions described in \pdchapref{fh}{The Federated Harbor}.
 
 \section{Result atlas}\label{app:result-atlas}\label{app:one-spine}
 
-The research archive contains revisions, experiments, literature work, and
-failed formulations. The durable unit is therefore a result, not a PDF. Each
+The research program contains derivations, experiments, literature comparisons
+and counterexamples. Its claims are tracked individually. Each
 result below has a stable identifier, assumptions, a boundary, a chapter home,
 and a named verification artifact in the companion manifest.
 
@@ -196,8 +191,8 @@ game, the conservation model; R11 as instrument) --- \pdchapref{bonded}{The Bond
 Atomic ledgers preserve conservation; truthful claim signaling is
 incentive-compatible above the mechanized discount threshold $\delta^{*}$;
 audit sampling and canaries borrow their power curve from the sealed room's
-detector; randomized, diverse adjudication reduces predictable collusion only
-under the named sampling assumptions. Evidence may support a remedy without
+detector; any claimed benefit of randomized adjudication depends on its
+selection, independence and enforcement assumptions. Evidence may support a remedy without
 becoming mechanical truth.
 
 \paragraph{8. Federation relays evidence, not sovereignty (R6, R6-CR,

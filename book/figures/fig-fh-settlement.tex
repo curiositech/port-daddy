@@ -43,7 +43,7 @@
   \node[pd label,anchor=west] at (\ax+3.10,-0.95) {\textbf{Refuse}};
   \draw[pd focus rule] (\ax+0.05,-1.65) -- (\ax+4.55,-1.65);
   \node[pd focus label,anchor=north west,text width=4.5cm,align=left] at (\ax+0.05,-1.85)
-    {worst-case loss $\leq\varphi$};
+    {operator extraction $\leq\varphi$};
 
   % ---- panel B: identical graph, plus one operator-controlled edge -------
   \node[pd datum] (fundedb) at (\bx+0.30,0) {};
@@ -64,7 +64,7 @@
     {redirect / second close: full balance exposed};
   \draw[pd breach rule] (\bx+0.05,-4.35) -- (\bx+4.55,-4.35);
   \node[pd breach label,anchor=north west,text width=3.9cm,align=left] at (\bx+0.05,-4.55)
-    {worst case $=$ full custody balance};
+    {operator extraction: full custody balance};
 
   \node[pd note,anchor=north west,text width=10.6cm] at (\ax,-6.10)
     {the custody assumption: whitelist, fee cap, one terminal transition are

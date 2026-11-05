@@ -1,7 +1,7 @@
 {
   "source": "book/sealed-harbor.tex",
   "beforeSourceSha256": "a90af00c18ec3d57f4a680153b950002367cca32e5f71f1e8fc03521909a5be8",
-  "scope": "Six example structure contracts. Original before-text is retained as provenance; three reviewed semantic corrections use explicit accepted text and hypotheses, with substantive negative mutations.",
+  "scope": "Six example structure contracts. Original before-text is retained as provenance; reviewed semantic corrections and the concrete parity trace use explicit accepted text and hypotheses, with substantive negative mutations.",
   "blocks": [
     {
       "heading": "\\begin{pdexample}{What ``Nothing Leaks'' Costs, in Bits}",
@@ -42,11 +42,20 @@
       "heading": "\\begin{pdexample}{Six Pairs, Two of Them Equal-Parity}",
       "before": "\\begin{pdexample}{Six Pairs, Two of Them Equal-Parity}\nThe number of unordered pairs among four secrets is\n\\[\\binom{4}{2}=6.\\]\nTwo of them, $(0,2)$ and $(1,3)$, are equal-parity. For those two pairs, the check found identical\nobservation logs through every interleaving of at most seven steps\\pdprov{c1\\_noninterference.py}{20260816}{verified}.\n\n\\emph{Now you try:}\nwith $g(s)=s\\bmod 2$ over secrets $\\{0,\\dots,7\\}$, how many unordered secret\npairs must a sound room keep Erin-indistinguishable?\n(Exercise~\\ref{ex:sealed-pairs}.)\n\\end{pdexample}",
       "paragraphStarts": [
+        "The number of unordered pairs",
         "Two of them,",
         "\\emph{Now you try:}"
       ],
       "displays": [
         "\\binom{4}{2}=6"
+      ],
+      "accepted": "\\begin{pdexample}{Six Pairs, Two of Them Equal-Parity}\n\\setlength{\\parskip}{4pt plus 1pt}\nTake two worlds with secrets $0$ and $2$. Both release parity~0. Before a\nrelease Erin sees the same empty log; afterwards she sees \\texttt{(gate,0)}\nin both. A gate that instead forwards the raw secret produces\n\\texttt{(gate,0)} versus \\texttt{(gate,2)}, a distinguishing \\mbox{observation} at\nthat step. The checker asks this question for every permitted short schedule,\nnot just this trace.\n\nThe number of unordered pairs among four secrets is\n\\[\n\\binom{4}{2}=6.\n\\]\n\nTwo of them, $(0,2)$ and $(1,3)$, are equal-parity. For those two pairs, the check found identical\nobservation logs through every interleaving of at most seven steps\\pdprov{c1\\_noninterference.py}{20260816}{verified}.\n\n\\emph{Now you try:}\nwith $g(s)=s\\bmod 2$ over secrets $\\{0,\\dots,7\\}$, how many unordered secret\npairs must a sound room keep Erin-indistinguishable?\n(Exercise~\\ref{ex:sealed-pairs}.)\n\\end{pdexample}",
+      "acceptedReason": "The concrete same-parity trace and raw-secret countertrace precede the pair count; the exhaustive claim remains bounded to the two equal-parity pairs and at most seven steps.",
+      "requiredScope": [
+        "Both release parity~0",
+        "\\texttt{(gate,0)} versus \\texttt{(gate,2)}",
+        "not just this trace",
+        "every interleaving of at most seven steps"
       ]
     },
     {
@@ -105,5 +114,5 @@
       ]
     }
   ],
-  "acceptedSourceSha256": "995f3c86a085dcdb0364352e8ca6453968986a4ddda398a4b4e061ab1760ffa1"
+  "acceptedSourceSha256": "d8a96061916ad9e84fb2bac88df6986d85f2838d4715c25aa455989881ff961b"
 }
