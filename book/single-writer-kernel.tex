@@ -157,7 +157,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{September 2026\\Version 1.2 (textbook edition)}
+\date{\pdeditiondate\\Version 1.2 (textbook edition)}
 % ─── Document ────────────────────────────────────────────────────────────────
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
@@ -888,8 +888,8 @@ the coordination layer ships what it carries.
 redeliver a request. Reporting each repeat as a fault floods the operator with
 false alarms. An operation key lets a consumer look up a stored receipt;
 safe retries also require that receipt to remain bound to the effect.
-The \texttt{TubeEnvelope} carries conversation metadata, not an operation key
-or an effect receipt. Message identifiers and replay guards do not by themselves
+The \texttt{TubeEnvelope}, the reference system's versioned message envelope,
+carries conversation metadata, not an operation key or an effect receipt. Message identifiers and replay guards do not by themselves
 make an external tool's effects idempotent.}
 
 In the local experiment in Figure~\ref{fig:swk-idempotency-gap}, a sender
@@ -1013,7 +1013,7 @@ This subsystem is the deontic core, and it is genuinely two distinct mechanisms 
 in the vocabulary of deontic logic for computer systems (Jones and
 Sergot~\pdcite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
 \emph{obligation} (commitments). Getting the distinction right --- and being honest
-about how strong each lever actually is --- is the security core of the paper.
+about how strong each lever actually is --- is the security core of this chapter.
 
 Table~\ref{tab:swk-deontic-split} lays out the three modalities and the mechanism
 behind each.
@@ -2350,7 +2350,7 @@ point for all three rows.
 \label{sec:threatmodel}
 % ═════════════════════════════════════════════════════════════════════════════
 
-A systems-security paper lives or dies on its threat model. The kernel deliberately
+A security argument depends on its threat model. The kernel deliberately
 shrinks its trusted computing base (one writer, one file), which is good security
 hygiene --- but the shrinking pushes several adversaries explicitly out of scope,
 and the honest move is to draw the boundary, not gesture at it.
@@ -2371,7 +2371,7 @@ Buggy cooperating agent & \textbf{in} & Claims, commitments, post-commit monitor
 Misbehaving agent (ignores advisory claims) & partial & Edit-surface claims are \emph{advisory coordination}, not OS-enforced isolation. A malicious agent can write the file anyway (no kernel-level sandbox such as Landlock, \texttt{unveil}, or Seatbelt). \\
 Same-user process (reads/edits the DB) & \textbf{out} & The database is owner-read/write only; OS-keychain isolation of the signing key remains incomplete. Hash-chain tamper-evidence defends against \emph{nobody} under this exclusion (\S\ref{sec:merkle}). \\
 Different-uid process & \textbf{in (partial)} & Owner-only permissions on the database and both socket files; but the socket peer-credential check is a software handshake (a self-reported agent identity checked against the registration table), \emph{not} the kernel-enforced socket credential (\texttt{SO\_PEERCRED}) --- a real authentication caveat. This row is the document's operative statement: no other section supersedes it (\S\ref{sec:merkle} specifies hardening that would, but does not ship). \\
-Cross-machine / cross-operator & \textbf{out (economy layer)} & Needs the complete local identity contract (\BuiltWeak) and cross-operator attestation (the economy paper). \\
+Cross-machine / cross-operator & \textbf{out (economy layer)} & Needs the complete local identity contract (\BuiltWeak) and cross-operator attestation (\pdchapref{he}{The Harbor Economy}). \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -3153,7 +3153,7 @@ saying exactly where the reduction stops paying.}
 
 These eleven problems are the layer's research frontier; they appear as
 starred exercises throughout and are collected here. OP-4 is shared with the
-personhood paper (this chapter owns the kernel mechanism; that one owns the
+\pdchapref{stp}{From Spawn to Person} (this chapter owns the kernel mechanism; that one owns the
 personhood-and-reputation argument).
 
 One of the eleven is closed --- by a theorem in this chapter, not by an artifact.
@@ -3161,7 +3161,7 @@ Several others have a \emph{specified design} in the body, which is a real thing
 have and is not the same thing as being solved; the maturity scale
 (\S\ref{sec:honestkey}) exists precisely to keep those two apart. Because a
 ``solved'' claim that survives in one place after being retracted in another is the
-most dangerous kind of error a paper like this can make,
+most dangerous kind of error this argument can contain,
 Table~\ref{tab:op-status} states each problem's status once, and every exercise
 box, invariant row, adjacency clause, and figure caption in this chapter is written
 to agree with it. Where they ever disagree, this table is the one to trust.
@@ -3316,7 +3316,7 @@ its keep when agents must trust one another across machines they do not control.
 % ═════════════════════════════════════════════════════════════════════════════
 
 The body of this chapter argues at the level of mechanisms, so that it reads as a
-self-contained systems paper. This appendix records the concrete grounding: the
+self-contained systems argument. This appendix records the concrete grounding: the
 specific artifact that realizes each mechanism in the reference implementation, and
 an honest accounting of how mature each is. Nothing here is needed to follow the
 argument; it is here so the maturity grades in the body are auditable rather than

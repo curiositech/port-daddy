@@ -133117,6 +133117,81 @@
         "publication_review_sha256": "5f73d9c6792ba9b06e53a16cb98233e976ae56a40b87da18aeb79d07c8e9a373"
       },
       "delivery": "Protected merge, source-upload and production readback evidence is kept with the PR for codex/book-editorial-continuity-20261104. Manuscript acceptance alone is not a deployment claim."
+    },
+    {
+      "id": "BOOK-SALVAGE-CLAIMS-20261105",
+      "title": "Dated book manuscripts, editorial salvage and non-vacuous decoded-claims verification",
+      "papers": [
+        "Book",
+        "Chapter0",
+        "Chapter1",
+        "Chapter2",
+        "Chapter3",
+        "Chapter4",
+        "Chapter5",
+        "Chapter6",
+        "Chapter7",
+        "Chapter8"
+      ],
+      "kind": "editorial changelog and verification development",
+      "queue_state": "current_work",
+      "priority": "P1",
+      "owner": "codex/book-salvage-claims-20261105",
+      "status": "implemented and locally verified; protected publication pending",
+      "result": "Apply the confirmed reader-feedback corrections and selective art/prose salvage while strengthening executable decoded-claims verification. Final evidence is recorded only after build, proof and public readback.",
+      "assumptions": [
+        "Editorial history is kept here, not in the printed book or public source bundle.",
+        "The decoded-claims proof concerns bounded post-decoding policy and delegation, not JSON parsing, signatures or deployed complete mediation."
+      ],
+      "evidence": [
+        {
+          "path": "docs/harbor-research/exposition/book-salvage-20261105/kani-verification.json",
+          "result": "Five harnesses passed; 17 of 17 covers satisfied; both intended negative controls found counterexamples; 103 native tests and seven log-gate tests passed."
+        },
+        {
+          "path": "docs/harbor-research/exposition/book-salvage-20261105/extracted-source-build.json",
+          "result": "Fresh public archive builds with open fonts; 777-page proof passes all six mechanical PDF gates; edition date verified; ledger/private fonts absent."
+        },
+        {
+          "path": "docs/harbor-research/exposition/book-salvage-20261105/publication-pdf-checks.txt",
+          "result": "817-page Suisse candidate passes six PDF gates, 266 captions and 212 exercise navigation labels; facing-spread acceptance is recorded separately."
+        }
+      ],
+      "next": "Finish exact-Suisse spread acceptance and extracted open-font build; land source and artifact PRs separately, then verify public downloads.",
+      "acceptance": "Every accepted recommendation is implemented or explicitly adjudicated; actual proof and cover execution is evidenced; current sources/PDF/spreads/archive are consistent and publicly downloadable.",
+      "depends_on": [
+        "BOOK-EDITORIAL-CONTINUITY-20261104"
+      ],
+      "sources": [
+        {
+          "path": "book/textbook.json",
+          "locator": "edition.date and canonical chapter inputs"
+        },
+        {
+          "path": "core/harbor-card-rs/src/lib.rs",
+          "locator": "decoded claim policy shared with signed-token verifier"
+        }
+      ],
+      "editorial_changelog": [
+        {
+          "date": "2026-11-05",
+          "manuscript_date": "5 November 2026",
+          "status": "implemented and locally verified; publication pending",
+          "items": [
+            "Add brief motivating preface and concise Landmark captions; reuse two inspected thematic illustrations on the book page.",
+            "Give deontic compatibility and key custody dedicated sections; retain hypotheses and unproved design boundaries.",
+            "Define person early; improve supervision reading routes, declassification continuity and topology-audit framing.",
+            "Repair insurance reference and chapter terminology; simplify contents opening and visually verify Chapter0 headers.",
+            "Implement quantified non-vacuous decoded-claim policy and delegation harnesses, with acceptance and rejected-escalation cases.",
+            "Date the nine standalone manuscripts and assembled book from one edition value; keep this editorial history outside the published volume and source archive."
+          ],
+          "exclusions": [
+            "No unsupported Asimov attribution or unsourced four-orders cost claim.",
+            "No restoration of malformed dial lettering or unsupported logarithmic-savings art."
+          ],
+          "requested_by": "operator"
+        }
+      ]
     }
   ],
   "coverage": {

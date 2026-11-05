@@ -1,3 +1,4 @@
+% Manuscript date is supplied by book/textbook.json through the shared edition map.
 % Chapter 0: Foundations and Prerequisites
 % A comprehensive systems-engineering survey uniting classical multi-agent theory,
 % contemporary coding agent architectures, transformer execution physics, and the operating kernel gap.
@@ -117,12 +118,13 @@ stale-observation problem when we define admission and recovery.
 \end{pdexample}
 
 \noindent\textbf{The route.}
-First distinguish a worker's proposal, an admitted effect and a retained
-record. Then examine commitments, messages and incentives; account for the
-cost of keeping information in a prompt; and follow a request through a
-refusal, a timeout and a restart. The final result assembles these cases.
-Read the examples before the formalism. The literature comparisons identify
-obligations that return in the later chapters, not a vocabulary to memorize.
+Begin with proposals, admitted effects and retained records. For an
+implementation-oriented first pass, read these opening definitions, then the
+tool boundaries in Section~\ref{sec:prereq-hypervisors} and the recovery
+argument in Section~\ref{pre:sec:kernel-gap}. Return to the intervening examples
+when a commitment, message or resource limit becomes relevant. The
+classical-agent comparisons and transformer calculations are reference material
+for the mechanisms' assumptions; read their worked examples before the formalism.
 
 % Flush the opening art before the first definition, never through its paragraph.
 \ifdefined\pdswisslandmarkplate\clearpage\fi
@@ -135,6 +137,13 @@ are allowed, what has been observed, and what remains to be done. An
 \emph{obligation} is a recorded requirement, such as supplying a test result
 before the job may be called complete. Alice's repair remains the same job
 when a worker exits. Chapters 1 and 5 develop its record and its succession.
+
+A \emph{person}, in this book, is a persistent accountable software participant:
+its recorded authority, obligations and witnessed history can remain
+attributable when a worker is replaced. This is an engineering convention,
+not a claim of consciousness, moral status or legal personhood.
+\pdchapref{stp}{From Spawn to Person} gives the succession rules that such
+continuity requires.
 
 \subsection{Defining the Agent and the Kernel}
 The counter example needs a proposer, an actuator and a rule separating them.

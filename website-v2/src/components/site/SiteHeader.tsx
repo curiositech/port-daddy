@@ -99,11 +99,10 @@ function navItemClass(
 
   return [
     displayClass,
-    // Padding grows past --space-2 only once the nav is roomy again (the same
-    // 1800px threshold where Cryptography/The Big Idea rejoin the primary row)
+    // Padding grows past --space-2 only once the nav has 112.5rem of room
     // — growing it as early as xl (1280px) ate exactly the width the compact
     // header needs to fit inline nav without colliding with the search box.
-    "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1800px]:px-[var(--space-3)]",
+    "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] @min-[112.5rem]/site-header:px-[var(--space-3)]",
     featuredDesktop
       ? "border-[var(--border-strong)] bg-[var(--text-primary)] text-[var(--surface-base)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
       : isActive
@@ -163,7 +162,7 @@ function OverflowNavMenu() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1800px]:px-[var(--space-3)]"
+          className="inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] @min-[112.5rem]/site-header:px-[var(--space-3)]"
         >
           More
           <ChevronDown size={14} aria-hidden="true" />
@@ -210,7 +209,7 @@ function CompressedNavMenu() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1440px]:hidden"
+          className="inline-flex shrink-0 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] @min-[90rem]/site-header:hidden"
           aria-label="Open site navigation"
         >
           <Menu size={18} aria-hidden="true" />
@@ -304,11 +303,11 @@ export function SiteHeader() {
       </a>
       <header
         data-shell="site-header"
-        className="sticky top-0 z-50 border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] relative"
+        className="@container/site-header sticky top-0 z-50 border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] relative"
       >
         <PageContainer
           width="wide"
-          className="!max-w-none grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[var(--space-2)] py-[var(--space-3)] lg:grid-cols-[minmax(10rem,0.72fr)_minmax(0,auto)_minmax(15rem,0.9fr)] xl:gap-[var(--space-3)]"
+          className="!max-w-none flex flex-wrap items-center justify-between gap-[var(--space-2)] py-[var(--space-3)] lg:grid lg:grid-cols-[minmax(10rem,0.72fr)_minmax(0,auto)_minmax(15rem,0.9fr)] xl:gap-[var(--space-3)]"
         >
           <Link
             to="/"
@@ -326,7 +325,7 @@ export function SiteHeader() {
 
           <nav
             aria-label="Primary"
-            className="hidden min-w-0 items-center justify-center gap-[var(--space-2)] min-[1440px]:flex"
+            className="hidden min-w-0 items-center justify-center gap-[var(--space-2)] @min-[90rem]/site-header:flex"
           >
             {PRIMARY_NAV_ITEMS.map((item) => (
               <PrimaryNavItem key={item.href} item={item} />
@@ -334,29 +333,26 @@ export function SiteHeader() {
             <OverflowNavMenu />
           </nav>
 
-          {/* Pin controls to the last column. Below 1440px the primary nav is
-              display:none, so without an explicit column it auto-places into the
-              empty middle track and the controls float mid-bar. */}
-          <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)] lg:col-start-3">
+          {/* The inline row needs 90rem of space: its container query scales
+              with enlarged text, unlike a fixed viewport breakpoint. Pin
+              controls to the last track when that row is collapsed. */}
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-[var(--space-2)] lg:col-start-3 lg:ml-0">
             <CompressedNavMenu />
 
-            {/* min-w kept modest so the search box shrinks before it can ever
-                collide with the centered nav or the account chip — this floor
-                is the whole reason inline nav can start below the old 1536px
-                cutoff without the compact search box spilling into it. */}
-            <div className="hidden min-w-[7rem] max-w-[15rem] flex-1 shrink min-[1440px]:block">
+            {/* Keep the labeled search for the roomier row. The icon below
+                retains the same action when the label would be truncated. */}
+            <div className="hidden min-w-[7rem] max-w-[15rem] flex-1 shrink @min-[112.5rem]/site-header:block">
               <DocsSearch variant="compact" />
             </div>
 
             {/* The wrapper owns the phone cutoff; the button keeps its own
-                1440px cutoff. Stacking both on one element put the icon back
-                beside the search box at 1440, because sm:inline-flex outranks
-                the arbitrary min-[1440px]:hidden in the generated cascade. */}
+                112.5rem cutoff. Separate wrappers keep the phone utility cutoff
+                independent of the inline navigation layout. */}
             <div className="hidden sm:contents">
               <button
                 type="button"
                 onClick={openDocsSearch}
-                className="inline-flex min-h-11 min-w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1440px]:hidden"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] @min-[112.5rem]/site-header:hidden"
                 aria-label="Search documentation"
               >
                 <Search size={16} />

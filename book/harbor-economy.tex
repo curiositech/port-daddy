@@ -4,7 +4,7 @@
 %   Standalone paper : docs/harbor-research/tex/paper6.tex (S(lang), S(succession))
 %   Chapter          : book/harbor-economy.tex (this
 %                       file; the deontic detection theorem and its frontier in
-%                       sec:three-on-one, the succession price in sec:three-sides)
+%                       sec:deontic-decision, the succession price in sec:three-sides)
 %   Index ids        : R15 (succession price), R17
 %   Check            : python3 scripts/harbor-research/check_library_index.py
 %                      python3 scripts/harbor-research/check_propagated_corrections.py
@@ -183,7 +183,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{September 2026\\Version 1.3 (textbook edition)}
+\date{\pdeditiondate\\Version 1.3 (textbook edition)}
 % ═══════════════════════════════════════════════════════════════════════════════
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
@@ -259,13 +259,14 @@ not $460$ and not a $560$ bounty.
 On a successful repair using $16$ metered files at $0.5$\,\textsc{cr} each,
 Carol earns $8$. Bob receives the unused $2$ reserve; Alice receives her
 $400$ payment and her $100$ collateral back. Returning collateral is not
-income. Section~\ref{sec:one-settlement} checks every recipient on both the
-successful and partial-completion branches.
+income.
 \end{pdexample}
 
 A \emph{float plan} records that work agreement and its funding commitments.
+Section~\ref{sec:one-settlement} checks every recipient on both the successful
+and partial-completion branches.
 Before writing its formal schema, we ask what Bob buys, who controls the work,
-and which evidence authorizes each transfer. We then check conservation,
+and which evidence authorizes each transfer. We then check conservation, whether the commitments can coexist,
 incentives and the obligations that arise when the counterparties have
 separate administrators. The local bond ledger is implemented; the complete
 market, its reputation system and its cross-operator guarantees are separate
@@ -775,26 +776,90 @@ leasing arrangement. We must respect the book's
 \emph{capability vs.\ permission} distinction (\S\ref{sec:keystone}): the jail
 allocates \emph{capability} (what the leased agent \emph{can} do at runtime). The
 deontic layer separately governs \emph{permission} (what it \emph{may} do).
-``Able but forbidden'' must stay expressible; the jail bounds ability, not norm.}
+``Able but forbidden'' must stay expressible; the jail bounds ability, not norm.
+Section~\ref{sec:deontic-decision} checks whether the agreed norms conflict.}
 
-\paragraph{The deontic layer's decision procedure.}\footnote{A standalone,
-submission-form version of the results folded into this section and the
-succession price of \S\ref{sec:three-sides} is \emph{What Needs an Authority}
-(research paper~6)~\cite{paper6}; the sweeps cited here are its artifacts,
-regenerated at seed 20260816.} Naming a layer is not the same as being able to
-run it. What decides whether the deontic layer is an algorithm or an office is
-what happens when two accepted norms collide. Cheap detection is a
-language-design choice, not a discovery about deontic logic in general, and the
-commitment fragment $\mathcal{L}_c$ buys it by construction. The syntax fits in
-one box, and it belongs in one box: a reader who wants to reimplement the
-polynomial checker should not have to assemble the grammar from four pages of
-running prose.
+\paragraph{Skill licensing (IP).} This contract releases the per-use fee
+\emph{only on green settlement} (metered $+$ clawback). The motivation is
+adverse selection: when buyers cannot distinguish quality, a pooled price can
+make high-quality sellers withdraw, as in \textbf{Akerlof}'s model
+\pdcite{akerlof1970}. That model does not uniquely require contingent payment.
+Here, metering, clawback, and a Merkle \emph{portfolio proof} of prior settled
+outcomes are proposed responses. Their effect depends on reliable grading and
+attributable records; a Merkle proof authenticates those records, not their
+quality. A known, inspectable skill can instead support an upfront licence.
+
+\subsection{One trade, all three sides, one settlement}\label{sec:one-settlement}
+
+Section~\ref{sec:three-sides} considered labor, capital, and IP as alternative
+ways to buy the refactor. This example combines them in one transaction against
+one escrow object, then checks that the net wallet changes sum to zero.
+
+\begin{pdexample}{One trade, two sources of funds}
+Bob posts one float plan for
+the $1{,}200$-line refactor, with three line items. \emph{Labor:} a $400$\,\textsc{cr}
+bounty to Alice's firm. \emph{Capital:} a $50$\,\textsc{cr} lease for Dana's
+profiling specialist, which Alice's crew needs for one module. \emph{IP:} Carol's
+lint-and-type skill, metered at $0.5$\,\textsc{cr} per file against a $20$-file cap,
+so $10$\,\textsc{cr} is reserved. Bob's wallet is debited
+$400+50+10 = 460$\,\textsc{cr} into escrow. Alice separately posts a
+$100$\,\textsc{cr} performance bond, also into escrow. Before any agent spawns, the
+escrow row holds $560$\,\textsc{cr}.
+
+The job settles \textbf{Success}: the original checkout regression is retained
+and passes, and the authorized repair merges without unrelated migrations. The
+metered licence bills only the $16$ files the skill actually touched, so
+$16 \times 0.5 = 8$\,\textsc{cr} releases to Carol and the unused $2$\,\textsc{cr}
+returns to Bob. Alice's bond is refunded as collateral, not income.
+\end{pdexample}
+
+Figure~\ref{fig:he-two-bucket-settlement} keeps the two funding sources separate
+and gives both contractual outcomes.
+
+\input{figures/fig-he-two-bucket-settlement}
+
+\noindent Check it on one line: $-458 + 400 + 50 + 8 + 0 = 0$. Three sides, three
+privately-informed counterparties, three different reputation keys --- and one
+escrow row that opens at $560$\,\textsc{cr} and closes at zero.
+Design Invariant~\ref{prop:conservation} is not re-proved per side; it is the \emph{same}
+invariant, because the lease and the licence are line items on the one float plan
+rather than trades on ledgers of their own. \emph{Now you try:} settle the same plan
+\textbf{Partial} at $40\%$ and confirm the sum is still zero. (Alice earns $160$ and
+is slashed $60$ of her bond, so her net receipt is $100$; the commons gains
+$60$. Under the licence's stated green-only rule, Carol receives zero and the
+whole $10$ reserve returns to Bob. If the lease contract pays Dana's $50$
+for delivered runtime even on Partial, Bob's net outflow is $210$ and the check
+is $-210+100+50+0+60=0$. A licence payable on partial work would be a different
+contract, to be agreed before execution.)
+
+\pdexercisepointer{\ref{ex:he-grossman-hart-roles}}{\ref{ex:he-portfolio-version-binding}}{\pageref{ex:he-grossman-hart-roles}}
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Checking whether commitments can coexist}\label{sec:deontic-decision}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The settlement example balances the payments, but its promises must also fit
+together. A profiling lease might require production access while the task
+contract forbids it. Before accepting both, the authority needs to detect the
+conflict and show which commitments caused it. This section gives an explicit
+input language and a checkable witness for that decision. It does not decide
+which party's preferred rule ought to prevail.
+
+Cheap detection is a language-design choice, not a claim about deontic
+logic in general. The commitment fragment $\mathcal{L}_c$ buys it by
+restricting what a policy can express.\footnote{A standalone treatment of
+these results and the succession price of \S\ref{sec:three-sides} is
+\emph{What Needs an Authority} (research paper~6)~\cite{paper6}; the sweeps
+cited here are its artifacts, regenerated at seed 20260816.}
+We first derive one conflict by hand, then state the input grammar, the
+polynomial decision procedure, and the expressive extension that changes
+its complexity.
 
 \begin{pdexample}{A Conflict Witness for the Deontic Layer, Checked by Hand}
 \setlength{\parskip}{4pt plus 1pt}
-The deontic layer just named needs a decision procedure once two accepted norms
-might disagree. Here is the smallest case that shows why checking by hand does
-not scale, and why it does not have to: three rules over two intervals.
+The conflict is visible once all the accepted rules have been applied.
+Three rules over two intervals show why the checker must derive the facts
+that activate an obligation before comparing it with a prohibition.
 
 Here $O$ means ``obligatory'' and $F$ means ``forbidden.'' A Horn rule
 is an if--then rule with one conclusion: once all its premises hold, add that
@@ -1050,65 +1115,14 @@ certifies agreement with the semantics there; the complexity bound, not the
 sweep, covers scale.
 \end{pdboundary}
 
-\paragraph{Skill licensing (IP).} This contract releases the per-use fee
-\emph{only on green settlement} (metered $+$ clawback). The motivation is
-adverse selection: when buyers cannot distinguish quality, a pooled price can
-make high-quality sellers withdraw, as in \textbf{Akerlof}'s model
-\pdcite{akerlof1970}. That model does not uniquely require contingent payment.
-Here, metering, clawback, and a Merkle \emph{portfolio proof} of prior settled
-outcomes are proposed responses. Their effect depends on reliable grading and
-attributable records; a Merkle proof authenticates those records, not their
-quality. A known, inspectable skill can instead support an upfront licence.
-
-\subsection{One trade, all three sides, one settlement}\label{sec:one-settlement}
-
-Section~\ref{sec:three-sides} considered labor, capital, and IP as alternative
-ways to buy the refactor. This example combines them in one transaction against
-one escrow object, then checks that the net wallet changes sum to zero.
-
-\paragraph{The three-sided settlement, dramatized.} Bob posts one float plan for
-the $1{,}200$-line refactor, with three line items. \emph{Labor:} a $400$\,\textsc{cr}
-bounty to Alice's firm. \emph{Capital:} a $50$\,\textsc{cr} lease for Dana's
-profiling specialist, which Alice's crew needs for one module. \emph{IP:} Carol's
-lint-and-type skill, metered at $0.5$\,\textsc{cr} per file against a $20$-file cap,
-so $10$\,\textsc{cr} is reserved. Bob's wallet is debited
-$400+50+10 = 460$\,\textsc{cr} into escrow. Alice separately posts a
-$100$\,\textsc{cr} performance bond, also into escrow. Before any agent spawns, the
-escrow row holds $560$\,\textsc{cr}.
-
-The job settles \textbf{Success}: the original checkout regression is retained
-and passes, and the authorized repair merges without unrelated migrations. The
-metered licence bills only the $16$ files the skill actually touched, so
-$16 \times 0.5 = 8$\,\textsc{cr} releases to Carol and the unused $2$\,\textsc{cr}
-returns to Bob. Alice's bond is refunded as collateral, not income.
-
-Figure~\ref{fig:he-two-bucket-settlement} keeps the two funding sources separate
-and gives both contractual outcomes.
-
-\input{figures/fig-he-two-bucket-settlement}
-
-\noindent Check it on one line: $-458 + 400 + 50 + 8 + 0 = 0$. Three sides, three
-privately-informed counterparties, three different reputation keys --- and one
-escrow row that opens at $560$\,\textsc{cr} and closes at zero.
-Design Invariant~\ref{prop:conservation} is not re-proved per side; it is the \emph{same}
-invariant, because the lease and the licence are line items on the one float plan
-rather than trades on ledgers of their own. \emph{Now you try:} settle the same plan
-\textbf{Partial} at $40\%$ and confirm the sum is still zero. (Alice earns $160$ and
-is slashed $60$ of her bond, so her net receipt is $100$; the commons gains
-$60$. Under the licence's stated green-only rule, Carol receives zero and the
-whole $10$ reserve returns to Bob. If the lease contract pays Dana's $50$
-for delivered runtime even on Partial, Bob's net outflow is $210$ and the check
-is $-210+100+50+0+60=0$. A licence payable on partial work would be a different
-contract, to be agreed before execution.)
-
-\pdexercisepointer{\ref{ex:he-grossman-hart-roles}}{\ref{ex:he-deontic-conflict-checker}}{\pageref{ex:he-grossman-hart-roles}}
+\pdexercisepointerone{\ref{ex:he-deontic-conflict-checker}}{\pageref{ex:he-deontic-conflict-checker}}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The keystone the market rests on --- and does not yet have}\label{sec:keystone}
 % ═══════════════════════════════════════════════════════════════════════════════
 
 Everything above assumes a counterparty's identity is real. This section confronts
-the series' single \emph{blocking} reconciliation: the identity primitive the
+the book's central \emph{blocking} dependency: the identity primitive the
 whole market leans on covers a threat model that \emph{excludes the cross-operator
 adversary the market is defined by}.
 
@@ -1558,7 +1572,7 @@ locate it there explicitly rather than reinvent it.
 \begin{remark}\label{conj:trustless}
 \textbf{Open problem: trustless cross-harbor settlement.} It is unknown here whether
 non-fungible, reputation-priced bonds admit a useful trustless settlement protocol
-under the paper's availability and privacy requirements. An HTLC comparison does not
+under this chapter's availability and privacy requirements. An HTLC comparison does not
 prove impossibility because the asset and adjudication models differ. (\Open{}.)
 \end{remark}
 
@@ -2201,14 +2215,16 @@ which is precisely ``one draw and two echoes'' written as arithmetic: three
 reviewers deliver exactly the assurance of one, a factor of $25$ worse than the
 line item says.
 
-\emph{Now you try:} at $k=5$ and $\theta=\tfrac12$, does adding two
-more correlated reviewers buy more or less than the third one did?
+\emph{Now you try:} with $\theta=\tfrac12$, does expanding this panel
+from three to five reviewers reduce the miss probability more or less than
+adding the third reviewer did?
 
-(Two more fractions, $\tfrac{3.2}{4.0}\times\tfrac{4.2}{5.0}$, multiply the miss
-probability by $0.8 \times 0.84 = 0.672$, giving $0.059$ --- against $0.2^2 = 0.04$
-for the independent case's next two, so much less: correlated panels have sharply
-diminishing returns, which is the whole argument for buying diversity instead of
-headcount.)
+The third reviewer reduces the miss probability from $0.12$ to $0.088$,
+a drop of $0.032$. The fourth and fifth multiply the remaining probability by
+$\tfrac{3.2}{4.0}\times\tfrac{4.2}{5.0}=0.672$, leaving $0.059136$.
+Their combined reduction is $0.088-0.059136=0.028864$, less than the third
+reviewer's reduction. In this common-rate model, two additional correlated
+reviewers therefore buy less absolute risk reduction than the preceding one.
 \end{pdexample}
 
 The algebra is conditional on the model; its fit to deployed panels is untested.
@@ -2229,6 +2245,9 @@ cannot be substituted into $(1-d)^k$ without a joint model. The Beta mixture
 supplies such a model, and Eq.~\ref{eq:assurance-jensen} holds for its broader
 conditionally independent common-rate class, not arbitrary correlated panels.
 
+% Keep the final oracle and its status with the review and recall, apart
+% from the preceding pairwise counterexample's margin.
+\pdmarginpagebreak
 The ground-truth oracle for grading the test-writers themselves is
 \textbf{mutation-testing kill rates} against held-out syntactic mutation operators,
 which reduces direct adaptation to the visible grading suite. Held-out mutants
@@ -2468,6 +2487,8 @@ the leaf and the discounted edge.
 
 \input{figures/fig-he-skill-lineage}
 \end{pdsolution}
+\pdexercisesfor{\S\ref{sec:deontic-decision}}{Checking whether commitments can coexist}
+
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-deontic-conflict-checker}
 The deontic layer named above --- what an agent \emph{may} or \emph{must} do,
 as against the jail's \emph{capability} --- needs a decision procedure once two
@@ -3076,8 +3097,8 @@ Purchased assurance & Delegated computation~\pdcite{goldwasser2008}; AI-safety
 \section{Conclusion}\label{sec:conclusion}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The harbor-master makes a swarm legible and accountable for one operator (the
-wedge of \pdchapref{ls}{The Legible Swarm}). When operators sail out to trade, the \emph{same} ledger that
+The harbor-master makes a swarm legible and accountable for one operator
+(the single-operator tool developed in \pdchapref{ls}{The Legible Swarm}). When operators sail out to trade, the \emph{same} ledger that
 kept one operator's swarm honest becomes the market that lets fleets who don't trust
 each other work together: three sides, one bond, hosted trust. We have not papered
 over the cost of that claim. The keystone identity primitive --- local
@@ -3088,7 +3109,7 @@ cross-currency totals require time-indexed valuation and an explicit exposure mo
 computed from retained outcomes and their tombstones; compensation cannot erase past reliance. Every
 folk-theorem result rests on a grading process included in the monitoring model.
 Myerson--Satterthwaite constrains bilateral slices only when its assumptions hold;
-the paper does not yet prove which corner the full market sacrifices. The bones are good and the floor is built; the spine the
+this chapter does not yet prove which corner the full market sacrifices. The bones are good and the floor is built; the spine the
 market trades on has partial local identity and outcome substrates but no complete
 reputation or cross-operator binding --- and this chapter says so in the same
 words throughout, because a market built on an overstated keystone is a market built
@@ -3249,8 +3270,8 @@ simultaneous achievement of all four desiderata.
 
 The implication is conditional:
 before declaring which corner the harbor gives up, a mechanism must specify its
-types and transfers and prove its incentive and participation properties. The
-present paper has not done so, hence makes no stronger allocation claim.
+types and transfers and prove its incentive and participation properties. This
+chapter has not done so, hence makes no stronger allocation claim.
 \end{proof}
 % ═══════════════════════════════════════════════════════════════════════════════
 \pdprintsolutions

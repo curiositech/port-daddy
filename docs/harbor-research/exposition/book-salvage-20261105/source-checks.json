@@ -1,0 +1,322 @@
+[
+  {
+    "name": "chapter-order",
+    "command": [
+      "node",
+      "scripts/generate-mega-whitepaper.mjs",
+      "--check-shared"
+    ],
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "name": "library-ledger",
+    "command": [
+      "node",
+      "docs/grand-harbor/checks/check-ledger.mjs"
+    ],
+    "exit_code": 0,
+    "seconds": 0.07
+  },
+  {
+    "name": "figure-palette",
+    "command": [
+      "node",
+      "website-v2/scripts/check-figure-palette.mjs"
+    ],
+    "exit_code": 0,
+    "seconds": 0.15
+  },
+  {
+    "name": "generator-tests",
+    "command": [
+      "node",
+      "--test",
+      "scripts/generate-mega-whitepaper.test.mjs",
+      "scripts/generate-mega-mechanized.test.mjs"
+    ],
+    "exit_code": 0,
+    "seconds": 0.27
+  },
+  {
+    "name": "gold-ink",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_maritime_gold_ink.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.23
+  },
+  {
+    "name": "propagated-corrections",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_propagated_corrections.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.29
+  },
+  {
+    "name": "citations",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_citations.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.6
+  },
+  {
+    "name": "critique-ledger",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_critique_ledger.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.15
+  },
+  {
+    "name": "research-program",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_research_program.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.45
+  },
+  {
+    "name": "library-index",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_library_index.py",
+      "--check-md"
+    ],
+    "exit_code": 0,
+    "seconds": 1.11
+  },
+  {
+    "name": "marginalia-sidecars",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_marginalia_sidecars.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.04
+  },
+  {
+    "name": "plate-provenance",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_plate_provenance.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.08
+  },
+  {
+    "name": "environments",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_tex_environments.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.3
+  },
+  {
+    "name": "duplicate-figures",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_duplicate_figures.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "name": "duplicate-theorems",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_duplicate_theorems.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.07
+  },
+  {
+    "name": "duplicate-protocols",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_duplicate_protocols.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.07
+  },
+  {
+    "name": "absent-data-captions",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_absent_data_captions.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.09
+  },
+  {
+    "name": "cite-shortforms",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/build_cite_shortforms.py",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.08
+  },
+  {
+    "name": "discharge-pointers",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/build_discharge_pointers.py",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.03
+  },
+  {
+    "name": "cite-promotion",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/promote_cites.py",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.04
+  },
+  {
+    "name": "provenance-promotion",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/promote_provenance.py",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.04
+  },
+  {
+    "name": "exercise-pointers",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/star_exercise_pointers.py",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.03
+  },
+  {
+    "name": "atlas-coverage",
+    "command": [
+      "python3",
+      "-B",
+      "skills/whitepaper-figure-system/scripts/check_atlas_coverage.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.13
+  },
+  {
+    "name": "chapter-lint",
+    "command": [
+      "python3",
+      "-B",
+      "skills/textbook-craft/scripts/chapter_lint.py",
+      "--apparatus",
+      "book/chapter-apparatus.json",
+      "--max-blocking",
+      "15"
+    ],
+    "exit_code": 0,
+    "seconds": 0.14
+  },
+  {
+    "name": "readers-eye",
+    "command": [
+      "python3",
+      "-B",
+      "skills/textbook-craft/scripts/readers_eye.py",
+      "--limit",
+      "6"
+    ],
+    "exit_code": 0,
+    "seconds": 1.85
+  },
+  {
+    "name": "figure-register",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_figure_register.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.15
+  },
+  {
+    "name": "figcheck-corpus",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_figcheck_corpus.py",
+      "--verbose"
+    ],
+    "exit_code": 0,
+    "seconds": 0.04
+  },
+  {
+    "name": "figure-audit-render",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/render_figure_audit.py",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.11
+  },
+  {
+    "name": "reviewer-protocol",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/harbor-research/check_reviewer_protocol.py",
+      "--self-test"
+    ],
+    "exit_code": 0,
+    "seconds": 5.56
+  },
+  {
+    "name": "research-unit-suite",
+    "command": [
+      "python3",
+      "-B",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests/harbor-research",
+      "-p",
+      "test_*.py"
+    ],
+    "exit_code": 0,
+    "seconds": 31.96
+  }
+]

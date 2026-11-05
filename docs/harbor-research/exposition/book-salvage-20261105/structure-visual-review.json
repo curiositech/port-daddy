@@ -1,0 +1,228 @@
+{
+  "pdf_sha256": "d625385c8469952550e1d3c9900ace3a82e819ea5a8b5bc5cacca171d9bc6744",
+  "pages": 821,
+  "scope": "Rendered spread inspection, not merely PDF gates; final rebuild still requires changed-page recheck.",
+  "openers_and_following_left_pages": [
+    26,
+    28,
+    82,
+    84,
+    180,
+    182,
+    240,
+    242,
+    294,
+    296,
+    404,
+    406,
+    494,
+    496,
+    568,
+    570,
+    652,
+    654
+  ],
+  "other_high_resolution_left_pages": [
+    510,
+    512,
+    514,
+    516,
+    636,
+    638,
+    800,
+    802
+  ],
+  "contact_sheets": [
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24
+  ],
+  "contact_sheet_physical_spread_range": [
+    288,
+    575
+  ],
+  "findings": [
+    {
+      "severity": "pacing",
+      "physical_spread": [
+        28,
+        29
+      ],
+      "detail": "Landmark plate on left, only five-line route paragraph on right; move paragraph before plate or retain with exposition. Reported to parent."
+    },
+    {
+      "severity": "flow",
+      "physical_spread": [
+        636,
+        637
+      ],
+      "detail": "New custody section begins on left, then full-page related-work Table 7.7 interrupts on right. Float barrier before Section 7.12 recommended; reported to parent."
+    },
+    {
+      "severity": "minor",
+      "physical_pages": [
+        495,
+        496
+      ],
+      "detail": "Opening Numbers by Hand leaves only its two-line forward pointer in a split box on next page; reported to parent."
+    }
+  ],
+  "verified": [
+    "Nine opener quotations and art differ; no observed clipping or collisions.",
+    "Chapter 6 settlement precedes its new dedicated deontic section; witness precedes definition and theorems.",
+    "Custody example and explicit unproved composition boundary readable.",
+    "All six Kani rows readable; separate bounded predicates, parser limitations, local proof evidence and CI reruns stated."
+  ],
+  "remaining": [],
+  "second_proof": {
+    "sha256": "256da829a672de230eeb07128a0eb7133428d515ecb2a061e106636db74233b4",
+    "pages": 819,
+    "inspected_left_pages": [
+      544,
+      546,
+      612,
+      638
+    ],
+    "findings": [
+      "Three-line status tail alone on physical546; moved existing margin break before final oracle paragraph.",
+      "Insurance mechanism/welfare note and custody-to-limitations boundary clean.",
+      "Correct absolute reductions 0.032 and0.028864 readable."
+    ],
+    "source_repairs_pending_final_visual_recheck": [
+      "Chapter6 opening example forward pointer outside box",
+      "Chapter6 oracle/review margin break",
+      "Chapter7 related-work float barrier"
+    ]
+  },
+  "final_review": {
+    "pdf_sha256": "cc9df0fe78f6f7b59b580cb3e323558380f97ef1df9a47e2f721c3ca0560d464",
+    "pages": 817,
+    "verdict": "No remaining actionable layout defect found in assigned scope. This is scoped rendered visual acceptance, not a claim to have reread every page at full size.",
+    "opener_and_following_left_pages": [
+      26,
+      28,
+      80,
+      82,
+      178,
+      180,
+      238,
+      240,
+      292,
+      294,
+      402,
+      404,
+      492,
+      494,
+      564,
+      566,
+      648,
+      650
+    ],
+    "additional_high_resolution_left_pages": [
+      508,
+      510,
+      512,
+      514,
+      544,
+      546,
+      610,
+      632,
+      634,
+      636,
+      638,
+      798
+    ],
+    "high_resolution_spreads_count": 30,
+    "render_paths": [
+      ".scratch/salvage/accepted-spreads/p026-027.png",
+      ".scratch/salvage/accepted-spreads/p028-029.png",
+      ".scratch/salvage/accepted-spreads/p080-081.png",
+      ".scratch/salvage/accepted-spreads/p082-083.png",
+      ".scratch/salvage/accepted-spreads/p178-179.png",
+      ".scratch/salvage/accepted-spreads/p180-181.png",
+      ".scratch/salvage/accepted-spreads/p238-239.png",
+      ".scratch/salvage/accepted-spreads/p240-241.png",
+      ".scratch/salvage/accepted-spreads/p292-293.png",
+      ".scratch/salvage/accepted-spreads/p294-295.png",
+      ".scratch/salvage/accepted-spreads/p402-403.png",
+      ".scratch/salvage/accepted-spreads/p404-405.png",
+      ".scratch/salvage/accepted-spreads/p492-493.png",
+      ".scratch/salvage/accepted-spreads/p494-495.png",
+      ".scratch/salvage/accepted-spreads/p564-565.png",
+      ".scratch/salvage/accepted-spreads/p566-567.png",
+      ".scratch/salvage/accepted-spreads/p648-649.png",
+      ".scratch/salvage/accepted-spreads/p650-651.png",
+      ".scratch/salvage/accepted-spreads/p508-509.png",
+      ".scratch/salvage/accepted-spreads/p510-511.png",
+      ".scratch/salvage/accepted-spreads/p512-513.png",
+      ".scratch/salvage/accepted-spreads/p514-515.png",
+      ".scratch/salvage/accepted-spreads/p544-545.png",
+      ".scratch/salvage/accepted-spreads/p610-611.png",
+      ".scratch/salvage/accepted-spreads/p634-635.png",
+      ".scratch/salvage/accepted-spreads/p798-799.png",
+      ".scratch/salvage/structure/final-specific/p546-547.png",
+      ".scratch/salvage/structure/final-specific/p632-633.png",
+      ".scratch/salvage/structure/final-specific/p636-637.png",
+      ".scratch/salvage/structure/final-specific/p638-639.png"
+    ],
+    "contact_sheets": [
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24
+    ],
+    "contact_paths": [
+      ".scratch/salvage/accepted-spreads/contact-13.jpg",
+      ".scratch/salvage/accepted-spreads/contact-14.jpg",
+      ".scratch/salvage/accepted-spreads/contact-15.jpg",
+      ".scratch/salvage/accepted-spreads/contact-16.jpg",
+      ".scratch/salvage/accepted-spreads/contact-17.jpg",
+      ".scratch/salvage/accepted-spreads/contact-18.jpg",
+      ".scratch/salvage/accepted-spreads/contact-19.jpg",
+      ".scratch/salvage/accepted-spreads/contact-20.jpg",
+      ".scratch/salvage/accepted-spreads/contact-21.jpg",
+      ".scratch/salvage/accepted-spreads/contact-22.jpg",
+      ".scratch/salvage/accepted-spreads/contact-23.jpg",
+      ".scratch/salvage/accepted-spreads/contact-24.jpg"
+    ],
+    "contact_physical_page_range": [
+      288,
+      575
+    ],
+    "confirmed_repairs": [
+      "Chapter 0 route fits before landmark, with exposition on facing page rather than orphan paragraph.",
+      "Chapter 6 opening worked example closes on its opening page; forward pointer is part of the subsequent float-plan paragraph.",
+      "Chapter 6 final oracle, status note, recall and review occupy physical546-547 coherently; no lonely status tail or overfull margin.",
+      "Chapter 7 Related Work table precedes custody; physical634 opens custody with its example, not an interrupting table."
+    ],
+    "other_acceptance": [
+      "Nine distinct opener quotations and chapter art; no clipping or duplicated quote.",
+      "Complete labor/rental/licensing and settlement precede dedicated deontic section; concrete conflict witness precedes definition and theorems.",
+      "Custody example, explicit unproved composition scope, diagrams and actual limitations follow in reading order.",
+      "Insurance note names competitive-insurance mechanism and welfare comparison; no malformed repeated numeric range.",
+      "All six Kani appendix rows are readable with bounded domains, parser exclusions, local evidence and CI rerun scope preserved.",
+      "Contact sheets13-24 show no visible collision or clipping."
+    ],
+    "not_claimed": [
+      "Hosted CI, merge or deployment validation",
+      "Exhaustive full-size rereading of all817pages"
+    ]
+  }
+}

@@ -125,6 +125,10 @@ repo-specific mechanics:
   `docs/harbor-research/omni-ledger.json`. The Book includes Chapter 0 plus eight
   manifest chapters; chapter PDFs are retired. Correct a mathematical claim's
   dependent figures, summaries, exercises, and indexed description together.
+  Date manuscripts from `book/textbook.json`'s `edition.date`; standalone chapter
+  title pages use the generated `\pdeditiondate` macro, as does the bound book.
+  Keep dated editorial changelog entries in the Omni ledger, outside the printed
+  book and its buildable source archive.
 - **Book publication acceptance.** A successful TeX process is insufficient:
   `scripts/build-whitepapers.sh` must settle references and margin geometry before
   copying the PDF. Run `scripts/harbor-research/run_pdf_checks.py` on that exact

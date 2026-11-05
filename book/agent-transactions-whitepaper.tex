@@ -3,8 +3,8 @@
 % results; edit every listed home or the drift checker fails.
 %   Standalone paper : docs/harbor-research/tex/paper3.tex
 %                       (S(signaling) claim-signaling, mechanized)
-%   Chapter          : website-v2/public/whitepaper/agent-transactions-
-%                       whitepaper.tex (this file; S(claim-signaling-ic))
+%   Chapter          : book/agent-transactions-whitepaper.tex
+%                       (this file; S(claim-signaling-ic))
 %   Index ids        : prop:claim-signaling-ic
 %   Check            : python3 scripts/harbor-research/check_library_index.py
 %                       python3 scripts/harbor-research/check_propagated_corrections.py
@@ -182,7 +182,7 @@
   Business Economics \& Public Policy\\[0.1cm]
   Indiana University
 }
-\date{September 2026\\Version 2.8 (textbook edition)}
+\date{\pdeditiondate\\Version 2.8 (textbook edition)}
 % ─── Document ────────────────────────────────────────────────────────────────
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
@@ -248,7 +248,10 @@ scope checks prevent, what records preserve, and which losses collateral can
 cover. The repeated-game calculation tests one reason to report claims
 truthfully; the lifecycle model tests a different question, recovery after
 silence. Keeping those questions separate prevents a checked ledger from
-being mistaken for a proof of cooperation.
+being mistaken for a proof of cooperation. Finally,
+Section~\ref{sec:federated-sovereign} asks how key custody and recovery would
+extend beyond one machine; its proposed security requirements remain separate
+from the checked local ledger.
 
 \subsection{Three Risks of Ad Hoc Pairwise Trust}
 Ad hoc pairwise arrangements can expose agent systems to three risks:
@@ -717,7 +720,7 @@ The event ledger is monotone: the cardinality of the event set only grows.
 
 \paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and revocations are therefore transparent to witnesses without erasing any prior state. The mutable surface is the \emph{view}; the underlying ledger is immutable.
 
-This dual---mutable view, immutable substrate---is what lets coordination signals evolve without compromising the evidentiary guarantees the rest of the paper depends on.
+This dual---mutable view, immutable substrate---is what lets coordination signals evolve without compromising the evidentiary guarantees the rest of the chapter depends on.
 
 \subsection{Attribution Survives Identity Disposal}\label{sec:attribution-survives}
 
@@ -888,7 +891,7 @@ Reversal appends a counter-record signed by the daemon, with a Merkle-Forest pro
 \item Of the four governance mechanisms in \S\ref{sec:governance}'s escalation order, which one is the equilibrium response to a claim that was merely precautionary, and which to a claim whose holder crashed?
 \end{pdrecitation}
 
-This subsection is intentionally short: full governance design is out of scope for a single paper. The point is that the bonded commons admits a clean, mechanizable appeals path---it is not the case that advisory claims plus bonding produces a regime where mistakes are unappealable.
+This subsection is intentionally short: full governance design is outside this chapter's scope. The point is that the bonded commons admits a clean, mechanizable appeals path---it is not the case that advisory claims plus bonding produces a regime where mistakes are unappealable.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Crash Recovery as Social Continuation}\label{sec:crash-recovery}
@@ -1397,8 +1400,8 @@ A Monte Carlo sweep over the cross product of seven plausible threat-distributio
 \subsubsection{Competitive-Insurance Pricing Mechanism}\label{sec:youle}
 \marginnote{Contributed by Thomas Youle, Indiana University, Business Economics
 \& Public Policy, following conversations with the author in March--April
-2026. Sections~\ref{sec:youle:mechanism}--\ref{sec:youle:welfare} remain a
-pre-print draft pending economist review.}
+2026. The competitive-insurance mechanism and welfare comparison remain
+a pre-print draft pending economist review.}
 The mechanism adapts classical competitive-insurance market
 models~\pdcite{rothschildstiglitz1976,wilson1977insurance} to agent transactions.
 
@@ -1525,7 +1528,7 @@ V_C=\pi_C-p_dL+\delta(1-p_d)V_C,
 \qquad
 p_d^\star=\frac{\pi_C-(1-\delta)\pi_D}{L+\delta\pi_D}.
 \]
-At $\delta=0.95$ this gives $p_d^\star\approx0.0478$, and the tested grid first classifies the cartel as fragile at $p_d=0.05$. This is a falsifiable, model-conditional calibration target for bid-pattern detection; the paper does not claim the deployed detector already attains it.
+At $\delta=0.95$ this gives $p_d^\star\approx0.0478$, and the tested grid first classifies the cartel as fragile at $p_d=0.05$. This is a falsifiable, model-conditional calibration target for bid-pattern detection; this chapter does not claim the deployed detector already attains it.
 
 \input{figures/fig-bonded-cartel-folk-theorem-tikz}
 
@@ -2019,15 +2022,34 @@ Agentic-commerce protocols & The credential envelope & The envelope carries auth
 \end{tabularx}
 \end{table}
 
+% Keep the related-work comparison before the custody architecture it precedes.
+\FloatBarrier
+
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Discussion and Limitations}\label{sec:discussion-limitations}
+\section{Key custody and recovery across machines}\label{sec:federated-sovereign}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-\paragraph{The commons authority is a single point of failure.} If the daemon crashes, the Leviathan falls. No new trust is established, no conflicts detected, no salvage occurs. Agents with cached Harbor Cards continue working, but the commons enters a state of nature until the daemon restarts. This is mitigated by automatic restart (launchd on macOS) but not formally bounded.
+\Designed{} The following custody and recovery architecture is a proposed
+extension of the local commons. Its complete security claim remains unproved;
+a check of one component does not establish the composition.
+Appendix~\ref{app:mech} records why the vault model does not prove the
+intended recovery-root claim. The requirements and the evidence for
+individual properties are kept separate below.
 
-\paragraph{Collateral does not prevent harm---it prices it.} A principal willing to burn money to sabotage a competitor will post a bond, cause damage, and accept the loss. The bond makes sabotage expensive, not impossible. The defense against existential threats is not internal governance but \emph{admission control}: who is allowed to participate in the commons at all. This decision is irreducibly political and lies outside the formal model.
+The single-machine model presented so far is insufficient on its own: users roam across laptop, desktop, and CI machines; machine loss should not destroy encrypted evidence; multiple humans may share a harbor. The daemon remains the authority \emph{within} its machine. Key custody federates outward.
 
-\paragraph{The Federated Sovereign.}\label{sec:federated-sovereign} The single-machine model presented so far is insufficient on its own: users roam across laptop, desktop, and CI machines; machine loss should not destroy encrypted evidence; multiple humans may share a harbor. The daemon remains the authority \emph{within} its machine. Key custody federates outward.
+\begin{pdexample}{Two recovery attempts, one token}
+Suppose a recovery token has passed its validity checks and its database row
+has \texttt{consumed\_at = NULL}. Two requests try to redeem it. Each uses
+one atomic update that writes a consumption time only while that field is
+null. If request A commits first, it changes one row. Request B then changes
+zero rows and must fail: two attempts have produced one consumption.
+
+This constructed trace checks the role of atomicity. It does not establish
+who controls the mailbox, whether the token was issued to the right person,
+or whether recovered keys remain secret. Those are separate obligations of
+the custody design below.
+\end{pdexample}
 
 We introduce a fourth actor, specified by properties rather than by vendor:
 \begin{description}[nosep]
@@ -2050,7 +2072,7 @@ A Key Management Service $\mathcal{K}$ is admissible for the federated sovereign
 \end{enumerate}
 \end{definition}
 
-The implementation choice (a particular cloud platform, an on-prem HSM, a self-hosted Tang server) lives in companion design documents. The paper's theory applies to any $\mathcal{K}$ meeting properties (1)--(5).
+The implementation choice (a particular cloud platform, an on-prem HSM, a self-hosted Tang server) lives in companion design documents. These requirements do not certify any such implementation; a candidate must supply evidence for properties (1)--(5) and for their composition.
 
 \paragraph{Trust boundary.} The federated trust boundary is
 $\mathrm{TB} = \mathit{daemon} \cup \mathcal{K} \cup \mathit{user{\text{-}}email} \cup \mathit{user{\text{-}}passphrase}$.
@@ -2078,7 +2100,7 @@ Assuming Ed25519 and SHA-256 are secure, Argon2id parameters meet the 2026 secur
 (iv) roll back a harbor's Merkle forest without $\mathcal{K}$'s complicity.
 \end{pdclaim}
 
-The theorem deliberately excludes the same-user adversary (an unsandboxed agent, a malicious postinstall, a compromised editor extension). Such an adversary reads any file the user can read, which absent OS-mediated key custody includes the daemon's keys and database. The \texttt{macOS Keychain} integration ships now; native keyring or hardware-backed custody may narrow key exposure, but
+The design invariant deliberately excludes the same-user adversary (an unsandboxed agent, a malicious postinstall, a compromised editor extension). Such an adversary reads any file the user can read, which absent OS-mediated key custody includes the daemon's keys and database. The \texttt{macOS Keychain} integration ships now; native keyring or hardware-backed custody may narrow key exposure, but
 extending the claim to same-user execution requires an explicit access-control
 and signing-oracle model; storing a key there alone is insufficient.
 
@@ -2088,7 +2110,15 @@ and signing-oracle model; storing a key there alone is insufficient.
 
 What we deliberately do \emph{not} do: require passwords, use TOTP as a primary factor, or couple recovery to a single cloud vendor.
 
-\pdexercisepointer{\ref{ex:bonded-magic-link-proverif}}{\ref{ex:bonded-cuckoo-pollution}}{\pageref{ex:bonded-magic-link-proverif}}
+\pdexercisepointerone{\ref{ex:bonded-magic-link-proverif}}{\pageref{ex:bonded-magic-link-proverif}}
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Discussion and Limitations}\label{sec:discussion-limitations}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+\paragraph{The commons authority is a single point of failure.} If the daemon crashes, the Leviathan falls. No new trust is established, no conflicts detected, no salvage occurs. Agents with cached Harbor Cards continue working, but the commons enters a state of nature until the daemon restarts. This is mitigated by automatic restart (launchd on macOS) but not formally bounded.
+
+\paragraph{Collateral does not prevent harm---it prices it.} A principal willing to burn money to sabotage a competitor will post a bond, cause damage, and accept the loss. The bond makes sabotage expensive, not impossible. The defense against existential threats is not internal governance but \emph{admission control}: who is allowed to participate in the commons at all. This decision is irreducibly political and lies outside the formal model.
 
 \paragraph{Multi-node consensus.} For fleets requiring strict serializability across nodes, a Raft-backed harbor-root consensus~\pdcite{ongaro2014search} is possible but not specified here; whether eventual consistency suffices depends on the workload's admission
 and settlement requirements; this chapter supplies no deployment measurement
@@ -2097,6 +2127,8 @@ establishing that sufficiency. Paxos~\pdcite{lamport1998part} remains the textbo
 \paragraph{Recovery fidelity depends on LLM capability.} Social recovery works because successor agents can interpret natural-language evidence trails. This capability is not formally guaranteed---it depends on the successor's LLM. A formal model of ``given this evidence trail, will the successor complete the original intent?'' requires characterizing LLM reasoning, which is an open problem.
 
 \paragraph{Bond pricing is unsolved.} We identify the pricing function $\pi$ as the critical open problem. Without an adequate $\pi$, bonds are either too low (cheap sabotage) or too high (priced-out legitimate agents). This is a mechanism design problem, not a systems problem, and requires expertise we explicitly flag as needed.
+
+\pdexercisepointer{\ref{ex:bonded-gossip-proof}}{\ref{ex:bonded-cuckoo-pollution}}{\pageref{ex:bonded-gossip-proof}}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section*{Review of the key ideas}
@@ -2308,7 +2340,7 @@ No run is needed to predict this: it follows from the definitions already in the
 \texttt{NoNegative}, by contrast, does \emph{not} catch this: every quantity involved (\texttt{free}, \texttt{escrow}, \texttt{burned}, \texttt{minted}) stays non-negative under the weakened \texttt{Mint}---the bug is a bookkeeping omission, not a sign violation, and \texttt{NoNegative}'s four non-negativity clauses are silent about the relationship \emph{between} the buckets. \texttt{Safety}, defined as \texttt{Conservation} $\wedge$ \texttt{NoNegative}, fails only because its \texttt{Conservation} conjunct does; this is exactly why the module checks \texttt{Conservation} as its own named invariant rather than folding it silently into \texttt{Safety} alone; a reader who only watched \texttt{NoNegative} would see nothing wrong.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:discussion-limitations}}{Discussion and Limitations}
+\pdexercisesfor{\S\ref{sec:federated-sovereign}}{Key custody and recovery across machines}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-magic-link-proverif}
 Sketch the ProVerif process for the magic-link recovery protocol of \S\ref{sec:federated-sovereign}. What is the secrecy property you would prove? What is the authentication property? Identify one attacker capability ProVerif would need to model that is not present in the Phase~1 Harbor Card model of \pdchapref{anchor}{The Anchor Protocol}.
@@ -2319,6 +2351,8 @@ separate compromise process that reveals the channel to the attacker, redemption
 
 The secrecy property is that the token (and any recovery secret it unlocks) stays unknown to the attacker absent mailbox compromise. The authentication property is injective: $\mathrm{inj\text{-}event}(\mathrm{Consumed}(u,t)) \Rightarrow \mathrm{inj\text{-}event}(\mathrm{Issued}(u,t))$, exactly the form \S\ref{sec:federated-sovereign} already states for magic-link single-use---every consumption traces back to one, and only one, issuance, which is what rules out the race window between two concurrent redeemers. Add a concurrent-replay capability (two redemption attempts racing on the same token) and a mailbox-compromise capability (the attacker reads, but does not yet control, the delivery channel), neither of which the Phase~1 Harbor Card model needs: that model's attacker forges signatures or replays chains, but it has no notion of a \emph{delivery channel} an attacker might passively observe, because Harbor Cards are minted and verified entirely within the daemon's own boundary. Time and expiry also need an explicit abstraction here---ProVerif has no wall-clock semantics on its own---whereas the Harbor Card model's TTL is already folded into the token's signed payload.
 \end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:discussion-limitations}}{Limits of dissemination and revocation}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:bonded-gossip-proof}
 The gossip convergence bound cited for Merkle-root dissemination among a harbor's devices (\pdchapref{anchor}{The Anchor Protocol}'s revocation analysis) is reproduced from the standard anti-entropy analysis rather than mechanized. Identify the specific theorem from Demers et al.~\pdcite{demers1987epidemic} that would need to be ported to a proof assistant. What would change in the analysis if the daemon mesh is \emph{not} fully connected? Hint: consider gossip on a graph with bottleneck cuts.

@@ -1,0 +1,101 @@
+{
+  "reviewer": "root",
+  "pdfSha256": "cc9df0fe78f6f7b59b580cb3e323558380f97ef1df9a47e2f721c3ca0560d464",
+  "pages": 817,
+  "status": "pass for stated scope",
+  "scope": "All first twelve contact sheets (physical pages0\u2013287) for composed layout; named readable spreads for front matter, decoded-policy proof and chapter-ending reference-table composition. This is visual acceptance, not a new proof of every book theorem.",
+  "inspected": [
+    {
+      "file": "contact-01.jpg",
+      "sha256": "8f9a328f250f2ba816fd350caa23ad8a58d75993679d93a29cc0bea74a4d71f2"
+    },
+    {
+      "file": "contact-02.jpg",
+      "sha256": "b422a98aebf24d5ca62feccd47edd1fe6088f49b07dc1027926e37a7f861c026"
+    },
+    {
+      "file": "contact-03.jpg",
+      "sha256": "2e5ebe06634f3efe4374ec3be83a60e73d7e1de5b471f27ca36d2057a3d3922c"
+    },
+    {
+      "file": "contact-04.jpg",
+      "sha256": "5c1506587ab7584211a64b4b50c42a91a47dae4cb7ce8c7fb73cdd8074187f38"
+    },
+    {
+      "file": "contact-05.jpg",
+      "sha256": "1aae478f663f31ca83d42b7f1190c5937789860b23b5147fed73c4aaa79d14da"
+    },
+    {
+      "file": "contact-06.jpg",
+      "sha256": "ef11a300a8715162266b0c3c4515d21f79d14f597fe34540d7916ec8a6f6fe9f"
+    },
+    {
+      "file": "contact-07.jpg",
+      "sha256": "8f8d0596c54e804ca7f4373e4b8e25368048206432e247f250f11741e52c25fb"
+    },
+    {
+      "file": "contact-08.jpg",
+      "sha256": "ec86b64282a06de54a97d161f532777862276501d2157025a346ad196d56eb8f"
+    },
+    {
+      "file": "contact-09.jpg",
+      "sha256": "f2ea109456b2768d165ef6b37e8ebac6e630bdf47f732869494cdbf5d4c814e2"
+    },
+    {
+      "file": "contact-10.jpg",
+      "sha256": "aa065496ae90280ec06750e9a7f321a260608a995f933e9f0baaf74891f656e9"
+    },
+    {
+      "file": "contact-11.jpg",
+      "sha256": "a0edbb914ef3ab9d98bc9fc7cfdfb904a701894b5d584d30555e172098b779ec"
+    },
+    {
+      "file": "contact-12.jpg",
+      "sha256": "0405f36d798b4f42dc4b745b1596929c3cf014584aa06b6334e4ce90e166027f"
+    },
+    {
+      "file": "p006-007.png",
+      "sha256": "f29f45e023d70c1cfb1559ac3d04aa40c90e57ff2f531e8e88ea65997990f731"
+    },
+    {
+      "file": "p010-011.png",
+      "sha256": "8a6aee6b9304e3ff63d743171a2968afc8fca616cd39311690dba4bb4fb1be9d"
+    },
+    {
+      "file": "p208-209.png",
+      "sha256": "0f7ea759fe0e203f57c4bf280009eff8ae79b2dcf5e9b41591f3b1a4d32cc83d"
+    },
+    {
+      "file": "p210-211.png",
+      "sha256": "2bd8fc590a45f2e3692cd39a4bcb5684392f53f983a165f26c0698d14ac889e5"
+    },
+    {
+      "file": "p394-395.png",
+      "sha256": "29ac6400cfbb07758f3d5e97ea5d6ebb93a1d5baf7f56e0e28a122763aee1532"
+    }
+  ],
+  "findings": [],
+  "decisions": [
+    "Preface is on recto with intentionally blank verso. Contents opening has one main title and the following page keeps its running navigation header.",
+    "Chapter4 open-problems introduction intentionally faces its complete table on394\u2013395; no isolated prose-only tail page.",
+    "Code listing, bounded proof claims, covers, signed-card example and local verification evidence are readable without margin collisions."
+  ],
+  "finalArtifact": {
+    "pdfSha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+    "pages": 817,
+    "reconciliation": "render-differential.json",
+    "unchangedAtReviewScale": 815,
+    "freshlyInspectedSpreads": [
+      {
+        "file": "p210-211.png",
+        "sha256": "501dbae4fbea0d0c4bf18717b0d870dc0db77d38ad3084e92bcf9a9274bea6ae"
+      },
+      {
+        "file": "p798-799.png",
+        "sha256": "9578ae9e49750a0c9dd964fb27fe9d623d95b036f6605efba3e712a1606ed279"
+      }
+    ],
+    "findings": [],
+    "status": "accepted for recorded publication scope"
+  }
+}

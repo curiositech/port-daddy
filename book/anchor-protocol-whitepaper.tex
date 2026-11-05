@@ -140,7 +140,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{September 2026\\Version 1.5 (textbook edition)}
+\date{\pdeditiondate\\Version 1.5 (textbook edition)}
 % ─── Document ────────────────────────────────────────────────────────────────
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
@@ -593,7 +593,7 @@ Following the industry standard set by AWS (s2n-tls~\pdcite{aws2022s2n}) and Mic
 \textbf{Layer} & \textbf{Tool} & \textbf{What it shows} & \textbf{What it cannot show} \\
 \midrule
 protocol model & ProVerif & secrecy, authentication correspondence in the modeled phase, attenuation soundness on the multi-hop model & that the modeled protocol is this source (the specification gap; a human asserts it) \\
-Rust source & Kani and tests & the subset logic on two concrete vectors, bounded absence of panic with the cryptography stubbed, branch-freedom at source level & that the inspected source is this running binary (the deployment gap; a human asserts it) \\
+Rust source & Kani and tests & decoded lifetime and channel-policy predicates on stated domains; bounded subset checks; a separately stubbed parser & that the inspected source is this running binary (the deployment gap; a human asserts it) \\
 running binary & conformance suite & the selected attacks are refused at the FFI boundary & any attack the suite does not contain \\
 \bottomrule
 \end{tabularx}
@@ -691,7 +691,7 @@ Violations are logged and can trigger the ``man overboard'' salvage protocol: th
 
 \subsection{Implementation Verification}
 
-A secure protocol is useless if the implementation contains buffer overflows or timing leaks. We extracted the critical JWT parsing and cryptographic comparison logic into a verified core.
+A secure protocol is useless if the implementation contains buffer overflows or timing leaks. The Rust core isolates token verification and capability predicates so that each can be checked under a stated input domain. A proof of one predicate does not certify the whole core.
 
 \begin{pdclaim}{Design invariant}{Memory Safety within the Harness Bound}
 \setlength{\parskip}{4pt plus 1pt}
@@ -871,7 +871,7 @@ function Harbor.VerifyChain(chain, pk_daemon):
 \begin{pdrecitation}
 \item Without looking: name the three layers of Table~\ref{tab:anchor-verification-stack}, and the two gaps between them that are asserted by a human rather than a tool.
 \item What can the Arbiter's post-commit invariants do that ProVerif cannot, and what can they never do that a pre-commit guard could?
-\item Why do two fixed capability vectors fail to establish attenuation for every possible input? Which model checks the stated symbolic escalation attempt?
+\item Why does a finite channel grammar still leave a proof obligation for arbitrary strings? Give a two-hop escalation that a root-only check accepts and an immediate-parent check rejects.
 \end{pdrecitation}
 
 
@@ -881,15 +881,15 @@ function Harbor.VerifyChain(chain, pk_daemon):
 
 The \texttt{harbor-card-rs} crate supplies both the source compiled into the
 C dynamic library and the bounded Kani harnesses. Sharing source reduces one
-kind of drift; it does not make their coverage identical. The harnesses use
-\texttt{cfg(kani)}, replace three primitives, and bound the parser input to
-32 bytes. The deployed library still needs compiler, FFI, and calling-path
+kind of drift; it does not make their coverage identical. The harnesses use \texttt{cfg(kani)}. One parser harness replaces three
+primitives and bounds token input to 32 bytes; the decoded-claims harnesses
+call the production predicates without cryptographic or decoding stubs. The deployed library still needs compiler, FFI, and calling-path
 evidence. The source excerpts below let the reader trace exactly where the
 harness stops, using the three-layer map of Table~\ref{tab:anchor-verification-stack}.
 
 \subsection{Core Verification Logic}
 
-\begin{lstlisting}[style=rust, caption={Deployed Rust Implementation — Harbor Card Verifier (abridged from the \texttt{harbor-card-rs} crate)}]
+\begin{lstlisting}[style=rust, caption={Rust Implementation — Harbor Card Verifier (abridged from the \texttt{harbor-card-rs} crate)}]
 pub fn verify(&self, token: &str, now_ts: i64)
     -> Result<HarborCardClaims, HarborError> {
     let parts: Vec<&str> = token.split('.').collect();
@@ -914,10 +914,7 @@ pub fn verify(&self, token: &str, now_ts: i64)
         serde_json::from_slice(&payload_bytes);
     payload_bytes.zeroize();
     let claims = claims?;
-    // Version, issued-at and not-before checks omitted here.
-    if claims.exp < now_ts {
-        return Err(HarborError::Expired);
-    }
+    validate_decoded_claims(&claims, now_ts)?;
     Ok(claims)
 }
 
@@ -929,100 +926,125 @@ pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
 }
 \end{lstlisting}
 
-The excerpt omits supported-version, issued-at, and not-before guards; they
-remain required. Channel authorization is a further call, and revocation
-requires the caller's authoritative store. Notice the path the bounded
-harness actually reaches: its zero-byte decode fails at header JSON parsing,
-before any claims can be accepted.
+The private \texttt{validate\_decoded\_claims} function enforces version,
+issued-at, expiry, and not-before guards. It is reached only after signature
+verification and JSON decoding in this path. Channel authorization is a
+further call; revocation requires the caller's authoritative store. Calling
+the decoded predicate by itself does not authenticate a card.
 
 Key implementation details: \texttt{zeroize} requests that cryptographic material be overwritten when dropped, reducing residual-secret exposure without proving that no copy survives. The comparator avoids source-level early return on secret byte values. That is useful hygiene, not a hardware constant-time guarantee; compiler, cache, and microarchitectural behavior remain outside this source argument.
 
 \subsection{Kani Verification Harnesses}
 
-Three bounded model checking proofs are defined in the same source file under \texttt{\#[cfg(kani)]}:
+Six harnesses address distinct obligations. The four in
+\path{core/harbor-card-rs/src/kani_claims.rs} quantify over decoded policy
+inputs and capability structures. The parser and comparator harnesses live
+in \path{core/harbor-card-rs/src/lib.rs}. For the decoded-policy and capability harnesses, CI requires assertions
+that hold on every admitted input and reachable examples of the behaviors
+being claimed. A \texttt{cover!} obligation asks the solver to
+find such an example; it is not an assumption restricting the input.
 
-\begin{lstlisting}[style=rust, caption={Kani Proof Harnesses (Deployed Source)}]
-#[cfg(kani)]
+\begin{lstlisting}[style=rust, caption={Decoded lifetime policy: an excerpt of the executable Kani harness. The helper constructs actual HarborCardClaims; the predicate is called by the signed-token verifier.}]
 #[kani::proof]
-#[kani::stub(HarborCardVerifier::internal_pk_from_bytes,
-             stubs::pk_from_bytes_stub)]
-#[kani::stub(HarborCardVerifier::internal_decode_b64,
-             stubs::decode_b64_stub)]
-#[kani::stub(HarborCardVerifier::internal_verify_sig,
-             stubs::verify_sig_stub)]
-#[kani::unwind(128)]
-fn proof_verify_logic_only() {
-    let pk_bytes: [u8; 32] = kani::any();
-    if let Ok(verifier) = HarborCardVerifier::new(pk_bytes) {
-        let token_bytes: [u8; 32] = kani::any();
-        if let Ok(token_str) =
-            std::str::from_utf8(&token_bytes) {
-            kani::assume(token_str.contains('.'));
-            let _ = verifier.verify(token_str, 0);
-        }
-    }
-}
-
-#[cfg(kani)]
-#[kani::proof]
-fn proof_constant_time_behavior() {
-    let a: [u8; 16] = kani::any();
-    let b: [u8; 16] = kani::any();
-    let _ = HarborCardVerifier::constant_time_compare(&a, &b);
-}
-
-#[cfg(kani)]
-#[kani::proof]
-fn proof_capability_attenuation() {
-    let root = vec!["read".to_string(), "write".to_string()];
-    let mut sub = vec!["read".to_string()];
-    assert!(HarborCardVerifier::verify_capability_subset(
-        &root, &sub));
-    sub.push("admin".to_string());
-    assert!(!HarborCardVerifier::verify_capability_subset(
-        &root, &sub));
+fn proof_decoded_claims_policy() {
+    let (hv, iat, exp, now): (i64, i64, i64, i64) =
+        kani::any();
+    let nbf: Option<i64> = kani::any();
+    let c = claims(hv, iat, exp, nbf);
+    let actual = validate_decoded_claims(&c, now);
+    let expected = hv == 2
+        && iat <= exp
+        && (iat as i128) <= (now as i128) + 60
+        && now <= exp
+        && nbf.map_or(true, |t| t == 0 || t <= now);
+    assert_eq!(actual.is_ok(), expected,
+        "decoded policy matches temporal contract");
+    kani::cover!(actual.is_ok(), "decoded claims accepted");
+    // Six further covers require every policy rejection
+    // and acceptance at the saturating clock boundary.
 }
 \end{lstlisting}
 
-\begin{pdexample}{What Thirty-Two Symbolic Bytes Can and Cannot Hold}
+The temporal oracle uses widened arithmetic, so it checks the production
+function's saturating clock-skew calculation against a different expression.
+All signed 64-bit timestamps and version values are admitted, including the
+clock boundary. The seven reachability obligations include successful
+acceptance and each rejection class. Empty identity strings in this harness
+are deliberate: this predicate checks time and version, not issuer,
+audience, or subject semantics.
+
+\begin{pdexample}{A valid lifetime does not grant an operation}
 \setlength{\parskip}{4pt plus 1pt}
-Read the bounds off the harnesses themselves, since every one of them is a
-number in the source above. \texttt{proof\_verify\_logic\_only} draws
-\texttt{[u8;\,32]} for the token, keeps only the inputs that are valid UTF-8
-and contain a dot, with an unwind bound of 128 and three functions stubbed.
+Take a genuinely signed version-2 card issued at 950, expiring at 1000,
+valid from 980, and granting subscription to \texttt{logs.*}. At time 990,
+its lifetime checks pass and \texttt{sub} on \texttt{logs.build} matches.
+At 1001 it is expired; at 979 it is not yet valid. Publishing to
+\texttt{logs.build} is unauthorized even at 990. An ordinary Rust test
+signs these claims, runs the real decoder and signature verifier, and checks
+these outcomes. The Kani policy harness instead quantifies over decoded
+fields. The test connects one real signed card to those predicates; it is
+not a proof of the decoder or signature algorithm.
 
-Now walk \texttt{verify} with those 32 bytes in hand: the first guard demands
-\texttt{parts.len() == 3}, so every admitted string with one dot, or with
-three, leaves at the first \texttt{return} --- and the survivors, the ones
-carrying exactly two dots, have
-\[
-32 - 2 = 30 \text{ bytes}
-\]
-to spread across all three
-segments of what is supposed to be a signed card --- too few, as the paragraph
-below records, to hold a real three-part card at all.
-
-That is the arithmetic
-behind this chapter's reading of the harness: what it covers is the parser's
-refusal of malformed input. Even when signature verification returns success,
-the decoder's zero bytes fail header JSON parsing, before payload and expiry
-checks.
-
-The other two bounds are just as small and just
-as visible: \texttt{[u8;\,16]} for the comparator, and two hard-coded vectors
---- not a quantifier --- for the subset check. [internal]
+Now let a root grant \texttt{admin} on \texttt{a*}, a child receive only
+\texttt{sub} on \texttt{ab}, and a grandchild ask for \texttt{pub} on
+\texttt{ab}. The root covers both requests, but the child cannot grant the
+grandchild's operation. A root-only comparison accepts the escalation; the
+immediate-parent comparison rejects it. This is the concrete failure that
+the two-hop harness requires to be reachable. [internal]
 \end{pdexample}
 
-The stubs keep the symbolic search small, but also determine its reach.
-\texttt{proof\allowbreak\_verify\allowbreak\_logic\allowbreak\_only} checks
-token splitting, reachable stub-result handling, and rejection at header JSON
-parsing. It does not reach claims-payload parsing, expiry comparison, or successful
-acceptance. None of those paths can inherit its no-panic result. The separate
-\texttt{proof\_capability\_attenuation} harness checks two concrete vectors;
-the every-hop symbolic attenuation result belongs to the ProVerif model in
-\S\ref{sec:attn-soundness}, not to those two Kani examples.
+\paragraph{The domains, explicitly.}
+The channel harness admits one grant with operation
+\texttt{pub}, \texttt{sub}, \texttt{admin}, or \texttt{other}; its pattern is
+one of $\{\epsilon,\texttt{a},\texttt{ab},\texttt{b},\texttt{*},
+\texttt{a*},\texttt{ab*},\texttt{b*}\}$, where $\epsilon$ is the empty string.
+Requests use \texttt{pub} or \texttt{sub} on one of
+$\{\epsilon,\texttt{a},\texttt{ab},\texttt{aba},\texttt{b},\texttt{ba}\}$.
+An independent finite-case oracle checks the actual channel matcher, and
+three covers require authorized, unauthorized, and lifetime-invalid cases.
 
-The three harnesses run under \texttt{cargo kani} in the repository's proof workflow; the run log, not a local build directory, is the evidence that they pass.
+The two-hop harness uses the same operation and pattern grammar, one grant
+at each of root, child, and grandchild, and arbitrary absent or unsigned
+64-bit rate and payload ceilings. It asks whether two accepted immediate-parent
+checks imply direct root coverage and preserve both ceilings. Five covers
+require accepted chains, rejected second hops, the root-only blind spot,
+and accepted chains with each kind of ceiling. These are predicates over
+decoded grants; the crate has no signed delegation-chain verifier.
+
+The flat-string FFI predicate has its own contract: opaque rights, with no
+channel-glob interpretation. Its harness quantifies over lists of at most
+two entries drawn from four one-byte rights, including duplicates and empty
+lists, and compares acceptance to bit-set inclusion. Two covers require a
+nonempty accepted child and a rejected escalation. Neither finite capability
+harness establishes the result for arbitrary strings or arbitrary list sizes.
+
+\paragraph{The remaining bounds.}
+The comparator harness calls the real comparator on all pairs of 16-byte
+arrays and checks absence of panic, not constant time on hardware. The
+32-byte parser harness has unwind bound 128 and stubs key construction,
+base64 decoding, and signature verification. Its decoder returns an error
+or 32 zero bytes; the zero-byte header is invalid JSON. Consequently that
+harness reaches neither decoded claims nor successful card acceptance.
+The decoded-policy proofs do not remove this parser-refinement obligation.
+
+\paragraph{Evidence that can fail.}
+The proof workflow runs the comparator and four decoded/capability harnesses
+on pull requests; the parser runs only in its separate manually dispatched job.
+A log checker requires all 17 cover obligations to be satisfied as well as
+successful assertion checks. Two negative controls rerun actual harnesses
+on isolated source copies: deleting expiry rejection must falsify the
+named temporal assertion, and deleting ceiling attenuation must falsify
+the named rate-preservation assertion. A compilation failure does not count
+as a successful control. The run logs and mutation receipt are retained as
+workflow artifacts. Source presence and workflow wiring are not a passing
+run: the recorded verdict and the bounds in \path{book/corpus.json} govern
+what can be claimed. Local validation with Kani~0.67.0 passes all five
+per-change harnesses and all 17 covers. Both negative controls produce the
+required named counterexamples. The native Rust suite passes 103 tests,
+including the signed-card example and an exhaustive check that all 256
+selector values generate exactly the documented finite grammars. These
+results establish the stated bounded obligations; they do not certify
+cryptographic primitives, arbitrary strings, or daemon integration.
 
 \pdexercisepointer{\ref{ex:anchor-kani-scope}}{\ref{ex:anchor-model-vs-code}}{\pageref{ex:anchor-kani-scope}}
 
@@ -1082,7 +1104,7 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 
 \begin{table}[H]
 \centering
-\caption{ProVerif checks the model. Kani checks bounded crate harnesses: a 32-byte parser with stubbed cryptography, a 16-byte comparator, and two subset vectors. Neither alone proves the deployed implementation correct.}
+\caption{ProVerif checks the model. Kani checks stated decoded-policy domains, bounded capability structures, a separately stubbed 32-byte parser, and a 16-byte comparator. Neither tool proves the deployed system correct.}
 \label{tab:properties}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lll@{}}
 \toprule
@@ -1094,7 +1116,7 @@ Authenti\-cation correspondence~\pdcite{lowe1997hierarchy} & Yes & ProVerif & --
 Delegation Integrity~\pdcite{birgisson2014macaroons} & Yes & ProVerif & --- \\
 No-panic parsing (bounded)~\pdcite{aws2022kani} & Bounded & Kani & Yes (FFI) \\
 Secret-independent source branching~\pdcite{brumley2011remote} & By inspection & --- & Yes (FFI) \\
-Capability subset check~\pdcite{birgisson2014macaroons} & Two vectors & Kani & Yes (FFI) \\
+Capability subset check~\pdcite{birgisson2014macaroons} & Bounded & Kani & Yes (FFI) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -2043,24 +2065,51 @@ This is a different property from Property~\ref{thm:attn-sound}'s capability-sub
 \pdexercisesfor{\S\ref{sec:implementation}}{One source crate, different verification scopes}
 
 \begin{pdexercise}[kind=Check,rating=2]{ex:anchor-kani-scope}
-For each of the three Kani harnesses above, state exactly what is proved and name one stronger claim a reader might wrongly draw from it.
+For each of the six Kani harnesses above, state exactly which obligation is checked and name one stronger claim a reader might wrongly draw from it.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-kani-scope}
 \texttt{proof\_verify\_logic\_only} stubs key decoding, base64 decoding, and signature verification, using a 32-byte, dot-containing UTF-8 token and an unwind bound of 128. Its absence-of-panic result concerns only the paths these stubs reach, not correctness of \texttt{verify}. The base64 stub supplies zero bytes rather than valid claims JSON, so even a syntactically three-part input cannot reach successful acceptance. Neither real decoding nor the acceptance path was checked by this harness.
 
 \texttt{proof\_constant\_time\_behavior} calls the comparator once over symbolic 16-byte pairs and shows it cannot panic; it is not a two-run relational proof that the \emph{time} taken is independent of the secret, and Kani adds nothing here beyond the source-level argument already given by inspection (no early return on a secret byte). Compiler, cache, and microarchitectural timing stay entirely outside it --- a reader should not read ``Kani checked it'' as ``this is constant-time in the deployed binary.''
 
-\texttt{proof\_capability\_attenuation} asserts two concrete, hard-coded vectors, one subset accepted and one escalation rejected; it is a unit test wearing a Kani harness, not a universal statement over arbitrary capability structures. The single-hop enriched-order property and the specific multi-hop attack/control pair are what \S\ref{sec:attn-soundness}'s ProVerif models establish, not this harness --- a reader should not treat the two vectors as covering the property Property~\ref{thm:attn-sound} states.
+The decoded lifetime harness checks the real post-decoding predicate over all
+64-bit policy fields, with reachable acceptance and rejection cases. The
+channel harness checks its finite operation, pattern, and request grammar;
+the two-hop harness checks transitivity and ceiling preservation for one
+grant per hop under that grammar. Their limits exclude arbitrary strings,
+multi-entry structured grants, cryptographic authentication, and a signed
+chain parser. The flat-string attenuation harness checks lists of at most
+two opaque rights drawn from four symbols, including empty lists and
+duplicates. It is a quantified bounded check, not an unbounded proof.
 
-The bound in each case is recorded, not just asserted here: \path{book/corpus.json} carries an \texttt{evidencePolicy} field for \texttt{harbor-card-kani-}\allowbreak\texttt{verify-logic-only}, \texttt{harbor-card-kani-}\allowbreak\texttt{constant-time}, and \texttt{harbor-card-kani-}\allowbreak\texttt{capability-attenuation} stating exactly these limits, so a claim that drifted past this chapter's wording would be visible against the manifest rather than only against memory.
+For each harness, \path{book/corpus.json} records the source, named entry
+point, workflow, and evidence policy. A reachability cover supplies an
+accepted or rejected witness; a universal assertion supplies the bounded
+property. Both are required here to distinguish the stated acceptance policy from a
+predicate that only rejects everything.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:anchor-model-vs-code}
-None of this chapter's ProVerif models, and none of its three Kani harnesses, says anything about most of what the running daemon does at a socket. Using only what this chapter already states about the Kani harnesses' scope, write the one-paragraph boundary a reader must hold before trusting ``verified'' as a description of the deployed binary. Then say what a stronger harness would need to add.
+None of this chapter's ProVerif models, and none of its six Kani harnesses, says anything about most of what the running daemon does at a socket. Using only what this chapter already states about the Kani harnesses' scope, write the one-paragraph boundary a reader must hold before trusting ``verified'' as a description of the deployed binary. Then say what a stronger harness would need to add.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-model-vs-code}
-As this chapter states it, not more: the Kani harnesses give bounded absence-of-panic for the token parser on 32-byte inputs with signature verification and base64 decoding stubbed out entirely, a source-level argument that the comparator's branches do not depend on secret bytes, and two concrete, hard-coded vectors for the capability-subset check. None of the three is a proof about the real cryptography (stubbed away in the first, untouched by the other two), about inputs larger than the harness's own bound, about the compiled binary's timing behavior, about the FFI boundary itself, or about any code path outside \texttt{harbor-card-rs}. The ProVerif models are symbolic proofs about the \emph{protocol} under a Dolev-Yao adversary, not about this Rust source at all --- the bridge between ``the model'' and ``this source'' is exactly the assumption gap Table~\ref{tab:anchor-verification-stack} lists in its last column, asserted by a human, not discharged by either tool.
+The Kani harnesses check source predicates within their stated domains.
+The decoded lifetime and capability checks use production functions; the
+parser uses stubs and cannot accept a card. Neither the finite capability
+grammars nor the 16-byte comparator establish arbitrary-input correctness
+or hardware timing. None proves cryptography, caller-side issuer/audience
+binding, revocation freshness, FFI integration, or complete mediation of
+daemon effects. ProVerif proves properties of a symbolic protocol model;
+matching that model to source and matching source to a running binary are
+still separate obligations in Table~\ref{tab:anchor-verification-stack}.
 
-A stronger harness would replace the two hard-coded attenuation vectors with an arbitrary capability structure under an asserted partial-order property, so the check is over the order rather than two fixed cases, with a negative control that fails when the \texttt{is\_subset} guard is removed --- the same discipline the ProVerif attenuation model already applies for Property~\ref{thm:attn-sound}. It would also need to state parser refinement (that the stubbed primitives match their real implementations) as a separate, currently absent, obligation. None of that exists yet, and this chapter does not claim it does: \path{book/corpus.json} pins the three harnesses' present bounds in their own \texttt{evidencePolicy} fields, and \texttt{scripts/proofs/run-proverif.py} (CI job ``ProVerif~/~model estate'') re-runs every ProVerif model named in this chapter's exercises against its committed source on every change --- the freshness guarantee behind every pinned line quoted above, not a claim about the harnesses it does not mechanize.
+Stronger evidence would cover arbitrary channel strings, multi-entry
+structured grants, a real signed-chain acceptance path, and the decoding
+refinement between bytes and claims. A successful signed-token regression
+connects one example through the pipeline; it cannot establish that
+refinement universally. The expiry and ceiling negative controls show that
+the decoded assertions detect those particular broken guards. They do not
+license a claim about unrelated guards, integration paths, or the entire
+system.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:adversary}}{What the adversary can do, and what it cannot}
@@ -2073,7 +2122,7 @@ A valid signature proves exactly one thing: the holder of the signing key produc
 
 Because Harbor Cards are bearer credentials --- whoever presents the bytes gets the capability, with no further proof of possession --- a card sniffed off loopback (\S\ref{sec:limitations}, ``\texttt{localhost} is a real network'') is exactly as usable to an attacker as to its intended holder for the remainder of its TTL. Re-checking per request narrows the window in which a \emph{revoked} card is still honored (\S\ref{sec:revocation}); it does nothing against a card that is merely stolen and still technically valid, because the verifier cannot distinguish the two bearers by the token alone.
 
-A status table sharper than Table~\ref{tab:anchor-status}'s three tiers would keep four things distinct rather than folding them into one word: symbolic protocol correspondence at a fixed modeled hop depth (what ProVerif proved); bounded implementation memory and control-flow checks (what Kani proved); runtime verifier integration (whether the deployed path actually calls the verified routine on every effect); and system-level complete mediation (whether every effect-producing path is reachable only through that call). This chapter's artifacts presently evidence the first two; the last two remain separate integration and enforcement obligations, not consequences of the harness results (\S\ref{sec:implementation}). Reading any result in this chapter as more than it is means collapsing exactly this distinction.
+A status table sharper than Table~\ref{tab:anchor-status}'s three tiers would keep four things distinct rather than folding them into one word: symbolic protocol correspondence at a fixed modeled hop depth (what ProVerif proved); bounded implementation policy, memory, and control-flow checks (the scope of Kani); runtime verifier integration (whether the deployed path actually calls the verified routine on every effect); and system-level complete mediation (whether every effect-producing path is reachable only through that call). This chapter's artifacts presently evidence the first two; the last two remain separate integration and enforcement obligations, not consequences of the harness results (\S\ref{sec:implementation}). Reading any result in this chapter as more than it is means collapsing exactly this distinction.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{app:phase3}}{Phase 3: Multi-hop Delegation}

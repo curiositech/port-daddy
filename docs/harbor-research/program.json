@@ -966,15 +966,15 @@
   ],
   "estate": {
     "manifest": "book/corpus.json",
-    "formalArtifacts": 36,
+    "formalArtifacts": 39,
     "researchProgramArtifacts": 8,
     "ci": {
-      "wired": 39,
+      "wired": 42,
       "retired": 5
     },
     "byMethod": {
       "EasyCrypt": 1,
-      "Kani": 3,
+      "Kani": 6,
       "ProVerif": 26,
       "TLA+/TLC": 4,
       "TLA+/TLC + Apalache": 1,
@@ -984,7 +984,7 @@
       "negative-control": 6,
       "proof-skeleton": 1,
       "protocol-model": 19,
-      "rust-proof-harness": 3,
+      "rust-proof-harness": 6,
       "smt-model": 1,
       "state-machine-model": 5,
       "teaching-template": 1

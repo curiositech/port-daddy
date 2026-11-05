@@ -1,0 +1,165 @@
+{
+  "recordedAt": "2026-11-05T12:54:37.636Z",
+  "origin": "http://127.0.0.1:8138",
+  "path": "/whitepaper",
+  "provenance": "Actual Chromium Playwright recordVideo and screenshots of the local publication preview. Exact source archive bytes served through a narrowly scoped Playwright response shim with application/gzip and attachment headers because Vite incorrectly sends the tar.gz as Content-Encoding:gzip; raw local HTTP bytes are independently hashed. This validates browser interaction and candidate bytes, not the production source redirect. Public pages only; not Porthole, not deployed-site proof.",
+  "screenshots": [
+    {
+      "file": "book-desktop-light.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "scope": "Book landing,1440x1100,light,100% text",
+      "sha256": "a4aee1e91eeae4d19e461c0531703c7fa2c5a7dd90fc254651668c9dfbfa42af",
+      "bytes": 210828
+    },
+    {
+      "file": "book-desktop-dark.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "scope": "Book landing,1440x1100,dark,100% text",
+      "sha256": "726a27031e76f5200392ce584765c63f49829c9141c0edd886bdd188416bdf8b",
+      "bytes": 211823
+    },
+    {
+      "file": "book-phone-light.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scope": "Book landing,390x844,light,100% text",
+      "sha256": "f61487348eed551c7d0e774847e170d16d7bd5e82b74d64c0b7f8e97ceea5849",
+      "bytes": 83991
+    },
+    {
+      "file": "book-phone-dark.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scope": "Book landing,390x844,dark,100% text",
+      "sha256": "1f42d3333951db4bed8634e0f4eb74a55939736c6ff139b1127dc6bbbfa07e37",
+      "bytes": 84944
+    },
+    {
+      "file": "book-desktop-200-percent.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "scope": "Book landing,1440x1100,light,200% root text",
+      "sha256": "4847fc7f7abc7c605c34c366c01a880486896ec34a96fed3414a814aaa557d35",
+      "bytes": 264391
+    },
+    {
+      "file": "book-phone-200-percent.png",
+      "viewport": {
+        "width": 390,
+        "height": 1100
+      },
+      "scope": "Book landing,390x1100,light,200% root text",
+      "sha256": "27c01b76a02dd59dc297316a4632ce53da5463e0707acc20674ed977af173156",
+      "bytes": 81217
+    }
+  ],
+  "keyboard": [
+    {
+      "width": 1440,
+      "height": 1100,
+      "textPercent": 200,
+      "menuLinks": 16,
+      "enterOpens": true,
+      "escapeCloses": true,
+      "focusRestored": true,
+      "tabMoves": true,
+      "tabInMenu": true,
+      "logoMenuOverlap": false,
+      "viewport": 1440,
+      "scroll": 1440
+    },
+    {
+      "width": 390,
+      "height": 1100,
+      "textPercent": 200,
+      "menuLinks": 16,
+      "enterOpens": true,
+      "escapeCloses": true,
+      "focusRestored": true,
+      "tabMoves": true,
+      "tabInMenu": true,
+      "logoMenuOverlap": false,
+      "viewport": 390,
+      "scroll": 390
+    }
+  ],
+  "downloads": [
+    {
+      "link": "Read book (PDF) →",
+      "url": "http://127.0.0.1:8138/whitepaper/coordination-papers-mega-volume.pdf",
+      "status": 200,
+      "contentType": "application/pdf",
+      "bytes": 16520833,
+      "sha256": "689c7b03ab86233e1db7cb081896a90594e6cbe81a7ff4b59d5d60fa2286d1aa",
+      "method": "HTTP GET at rendered link destination"
+    },
+    {
+      "link": "Read facing pages (PDF) →",
+      "url": "http://127.0.0.1:8138/whitepaper/coordination-papers-mega-volume-spreads.pdf",
+      "status": 200,
+      "contentType": "application/pdf",
+      "bytes": 17442678,
+      "sha256": "732f0f3da1737283e177b8327bb118f3446f14b9e6cdeba4f1097ab3f135fb2f",
+      "method": "HTTP GET at rendered link destination"
+    },
+    {
+      "link": "Download LaTeX source (.tar.gz)\n↓",
+      "url": "http://127.0.0.1:8138/whitepaper/coordination-papers-mega-volume-source.tar.gz",
+      "suggestedFilename": "coordination-papers-mega-volume-source.tar.gz",
+      "bytes": 40157761,
+      "sha256": "d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512",
+      "method": "Keyboard activation of rendered link; browser download event; exact candidate archive served by documented preview response shim; gzip signature verified"
+    }
+  ],
+  "pageErrors": [],
+  "sourceRawHttp": {
+    "status": 200,
+    "headers": {
+      "vary": "Origin",
+      "content-length": "40157761",
+      "content-type": "",
+      "last-modified": "Thu, 05 Nov 2026 12:54:16 GMT",
+      "content-encoding": "gzip",
+      "etag": "W/\"40157761-1793883256220\"",
+      "cache-control": "no-cache",
+      "date": "Thu, 05 Nov 2026 12:54:37 GMT",
+      "connection": "keep-alive",
+      "keep-alive": "timeout=5"
+    },
+    "bytes": 40157761,
+    "sha256": "d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512",
+    "gzipSignature": "1f8b",
+    "note": "Raw HTTP bytes, without browser transparent Content-Encoding decompression; the browser recording uses explicit attachment response headers."
+  },
+  "displayedMetadata": [
+    "4.0 (Textbook Edition) · 5 November 2026",
+    "817 pages · about 16 MB · free",
+    "Two-page spreads for larger screens.",
+    "Chapters, artwork, and build instructions. Builds with open fonts; the published Suisse typography requires a separate font license."
+  ],
+  "chapterNavigation": {
+    "href": "/whitepaper/single-writer-kernel",
+    "url": "http://127.0.0.1:8138/whitepaper/single-writer-kernel",
+    "heading": "Governing AI Agents: The Harbor, the Person, and the Economy"
+  },
+  "video": {
+    "file": "book-public-navigation.webm",
+    "width": 1440,
+    "height": 1100,
+    "scope": "Landing,scroll to contents,real first-chapter overview navigation,return,keyboard source download,appearance toggle; no desktop/private pages.",
+    "sha256": "6371b1d6365ba958df34bfb063e0eaa126918278041cdd25329b70789e9f0517",
+    "bytes": 1102890
+  }
+}

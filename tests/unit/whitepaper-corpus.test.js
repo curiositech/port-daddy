@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 
 const repoRoot = process.cwd();
 const corpus = JSON.parse(readFileSync(resolve(repoRoot, 'book/corpus.json'), 'utf8'));
@@ -39,26 +40,61 @@ describe('proof-estate corpus manifest', () => {
     }
   });
 
-  test('the three Kani harnesses are registered and wired to a Kani job', () => {
+  test('all six Kani harnesses are registered at their real source and CI lane', () => {
     const kaniEntries = corpus.formalArtifacts.filter((a) => a.method === 'Kani');
-    expect(kaniEntries).toHaveLength(3);
-    const harnessNames = kaniEntries.map((a) => a.harnessName).sort();
-    expect(harnessNames).toEqual([
-      'proof_capability_attenuation',
-      'proof_constant_time_behavior',
-      'proof_verify_logic_only',
-    ]);
-    // The two fast harnesses run on every PR; the bounded parser harness takes
-    // over an hour under -Z stubbing and runs in the nightly job instead.
-    const expectedJob = {
-      proof_capability_attenuation: 'kani-harbor-card',
-      proof_constant_time_behavior: 'kani-harbor-card',
-      proof_verify_logic_only: 'kani-harbor-card-parser',
+    const expectedSources = {
+      proof_capability_attenuation: 'core/harbor-card-rs/src/kani_claims.rs',
+      proof_constant_time_behavior: 'core/harbor-card-rs/src/lib.rs',
+      proof_decoded_channel_authority: 'core/harbor-card-rs/src/kani_claims.rs',
+      proof_decoded_claims_policy: 'core/harbor-card-rs/src/kani_claims.rs',
+      proof_decoded_delegation_two_hops: 'core/harbor-card-rs/src/kani_claims.rs',
+      proof_verify_logic_only: 'core/harbor-card-rs/src/lib.rs',
     };
+    expect(kaniEntries.map((a) => a.harnessName).sort()).toEqual(Object.keys(expectedSources).sort());
+    // Five bounded predicate/comparator harnesses run on PRs. The separate
+    // stubbed parser lane is manual/on-demand and cannot witness acceptance.
+    // A wired job records coverage of the estate, not a successful proof run.
     for (const entry of kaniEntries) {
-      expect(entry.paths).toEqual(['core/harbor-card-rs/src/lib.rs']);
-      expect(entry.ci).toEqual({ status: 'wired', job: [expectedJob[entry.harnessName]] });
+      const job = entry.harnessName === 'proof_verify_logic_only'
+        ? 'kani-harbor-card-parser' : 'kani-harbor-card';
+      expect(entry.paths).toEqual([expectedSources[entry.harnessName]]);
+      expect(entry.ci).toEqual({ status: 'wired', job: [job] });
     }
+  });
+
+  test('the Kani workflow actually selects every registered harness in its declared lane', () => {
+    const workflow = parseYaml(readFileSync(resolve(repoRoot, '.github/workflows/proofs.yml'), 'utf8'));
+    expect(workflow.on.pull_request.branches).toContain('main');
+    for (const entry of corpus.formalArtifacts.filter((a) => a.method === 'Kani')) {
+      const job = workflow.jobs[entry.ci.job[0]];
+      expect(job).toBeDefined();
+      const commands = job.steps.map((step) => step.run ?? '').join('\n');
+      expect(commands).toMatch(new RegExp(`(?:^|\\s)--harness\\s+${entry.harnessName}(?=\\s|$)`, 'u'));
+      if (entry.ci.job[0] !== 'kani-harbor-card-parser') {
+        expect(commands).toContain('scripts/check-kani-log.py');
+        expect(commands).toContain('scripts/check-kani-negative-controls.py');
+      }
+    }
+  });
+
+  test('the parser lane has a real manual trigger and cannot run on PRs or a schedule', () => {
+    const workflow = parseYaml(readFileSync(resolve(repoRoot, '.github/workflows/proofs.yml'), 'utf8'));
+    const checkManualParser = (candidate) => {
+      expect(candidate.on).toHaveProperty('workflow_dispatch');
+      expect(candidate.on).not.toHaveProperty('schedule');
+      expect(candidate.jobs['kani-harbor-card-parser'].if)
+        .toBe("github.event_name == 'workflow_dispatch'");
+    };
+    checkManualParser(workflow);
+    const noTrigger = structuredClone(workflow);
+    delete noTrigger.on.workflow_dispatch;
+    expect(() => checkManualParser(noTrigger)).toThrow();
+    const onPullRequest = structuredClone(workflow);
+    onPullRequest.jobs['kani-harbor-card-parser'].if += " || github.event_name == 'pull_request'";
+    expect(() => checkManualParser(onPullRequest)).toThrow();
+    const recurring = structuredClone(workflow);
+    recurring.on.schedule = [{ cron: '0 0 * * *' }];
+    expect(() => checkManualParser(recurring)).toThrow();
   });
 
   test('every relay TLA+ model and config is wired to its CI job', () => {

@@ -1,0 +1,82 @@
+{
+  "scope": "Local extracted public source archive build and six mechanical PDF gates",
+  "verifiedAtUtc": "2026-11-05T12:56:22Z",
+  "editionDate": "5 November 2026",
+  "archive": {
+    "sha256": "d90a9d6e7ff2985f9d89e1efee6b9ce76042619f8a5129505a5108e438fe1512",
+    "sourceSha256": "615371c9dbfcda3c699b5270e22fe73b9c2f373f831ca84327cb37a1dc73601a",
+    "manifestSha256": "b16d4b26920ffbf8d5a7eaba93c210f274c0e9126769c3bfbafb2d3d56f044bd",
+    "manifestFiles": 511,
+    "extractedFiles": 513,
+    "containsGit": false,
+    "containsEditorialLedger": false,
+    "containsPrivateSuisseFonts": false,
+    "bytes": 40157761
+  },
+  "build": {
+    "command": "bash book/BUILDING.sh",
+    "exitCode": 0,
+    "node": "26.10.0",
+    "python": "3.14.8",
+    "tex": "TeX Live 2026 XeTeX 3.141592653-2.6-0.999998",
+    "fontProfile": "open-proof",
+    "xeLaTeXPasses": 5,
+    "marginConverged": true,
+    "pdf": {
+      "sha256": "85aee0961c70dc7786915710b781f084480dba4dbccfefea0bbe248cc5cff1a4",
+      "pages": 777,
+      "bytes": 16481407,
+      "cacheAndExtractedPublicationBytesMatch": true
+    },
+    "auxSha256": "1b7c2e517fe2bd1bddd239a4f028c40e408531704b3e4f4d6e5af45ea15ad658",
+    "texLogSha256": "9b70cb16890c436fd1c2b056a07bf8ac8e3059ec47873721b3aeb89a7dc920b9",
+    "flsSha256": "8d71075fbfc432eb8c30d629cdfed4b704e0f0ae7987249573dc30646ea40c96",
+    "changedInputsSinceEarlierArchive": [
+      "book/anchor-protocol-whitepaper.tex",
+      "book/corpus.json"
+    ]
+  },
+  "pdfChecks": {
+    "command": "/opt/anaconda3/bin/python3 scripts/harbor-research/run_pdf_checks.py --expect 1 <exact extracted build-cache PDF>",
+    "exitCode": 0,
+    "passed": 6,
+    "readers": "Local Python 3.12.7, PyMuPDF 1.26.7, Pillow 12.1.0, NumPy 2.2.6, SciPy 1.17.0",
+    "captionInventory": {
+      "checked": 266,
+      "placementFailures": 0
+    },
+    "exerciseNavigation": {
+      "labels": 212,
+      "headings": 212,
+      "issues": 0
+    },
+    "layoutAudit": {
+      "marginObjectsPlaced": 1437,
+      "marginObjectsExpected": 1437,
+      "marginIssues": 0,
+      "pagesInWhitespaceReview": 85
+    },
+    "pageOverflow": {
+      "lossRows": 0,
+      "marginCollisions": 0,
+      "footIntrusions": 0,
+      "advisoryPicturesOutsideColumn": 70
+    },
+    "pageSpills": {
+      "overflow": 0,
+      "headings": 0,
+      "whitespaceAdvisories": 41
+    },
+    "typeOverArt": {
+      "clearsWcagAa": true,
+      "maritimeCleanBandPercent": 39.3,
+      "swissCleanBandPercent": 33.2,
+      "floorPercent": 30
+    }
+  },
+  "limitations": [
+    "Local reader library versions differ from the hosted pinned versions.",
+    "Local open-proof pagination and geometry apply to the extracted source build.",
+    "Whitespace and picture advisories remain available for visual review."
+  ]
+}

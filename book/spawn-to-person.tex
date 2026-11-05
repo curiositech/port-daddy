@@ -187,7 +187,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{September 2026\\Version 1.5 (textbook edition)}
+\date{\pdeditiondate\\Version 1.5 (textbook edition)}
 % ─── Document ────────────────────────────────────────────────────────────────
 % Hyperlink and cross-reference discipline (must stay last in the preamble).
 \input{figures/pd-hyperlinks}
@@ -257,7 +257,7 @@ the process that produced the work.}
 daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 \emph{prove who it is to one machine}. Legibility (L2) lets one operator
 \emph{see} the swarm. None of that yet makes a tradeable person. The bridge from
-the wedge to the market is the thing this chapter builds: \textbf{continuity}, and
+the single-operator tool to the market is the thing this chapter builds: \textbf{continuity}, and
 the reputation it makes possible.
 % --- FIGURE 1: the L0->L3 stack map, placing Chapter III ---
 \subsection{What this chapter claims, and what it refuses to claim}
@@ -823,8 +823,8 @@ reader should consult first.
 % ═════════════════════════════════════════════════════════════════════════════
 
 Before any subsystem of continuity matters, the identity it attaches to must be one
-the agent cannot freely re-pick. This is the most under-appreciated claim in the
-paper.
+the agent cannot freely re-pick. Otherwise a restart may sever the link
+between an obligation and the party expected to discharge it.
 
 \pdmarginanalogy{stp-wax-seal-signet}{}{ch05-wax-seal-signet}{A signet suggests attribution: a signature binds a record to a signing key. Execution evidence and a principal-binding rule must establish the separate accountability claim.}%
 \medskip\noindent\textbf{The escape to prevent.} An authentic credential can still be disposable. Signature validity answers who controls a credential; an admission and liability policy decides whether abandoning it escapes a penalty. Keep those two questions separate.
@@ -928,7 +928,7 @@ bounded newcomer pool. Legacy and bypass paths still accept asserted identifiers
 and the credential is not yet enforced at every security-relevant write boundary.
 The result is a real but partial local identity root, with the asserted string
 demoted toward a display alias; it is not yet the complete identity contract this
-paper requires.
+chapter requires.
 
 \subsection{S2 --- whitewashing in action}
 
@@ -1249,8 +1249,8 @@ For $L<8$, probation alone is insufficient.)
 
 \begin{pdexample}{The Probation Cliff: Falsifying the Schedule Shape}
 \setlength{\parskip}{4pt plus 1pt}
-The companion paper gives the same conditional probation result
-\pdcite{harborpaper5}. The numerical check below covers a narrower class.
+The research paper \emph{Continuity Without Metaphysics} gives the same
+conditional probation result \pdcite{harborpaper5}. The numerical check below covers a narrower class.
 
 Exchange
 argument verified numerically across randomized
@@ -1298,17 +1298,14 @@ The economic counterparty in every trade is not the agent but the
 behind its bonds. Bonds, reputation inheritance, and sanctions must ultimately
 key on the principal via the authorization chain, or Sybil bond-farming works by
 spawning fresh \emph{agents} under one principal. This chapter defines the principal
-as the authorization chain's terminus and the identity object on which the market
-paper's counterparty is built; the market paper \emph{cross-references} this
-definition rather than redefining it.
+as the authorization chain's terminus.
+\pdchapref{he}{The Harbor Economy} uses that same principal as its economic
+counterparty; bonds and sanctions must remain attributable to it.
 
-\noindent The structure is old enough to have a canonical statement. Hobbes's
-chapter on persons~\cite[ch.~XVI]{hobbes1651} separates the \emph{actor} --- whose
-words and actions are performed --- from the \emph{author}, whose they are
-\emph{owned} by, and locates liability at the author: an artificial person acts,
-and someone else is answerable for it. That is precisely the split this chapter needs
-between a spawned agent and its principal, and it carries the same warning: an
-actor with no identifiable author is an actor no counterparty can hold to anything.
+\noindent Hobbes separates the \emph{actor}, who performs words and actions,
+from the \emph{author}, who owns them~\cite[ch.~XVI]{hobbes1651}.
+This chapter uses that distinction to bind a spawned agent's outcomes to an
+identifiable principal: the counterparty must know who is answerable for them.
 
 \begin{definition}[Principal]\label{def:principal}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1320,9 +1317,8 @@ Each agent's
 non-forgeable identity is bound to exactly one principal at mint time.
 
 
-\emph{Kind:} \Designed{} design invariant --- an organizational definition the bonding and
-sanction machinery of \S\ref{sec:identity} is built to respect, not a proven
-or measured fact.
+\emph{Kind:} \Designed{} organizational definition for the bonding and sanction
+rules of \S\ref{sec:identity}; not a proved or measured fact.
 \end{definition}
 
 \ifdefined\pdswisslandmarkplate
@@ -1675,13 +1671,12 @@ attestation story between mutually-distrusting operators.
 A federated witness log
 gives log-\emph{integrity}, not identity-\emph{binding} --- it can prove an entry
 was recorded, but not that the key behind it is who it claims to be across a trust
-boundary. This is what the market paper needs and does \emph{not} yet have.
+boundary. \pdchapref{he}{The Harbor Economy} needs this binding; the local identity construction does not provide it.
 
 
-\VISION{} (a named gap, owed to the market paper). \emph{Kind:} \Designed{} design invariant
---- what the market paper's own design intends to hold once built; nothing
-here claims it holds today, which is exactly what \VISION{} already says on
-the maturity scale.
+\VISION{} (an open dependency of cross-operator exchange).
+\emph{Kind:} \Designed{} design invariant: a requirement for that design,
+not an established property of the reference implementation.
 \end{definition}
 % SUBMISSION-SKILL: naming conflict -- a quote search for "cross-operator
 % attestation" surfaced a close adjacent term rather than an exact prior use: the
@@ -1697,8 +1692,8 @@ the maturity scale.
 % job and outside this paper's bounded-scope naming check.
 
 \pdthesis{This chapter depends on a \emph{local non-forgeable identity} and
-\emph{hands the market paper} the unsolved \emph{cross-operator attestation} as a
-named dependency --- not an assumption. Every cross-operator sentence that says
+hands \pdchapref{he}{The Harbor Economy} the unsolved
+\emph{cross-operator attestation} as a named dependency --- not an assumption. Every cross-operator sentence that says
 ``the boundary neither operator controls'' is resting on cross-operator
 attestation; until that exists, it is resting on a single trusted root, and we
 say so.}
@@ -2029,7 +2024,7 @@ into agent $a$'s context at task $t$; $t$ later settled with quality vector
 $\mathbf{q}$. Over many such events we estimate a \emph{skill-helpfulness} effect
 --- did loading $s$ raise $\mathbf{q}$ relative to comparable tasks without it? This
 is reputation for \emph{tools}, keyed on witnessed, context-attributable outcomes,
-and it is the licensing side's substrate that the market paper consumes. It is also
+and supplies a proposed input to skill licensing in \pdchapref{he}{The Harbor Economy}. It is also
 the cleanest near-term instance of the whole thesis: a non-forgeable event (the
 graft), a witnessed outcome (the settled task), and a multi-dimensional grade ---
 no bandit required. We pin the event down as a schema.
@@ -2371,7 +2366,7 @@ intended ledger behavior, not yet a theorem about a shipped mechanism.
 not mutate the ledger in place (that would break append-only and auditability);
 you append a tombstone that nullifies the targeted entry, and the tombstone
 \emph{propagates} across harbors bounded by the federation's revocation-convergence
-window (the market paper's job). The point may have influenced decisions before the fraud was detected. After
+window studied in \pdchapref{fh}{The Federated Harbor}. The point may have influenced decisions before the fraud was detected. After
 the tombstone is issued, a bounded stale-use window needs delivery assumptions
 or an expiring freshness requirement that fails closed. Federation must state
 those conditions; gossip alone gives no finite partition bound. We
@@ -2502,12 +2497,12 @@ explicitly owed.
 Cross-operator attestation and a competent honest grading root remain open.
 The tower result is conditional.}\label{tab:handoff}\\
 \toprule
-\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
+\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in exchange} \\
 \midrule
 \endfirsthead
 \multicolumn{3}{@{}l}{\small\itshape (continued)}\\
 \toprule
-\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
+\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in exchange} \\
 \midrule
 \endhead
 \midrule
@@ -2517,7 +2512,7 @@ The tower result is conditional.}\label{tab:handoff}\\
 Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
 A participant whose obligations and witnessed history remain attributable across process replacements. \\
 Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
-Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
+Bonds and sanctions key on the principal defined here. \\
 The three continuity subsystems & \begin{tabular}[t]{@{}l@{}}\BUILT\\\BUILTWEAK\\\BUILTWEAK\end{tabular} &
 Reputation keys on subsystem~3 (the outcome ledger). \\
 Outcome ledger / oracle (Def.~\ref{def:oracle}) & \BUILTWEAK &
@@ -2529,9 +2524,9 @@ Proposed evaluation institutions; competent, honest grading remains an obligatio
 Grading-oracle hole (Prop.~\ref{prop:hole}) & \DESIGNED &
 Theorem~\ref{thm:tower-imported}~\pdcite{harborpaper3} bounds recursion under conditional detection and incentive assumptions. Oracle completeness, a competent honest root, and calibrated cross-clique detection remain owed. \\
 Cross-operator attestation (Def.~\ref{def:cross-operator-attestation}) & \VISION &
-\emph{Named dependency the market paper must build}; not assumed here. \\
+\emph{Open dependency of cross-operator exchange}; not assumed here. \\
 Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
-Reputation is revocable; convergence is the market paper's federation job. \\
+Reputation is revocable; dissemination conditions belong to \pdchapref{fh}{The Federated Harbor}. \\
 \end{xltabular}}
 
 \pdthesis{The proposed history-dependent market needs attributable outcomes
@@ -2772,7 +2767,7 @@ reputation system.
 The chain treats the operator (the human who owns a fleet) as outside it. Is
 the operator a ``person'' in this chapter's sense? What breaks if a single
 operator can mint arbitrarily many agent-persons? (This is the principal-layer
-gap; see \S\ref{sec:identity} and the market paper.)
+gap; see \S\ref{sec:identity} and \pdchapref{he}{The Harbor Economy}.)
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-operator-as-person}
 The human operator is a moral/legal person but should be represented
@@ -3047,8 +3042,8 @@ hostile operator boundary, establish proof of possession/freshness, aggregate
 related agents, and support revocation and audit.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-boundary-neither-controls}
-Take any claim in the market paper of the form ``Alice's harbor and Bob's
-harbor settle across a boundary neither controls.'' Which stone does it
+Consider the proposed exchange in \pdchapref{he}{The Harbor Economy}:
+``Alice's harbor and Bob's harbor settle across a boundary neither controls.'' Which stone does it
 secretly assume? What is the actual security guarantee if only the local
 non-forgeable identity exists?
 \end{pdexercise}
@@ -3352,7 +3347,7 @@ Amortized Verification}~\pdcite{harborpaper3}; its numbers regenerate from
 \texttt{b2\_tower.py} (seed 20260816). The no-mint theorem of
 \S\ref{sec:continuity} regenerates from \texttt{a6\_no\_mint.py} (same seed).
 The engine-substitution and resurrection-soundness results of
-\S\ref{sec:identity} are the whitepaper statement of \emph{Continuity Without
+\S\ref{sec:identity} state this chapter's form of \emph{Continuity Without
 Metaphysics}~\pdcite{harborpaper5}; they regenerate from
 \texttt{b5\_engine\_substitution.py}. The probation-cliff theorem shares that
 paper's number and regenerates from \texttt{b6\_probation.py} (same seed
@@ -3471,17 +3466,17 @@ rhetorical.
 
 {\small\renewcommand{\arraystretch}{1.3}
 \begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X@{}}
-\caption{Maturity of each paper concept against a reference coordination daemon.
+\caption{Maturity of each chapter concept against a reference coordination daemon.
 The honest summary: the \emph{subsystems} of continuity exist (one weakly); the
 \emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable
 identity --- is specified but not yet shipped.}\label{tab:app-status}\\
 \toprule
-\textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
+\textbf{Component (chapter concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
 \midrule
 \endfirsthead
 \multicolumn{3}{@{}l}{\small\itshape (continued)}\\
 \toprule
-\textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
+\textbf{Component (chapter concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
 \midrule
 \endhead
 \midrule

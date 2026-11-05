@@ -605,7 +605,7 @@
       ],
       "method": "Kani",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "decode/verify-path robustness under adversarial input, with the crypto internals replaced by #[kani::stub(...)] stand-ins; requires -Z stubbing. Never ran before wave-p1/proof-estate -- its #[kani::unwind(N)] bound had never been empirically validated (see the harness's own comment for the curve25519-dalek pow2k unwind story); runs on the nightly schedule (kani-harbor-card-parser) because it takes about an hour of CPU",
+      "evidencePolicy": "Parser robustness only: 32-byte valid UTF-8 input containing a dot, unwind 128, with public-key construction, signature verification and base64 decoding stubbed. The zero-filled decoded header is invalid JSON, so this harness cannot witness successful acceptance. Manual/on-demand job; neither real cryptography nor parser refinement is established.",
       "ci": {
         "status": "wired",
         "job": [
@@ -624,7 +624,7 @@
       ],
       "method": "Kani",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "constant_time_compare never panics over arbitrary fixed-size input; never ran before wave-p1/proof-estate",
+      "evidencePolicy": "Checks absence of panic on arbitrary pairs of 16-byte inputs to constant_time_compare. This is not a relational timing proof and says nothing about compiler, cache, or hardware timing. Source-level branch behavior is a separate inspection claim.",
       "ci": {
         "status": "wired",
         "job": [
@@ -639,11 +639,11 @@
       "authority": "product-runtime",
       "status": "current",
       "paths": [
-        "core/harbor-card-rs/src/lib.rs"
+        "core/harbor-card-rs/src/kani_claims.rs"
       ],
       "method": "Kani",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "verify_capability_subset on two hard-coded cases (subset accepted, escalation rejected) -- concrete inputs, not arbitrary ones; never ran before wave-p1/proof-estate",
+      "evidencePolicy": "Quantified flat-string subset check: zero to two entries on each side over four one-byte opaque rights, including duplicates and empty lists; unwind 8. Compares the production predicate with a bitset oracle. Local Kani 0.67.0 passed assertions and both acceptance/rejection covers; CI reruns. This is not the structured grant or signed-chain contract.",
       "ci": {
         "status": "wired",
         "job": [
@@ -651,6 +651,63 @@
         ]
       },
       "harnessName": "proof_capability_attenuation"
+    },
+    {
+      "id": "harbor-card-kani-decoded-claims-policy",
+      "kind": "rust-proof-harness",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "core/harbor-card-rs/src/kani_claims.rs"
+      ],
+      "method": "Kani",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "Production post-decoding predicate over every i64 version, issue time, expiry and current time, plus optional i64 not-before; widened-arithmetic oracle includes the saturating clock boundary. Local Kani 0.67.0 passed assertions and seven covers; removing expiry rejection falsified the named assertion. CI reruns. Signature authentication and JSON/base64 parser refinement are separate obligations.",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "kani-harbor-card"
+        ]
+      },
+      "harnessName": "proof_decoded_claims_policy"
+    },
+    {
+      "id": "harbor-card-kani-decoded-channel-authority",
+      "kind": "rust-proof-harness",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "core/harbor-card-rs/src/kani_claims.rs"
+      ],
+      "method": "Kani",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "One decoded grant over four operations and eight literal/prefix patterns; pub/sub requests over six concrete channels, arbitrary i64 times and optional u64 ceilings; unwind 16. Local Kani 0.67.0 passed the production matcher assertions and three acceptance/rejection covers; CI reruns. Authentication is assumed; rate/payload enforcement and arbitrary strings are outside scope.",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "kani-harbor-card"
+        ]
+      },
+      "harnessName": "proof_decoded_channel_authority"
+    },
+    {
+      "id": "harbor-card-kani-decoded-delegation-two-hops",
+      "kind": "rust-proof-harness",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "core/harbor-card-rs/src/kani_claims.rs"
+      ],
+      "method": "Kani",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "Two-hop structured subset: one grant per root, child and leaf, four operations, eight literal/prefix patterns, arbitrary optional u64 rate/payload ceilings; unwind 16. Local Kani 0.67.0 passed transitivity, ceiling assertions and five covers; removing ceiling attenuation falsified the rate-preservation assertion. CI reruns. No signed-chain verifier or arbitrary-depth claim.",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "kani-harbor-card"
+        ]
+      },
+      "harnessName": "proof_decoded_delegation_two_hops"
     },
     {
       "id": "pd-relay-zero-trust-skill-template-proverif",
