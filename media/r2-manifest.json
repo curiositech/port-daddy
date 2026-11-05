@@ -31,12 +31,47 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 438,
-    "distinctObjects": 403,
-    "bytes": 130928004,
-    "distinctBytes": 128250984
+    "assets": 443,
+    "distinctObjects": 408,
+    "bytes": 131468092,
+    "distinctBytes": 128791072
   },
   "assets": [
+    {
+      "path": ".github/assets/10358/after-desktop-dark.png",
+      "bytes": 118462,
+      "sha256": "cda155e0ab81f3355e27bc5c2e2163e8229f5998f228b3b62fd123c7d37f249f",
+      "key": "sha256/cd/cda155e0ab81f3355e27bc5c2e2163e8229f5998f228b3b62fd123c7d37f249f.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/10358/after-phone-light.png",
+      "bytes": 72692,
+      "sha256": "89b04e24198f4a9b6470976ae550afc98c3f585db169da5cadabfae3b99aa695",
+      "key": "sha256/89/89b04e24198f4a9b6470976ae550afc98c3f585db169da5cadabfae3b99aa695.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/10358/before-phone-light.png",
+      "bytes": 71934,
+      "sha256": "9471f7f16363f81fab801d39d9cdf8a9ecd05c39a31ee4d24ac394bfee89b1b4",
+      "key": "sha256/94/9471f7f16363f81fab801d39d9cdf8a9ecd05c39a31ee4d24ac394bfee89b1b4.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/10358/book-forced-colors.gif",
+      "bytes": 49616,
+      "sha256": "126654ca04e2ca74929572028fc6f4d7a8b5d0b2b31d0a63db6ad151203d4103",
+      "key": "sha256/12/126654ca04e2ca74929572028fc6f4d7a8b5d0b2b31d0a63db6ad151203d4103.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": ".github/assets/10358/book-studio-keyboard.webm",
+      "bytes": 227384,
+      "sha256": "5c15c6aba9852a6ddf9240a235f6d311c9a1693ab3ba97123c32a8c0c37690ee",
+      "key": "sha256/5c/5c15c6aba9852a6ddf9240a235f6d311c9a1693ab3ba97123c32a8c0c37690ee.webm",
+      "contentType": "video/webm"
+    },
     {
       "path": ".github/assets/book-publication-accessibility-20261105/closing-actions-dark-enlarged.png",
       "bytes": 63538,
