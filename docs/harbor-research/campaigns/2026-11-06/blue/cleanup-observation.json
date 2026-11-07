@@ -1,0 +1,6 @@
+{
+  "observed_at": "2026-11-07T03:41:00.959977+00:00",
+  "matching_tool_processes": [],
+  "selector": "Executable basename cbmc/kani-driver/kani-compiler/cargo-kani or cargo followed by kani",
+  "previous_row": "The previous substring search matched the collecting zsh command, whose literal script contained the filter strings; it was not a Kani child."
+}

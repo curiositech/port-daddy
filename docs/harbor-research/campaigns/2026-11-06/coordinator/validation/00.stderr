@@ -1,0 +1,33 @@
+test_all_initial_states_contribute (__main__.FutureFactReachabilityTests.test_all_initial_states_contribute) ... ok
+test_claims_and_temporal_conflicts_are_fixed_policy_properties (__main__.FutureFactReachabilityTests.test_claims_and_temporal_conflicts_are_fixed_policy_properties) ... ok
+test_cli_receipts_and_duplicate_json_keys (__main__.FutureFactReachabilityTests.test_cli_receipts_and_duplicate_json_keys) ... ok
+test_closed_intervals_touch_and_scope_overlap (__main__.FutureFactReachabilityTests.test_closed_intervals_touch_and_scope_overlap) ... ok
+test_current_facts_alone_miss_future_activation (__main__.FutureFactReachabilityTests.test_current_facts_alone_miss_future_activation) ... ok
+test_cycles_terminate_and_reachable_unsafe_branch_survives (__main__.FutureFactReachabilityTests.test_cycles_terminate_and_reachable_unsafe_branch_survives) ... ok
+test_decision_and_enumerated_pair_counts_are_different (__main__.FutureFactReachabilityTests.test_decision_and_enumerated_pair_counts_are_different) ... ok
+test_equal_labels_do_not_merge_distinct_futures (__main__.FutureFactReachabilityTests.test_equal_labels_do_not_merge_distinct_futures) ... ok
+test_exact_state_bound_can_complete_at_terminal (__main__.FutureFactReachabilityTests.test_exact_state_bound_can_complete_at_terminal) ... ok
+test_exhaustive_graph_label_and_horn_policy_combinations (__main__.FutureFactReachabilityTests.test_exhaustive_graph_label_and_horn_policy_combinations)
+Every 2-state directed graph, label, nonempty initial set and listed policy. ... ok
+test_fixed_policy_facts_persist_across_retraction (__main__.FutureFactReachabilityTests.test_fixed_policy_facts_persist_across_retraction) ... ok
+test_horn_chain_empty_rule_and_cycles (__main__.FutureFactReachabilityTests.test_horn_chain_empty_rule_and_cycles) ... ok
+test_incomplete_unsafe_retains_replayable_witness (__main__.FutureFactReachabilityTests.test_incomplete_unsafe_retains_replayable_witness) ... ok
+test_initial_and_terminal_state_are_checked (__main__.FutureFactReachabilityTests.test_initial_and_terminal_state_are_checked) ... ok
+test_invalid_model_schema_fails_closed (__main__.FutureFactReachabilityTests.test_invalid_model_schema_fails_closed) ... ok
+test_invalid_policy_and_bounds_fail_closed (__main__.FutureFactReachabilityTests.test_invalid_policy_and_bounds_fail_closed) ... ok
+test_modeled_two_operation_second_promise (__main__.FutureFactReachabilityTests.test_modeled_two_operation_second_promise) ... ok
+test_omitted_runtime_route_is_outside_model_certificate (__main__.FutureFactReachabilityTests.test_omitted_runtime_route_is_outside_model_certificate) ... ok
+test_shortest_path_is_not_an_accumulated_fact_witness (__main__.FutureFactReachabilityTests.test_shortest_path_is_not_an_accumulated_fact_witness) ... ok
+test_small_resource_bounds_cannot_manufacture_safe (__main__.FutureFactReachabilityTests.test_small_resource_bounds_cannot_manufacture_safe) ... ok
+test_state_labels_replace_instead_of_accumulating (__main__.FutureFactReachabilityTests.test_state_labels_replace_instead_of_accumulating) ... ok
+test_tampered_witnesses_fail_replay (__main__.FutureFactReachabilityTests.test_tampered_witnesses_fail_replay) ... ok
+test_unreachable_edges_do_not_consume_traversal_budget (__main__.FutureFactReachabilityTests.test_unreachable_edges_do_not_consume_traversal_budget) ... ok
+test_unreachable_state_cannot_block_admission (__main__.FutureFactReachabilityTests.test_unreachable_state_cannot_block_admission) ... ok
+test_unreachable_union_is_not_a_reachable_future (__main__.FutureFactReachabilityTests.test_unreachable_union_is_not_a_reachable_future) ... ok
+test_witness_is_bound_to_exact_model_and_policy (__main__.FutureFactReachabilityTests.test_witness_is_bound_to_exact_model_and_policy) ... ok
+test_zero_state_budget_is_unknown_without_vacuous_safety (__main__.FutureFactReachabilityTests.test_zero_state_budget_is_unknown_without_vacuous_safety) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 2.295s
+
+OK

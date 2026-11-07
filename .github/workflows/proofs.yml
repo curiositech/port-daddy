@@ -35,7 +35,11 @@ on:
       - '.github/workflows/proofs.yml'
       - 'book/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
+      - 'tests/fixtures/harbor-research/**'
       - 'docs/harbor-research/research/claim-audit-example.json'
+      - 'scripts/harbor-research/**'
+      - 'docs/harbor-research/campaigns/2026-11-06/models/**'
+      - 'docs/harbor-research/campaigns/2026-11-06/white/**'
   pull_request:
     branches: [main]
     paths:
@@ -51,7 +55,11 @@ on:
       - '.github/workflows/proofs.yml'
       - 'book/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
+      - 'tests/fixtures/harbor-research/**'
       - 'docs/harbor-research/research/claim-audit-example.json'
+      - 'scripts/harbor-research/**'
+      - 'docs/harbor-research/campaigns/2026-11-06/models/**'
+      - 'docs/harbor-research/campaigns/2026-11-06/white/**'
   # Merge queue: trigger on the queued group so every proof job reports a check
   # context (no path filter is possible on merge_group). The heavy jobs SKIP on
   # merge_group via their per-job `if:` below, and a skipped job reports
@@ -219,15 +227,24 @@ jobs:
           chmod +x sweep-delta.sh
           ./sweep-delta.sh | tee sweep-delta.tlc.log
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check admission revision and concrete TLC controls
+        run: python3 -B scripts/harbor-research/check_admission_revision.py --jar "${TLA_TOOLS_JAR}"
+
       - name: Upload TLC log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: claim-signaling-tlc-log
+          include-hidden-files: true
           path: |
             proofs/economics/claim_signaling.tlc.log
             proofs/economics/claim_signaling_delta30.tlc.log
             proofs/economics/sweep-delta.tlc.log
+            .cache/admission-revision/
 
   tla-claim-signaling-apalache:
     if: github.event_name != 'merge_group'
@@ -423,6 +440,27 @@ jobs:
           python3 -B skills/harbor-results/scripts/test_research_envelopes.py
           python3 -B skills/harbor-results/scripts/test_legibility_corrections.py
 
+      - name: Check future admission and all-state bonded incentives
+        run: |
+          set -euo pipefail
+          python3 -B skills/harbor-results/scripts/test_future_fact_reachability.py
+          python3 -B skills/harbor-results/scripts/test_bonded_trigger_audit.py
+
+      - name: Check literature-scout counterexamples and graph controls
+        run: |
+          set -euo pipefail
+          python3 -B skills/harbor-results/scripts/scout_claim_counterexamples.py
+          python3 -B skills/harbor-results/scripts/scout_graph_code_checks.py
+
+      - name: Check campaign evidence recorder and transcript export
+        run: |
+          set -euo pipefail
+          # Unix fcntl/process groups are available on this Ubuntu runner.
+          # Recorder fixtures enforce this scratch root; no HOME override.
+          mkdir -p "${HOME}/coding/tmp"
+          python3 -B scripts/harbor-research/test_war_room.py
+          python3 -B scripts/harbor-research/test_export_campaign_transcripts.py
+
   # ── ProVerif (2.05): the model estate that never ran ────────────────────────
   # 25 .pv models under analyses/ and proofs/** previously had
   # zero CI coverage -- evidenced only by committed *_results.txt/.run.log
@@ -468,7 +506,7 @@ jobs:
           # reproducible route on the pinned Ubuntu 24.04 runner).
           opam install -y proverif.2.05
           eval "$(opam env)"
-          echo "$(opam var bin)" >> "$GITHUB_PATH"
+          opam var bin >> "$GITHUB_PATH"
 
       - name: Verify ProVerif install
         run: proverif -help | head -3
@@ -477,6 +515,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/proofs/run-proverif.py --check | tee proverif-estate-summary.md
+
+      - name: Check isolation participation and adversarial controls
+        run: |
+          set -euo pipefail
+          python3 -B docs/harbor-research/campaigns/2026-11-06/white/verify_controls.py --proverif proverif
 
       - name: Upload check summary
         if: always()

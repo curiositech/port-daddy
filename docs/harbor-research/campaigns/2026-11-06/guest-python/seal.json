@@ -1,0 +1,12 @@
+{
+  "scope": "fixed Python proof guest evidence",
+  "sha256": {
+    "REPORT.md": "ece76ea17956d034a543c06203b42ca2efca2e7e6ee8f9fba527c24432802668",
+    "guest-1794024180897422000.log": "9de5a1cb961ba1247a8376026de14dae645c425afc0a31d8b7fac08d36f26596",
+    "manifest-pre-review-e4566acc230f.json": "e4566acc230f0e86540c5dfd96eafb97304f9178af641c7bbc5bb50c429b2fd4",
+    "manifest.json": "50a3c3f03cffdf11f55a6b551b1e9fd1a69c34f4204dca1291ceb651cb3d05cf",
+    "runtime-lock.json": "b5d0f446061a59223dbe2cf493f3d45c0c3ddc64052d69f5f9d32be1d193a371",
+    "transcript.jsonl": "69174b98a0e8a791e5698fdb105a59126381062659cbd515fd1ccb73bb2737a6",
+    "verdict.json": "ad54f2964a5b90de43cfc8e63c53b73c7155de158b4c7869fa015c18d345ea6e"
+  }
+}

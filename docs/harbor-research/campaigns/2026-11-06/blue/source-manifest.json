@@ -1,0 +1,15 @@
+{
+  "source_root": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/core/harbor-card-rs",
+  "copied_crate": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/blue/.cache/crate",
+  "source_sha256": {
+    "core/harbor-card-rs/Cargo.toml": "ab46443190ea9ccfb29d9178ec74fd5fbffabc947977873b186bb92ffd6eadbe",
+    "core/harbor-card-rs/Cargo.lock": "8cb65baf011f4a4be7dd715e7fbb9159a40214d5ca215ff771c7a8e6356ba205",
+    "core/harbor-card-rs/src/kani_claims.rs": "5e8eb1316fde7d0bab7319e9875f6685e343fc9ab42ed1972999aca803843edf",
+    "core/harbor-card-rs/src/kani_claims_domain.rs": "95cd76f76347224238a609640ca1f36e3f66bcb2c0125d73d976d42f05e07eb1",
+    "core/harbor-card-rs/src/lib.rs": "d886615fbcd5ce7c2dde13787bc5b64f695bb6365d95c4f57fc6510c062f3489",
+    "core/harbor-card-rs/scripts/check-kani-log.py": "a5a55e74626a392980bfeaaa6fd62717f308cca556496da27fa05bd5c8992fa9",
+    "core/harbor-card-rs/scripts/check-kani-negative-controls.py": "81097427d6ed7e2c66619c9f69089ed249578254d7d51991d774809371f3e540",
+    "core/harbor-card-rs/scripts/test_kani_log.py": "e4ea1604e4a34862c297edddbfbf8ae31c071bededef466f9157d0a98907b190"
+  },
+  "scope": "Fresh local finite Kani execution only; no cryptography, complete mediation, deployed signed-chain verifier, timing-side-channel, or runtime claim."
+}

@@ -1,0 +1,8 @@
+{
+  "cause": "Coordinator Python variable shadowing wrote the intended corpus JSON into the last enumerated path. Detected by independent fail-closed CI gate before commit.",
+  "corrupted_sha256": "78b1434f398fc455e63ea3b961f167af2a31e52d2ab3c9609b62990fe3cddc3e",
+  "restored_sha256": "b62a2ea805fb7610269396fe9f3d9a0af540ba5d9badde0ca95fe49b53094912",
+  "path": "docs/harbor-research/campaigns/2026-11-06/white/probes/unauthenticated-receiver.pv",
+  "repair": "Restore exact single-check-deletion mutant from sealed repaired input and verify against WHITE inventory; write intended corpus to explicit path.",
+  "scope": "No sealed log or report was rewritten."
+}

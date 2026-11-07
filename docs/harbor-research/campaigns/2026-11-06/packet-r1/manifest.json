@@ -1,0 +1,12 @@
+{
+  "AdmissionRevision.tla": "b598c10513fe5dd3e4e35b2c3e3cd3cb41ead278c1c093e931e7a8db994f3e4c",
+  "README.md": "61407c33eb438b5d20e84be9d2fb756e5db276304e5ac1904f6bbb772c710ed9",
+  "accepted.cfg": "aed1f131e98b00162369791718750cca06c708976facbd897caef117d7d1e08d",
+  "b4_deontic_fragment.py": "644dcfc468d0ab7b96192849f98cc422d0ee69f4d874fb4b666fb7c89f7d9ac2",
+  "bonded_trigger_audit.py": "09ef06c5bfba7f30973aceb2390a5f2a57508e8a074f36c1ddab6e52f258a7d1",
+  "bound.cfg": "d370a8a1e2a0bec2e674969e3cc31cb71dfb7a620e512621e55dec165a0696ba",
+  "future_fact_reachability.py": "2fdf4522e6703de39f6ceb0b0498a7cf0bd2cb35ec7e9c4c80fb8e3beaa99cde",
+  "isolation.pv": "7c492e6788eb9492d188a1cf39f13376321ab881ba0b3002c52afecf08a7702f",
+  "stale_rejected.cfg": "981489e5563099fdbe69d468e5c77215f546d2ad97f246284219084c193f5dd0",
+  "unbound.cfg": "ae3c65330151f6d445b92ff7dcaa1f9b58b77484fc684e2566af67f96d352061"
+}

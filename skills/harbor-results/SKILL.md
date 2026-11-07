@@ -134,9 +134,36 @@ checks the bounded future-activation and release-policy examples discussed in
 `scripts/test_research_envelopes.py` checks those finite models. These are new finite
 checks, not inherited-suite coverage or empirical agent performance.
 
-When adding a checker, register it in `whitepaper/corpus.json` and wire its execution into `.github/workflows/proofs.yml`; validate with `node scripts/check-whitepaper-corpus.mjs` from the repository root. A library-index entry alone does not satisfy the proof-estate gate.
+When adding a checker, register it in `book/corpus.json` and wire its execution into `.github/workflows/proofs.yml`; validate with `node scripts/check-whitepaper-corpus.mjs` from the repository root. A library-index entry alone does not satisfy the proof-estate gate.
 
 For bounded follow-on research, run `scripts/continuation_observation_model.py` for the one-operation, two-epoch recovery model and its unsafe-policy witnesses, or `scripts/receipt_bundle_design.py` for exhaustive small receipt-acquisition instances. Their contracts and limits are in `continuation-observation-model.md` and `receipt-bundle-design.md` under the repository directory `docs/harbor-research/research/`. These checks do not certify a deployed adapter or a field diagnostic advantage. Before scheduling reviewer experiments, use `scripts/harbor-research/check_reviewer_protocol.py` from the repository root: planning validation is separate from admission to run an adjudicated benchmark.
+
+`scripts/future_fact_reachability.py` derives the reachable fact family from a
+supplied finite transition graph before calling R17. Its independent oracle is
+`scripts/test_future_fact_reachability.py`. Keep concrete state identity during
+exploration: label inclusion alone does not justify pruning a frontier. Current
+state labels may retract; do not union labels along a trace. An incomplete run
+returns unknown unless it has a replayable conflict. A complete result certifies
+the supplied graph only; runtime conformance and complete mediation remain
+separate obligations.
+
+`scripts/bonded_trigger_audit.py` checks both principals at every public state
+with exact rational arithmetic; `scripts/test_bonded_trigger_audit.py` includes
+punishment-state, equality, and altered-transition controls. Name the forfeiture
+rule explicitly. A cooperation threshold is insufficient when a penalty changes
+punishment payoffs. These are constructed, perfectly observed games with
+exogenous funding, not measurements of agents or guarantees about finite bonds.
+The contract, derivation, worked cases, and remaining research are in
+`docs/harbor-research/research/future-admission-and-bonded-audit.md` at repository
+root. New check counts must come from executing these suites.
+
+For source advice, `scripts/scout_claim_counterexamples.py` checks exact
+counterexamples to additive per-alias reward, all-loss digest sufficiency, and
+unsafe component composition. `scripts/scout_graph_code_checks.py` checks cut-code
+edge distance and the invisible whole-vertex-star alteration. Keep the error
+metric explicit: one-edge correction is not one-vertex attribution. Correct a
+reviewer's premise before promoting its suggested theorem; these witnesses do
+not establish novelty or a deployed failure rate.
 
 `b4_deontic_fragment.py` is also importable: imports define the pure checker
 without running experiments; direct execution or `run_experiments()` runs the

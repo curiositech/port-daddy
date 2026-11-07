@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "findings": {
+    "R1-RED-001": "closed-in-model",
+    "R1-RED-002": "closed-in-model",
+    "R1-RED-003": "closed-in-model"
+  },
+  "independent_new_mutants": 5,
+  "new_mutant_observations": {
+    "duplicate_receiver": "concrete two-learns/one-emission injectivity violation",
+    "late_seal": "two concrete early-event counterexamples",
+    "remove_domain_separation_only": "survives due to private identifier release gate",
+    "public_identifier_only": "all baseline properties preserved",
+    "public_identifier_and_remove_domain_separation": "two concrete early-event counterexamples"
+  },
+  "scope": "one session, one receiver, one complete manifest; honest roles and private key provisioning; no host privacy"
+}

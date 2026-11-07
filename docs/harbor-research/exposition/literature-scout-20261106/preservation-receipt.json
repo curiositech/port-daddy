@@ -1,0 +1,22 @@
+{
+  "preexisting_records_preserved": 1885,
+  "new_records": [
+    "LITERATURE-SCOUT-20261106",
+    "RESEARCH-WAR-ROOM-20261106"
+  ],
+  "existing_records_with_backlinks": 41,
+  "top_level_nonrecord_fields_preserved": true,
+  "coverage": {
+    "lines": 444,
+    "nonblank_units": 331,
+    "directions": 14,
+    "source_notes": 74,
+    "prior_units": 668,
+    "combined_nonblank_units": 999
+  },
+  "archive_sha256": "3dd2c778fd0bf3ec420ab578319ce40122416cdb5bd14b0a3a56186f783da1b7",
+  "old_omni_archive_unchanged": true,
+  "prior_review_archive_unchanged": true,
+  "original_user_source_unchanged": true,
+  "verification": "Exact in-memory comparison before and after mutation; only literature_scout_refs[LITERATURE-SCOUT-20261106] added to old records."
+}

@@ -1,0 +1,40 @@
+{
+  "files": [
+    {
+      "bytes": 8385,
+      "file": "index.html",
+      "sha256": "6fa196a17a5c449d75371fea027677f1d7626f01c3d8398f227e718c4ff7ce93"
+    },
+    {
+      "bytes": 8312,
+      "file": "styles.css",
+      "sha256": "5d5f0259894c11eeaa9abf613ba2117b96077ff49a00f6ea9ec61817740caa09"
+    },
+    {
+      "bytes": 10125,
+      "file": "viewer.js",
+      "sha256": "2aa4977cdc618c60fbf59a642f48aa637306d4131e89026c56c1d8662d3f2a42"
+    },
+    {
+      "bytes": 671666,
+      "file": "campaign-data.json",
+      "sha256": "5ec9a71cc4030d768eb3b11daae4d7db258a011bef70c2ced339422be87c38c7"
+    },
+    {
+      "bytes": 1422597,
+      "file": "walkthrough.webm",
+      "sha256": "0de026cdeafc812ac44d82408df67e4be927f638bd1e36a31eb0a9bb10f79b1e"
+    },
+    {
+      "bytes": 98284,
+      "file": "walkthrough-poster.png",
+      "sha256": "22ff8ce5c00dd350b93af21811b748dc4a3a840cfe55a6e3796622aad13e9cfd"
+    },
+    {
+      "bytes": 5555,
+      "file": "viewer-qa.json",
+      "sha256": "ec47406df4178276ddf46accd5bbc86a6f4d30d151e732d16533707d39ffc83a"
+    }
+  ],
+  "schema": "harbor-public-viewer-manifest/v1"
+}

@@ -1,0 +1,44 @@
+{
+  "prior_editorial_grafts": "docs/harbor-research/exposition/review-intake-20261106/skill-grafts.json",
+  "prior_source_acceptance": "REVIEW-INTAKE-20261106.review_intake.source_skill_acceptance",
+  "additional_read_sources": [
+    {
+      "path": "skills/research-prior-art/SKILL.md",
+      "sha256": "605be3024744324b734f35bccec434d015212e4886308fd23f70a2177fb394be"
+    },
+    {
+      "path": "skills/research-prior-art/references/finding-prior-art.md",
+      "sha256": "59b79186fca4fdc278111076b69c6d7bcd178e0841914862d2a0555528ab8023"
+    }
+  ],
+  "mappings": [
+    {
+      "source": "SCOUT-L118..137 and SCOUT-L158..177",
+      "skill": "research-prior-art + textbook-craft premise correction",
+      "decision": "Does the proposed theorem retain the primary statement hypotheses and decision class?",
+      "worked_example": "Four-world digest solves opening but loses exact guessing; conserved .9+.9 balances increase capped additive reward.",
+      "acceptance": "State the corrected hypothesis or retain the falsifier, identify primary statements and compare theorem-level quantifiers; no novelty claim from a search miss."
+    },
+    {
+      "source": "SCOUT-L269..289",
+      "skill": "cambridge expertise three-level knowledge + expository writer",
+      "decision": "Is this property intersection, component composition, or environment interference?",
+      "worked_example": "Two individually safe read/grant actors overreserve in four of six interleavings.",
+      "acceptance": "Present prerequisite shared-state semantics, the trace, failed misconception and reusable atomicity/assume-guarantee check; do not turn an ordering of labels into a theorem."
+    },
+    {
+      "source": "SCOUT-L290..328 and all 74 source notes",
+      "skill": "research-prior-art primary-source verification + technical writer claim/evidence separation",
+      "decision": "Does a checked primary artifact support each benchmark absence or novelty statement?",
+      "worked_example": "A missing benchmark column is unknown until task definition and current artifact are checked.",
+      "acceptance": "Record structural search strings, adjacent vocabulary, verified primary text and two-round citation neighbors; label no-hit results unresolved and maintain versioned task/metric controls."
+    },
+    {
+      "source": "All 14 directions",
+      "skill": "technical evangelism reader payoff + AI educator worked-example ladder + textbook craft reuse",
+      "decision": "What operational decision changes if this claim survives?",
+      "worked_example": "D20: compare separate reachable futures with a joint activating future before defining a general admission reduction.",
+      "acceptance": "Each existing-task annotation names hypothesis, prerequisite dependencies, operational example or falsifier, owner, acceptance and next action; no arbitrary page/theorem/exercise quota."
+    }
+  ]
+}

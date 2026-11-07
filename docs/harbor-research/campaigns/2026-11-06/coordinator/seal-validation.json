@@ -1,0 +1,26 @@
+[
+  {
+    "lane": "red",
+    "files": 107,
+    "seal_sha256": "9214dd9e55c9d15555dc2ccb73047e9f279fa2c8230731250717c126017978c5",
+    "mismatches": []
+  },
+  {
+    "lane": "white",
+    "files": 39,
+    "seal_sha256": "6d4da545af5fbf9be21bc4932067adeb2ad6f966d6cd777d8e76d4d54d810244",
+    "mismatches": []
+  },
+  {
+    "lane": "red-retest",
+    "files": 48,
+    "seal_sha256": "5a8813832943c86ce28d39b80b7ee7688b46b41cd7eb4ee5ccabc4775660c994",
+    "mismatches": []
+  },
+  {
+    "lane": "guest-python",
+    "files": 7,
+    "seal_sha256": "b06a66b42b39b29d90d940c554898ac19341fb2d7fcaa395c108c3421358b741",
+    "mismatches": []
+  }
+]

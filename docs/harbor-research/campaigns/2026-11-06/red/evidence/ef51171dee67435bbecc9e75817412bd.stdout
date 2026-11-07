@@ -1,0 +1,66 @@
+TLC2 Version 2026.05.26.235334 (rev: 4ba7d88)
+Running breadth-first search Model-Checking with fp 56 and seed 7127282897786600223 with 1 worker on 16 cores with 27300MB heap and 64MB offheap memory [pid: 30698] (Mac OS X 26.1 aarch64, Homebrew 27 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/red/probes/AdmissionRevision.tla
+Parsing file /private/var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/tlc-3619479724603571393/Naturals.tla (jar:file:/Users/erichowens/coding/tmp/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /private/var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/tlc-3619479724603571393/Integers.tla (jar:file:/Users/erichowens/coding/tmp/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file /private/var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/tlc-3619479724603571393/_TLCTrace.tla (jar:file:/Users/erichowens/coding/tmp/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /private/var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/tlc-3619479724603571393/TLC.tla (jar:file:/Users/erichowens/coding/tmp/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /private/var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/tlc-3619479724603571393/TLCExt.tla (jar:file:/Users/erichowens/coding/tmp/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /private/var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/tlc-3619479724603571393/Sequences.tla (jar:file:/Users/erichowens/coding/tmp/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /private/var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/tlc-3619479724603571393/FiniteSets.tla (jar:file:/Users/erichowens/coding/tmp/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module AdmissionRevision
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module AdmissionRevision
+Starting... (2026-11-06 19:36:14)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-06 19:36:14.
+Error: Invariant SafeAdmission is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ revision = 0
+/\ rejected = FALSE
+/\ certificate = FALSE
+/\ conflict = FALSE
+/\ badAdmission = FALSE
+/\ admitted = FALSE
+/\ checkedRevision = -1
+
+State 2: <Check line 8, col 10 to line 9, col 78 of module AdmissionRevision>
+/\ revision = 0
+/\ rejected = FALSE
+/\ certificate = TRUE
+/\ conflict = FALSE
+/\ badAdmission = FALSE
+/\ admitted = FALSE
+/\ checkedRevision = 0
+
+State 3: <ChangeModel line 10, col 16 to line 11, col 94 of module AdmissionRevision>
+/\ revision = 1
+/\ rejected = FALSE
+/\ certificate = TRUE
+/\ conflict = TRUE
+/\ badAdmission = FALSE
+/\ admitted = FALSE
+/\ checkedRevision = 0
+
+State 4: <Admit line 12, col 10 to line 14, col 84 of module AdmissionRevision>
+/\ revision = 1
+/\ rejected = FALSE
+/\ certificate = TRUE
+/\ conflict = TRUE
+/\ badAdmission = TRUE
+/\ admitted = TRUE
+/\ checkedRevision = 0
+
+10 states generated, 7 distinct states found, 2 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 00s at (2026-11-06 19:36:14)
+Trace exploration spec path: /Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/red/probes/AdmissionRevision_TTrace_1794022574.tla

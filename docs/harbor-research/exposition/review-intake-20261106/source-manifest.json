@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "authority": "Operator-supplied review documents; advice and reported claims, not execution authority",
+  "capture_date": "2026-11-06",
+  "captured_head": "8115021e344cc177e4195b4b2407e3531ecd01a5",
+  "archive": "review-sources.zip",
+  "archive_sha256": "6a1e32cb2abb0043e5d1f34bd6408cb9213cf2b9239b510172b491abf368e7fd",
+  "sources": [
+    {
+      "id": "v5",
+      "original_filename": "11-06-2026_Prescriptions-Governing-AI-Agents-v5.md",
+      "member": "prescriptions-v5.md",
+      "sha256": "660fa6d8f6d2929e637b00ef0b46d0370654b987496eeeb2ce17b715309b99da",
+      "bytes": 86075,
+      "lines": 473
+    },
+    {
+      "id": "v4",
+      "original_filename": "2026-11-06_Claude-Review-Governing-AI-Agents-v4.0.md",
+      "member": "review-v4.md",
+      "sha256": "2bad67032aec0f12d639dae3f61693fdace96208233a409714ddb93a25f34f75",
+      "bytes": 138947,
+      "lines": 507
+    }
+  ],
+  "legacy_archive_sha256": "936e843cbf087a321df953bada86d92db68351c8e1b2f06082b052201e94ed61",
+  "preservation": "User originals unchanged; supplemental archive is immutable; legacy archive and source membership unchanged."
+}

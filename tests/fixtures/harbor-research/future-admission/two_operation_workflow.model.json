@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "model_id": "modeled-two-operation-receipt-deadline-workflow",
+  "authority": "Constructed finite scheduler example only; not a deployed adapter, complete-mediation proof, or authoritative schedule. Operations A and B independently return receipts; a deadline may arrive first. Terminal deadline labels model the decision instant.",
+  "initial": [
+    "a-pending__b-pending"
+  ],
+  "states": [
+    {
+      "id": "a-pending__b-pending",
+      "facts": [
+        "operation_a_pending",
+        "operation_b_pending"
+      ]
+    },
+    {
+      "id": "a-pending__b-pending__deadline",
+      "facts": [
+        "operation_a_pending",
+        "operation_b_pending",
+        "deadline_elapsed"
+      ]
+    },
+    {
+      "id": "a-received__b-pending",
+      "facts": [
+        "operation_a_receipt",
+        "operation_b_pending"
+      ]
+    },
+    {
+      "id": "a-received__b-pending__deadline",
+      "facts": [
+        "operation_a_receipt",
+        "operation_b_pending",
+        "deadline_elapsed"
+      ]
+    },
+    {
+      "id": "a-pending__b-received",
+      "facts": [
+        "operation_a_pending",
+        "operation_b_receipt"
+      ]
+    },
+    {
+      "id": "a-pending__b-received__deadline",
+      "facts": [
+        "operation_a_pending",
+        "operation_b_receipt",
+        "deadline_elapsed"
+      ]
+    },
+    {
+      "id": "a-received__b-received",
+      "facts": [
+        "operation_a_receipt",
+        "operation_b_receipt"
+      ]
+    },
+    {
+      "id": "a-received__b-received__deadline",
+      "facts": [
+        "operation_a_receipt",
+        "operation_b_receipt",
+        "deadline_elapsed"
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "a-pending__b-pending__deadline-arrives",
+      "source": "a-pending__b-pending",
+      "target": "a-pending__b-pending__deadline"
+    },
+    {
+      "id": "a-pending__b-pending__receive-a",
+      "source": "a-pending__b-pending",
+      "target": "a-received__b-pending"
+    },
+    {
+      "id": "a-pending__b-pending__receive-b",
+      "source": "a-pending__b-pending",
+      "target": "a-pending__b-received"
+    },
+    {
+      "id": "a-received__b-pending__deadline-arrives",
+      "source": "a-received__b-pending",
+      "target": "a-received__b-pending__deadline"
+    },
+    {
+      "id": "a-received__b-pending__receive-b",
+      "source": "a-received__b-pending",
+      "target": "a-received__b-received"
+    },
+    {
+      "id": "a-pending__b-received__deadline-arrives",
+      "source": "a-pending__b-received",
+      "target": "a-pending__b-received__deadline"
+    },
+    {
+      "id": "a-pending__b-received__receive-a",
+      "source": "a-pending__b-received",
+      "target": "a-received__b-received"
+    },
+    {
+      "id": "a-received__b-received__deadline-arrives",
+      "source": "a-received__b-received",
+      "target": "a-received__b-received__deadline"
+    }
+  ]
+}

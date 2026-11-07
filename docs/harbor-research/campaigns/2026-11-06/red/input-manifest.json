@@ -1,0 +1,68 @@
+[
+  {
+    "source": "proofs/coordination/isolation.pv",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/isolation.pv",
+    "sha256": "7c492e6788eb9492d188a1cf39f13376321ab881ba0b3002c52afecf08a7702f",
+    "bytes": 7470
+  },
+  {
+    "source": "skills/redteam-review/references/comms-protocol.md",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/comms-protocol.md",
+    "sha256": "a1a7884b7c22ad30201b4675793ee7fbaa5505fd802a26a71837d11b383bcd47",
+    "bytes": 14096
+  },
+  {
+    "source": "docs/harbor-research/campaigns/2026-11-06/models/AdmissionRevision.tla",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/AdmissionRevision.tla",
+    "sha256": "4490c2dc618ece27788561802257a4ab554ca97dc6db7d736401f69a2a976592",
+    "bytes": 1688
+  },
+  {
+    "source": "docs/harbor-research/campaigns/2026-11-06/models/README.md",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/README.md",
+    "sha256": "61407c33eb438b5d20e84be9d2fb756e5db276304e5ac1904f6bbb772c710ed9",
+    "bytes": 767
+  },
+  {
+    "source": "docs/harbor-research/campaigns/2026-11-06/models/bound.cfg",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/bound.cfg",
+    "sha256": "d370a8a1e2a0bec2e674969e3cc31cb71dfb7a620e512621e55dec165a0696ba",
+    "bytes": 101
+  },
+  {
+    "source": "docs/harbor-research/campaigns/2026-11-06/models/unbound.cfg",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/unbound.cfg",
+    "sha256": "ae3c65330151f6d445b92ff7dcaa1f9b58b77484fc684e2566af67f96d352061",
+    "bytes": 102
+  },
+  {
+    "source": "docs/harbor-research/campaigns/2026-11-06/models/accepted.cfg",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/accepted.cfg",
+    "sha256": "aed1f131e98b00162369791718750cca06c708976facbd897caef117d7d1e08d",
+    "bytes": 99
+  },
+  {
+    "source": "docs/harbor-research/campaigns/2026-11-06/models/stale_rejected.cfg",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/stale_rejected.cfg",
+    "sha256": "981489e5563099fdbe69d468e5c77215f546d2ad97f246284219084c193f5dd0",
+    "bytes": 104
+  },
+  {
+    "source": "skills/harbor-results/scripts/future_fact_reachability.py",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/future_fact_reachability.py",
+    "sha256": "2fdf4522e6703de39f6ceb0b0498a7cf0bd2cb35ec7e9c4c80fb8e3beaa99cde",
+    "bytes": 15775
+  },
+  {
+    "source": "skills/harbor-results/scripts/b4_deontic_fragment.py",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/b4_deontic_fragment.py",
+    "sha256": "644dcfc468d0ab7b96192849f98cc422d0ee69f4d874fb4b666fb7c89f7d9ac2",
+    "bytes": 26907
+  },
+  {
+    "source": "scripts/harbor-research/war_room.py",
+    "snapshot": "docs/harbor-research/campaigns/2026-11-06/red/inputs/war_room.py",
+    "sha256": "ed04e8312daa54231473ad6e3a4d736fadb31c6a7a3fed17db8c3854be490dea",
+    "bytes": 14582
+  }
+]

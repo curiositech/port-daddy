@@ -1,0 +1,31 @@
+TLC2 Version 2026.05.26.235334 (rev: 4ba7d88)
+Running breadth-first search Model-Checking with fp 105 and seed -8017686526486600345 with 1 worker on 16 cores with 27300MB heap and 64MB offheap memory [pid: 27782] (Mac OS X 26.1 aarch64, Homebrew 27 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/models/AdmissionRevision.tla
+***Parse Error***
+
+  Precedence conflict between ops \land in block line 13, col 30 to line 13, col 31 of module AdmissionRevision and \lor.
+
+Residual stack trace follows:
+ExtendableExpr starting at line 13, column 49.
+ExtendableExpr starting at line 13, column 33.
+ExtendableExpr starting at line 13, column 25.
+ExtendableExpr starting at line 13, column 13.
+Expression starting at line 13, column 13.
+
+
+Fatal errors while parsing TLA+ spec in file AdmissionRevision
+
+In module AdmissionRevision
+
+Could not parse module AdmissionRevision from file AdmissionRevision.tla
+*** Errors: 1
+
+In module AdmissionRevision
+
+Could not parse module AdmissionRevision from file AdmissionRevision.tla
+
+
+
+Starting... (2026-11-06 19:34:05)
+Error: Parsing or semantic analysis failed.
+Finished in 00s at (2026-11-06 19:34:05)

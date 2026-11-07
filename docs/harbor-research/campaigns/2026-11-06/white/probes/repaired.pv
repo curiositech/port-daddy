@@ -1,0 +1,132 @@
+(* ============================================================================
+ * Adversarial-fleet isolation: ONE session and ONE complete manifest value.
+ *
+ * The daemon is a Dolev-Yao adversary controlling the public channel. Honest
+ * roles receive private key parameters directly; provisioning is an assumption,
+ * not a host or key-store isolation proof. Both defense roles are provisioned.
+ *
+ * Red publishes an encrypted manifest, then seals its identity and ciphertext
+ * with a domain-separated signature. The lead verifies that seal before the
+ * explicit GateBRelease and re-encrypts the identity and value for defense.
+ * The one red_msg is the whole manifest value: no unbounded-stream completeness,
+ * multi-session freshness, round KDF, curious keyed persona, OS privacy, ACL,
+ * timing/cardinality noninterference, or compromised-role claim is made here.
+ *
+ * S1/S2: global daemon secrecy of red_msg/def_msg, including after release.
+ * S3: injective authentication of the lead's delivery, bound to manifest/value.
+ * S4-S6: matching seal precedes release and defense learning.
+ * N1-N4: negated reachability queries MUST be false WITH concrete traces,
+ * including one trace containing red write, defense write and defense learning.
+ * These existential witnesses do not establish liveness under message dropping.
+ *
+ * Run: proverif proofs/coordination/isolation.pv
+ * Expected: six security queries true; four negated reachability queries false.
+ * Raw evidence: isolation.run.log. Campaign 2026-11-06/white retains mutants.
+ * ============================================================================ *)
+
+type key.
+type ad.
+type signkey.
+type vkey.
+
+fun aenc(bitstring, key, ad): bitstring.
+reduc forall m: bitstring, k: key, a: ad; adec(aenc(m, k, a), k, a) = m.
+fun sign(bitstring, signkey): bitstring.
+fun pk(signkey): vkey.
+reduc forall m: bitstring, s: signkey; verify(sign(m, s), m, pk(s)) = true.
+(* Domain separation prevents a ciphertext signature being used as a seal. *)
+fun seal_statement(bitstring, bitstring): bitstring.
+
+free ad_red_v21: ad.
+free ad_def_v21: ad.
+free daemon: channel.
+(* Instrumentation channels carry completion markers, never fleet keys. *)
+free red_done: channel [private].
+free defense_done: channel [private].
+free learn_done: channel [private].
+
+free manifest_id: bitstring [private].
+free red_msg: bitstring [private].
+free def_msg: bitstring [private].
+
+event RedWrites(bitstring).
+event DefenseWrites(bitstring).
+event AttackManifestSealed(bitstring, bitstring).
+event GateBRelease(bitstring, bitstring).
+event LeadEmitsToDefense(bitstring, bitstring).
+event DefenseLearnsRed(bitstring, bitstring).
+event JointRoles(bitstring, bitstring, bitstring).
+
+query attacker(red_msg).
+query attacker(def_msg).
+query mid: bitstring, x: bitstring;
+  inj-event(DefenseLearnsRed(mid, x)) ==> inj-event(LeadEmitsToDefense(mid, x)).
+query mid: bitstring, x: bitstring;
+  event(DefenseLearnsRed(mid, x)) ==> event(GateBRelease(mid, x)).
+query mid: bitstring, x: bitstring;
+  event(GateBRelease(mid, x)) ==> event(AttackManifestSealed(mid, x)).
+query mid: bitstring, x: bitstring;
+  event(DefenseLearnsRed(mid, x)) ==> event(AttackManifestSealed(mid, x)).
+(* ProVerif negates these reachability queries; false plus a trace is success. *)
+query event(RedWrites(red_msg)).
+query event(DefenseWrites(def_msg)).
+query event(DefenseLearnsRed(manifest_id, red_msg)).
+query event(JointRoles(manifest_id, red_msg, def_msg)).
+
+let RedPersona(rk: key, sk_red: signkey) =
+  event RedWrites(red_msg);
+  let ct = aenc((manifest_id, red_msg), rk, ad_red_v21) in
+  let s = sign(ct, sk_red) in
+  out(daemon, (ct, s, pk(sk_red)));
+  event AttackManifestSealed(manifest_id, red_msg);
+  let seal_sig = sign(seal_statement(manifest_id, ct), sk_red) in
+  out(daemon, (manifest_id, seal_sig));
+  out(red_done, red_msg).
+
+let DefensePersona(dk: key, sk_def: signkey) =
+  event DefenseWrites(def_msg);
+  let ct = aenc((manifest_id, def_msg), dk, ad_def_v21) in
+  let s = sign(ct, sk_def) in
+  out(daemon, (ct, s, pk(sk_def)));
+  out(defense_done, def_msg).
+
+let DefenseReceiver(dk: key, sk_lead_pub: vkey) =
+  in(daemon, (gate_ct: bitstring, gate_sig: bitstring));
+  if verify(gate_sig, gate_ct, sk_lead_pub) = true then
+    let (mid: bitstring, plain: bitstring) = adec(gate_ct, dk, ad_def_v21) in
+    event DefenseLearnsRed(mid, plain);
+    out(learn_done, (mid, plain)).
+
+let SecEngLead(rk: key, dk: key, sk_lead: signkey, sk_red_pub: vkey) =
+  in(daemon, (ct: bitstring, s: bitstring, pkr: vkey));
+  if verify(s, ct, sk_red_pub) = true then
+    let (mid: bitstring, plain: bitstring) = adec(ct, rk, ad_red_v21) in
+    in(daemon, (=mid, seal_sig: bitstring));
+    if verify(seal_sig, seal_statement(mid, ct), sk_red_pub) = true then
+      event GateBRelease(mid, plain);
+      event LeadEmitsToDefense(mid, plain);
+      let resealed = aenc((mid, plain), dk, ad_def_v21) in
+      let s2 = sign(resealed, sk_lead) in
+      out(daemon, (resealed, s2)).
+
+(* The observer can reach JointRoles only after all three roles complete. *)
+let ParticipationWitness =
+  in(red_done, =red_msg);
+  in(defense_done, =def_msg);
+  in(learn_done, (=manifest_id, =red_msg));
+  event JointRoles(manifest_id, red_msg, def_msg).
+
+process
+  new rk: key;
+  new dk: key;
+  new sk_red: signkey;
+  new sk_def: signkey;
+  new sk_lead: signkey;
+  out(daemon, pk(sk_lead));
+  (
+      RedPersona(rk, sk_red)
+    | DefensePersona(dk, sk_def)
+    | DefenseReceiver(dk, pk(sk_lead))
+    | SecEngLead(rk, dk, sk_lead, pk(sk_red))
+    | ParticipationWitness
+  )

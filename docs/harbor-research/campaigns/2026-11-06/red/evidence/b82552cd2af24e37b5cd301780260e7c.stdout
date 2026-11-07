@@ -1,0 +1,292 @@
+Process 0 (that is, the initial process):
+{1}new rk: key;
+{2}new dk: key;
+{3}new sk_red: signkey;
+{4}new sk_def: signkey;
+{5}new sk_lead: signkey;
+{6}out(daemon, pk(sk_lead));
+(
+    {7}out(red_keychan, (rk,sk_red))
+) | (
+    {8}out(def_keychan, (dk,sk_def))
+) | (
+    {9}out(def_keychan, (dk,sk_def))
+) | (
+    {10}out(lead_keychan, (rk,dk,sk_lead,pk(sk_red),pk(sk_def)))
+) | (
+    {11}in(red_keychan, (r: key,sr: signkey));
+    {12}event RedWrites(red_msg);
+    {13}let ct: bitstring = aenc(red_msg,r,ad_red_v21) in
+    {14}let s: bitstring = sign(ct,sr) in
+    {15}out(daemon, (ct,s,pk(sr)))
+) | (
+    {16}in(def_keychan, (d: key,sd: signkey));
+    {17}event DefenseWrites(def_msg);
+    {18}out(written, def_msg);
+    {19}let ct_1: bitstring = aenc(def_msg,d,ad_def_v21) in
+    {20}let s_1: bitstring = sign(ct_1,sd) in
+    {21}out(daemon, (ct_1,s_1,pk(sd)))
+) | (
+    {22}in(def_keychan, (d2: key,ignored_v: signkey));
+    {23}let sk_lead_pub: vkey = pk(sk_lead) in
+    {24}in(daemon, (gate_ct: bitstring,gate_sig: bitstring));
+    {25}if (verify(gate_sig,gate_ct,sk_lead_pub) = true) then
+    {26}let plain: bitstring = adec(gate_ct,d2,ad_def_v21) in
+    {27}event DefenseLearnsRed(plain);
+    {28}in(written, ignored_v_1: bitstring);
+    {29}event BothDefenseRoles
+) | (
+    {30}in(lead_keychan, (rl: key,dl: key,sl: signkey,pr: vkey,ignored_v_2: vkey));
+    {31}in(daemon, (ct_2: bitstring,s_2: bitstring,pkr: vkey));
+    {32}if (verify(s_2,ct_2,pr) = true) then
+    {33}let plain_1: bitstring = adec(ct_2,rl,ad_red_v21) in
+    {34}event LeadEmitsToDefense(plain_1);
+    {35}let resealed: bitstring = aenc(plain_1,dl,ad_def_v21) in
+    {36}let s2: bitstring = sign(resealed,sl) in
+    {37}out(daemon, (resealed,s2))
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new rk: key;
+{2}new dk: key;
+{3}new sk_red: signkey;
+{4}new sk_def: signkey;
+{5}new sk_lead: signkey;
+{6}out(daemon, pk(sk_lead));
+(
+    {7}out(red_keychan, (rk,sk_red))
+) | (
+    {8}out(def_keychan, (dk,sk_def))
+) | (
+    {9}out(def_keychan, (dk,sk_def))
+) | (
+    {10}out(lead_keychan, (rk,dk,sk_lead,pk(sk_red),pk(sk_def)))
+) | (
+    {11}in(red_keychan, (r: key,sr: signkey));
+    {12}event RedWrites(red_msg);
+    {13}let ct: bitstring = aenc(red_msg,r,ad_red_v21) in
+    {14}let s: bitstring = sign(ct,sr) in
+    {15}out(daemon, (ct,s,pk(sr)))
+) | (
+    {16}in(def_keychan, (d: key,sd: signkey));
+    {17}event DefenseWrites(def_msg);
+    {18}out(written, def_msg);
+    {19}let ct_1: bitstring = aenc(def_msg,d,ad_def_v21) in
+    {20}let s_1: bitstring = sign(ct_1,sd) in
+    {21}out(daemon, (ct_1,s_1,pk(sd)))
+) | (
+    {22}in(def_keychan, (d2: key,ignored_v: signkey));
+    {24}in(daemon, (gate_ct: bitstring,gate_sig: bitstring));
+    {23}let sk_lead_pub: vkey = pk(sk_lead) in
+    {25}if (verify(gate_sig,gate_ct,sk_lead_pub) = true) then
+    {26}let plain: bitstring = adec(gate_ct,d2,ad_def_v21) in
+    {27}event DefenseLearnsRed(plain);
+    {28}in(written, ignored_v_1: bitstring);
+    {29}event BothDefenseRoles
+) | (
+    {30}in(lead_keychan, (rl: key,dl: key,sl: signkey,pr: vkey,ignored_v_2: vkey));
+    {31}in(daemon, (ct_2: bitstring,s_2: bitstring,pkr: vkey));
+    {32}if (verify(s_2,ct_2,pr) = true) then
+    {33}let plain_1: bitstring = adec(ct_2,rl,ad_red_v21) in
+    {34}event LeadEmitsToDefense(plain_1);
+    {35}let resealed: bitstring = aenc(plain_1,dl,ad_def_v21) in
+    {36}let s2: bitstring = sign(resealed,sl) in
+    {37}out(daemon, (resealed,s2))
+)
+
+-- Query not attacker(red_msg[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(red_msg[])
+RESULT not attacker(red_msg[]) is true.
+-- Query not attacker(def_msg[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(def_msg[])
+RESULT not attacker(def_msg[]) is true.
+-- Query inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x))
+goal reachable: b-inj-event(LeadEmitsToDefense(red_msg[]),@occ34_1) && attacker(pkr_1) -> inj-event(DefenseLearnsRed(red_msg[]),@occ27_1)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+@occ27_1 = @occ27[gate_sig = sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]),gate_ct = aenc(red_msg[],dk[],ad_def_v21[]),ignored_v = sk_def[],d2 = dk[]]
+@occ34_1 = @occ34[pkr = pkr_1,s_2 = sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),ct_2 = aenc(red_msg[],rk[],ad_red_v21[]),ignored_v_2 = pk(sk_def[]),pr = pk(sk_red[]),sl = sk_lead[],dl = dk[],rl = rk[]]
+RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.
+-- Query not event(DefenseWrites(def_msg[])) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(DefenseWrites(def_msg[]))
+goal reachable: event(DefenseWrites(def_msg[]))
+
+Derivation:
+
+1. The message (dk[],sk_def[]) may be sent on channel def_keychan[] at output {8}.
+mess(def_keychan[],(dk[],sk_def[])).
+
+2. The message (dk[],sk_def[]) that may be sent on channel def_keychan[] by 1 may be received at input {16}.
+So event DefenseWrites(def_msg[]) may be executed at {17}.
+event(DefenseWrites(def_msg[])).
+
+3. By 2, event(DefenseWrites(def_msg[])).
+The goal is reached, represented in the following fact:
+event(DefenseWrites(def_msg[])).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new rk: key creating rk_1 at {1}
+
+new dk: key creating dk_1 at {2}
+
+new sk_red: signkey creating sk_red_1 at {3}
+
+new sk_def: signkey creating sk_def_1 at {4}
+
+new sk_lead: signkey creating sk_lead_1 at {5}
+
+out(daemon, ~M) with ~M = pk(sk_lead_1) at {6}
+
+out(def_keychan, (dk_1,sk_def_1)) at {8} received at {16}
+
+event DefenseWrites(def_msg) at {17} (goal)
+
+The event DefenseWrites(def_msg) is executed at {17}.
+A trace has been found.
+RESULT not event(DefenseWrites(def_msg[])) is false.
+-- Query not event(BothDefenseRoles) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(BothDefenseRoles)
+goal reachable: event(BothDefenseRoles)
+
+Derivation:
+
+1. The message (dk[],sk_def[]) may be sent on channel def_keychan[] at output {8}.
+mess(def_keychan[],(dk[],sk_def[])).
+
+2. The message (rk[],dk[],sk_lead[],pk(sk_red[]),pk(sk_def[])) may be sent on channel lead_keychan[] at output {10}.
+mess(lead_keychan[],(rk[],dk[],sk_lead[],pk(sk_red[]),pk(sk_def[]))).
+
+3. The attacker has some term pkr_1.
+attacker(pkr_1).
+
+4. The message (rk[],sk_red[]) may be sent on channel red_keychan[] at output {7}.
+mess(red_keychan[],(rk[],sk_red[])).
+
+5. The message (rk[],sk_red[]) that may be sent on channel red_keychan[] by 4 may be received at input {11}.
+So the message (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pk(sk_red[])) may be sent to the attacker at output {15}.
+attacker((aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pk(sk_red[]))).
+
+6. By 5, the attacker may know (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pk(sk_red[])).
+Using the function 2-proj-3-tuple the attacker may obtain sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]).
+attacker(sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[])).
+
+7. By 5, the attacker may know (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pk(sk_red[])).
+Using the function 1-proj-3-tuple the attacker may obtain aenc(red_msg[],rk[],ad_red_v21[]).
+attacker(aenc(red_msg[],rk[],ad_red_v21[])).
+
+8. By 7, the attacker may know aenc(red_msg[],rk[],ad_red_v21[]).
+By 6, the attacker may know sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]).
+By 3, the attacker may know pkr_1.
+Using the function 3-tuple the attacker may obtain (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pkr_1).
+attacker((aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pkr_1)).
+
+9. The message (rk[],dk[],sk_lead[],pk(sk_red[]),pk(sk_def[])) that may be sent on channel lead_keychan[] by 2 may be received at input {30}.
+The message (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pkr_1) that the attacker may have by 8 may be received at input {31}.
+So the message (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])) may be sent to the attacker at output {37}.
+attacker((aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]))).
+
+10. By 9, the attacker may know (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]).
+attacker(sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])).
+
+11. By 9, the attacker may know (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])).
+Using the function 1-proj-2-tuple the attacker may obtain aenc(red_msg[],dk[],ad_def_v21[]).
+attacker(aenc(red_msg[],dk[],ad_def_v21[])).
+
+12. By 11, the attacker may know aenc(red_msg[],dk[],ad_def_v21[]).
+By 10, the attacker may know sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]).
+Using the function 2-tuple the attacker may obtain (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])).
+attacker((aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]))).
+
+13. The message (dk[],sk_def[]) that may be sent on channel def_keychan[] by 1 may be received at input {16}.
+So the message def_msg[] may be sent on channel written[] at output {18}.
+mess(written[],def_msg[]).
+
+14. The message (dk[],sk_def[]) that may be sent on channel def_keychan[] by 1 may be received at input {22}.
+The message (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])) that the attacker may have by 12 may be received at input {24}.
+The message def_msg[] that may be sent on channel written[] by 13 may be received at input {28}.
+So event BothDefenseRoles may be executed at {29}.
+event(BothDefenseRoles).
+
+15. By 14, event(BothDefenseRoles).
+The goal is reached, represented in the following fact:
+event(BothDefenseRoles).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new rk: key creating rk_1 at {1}
+
+new dk: key creating dk_1 at {2}
+
+new sk_red: signkey creating sk_red_1 at {3}
+
+new sk_def: signkey creating sk_def_1 at {4}
+
+new sk_lead: signkey creating sk_lead_1 at {5}
+
+out(daemon, ~M) with ~M = pk(sk_lead_1) at {6}
+
+out(red_keychan, (rk_1,sk_red_1)) at {7} received at {11}
+
+event RedWrites(red_msg) at {12}
+
+out(daemon, (~M_1,~M_2,~M_3)) with ~M_1 = aenc(red_msg,rk_1,ad_red_v21), ~M_2 = sign(aenc(red_msg,rk_1,ad_red_v21),sk_red_1), ~M_3 = pk(sk_red_1) at {15}
+
+out(def_keychan, (dk_1,sk_def_1)) at {8} received at {16}
+
+event DefenseWrites(def_msg) at {17}
+
+out(def_keychan, (dk_1,sk_def_1)) at {9} received at {22}
+
+out(lead_keychan, (rk_1,dk_1,sk_lead_1,pk(sk_red_1),pk(sk_def_1))) at {10} received at {30}
+
+in(daemon, (~M_1,~M_2,a)) with ~M_1 = aenc(red_msg,rk_1,ad_red_v21), ~M_2 = sign(aenc(red_msg,rk_1,ad_red_v21),sk_red_1) at {31}
+
+event LeadEmitsToDefense(red_msg) at {34}
+
+out(daemon, (~M_4,~M_5)) with ~M_4 = aenc(red_msg,dk_1,ad_def_v21), ~M_5 = sign(aenc(red_msg,dk_1,ad_def_v21),sk_lead_1) at {37}
+
+in(daemon, (~M_4,~M_5)) with ~M_4 = aenc(red_msg,dk_1,ad_def_v21), ~M_5 = sign(aenc(red_msg,dk_1,ad_def_v21),sk_lead_1) at {24}
+
+event DefenseLearnsRed(red_msg) at {27}
+
+out(written, def_msg) at {18} received at {28}
+
+event BothDefenseRoles at {29} (goal)
+
+The event BothDefenseRoles is executed at {29}.
+A trace has been found.
+RESULT not event(BothDefenseRoles) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(red_msg[]) is true.
+
+Query not attacker(def_msg[]) is true.
+
+Query inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.
+
+Query not event(DefenseWrites(def_msg[])) is false.
+
+Query not event(BothDefenseRoles) is false.
+
+--------------------------------------------------------------
+

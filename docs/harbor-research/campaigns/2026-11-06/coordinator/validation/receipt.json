@@ -1,0 +1,149 @@
+{
+  "scope": "local focused integration checks; no hosted or deployment claim",
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "skills/harbor-results/scripts/test_future_fact_reachability.py"
+      ],
+      "exit_code": 0,
+      "seconds": 2.36,
+      "stdout": "00.stdout",
+      "stderr": "00.stderr",
+      "stdout_sha256": "d537561ea31851923bbbee34bbacff7080fb80f51745fc7ae804f7e2dd135924",
+      "stderr_sha256": "6512b87140cc4e55a11504cb2984a45ef534af7b9a1dca9f2957ac0f6a1b55e3"
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "skills/harbor-results/scripts/test_bonded_trigger_audit.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.098,
+      "stdout": "01.stdout",
+      "stderr": "01.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "90bc7491ee87a778cc6da7f6867f5aa4c4aedb111ca546deb4401319d8b96038"
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "skills/harbor-results/scripts/scout_claim_counterexamples.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.032,
+      "stdout": "02.stdout",
+      "stderr": "02.stderr",
+      "stdout_sha256": "0f8cc3d0ea9c3942bae31e2ac51382ebeab76539cdf930b182c760c59f4e2c20",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "skills/harbor-results/scripts/scout_graph_code_checks.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.023,
+      "stdout": "03.stdout",
+      "stderr": "03.stderr",
+      "stdout_sha256": "a8265d5b0a0dcea8dcccc9fdcad1bb38ad570c1cf8e3bc40b8493974ac37ac7e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/test_war_room.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.466,
+      "stdout": "04.stdout",
+      "stderr": "04.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "853379fe7c052313ccddbeca2d8a6033da555f4f375107b3ccc91e936de3d312"
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/omni_ledger.py",
+        "check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.203,
+      "stdout": "05.stdout",
+      "stderr": "05.stderr",
+      "stdout_sha256": "4a750b2b6642152c22e00efa1f8fd326d4f95da16e78060e9b26b83e4d18284d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/test_omni_ledger.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.098,
+      "stdout": "06.stdout",
+      "stderr": "06.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "ca76ae23d74a4f8311220fb98bf9133410292fe2127b0b3238e002043c23db77"
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/check_research_program.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.393,
+      "stdout": "07.stdout",
+      "stderr": "07.stderr",
+      "stdout_sha256": "61e018682c782dadc85ec4ea1f2e32e5ce9f39c79a6ce17523d4e12a67a7964a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "node",
+        "scripts/check-whitepaper-corpus.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.361,
+      "stdout": "08.stdout",
+      "stderr": "08.stderr",
+      "stdout_sha256": "62ed087af8a6dbe8b9ed76c6c520eded0a82e713746aea0115fb0676cfb2812b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "scripts/build-book-source.py",
+        "check"
+      ],
+      "exit_code": 0,
+      "seconds": 1.183,
+      "stdout": "09.stdout",
+      "stderr": "09.stderr",
+      "stdout_sha256": "7ffa79332d927cd5b3863d6e846656c0ec888e26763a01cc3d6cb0c0e5986461",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.165,
+      "stdout": "10.stdout",
+      "stderr": "10.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

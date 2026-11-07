@@ -1,0 +1,26 @@
+{
+  "D14": {
+    "bounded_positive_cases": 2168,
+    "conserved_balance": "9/5",
+    "unsplit_payoff": "1",
+    "split_payoff": "9/5"
+  },
+  "D8": {
+    "worlds": 4,
+    "digest_cells": 2,
+    "zero_miss_opening_loss": "0",
+    "full_guess_risk": "0",
+    "digest_guess_risk": "1/2"
+  },
+  "D29": {
+    "schedules": 6,
+    "violating_schedules": 4,
+    "witness": [
+      "a.read",
+      "b.read",
+      "a.grant",
+      "b.grant"
+    ],
+    "atomic_orders_checked": 2
+  }
+}
