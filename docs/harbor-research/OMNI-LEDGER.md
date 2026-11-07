@@ -8,10 +8,10 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 
 | ID | Work | Papers | Status | Next action |
 |---|---|---|---|---|
-| [ADMISSION-BINDING-20261106](#work-admission-binding-20261106) | Atomic local admission with audited dispatch writer coverage | ["6"] | independently verified within declared local domain; PR delivery pending | Land after exact-head review/CI and publish evidence; continue external-effect ownership as separately tracked work. |
+| [ADMISSION-BINDING-20261106](#work-admission-binding-20261106) | Atomic local admission with audited dispatch writer coverage | ["6"] | independently verified within declared local domain; delivery verdict is recorded by the linked PR | Follow the linked delivery receipt, then continue ADMISSION-EFFECTS-20261106 as separate research. |
 | [BOOK-RESEARCH-UPTAKE](#work-book-research-uptake) | Book uptake of the research: coverage, corrections and useful imports | ["Book", "1", "2", "3", "4", "5", "6", "7", "8"] | twelve scoped corrections and pinned publication reconciliation complete; final source CI pending | Finish exact-head source CI and protected merge; remaining research imports stay open and ordered in PROGRAM-RECONCILIATION. |
 | [NEXT-P1](#work-next-p1) | Decision-preserving oversight and manuscript arithmetic | ["1"] | arithmetic and publication corrections complete; comparative utility open | Evaluate a witness-preserving digest against a structured index using held-out decision loss and total inspection cost. |
-| [NEXT-P6](#work-next-p6) | Future-safe commitments and output-sensitive conflict checking | ["6"] | registered SQLite admission binding verified locally; hosted delivery pending; external effects and ownership open | Finish delivery of ADMISSION-BINDING-20261106, then ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races. |
+| [NEXT-P6](#work-next-p6) | Future-safe commitments and output-sensitive conflict checking | ["6"] | registered SQLite admission binding verified; external effects and worker ownership remain open | ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races. |
 | [NEXT-P8](#work-next-p8) | Authenticated typed evidence auditor and topology design | ["8"] | open | Add authenticated packet admission and a framework adapter; design topology for declared detection/correction distance and cost. |
 | [PROGRAM-RECONCILIATION](#work-program-reconciliation) | Correct the scientific estate and develop evidence-safe decisions | ["Book", "research portfolio"] | scientific and pinned publication verification complete; final source checks and merge pending | Publish reconciled sources and PDF evidence, follow exact-head CI/review, then execute the two-operation continuation protocol. |
 | [SOURCE-RETENTION](#work-source-retention) | Exact source preservation and paper retention | [] | implemented; local integrity checks passed | Keep the ledger and its projections current; observe hosted checks for publication. |
@@ -245,7 +245,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 <a id="work-admission-binding-20261106"></a>
 ### ADMISSION-BINDING-20261106: Atomic local admission with audited dispatch writer coverage
 
-**Status:** independently verified within declared local domain; PR delivery pending. **Kind:** research implementation.
+**Status:** independently verified within declared local domain; delivery verdict is recorded by the linked PR. **Kind:** research implementation.
 
 **Result or question:** Opaque receipts bind exact copied inputs, operation, affected IDs, durable revision, epoch and canonical policy/model; the comparison and journal-validated effect share a write transaction. Seeded legacy resurrection and generic retention escapes are repaired.
 
@@ -253,7 +253,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 
 **Evidence:** 269implementationtests/10suites;14actualadaptercases acrossNode/Bun;fullTypeScriptpass;31TLCconfigurations;9validatorcases;16sourceguardcontrols. Exact final sourcecount and hashes in round-two/red/EVIDENCE.json.; Root/teams retain attacks, rejected attempts, fixes, formal traces and visible-transcript prefix manifests. No private-team OS isolation or deployed runtime asserted.
 
-**Next action:** Land after exact-head review/CI and publish evidence; continue external-effect ownership as separately tracked work.
+**Next action:** Follow the linked delivery receipt, then continue ADMISSION-EFFECTS-20261106 as separate research.
 
 **Completion condition:** Current source audit, independent runtime controls, formal positive/negative witnesses, source archive parity, protected merge and full-site evidence readback.
 
@@ -350,7 +350,7 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-next-p6"></a>
 ### NEXT-P6: Future-safe commitments and output-sensitive conflict checking
 
-**Status:** registered SQLite admission binding verified locally; hosted delivery pending; external effects and ownership open. **Kind:** research task.
+**Status:** registered SQLite admission binding verified; external effects and worker ownership remain open. **Kind:** research task.
 
 **Result or question:** Complete operation-labeled dispatch state graph plus atomic, one-use admission for registered synchronous SQLite mutations. Independent source audit, actual Node/Bun adapter checks and a bounded TLC binding model support the explicit domain; external effects and worker ownership remain open.
 
@@ -358,7 +358,7 @@ The main text should teach these as a small set of worked decisions, with exact 
 
 **Evidence:** PROGRAM-RECONCILIATION: maximal reachable-family theorem,130560 finite families,4096 truth-table cases, current-only and unreachable-union mutants; Paper6 and Chapter6 publication verified.; 2026-11-06: bounded provider independent oracle checked 49152 decisions (18624 safe,30528 unsafe); all30528 witnesses replayed. 27 tests; no real-adapter conformance claim. AdmissionRevision model:12 distinct safe states plus unsafe stale-admission, positive-admission and stale-rejection trace controls.; 2026-11-06 actual-code follow-up: nine inert SQLite queue cases pass; claimed/in_progress table-only model safe, recovery-aware model unsafe with one-step replay. Recovery-edge deletion fails observed-step conformance. Other writers and admission/effect binding remain open.; Harbormaster conflict recovery: coordinator independently reproduces three cancellation overwrites against exact original source; accepted-state compare-and-set repair passes20tests. Combinedfocused suites29/29. Successful merge path and broader cancellation mediation remain unproved.; Round two 2026-11-06: root independently passed269tests/10suites,7adaptercases each on Node22/Bun, fullTypeScript,31TLCconfigurations (602defendedstates;15controls;15mutants),9validator tests and16sourcegate controls. Final audited source inventory and exact logs are in ADMISSION-BINDING-20261106; source scan is syntax-bounded, not arbitrary SQL confinement.
 
-**Next action:** Finish delivery of ADMISSION-BINDING-20261106, then ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races.
+**Next action:** ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races.
 
 **Completion condition:** Preserve current-state and unreachable-union counterexamples; verify reachability provenance and output-sensitive cost on operational workloads.
 

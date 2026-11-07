@@ -133701,7 +133701,7 @@
       "kind": "research task",
       "result": "Complete operation-labeled dispatch state graph plus atomic, one-use admission for registered synchronous SQLite mutations. Independent source audit, actual Node/Bun adapter checks and a bounded TLC binding model support the explicit domain; external effects and worker ownership remain open.",
       "assumptions": "Declared observation, authority, and cost model; no field validation inferred from finite fixtures.",
-      "status": "registered SQLite admission binding verified locally; hosted delivery pending; external effects and ownership open",
+      "status": "registered SQLite admission binding verified; external effects and worker ownership remain open",
       "evidence": [
         "PROGRAM-RECONCILIATION: maximal reachable-family theorem,130560 finite families,4096 truth-table cases, current-only and unreachable-union mutants; Paper6 and Chapter6 publication verified.",
         "2026-11-06: bounded provider independent oracle checked 49152 decisions (18624 safe,30528 unsafe); all30528 witnesses replayed. 27 tests; no real-adapter conformance claim. AdmissionRevision model:12 distinct safe states plus unsafe stale-admission, positive-admission and stale-rejection trace controls.",
@@ -133709,7 +133709,7 @@
         "Harbormaster conflict recovery: coordinator independently reproduces three cancellation overwrites against exact original source; accepted-state compare-and-set repair passes20tests. Combinedfocused suites29/29. Successful merge path and broader cancellation mediation remain unproved.",
         "Round two 2026-11-06: root independently passed269tests/10suites,7adaptercases each on Node22/Bun, fullTypeScript,31TLCconfigurations (602defendedstates;15controls;15mutants),9validator tests and16sourcegate controls. Final audited source inventory and exact logs are in ADMISSION-BINDING-20261106; source scan is syntax-bounded, not arbitrary SQL confinement."
       ],
-      "next": "Finish delivery of ADMISSION-BINDING-20261106, then ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races.",
+      "next": "ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races.",
       "acceptance": "Preserve current-state and unreachable-union counterexamples; verify reachability provenance and output-sensitive cost on operational workloads.",
       "depends_on": [
         "FUTURE-HORN",
@@ -167005,7 +167005,7 @@
       "id": "ADMISSION-BINDING-20261106",
       "title": "Atomic local admission with audited dispatch writer coverage",
       "result": "Opaque receipts bind exact copied inputs, operation, affected IDs, durable revision, epoch and canonical policy/model; the comparison and journal-validated effect share a write transaction. Seeded legacy resurrection and generic retention escapes are repaired.",
-      "status": "independently verified within declared local domain; PR delivery pending",
+      "status": "independently verified within declared local domain; delivery verdict is recorded by the linked PR",
       "queue_state": "current_work",
       "priority": "P0",
       "owner": "codex:/root with independent red/white/blue teams",
@@ -167016,10 +167016,11 @@
         "269implementationtests/10suites;14actualadaptercases acrossNode/Bun;fullTypeScriptpass;31TLCconfigurations;9validatorcases;16sourceguardcontrols. Exact final sourcecount and hashes in round-two/red/EVIDENCE.json.",
         "Root/teams retain attacks, rejected attempts, fixes, formal traces and visible-transcript prefix manifests. No private-team OS isolation or deployed runtime asserted."
       ],
-      "next": "Land after exact-head review/CI and publish evidence; continue external-effect ownership as separately tracked work.",
+      "next": "Follow the linked delivery receipt, then continue ADMISSION-EFFECTS-20261106 as separate research.",
       "acceptance": "Current source audit, independent runtime controls, formal positive/negative witnesses, source archive parity, protected merge and full-site evidence readback.",
       "delivery": {
-        "state": "Local acceptance; PR not created yet",
+        "pr": "https://github.com/curiositech/port-daddy/pull/10360",
+        "state": "See linked PR for exact-head checks, merge and deployment receipts; local scientific acceptance is recorded separately.",
         "production": "https://portdaddy.dev/research/war-room/"
       }
     },
