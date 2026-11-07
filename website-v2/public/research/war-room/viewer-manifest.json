@@ -1,9 +1,9 @@
 {
   "files": [
     {
-      "bytes": 11116,
+      "bytes": 11526,
       "file": "index.html",
-      "sha256": "290fc10aa71ecd201ccc30d65a4e08e0e92cd84bde84ab0e20b8af1bb89ed2bd"
+      "sha256": "03c6b27d163078e4a5d3101c429ce752a7d9e45189db9b239ce7ccd8123ea22b"
     },
     {
       "bytes": 9132,
@@ -16,9 +16,9 @@
       "sha256": "bf81607358bda6c1a1a4812563792decb11b49d3cf12fe076d8a46c01811c0dc"
     },
     {
-      "bytes": 686700,
+      "bytes": 689114,
       "file": "campaign-data.json",
-      "sha256": "2e6a7999e0cba7d0f89a0c38471dbd77701414ac4d9f1fd8918158c43f8cfea9"
+      "sha256": "2e24783d19319a7175829bcc5319f518709b8c23c981efd1f710bf6b3390b0bb"
     },
     {
       "bytes": 1422597,
@@ -38,7 +38,17 @@
     {
       "bytes": 3713,
       "file": "round-two-viewer-qa.json",
-      "sha256": "ab287a40e08ee289788f34dc7fa3c677578cb7707aba9e5f433844fa97563905"
+      "sha256": "8d46e0655cac1bea2883cf887e31bcce5ead4777e2896f92279a6216b23c02df"
+    },
+    {
+      "bytes": 2739164,
+      "file": "round-two-walkthrough.webm",
+      "sha256": "e33db52404994307c864fca911433010bd78f1f21d790fe01e25153662c5f457"
+    },
+    {
+      "bytes": 154644,
+      "file": "round-two-poster.png",
+      "sha256": "79c955292807e54e5f9ecfcdaaca45c3aff286ba8066bcc3be0c5534d868f698"
     }
   ],
   "schema": "harbor-public-viewer-manifest/v1"

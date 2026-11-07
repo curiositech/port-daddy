@@ -196,7 +196,7 @@ def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     (OUTPUT / 'campaign-data.json').write_text(output)
     manifest = {'schema': 'harbor-public-viewer-manifest/v1', 'files': []}
-    for name in ('index.html', 'styles.css', 'viewer.js', 'campaign-data.json', 'walkthrough.webm', 'walkthrough-poster.png', 'viewer-qa.json', 'round-two-viewer-qa.json'):
+    for name in ('index.html', 'styles.css', 'viewer.js', 'campaign-data.json', 'walkthrough.webm', 'walkthrough-poster.png', 'viewer-qa.json', 'round-two-viewer-qa.json', 'round-two-walkthrough.webm', 'round-two-poster.png'):
         path = OUTPUT / name
         if path.is_file():
             body = path.read_bytes()

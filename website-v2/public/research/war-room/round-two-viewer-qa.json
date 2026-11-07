@@ -128,8 +128,8 @@
   "files": [
     {
       "file": "index.html",
-      "sha256": "290fc10aa71ecd201ccc30d65a4e08e0e92cd84bde84ab0e20b8af1bb89ed2bd",
-      "bytes": 11116
+      "sha256": "03c6b27d163078e4a5d3101c429ce752a7d9e45189db9b239ce7ccd8123ea22b",
+      "bytes": 11526
     },
     {
       "file": "styles.css",
@@ -143,8 +143,8 @@
     },
     {
       "file": "campaign-data.json",
-      "sha256": "45158dd1f1a042e90a1b86c84e2cf042c528b7d8d29a31a1815178f743094f72",
-      "bytes": 686700
+      "sha256": "2e24783d19319a7175829bcc5319f518709b8c23c981efd1f710bf6b3390b0bb",
+      "bytes": 689114
     }
   ]
 }
