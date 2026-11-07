@@ -1,0 +1,8 @@
+{"case":"nonempty-policy-progress-visible-through-second-connection","status":"PASS","exploredStates":7,"revisionDelta":1}
+{"case":"second-connection-equal-value-metadata-invalidates","status":"PASS","revisionDelta":1}
+{"case":"second-connection-state-aba-invalidates","status":"PASS","revisionDelta":2}
+{"case":"wrong-row-handler-rolls-back-effect-and-clock","status":"PASS","revisionDelta":0}
+{"case":"idempotent-no-op-admission-is-still-single-use","status":"PASS","exploredStates":7,"revisionDelta":0}
+{"case":"immediate-transaction-excludes-second-connection-writer","status":"PASS","peerBlocked":true,"revisionDelta":1}
+{"case":"second-connection-policy-aba-invalidates","status":"PASS","originalEpoch":2,"currentEpoch":4}
+{"status":"PASS","runtime":"node","nodeVersion":"22.17.1","bunVersion":null,"adapterClass":"Database","sqliteVersion":"3.53.2","cases":7,"connections":2,"sourceSha256":{"lib/sqlite-runtime.ts":"54bdbfa8a945dd05b5b5823118e0fcf9f682c707896135d0c8d88b0940bc9287","lib/dispatch/queue.ts":"363416ac47511e60c026fa7f298f6efb8f01422d83fa48b4157b3849d82374a2","lib/dispatch/admission.ts":"54d2ad1ebf630427e7a0fe62f8e2b4bad1ccb58430019679f888d1ca876725a7"}}

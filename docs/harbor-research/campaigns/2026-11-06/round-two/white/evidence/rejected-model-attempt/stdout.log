@@ -1,0 +1,127 @@
+TLC2 Version 2026.11.06.222357 (rev: d8fb231)
+Running breadth-first search Model-Checking with fp 17 and seed 6892450393348204158 with 1 worker on 16 cores with 455MB heap and 64MB offheap memory [pid: 61891] (Mac OS X 26.1 aarch64, Homebrew 27 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/erichowens/coding/tmp/research-admission-binding-20261106/.cache/atomic-admission/run-sfu6jd23/mutant_stale/AtomicAdmission.tla
+Parsing file /Users/erichowens/coding/tmp/research-admission-binding-20261106/.cache/atomic-admission/run-sfu6jd23/mutant_stale/tmp/tlc-8965691293582569607/Naturals.tla (jar:file:/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/admission-revision/tools/tla2tools-1.8.0.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /Users/erichowens/coding/tmp/research-admission-binding-20261106/.cache/atomic-admission/run-sfu6jd23/mutant_stale/tmp/tlc-8965691293582569607/Integers.tla (jar:file:/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/admission-revision/tools/tla2tools-1.8.0.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file /Users/erichowens/coding/tmp/research-admission-binding-20261106/.cache/atomic-admission/run-sfu6jd23/mutant_stale/tmp/tlc-8965691293582569607/_TLCTrace.tla (jar:file:/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/admission-revision/tools/tla2tools-1.8.0.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /Users/erichowens/coding/tmp/research-admission-binding-20261106/.cache/atomic-admission/run-sfu6jd23/mutant_stale/tmp/tlc-8965691293582569607/TLC.tla (jar:file:/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/admission-revision/tools/tla2tools-1.8.0.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /Users/erichowens/coding/tmp/research-admission-binding-20261106/.cache/atomic-admission/run-sfu6jd23/mutant_stale/tmp/tlc-8965691293582569607/TLCExt.tla (jar:file:/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/admission-revision/tools/tla2tools-1.8.0.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /Users/erichowens/coding/tmp/research-admission-binding-20261106/.cache/atomic-admission/run-sfu6jd23/mutant_stale/tmp/tlc-8965691293582569607/Sequences.tla (jar:file:/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/admission-revision/tools/tla2tools-1.8.0.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /Users/erichowens/coding/tmp/research-admission-binding-20261106/.cache/atomic-admission/run-sfu6jd23/mutant_stale/tmp/tlc-8965691293582569607/FiniteSets.tla (jar:file:/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/admission-revision/tools/tla2tools-1.8.0.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module AtomicAdmission
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module AtomicAdmission
+Starting... (2026-11-06 21:34:25)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-06 21:34:25.
+Error: Successor state is not completely specified by action Commit of the next-state relation. The following variable is not defined: badEffect.
+
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ revision = 0
+/\ operation = 0
+/\ checkedPolicy = -1
+/\ checkedEpoch = -1
+/\ rowExists = TRUE
+/\ validated = FALSE
+/\ epoch = 0
+/\ badEffect = FALSE
+/\ rejected = FALSE
+/\ token = 0
+/\ deleted = FALSE
+/\ recreated = FALSE
+/\ complete = FALSE
+/\ decision = 0
+/\ policy = 0
+/\ effectCount = 0
+/\ checkedModel = -1
+/\ content = 0
+/\ model = 0
+/\ writes = 0
+/\ checkedRevision = -1
+/\ checkedOperation = -1
+
+State 2: <Issue line 28, col 10 to line 40, col 58 of module AtomicAdmission>
+/\ revision = 0
+/\ operation = 0
+/\ checkedPolicy = 0
+/\ checkedEpoch = 0
+/\ rowExists = TRUE
+/\ validated = FALSE
+/\ epoch = 0
+/\ badEffect = FALSE
+/\ rejected = FALSE
+/\ token = 1
+/\ deleted = FALSE
+/\ recreated = FALSE
+/\ complete = TRUE
+/\ decision = 1
+/\ policy = 0
+/\ effectCount = 0
+/\ checkedModel = 0
+/\ content = 0
+/\ model = 0
+/\ writes = 0
+/\ checkedRevision = 0
+/\ checkedOperation = 0
+
+State 3: <Write line 42, col 10 to line 52, col 45 of module AtomicAdmission>
+/\ revision = 1
+/\ operation = 0
+/\ checkedPolicy = 0
+/\ checkedEpoch = 0
+/\ rowExists = TRUE
+/\ validated = FALSE
+/\ epoch = 0
+/\ badEffect = FALSE
+/\ rejected = FALSE
+/\ token = 1
+/\ deleted = FALSE
+/\ recreated = FALSE
+/\ complete = TRUE
+/\ decision = 1
+/\ policy = 0
+/\ effectCount = 0
+/\ checkedModel = 0
+/\ content = 1
+/\ model = 0
+/\ writes = 1
+/\ checkedRevision = 0
+/\ checkedOperation = 0
+
+State 4: <Commit line 145, col 11 to line 153, col 74 of module AtomicAdmission>
+/\ revision = 2
+/\ operation = 0
+/\ checkedPolicy = 0
+/\ checkedEpoch = 0
+/\ rowExists = TRUE
+/\ validated = FALSE
+/\ epoch = 0
+/\ badEffect = null
+/\ rejected = FALSE
+/\ token = 2
+/\ deleted = FALSE
+/\ recreated = FALSE
+/\ complete = TRUE
+/\ decision = 1
+/\ policy = 0
+/\ effectCount = 1
+/\ checkedModel = 0
+/\ content = 1
+/\ model = 0
+/\ writes = 1
+/\ checkedRevision = 0
+/\ checkedOperation = 0
+
+5 states generated, 4 distinct states found, 1 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 00s at (2026-11-06 21:34:25)
+Trace exploration spec path: ./AtomicAdmission_TTrace_1794029665.tla

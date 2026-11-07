@@ -23,10 +23,10 @@
  *   salvage        -- terminal: rejected dispatches end here; salvage tooling
  *                     can re-route the goal as a new dispatch
  *
- * Transitions are explicit and one-way (no back-edges) except for two:
- *   - `proposed` may be `cancelled` (alias for `salvage` with an operator
- *     reason) at any time before `claimed`.
- *   - The full transition table is enforced by lib/dispatch/state-machine.ts.
+ * The complete operation relation in admission.ts includes preparation,
+ * rollback, crash recovery, conflict recovery, and worker settlement shortcuts.
+ * Every exported mutation is admitted and checked in one SQLite transaction;
+ * state-machine.ts projects that same relation for public inspection.
  *
  * NOTE: This state machine deliberately diverges from the wording in ADR-0035
  * (pending/routed/claimed/executing/review_ready/human_review_ready/
@@ -41,6 +41,7 @@
 import { randomUUID } from 'node:crypto';
 import { isAbsolute, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
+import { createDispatchAdmission, DispatchAdmissionError, type DispatchAdmissionPolicy, type DispatchAdmissionReceipt, type DispatchMutation } from './admission.js';
 
 export type DispatchState =
   | 'proposed'
@@ -268,6 +269,8 @@ export interface DispatchQueueDeps {
   db: Database.Database;
   /** Injectable clock for tests. Defaults to Date.now(). */
   now?: () => number;
+  /** Trusted installation input. Omission reuses the persisted policy. */
+  admissionPolicy?: DispatchAdmissionPolicy;
 }
 
 interface DispatchRow {
@@ -322,9 +325,8 @@ interface DispatchRow {
  *   - `dispatch_nonces` (crypto replay defense) is deferred to the
  *     dispatch-crypto ADR; the dispatches table itself does not need it.
  *
- * The 8-state machine + transition table is enforced in code (see
- * lib/dispatch/state-machine.ts). The CHECK constraint here is defence in
- * depth, not the primary gate.
+ * The operation relation is enforced by lib/dispatch/admission.ts. The CHECK
+ * constraint here is defence in depth, not the primary gate.
  */
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS dispatches (
@@ -686,8 +688,6 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     CREATE INDEX IF NOT EXISTS idx_dispatches_run_request
       ON dispatches(state, run_requested_at, created_at)
   `);
-  migrateNightshiftIntents(db, 'main');
-
   const insertStmt = db.prepare(`
     INSERT INTO dispatches (
       id, slug, goal, tags_json, state, requested_by, target_actor_id,
@@ -849,7 +849,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
            cost_usd = COALESCE(?, cost_usd),
            error_message = COALESCE(?, error_message),
            settled_at = ?
-     WHERE id = ? AND state NOT IN ('settled','salvage')
+     WHERE id = ? AND state NOT IN ('settled','salvage','failed')
   `);
 
   const nextSelectStmt = db.prepare<[], DispatchRow>(
@@ -909,8 +909,10 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
      WHERE id = ? AND state IN ('claimed','in_progress')
   `);
 
-  function propose(input: ProposeDispatchInput): Dispatch {
-    return materializeProjection({ ...input, id: randomUUID() });
+  function propose(input: ProposeDispatchInput): Dispatch;
+  function propose(input: ProposeDispatchInput, boundId?: string): Dispatch {
+    if (!boundId) throw new DispatchAdmissionError('proposal identity was not bound at admission');
+    return materializeProjection({ ...input, id: boundId });
   }
 
   function materializeProjection(input: MaterializeDispatchProjectionInput): Dispatch {
@@ -1081,9 +1083,9 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   }
 
   /**
-   * Undo only the reversible queue preparation performed for one failed daemon
-   * request. The compare-and-set on `run_requested_at` plus empty lease fields
-   * prevents rollback from stealing a row that the worker claimed meanwhile.
+   * Private rollback effect. Its snapshots are captured internally during
+   * preparation and can only be applied by the receipt issued in that same
+   * transaction. The public API never accepts caller-selected snapshots.
    */
   function restorePreparedRun(original: Dispatch, prepared: Dispatch): Dispatch {
     if (original.id !== prepared.id) {
@@ -1262,8 +1264,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   function settle(input: SettleDispatchInput): Dispatch {
     const existing = selectByIdStmt.get(input.id);
     if (!existing) throw new Error(`settle: dispatch ${input.id} not found`);
-    if (DISPATCH_RESOLVED_STATES.includes(existing.state)) {
+    if (DISPATCH_TERMINAL_STATES.includes(existing.state)) {
+      if (existing.state === 'failed' && input.state === 'settled') {
+        throw new Error('settle: cannot escalate failed dispatch to settled');
+      }
       return rowToDispatch(existing);
+    }
+    if (existing.state === 'rejected' && input.state === 'settled') {
+      throw new Error('settle: cannot escalate rejected dispatch to settled');
     }
     const allowed: DispatchState[] = ['settled', 'failed', 'salvage'];
     if (!allowed.includes(input.state)) {
@@ -1385,28 +1393,121 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   }
 
 
+  // One compulsory admission boundary covers every exported writer. The raw
+  // functions remain closure-private, including the initialization import.
+  const mutationFunctions = {
+    propose, materializeProjection, recordSpawnedAgent, prepareForRun,
+    restorePreparedRun, claimProposed, claim, nextProposed, start,
+    bindExecution, produce, requestReview, accept, reject, settle, cancel,
+    recoverStranded,
+  };
+  const mutations: Record<string, DispatchMutation> = {};
+  for (const [operation, apply] of Object.entries(mutationFunctions)) {
+    mutations[operation] = {
+      apply: apply as DispatchMutation['apply'],
+      targets: (args) => {
+        if (operation === 'propose') return [args[1] as string];
+        if (operation === 'nextProposed') {
+          const row = peekNextProposed((args[0] as { baseBranch?: string })?.baseBranch);
+          return row ? [row.id] : [];
+        }
+        if (operation === 'recoverStranded') {
+          return selectAllStmt.all().filter(row => row.state === 'claimed' || row.state === 'in_progress').map(row => row.id);
+        }
+        const input = args[0];
+        const id = typeof input === 'string' ? input : (input as { id: string })?.id;
+        return id ? [id] : [];
+      },
+      roots: (args) => {
+        if (operation === 'propose' || operation === 'materializeProjection') {
+          const input = args[0] as ProposeDispatchInput;
+          const existing = operation === 'materializeProjection'
+            ? selectByIdStmt.get((input as MaterializeDispatchProjectionInput).id) : undefined;
+          return [existing?.state ?? (input.autoClaim ? 'claimed' : 'proposed')];
+        }
+        if (operation === 'nextProposed' || operation === 'recoverStranded') {
+          // Overapproximation is deliberate: eligibility fields can only remove
+          // edges from the state model, never grant an unassessed target state.
+          return selectAllStmt.all().map(row => row.state);
+        }
+        const input = args[0];
+        const id = typeof input === 'string' ? input : (input as { id: string })?.id;
+        const row = id ? selectByIdStmt.get(id) : undefined;
+        return row ? [row.state] : [];
+      },
+    };
+  }
+  // Proposal identity is part of the assessed effect, not chosen during apply.
+  mutations.propose.bind = args => [args[0], randomUUID()];
+  mutations.migrateNightshiftIntents = {
+    roots: () => {
+      const exists = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='nightshift_intents'").get();
+      if (!exists) return [];
+      return (db.prepare('SELECT status FROM nightshift_intents').all() as Array<{ status: string }>)
+        .map(row => legacyStatusToState(row.status));
+    },
+    targets: () => {
+      const exists = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='nightshift_intents'").get();
+      return exists ? (db.prepare('SELECT id FROM nightshift_intents').all() as Array<{ id: string }>).map(row => row.id) : [];
+    },
+    apply: () => migrateNightshiftIntents(db, 'main'),
+  };
+  const admission = createDispatchAdmission(db, mutations, deps.admissionPolicy);
+  admission.run('migrateNightshiftIntents', []);
+  const guarded = Object.fromEntries(Object.keys(mutationFunctions).map(operation => [
+    operation, (...args: unknown[]) => admission.run(operation, args),
+  ])) as typeof mutationFunctions;
+  const rollbackReceipts = new WeakSet<object>();
+
+  /**
+   * Bind rollback before the daemon request can await or another writer can run.
+   * Design: original preparation authority must survive the request boundary.
+   * @param id Explicitly selected dispatch.
+   * @returns Prepared dispatch plus its one-use rollback receipt.
+   */
+  function prepareRunWithRollback(id: string): { dispatch: Dispatch; rollback: DispatchAdmissionReceipt } {
+    return db.transaction(() => {
+      const original = get(id);
+      if (!original) throw new Error(`prepareForRun: dispatch ${id} not found`);
+      const dispatch = guarded.prepareForRun(id);
+      const rollback = admission.prepare('restorePreparedRun', [original, dispatch]);
+      rollbackReceipts.add(rollback);
+      return Object.freeze({ dispatch, rollback });
+    }).immediate();
+  }
+
+  /**
+   * Consume the original rollback receipt; stale preparation never rewrites a row.
+   * Purpose: reject timestamp ABA and replacement rows instead of refreshing authority.
+   * @param receipt Opaque receipt returned by prepareForRun on this queue.
+   * @returns Restored row, or null when intervening state/configuration invalidated it.
+   */
+  function restoreRunWithReceipt(receipt: DispatchAdmissionReceipt): Dispatch | null {
+    if (!receipt || !rollbackReceipts.has(receipt)) throw new DispatchAdmissionError('invalid dispatch rollback receipt');
+    rollbackReceipts.delete(receipt);
+    try {
+      return admission.commit(receipt) as Dispatch;
+    } catch (error) {
+      if (error instanceof DispatchAdmissionError) return null;
+      throw error;
+    }
+  }
+
   return {
-    propose,
-    materializeProjection,
-    recordSpawnedAgent,
+    ...guarded,
+    prepareForRun: prepareRunWithRollback,
+    restorePreparedRun: restoreRunWithReceipt,
+    prepareAdmission: (operation: string, args: unknown[] = []) => {
+      if (operation === 'restorePreparedRun' || operation === 'migrateNightshiftIntents') {
+        throw new DispatchAdmissionError('dispatch operation requires its internal initialization/preparation authority');
+      }
+      return admission.prepare(operation, args);
+    },
+    commitAdmission: admission.commit,
     get,
     getBySessionId,
     list,
     peekNextProposed,
-    prepareForRun,
-    restorePreparedRun,
-    claimProposed,
-    claim,
-    nextProposed,
-    start,
-    bindExecution,
-    produce,
-    requestReview,
-    accept,
-    reject,
-    settle,
-    cancel,
-    recoverStranded,
   };
 }
 

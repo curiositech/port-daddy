@@ -222,7 +222,7 @@ describe('prepareForRun', () => {
       mergePolicy: 'review',
     });
 
-    const prepared = queue.prepareForRun(d.id);
+    const { dispatch: prepared } = queue.prepareForRun(d.id);
 
     expect(prepared).toMatchObject({
       state: 'proposed',
@@ -238,7 +238,7 @@ describe('prepareForRun', () => {
     advance(1000);
     const requested = queue.propose({ goal: 'run this exact dispatch' });
 
-    const prepared = queue.prepareForRun(requested.id);
+    const { dispatch: prepared } = queue.prepareForRun(requested.id);
 
     expect(prepared.runRequestedAt).toBe(clock);
     expect(prepared.claimedAt).toBeNull();
@@ -259,9 +259,9 @@ describe('prepareForRun', () => {
 
   test('restores the auto-claim placeholder when daemon acknowledgement fails', () => {
     const original = queue.propose({ goal: 'restore failed request', autoClaim: true });
-    const prepared = queue.prepareForRun(original.id);
+    const { rollback } = queue.prepareForRun(original.id);
 
-    const restored = queue.restorePreparedRun(original, prepared);
+    const restored = queue.restorePreparedRun(rollback);
 
     expect(restored).toEqual(original);
     expect(queue.get(original.id)).toEqual(original);
@@ -269,7 +269,7 @@ describe('prepareForRun', () => {
 
   test('rollback cannot steal a dispatch that obtained a real worker lease', () => {
     const original = queue.propose({ goal: 'worker wins after preparation', autoClaim: true });
-    const prepared = queue.prepareForRun(original.id);
+    const { rollback } = queue.prepareForRun(original.id);
     const claimed = queue.claimProposed({
       id: original.id,
       worktreePath: '/work/worker-won',
@@ -278,7 +278,7 @@ describe('prepareForRun', () => {
       workerActorId: 'daemon:dispatch-worker',
     });
 
-    expect(queue.restorePreparedRun(original, prepared)).toEqual(claimed);
+    expect(queue.restorePreparedRun(rollback)).toBeNull();
     expect(queue.get(original.id)).toEqual(claimed);
   });
 
@@ -292,7 +292,7 @@ describe('prepareForRun', () => {
       workerActorId: 'worker-owned',
     });
 
-    expect(queue.prepareForRun(d.id)).toEqual(claimed);
+    expect(queue.prepareForRun(d.id).dispatch).toEqual(claimed);
     expect(queue.get(d.id)).toEqual(claimed);
   });
 });

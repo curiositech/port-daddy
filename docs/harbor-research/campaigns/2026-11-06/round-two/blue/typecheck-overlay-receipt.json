@@ -1,0 +1,17 @@
+{
+  "originalNamespaceTarget": "/Users/erichowens/coding/port-daddy/node_modules/@types",
+  "preservedEntries": [
+    "commander",
+    "web-push",
+    "better-sqlite3",
+    "node",
+    "react",
+    "jest"
+  ],
+  "packages": {
+    "commander": "14.0.3",
+    "onnxruntime-node": "1.24.3",
+    "@types/commander": "2.12.0"
+  },
+  "installScripts": false
+}

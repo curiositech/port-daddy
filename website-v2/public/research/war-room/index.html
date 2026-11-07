@@ -5,32 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Research war room · Port Daddy</title>
-<meta name="description" content="Inspect the November 6 research campaign: attacks, responses, independent verdicts, proof limits, and every source-advice route.">
+<meta name="description" content="Inspect atomic dispatch admission and the November 6 research campaign: implementation attacks, finite proofs, source coverage, and open boundaries.">
 <link rel="stylesheet" href="styles.css">
 <script src="viewer.js" defer></script>
 </head>
 <body>
-<a class="skip" href="#findings">Skip to findings</a>
+<a class="skip" href="#atomic-admission">Skip to current results</a>
 <header class="masthead"><a href="/" class="wordmark">Port Daddy <span>/ Research</span></a><span>November 6, 2026</span><button id="theme" type="button" aria-label="Switch to dark theme">Dark theme</button></header>
 <main>
 <section class="intro" aria-labelledby="page-title">
-<p class="edition">Campaign 01 <span>•</span> Evidence review</p>
+<p class="edition">November research campaign <span>•</span> Evidence review</p>
 <h1 id="page-title">Research war room</h1>
-<p class="lead">Three attacks. Three model repairs.<br>Independent retesting, with the limits kept visible.</p>
-<p class="intro-note">Follow each finding from red-team challenge to white-team response, then inspect the independent verdict and the evidence it actually supports.</p>
-<nav class="jump-links" aria-label="On this page"><a href="#findings">Findings</a><a href="#verification">Verification</a><a href="#coverage">Advice ledger</a><a href="#recording">Recording & sources</a></nav>
+<p class="lead">Can an approved operation still be trusted when it finally writes?</p>
+<p class="intro-note">Follow the red, white and blue teams from concrete failures to repairs in the dispatch implementation. Inspect the finite proofs, independent tests and boundaries that remain open.</p>
+<nav class="jump-links" aria-label="On this page"><a href="#atomic-admission">Atomic admission</a><a href="#findings">Protocol findings</a><a href="#verification">Protocol verification</a><a href="#coverage">Advice ledger</a><a href="#recording">Recording & sources</a></nav>
 </section>
 <div id="load-error" role="alert" hidden>Campaign evidence could not be loaded. Reload this page to try again.</div>
 <div id="evidence" hidden>
-<section class="scope-note" aria-label="Proof scope"><strong>Closed in the model.</strong><p id="scope-text"></p><p>The proof agents ran on the host with procedural separation. Three fixed guest probes passed separately; agent containment and production conformance remain open.</p></section>
+<section id="atomic-admission" aria-labelledby="atomic-title" hidden>
+<div class="section-heading"><div><p class="section-number">01 / Round two · actual dispatch implementation</p><h2 id="atomic-title"></h2></div><p id="atomic-status" class="quiet"></p></div>
+<p id="atomic-purpose" class="measure"></p>
+<div class="scope-note"><strong>What this covers</strong><p id="atomic-scope"></p><p id="atomic-adjudication"></p></div>
+<div class="verification-grid">
+<article class="verification-card blue"><p class="team-label">Blue / bound database mutation</p><h3>One receipt, one assessed operation</h3><p id="atomic-implementation"></p><ul id="atomic-binding" class="binding-list"></ul><div class="limit"><strong>Policy boundary</strong><p id="atomic-policy"></p></div></article>
+<article class="verification-card"><p class="team-label">White / finite model and controls</p><h3 id="atomic-model-title"></h3><p id="atomic-model-summary"></p><div class="limit"><strong>Conditional transfer to code</strong><p id="atomic-model-limit"></p></div></article>
+</div>
+<div class="verification-grid atomic-second-row">
+<article class="verification-card"><p class="team-label">Red / reviewed source coverage</p><h3 id="atomic-coverage-title"></h3><p id="atomic-coverage-summary"></p><p id="atomic-coverage-limit"></p><details class="detail-block"><summary>Inspect the coverage classes and exclusions</summary><dl id="atomic-coverage-classes" class="coverage-classes"></dl><ul id="atomic-coverage-exclusions"></ul></details></article>
+<article class="verification-card"><p class="team-label">Independent implementation checks</p><h3 id="atomic-runtime-status"></h3><p id="atomic-runtime-summary"></p><p class="quiet">These checks execute the real SQLite code with controlled inputs. They do not start the local Port Daddy runtime or demonstrate a production launch.</p></article>
+</div>
+<div class="atomic-subsection"><h3>Failures the work exposed</h3><div id="atomic-repairs"></div></div>
+<div class="atomic-subsection"><h3>What remains open</h3><div id="atomic-open" class="guest-results"></div></div>
+<details class="detail-block"><summary>Round-two reports, implementation and proof evidence</summary><ul id="atomic-sources" class="source-list"></ul><p class="quiet">Source links identify an immutable repository tree. Hashes record byte identity; they are not signatures or proof of team privacy. <a href="round-two-viewer-qa.json">Round-two browser QA receipt</a></p></details>
+</section>
 <section id="findings" aria-labelledby="findings-title">
-<div class="section-heading"><div><p class="section-number">01 / Adversarial review</p><h2 id="findings-title">Attack → response → verdict</h2></div><p id="findings-count" class="quiet"></p></div>
+<div class="section-heading"><div><p class="section-number">02 / Round one · protocol models</p><h2 id="findings-title">Attack → response → verdict</h2></div><p id="findings-count" class="quiet"></p></div>
+<div class="scope-note" aria-label="Round-one proof scope"><strong>Closed in the model.</strong><p id="scope-text"></p><p>The proof agents ran on the host with procedural separation. Three fixed guest probes passed separately; agent containment and production conformance remain open.</p></div>
 <div class="filters" role="group" aria-label="Team perspective"><button type="button" data-team="all" aria-pressed="true">All teams</button><button type="button" data-team="red" aria-pressed="false">Red · attacks</button><button type="button" data-team="white" aria-pressed="false">White · responses</button><button type="button" data-team="blue" aria-pressed="false">Independent verdicts</button></div>
 <div id="finding-list"></div>
 <details class="detail-block"><summary>Five new challenges in the independent retest</summary><ul id="mutants"></ul><p class="quiet">A surviving mutation is retained as evidence about the assumptions. It is not silently counted as a discovered defect.</p></details>
 </section>
 <section id="verification" aria-labelledby="verification-title">
-<div class="section-heading"><div><p class="section-number">02 / Executed checks</p><h2 id="verification-title">What the tools establish</h2></div></div>
+<div class="section-heading"><div><p class="section-number">03 / Round-one executed checks</p><h2 id="verification-title">What the tools establish</h2></div></div>
 <div class="verification-grid">
 <article class="verification-card blue"><p class="team-label">Blue / Kani</p><h3>Five harnesses verified</h3><p>17 of 17 cover obligations satisfied. Two deliberately broken policy controls produced the intended assertion counterexamples.</p><ul id="harnesses" class="check-list"></ul><div class="limit"><strong>Incomplete: logic-only verification</strong><p>The separate attempt reached its 90-second limit without a successful verdict. No parser-completeness or cryptographic verification claim follows.</p></div><p id="blue-scope" class="quiet"></p></article>
 <article class="verification-card"><p class="team-label">Infrastructure / fixed guest probes</p><h3>Three bootstrap probes passed</h3><p>Each fixed red, white, and blue guest probe observed read-only input, writable guest state, absent host/runtime devices, and a stopped guest after execution.</p><div class="limit"><strong>Scope: fixed pure-proof probes</strong><p>These sequential guest runs did not contain the research agents. The controller is marked DEV_UNTRUSTED; arbitrary agent-code confinement and production Drydock are unproved.</p></div><p class="quiet">Hashes establish byte integrity. They do not authenticate an actor or establish privacy.</p></article>
@@ -39,7 +55,7 @@
 <article class="next-work"><p class="section-number">Active research / NEXT-P6</p><h3 id="next-title"></h3><p id="next-status"></p><p id="next-result"></p><p><strong>Next obligation.</strong> <span id="next-action"></span></p></article>
 </section>
 <section id="coverage" aria-labelledby="coverage-title">
-<div class="section-heading"><div><p class="section-number">03 / Source advice</p><h2 id="coverage-title">Every source unit has a route</h2></div><a href="campaign-data.json" download>Download evidence data ↓</a></div>
+<div class="section-heading"><div><p class="section-number">04 / Source advice</p><h2 id="coverage-title">Every source unit has a route</h2></div><a href="campaign-data.json" download>Download evidence data ↓</a></div>
 <p class="measure">Coverage means the supplied advice was preserved and routed to an existing record. It does not mean every recommendation was accepted, proved, implemented, or scheduled.</p>
 <div id="coverage-summary" class="coverage-summary"></div>
 <p id="scout-summary" class="measure"></p><p id="scholarship-status" class="measure quiet"></p>
@@ -51,8 +67,8 @@
 <div class="pagination"><button id="previous" type="button">← Previous</button><span id="page-count" aria-live="polite"></span><button id="next" type="button">Next →</button></div>
 </section>
 <section id="recording" aria-labelledby="recording-title">
-<div class="section-heading"><div><p class="section-number">04 / Inspect and replay</p><h2 id="recording-title">Recording & source evidence</h2></div></div>
-<div class="recording-grid"><div><video id="walkthrough" poster="walkthrough-poster.png" controls preload="metadata" aria-label="Recorded browser walkthrough of the research war room"><source src="walkthrough.webm" type="video/webm"><a href="walkthrough.webm">Download the browser walkthrough</a></video><p class="quiet">Real browser interaction with this viewer: team filters, advice categories, keyboard navigation, and responsive layout. This recording preserves the captured interface snapshot; it does not record the proof-tool executions. <a href="viewer-qa.json">Browser QA receipt</a> · <a href="viewer-manifest.json">File hashes</a></p></div><div><h3>Visible interactions are preserved</h3><p id="transcript-scope"></p><p id="transcript-publication"></p><p class="quiet">Hidden reasoning, internal prompts, unrelated chats, and detected credentials are excluded from the saved projections. A recorded source prefix does not include future events.</p><ul id="source-list" class="source-list"></ul></div></div>
+<div class="section-heading"><div><p class="section-number">05 / Inspect and replay</p><h2 id="recording-title">Recording & source evidence</h2></div></div>
+<div class="recording-grid"><div><video id="walkthrough" poster="walkthrough-poster.png" controls preload="metadata" aria-label="Recorded browser walkthrough of the first-round research war room"><source src="walkthrough.webm" type="video/webm"><a href="walkthrough.webm">Download the browser walkthrough</a></video><p class="quiet">First-round browser recording: team filters, advice categories, keyboard navigation, and responsive layout. It preserves that interface snapshot, before the round-two section; it does not record the proof-tool executions. <a href="viewer-qa.json">First-round browser QA receipt</a> · <a href="viewer-manifest.json">Current file hashes</a></p></div><div><h3>Visible interactions are preserved</h3><p id="transcript-scope"></p><p id="transcript-publication"></p><p class="quiet">Hidden reasoning, internal prompts, unrelated chats, and detected credentials are excluded from the saved projections. A recorded source prefix does not include future events. The following source links preserve the first-round evidence snapshot.</p><ul id="source-list" class="source-list"></ul></div></div>
 </section>
 </div>
 </main>

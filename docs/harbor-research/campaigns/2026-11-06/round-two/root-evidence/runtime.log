@@ -1,0 +1,15 @@
+FAIL unit tests/unit/retention-registry.test.js
+  ● Test suite failed to run
+
+    ENOENT: no such file or directory, open '/Users/erichowens/coding/tmp/research-admission-binding-20261106/tests/unit/retention-registry.test.js'
+
+      at runTestInternal (../../port-daddy/node_modules/.pnpm/jest-runner@30.5.2_supports-color@8.1.1/node_modules/jest-runner/build/index.js:129:27)
+
+(node:22440) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Test Suites: 1 failed, 9 passed, 10 total
+Tests:       262 passed, 262 total
+Snapshots:   0 total
+Time:        0.95 s, estimated 2 s
+Ran all test suites within paths "tests/unit/dispatch-admission-red.test.js", "tests/unit/dispatch-atomic-admission.test.js", "tests/unit/dispatch-queue.test.js", "tests/unit/dispatch-state-machine.test.js", "tests/unit/future-admission-conformance.test.js", "tests/unit/harbormaster.test.js", "tests/unit/dispatch-cli-daemon-run.test.js", "tests/unit/seed-berth-db.test.js", "tests/unit/dispatch-retention-boundary.test.js", "tests/unit/retention-registry.test.js".

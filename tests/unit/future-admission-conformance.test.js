@@ -1,5 +1,6 @@
 /**
- * NEXT-P6: bounded conformance counterexample using the real SQLite queue.
+ * NEXT-P6 regression: the public model covers recovery; an explicit omitted-
+ * edge mutant retains the historical table-only admission counterexample.
  *
  * No worker, runner, adapter, daemon, or agent is imported or instantiated.
  * Only the reviewed finite-model checker runs in a child process.
@@ -46,17 +47,21 @@ function tableModel(currentRow) {
   assert.ok(RECOVERY_SOURCES.includes(currentRow.state), 'capture an already claimed/running row');
   return {
     schema_version: 1,
-    model_id: 'dispatch-central-table-from-' + currentRow.state,
-    authority: 'Declared table projection only; not a complete implementation model.',
+    model_id: 'dispatch-public-model-omitted-recovery-mutant-from-' + currentRow.state,
+    authority: 'Deliberately incomplete negative control: remove both recovery edges.',
     initial: [currentRow.state],
     states: STATES.map(state => ({ id: state, facts: factsFor({ state }) })),
-    transitions: STATES.flatMap(source => nextStates(source).map(target => ({
+    transitions: STATES.flatMap(source => nextStates(source)
+      .filter(target => !(RECOVERY_SOURCES.includes(source) && target === 'proposed')).map(target => ({
       id: 'table:' + source + ':' + target, source, target,
     }))),
   };
 }
 
 function withRecoveryWriters(model) {
+  for (const source of RECOVERY_SOURCES) {
+    assert.ok(nextStates(source).includes('proposed'), 'current public model must cover real recovery');
+  }
   return {
     ...model,
     model_id: model.model_id + '-with-recovery',
@@ -157,14 +162,15 @@ function recoverCurrent(before, model) {
 
 describe('NEXT-P6 dispatch writer conformance (in-memory SQLite only)', () => {
   test.each(RECOVERY_SOURCES)(
-    '%s: table-only safe flips to unsafe and the witness replays through the real queue',
+    '%s: omitted-edge mutant safe flips to unsafe and the witness replays through the real queue',
     state => {
       const before = currentDispatch(state);
       const table = tableModel(before);
       const writerAware = withRecoveryWriters(table);
       expect(table.initial).toEqual([before.state]);
       expect(factsFor(before)).toEqual([]);
-      expect(nextStates(before.state)).not.toContain('proposed');
+      expect(nextStates(before.state)).toContain('proposed');
+      expect(table.transitions.some(edge => edge.source === before.state && edge.target === 'proposed')).toBe(false);
 
       const tableResult = analyze(table);
       expect(tableResult.status).toBe('safe');

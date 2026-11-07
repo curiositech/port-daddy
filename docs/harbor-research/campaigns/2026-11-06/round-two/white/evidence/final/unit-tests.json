@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "-B",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "scripts/harbor-research",
+    "-p",
+    "test_atomic_admission_model.py",
+    "-v"
+  ],
+  "cwd": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+  "exit_code": 0
+}

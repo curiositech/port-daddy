@@ -1,0 +1,252 @@
+{
+  "schema": "harbor-atomic-admission-public-summary/v1",
+  "title": "Bind the checked decision to the write",
+  "purpose": "A dispatch may be approved, then cancelled or changed before the write runs. Admission now consumes an opaque, single-use receipt inside the same SQLite write transaction that checks the current authority and applies the original operation.",
+  "scope": "Registered synchronous dispatch mutations: the queue, admitted legacy import, and Harbormaster conflict recovery. This is a local database guarantee under the stated trust assumptions.",
+  "adjudication": {
+    "status": "accepted",
+    "label": "Local verification accepted",
+    "note": "The lead accepted the result within this domain after independent source review and execution. Hosted checks, protected merge and production readback are separate delivery gates."
+  },
+  "binding": [
+    "Exact operation and copied input",
+    "Affected dispatch IDs",
+    "Durable database revision",
+    "Policy, model and authority epoch",
+    "Single-use consumption and journal validation"
+  ],
+  "implementation": "The real queue uses the admission controller. A stale receipt is rejected; a handler that writes an unapproved dispatch or transition is rolled back. The original rollback receipt survives the caller’s await, so old snapshots cannot obtain fresh authority.",
+  "policy": "The executable policy forbids named workflow states and explores their complete declared future graph. A nonempty policy accepts a real produced → review_pending transition while refusing recovery-capable futures. The default empty forbidden set makes no substantive safety prohibition.",
+  "formalLimit": "TLC checks a bounded receipt-binding model. The transfer to implementation is a conditional simulation argument; the model does not prove SQLite internals, arbitrary SQL mediation, external effects, or unbounded implementation safety.",
+  "coverageLimit": "The source audit classifies every discovered site and boundary in its supported TypeScript, JavaScript and SQL scope. It includes generic selectors, schema work, database copying and diagnostic literals; the count is not a count of admitted runtime writers. Generated SQL, unsupported languages and privileged database access remain outside this static guarantee.",
+  "runtime": {
+    "status": "passed",
+    "summary": "269 implementation, lifecycle and regression tests passed across 10 suites, including 42 independent red cases. Seven real SQLite adapter cases passed under each of Node 22 and Bun, using two connections per run. The full TypeScript check passed with an isolated dependency overlay."
+  },
+  "repairs": [
+    {
+      "title": "Receipt for one dispatch writes another",
+      "attack": "A registered handler changed a different dispatch with the same workflow state. State checks alone accepted it.",
+      "repair": "Bind the allowed affected IDs at issuance and compare every journaled row before commit.",
+      "status": "Independent red and lead retests passed; accepted within the registered-handler boundary."
+    },
+    {
+      "title": "Old rollback snapshots gain fresh authority",
+      "attack": "A snapshot-selected rollback could be newly approved after intervening changes, even when the visible state returned to its earlier value.",
+      "repair": "Issue rollback authority before the await and consume that original opaque receipt.",
+      "status": "Original-receipt behavior passed actual API controls; the weakened formal control produced its exact counterexample."
+    },
+    {
+      "title": "A copied database resurrects legacy jobs",
+      "attack": "Clearing dispatch rows while retaining legacy intents allowed construction to import executable jobs again.",
+      "repair": "Clear both executable queues in one transaction, including when local bindings are retained.",
+      "status": "Reproduced on actual SQLite; both copy modes retested."
+    },
+    {
+      "title": "Generic retention targets control tables",
+      "attack": "Generic cleanup helpers accepted dispatch or admission-control table names.",
+      "repair": "Reject protected targets and malformed identifiers before preparing the cleanup statement.",
+      "status": "Protected-target refusals and ordinary retention controls passed."
+    }
+  ],
+  "openBoundaries": [
+    {
+      "title": "External effects",
+      "detail": "Successful GitHub merges, auto-merge, Conductor launches, failover work and filesystem effects need their own authority and idempotency boundaries. A local transaction cannot make these remote actions atomic."
+    },
+    {
+      "title": "Worker ownership",
+      "detail": "Fresh admission does not prove that the requesting worker still owns a run or lease. An old worker can request a new decision unless a separate ownership check refuses it."
+    },
+    {
+      "title": "Privileged storage changes",
+      "detail": "Raw database handles can bypass admission. Replacing old database and clock bytes under a live controller violates the non-reused-authority assumption. Trusted schema ownership and lifecycle controls remain explicit."
+    }
+  ],
+  "sources": [
+    {
+      "label": "Lead adjudication and all finding dispositions",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/ADJUDICATION.md"
+    },
+    {
+      "label": "Research result and conditional simulation argument",
+      "path": "docs/harbor-research/research/dispatch-admission-binding.md"
+    },
+    {
+      "label": "Red: independent final audit",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/FINAL.md"
+    },
+    {
+      "label": "Red: commands, results and source hashes",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/EVIDENCE.json"
+    },
+    {
+      "label": "Blue: Node, Bun and TypeScript receipts",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/runtime-typecheck-receipt.json"
+    },
+    {
+      "label": "White: conditional contract",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/CONTRACT.md"
+    },
+    {
+      "label": "White: finite model and exact controls",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/REPORT.md"
+    },
+    {
+      "label": "White: retained evidence inventory",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence-index.json"
+    },
+    {
+      "label": "Blue: actual implementation and executed checks",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/implementation-report.md"
+    },
+    {
+      "label": "Red: source-writer inventory",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/INVENTORY.md"
+    },
+    {
+      "label": "Red: reviewed source contract",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/writer-contract.json"
+    },
+    {
+      "label": "Actual admission controller",
+      "path": "lib/dispatch/admission.ts"
+    },
+    {
+      "label": "Independent implementation attacks",
+      "path": "tests/unit/dispatch-admission-red.test.js"
+    },
+    {
+      "label": "Source coverage checker",
+      "path": "scripts/harbor-research/check_dispatch_writer_coverage.mjs"
+    }
+  ],
+  "priorEvidenceSources": [
+    {
+      "label": "Red attack report",
+      "path": "docs/harbor-research/campaigns/2026-11-06/red/report.md",
+      "sha256": "52bfc84192e2a23cc867bf94b8938cce18c35fca93a08335ec0fb6fd96c75bfe",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/red/report.md"
+    },
+    {
+      "label": "White response",
+      "path": "docs/harbor-research/campaigns/2026-11-06/white/report.md",
+      "sha256": "1ec61410fa08c291e42ba3dc029af1183382c48662d62643ad91acc50488ea3d",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/white/report.md"
+    },
+    {
+      "label": "Independent red retest",
+      "path": "docs/harbor-research/campaigns/2026-11-06/red-retest/report.md",
+      "sha256": "24ad58f52d741db680410678afcfee3ecf86a49c5ffcd3d863db429a045bbc26",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/red-retest/report.md"
+    },
+    {
+      "label": "Blue verification report",
+      "path": "docs/harbor-research/campaigns/2026-11-06/blue/REPORT.md",
+      "sha256": "7fcb72e548d1d094557f96ac1f51531e5bd53a4661199ba889f1c15c6199f4f0",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/blue/REPORT.md"
+    },
+    {
+      "label": "Fixed guest probe report",
+      "path": "docs/harbor-research/campaigns/2026-11-06/isolation/REPORT.md",
+      "sha256": "c3d67dceb0b4b708b3f8e52e7007a11ab0e4ecdda2ecd8e73f33e034f9a0241d",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/isolation/REPORT.md"
+    },
+    {
+      "label": "Primary-literature review",
+      "path": "docs/harbor-research/campaigns/2026-11-06/primary-literature.md",
+      "sha256": "97dd04aa4ca9b36770b072aae445e1d0083248f343b6c99fdbe641aba8d3d163",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/primary-literature.md"
+    },
+    {
+      "label": "Source advice and coverage ledger",
+      "path": "docs/harbor-research/OMNI-LEDGER.md",
+      "sha256": "a614aec47a27a9eb8818a383baec3e17043b5d224b73d3ef605081d0aacaf9c2",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/OMNI-LEDGER.md"
+    },
+    {
+      "label": "Literature-scout crosswalk",
+      "path": "docs/harbor-research/exposition/literature-scout-20261106/README.md",
+      "sha256": "205aa70d6c5669e165af829da487d6d4b87db948bf0f44bf3558e703aa2c6f39",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/README.md"
+    },
+    {
+      "label": "Literature-scout source manifest",
+      "path": "docs/harbor-research/exposition/literature-scout-20261106/source-manifest.json",
+      "sha256": "7f12c5d7d46ae042455a6df9f319297875e09882fa976cd8432bcfccc0a942ec",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/source-manifest.json"
+    },
+    {
+      "label": "Current mathematical review of all 14 scout directions",
+      "path": "docs/harbor-research/exposition/literature-scout-20261106/math-review.md",
+      "sha256": "a7255fcf04345078522990eac78a9c52dcb8c651aac6f883ea0c27d9a740ec8d",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/math-review.md"
+    },
+    {
+      "label": "Constructed scout counterexamples",
+      "path": "docs/harbor-research/research/scout-claim-counterexamples.md",
+      "sha256": "26484a5d76107260b7e69aab9d207634a3b60ca212a65fdd0475cc235a6e88cb",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/research/scout-claim-counterexamples.md"
+    },
+    {
+      "label": "Actual queue conformance experiment",
+      "path": "docs/harbor-research/research/dispatch-admission-conformance.md",
+      "sha256": "58dad499e614e3ebc9d62aef3710def8f6a617753686fa19bf5491dc9bbc5a15",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/research/dispatch-admission-conformance.md"
+    },
+    {
+      "label": "Cancellation race and compare-and-set repair",
+      "path": "docs/harbor-research/research/dispatch-cancellation-mediation.md",
+      "sha256": "b203f9fbccf897973c0556db6f4f50731bb5a12c1c63ac1f21786124f9c9b3ae",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/research/dispatch-cancellation-mediation.md"
+    },
+    {
+      "label": "Source-intake manifest",
+      "path": "docs/harbor-research/exposition/review-intake-20261106/source-manifest.json",
+      "sha256": "4ec139370d6fbca07e5d6cf8dccd41771c4a61292ef8be4d913e886acfda0c3d",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/review-intake-20261106/source-manifest.json"
+    },
+    {
+      "label": "Transcript capture contract",
+      "path": "docs/harbor-research/campaigns/2026-11-06/transcripts/README.md",
+      "sha256": "b838b906ed1ace6b1860c09f372819dd9e47044ee17349e76aad37a583f08d84",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/transcripts/README.md"
+    },
+    {
+      "label": "Transcript inventory",
+      "path": "docs/harbor-research/campaigns/2026-11-06/transcripts/manifest.json",
+      "sha256": "7f691321928b406c395dd4852ee9012ad8a7ad1cb2baa22c779d23a7237adf42",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/transcripts/manifest.json"
+    },
+    {
+      "label": "Fixed Python guest execution report",
+      "path": "docs/harbor-research/campaigns/2026-11-06/guest-python/REPORT.md",
+      "sha256": "ece76ea17956d034a543c06203b42ca2efca2e7e6ee8f9fba527c24432802668",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/guest-python/REPORT.md"
+    },
+    {
+      "label": "Fixed Python guest verdict",
+      "path": "docs/harbor-research/campaigns/2026-11-06/guest-python/verdict.json",
+      "sha256": "ad54f2964a5b90de43cfc8e63c53b73c7155de158b4c7869fa015c18d345ea6e",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/guest-python/verdict.json"
+    },
+    {
+      "label": "Fixed Python guest source manifest",
+      "path": "docs/harbor-research/campaigns/2026-11-06/guest-python/manifest.json",
+      "sha256": "50a3c3f03cffdf11f55a6b551b1e9fd1a69c34f4204dca1291ceb651cb3d05cf",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/guest-python/manifest.json"
+    },
+    {
+      "label": "Literature source-verification inventory",
+      "path": "docs/harbor-research/exposition/literature-scout-20261106/source-verification.json",
+      "sha256": "6923825aa95ef8adc31dca84043e96a49ac3b470a32aaf8f8049d437620f3ac1",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/source-verification.json"
+    },
+    {
+      "label": "Literature audit and claim boundaries",
+      "path": "docs/harbor-research/exposition/literature-scout-20261106/literature-audit.md",
+      "sha256": "5a08cb33d1320871966a311fea7de28018d0079ae25e563736ce386b93b57a81",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/literature-audit.md"
+    }
+  ]
+}

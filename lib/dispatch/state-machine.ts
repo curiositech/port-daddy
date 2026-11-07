@@ -1,17 +1,13 @@
 /**
  * Dispatch state machine — the allowed-transitions table, in one place.
  *
- * The 8 live states + 2 terminals form a DAG with one merge step (accepted +
- * rejected both terminate). Cancellation is a privileged jump from any
- * non-terminal state to `salvage`.
+ * Public state projection of the complete operation relation in admission.ts.
+ * Recovery, reversible preparation, conflict recovery, and worker settlement
+ * shortcuts are included. This graph has cycles and overapproximates concrete
+ * eligibility; it does not authorize an operation. Actual queue and Harbormaster
+ * writes use the mandatory atomic admission controller.
  *
- * Code outside lib/dispatch/queue.ts should call `assertTransition()` before
- * mutating a dispatch row directly. The queue module's per-transition SQL
- * UPDATE statements already enforce the precondition via the WHERE clause;
- * this module exists so other surfaces (HTTP routes, MCP tools, future
- * harbormaster) have a single source of truth for "is this legal."
- *
- * Diagram:
+ * Main review path (the complete operation graph also contains recovery edges):
  *
  *   proposed
  *      │
@@ -31,24 +27,7 @@
  */
 
 import type { DispatchState } from './queue.js';
-
-/**
- * Allowed forward transitions for the linear path. Does NOT include the
- * privileged jumps (failed / salvage), which are tested separately.
- */
-const FORWARD_TRANSITIONS: Record<DispatchState, DispatchState[]> = {
-  proposed: ['claimed'],
-  claimed: ['in_progress'],
-  in_progress: ['produced'],
-  produced: ['review_pending'],
-  review_pending: ['accepted', 'rejected'],
-  accepted: ['settled'],
-  rejected: ['salvage'],
-  // Terminal states have no forward transitions.
-  settled: [],
-  failed: [],
-  salvage: [],
-};
+import { DISPATCH_ADMISSION_MODEL } from './admission.js';
 
 /** Non-terminal states. */
 const NON_TERMINAL: DispatchState[] = [
@@ -79,17 +58,12 @@ export function isNonTerminal(state: DispatchState): boolean {
 /**
  * Returns true iff `to` is reachable from `from` in one step.
  *
- *   - Forward transitions per the table above.
- *   - `failed` is reachable from any non-terminal state (hard-crash path).
- *   - `salvage` is reachable from any non-terminal state via operator
- *     cancel; also the natural target of `rejected`.
+ * This is the union of registered operations, including recovery/back-edges.
+ * Operation-specific preconditions are enforced at the mutation boundary.
  */
 export function canTransition(from: DispatchState, to: DispatchState): boolean {
   if (from === to) return false; // not a transition
-  if (FORWARD_TRANSITIONS[from]?.includes(to)) return true;
-  if (to === 'failed' && isNonTerminal(from)) return true;
-  if (to === 'salvage' && isNonTerminal(from)) return true;
-  return false;
+  return DISPATCH_ADMISSION_MODEL[from]?.includes(to) ?? false;
 }
 
 /** Throws with a clear message if the transition is illegal. */
@@ -97,19 +71,14 @@ export function assertTransition(from: DispatchState, to: DispatchState): void {
   if (!canTransition(from, to)) {
     throw new Error(
       `illegal dispatch transition: ${from} -> ${to} (allowed from ${from}: ` +
-        `${[...(FORWARD_TRANSITIONS[from] ?? []), ...(isNonTerminal(from) ? ['failed', 'salvage'] : [])].join(', ') || 'none'})`,
+        `${nextStates(from).join(', ') || 'none'})`,
     );
   }
 }
 
 /** Returns all states reachable from `from` in one step. */
 export function nextStates(from: DispatchState): DispatchState[] {
-  const out = [...(FORWARD_TRANSITIONS[from] ?? [])];
-  if (isNonTerminal(from)) {
-    if (!out.includes('failed')) out.push('failed');
-    if (!out.includes('salvage')) out.push('salvage');
-  }
-  return out;
+  return [...(DISPATCH_ADMISSION_MODEL[from] ?? [])];
 }
 
 /**

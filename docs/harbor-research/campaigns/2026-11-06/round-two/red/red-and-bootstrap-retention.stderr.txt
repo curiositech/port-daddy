@@ -1,0 +1,11 @@
+(node:22307) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS unit tests/unit/dispatch-admission-red.test.js
+PASS unit tests/unit/seed-berth-db.test.js
+PASS unit tests/unit/dispatch-retention-boundary.test.js
+
+Test Suites: 3 passed, 3 total
+Tests:       89 passed, 89 total
+Snapshots:   0 total
+Time:        0.37 s, estimated 1 s
+Ran all test suites matching tests/unit/dispatch-admission-red.test.js|tests/unit/seed-berth-db.test.js|tests/unit/dispatch-retention-boundary.test.js.

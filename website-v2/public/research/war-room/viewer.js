@@ -39,8 +39,48 @@ function renderLedger() {
 for (const selector of ['#document', '#classification']) $(selector).addEventListener('change', () => { page = 0; renderLedger(); });
 $('#previous').addEventListener('click', () => { page--; renderLedger(); $('#ledger-count').scrollIntoView(); });
 $('#next').addEventListener('click', () => { page++; renderLedger(); $('#ledger-count').scrollIntoView(); });
+function renderSources(selector, sources) {
+  const list = $(selector); list.replaceChildren();
+  for (const source of sources) {
+    const li = text('li', '');
+    if (source.url) { const link = text('a', source.label); link.href = source.url; li.append(link); }
+    else li.append(text('span', source.label), text('span', ' · publication link pending', 'pending'));
+    list.append(li);
+  }
+}
+function renderAtomicAdmission(round) {
+  if (!round) return;
+  $('#atomic-title').textContent = round.title;
+  $('#atomic-purpose').textContent = round.purpose;
+  $('#atomic-scope').textContent = round.scope;
+  $('#atomic-status').textContent = round.adjudication.label;
+  $('#atomic-adjudication').textContent = round.adjudication.note;
+  $('#atomic-implementation').textContent = round.implementation;
+  $('#atomic-policy').textContent = round.policy;
+  for (const binding of round.binding) $('#atomic-binding').append(text('li', binding));
+  $('#atomic-model-title').textContent = `${round.formal.configurations} model configurations checked`;
+  $('#atomic-model-summary').textContent = `${round.formal.distinctStates} distinct states in the defended finite model; ${round.formal.controls} exact acceptance/rejection controls and ${round.formal.mutants} deliberately weakened gates with exact counterexample witnesses.`;
+  $('#atomic-model-limit').textContent = round.formalLimit;
+  $('#atomic-coverage-title').textContent = `${round.coverage.sites} sites and boundaries classified`;
+  $('#atomic-coverage-summary').textContent = `${round.coverage.sourceFiles.toLocaleString('en-US')} source files scanned. Changed or unclassified sites fail the source contract until reviewed.`;
+  $('#atomic-coverage-limit').textContent = round.coverageLimit;
+  for (const [classification, count] of Object.entries(round.coverage.classifications)) $('#atomic-coverage-classes').append(text('dt', human(classification)), text('dd', String(count)));
+  for (const exclusion of round.coverage.limitations) $('#atomic-coverage-exclusions').append(text('li', exclusion));
+  $('#atomic-runtime-status').textContent = round.runtime.status === 'passed' ? 'Executed checks passed' : 'Final runtime adjudication pending';
+  $('#atomic-runtime-summary').textContent = round.runtime.summary;
+  for (const repair of round.repairs) {
+    const item = text('article', '', 'atomic-repair'); item.append(text('h4', repair.title));
+    const attack = text('p', ''); attack.append(text('strong', 'Observed failure. '), document.createTextNode(repair.attack));
+    const response = text('p', ''); response.append(text('strong', 'Repair. '), document.createTextNode(repair.repair));
+    item.append(attack, response, text('p', repair.status, 'quiet')); $('#atomic-repairs').append(item);
+  }
+  for (const boundary of round.openBoundaries) { const item = text('article', ''); item.append(text('h4', boundary.title), text('p', boundary.detail)); $('#atomic-open').append(item); }
+  renderSources('#atomic-sources', round.sources);
+  $('#atomic-admission').hidden = false;
+}
 fetch('campaign-data.json').then(response => { if (!response.ok) throw new Error('Evidence unavailable'); return response.json(); }).then(value => {
   data = value; $('#scope-text').textContent = `${data.scope.charAt(0).toUpperCase() + data.scope.slice(1)}.`;
+  renderAtomicAdmission(data.atomicAdmission);
   $('#findings-count').textContent = `${data.findings.length} findings · ${data.retest.direct_proverif_runs} direct ProVerif retest runs`;
   renderFindings();
   for (const [id, label] of Object.entries(data.documents)) { const option = text('option', label); option.value = id; $('#document').append(option); }
@@ -84,6 +124,6 @@ fetch('campaign-data.json').then(response => { if (!response.ok) throw new Error
   renderLedger();
   $('#transcript-scope').textContent = `${data.transcripts.sources_count} source-session prefixes inventoried. ${data.transcripts.scope}`;
   $('#transcript-publication').textContent = data.transcripts.publication;
-  for (const source of data.sources) { const li = text('li', ''); if (source.url) { const link = text('a', source.label); link.href = source.url; li.append(link); } else { li.append(text('span', source.label), text('span', ' · publication link pending', 'pending')); } $('#source-list').append(li); }
+  renderSources('#source-list', data.sources);
   $('#evidence').hidden = false;
 }).catch(() => { $('#load-error').hidden = false; });

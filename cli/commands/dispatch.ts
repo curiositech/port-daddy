@@ -264,7 +264,8 @@ async function runDispatchViaDaemon(id: string, queue: DispatchQueue): Promise<R
   }
   const original = queue.get(id);
   if (!original) throw new Error(`dispatch ${id} not found`);
-  const prepared = queue.prepareForRun(id);
+  const preparation = queue.prepareForRun(id);
+  const prepared = preparation.dispatch;
   if (prepared.state === 'claimed' || prepared.state === 'in_progress') {
     return {
       ok: true,
@@ -278,7 +279,7 @@ async function runDispatchViaDaemon(id: string, queue: DispatchQueue): Promise<R
   try {
     res = await pdFetch(`/dispatches/${encodeURIComponent(id)}/run`, { method: 'POST' });
   } catch (error) {
-    queue.restorePreparedRun(original, prepared);
+    queue.restorePreparedRun(preparation.rollback);
     throw error;
   }
   const payload = await readResponseJson(res);
@@ -306,7 +307,7 @@ async function runDispatchViaDaemon(id: string, queue: DispatchQueue): Promise<R
         message: 'Dispatch acquired a worker lease while the run request was being sent.',
       };
     }
-    queue.restorePreparedRun(original, prepared);
+    queue.restorePreparedRun(preparation.rollback);
     const error = typeof payload.error === 'string'
       ? payload.error
       : `daemon returned HTTP ${res.status ?? 'unknown'}`;

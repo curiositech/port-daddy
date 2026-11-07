@@ -748,6 +748,73 @@
       }
     },
     {
+      "id": "campaign-20261106-round-two-atomic-admission-active",
+      "kind": "bounded-model-and-controls",
+      "authority": "design-claim",
+      "status": "current",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/AtomicAdmission.tla"
+      ],
+      "method": "TLA+",
+      "owner": "docs/harbor-research/campaigns/2026-11-06/round-two",
+      "evidencePolicy": "Finite receipt-binding model: complete defended exploration plus exact acceptance, rejection and mutant witnesses. Conditional implementation refinement is separate; no arbitrary SQL or external-effect mediation claim.",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "tla-claim-signaling"
+        ]
+      }
+    },
+    {
+      "id": "campaign-20261106-round-two-atomic-admission-historical",
+      "kind": "campaign-evidence-snapshots",
+      "authority": "design-claim",
+      "status": "historical",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/AtomicAdmission.tla",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/aba/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/accepted/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/authority_epoch/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/bound/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/incomplete/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/model/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_aba/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_authority_epoch/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_clock_aba/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_clock_recreated/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_clock_stale/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_incomplete/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_model/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_policy/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_race/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_recreated/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_refreshed_rollback/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_request/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_stale/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_unknown/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/mutant_unsafe/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/no_op_replay/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/policy/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/race/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/recreated/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/replay/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/request/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/rollback_provenance/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/stale/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/unknown/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/final/unsafe/case.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/rejected-model-attempt/AtomicAdmission.tla",
+        "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence/rejected-model-attempt/case.cfg"
+      ],
+      "method": "TLA+",
+      "owner": "docs/harbor-research/campaigns/2026-11-06/round-two",
+      "evidencePolicy": "Retained final model/configuration snapshots and the rejected incomplete-assignment attempt accompany raw logs. Historical evidence does not constitute an additional maintained proof claim.",
+      "ci": {
+        "status": "retired",
+        "reason": "Frozen campaign evidence retained for exact replay; canonical AtomicAdmission.tla and its generated controls run in the separately wired entry. Preserve rejected inputs as evidence rather than silently repairing them."
+      }
+    },
+    {
       "id": "campaign-20261106-white-proverif-active",
       "kind": "bounded-model-and-controls",
       "authority": "design-claim",

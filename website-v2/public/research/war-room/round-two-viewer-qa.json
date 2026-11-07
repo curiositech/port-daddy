@@ -1,0 +1,150 @@
+{
+  "schema": "harbor-round-two-browser-qa/v1",
+  "status": "passed",
+  "browser": "140.0.7339.186",
+  "scope": "Isolated headless Chromium against the local static viewer, not deployed production evidence. Screenshots retain the checked interface snapshot; final adjudication may subsequently update data.",
+  "checks": [
+    {
+      "name": "evidence loads",
+      "passed": true,
+      "detail": "Rendered JSON evidence"
+    },
+    {
+      "name": "atomic section loads",
+      "passed": true,
+      "detail": "Round two visible"
+    },
+    {
+      "name": "formal receipt values rendered",
+      "passed": true,
+      "detail": "Finite model count"
+    },
+    {
+      "name": "prior sources preserved",
+      "passed": true,
+      "detail": "21 immutable evidence links"
+    },
+    {
+      "name": "skip link first keyboard target",
+      "passed": true,
+      "detail": "First tab"
+    },
+    {
+      "name": "skip targets current result",
+      "passed": true,
+      "detail": "Current section anchor"
+    },
+    {
+      "name": "coverage disclosure keyboard-accessible HTML",
+      "passed": true,
+      "detail": "Native details and summary"
+    },
+    {
+      "name": "desktop-light has no horizontal overflow",
+      "passed": true,
+      "detail": {
+        "viewport": 1280,
+        "document": 1280,
+        "body": 1280
+      }
+    },
+    {
+      "name": "desktop-light retains readable body size",
+      "passed": true,
+      "detail": "At least 16 CSS pixels"
+    },
+    {
+      "name": "desktop-dark has no horizontal overflow",
+      "passed": true,
+      "detail": {
+        "viewport": 1280,
+        "document": 1280,
+        "body": 1280
+      }
+    },
+    {
+      "name": "desktop-dark retains readable body size",
+      "passed": true,
+      "detail": "At least 16 CSS pixels"
+    },
+    {
+      "name": "phone-light has no horizontal overflow",
+      "passed": true,
+      "detail": {
+        "viewport": 390,
+        "document": 390,
+        "body": 390
+      }
+    },
+    {
+      "name": "phone-light retains readable body size",
+      "passed": true,
+      "detail": "At least 16 CSS pixels"
+    },
+    {
+      "name": "phone-dark has no horizontal overflow",
+      "passed": true,
+      "detail": {
+        "viewport": 390,
+        "document": 390,
+        "body": 390
+      }
+    },
+    {
+      "name": "phone-dark retains readable body size",
+      "passed": true,
+      "detail": "At least 16 CSS pixels"
+    },
+    {
+      "name": "phone-enlarged has no horizontal overflow",
+      "passed": true,
+      "detail": {
+        "viewport": 320,
+        "document": 320,
+        "body": 320
+      }
+    },
+    {
+      "name": "phone-enlarged retains readable body size",
+      "passed": true,
+      "detail": "At least 16 CSS pixels"
+    },
+    {
+      "name": "existing team filter works",
+      "passed": true,
+      "detail": "3 attacks displayed"
+    },
+    {
+      "name": "existing advice filter works",
+      "passed": true,
+      "detail": "999 total preserved"
+    },
+    {
+      "name": "no browser script errors",
+      "passed": true,
+      "detail": []
+    }
+  ],
+  "files": [
+    {
+      "file": "index.html",
+      "sha256": "290fc10aa71ecd201ccc30d65a4e08e0e92cd84bde84ab0e20b8af1bb89ed2bd",
+      "bytes": 11116
+    },
+    {
+      "file": "styles.css",
+      "sha256": "9938859e9c91dbb4530134a0bc86309a52789a0b14624976f278205fd6bb2ebf",
+      "bytes": 9132
+    },
+    {
+      "file": "viewer.js",
+      "sha256": "bf81607358bda6c1a1a4812563792decb11b49d3cf12fe076d8a46c01811c0dc",
+      "bytes": 13038
+    },
+    {
+      "file": "campaign-data.json",
+      "sha256": "45158dd1f1a042e90a1b86c84e2cf042c528b7d8d29a31a1815178f743094f72",
+      "bytes": 686700
+    }
+  ]
+}

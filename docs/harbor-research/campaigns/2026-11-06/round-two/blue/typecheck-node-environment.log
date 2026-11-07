@@ -1,0 +1,4 @@
+bin/port-daddy-bundle.ts(26,32): error TS2307: Cannot find module 'onnxruntime-node' or its corresponding type declarations.
+bin/port-daddy-daemon.ts(16,32): error TS2307: Cannot find module 'onnxruntime-node' or its corresponding type declarations.
+cli/commands/demo.ts(5,25): error TS2307: Cannot find module 'commander' or its corresponding type declarations.
+lib/semantic-resolver.ts(931,35): error TS2307: Cannot find module 'onnxruntime-node/package.json' or its corresponding type declarations.

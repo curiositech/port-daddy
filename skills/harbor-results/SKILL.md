@@ -147,6 +147,22 @@ returns unknown unless it has a replayable conflict. A complete result certifies
 the supplied graph only; runtime conformance and complete mediation remain
 separate obligations.
 
+For the dispatch implementation follow-on, read
+[the atomic admission report](../../docs/harbor-research/campaigns/2026-11-06/round-two/white/REPORT.md)
+and [the implementation boundary](../../docs/harbor-research/research/dispatch-admission-binding.md).
+From the repository root, run
+`python3 -B scripts/harbor-research/check_atomic_admission_model.py --jar PATH_TO_TLA_TOOLS`,
+then `python3 -B -m unittest discover -s scripts/harbor-research -p test_atomic_admission_model.py`.
+The separate source contract uses
+`node scripts/harbor-research/check_dispatch_writer_coverage.mjs` and
+`node --test scripts/harbor-research/check_dispatch_writer_coverage.test.mjs`
+with the repository's locked TypeScript parser. Preserve exact positive,
+rejection and mutant witnesses. A complete source scan, finite TLC result and
+SQLite regression establish different evidence; none mediates arbitrary SQL,
+live database restoration, worker launches or external merge effects. Rollback
+must consume the original preparation receipt across an await; fresh checking
+around stale caller snapshots does not establish their provenance.
+
 `scripts/bonded_trigger_audit.py` checks both principals at every public state
 with exact rational arithmetic; `scripts/test_bonded_trigger_audit.py` includes
 punishment-state, equality, and altered-transition controls. Name the forfeiture

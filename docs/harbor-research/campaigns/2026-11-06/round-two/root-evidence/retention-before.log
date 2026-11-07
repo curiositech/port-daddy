@@ -1,0 +1,614 @@
+(node:3510) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL unit tests/unit/dispatch-retention-boundary.test.js
+  ● ttl retention boundary › refuses protected control table dispatches
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● ttl retention boundary › refuses protected control table DISPATCHES
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● ttl retention boundary › refuses protected control table nightshift_intents
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● ttl retention boundary › refuses protected control table dispatch_admission_authority
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● ttl retention boundary › refuses protected control table dispatch_admission_events
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● ttl retention boundary › refuses protected control table dispatch_admission_future
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● ttl retention boundary › refuses identifier disguise main.dispatches
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● ttl retention boundary › refuses identifier disguise "dispatches"
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● ttl retention boundary › refuses identifier disguise [dispatches]
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● ttl retention boundary › refuses identifier disguise dispatches -- disguise
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● ttl retention boundary › rejects a column expression before preparing SQL
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      30 |   });
+      31 |   test('rejects a column expression before preparing SQL', () => {
+    > 32 |     expect(() => build('ordinary_events', 'created_at OR 1=1')).toThrow(/identifier/);
+         |                                                                 ^
+      33 |   });
+      34 | });
+      35 |
+
+      at Object.<anonymous> (tests/unit/dispatch-retention-boundary.test.js:32:65)
+
+  ● age retention boundary › refuses protected control table dispatches
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● age retention boundary › refuses protected control table DISPATCHES
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● age retention boundary › refuses protected control table nightshift_intents
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● age retention boundary › refuses protected control table dispatch_admission_authority
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● age retention boundary › refuses protected control table dispatch_admission_events
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● age retention boundary › refuses protected control table dispatch_admission_future
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● age retention boundary › refuses identifier disguise main.dispatches
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● age retention boundary › refuses identifier disguise "dispatches"
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● age retention boundary › refuses identifier disguise [dispatches]
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● age retention boundary › refuses identifier disguise dispatches -- disguise
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● age retention boundary › rejects a column expression before preparing SQL
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      30 |   });
+      31 |   test('rejects a column expression before preparing SQL', () => {
+    > 32 |     expect(() => build('ordinary_events', 'created_at OR 1=1')).toThrow(/identifier/);
+         |                                                                 ^
+      33 |   });
+      34 | });
+      35 |
+
+      at Object.<anonymous> (tests/unit/dispatch-retention-boundary.test.js:32:65)
+
+  ● cap retention boundary › refuses protected control table dispatches
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● cap retention boundary › refuses protected control table DISPATCHES
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● cap retention boundary › refuses protected control table nightshift_intents
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● cap retention boundary › refuses protected control table dispatch_admission_authority
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● cap retention boundary › refuses protected control table dispatch_admission_events
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● cap retention boundary › refuses protected control table dispatch_admission_future
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /dispatch control table/
+
+    Received function did not throw
+
+      18 | describe.each(builders)('%s retention boundary', (_name, build) => {
+      19 |   test.each(['dispatches', 'DISPATCHES', 'nightshift_intents', 'dispatch_admission_authority', 'dispatch_admission_events', 'dispatch_admission_future'])('refuses protected control table %s', (table) => {
+    > 20 |     expect(() => build(table)).toThrow(/dispatch control table/);
+         |                                ^
+      21 |     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n).toBe(2);
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:20:32
+
+  ● cap retention boundary › refuses identifier disguise main.dispatches
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● cap retention boundary › refuses identifier disguise "dispatches"
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● cap retention boundary › refuses identifier disguise [dispatches]
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+
+    Received function did not throw
+
+      22 |   });
+      23 |   test.each(['main.dispatches', '"dispatches"', '[dispatches]', 'dispatches -- disguise'])('refuses identifier disguise %s', (table) => {
+    > 24 |     expect(() => build(table)).toThrow(/identifier/);
+         |                                ^
+      25 |     expect(db.prepare('SELECT COUNT(*) AS n FROM dispatches').get().n).toBe(2);
+      26 |   });
+      27 |   test('still prunes an ordinary table', () => {
+
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● cap retention boundary › refuses identifier disguise dispatches -- disguise
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+    Received message: "near \"SELECT\": syntax error"
+
+          78 |   maxRows: number,
+          79 | ): RetentionPolicy {
+        > 80 |   const stmt = db.prepare(
+             |                   ^
+          81 |     `DELETE FROM ${table} WHERE ${orderColumn} < (
+          82 |        SELECT MIN(${orderColumn}) FROM (
+          83 |          SELECT ${orderColumn} FROM ${table} ORDER BY ${orderColumn} DESC LIMIT ?
+
+      at Database.prepare (../research-program-next-result-20261106/.cache/test-deps/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+      at prepare (lib/observability/retention-registry.ts:80:19)
+      at builders (tests/unit/dispatch-retention-boundary.test.js:15:45)
+      at tests/unit/dispatch-retention-boundary.test.js:24:18
+      at Object.<anonymous> (../../port-daddy/node_modules/.pnpm/expect@30.5.2/node_modules/expect/build/index.js:1824:9)
+      at Object.throwingMatcher [as toThrow] (../../port-daddy/node_modules/.pnpm/expect@30.5.2/node_modules/expect/build/index.js:2235:93)
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+      at tests/unit/dispatch-retention-boundary.test.js:24:32
+
+  ● cap retention boundary › rejects a column expression before preparing SQL
+
+    expect(received).toThrow(expected)
+
+    Expected pattern: /identifier/
+    Received message: "misuse of aggregate: MIN()"
+
+          78 |   maxRows: number,
+          79 | ): RetentionPolicy {
+        > 80 |   const stmt = db.prepare(
+             |                   ^
+          81 |     `DELETE FROM ${table} WHERE ${orderColumn} < (
+          82 |        SELECT MIN(${orderColumn}) FROM (
+          83 |          SELECT ${orderColumn} FROM ${table} ORDER BY ${orderColumn} DESC LIMIT ?
+
+      at Database.prepare (../research-program-next-result-20261106/.cache/test-deps/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+      at prepare (lib/observability/retention-registry.ts:80:19)
+      at builders (tests/unit/dispatch-retention-boundary.test.js:15:45)
+      at tests/unit/dispatch-retention-boundary.test.js:32:18
+      at Object.<anonymous> (../../port-daddy/node_modules/.pnpm/expect@30.5.2/node_modules/expect/build/index.js:1824:9)
+      at Object.throwingMatcher [as toThrow] (../../port-daddy/node_modules/.pnpm/expect@30.5.2/node_modules/expect/build/index.js:2235:93)
+      at Object.<anonymous> (tests/unit/dispatch-retention-boundary.test.js:32:65)
+      at Object.<anonymous> (tests/unit/dispatch-retention-boundary.test.js:32:65)
+
+Test Suites: 1 failed, 1 total
+Tests:       33 failed, 3 passed, 36 total
+Snapshots:   0 total
+Time:        0.106 s
+Ran all test suites within paths "tests/unit/dispatch-retention-boundary.test.js".

@@ -1,0 +1,6 @@
+unclassified writer: docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#<module>#1
+unclassified writer: docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#<module>#2
+unclassified writer: docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#<module>#3
+unclassified writer: docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#wrongTarget#1
+unclassified writer: docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#serialized#1
+unclassified writer: docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#serialized#2

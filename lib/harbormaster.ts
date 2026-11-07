@@ -74,6 +74,8 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { EventEmitter } from 'node:events';
 import type Database from 'better-sqlite3';
+import { createDispatchAdmission, DispatchAdmissionError, type DispatchAdmissionReceipt } from './dispatch/admission.js';
+import type { DispatchState } from './dispatch/queue.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
@@ -146,6 +148,20 @@ export function createHarbormaster(deps: HarbormasterDeps) {
   const lease = deps.lease ?? createFileLease(DEFAULT_LEASE_PATH);
   const pollIntervalMs = deps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const postNote = deps.postNote ?? defaultPostNote(runner);
+  // Admission initialization is SQLite-only. No lease, process or timer starts.
+  const dispatchAdmission = hasTable('dispatches') ? createDispatchAdmission(db, {
+    conflictRecovery: {
+      targets: args => [args[0] as string],
+      roots: (args) => {
+        const row = db.prepare('SELECT state FROM dispatches WHERE id = ?').get(args[0]) as { state: DispatchState } | undefined;
+        return row ? [row.state] : [];
+      },
+      apply: ((dispatchId: string, reason: string) => db.prepare(
+        `UPDATE dispatches SET state = 'produced', error_message = ?, produced_at = ?
+         WHERE id = ? AND state = 'accepted'`,
+      ).run(reason, Date.now(), dispatchId).changes === 1) as (...args: never[]) => boolean,
+    },
+  }) : null;
 
   // Per-base_branch serialization gate. At most one merge per base at a time.
   const baseLocks = new Set<string>();
@@ -261,19 +277,19 @@ export function createHarbormaster(deps: HarbormasterDeps) {
    * Return an accepted dispatch to the produced state after a merge conflict.
    *
    * Design: command awaits allow cancellation to commit after candidate selection.
-   * Compare-and-set at the write boundary preserves that newer state and lets the
-   * caller suppress recovery notifications when the approval no longer holds.
-   * @param dispatchId Dispatch selected for merge before the command awaits.
-   * @param reason Conflict details to retain only if the transition succeeds.
+   * Consuming the original receipt preserves newer state, including approval
+   * ABA, and suppresses recovery notifications when authority no longer holds.
+   * @param receipt Exact conflict mutation admitted before the command awaits.
    * @returns Whether an accepted dispatch was returned to produced.
    */
-  function backDispatchToProduced(dispatchId: string, reason: string): boolean {
-    if (!hasTable('dispatches')) return false;
-    const result = db.prepare(
-      `UPDATE dispatches SET state = 'produced', error_message = ?, produced_at = ?
-       WHERE id = ? AND state = 'accepted'`,
-    ).run(reason, Date.now(), dispatchId);
-    return result.changes === 1;
+  function backDispatchToProduced(receipt: DispatchAdmissionReceipt): boolean {
+    if (!dispatchAdmission) return false;
+    try {
+      return dispatchAdmission.commit(receipt) === true;
+    } catch (error) {
+      if (error instanceof DispatchAdmissionError) return false;
+      throw error;
+    }
   }
 
   function hasColumn(table: string, col: string): boolean {
@@ -328,6 +344,20 @@ export function createHarbormaster(deps: HarbormasterDeps) {
     if (baseLocks.has(c.baseBranch)) {
       return { kind: 'skipped', reason: `base_branch ${c.baseBranch} busy` };
     }
+    const currentDispatch = db.prepare('SELECT state FROM dispatches WHERE id = ?').get(c.dispatchId) as { state: string } | undefined;
+    if (!dispatchAdmission || currentDispatch?.state !== 'accepted') {
+      return { kind: 'skipped', reason: 'dispatch is no longer accepted; conflict recovery skipped' };
+    }
+    // Bind before the first await. A cancel/reapprove ABA, metadata update or
+    // policy replacement invalidates this exact potential conflict mutation.
+    // Filenames discovered later belong to the event; they cannot change the
+    // already-admitted mutation arguments.
+    const conflictAdmission = dispatchAdmission.prepare('conflictRecovery', [
+      c.dispatchId, `merge conflict against ${c.baseBranch}`,
+    ]);
+    if (conflictAdmission.decision !== 'safe' || !conflictAdmission.complete) {
+      return { kind: 'skipped', reason: 'dispatch admission refused conflict recovery' };
+    }
     baseLocks.add(c.baseBranch);
 
     try {
@@ -351,10 +381,7 @@ export function createHarbormaster(deps: HarbormasterDeps) {
         if (conflictFiles.length > 0) {
           // Abort the rebase to leave the worktree clean for the worker.
           await runner.run('git', ['rebase', '--abort'], { cwd });
-          const returnedToProduced = backDispatchToProduced(
-            c.dispatchId,
-            `merge conflict in ${conflictFiles.join(', ')} against ${c.baseBranch}`,
-          );
+          const returnedToProduced = backDispatchToProduced(conflictAdmission);
           if (!returnedToProduced) {
             return {
               kind: 'skipped',

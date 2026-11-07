@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: positive control recognizes a reviewed exact SQL site
+ok 1 - positive control recognizes a reviewed exact SQL site
+  ---
+  duration_ms: 4.41275
+  type: 'test'
+  ...
+# Subtest: negative control: a new production file outside the queue is unclassified
+ok 2 - negative control: a new production file outside the queue is unclassified
+  ---
+  duration_ms: 0.493333
+  type: 'test'
+  ...
+# Subtest: negative control: omission of an existing writer is rejected
+ok 3 - negative control: omission of an existing writer is rejected
+  ---
+  duration_ms: 0.463708
+  type: 'test'
+  ...
+# Subtest: negative control: wrong reviewed SQL bytes fail, even with identical abstract edge
+ok 4 - negative control: wrong reviewed SQL bytes fail, even with identical abstract edge
+  ---
+  duration_ms: 0.549167
+  type: 'test'
+  ...
+# Subtest: negative control: wrong target/operation classification fails independently of byte hash
+ok 5 - negative control: wrong target/operation classification fails independently of byte hash
+  ---
+  duration_ms: 0.237125
+  type: 'test'
+  ...
+# Subtest: UPDATE RETURNING through get/all/query and bracket-call sinks cannot evade literal discovery
+ok 6 - UPDATE RETURNING through get/all/query and bracket-call sinks cannot evade literal discovery
+  ---
+  duration_ms: 0.699375
+  type: 'test'
+  ...
+# Subtest: dynamic selectors are explicit unknowns, never ignored
+ok 7 - dynamic selectors are explicit unknowns, never ignored
+  ---
+  duration_ms: 0.341208
+  type: 'test'
+  ...
+# Subtest: concatenated literal and dynamic mutation targets are discovered
+ok 8 - concatenated literal and dynamic mutation targets are discovered
+  ---
+  duration_ms: 0.198208
+  type: 'test'
+  ...
+# Subtest: comments, ordinary UPDATE labels and SQL string values are not mutations
+ok 9 - comments, ordinary UPDATE labels and SQL string values are not mutations
+  ---
+  duration_ms: 0.400792
+  type: 'test'
+  ...
+# Subtest: DDL, migration, triggers and whole database snapshot syntax are classified
+ok 10 - DDL, migration, triggers and whole database snapshot syntax are classified
+  ---
+  duration_ms: 0.316125
+  type: 'test'
+  ...
+# Subtest: REPLACE, INSERT OR REPLACE, CTE UPDATE and quoted SQLite table names are recognized
+ok 11 - REPLACE, INSERT OR REPLACE, CTE UPDATE and quoted SQLite table names are recognized
+  ---
+  duration_ms: 0.107625
+  type: 'test'
+  ...
+# Subtest: exact source boundary changes fail when admission wrapping is removed but SQL is unchanged
+ok 12 - exact source boundary changes fail when admission wrapping is removed but SQL is unchanged
+  ---
+  duration_ms: 0.650791
+  type: 'test'
+  ...
+# Subtest: generic retention call additions, including import aliases, require their own review
+ok 13 - generic retention call additions, including import aliases, require their own review
+  ---
+  duration_ms: 0.521084
+  type: 'test'
+  ...
+# Subtest: lifecycle and bounded-selector declarations have exact independent hashes
+ok 14 - lifecycle and bounded-selector declarations have exact independent hashes
+  ---
+  duration_ms: 0.277
+  type: 'test'
+  ...
+# Subtest: actual contract declares limitations rather than claiming arbitrary SQL or owner confinement
+ok 15 - actual contract declares limitations rather than claiming arbitrary SQL or owner confinement
+  ---
+  duration_ms: 0.430708
+  type: 'test'
+  ...
+# Subtest: clock-trigger deletion, index removal and protected-name schema replacement require review
+ok 16 - clock-trigger deletion, index removal and protected-name schema replacement require review
+  ---
+  duration_ms: 0.100833
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 225.286417

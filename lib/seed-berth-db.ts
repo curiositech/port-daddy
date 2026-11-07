@@ -45,7 +45,9 @@ export const LOCAL_ONLY_TABLES = ['services', 'endpoints', 'locks'] as const;
  * them. Copying a proposed or interrupted dispatch into a feature berth lets
  * its eager worker recover and launch prod work without an operator command.
  */
-export const EXECUTABLE_QUEUE_TABLES = ['dispatches'] as const;
+// Legacy rows are executable too: queue construction migrates them back into
+// dispatches. Both tables must be empty before opening the copied queue.
+export const EXECUTABLE_QUEUE_TABLES = ['dispatches', 'nightshift_intents'] as const;
 
 export interface SeedBerthDbOptions {
   /** Where the berth will open its DB (`profile.dbPath`). Must not exist yet. */
@@ -55,7 +57,7 @@ export interface SeedBerthDbOptions {
    * forces the "no source" path (berth starts empty).
    */
   sourceDbPath?: string | null;
-  /** Clear LOCAL-ONLY tables after the copy. Default true. */
+  /** Clear LOCAL-ONLY bindings after the copy. Executable queues are always cleared. Default true. */
   scrubLocalOnly?: boolean;
   env?: NodeJS.ProcessEnv;
 }
@@ -170,16 +172,19 @@ export function seedBerthDbFromProd(opts: SeedBerthDbOptions): SeedBerthDbResult
   }
 
   const scrubbedTables: string[] = [];
-  if (scrubLocalOnly) {
+  {
     const present = tablesIn(targetDbPath);
     const writer = new Database(targetDbPath);
     try {
-      for (const table of [...LOCAL_ONLY_TABLES, ...EXECUTABLE_QUEUE_TABLES]) {
-        if (present.has(table)) {
-          writer.exec(`DELETE FROM ${table}`);
-          scrubbedTables.push(table);
+      const tables = [...(scrubLocalOnly ? LOCAL_ONLY_TABLES : []), ...EXECUTABLE_QUEUE_TABLES];
+      writer.transaction(() => {
+        for (const table of tables) {
+          if (present.has(table)) {
+            writer.exec(`DELETE FROM ${table}`);
+            scrubbedTables.push(table);
+          }
         }
-      }
+      }).immediate();
     } finally {
       writer.close();
     }

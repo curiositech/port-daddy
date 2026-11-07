@@ -1,0 +1,38 @@
+(node:77942) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL unit tests/unit/seed-berth-db.test.js
+  ● seedBerthDbFromProd › legacy executable work cannot reappear after seeding (scrub local: true)
+
+    TypeError: Cannot read properties of undefined (reading 'exec')
+
+      664 |   const now = deps.now ?? (() => Date.now());
+      665 |
+    > 666 |   db.exec(SCHEMA_SQL);
+          |      ^
+      667 |   migrateDispatchFailoverColumns(db);
+      668 |   const dispatchColumns = db.prepare(`PRAGMA table_info(dispatches)`).all() as Array<{ name: string }>;
+      669 |   if (!dispatchColumns.some((column) => column.name === 'run_requested_at')) {
+
+      at exec (lib/dispatch/queue.ts:666:6)
+      at tests/unit/seed-berth-db.test.js:122:27
+
+  ● seedBerthDbFromProd › legacy executable work cannot reappear after seeding (scrub local: false)
+
+    TypeError: Cannot read properties of undefined (reading 'exec')
+
+      664 |   const now = deps.now ?? (() => Date.now());
+      665 |
+    > 666 |   db.exec(SCHEMA_SQL);
+          |      ^
+      667 |   migrateDispatchFailoverColumns(db);
+      668 |   const dispatchColumns = db.prepare(`PRAGMA table_info(dispatches)`).all() as Array<{ name: string }>;
+      669 |   if (!dispatchColumns.some((column) => column.name === 'run_requested_at')) {
+
+      at exec (lib/dispatch/queue.ts:666:6)
+      at tests/unit/seed-berth-db.test.js:122:27
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 9 skipped, 11 total
+Snapshots:   0 total
+Time:        0.183 s
+Ran all test suites within paths "tests/unit/seed-berth-db.test.js".
