@@ -69,6 +69,11 @@ function sealReferenceIdentities(repoRoot, file, text, tracked) {
       || typeof seal.files !== 'object'
       || Object.values(seal.files).some(digest => typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest))) return [];
 
+  // Canonicalize the repository boundary, including macOS /var aliases, but
+  // keep descendant spellings intact so links below that boundary still fail.
+  let canonicalRoot;
+  try { canonicalRoot = realpathSync(repoRoot); } catch { return []; }
+
   // JSON string tokens retain source spans, so a proven files-map key cannot
   // suppress another reference in scope/prose or elsewhere on the same line.
   const tokens = [...text.matchAll(/"(?:[^"\\]|\\.)*"/g)];
@@ -82,8 +87,8 @@ function sealReferenceIdentities(repoRoot, file, text, tracked) {
     let identity = null;
     if (key && !key.includes('\\') && !key.startsWith('/')
         && !key.split('/').some(part => part === '..' || part === '.' || part === '')) {
-      const absolute = resolve(repoRoot, dirname(file), key);
-      const candidate = relative(repoRoot, absolute).split(sep).join('/');
+      const absolute = resolve(canonicalRoot, dirname(file), key);
+      const candidate = relative(canonicalRoot, absolute).split(sep).join('/');
       try {
         if (tracked.has(candidate) && lstatSync(absolute).isFile()
             && realpathSync(absolute) === absolute && sha256Of(absolute) === expected) identity = candidate;
