@@ -14,9 +14,11 @@ import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
   assertOwnedSyntheticTree,
   findAuthorityArtifacts,
+  hasExactAttributedNote,
   isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
   redactReleaseCandidateText,
+  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
@@ -30,6 +32,12 @@ const runnerPath = join(repoRoot, 'scripts', 'e2e-release-candidate.mjs');
 const singleBinaryBuilderPath = join(repoRoot, 'scripts', 'build-single-binary.mjs');
 const compiledCliSurfacePath = join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh');
 const binarySoakPath = join(repoRoot, 'scripts', 'soak-binary.sh');
+
+function createDurableFixture(prefix) {
+  const base = join(homedir(), 'coding', 'tmp');
+  mkdirSync(base, { recursive: true });
+  return mkdtempSync(join(base, prefix));
+}
 
 describe('release-candidate E2E contract', () => {
   test('the collision fixture classifies only peer-termination socket errors as expected', () => {
@@ -119,6 +127,64 @@ describe('release-candidate E2E contract', () => {
     expect(redacted).toContain('token [REDACTED]');
   });
 
+  test('the isolated environment rejects unknown keys and paths outside approved roots', () => {
+    const root = createDurableFixture('port-daddy-rc-env-');
+    const outside = createDurableFixture('port-daddy-rc-outside-');
+    try {
+      expect(() => releaseCandidateIsolatedEnv(root, { INVENTED_SECRET_PATH: outside }))
+        .toThrow(/override is not allowed/);
+      expect(() => releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: outside }))
+        .toThrow(/escapes its approved roots/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test('the isolated environment admits an explicit sibling root but rejects a symlink escape', () => {
+    const root = createDurableFixture('port-daddy-rc-env-');
+    const sibling = createDurableFixture('port-daddy-rc-sibling-');
+    const escape = join(root, 'escape');
+    try {
+      const admitted = releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: sibling }, {
+        approvedPathRootsByKey: { SMOKE_SCRATCH_BASE: [sibling] },
+      });
+      expect(admitted.SMOKE_SCRATCH_BASE).toBe(sibling);
+
+      symlinkSync(sibling, escape);
+      expect(() => releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: escape }))
+        .toThrow(/escapes its approved roots/);
+    } finally {
+      rmSync(escape, { force: true });
+      rmSync(root, { recursive: true, force: true });
+      rmSync(sibling, { recursive: true, force: true });
+    }
+  });
+
+  test('the isolated environment scrubs ambient secrets and binds private runtime homes', () => {
+    const root = createDurableFixture('port-daddy-rc-env-');
+    try {
+      const isolated = releaseCandidateIsolatedEnv(root, {}, {
+        env: {
+          PATH: '/usr/bin:/bin',
+          LANG: 'en_US.UTF-8',
+          OPENAI_API_KEY: 'rc-secret-canary',
+          GITHUB_TOKEN: 'rc-github-canary',
+        },
+        home: join(root, 'ambient-home'),
+      });
+      expect(isolated.OPENAI_API_KEY).toBeUndefined();
+      expect(isolated.GITHUB_TOKEN).toBeUndefined();
+      expect(isolated.HOME).toBe(join(root, 'build-home'));
+      expect(isolated.USERPROFILE).toBe(join(root, 'build-home'));
+      expect(isolated.PD_HOME).toBe(join(root, 'control'));
+      expect(isolated.TMPDIR).toBe(join(root, 'tmp'));
+      expect(isolated.PORT_DADDY_DISABLE_KEYCHAIN).toBe('1');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('durable-root policy rejects OS temp paths and the source checkout', () => {
     expect(() => resolveDurableTestRoot('/tmp/pd-rc-test', { home: homedir(), sourceRoot: repoRoot })).toThrow();
     expect(() => resolveDurableTestRoot('/private/tmp/pd-rc-test', { home: homedir(), sourceRoot: repoRoot })).toThrow();
@@ -146,6 +212,32 @@ describe('release-candidate E2E contract', () => {
       unlinkSync(link);
       rmSync(fixture, { recursive: true, force: true });
     }
+  });
+
+  test('cleanup proof accepts a symlink whose target remains inside the owned root', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-contained-link-test-'));
+    const owned = join(fixture, 'owned');
+    const target = join(owned, 'target');
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, 'kept'), 'inside owned root\n');
+    symlinkSync(target, join(owned, 'contained'));
+    try {
+      expect(assertOwnedSyntheticTree(owned)).toMatchObject({ root: owned });
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  test('sitrep attribution rejects missing and malformed notes', () => {
+    const content = 'RC evidence alpha';
+    expect(hasExactAttributedNote({ notes: [{ sessionId: 'session-alpha', content }] }, 'session-alpha', content))
+      .toBe(true);
+    expect(hasExactAttributedNote({ notes: [] }, 'session-alpha', content)).toBe(false);
+    expect(hasExactAttributedNote({ notes: 'not-an-array' }, 'session-alpha', content)).toBe(false);
+    expect(hasExactAttributedNote({ notes: [{ sessionId: 'session-other', content }] }, 'session-alpha', content))
+      .toBe(false);
   });
 
   test('authority detector reports matrix and database state but not ordinary package files', () => {
@@ -201,6 +293,7 @@ describe('release-candidate E2E contract', () => {
     const matrix = loadReleaseCandidateMatrix(matrixPath);
     const builder = readFileSync(singleBinaryBuilderPath, 'utf8');
     const runner = readFileSync(runnerPath, 'utf8');
+    const compiledCli = readFileSync(join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh'), 'utf8');
     expect(builder).toContain('const SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS = 120_000;');
     expect(builder).toContain('AbortSignal.timeout');
     expect(builder).toContain("'process-exited-before-readiness'");
@@ -208,24 +301,30 @@ describe('release-candidate E2E contract', () => {
     expect(builder).toContain('redacted: true');
     expect(builder).toContain('await stopSelfHostedDaemon(child);');
     expect(runner).toContain('const DAEMON_READINESS_TIMEOUT_MS = 120_000;');
+    expect(runner).toContain('assertOwnedSyntheticTree(this.stagedDir);');
     expect(runner).toContain("category: 'artifact-build'");
     expect(runner).toMatch(/manifest\.smoke\?\.status !== 'ok'/);
     expect(runner).not.toContain('PD_MATRIX_FILE');
     expect(runner).toContain('matrixEnvRequired: false');
     expect(runner).toContain('PORT_DADDY_DB: db');
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
-    expect(runner).toContain("mkdirSync(path, { recursive: true, mode: 0o700 });");
-    expect(runner).toContain('chmodSync(path, 0o700);');
+    expect(runner).toContain('prepareOwnedPrivateDirectory(path);');
+    expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra, {');
+    expect(runner).toContain('PORT_DADDY_RESOURCE_DIR: [this.stagedDir]');
+    expect(runner).toContain("claimPath: 'WORKTREE.md'");
+    expect(runner).toMatch(/'files',\s+'add',\s+spec\.claimPath,\s+'--session',\s+spec\.sessionId,\s+'--json'/);
+    const allBeginsComplete = runner.indexOf('// Start every repository-family session before adding claims.');
+    const firstClaim = runner.indexOf("spec.claimPath,\n          '--session'");
+    expect(allBeginsComplete).toBeGreaterThan(runner.indexOf('sessions.push({ ...spec, sessionId });'));
+    expect(firstClaim).toBeGreaterThan(allBeginsComplete);
     expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
-    expect(runner).toContain("['sitrep', '--template']");
-    expect(runner).toContain("if (child.exitCode !== null || child.signalCode !== null) {\n      done(child.exitCode, child.signalCode);");
+    expect(runner).toContain("'sitrep',\n          '--json'");
+    expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
-    expect(runner).toContain("claimPath: 'ALPHA-CLAIM.md'");
-    expect(runner).toContain("claimPath: 'BETA-CLAIM.md'");
+    expect(runner.match(/claimPath: 'README\.md'/g)).toHaveLength(2);
     expect(runner).toContain("['rev-parse', '--git-common-dir']");
     expect(runner).toContain('alpha linked session recorded the wrong worktree root');
-    expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
     const sugarCli = readFileSync(join(repoRoot, 'cli', 'commands', 'sugar.ts'), 'utf8');
     const doneCall = sugarCli.slice(sugarCli.indexOf('const data = await pd.done('), sugarCli.indexOf("if (!data?.success)", sugarCli.indexOf('const data = await pd.done(')));
     expect(doneCall).toContain('sessionId:');
@@ -233,8 +332,10 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('const blockerSockets = new Set();');
     expect(runner).toContain("socket.on('error', (error) => blockerSocketErrors.push(error));");
     expect(runner).toContain('!isExpectedCollisionSocketError(error)');
-    expect(runner).toContain("collision fixture listener did not close within 3 seconds");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
+    expect(compiledCli).toContain('CLI_HOME="$SCRATCH/home"');
+    expect(compiledCli).toMatch(/HOME="\$CLI_HOME" \\\nPORT_DADDY_NO_FLEET=1/);
+    expect(compiledCli).toMatch(/PORT_DADDY_DB="\$TEST_DB" \\\n\s+PORT_DADDY_TEST_DB="\$TEST_DB" \\\n\s+PORT_DADDY_DISABLE_KEYCHAIN=1 \\\n\s+HOME="\$CLI_HOME"/);
     for (const id of [
       'runtime.transport-parity',
       'runtime.coordination-restart-repository-family',
@@ -247,14 +348,41 @@ describe('release-candidate E2E contract', () => {
     }
   });
 
-  test('reused packaged-binary smokes own private test state', () => {
-    for (const scriptPath of [compiledCliSurfacePath, binarySoakPath]) {
-      const script = readFileSync(scriptPath, 'utf8');
-      expect(script).toContain('chmod 700');
-      expect(script).toContain('PD_HOME=');
-      expect(script).toContain('PORT_DADDY_TEST_DB=');
-      expect(script).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
-    }
+  test('compiled CLI smoke isolates state and proves safe-corral dry-run immutability', () => {
+    const smoke = readFileSync(compiledCliSurfacePath, 'utf8');
+    expect(smoke).toContain('set -euo pipefail');
+    expect(smoke).toContain('CLI_HOME="$SCRATCH/home"');
+    expect(smoke).toContain('chmod 700 "$SCRATCH" "$WORK" "$SNAP_ROOT" "$CLI_HOME"');
+    expect(smoke).toContain('PD_HOME="$CLI_HOME"');
+    expect(smoke).toContain('PORT_DADDY_TEST_DB="$TEST_DB"');
+    expect(smoke).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
+    expect(smoke).toContain('__corral_fixture="$CLI_HOME/.env"');
+    const fixtureWrite = smoke.indexOf("printf 'E2E_SAFE_CORRAL=%s%s\\n'");
+    const corralInvocation = smoke.indexOf('if __corral_out="$(cli safe corral --all 2>&1)"; then');
+    expect(fixtureWrite).toBeGreaterThan(0);
+    expect(corralInvocation).toBeGreaterThan(fixtureWrite);
+    expect(smoke.slice(fixtureWrite, corralInvocation)).not.toContain('|| true');
+    expect(smoke).toContain('__corral_before="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('if __corral_out="$(cli safe corral --all 2>&1)"; then');
+    expect(smoke).toContain('__corral_status=$?');
+    expect(smoke).toContain('[ "$__corral_status" -eq 0 ]');
+    expect(smoke).not.toContain('cli safe corral --all 2>/dev/null || true');
+    expect(smoke).toContain('__corral_after="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('[ "$__corral_before" = "$__corral_after" ]');
+  });
+
+  test('packaged-binary soak owns private test state without weakening Off admission', () => {
+    const soak = readFileSync(binarySoakPath, 'utf8');
+    expect(soak).toContain('chmod 700 "$SOAK_PREFIX"');
+    expect(soak).toContain('mkdir -p "$SOAK_HOME" "$SOAK_PD_HOME"');
+    expect(soak).toContain('chmod 700 "$SOAK_HOME" "$SOAK_PD_HOME"');
+    expect(soak).toContain('HOME="$SOAK_HOME"');
+    expect(soak).toContain('USERPROFILE="$SOAK_HOME"');
+    expect(soak).toContain('PD_HOME="$SOAK_PD_HOME"');
+    expect(soak).toContain('PORT_DADDY_DB="$TEST_DB"');
+    expect(soak).toContain('PORT_DADDY_TEST_DB="$TEST_DB"');
+    expect(soak).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
+    expect(soak).not.toContain('PORT_DADDY_ISOLATED_TEST');
   });
 
   test('stage-validation failure writes a failing result without inventing case passes', () => {

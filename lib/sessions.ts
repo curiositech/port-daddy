@@ -2177,15 +2177,33 @@ export function createSessions(
   /**
    * Get active file conflicts for given paths
    */
-  function getFileConflicts(filePaths: string[]) {
+  function getFileConflicts(
+    filePaths: string[],
+    options: { sessionId?: string; worktreeId?: string | null; project?: string | null } = {},
+  ) {
     if (!Array.isArray(filePaths) || filePaths.length === 0) {
       return { conflicts: [] };
     }
 
     const conflicts: FileConflict[] = [];
+    const targetSession = options.sessionId
+      ? stmts.getById.get(options.sessionId) as SessionRow | undefined
+      : undefined;
+    const scope = targetSession
+      ? claimForest.scopeForSession(targetSession)
+      : (Object.prototype.hasOwnProperty.call(options, 'worktreeId')
+          || Object.prototype.hasOwnProperty.call(options, 'project'))
+        ? {
+            repoId: options.project ?? null,
+            worldKind: 'worktree' as const,
+            worldId: options.worktreeId ?? null,
+          }
+        : undefined;
 
     for (const filePath of filePaths) {
-      const activeClaims = claimForest.getActiveClaimsForFile(filePath);
+      const activeClaims = options.sessionId
+        ? claimForest.getActiveClaimsForFileExcludingSession(filePath, options.sessionId, scope)
+        : claimForest.getActiveClaimsForFile(filePath, scope);
       for (const claim of activeClaims) {
         conflicts.push({
           filePath,

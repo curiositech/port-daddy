@@ -27,6 +27,7 @@ import {
   aiStub,
   makeEnv,
   makeJob,
+  DEFAULT_PR_DIFF,
   type GitHubState,
 } from './harness.js';
 
@@ -80,7 +81,7 @@ function seedToken(kv: KVNamespace): void {
 async function checkpointBindingForYaml(config: string, shipName: string) {
   const ship = parseFleetShips(config, 'pull_request:opened')?.find(candidate => candidate.name === shipName);
   if (!ship) throw new Error(`fixture does not declare ${shipName}`);
-  const diff = state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed';
+  const diff = state.prDiff ?? DEFAULT_PR_DIFF;
   const reviewInputSha256 = await createCheckpointReviewInputSha256({
     owner: 'erichowens',
     repo: 'port-daddy',
@@ -96,7 +97,13 @@ async function checkpointBindingForYaml(config: string, shipName: string) {
     isFork: state.prHeadRepo !== state.prBaseRepo,
     state: state.prState ?? '',
     merged: state.prMerged === true,
-    files: state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }],
+    files: state.prFiles ?? [{
+      filename: 'src/x.ts',
+      status: 'modified',
+      additions: 1,
+      deletions: 1,
+      patch: '@@ -1,4 +1,4 @@\n context one\n context two\n context three\n-old\n+changed',
+    }],
     diff,
     diffBytes: new TextEncoder().encode(diff).byteLength,
     diffTruncated: false,

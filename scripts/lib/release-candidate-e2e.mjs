@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   realpathSync,
@@ -182,6 +184,94 @@ export function resolveDurableTestRoot(candidate, { home = homedir(), sourceRoot
   return root;
 }
 
+/**
+ * Prepare a private directory owned by the synthetic release-candidate harness.
+ * Unlike runtime key storage, the harness may repair this directory because it
+ * created and exclusively owns the whole fixture tree.
+ */
+export function prepareOwnedPrivateDirectory(path) {
+  const resolved = resolve(path);
+  mkdirSync(resolved, { recursive: true, mode: 0o700 });
+  const before = lstatSync(resolved);
+  if (!before.isDirectory() || before.isSymbolicLink()) {
+    throw new Error(`private fixture path must be a real directory: ${resolved}`);
+  }
+  chmodSync(resolved, 0o700);
+  const after = lstatSync(resolved);
+  if (!after.isDirectory() || after.isSymbolicLink() || (after.mode & 0o777) !== 0o700) {
+    throw new Error(`private fixture directory must have mode 0700: ${resolved}`);
+  }
+  return resolved;
+}
+
+/** Prepare every private directory inherited by a release-candidate child. */
+export function prepareReleaseCandidateRunDirectories(root) {
+  const resolvedRoot = resolve(root);
+  for (const name of ['build-home', 'build-scratch', 'control', 'tmp']) {
+    prepareOwnedPrivateDirectory(join(resolvedRoot, name));
+  }
+  return resolvedRoot;
+}
+
+/**
+ * Wait for a spawned fixture to terminate without missing a fast `close`
+ * event. Some launchers fail before Node records an `exitCode`, so listening
+ * only for `exit` can leave a top-level release-candidate await unresolved.
+ */
+export function waitForChildExit(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve({ code: child.exitCode, signal: child.signalCode });
+  }
+  return new Promise((resolveExit, rejectExit) => {
+    let settled = false;
+    let timer;
+    const cleanup = () => {
+      if (timer) clearTimeout(timer);
+      child.off('exit', done);
+      child.off('close', done);
+      child.off('error', failed);
+    };
+    const finish = (value, error = null) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (error) rejectExit(error);
+      else resolveExit(value);
+    };
+    const done = (code, signal) => finish({ code, signal });
+    const failed = (error) => finish(null, error);
+    child.once('exit', done);
+    child.once('close', done);
+    child.once('error', failed);
+    timer = setTimeout(() => finish(null), timeoutMs);
+  });
+}
+
+/** Close a fixture server with an explicit deadline so cleanup always settles. */
+export function closeServerBoundedly(server, timeoutMs = 3_000, label = 'fixture server', sockets = []) {
+  return new Promise((resolveClose, rejectClose) => {
+    let settled = false;
+    let timer;
+    const finish = (error = null) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (error) rejectClose(error);
+      else resolveClose();
+    };
+    timer = setTimeout(
+      () => finish(new Error(`${label} did not close within ${timeoutMs}ms`)),
+      timeoutMs,
+    );
+    try {
+      for (const socket of sockets) socket.destroy();
+      server.close((error) => finish(error || null));
+    } catch (error) {
+      finish(error);
+    }
+  });
+}
+
 export function isWithin(path, parent) {
   const rel = relative(resolve(parent), resolve(path));
   return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
@@ -238,6 +328,18 @@ export function assertOwnedSyntheticTree(root, { home = homedir() } = {}) {
   return { root: physicalRoot, entries };
 }
 
+/** Match one exact session-attributed note in parsed sitrep output. */
+export function hasExactAttributedNote(sitrep, sessionId, content) {
+  return Boolean(
+    sitrep
+    && Array.isArray(sitrep.notes)
+    && sitrep.notes.some((note) => note
+      && typeof note === 'object'
+      && (note.sessionId ?? note.session_id) === sessionId
+      && (note.content ?? note.note) === content),
+  );
+}
+
 /** Produce stable, content-addressed evidence without exposing file bodies. */
 export function sha256File(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
@@ -278,6 +380,75 @@ export function secretFreeBaseEnv(env = process.env) {
     'USER',
   ]);
   return Object.fromEntries(Object.entries(env).filter(([name, value]) => keep.has(name) && typeof value === 'string'));
+}
+
+const RELEASE_CANDIDATE_EXTRA_ENV_KEYS = new Set([
+  'E2E_CLI_SURFACE_PORT',
+  'PD_E2E_BIN',
+  'PORT_DADDY_RESOURCE_DIR',
+  'SMOKE_SCRATCH_BASE',
+  'SOAK_BOOT_GRACE',
+  'SOAK_PORT',
+  'SOAK_PREFIX',
+  'SOAK_SECONDS',
+  'SOAK_WORKLOAD',
+]);
+
+const RELEASE_CANDIDATE_EXTRA_PATH_KEYS = new Set([
+  'PD_E2E_BIN',
+  'PORT_DADDY_RESOURCE_DIR',
+  'SMOKE_SCRATCH_BASE',
+  'SOAK_PREFIX',
+]);
+
+/** Build the private environment shared by release-candidate build and run phases. */
+export function releaseCandidateIsolatedEnv(
+  root,
+  extra = {},
+  { env = process.env, home = homedir(), approvedPathRootsByKey = {} } = {},
+) {
+  const resolvedRoot = resolve(root);
+  for (const [name, value] of Object.entries(extra)) {
+    if (!RELEASE_CANDIDATE_EXTRA_ENV_KEYS.has(name)) {
+      throw new Error(`release-candidate environment override is not allowed: ${name}`);
+    }
+    if (RELEASE_CANDIDATE_EXTRA_PATH_KEYS.has(name)) {
+      const resolvedValue = typeof value === 'string' ? resolve(value) : null;
+      const physicalValue = resolvedValue === null ? null : physicalPath(resolvedValue);
+      const approvedRoots = [resolvedRoot, ...(approvedPathRootsByKey[name] || [])].map((path) => ({
+        lexical: resolve(path),
+        physical: physicalPath(path),
+      }));
+      const isApproved = resolvedValue !== null && approvedRoots.some(
+        (approvedRoot) =>
+          (resolvedValue === approvedRoot.lexical || isWithin(resolvedValue, approvedRoot.lexical))
+          && (physicalValue === approvedRoot.physical || isWithin(physicalValue, approvedRoot.physical)),
+      );
+      if (!isApproved) {
+        throw new Error(`release-candidate path override escapes its approved roots: ${name}`);
+      }
+    }
+  }
+  return {
+    ...secretFreeBaseEnv(env),
+    ...extra,
+    CI: 'true',
+    CARGO_HOME: env.CARGO_HOME || join(home, '.cargo'),
+    HOME: join(resolvedRoot, 'build-home'),
+    NODE_ENV: 'test',
+    NO_COLOR: '1',
+    PD_SCRATCH_ROOT: join(resolvedRoot, 'build-scratch'),
+    PD_HOME: join(resolvedRoot, 'control'),
+    PORT_DADDY_ISOLATED_TEST: '1',
+    PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT: join(resolvedRoot, 'control'),
+    RUSTUP_HOME: env.RUSTUP_HOME || join(home, '.rustup'),
+    TERM: 'dumb',
+    TMPDIR: join(resolvedRoot, 'tmp'),
+    USERPROFILE: join(resolvedRoot, 'build-home'),
+    // A private PD_HOME must never consult or mutate the operator's canonical
+    // Keychain identity. Its mandatory note key is generated inside PD_HOME.
+    PORT_DADDY_DISABLE_KEYCHAIN: '1',
+  };
 }
 
 /**
@@ -329,6 +500,7 @@ export function findAuthorityArtifacts(root) {
 /** Assert a file is executable and large enough to be a real release payload. */
 export function assertExecutableArtifact(path, minBytes = 1024) {
   if (!existsSync(path)) throw new Error(`required artifact is missing: ${path}`);
+  if (lstatSync(path).isSymbolicLink()) throw new Error(`artifact must not be a symbolic link: ${path}`);
   const info = statSync(path);
   if (!info.isFile() || info.size < minBytes) throw new Error(`artifact is not a non-empty file: ${path}`);
   if ((info.mode & 0o111) === 0) throw new Error(`artifact is not executable: ${path}`);

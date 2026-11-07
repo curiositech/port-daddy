@@ -98,6 +98,12 @@ describe('classifyShipOutput — unusable outputs', () => {
     expect(r.usable).toBe(false);
     expect(r.usable === false && r.reason).toBe('no-contract-signal');
   });
+
+  it('flags a reviewer findings block that never reaches the mandatory verdict', () => {
+    const r = classifyShipOutput('```json\n[]\n```\nI will emit the verdict next.', reviewer);
+    expect(r.usable).toBe(false);
+    expect(r.usable === false && r.reason).toBe('no-contract-signal');
+  });
 });
 
 describe('classifyShipOutput — usable outputs are NOT flagged', () => {
