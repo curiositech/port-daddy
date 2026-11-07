@@ -1,0 +1,8 @@
+{
+  "url": "https://media.portdaddy.dev/book/source/sha256/aeb8baeba39091f26184a76c8027971e3d92a324f0f37ef04a25046e55fbf813.tar.gz",
+  "bytes": 40158458,
+  "sha256": "aeb8baeba39091f26184a76c8027971e3d92a324f0f37ef04a25046e55fbf813",
+  "method": "curl unauthenticated GET plus local full SHA-256",
+  "result": "PASS",
+  "limitation": "Python urllib request returned403; curl HEAD/GET and hosted Node readback succeeded."
+}

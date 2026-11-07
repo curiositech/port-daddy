@@ -257,11 +257,23 @@ export function createHarbormaster(deps: HarbormasterDeps) {
     ).run(Date.now(), mergeCommit ?? null, id);
   }
 
-  function backDispatchToProduced(dispatchId: string, reason: string): void {
-    if (!hasTable('dispatches')) return;
-    db.prepare(
-      `UPDATE dispatches SET state = 'produced', error_message = ?, produced_at = ? WHERE id = ?`,
+  /**
+   * Return an accepted dispatch to the produced state after a merge conflict.
+   *
+   * Design: command awaits allow cancellation to commit after candidate selection.
+   * Compare-and-set at the write boundary preserves that newer state and lets the
+   * caller suppress recovery notifications when the approval no longer holds.
+   * @param dispatchId Dispatch selected for merge before the command awaits.
+   * @param reason Conflict details to retain only if the transition succeeds.
+   * @returns Whether an accepted dispatch was returned to produced.
+   */
+  function backDispatchToProduced(dispatchId: string, reason: string): boolean {
+    if (!hasTable('dispatches')) return false;
+    const result = db.prepare(
+      `UPDATE dispatches SET state = 'produced', error_message = ?, produced_at = ?
+       WHERE id = ? AND state = 'accepted'`,
     ).run(reason, Date.now(), dispatchId);
+    return result.changes === 1;
   }
 
   function hasColumn(table: string, col: string): boolean {
@@ -339,10 +351,16 @@ export function createHarbormaster(deps: HarbormasterDeps) {
         if (conflictFiles.length > 0) {
           // Abort the rebase to leave the worktree clean for the worker.
           await runner.run('git', ['rebase', '--abort'], { cwd });
-          backDispatchToProduced(
+          const returnedToProduced = backDispatchToProduced(
             c.dispatchId,
             `merge conflict in ${conflictFiles.join(', ')} against ${c.baseBranch}`,
           );
+          if (!returnedToProduced) {
+            return {
+              kind: 'skipped',
+              reason: 'dispatch is no longer accepted; conflict recovery skipped',
+            };
+          }
           markBlocked(c.id, `conflict: ${conflictFiles.join(', ')}`);
           events.emit('harbormaster:conflict', {
             id: c.id,

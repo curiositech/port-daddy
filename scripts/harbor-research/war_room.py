@@ -4,6 +4,8 @@
 Hash chains detect inconsistent bytes; an externally retained seal digest anchors
 an archive. Same-UID rewriting, secrecy, network isolation, descendants that leave
 the process group, and hard resource quotas are outside this tool's guarantees.
+Same-group writers must exit before output hashing. Cleanup has a recorded
+two-second grace; failed quiescence observation leaves the run incomplete.
 """
 import argparse
 from contextlib import contextmanager
@@ -25,6 +27,8 @@ BASE = (Path.home() / 'coding/tmp').resolve()
 TEAMS = ('red', 'white', 'blue', 'root')
 MODE = 'host-reviewed-process'
 ZERO = '0' * 64
+GROUP_CLEANUP_TIMEOUT = 2.0
+GROUP_PROBE = ['/bin/ps', '-axo', 'pid=,pgid=,stat=']
 
 
 def canonical(value):
@@ -209,6 +213,102 @@ def freeze(directory, inputs):
         return manifest
 
 
+def _observe_exit(process):
+    # WNOWAIT keeps the session/group leader unreaped. Its PID therefore cannot
+    # be reused as an unrelated PGID while this function may signal the group.
+    return os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+
+
+def _live_group_members(group_id, remaining):
+    if remaining <= 0:
+        raise ValueError('Process-group cleanup deadline exhausted; evidence remains incomplete')
+    observed = subprocess.run(GROUP_PROBE, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True, timeout=remaining, check=False,
+                              env={'PATH': os.defpath, 'LANG': 'C'})
+    if observed.returncode or observed.stderr:
+        raise ValueError('Cannot inspect process group; evidence remains incomplete')
+    live = []
+    leader_seen = False
+    for line in observed.stdout.splitlines():
+        fields = line.split()
+        if len(fields) != 3 or not fields[0].isdigit() or not fields[1].isdigit():
+            raise ValueError('Unsupported process-state observation; evidence remains incomplete')
+        pid, group, state = int(fields[0]), int(fields[1]), fields[2]
+        if pid == group_id and group == group_id:
+            leader_seen = True
+        # Zombies have exited and cannot write. Keeping the leader as a zombie
+        # until this check completes is deliberate; its final reap is below.
+        if group == group_id and not state.startswith('Z'):
+            live.append(pid)
+    if not leader_seen:
+        raise ValueError('Owned group leader absent from observation; evidence remains incomplete')
+    return live
+
+
+def _finish_process_group(process, started, timeout):
+    execution_deadline = started + timeout
+    cleanup_deadline = execution_deadline + GROUP_CLEANUP_TIMEOUT
+    forced = timed_out = False
+    reason = None
+    cleanup_started = None
+    try:
+        while _observe_exit(process) is None:
+            if time.monotonic() >= execution_deadline:
+                timed_out, forced, reason = True, True, 'execution-deadline'
+                break
+            time.sleep(min(0.01, max(0, execution_deadline - time.monotonic())))
+        if not forced:
+            forced = bool(_live_group_members(process.pid,
+                min(GROUP_CLEANUP_TIMEOUT, cleanup_deadline - time.monotonic())))
+            if forced:
+                reason = 'live-descendants-after-direct-exit'
+        if forced:
+            cleanup_started = time.monotonic()
+            cleanup_deadline = min(cleanup_deadline, cleanup_started + GROUP_CLEANUP_TIMEOUT)
+            while True:
+                # Reconfirm that this is still our unreaped child before every
+                # signal. If another owner reaped it, waitid fails closed.
+                _observe_exit(process)
+                signal_error = None
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError) as error:
+                    # Some systems return EPERM for a zombie-only group. The
+                    # independent live-member observation decides quiescence.
+                    signal_error = error
+                if not _live_group_members(process.pid, cleanup_deadline - time.monotonic()):
+                    break
+                if signal_error is not None:
+                    raise ValueError('Cannot stop live process group; evidence remains incomplete') from signal_error
+                if time.monotonic() >= cleanup_deadline:
+                    raise ValueError('Live process group at cleanup deadline; evidence remains incomplete')
+                time.sleep(min(0.01, cleanup_deadline - time.monotonic()))
+        # No live same-group process remains. Reap only now, and never signal
+        # this numeric group again after its ownership anchor has been released.
+        process.wait(timeout=max(0, cleanup_deadline - time.monotonic()))
+        return {'exit_code': process.returncode, 'timed_out': timed_out,
+                'group_cleanup_forced': forced, 'group_cleanup_reason': reason,
+                'group_cleanup_seconds': 0 if cleanup_started is None else time.monotonic() - cleanup_started,
+                'group_quiescent': True}
+    except BaseException:
+        # Best-effort stop on observation failure, but do not hash, end or seal
+        # the run without a successful quiescence observation. No PID-only kill.
+        if process.returncode is None:
+            try:
+                _observe_exit(process)
+                os.killpg(process.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            # No more signals follow this final reap attempt. Evidence still
+            # remains incomplete even if only the direct child is now reaped.
+            try:
+                process.wait(timeout=max(0, min(0.1, cleanup_deadline - time.monotonic())))
+            except (ChildProcessError, subprocess.TimeoutExpired):
+                pass
+        raise
+
+
 def run(directory, team, cwd, argv, timeout=30, reviewed=False):
     cwd = guarded(cwd)
     if (not reviewed or not cwd.is_dir() or not isinstance(argv, list) or not argv
@@ -224,31 +324,33 @@ def run(directory, team, cwd, argv, timeout=30, reviewed=False):
         run_id = uuid.uuid4().hex
         command = [str(executable), *argv[1:]]
         append(directory, team, 'run-start', {'run_id': run_id, 'mode': MODE, 'argv': command,
-               'cwd': str(cwd), 'timeout_seconds': timeout, 'executable_sha256': executable_sha,
+               'cwd': str(cwd), 'timeout_seconds': timeout,
+               'cleanup_timeout_seconds': GROUP_CLEANUP_TIMEOUT,
+               'total_deadline_seconds': timeout + GROUP_CLEANUP_TIMEOUT,
+               'group_probe_argv': GROUP_PROBE, 'executable_sha256': executable_sha,
                'privacy_enforced': False, 'environment_keys': ['PATH', 'LANG', 'TMPDIR', 'PYTHONDONTWRITEBYTECODE']})
         paths = [directory / f'{run_id}.{stream}' for stream in ('stdout', 'stderr')]
-        started, timed_out, launch_error = time.monotonic(), False, None
+        started, launch_error = time.monotonic(), None
+        lifecycle = {'exit_code': None, 'timed_out': False, 'group_cleanup_forced': False,
+                     'group_cleanup_reason': None, 'group_cleanup_seconds': 0, 'group_quiescent': None}
         with paths[0].open('xb') as stdout, paths[1].open('xb') as stderr:
             try:
                 process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
                     shell=False, start_new_session=True,
                     env={'PATH': os.defpath, 'LANG': 'C.UTF-8', 'TMPDIR': str(cwd), 'PYTHONDONTWRITEBYTECODE': '1'})
-                try:
-                    process.wait(timeout=timeout)
-                except subprocess.TimeoutExpired:
-                    timed_out = True
-                    os.killpg(process.pid, signal.SIGKILL)
-                    process.wait()
-                exit_code = process.returncode
             except OSError as error:
-                launch_error, exit_code = str(error), None
+                launch_error = str(error)
+            else:
+                lifecycle = _finish_process_group(process, started, timeout)
         # Newly created outputs are intentionally not yet in the inventory.
         artifacts = [{'name': p.name, 'sha256': inventory(p)['sha256']} for p in paths]
         # Verify prior evidence while allowing these two newly created names.
         # The terminal event immediately binds their hashes.
-        result = {'run_id': run_id, 'mode': MODE, 'exit_code': exit_code, 'timed_out': timed_out,
+        status = ('launch-error' if launch_error else 'timeout' if lifecycle['timed_out']
+                  else 'descendants-terminated' if lifecycle['group_cleanup_forced'] else 'completed')
+        result = {'run_id': run_id, 'mode': MODE, **lifecycle,
                   'launch_error': launch_error, 'elapsed_seconds': time.monotonic() - started,
-                  'artifacts': artifacts, 'status': 'timeout' if timed_out else 'launch-error' if launch_error else 'completed'}
+                  'artifacts': artifacts, 'status': status}
         append(directory, team, 'run-end', result, pending_outputs={p.name for p in paths})
         return result
 
@@ -302,8 +404,9 @@ def main(argv=None):
         else:
             result = verify(args.campaign, args.expected_seal)
         print(json.dumps(result, indent=2, sort_keys=True))
-        return 1 if result.get('timed_out') or result.get('launch_error') or result.get('exit_code', 0) not in (0, None) else 0
-    except (ValueError, OSError, KeyError, TypeError) as error:
+        return 1 if (result.get('timed_out') or result.get('launch_error')
+                     or result.get('group_cleanup_forced') or result.get('exit_code', 0) not in (0, None)) else 0
+    except (ValueError, OSError, KeyError, TypeError, subprocess.TimeoutExpired) as error:
         print(json.dumps({'status': 'invalid', 'error': str(error)}))
         return 2
 

@@ -14696,7 +14696,8 @@
       "assumptions": "Authorization and runtime halt handled independently of research planning.",
       "status": "open",
       "evidence": [
-        "Roadmap D.1-D.5 and implementation evidence table grades partial/specifed."
+        "Roadmap D.1-D.5 and implementation evidence table grades partial/specifed.",
+        "NEXT-P6 executable recovery omission and Harbormaster cancellation-CAS repair demonstrate why declared graphs and cached approval are insufficient. The broader complete-mediation obligation remains open."
       ],
       "next": "Track each as a source/test/deployed-witness row, not a manuscript assertion.",
       "acceptance": "No source-present result promoted to deployed assurance.",
@@ -133698,14 +133699,16 @@
         "6"
       ],
       "kind": "research task",
-      "result": "Dormant facts can activate conflict after admission; all-conflict enumeration must charge output size.",
+      "result": "Future-conflict witnesses distinguish reachable states from impossible unions. Actual SQLite recovery demonstrates that the central dispatch table can produce a false-safe admission model; adding and replaying the omitted transition exposes the conflict.",
       "assumptions": "Declared observation, authority, and cost model; no field validation inferred from finite fixtures.",
-      "status": "finite reachable-family result verified; bounded provider and independent oracle checked; real adapter conformance open",
+      "status": "bounded provider and real queue counterexample verified; complete writer conformance and atomic mediation open",
       "evidence": [
         "PROGRAM-RECONCILIATION: maximal reachable-family theorem,130560 finite families,4096 truth-table cases, current-only and unreachable-union mutants; Paper6 and Chapter6 publication verified.",
-        "2026-11-06: bounded provider independent oracle checked 49152 decisions (18624 safe,30528 unsafe); all30528 witnesses replayed. 27 tests; no real-adapter conformance claim. AdmissionRevision model:12 distinct safe states plus unsafe stale-admission, positive-admission and stale-rejection trace controls."
+        "2026-11-06: bounded provider independent oracle checked 49152 decisions (18624 safe,30528 unsafe); all30528 witnesses replayed. 27 tests; no real-adapter conformance claim. AdmissionRevision model:12 distinct safe states plus unsafe stale-admission, positive-admission and stale-rejection trace controls.",
+        "2026-11-06 actual-code follow-up: nine inert SQLite queue cases pass; claimed/in_progress table-only model safe, recovery-aware model unsafe with one-step replay. Recovery-edge deletion fails observed-step conformance. Other writers and admission/effect binding remain open.",
+        "Harbormaster conflict recovery: coordinator independently reproduces three cancellation overwrites against exact original source; accepted-state compare-and-set repair passes20tests. Combinedfocused suites29/29. Successful merge path and broader cancellation mediation remain unproved."
       ],
-      "next": "Complete source/hosted integration of the bounded provider receipts. Then validate a real adapter and matched batch/SAT-SMT workloads including provider construction and output cost.",
+      "next": "Inventory and verify every dispatch writer and guard partition, then add revision-bound admission at a real effect boundary. Recovery-only conformance is insufficient; successful merge cancellation and other direct writers remain open.",
       "acceptance": "Preserve current-state and unreachable-union counterexamples; verify reachability provenance and output-sensitive cost on operational workloads.",
       "depends_on": [
         "FUTURE-HORN",
@@ -133720,6 +133723,18 @@
         {
           "path": "docs/harbor-research/research/future-admission-and-bonded-audit.md",
           "locator": "Provider theorem, exact oracle results and model revision boundary"
+        },
+        {
+          "path": "docs/harbor-research/research/dispatch-admission-conformance.md",
+          "locator": "Actual queue replay and model omission control"
+        },
+        {
+          "path": "tests/unit/future-admission-conformance.test.js",
+          "locator": "Nine cases against real queue and finite provider"
+        },
+        {
+          "path": "docs/harbor-research/research/dispatch-cancellation-mediation.md",
+          "locator": "Three before-fix failures and narrow CAS repair"
         }
       ],
       "queue_state": "current_work",
@@ -133729,7 +133744,10 @@
         "basis": "Explicit finite family and monotone rules; no compact-state reachability complexity or operational throughput claim.",
         "fresh_check": "PROGRAM-RECONCILIATION"
       },
-      "delivery": "not established by source import",
+      "delivery": {
+        "pr": "https://github.com/curiositech/port-daddy/pull/10359",
+        "state": "open; hosted verification in progress; no deployed-runtime claim"
+      },
       "dependency_kind": "Research ingredient or stated prerequisite; does not itself schedule execution",
       "review_intakes": {
         "REVIEW-INTAKE-20261106": {
@@ -166810,7 +166828,9 @@
         "VM: 3 sequential fixed probes PASS with zero NIC, shared-directory or vsock devices; controller DEV_UNTRUSTED. Actual proof runtimes and agent privacy are not established inside guests.",
         "Visible transcript prefix export has a manifest; it omits hidden/internal material and declares capture/exclusion limits. It is not a complete raw conversation archive.",
         "Fixed Python guest: Python3.12.16 and binary hash match; exact D14/D8/D29 JSON matches; positive exit0, intentional assertion exit1; no NIC/share/vsock; private state removed. Original bootstrap report remains unchanged.",
-        "Native transcript refresh:13authorizedsessions,1321visible events; hidden/internal/credential-bearing/export-recursive events omitted with reasons. Compressed bodies retained privately at0600andGitignored; publicmanifestonly. Exporter16regressiontests passed after independent review repairs."
+        "Native transcript refresh:13authorizedsessions,1321visible events; hidden/internal/credential-bearing/export-recursive events omitted with reasons. Compressed bodies retained privately at0600andGitignored; publicmanifestonly. Exporter16regressiontests passed after independent review repairs.",
+        "Actual-code round:9queueconformancecases+20Harbormastertests pass. Threeoriginalracefailures independently retained. Hosted recorder review is being repaired; citation guard requires frozen historical protocol to be archive-backed without changing its sealed bytes.",
+        "Final integration prefix capture:17authorizedsessions/1755visibleevents retained privately. Process-group recorder repaired after hostedreview;17localregressions pass, including after-return writer and lost-ownership controls. All201entries in four original seals verify, including exact archive-backed historicalprotocolinput."
       ],
       "next": "Establish real workflow/model conformance and finite-bankroll participation. Port additional proof runtimes and fault-test the guest controller before arbitrary agent admission. Native agents still share filesystem authority.",
       "acceptance": "Each claim points to immutable input identities, raw outputs, positive reachability and seeded failure controls; independent retest closes only its assigned finding; model, host, guest, provenance and publication claims stay separate.",
@@ -166875,6 +166895,18 @@
         {
           "path": "docs/harbor-research/campaigns/2026-11-06/guest-python/seal.json",
           "locator": "Actual fixed Python guest run, distinct from earlier bootstrap-only probes"
+        },
+        {
+          "path": "docs/harbor-research/campaigns/2026-11-06/coordinator/dispatch-regression/receipt.json",
+          "locator": "Coordinator independent29-test run and exact source digests"
+        },
+        {
+          "path": "docs/harbor-research/campaigns/2026-11-06/coordinator/process-group-fix.md",
+          "locator": "Hosted review finding, reproduction, repair and scoped independent tests"
+        },
+        {
+          "path": "scripts/harbor-research/check_campaign_seals.py",
+          "locator": "Portable original-seal and archive-backed-input validation"
         }
       ],
       "owner": "codex:/root (coordinator); red/white/blue/isolation/export lane owners in campaign receipts",
@@ -166909,7 +166941,7 @@
           },
           {
             "path": "docs/harbor-research/campaigns/2026-11-06/transcripts/manifest.json",
-            "sha256": "77c8d13048b7db12510ccab89eb8569cec64d15357afb1213cd2eb7cfb07f209"
+            "sha256": "18177ac117bae03f48b9734a100b01d1f813e6f07c56dcaf2b66468ba3db03e3"
           },
           {
             "path": "docs/harbor-research/campaigns/2026-11-06/red-retest/report.md",
@@ -166945,6 +166977,11 @@
         "next_p6": "Bounded supplied transition-family provider; real adapter conformance remains open.",
         "review_math": "Three explicit sanction conventions and exact bounded deviation checks; no participation, finite-bankroll or coalition guarantee.",
         "publication": "No merge, hosted-CI, deployment, field efficacy or novelty claim follows from local checks."
+      },
+      "delivery": {
+        "pr": "https://github.com/curiositech/port-daddy/pull/10359",
+        "preview": "https://codex-research-program-next.port-daddy.pages.dev/research/war-room/",
+        "status": "PR open; preview verified at initial head; final-head CI and production publication pending"
       }
     }
   ],

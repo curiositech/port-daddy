@@ -291,6 +291,73 @@ describe('harbormaster.processCandidate — happy path', () => {
 });
 
 describe('harbormaster.processCandidate — rebase conflict path', () => {
+  test.each(['rebase', 'status', 'abort'])(
+    'preserves cancellation while awaiting %s and does not request conflict recovery',
+    async (pauseAt) => {
+      const db = createTestDb();
+      applyForwardSchema(db);
+      insertDispatch(db, 'd-cancel');
+      enqueueMerge(db, 'd-cancel');
+
+      let signalPaused;
+      const paused = new Promise((resolve) => { signalPaused = resolve; });
+      let resumeCommand;
+      const commandResult = new Promise((resolve) => { resumeCommand = resolve; });
+      const commands = [
+        { phase: 'fetch', args: ['fetch', 'origin'], result: { code: 0, stdout: '', stderr: '' } },
+        { phase: 'rebase', args: ['rebase', 'origin/main'], result: { code: 1, stdout: '', stderr: 'CONFLICT' } },
+        { phase: 'status', args: ['status', '--porcelain'], result: { code: 0, stdout: 'UU lib/x.ts\n', stderr: '' } },
+        { phase: 'abort', args: ['rebase', '--abort'], result: { code: 0, stdout: '', stderr: '' } },
+      ];
+      const runner = makeRunner(commands.map((command) => ({
+        match: ({ cmd, args }) => {
+          expect(cmd).toBe('git');
+          expect(args).toEqual(command.args);
+          if (command.phase === pauseAt) signalPaused();
+          return true;
+        },
+        result: command.phase === pauseAt ? commandResult : command.result,
+      })));
+      const notes = [];
+      const events = [];
+      const hm = createHarbormaster({
+        db,
+        runner,
+        lease: makeLease(),
+        postNote: async (text, opts) => notes.push({ text, opts }),
+      });
+      for (const event of ['conflict', 'blocked', 'merged']) {
+        hm.events.on(`harbormaster:${event}`, (data) => events.push({ event, data }));
+      }
+
+      const [candidate] = hm.findCandidates();
+      const processing = hm.processCandidate(candidate);
+      await paused;
+      // Model the committed dispatch cancellation while the command is in flight.
+      db.prepare(`UPDATE dispatches SET state = 'salvage', error_message = ? WHERE id = ?`)
+        .run('cancelled by operator', 'd-cancel');
+      const cancelled = db.prepare(`SELECT * FROM dispatches WHERE id = ?`).get('d-cancel');
+      const queueBefore = db.prepare(`SELECT * FROM merge_queue WHERE id = ?`).get(candidate.id);
+
+      resumeCommand(commands.find((command) => command.phase === pauseAt).result);
+      const result = await processing;
+
+      expect(db.prepare(`SELECT * FROM dispatches WHERE id = ?`).get('d-cancel')).toEqual(cancelled);
+      expect(result).toEqual({
+        kind: 'skipped',
+        reason: 'dispatch is no longer accepted; conflict recovery skipped',
+      });
+      expect(db.prepare(`SELECT * FROM merge_queue WHERE id = ?`).get(candidate.id)).toEqual(queueBefore);
+      expect(notes).toEqual([]);
+      expect(events).toEqual([]);
+      expect(runner.calls.map(({ cmd, args }) => [cmd, ...args])).toEqual(
+        commands.map(({ args }) => ['git', ...args]),
+      );
+      expect(hm.findCandidates()).toEqual([]);
+      db.close();
+    },
+  );
+
   test('detects UU conflict, aborts rebase, marks blocked, backs dispatch to produced, opens sub-dispatch', async () => {
     const db = createTestDb();
     applyForwardSchema(db);

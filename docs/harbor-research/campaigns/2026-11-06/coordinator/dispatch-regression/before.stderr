@@ -1,0 +1,116 @@
+(node:50425) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL unit tests/unit/harbormaster.test.js
+  ● harbormaster.processCandidate — rebase conflict path › preserves cancellation while awaiting rebase and does not request conflict recovery
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 3
+
+      Object {
+        "base_branch": "main",
+        "branch": "feat/d-cancel",
+        "created_at": 1794025430038,
+    -   "error_message": "cancelled by operator",
+    +   "error_message": "merge conflict in lib/x.ts against main",
+        "goal": "goal for d-cancel",
+        "id": "d-cancel",
+        "merge_policy": "review",
+    -   "produced_at": null,
+    +   "produced_at": 1794025430039,
+        "reviewer_actor_id": "operator",
+        "slug": "d-cancel",
+    -   "state": "salvage",
+    +   "state": "produced",
+        "worker_actor_id": "worker-1",
+        "worktree_path": "/var/folders/wt-d-cancel",
+      }
+
+      343 |       const result = await processing;
+      344 |
+    > 345 |       expect(db.prepare(`SELECT * FROM dispatches WHERE id = ?`).get('d-cancel')).toEqual(cancelled);
+          |                                                                                   ^
+      346 |       expect(result).toEqual({
+      347 |         kind: 'skipped',
+      348 |         reason: 'dispatch is no longer accepted; conflict recovery skipped',
+
+      at tests/unit/harbormaster.test.js:345:83
+
+  ● harbormaster.processCandidate — rebase conflict path › preserves cancellation while awaiting status and does not request conflict recovery
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 3
+
+      Object {
+        "base_branch": "main",
+        "branch": "feat/d-cancel",
+        "created_at": 1794025430045,
+    -   "error_message": "cancelled by operator",
+    +   "error_message": "merge conflict in lib/x.ts against main",
+        "goal": "goal for d-cancel",
+        "id": "d-cancel",
+        "merge_policy": "review",
+    -   "produced_at": null,
+    +   "produced_at": 1794025430046,
+        "reviewer_actor_id": "operator",
+        "slug": "d-cancel",
+    -   "state": "salvage",
+    +   "state": "produced",
+        "worker_actor_id": "worker-1",
+        "worktree_path": "/var/folders/wt-d-cancel",
+      }
+
+      343 |       const result = await processing;
+      344 |
+    > 345 |       expect(db.prepare(`SELECT * FROM dispatches WHERE id = ?`).get('d-cancel')).toEqual(cancelled);
+          |                                                                                   ^
+      346 |       expect(result).toEqual({
+      347 |         kind: 'skipped',
+      348 |         reason: 'dispatch is no longer accepted; conflict recovery skipped',
+
+      at tests/unit/harbormaster.test.js:345:83
+
+  ● harbormaster.processCandidate — rebase conflict path › preserves cancellation while awaiting abort and does not request conflict recovery
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 3
+
+      Object {
+        "base_branch": "main",
+        "branch": "feat/d-cancel",
+        "created_at": 1794025430047,
+    -   "error_message": "cancelled by operator",
+    +   "error_message": "merge conflict in lib/x.ts against main",
+        "goal": "goal for d-cancel",
+        "id": "d-cancel",
+        "merge_policy": "review",
+    -   "produced_at": null,
+    +   "produced_at": 1794025430047,
+        "reviewer_actor_id": "operator",
+        "slug": "d-cancel",
+    -   "state": "salvage",
+    +   "state": "produced",
+        "worker_actor_id": "worker-1",
+        "worktree_path": "/var/folders/wt-d-cancel",
+      }
+
+      343 |       const result = await processing;
+      344 |
+    > 345 |       expect(db.prepare(`SELECT * FROM dispatches WHERE id = ?`).get('d-cancel')).toEqual(cancelled);
+          |                                                                                   ^
+      346 |       expect(result).toEqual({
+      347 |         kind: 'skipped',
+      348 |         reason: 'dispatch is no longer accepted; conflict recovery skipped',
+
+      at tests/unit/harbormaster.test.js:345:83
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 17 skipped, 20 total
+Snapshots:   0 total
+Time:        0.161 s
+Ran all test suites within paths "tests/unit/harbormaster.test.js".
