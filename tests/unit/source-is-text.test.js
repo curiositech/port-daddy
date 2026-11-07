@@ -15,7 +15,8 @@
  * rather than just reporting a boolean. Keep them that way.
  */
 import { describe, test, expect } from '@jest/globals';
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { basename, resolve } from 'node:path';
 import {
   ALLOWED_BINARY_SOURCE,
   TEXT_EXTENSIONS,
@@ -26,6 +27,20 @@ import {
 } from '../../scripts/lib/source-is-text.mjs';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
+
+// These are captured tool bytes, not maintained source. Keep the exceptions
+// exact and attach executable probes: merely dropping every path-scoped rule
+// from `unparsed` would let a future source declaration evade the NUL guard.
+const EVIDENCE_ROOT = 'docs/harbor-research/campaigns/2026-11-06';
+const CAPTURED_EVIDENCE_PROBES = new Map([
+  [`${EVIDENCE_ROOT}/**/*.stdout`, { name: 'probe.stdout', matches: (name) => name.endsWith('.stdout') }],
+  [`${EVIDENCE_ROOT}/**/*.stderr`, { name: 'probe.stderr', matches: (name) => name.endsWith('.stderr') }],
+  [`${EVIDENCE_ROOT}/**/*.log`, { name: 'probe.log', matches: (name) => name.endsWith('.log') }],
+  [`${EVIDENCE_ROOT}/**/*_TTrace_*.tla`, {
+    name: 'AdmissionRevision_TTrace_123.tla',
+    matches: (name) => /^.*_TTrace_.*\.tla$/.test(name),
+  }],
+]);
 
 describe('source stays text, greppable, and mergeable', () => {
   test('no tracked source file contains a raw NUL byte', () => {
@@ -104,7 +119,10 @@ describe('source stays text, greppable, and mergeable', () => {
     // get scanned for NULs, so an extension declared in .gitattributes but
     // absent here is a file type git is told to treat as text while nothing
     // checks whether it actually is.
-    const { declared, unparsed } = declaredExtensions(REPO_ROOT);
+    const { declared, unparsed: pathScoped } = declaredExtensions(REPO_ROOT);
+    // Only these four exact rules have the separate, path-aware assertions
+    // below. Every other unsupported pattern still fails closed.
+    const unparsed = pathScoped.filter((pattern) => !CAPTURED_EVIDENCE_PROBES.has(pattern));
 
     const guarded = new Set(TEXT_EXTENSIONS);
     const declaredNotGuarded = [...declared].filter((e) => !guarded.has(e)).sort();
@@ -132,6 +150,64 @@ describe('source stays text, greppable, and mergeable', () => {
     expect({ declaredNotGuarded, guardedNotDeclared, unparsed }).toEqual({
       declaredNotGuarded: [], guardedNotDeclared: [], unparsed: [],
     });
+  });
+
+  test('captured evidence preserves bytes only within its declared path scope', () => {
+    const { unparsed } = declaredExtensions(REPO_ROOT);
+    expect(unparsed).toEqual(expect.arrayContaining([...CAPTURED_EVIDENCE_PROBES.keys()]));
+
+    const tracked = execFileSync('git', ['ls-files', '-z', '--', `${EVIDENCE_ROOT}/`], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    }).split('\0').filter(Boolean);
+    const attrsToCheck = ['text', 'diff', 'merge', 'whitespace'];
+    const outside = [];
+
+    for (const { name, matches } of CAPTURED_EVIDENCE_PROBES.values()) {
+      const real = tracked.filter((path) => matches(basename(path)));
+      // Exercise real frozen files too; an empty or wrong scope must not pass
+      // just because a synthetic spelling happens to match a glob.
+      expect(real.length).toBeGreaterThan(0);
+      const probes = [...real, ...['', '__attribute_probe__/', '__attribute_probe__/nested/']
+        .map((dir) => `${EVIDENCE_ROOT}/${dir}${name}`)];
+      const attrs = checkTextAttributes(probes, attrsToCheck, REPO_ROOT);
+      for (const path of probes) {
+        expect({ path, ...attrs[path] }).toEqual({
+          path, text: 'unset', diff: 'unspecified', merge: 'unspecified',
+          whitespace: '-blank-at-eol,-blank-at-eof',
+        });
+      }
+      outside.push(
+        `__attribute_probe__/${name}`,
+        `docs/harbor-research/campaigns/__attribute_probe__/${name}`,
+        `${EVIDENCE_ROOT}-other/nested/${name}`,
+      );
+    }
+
+    // Maintained models and near-miss trace names must not inherit the frozen
+    // output rule. Nor may the exceptions become extension-wide elsewhere.
+    const unaffected = [...outside,
+      `${EVIDENCE_ROOT}/models/AdmissionRevision.tla`,
+      `${EVIDENCE_ROOT}/models/AdmissionRevision_TTrace.tla`,
+      `${EVIDENCE_ROOT}/models/AdmissionRevision_TTrace_123.tla.bak`,
+    ];
+    const unaffectedAttrs = checkTextAttributes(unaffected, attrsToCheck, REPO_ROOT);
+    for (const path of unaffected) {
+      expect({ path, ...unaffectedAttrs[path] }).toEqual({
+        path, text: 'unspecified', diff: 'unspecified', merge: 'unspecified',
+        whitespace: 'unspecified',
+      });
+    }
+
+    // Every guarded source extension remains text even alongside captured
+    // evidence; this supplements (and does not shrink) the repo-wide NUL scan.
+    const source = TEXT_EXTENSIONS.map((ext) => `${EVIDENCE_ROOT}/__attribute_probe__/probe.${ext}`);
+    const sourceAttrs = checkTextAttributes(source, attrsToCheck, REPO_ROOT);
+    for (const path of source) {
+      expect({ path, ...sourceAttrs[path] }).toEqual({
+        path, text: 'set', diff: 'set', merge: 'set', whitespace: 'unspecified',
+      });
+    }
   });
 
   test('the published facing PDF is binary for text conversion, diff and merge', () => {

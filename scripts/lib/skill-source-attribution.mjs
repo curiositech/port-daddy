@@ -27,6 +27,9 @@ export function eligibleAttributionPath(path, sourceNames) {
   // The deterministic website audit inventories imported skill names but has
   // no installation or execution authority. Keep this exception exact.
   if (path === 'website-v2/public/skill-audit.json') return true;
+  // This exact research receipt records operator-supplied source paths and
+  // hashes. It does not authorize discovery, installation or execution.
+  if (path === 'docs/harbor-research/exposition/review-intake-20261106/skill-grafts.json') return true;
   const mergedSourceRoots = new Set([
     'bdi-agent-architecture', 'bdi-agent-interpreters',
     'bdi-organizational-modeling', 'bdi-normative-reasoning',

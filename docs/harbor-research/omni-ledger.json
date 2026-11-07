@@ -166830,7 +166830,7 @@
         "Fixed Python guest: Python3.12.16 and binary hash match; exact D14/D8/D29 JSON matches; positive exit0, intentional assertion exit1; no NIC/share/vsock; private state removed. Original bootstrap report remains unchanged.",
         "Native transcript refresh:13authorizedsessions,1321visible events; hidden/internal/credential-bearing/export-recursive events omitted with reasons. Compressed bodies retained privately at0600andGitignored; publicmanifestonly. Exporter16regressiontests passed after independent review repairs.",
         "Actual-code round:9queueconformancecases+20Harbormastertests pass. Threeoriginalracefailures independently retained. Hosted recorder review is being repaired; citation guard requires frozen historical protocol to be archive-backed without changing its sealed bytes.",
-        "Final integration prefix capture:17authorizedsessions/1755visibleevents retained privately. Process-group recorder repaired after hostedreview;17localregressions pass, including after-return writer and lost-ownership controls. All201entries in four original seals verify, including exact archive-backed historicalprotocolinput."
+        "Integration prefix capture: 17 authorized sessions and 1,860 visible events retained privately. The process-group recorder was repaired after hosted review; 17 local regressions pass, including after-return writer and lost-ownership controls. All 201 entries in four original seals verify, including the exact archive-backed historical protocol input. Hosted integration failures were repaired with exact corpus-path coverage, scoped evidence-attribute probes and a hash-bound source-attribution receipt; 47 focused JavaScript tests pass."
       ],
       "next": "Establish real workflow/model conformance and finite-bankroll participation. Port additional proof runtimes and fault-test the guest controller before arbitrary agent admission. Native agents still share filesystem authority.",
       "acceptance": "Each claim points to immutable input identities, raw outputs, positive reachability and seeded failure controls; independent retest closes only its assigned finding; model, host, guest, provenance and publication claims stay separate.",
@@ -166981,7 +166981,7 @@
       "delivery": {
         "pr": "https://github.com/curiositech/port-daddy/pull/10359",
         "preview": "https://codex-research-program-next.port-daddy.pages.dev/research/war-room/",
-        "status": "PR open; preview verified at initial head; final-head CI and production publication pending"
+        "status": "Delivery state is maintained by the linked PR checks and deployment receipts; the preview URL is not proof of production publication."
       }
     }
   ],

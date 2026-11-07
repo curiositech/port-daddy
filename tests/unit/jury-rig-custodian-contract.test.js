@@ -106,6 +106,17 @@ describe('source attribution cannot grant native authority', () => {
     expect(eligibleAttributionPath('website-v2/public/other.json', names)).toBe(false);
   });
 
+  test('accepts only the exact research skill receipt as non-authority attribution', () => {
+    const receiptPath = 'docs/harbor-research/exposition/review-intake-20261106/skill-grafts.json';
+    expect(eligibleAttributionPath(receiptPath, names)).toBe(true);
+    expect(eligibleAttributionPath(receiptPath.replace('skill-grafts.json', 'other.json'), names)).toBe(false);
+    expect(eligibleAttributionPath(receiptPath.replace('skill-grafts.json', 'AGENTS.md'), names)).toBe(false);
+    const manifest = { schemaVersion: 1, entries: [{ path: receiptPath, sha256: digest(bytes) }] };
+    expect(validateAttributionManifest(manifest, new Map([[receiptPath, bytes]]), names)).toEqual([]);
+    expect(validateAttributionManifest(manifest, new Map([[receiptPath, Buffer.from('changed')]]), names))
+      .toContain(`stale attribution: ${receiptPath}`);
+  });
+
   test('accepts reviewed bytes but rejects changed, unlisted, and removed files', () => {
     expect(validateAttributionManifest(receipt(), new Map([[path, bytes]]), names)).toEqual([]);
     expect(validateAttributionManifest(receipt(), new Map([[path, Buffer.from('changed')]]), names)).toContain(`stale attribution: ${path}`);

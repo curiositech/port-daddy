@@ -117,19 +117,23 @@ describe('proof-estate corpus manifest', () => {
   });
 
   test('every ProVerif model under analyses/ and proofs/** is wired to proverif-estate', () => {
-    const wiredProverifEntries = corpus.formalArtifacts.filter(
-      (a) => a.method === 'ProVerif' && a.ci.status === 'wired',
+    const isRunnerPath = (path) => path.startsWith('analyses/') || path.startsWith('proofs/');
+    const runnerProverifEntries = corpus.formalArtifacts.filter(
+      (a) => a.method === 'ProVerif' && a.paths.some(isRunnerPath),
     );
-    expect(wiredProverifEntries).toHaveLength(25);
-    for (const entry of wiredProverifEntries) {
+    const discoveredPaths = execFileSync('find', ['analyses', 'proofs', '-type', 'f', '-name', '*.pv'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    }).trim().split(/\r?\n/u).filter(Boolean).sort();
+    const registeredPaths = runnerProverifEntries.flatMap((entry) => entry.paths.filter(isRunnerPath)).sort();
+
+    // Compare file coverage to the runner's actual scope, so additional
+    // ProVerif artifacts registered for other CI lanes do not inflate this
+    // assertion or hide an unregistered model under the runner's roots.
+    expect(registeredPaths).toEqual(discoveredPaths);
+    for (const entry of runnerProverifEntries) {
       expect(entry.ci).toEqual({ status: 'wired', job: ['proverif-estate'] });
     }
-    // The one ProVerif-method entry that is NOT wired is the skill teaching
-    // template, covered by its own dedicated test below.
-    const retiredProverifEntries = corpus.formalArtifacts.filter(
-      (a) => a.method === 'ProVerif' && a.ci.status === 'retired',
-    );
-    expect(retiredProverifEntries).toHaveLength(1);
   });
 
   test('the guidance-envelope pair lives under proofs/coordination and its twin stays a negative control', () => {
