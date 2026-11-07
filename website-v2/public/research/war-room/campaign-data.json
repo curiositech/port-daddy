@@ -16618,127 +16618,127 @@
       "label": "Red attack report",
       "path": "docs/harbor-research/campaigns/2026-11-06/red/report.md",
       "sha256": "52bfc84192e2a23cc867bf94b8938cce18c35fca93a08335ec0fb6fd96c75bfe",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/red/report.md"
     },
     {
       "label": "White response",
       "path": "docs/harbor-research/campaigns/2026-11-06/white/report.md",
       "sha256": "1ec61410fa08c291e42ba3dc029af1183382c48662d62643ad91acc50488ea3d",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/white/report.md"
     },
     {
       "label": "Independent red retest",
       "path": "docs/harbor-research/campaigns/2026-11-06/red-retest/report.md",
       "sha256": "24ad58f52d741db680410678afcfee3ecf86a49c5ffcd3d863db429a045bbc26",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/red-retest/report.md"
     },
     {
       "label": "Blue verification report",
       "path": "docs/harbor-research/campaigns/2026-11-06/blue/REPORT.md",
       "sha256": "7fcb72e548d1d094557f96ac1f51531e5bd53a4661199ba889f1c15c6199f4f0",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/blue/REPORT.md"
     },
     {
       "label": "Fixed guest probe report",
       "path": "docs/harbor-research/campaigns/2026-11-06/isolation/REPORT.md",
       "sha256": "c3d67dceb0b4b708b3f8e52e7007a11ab0e4ecdda2ecd8e73f33e034f9a0241d",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/isolation/REPORT.md"
     },
     {
       "label": "Primary-literature review",
       "path": "docs/harbor-research/campaigns/2026-11-06/primary-literature.md",
       "sha256": "97dd04aa4ca9b36770b072aae445e1d0083248f343b6c99fdbe641aba8d3d163",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/primary-literature.md"
     },
     {
       "label": "Source advice and coverage ledger",
       "path": "docs/harbor-research/OMNI-LEDGER.md",
-      "sha256": "8797f0cba4a07692c6b2b77809de258cf7f670d83fa71f1137ac1c3ebc577c76",
-      "url": null
+      "sha256": "a614aec47a27a9eb8818a383baec3e17043b5d224b73d3ef605081d0aacaf9c2",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/OMNI-LEDGER.md"
     },
     {
       "label": "Literature-scout crosswalk",
       "path": "docs/harbor-research/exposition/literature-scout-20261106/README.md",
       "sha256": "205aa70d6c5669e165af829da487d6d4b87db948bf0f44bf3558e703aa2c6f39",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/README.md"
     },
     {
       "label": "Literature-scout source manifest",
       "path": "docs/harbor-research/exposition/literature-scout-20261106/source-manifest.json",
       "sha256": "7f12c5d7d46ae042455a6df9f319297875e09882fa976cd8432bcfccc0a942ec",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/source-manifest.json"
     },
     {
       "label": "Current mathematical review of all 14 scout directions",
       "path": "docs/harbor-research/exposition/literature-scout-20261106/math-review.md",
       "sha256": "a7255fcf04345078522990eac78a9c52dcb8c651aac6f883ea0c27d9a740ec8d",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/math-review.md"
     },
     {
       "label": "Constructed scout counterexamples",
       "path": "docs/harbor-research/research/scout-claim-counterexamples.md",
       "sha256": "26484a5d76107260b7e69aab9d207634a3b60ca212a65fdd0475cc235a6e88cb",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/research/scout-claim-counterexamples.md"
     },
     {
       "label": "Actual queue conformance experiment",
       "path": "docs/harbor-research/research/dispatch-admission-conformance.md",
       "sha256": "58dad499e614e3ebc9d62aef3710def8f6a617753686fa19bf5491dc9bbc5a15",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/research/dispatch-admission-conformance.md"
     },
     {
       "label": "Cancellation race and compare-and-set repair",
       "path": "docs/harbor-research/research/dispatch-cancellation-mediation.md",
       "sha256": "b203f9fbccf897973c0556db6f4f50731bb5a12c1c63ac1f21786124f9c9b3ae",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/research/dispatch-cancellation-mediation.md"
     },
     {
       "label": "Source-intake manifest",
       "path": "docs/harbor-research/exposition/review-intake-20261106/source-manifest.json",
       "sha256": "4ec139370d6fbca07e5d6cf8dccd41771c4a61292ef8be4d913e886acfda0c3d",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/review-intake-20261106/source-manifest.json"
     },
     {
       "label": "Transcript capture contract",
       "path": "docs/harbor-research/campaigns/2026-11-06/transcripts/README.md",
       "sha256": "b838b906ed1ace6b1860c09f372819dd9e47044ee17349e76aad37a583f08d84",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/transcripts/README.md"
     },
     {
       "label": "Transcript inventory",
       "path": "docs/harbor-research/campaigns/2026-11-06/transcripts/manifest.json",
-      "sha256": "18177ac117bae03f48b9734a100b01d1f813e6f07c56dcaf2b66468ba3db03e3",
-      "url": null
+      "sha256": "7f691321928b406c395dd4852ee9012ad8a7ad1cb2baa22c779d23a7237adf42",
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/transcripts/manifest.json"
     },
     {
       "label": "Fixed Python guest execution report",
       "path": "docs/harbor-research/campaigns/2026-11-06/guest-python/REPORT.md",
       "sha256": "ece76ea17956d034a543c06203b42ca2efca2e7e6ee8f9fba527c24432802668",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/guest-python/REPORT.md"
     },
     {
       "label": "Fixed Python guest verdict",
       "path": "docs/harbor-research/campaigns/2026-11-06/guest-python/verdict.json",
       "sha256": "ad54f2964a5b90de43cfc8e63c53b73c7155de158b4c7869fa015c18d345ea6e",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/guest-python/verdict.json"
     },
     {
       "label": "Fixed Python guest source manifest",
       "path": "docs/harbor-research/campaigns/2026-11-06/guest-python/manifest.json",
       "sha256": "50a3c3f03cffdf11f55a6b551b1e9fd1a69c34f4204dca1291ceb651cb3d05cf",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/campaigns/2026-11-06/guest-python/manifest.json"
     },
     {
       "label": "Literature source-verification inventory",
       "path": "docs/harbor-research/exposition/literature-scout-20261106/source-verification.json",
       "sha256": "6923825aa95ef8adc31dca84043e96a49ac3b470a32aaf8f8049d437620f3ac1",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/source-verification.json"
     },
     {
       "label": "Literature audit and claim boundaries",
       "path": "docs/harbor-research/exposition/literature-scout-20261106/literature-audit.md",
       "sha256": "5a08cb33d1320871966a311fea7de28018d0079ae25e563736ce386b93b57a81",
-      "url": null
+      "url": "https://github.com/curiositech/port-daddy/blob/2f7ff132b5c70eb4f98f07d4d3cd6175fecb367b/docs/harbor-research/exposition/literature-scout-20261106/literature-audit.md"
     }
   ],
   "transcripts": {
