@@ -29,11 +29,39 @@
  * `<!-- cite-exempt -->`. ADRs that reference files they propose to create stay green.
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, resolve, join, isAbsolute } from 'node:path'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { dirname, resolve, join, isAbsolute, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
+// These sealed reports describe an intentionally absent filename used by the
+// writer-discovery mutation test. Editing them to add cite-exempt would break
+// their retained evidence hashes. This annotation exempts only the reviewed
+// literal at its exact location in its exact document bytes, never the line,
+// whole report, directory, or other citations beside it.
+const SEALED_SYNTHETIC_CITATIONS = Object.freeze([
+  Object.freeze({
+    documentPath: 'docs/harbor-research/campaigns/2026-11-06/round-two/red/FINAL.md',
+    documentSha256: '4d1545814b75a9978d11626df39532e2a6f64cc654202a61ada4b98694c99335',
+    line: 47,
+    token: 'routes/future/direct-writer.ts',
+  }),
+  Object.freeze({
+    documentPath: 'docs/harbor-research/campaigns/2026-11-06/round-two/red/FINAL.first-freeze.md',
+    documentSha256: 'bb2898f3e222fd7ef480583511b1ca522f516da0ab0740b8a3d3fb1a1ea719c0',
+    line: 47,
+    token: 'routes/future/direct-writer.ts',
+  }),
+])
+
+/** Exact immutable annotation; changed report bytes or citation identity fail closed. */
+export function isSealedSyntheticCitation({ documentPath, documentSha256, line, token }) {
+  return SEALED_SYNTHETIC_CITATIONS.some(annotation =>
+    annotation.documentPath === documentPath && annotation.documentSha256 === documentSha256
+    && annotation.line === line && annotation.token === token)
+}
 
 // Backtick'd tokens are treated as repo-path citations only when they start with a
 // known top-level directory AND carry a file extension. This keeps prose tokens
@@ -156,8 +184,18 @@ function skillBundleRoot(docAbs) {
 function checkFile(relFile, violations) {
   // Resolve against the repo root unless an absolute path was passed explicitly.
   const abs = isAbsolute(relFile) ? relFile : join(REPO, relFile)
-  let text
-  try { text = readFileSync(abs, 'utf8') } catch { return }
+  let bytes
+  try { bytes = readFileSync(abs) } catch { return }
+  violations.push(...documentCitationViolations(relFile, bytes))
+}
+
+/** Scan supplied document bytes using the same path and hash binding as the CLI. */
+export function documentCitationViolations(relFile, bytes) {
+  const abs = isAbsolute(relFile) ? relFile : join(REPO, relFile)
+  const documentPath = relative(REPO, abs).split(sep).join('/')
+  const documentSha256 = createHash('sha256').update(bytes).digest('hex')
+  const text = bytes.toString('utf8')
+  const violations = []
   const lines = text.split('\n')
   let inFence = false
   for (let i = 0; i < lines.length; i++) {
@@ -188,6 +226,7 @@ function checkFile(relFile, violations) {
       const lineRef = token.match(/^(.*):\d+$/)
       const bare = lineRef ? lineRef[1] : token
       if (!REPO_PATH_RE.test(bare)) continue
+      if (isSealedSyntheticCitation({ documentPath, documentSha256, line: i + 1, token: m[1] })) continue
       // A citation is valid if it resolves at the repo root, relative to the
       // doc's own directory, OR relative to the doc's skill-bundle root (the
       // nearest ancestor holding a SKILL.md). Skill bundles cite sibling assets
@@ -204,6 +243,7 @@ function checkFile(relFile, violations) {
       }
     }
   }
+  return violations
 }
 
 function main() {
@@ -237,4 +277,5 @@ function main() {
   console.log(`check-doc-citations: ${files.length} file(s) clean.`)
 }
 
-main()
+if (process.argv[1] && existsSync(process.argv[1])
+    && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) main()

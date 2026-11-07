@@ -90,6 +90,8 @@ Read [the CR-4 counterexample and scope reference](references/cr4-repair-counter
 - [Evidence and authority boundary](diagrams/01-evidence-scope.md)
 - [Intervention decision trace](diagrams/02-intervention-boundary.md)
 
+Before freezing campaign reports, mark intentionally nonexistent test paths with an explicit `cite-exempt` comment explaining the synthetic fixture. Keep frozen report bytes and hashes intact; any later citation annotation must bind the exact document, digest, line and token, not exempt the report as a whole.
+
 ## Anti-Patterns
 
 ### The Unpriced Side Channel
