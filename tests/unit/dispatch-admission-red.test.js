@@ -1,6 +1,6 @@
 /** Independent RED probes. Pure SQLite only; no runtime, provider, or subprocess effects. */
 import Database from 'better-sqlite3';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { createDispatchAdmission } from '../../lib/dispatch/admission.js';
@@ -18,7 +18,9 @@ function fixture(policy) {
   return { db, queue };
 }
 function fileFixture() {
-  const dir = mkdtempSync(join(process.cwd(), '.cache/test-tmp/red-admission-'));
+  const scratchRoot = join(process.cwd(), '.cache/test-tmp');
+  mkdirSync(scratchRoot, { recursive: true });
+  const dir = mkdtempSync(join(scratchRoot, 'red-admission-'));
   scratch.push(dir);
   const path = join(dir, 'fixture.db');
   const db = database(path, { timeout: 0 });

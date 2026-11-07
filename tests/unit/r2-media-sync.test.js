@@ -29,7 +29,7 @@ import {
   serializeManifest,
   trackedFiles,
 } from '../../scripts/r2-media-manifest.mjs';
-import { findReferrers, rewriteProse } from '../../scripts/r2-offload-move.mjs';
+import { findReferrers, planMove, rewriteProse } from '../../scripts/r2-offload-move.mjs';
 import { verifyEntry } from '../../scripts/verify-r2-public-reads.mjs';
 import { diffManifests } from '../../scripts/check-r2-media-manifest.mjs';
 import {
@@ -594,6 +594,85 @@ describe('the committed manifest describes this repository', () => {
 // tree, and they are deliberately not in the tree. media/r2-offloaded.json is,
 // so the invariants that matter at Phase 2 are asserted against that file.
 // ---------------------------------------------------------------------------
+describe('seal consumers retain exact asset identity', () => {
+  const oldAsset = 'docs/pr-assets/older/same-name-fixture.png';
+  const sealFile = 'docs/harbor-research/campaigns/synthetic/seal.json';
+  const sealedAsset = 'docs/harbor-research/campaigns/synthetic/site/same-name-fixture.png';
+  const key = 'site/same-name-fixture.png';
+  const body = 'sealed fixture bytes';
+  const seal = (overrides = {}) => JSON.stringify({
+    scope: 'synthetic evidence inventory', files: { [key]: sha256(Buffer.from(body)) }, ...overrides,
+  });
+
+  test('a valid seal consumes its exact file, not a different asset with the same basename', () => {
+    const root = makeRepo({ [oldAsset]: 'older bytes', [sealedAsset]: body, [sealFile]: seal() });
+    try {
+      const refs = findReferrers(root, new Set([oldAsset, sealedAsset]), [sealFile]);
+      expect([...refs.get(oldAsset)]).toEqual([]);
+      expect([...refs.get(sealedAsset)]).toEqual([[sealFile, 'consumer']]);
+      // The real offload planner uses the same full-path identity, not the old
+      // shared basename bucket. The seal's own image remains a protected input.
+      const plan = planMove(root, ['docs/pr-assets/']);
+      expect(plan.refused).toEqual([]);
+      expect(plan.move.map(entry => entry.path)).toEqual([oldAsset]);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  test.each(['malformed JSON', 'mismatched digest', 'missing target', 'untracked target'])(
+    '%s retains the conservative basename consumer', mode => {
+      let inventory = seal();
+      if (mode === 'malformed JSON') inventory += ',';
+      if (mode === 'mismatched digest') inventory = seal({ files: { [key]: '0'.repeat(64) } });
+      const files = { [oldAsset]: 'older bytes', [sealFile]: inventory };
+      if (mode !== 'missing target' && mode !== 'untracked target') files[sealedAsset] = body;
+      const root = makeRepo(files);
+      try {
+        if (mode === 'untracked target') {
+          mkdirSync(dirname(join(root, sealedAsset)), { recursive: true });
+          writeFileSync(join(root, sealedAsset), body);
+        }
+        const refs = findReferrers(root, new Set([oldAsset]), [sealFile]);
+        expect([...refs.get(oldAsset)]).toEqual([[sealFile, 'consumer']]);
+        expect(planMove(root, ['docs/pr-assets/']).refused).toEqual([{ path: oldAsset, consumers: [sealFile] }]);
+      } finally { rmSync(root, { recursive: true, force: true }); }
+    },
+  );
+
+  test('another basename mention in seal metadata is not hidden by a valid inventory entry', () => {
+    const root = makeRepo({
+      [oldAsset]: 'older bytes', [sealedAsset]: body,
+      [sealFile]: seal({ scope: 'also reads same-name-fixture.png through an unresolved binding' }),
+    });
+    try {
+      const refs = findReferrers(root, new Set([oldAsset, sealedAsset]), [sealFile]);
+      expect([...refs.get(oldAsset)]).toEqual([[sealFile, 'consumer']]);
+      expect([...refs.get(sealedAsset)]).toEqual([[sealFile, 'consumer']]);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  test('unsupported seal shape and ordinary JSON references remain conservative', () => {
+    const ordinary = 'docs/harbor-research/campaigns/synthetic/viewer.json';
+    const root = makeRepo({
+      [oldAsset]: 'older bytes', [sealedAsset]: body,
+      [sealFile]: seal({ renderedImage: key }), [ordinary]: seal(),
+    });
+    try {
+      const refs = findReferrers(root, new Set([oldAsset]), [sealFile, ordinary]);
+      expect([...refs.get(oldAsset)]).toEqual([[sealFile, 'consumer'], [ordinary, 'consumer']]);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  test('JSON-escaped inventory keys still protect the exact consumed file', () => {
+    const escaped = seal().replace('same-name-fixture.png', 'same-name-fixtur\\u0065.png');
+    const root = makeRepo({ [oldAsset]: 'older bytes', [sealedAsset]: body, [sealFile]: escaped });
+    try {
+      const refs = findReferrers(root, new Set([oldAsset, sealedAsset]), [sealFile]);
+      expect([...refs.get(oldAsset)]).toEqual([]);
+      expect([...refs.get(sealedAsset)]).toEqual([[sealFile, 'consumer']]);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+});
+
 describe('offloaded files are gone from git and readable from R2', () => {
   const offloadedPath = join(REPO_ROOT, 'media/r2-offloaded.json');
   const offloaded = existsSync(offloadedPath)
@@ -621,9 +700,10 @@ describe('offloaded files are gone from git and readable from R2', () => {
   // did not make.
   test('nothing but prose ever referenced an offloaded file', () => {
     if (offloaded.entries.length === 0) return;
-    const names = new Set(offloaded.entries.map((e) => e.path.split('/').pop()));
-    const textFiles = trackedFiles(REPO_ROOT).filter((f) => !isOffloadable(f));
-    const referrers = findReferrers(REPO_ROOT, names, textFiles);
+    const assets = new Set(offloaded.entries.map((e) => e.path));
+    const tracked = trackedFiles(REPO_ROOT);
+    const textFiles = tracked.filter((f) => !isOffloadable(f));
+    const referrers = findReferrers(REPO_ROOT, assets, textFiles, { tracked });
     const consumers = [];
     for (const [name, hits] of referrers) {
       for (const [file, kind] of hits) if (kind === 'consumer') consumers.push(`${name} <- ${file}`);

@@ -30,8 +30,8 @@
 // rewrites every prose reference it does move. Both halves are non-optional.
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join, relative, dirname, basename } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, lstatSync, realpathSync } from 'node:fs';
+import { join, relative, dirname, basename, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   OFFLOAD_ROOTS, isOffloadable, objectKeyFor, contentTypeFor,
@@ -54,26 +54,88 @@ export function classifyReferrer(file) {
 }
 
 /**
- * Every tracked text file that names `basename`, with its classification.
+ * Resolve only the research seal's documented, directory-relative files map.
+ * A seal is a real byte consumer. Its exact reference can disambiguate two
+ * different assets sharing a basename only when the named tracked file exists
+ * and matches the recorded digest. Anything uncertain retains the broad scan.
+ */
+function sealReferenceIdentities(repoRoot, file, text, tracked) {
+  if (!file.startsWith('docs/harbor-research/campaigns/') || basename(file) !== 'seal.json') return [];
+  let seal;
+  try { seal = JSON.parse(text); } catch { return []; }
+  if (!seal || typeof seal !== 'object' || Array.isArray(seal)
+      || Object.keys(seal).sort().join(',') !== 'files,scope'
+      || typeof seal.scope !== 'string' || !seal.files || Array.isArray(seal.files)
+      || typeof seal.files !== 'object'
+      || Object.values(seal.files).some(digest => typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest))) return [];
+
+  // JSON string tokens retain source spans, so a proven files-map key cannot
+  // suppress another reference in scope/prose or elsewhere on the same line.
+  const tokens = [...text.matchAll(/"(?:[^"\\]|\\.)*"/g)];
+  const entries = [];
+  for (let i = 0; i + 1 < tokens.length; i += 1) {
+    const token = tokens[i];
+    const key = JSON.parse(token[0]);
+    const expected = seal.files[key];
+    if (typeof expected !== 'string' || JSON.parse(tokens[i + 1][0]) !== expected
+        || !/^\s*:\s*$/.test(text.slice(token.index + token[0].length, tokens[i + 1].index))) continue;
+    let identity = null;
+    if (key && !key.includes('\\') && !key.startsWith('/')
+        && !key.split('/').some(part => part === '..' || part === '.' || part === '')) {
+      const absolute = resolve(repoRoot, dirname(file), key);
+      const candidate = relative(repoRoot, absolute).split(sep).join('/');
+      try {
+        if (tracked.has(candidate) && lstatSync(absolute).isFile()
+            && realpathSync(absolute) === absolute && sha256Of(absolute) === expected) identity = candidate;
+      } catch { /* Missing or ambiguous paths must retain conservative hits. */ }
+    }
+    entries.push({ key, identity, start: token.index, end: token.index + token[0].length });
+  }
+  return entries;
+}
+
+/**
+ * Every tracked text referrer, keyed by full candidate asset identity.
  *
  * Basename matching is deliberately WIDER than the reference actually written:
  * a false positive costs us a file we decline to move, a false negative costs
- * us a broken link in the tree. The asymmetry is the whole reason it is a
- * basename scan and not a link parser.
+ * us a broken link in the tree. Proven seal entries distinguish exact assets;
+ * ambiguous entries and all other references keep that conservative policy.
  */
-export function findReferrers(repoRoot, names, files) {
-  const hits = new Map();           // basename -> Map(file -> kind)
-  for (const n of names) hits.set(n, new Map());
-  if (names.size === 0) return hits;
-  const pattern = new RegExp([...names].sort((a, b) => b.length - a.length)
+export function findReferrers(repoRoot, assetPaths, files, { tracked = trackedFiles(repoRoot) } = {}) {
+  const hits = new Map();           // full asset path -> Map(file -> kind)
+  const byName = new Map();
+  for (const asset of assetPaths) {
+    hits.set(asset, new Map());
+    const name = basename(asset);
+    if (!byName.has(name)) byName.set(name, []);
+    byName.get(name).push(asset);
+  }
+  if (assetPaths.size === 0) return hits;
+  const trackedSet = new Set(tracked);
+  const pattern = new RegExp([...byName.keys()].sort((a, b) => b.length - a.length)
     .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
 
   for (const file of files) {
     let text;
     try { text = readFileSync(join(repoRoot, file), 'utf8'); } catch { continue; }
     if (!text.includes('.')) continue;
+    const identities = sealReferenceIdentities(repoRoot, file, text, trackedSet);
+    // Parsed keys also catch JSON-escaped filenames that the raw scan misses.
+    for (const entry of identities) {
+      for (const [name, assets] of byName) {
+        if (!entry.key.includes(name)) continue;
+        for (const asset of assets) {
+          if (entry.identity === null || entry.identity === asset) hits.get(asset).set(file, classifyReferrer(file));
+        }
+      }
+    }
     for (const match of text.matchAll(pattern)) {
-      hits.get(match[0]).set(file, classifyReferrer(file));
+      const entry = identities.find(item => match.index >= item.start && match.index < item.end);
+      for (const asset of byName.get(match[0])) {
+        if (entry?.identity && entry.identity !== asset) continue;
+        hits.get(asset).set(file, classifyReferrer(file));
+      }
     }
   }
   return hits;
@@ -117,12 +179,12 @@ export function planMove(repoRoot, roots, { files = null } = {}) {
   const tracked = files ?? trackedFiles(repoRoot);
   const subject = tracked.filter((f) => isOffloadable(f) && roots.some((r) => f.startsWith(r)));
   const textFiles = tracked.filter((f) => !isOffloadable(f));
-  const referrers = findReferrers(repoRoot, new Set(subject.map((f) => basename(f))), textFiles);
+  const referrers = findReferrers(repoRoot, new Set(subject), textFiles, { tracked });
 
   const move = [];
   const refused = [];
   for (const path of subject.sort()) {
-    const hits = referrers.get(basename(path)) ?? new Map();
+    const hits = referrers.get(path) ?? new Map();
     const consumers = [...hits].filter(([, kind]) => kind === 'consumer').map(([f]) => f);
     if (consumers.length > 0) {
       refused.push({ path, consumers });
