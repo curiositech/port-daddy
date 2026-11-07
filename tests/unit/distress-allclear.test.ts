@@ -19,6 +19,7 @@ import {
   allClearMessage,
   defaultDistressPaths,
   evaluateHaltState,
+  formatPinEntry,
   formatRegistryLine,
   haltActive,
   liftHalt,
@@ -29,11 +30,14 @@ import {
   readHalt,
   readHaltState,
   resetViolationJournalDedupe,
+  resolveOperatorPublicKey,
   signAllClear,
   verifyAllClear,
   writeOperatorKeyFiles,
   type DistressPaths,
+  type PinnedOperatorKey,
 } from '../../lib/distress-allclear.js';
+import { OPERATOR_ALLCLEAR_PINNED_KEYS } from '../../lib/distress-allclear-pins.js';
 import { createJsonlForensicsArchive, type ForensicsEvent } from '../../lib/forensics-archive.js';
 
 // Scratch lives inside the repo (gitignored by the `**/.scratch/` rule), never /tmp.
@@ -384,33 +388,35 @@ describe('operator key custody', () => {
   afterEach(() => rmSync(home, { recursive: true, force: true }));
 
   test('keygen writes a 0600 passphrase-encrypted private key and a public key; refuses to overwrite', () => {
-    const { fingerprint } = writeOperatorKeyFiles(paths, 'correct horse battery');
+    const { fingerprint, pin, publicPem } = writeOperatorKeyFiles(paths, 'correct horse battery', { holder: 'operator:erich', now: new Date('2026-09-07T00:00:00Z') });
     expect(fingerprint).toMatch(/^[0-9a-f]{16}$/);
     expect(statSync(paths.privateKeyFile).mode & 0o777).toBe(0o600);
     expect(readFileSync(paths.privateKeyFile, 'utf8')).toMatch(/BEGIN ENCRYPTED PRIVATE KEY/);
-    expect(publicKeyFingerprint(loadOperatorPublicKey(paths)!)).toBe(fingerprint);
+    expect(pin).toEqual({ fingerprint, publicKeyPem: publicPem, holder: 'operator:erich', pinnedOn: '2026-09-07' });
+    expect(publicKeyFingerprint(loadOperatorPublicKey(paths, { trustedKeys: [pin] })!)).toBe(fingerprint);
     expect(() => writeOperatorKeyFiles(paths, 'correct horse battery')).toThrow(/refusing to overwrite/);
     expect(() => writeOperatorKeyFiles(defaultDistressPaths({ home: join(home, 'x') }), 'short')).toThrow(/at least 8/);
   });
 
   test('the private key is inert without the passphrase', () => {
-    writeOperatorKeyFiles(paths, 'correct horse battery');
+    const { pin } = writeOperatorKeyFiles(paths, 'correct horse battery');
     expect(() => loadOperatorPrivateKey(paths, 'wrong')).toThrow(/wrong passphrase/);
     const key = loadOperatorPrivateKey(paths, 'correct horse battery');
     const { line } = signAllClear({ haltTs: HALT_TS, operatorId: 'erich', privateKey: key });
-    expect(verifyAllClear(line, loadOperatorPublicKey(paths)!, HALT_TS).ok).toBe(true);
+    expect(verifyAllClear(line, loadOperatorPublicKey(paths, { trustedKeys: [pin] })!, HALT_TS).ok).toBe(true);
   });
 
   test('liftHalt end-to-end: sign with the unlocked key, append, remove the sentinel', () => {
-    writeOperatorKeyFiles(paths, 'correct horse battery');
+    const { pin } = writeOperatorKeyFiles(paths, 'correct horse battery');
+    const trustedKeys = [pin];
     writeFileSync(paths.haltFile, `${HALT_LINE}\n`);
     writeFileSync(paths.distressFile, `${HALT_LINE}\n`);
-    expect(() => liftHalt({ operatorId: 'erich', passphrase: 'nope-nope', paths, forensics: null })).toThrow(/wrong passphrase/);
+    expect(() => liftHalt({ operatorId: 'erich', passphrase: 'nope-nope', paths, forensics: null, trustedKeys })).toThrow(/wrong passphrase/);
     expect(existsSync(paths.haltFile)).toBe(true);
-    const r = liftHalt({ operatorId: 'erich', passphrase: 'correct horse battery', paths, forensics: null, ts: '2026-09-07T12:00:00Z' });
+    const r = liftHalt({ operatorId: 'erich', passphrase: 'correct horse battery', paths, forensics: null, ts: '2026-09-07T12:00:00Z', trustedKeys });
     expect(r.lifted).toBe(true);
     expect(existsSync(paths.haltFile)).toBe(false);
-    expect(haltActive({ paths, forensics: null })).toBe(false);
+    expect(haltActive({ paths, forensics: null, trustedKeys })).toBe(false);
     const lines = readFileSync(paths.distressFile, 'utf8').trim().split('\n');
     expect(lines).toHaveLength(2);
     expect(parseRegistryLine(lines[1])).toMatchObject({ kind: 'operator', id: 'erich', code: 'ALL-CLEAR', fields: { ref: HALT_TS } });
@@ -418,7 +424,150 @@ describe('operator key custody', () => {
 
   test('liftHalt refuses without a pinned public key or without a hoisted halt', () => {
     expect(liftHalt({ operatorId: 'erich', passphrase: 'correct horse battery', paths, forensics: null })).toEqual({ lifted: false, reason: 'no-public-key' });
-    writeOperatorKeyFiles(paths, 'correct horse battery');
-    expect(liftHalt({ operatorId: 'erich', passphrase: 'correct horse battery', paths, forensics: null })).toEqual({ lifted: false, reason: 'no-halt-hoisted' });
+    const { pin } = writeOperatorKeyFiles(paths, 'correct horse battery');
+    expect(liftHalt({ operatorId: 'erich', passphrase: 'correct horse battery', paths, forensics: null, trustedKeys: [pin] })).toEqual({ lifted: false, reason: 'no-halt-hoisted' });
+  });
+});
+
+// The trust root. `~/.port-daddy` is same-user-writable, so the on-disk `.pub`
+// proves nothing by itself; the build trusts only fingerprints committed in
+// lib/distress-allclear-pins.ts. These are the red-team reproductions from the
+// #10052 review, now asserting the halt survives them.
+describe('committed key pin is the trust root', () => {
+  let home: string;
+  let repo: string;
+  let paths: DistressPaths;
+  beforeEach(() => {
+    mkdirSync(SCRATCH_ROOT, { recursive: true });
+    home = mkdtempSync(join(SCRATCH_ROOT, 'pin-'));
+    repo = mkdtempSync(join(SCRATCH_ROOT, 'pinrepo-'));
+    paths = defaultDistressPaths({ home, repoRoot: repo });
+    resetViolationJournalDedupe();
+  });
+  afterEach(() => {
+    rmSync(home, { recursive: true, force: true });
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  function hoist(line = HALT_LINE) {
+    writeFileSync(paths.haltFile, `${line}\n`);
+    writeFileSync(paths.distressFile, `${line}\n`, { flag: 'a' });
+  }
+
+  /** What an agent can do with only this module's exports and a writable home: mint, plant, sign. */
+  function plantAttackerKey(): { line: string; fingerprint: string } {
+    const attacker = keypair();
+    const pem = attacker.publicKey.export({ format: 'pem', type: 'spki' }).toString();
+    writeFileSync(paths.publicKeyFile, pem); // plain write; `wx` only guards keygen
+    const { line } = signAllClear({ haltTs: HALT_TS, operatorId: 'erich', privateKey: attacker.privateKey, ts: '2026-09-07T12:00:00Z' });
+    return { line, fingerprint: publicKeyFingerprint(pem) };
+  }
+
+  test('the committed pin set is well-formed, and this build ships EMPTY (nothing can lift a halt yet)', () => {
+    expect(Array.isArray(OPERATOR_ALLCLEAR_PINNED_KEYS)).toBe(true);
+    for (const pin of OPERATOR_ALLCLEAR_PINNED_KEYS) {
+      expect(pin.fingerprint).toMatch(/^[0-9a-f]{16}$/);
+      expect(pin.holder).toMatch(/^operator:/);
+      expect(pin.pinnedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      if (pin.publicKeyPem) expect(publicKeyFingerprint(pin.publicKeyPem)).toBe(pin.fingerprint);
+    }
+    // Deliberate: the operator has not run keygen. Flip this assertion in the
+    // same PR that commits the first real pin.
+    expect(OPERATOR_ALLCLEAR_PINNED_KEYS).toHaveLength(0);
+  });
+
+  test('an on-disk .pub whose fingerprint is not pinned is unpinned: loadOperatorPublicKey returns null', () => {
+    expect(resolveOperatorPublicKey(paths)).toEqual({ key: null, status: 'absent' });
+    const { fingerprint } = writeOperatorKeyFiles(paths, 'correct horse battery');
+    const r = resolveOperatorPublicKey(paths); // default pin set: empty
+    expect(r).toMatchObject({ key: null, status: 'unpinned', onDiskFingerprint: fingerprint });
+    expect(loadOperatorPublicKey(paths)).toBeNull();
+    // …and pinned once its fingerprint is committed.
+    const pinned = resolveOperatorPublicKey(paths, { trustedKeys: [{ fingerprint, holder: 'operator:erich', pinnedOn: '2026-09-07' }] });
+    expect(pinned.status).toBe('pinned');
+    expect(publicKeyFingerprint(pinned.key!)).toBe(fingerprint);
+  });
+
+  test('repro 1 (no key pinned): plant a .pub, sign, append — the halt stays hoisted and the sentinel stays', () => {
+    hoist();
+    const { line, fingerprint } = plantAttackerKey();
+    writeFileSync(paths.distressFile, `${line}\n`, { flag: 'a' });
+    const sink = fakeSink();
+    expect(haltActive({ paths, forensics: sink })).toBe(true);
+    expect(existsSync(paths.haltFile)).toBe(true);
+    expect(readHalt({ paths, forensics: sink })?.ts).toBe(HALT_TS);
+    const ev = readHaltState({ paths, forensics: sink });
+    expect(ev.status.state).toBe('hoisted');
+    expect(ev.violations).toEqual([
+      expect.objectContaining({ rule: 'ALLCLEAR_FORGED', reason: 'no-public-key', haltTs: HALT_TS }),
+      expect.objectContaining({ rule: 'KEY_ROTATED', reason: 'key-not-pinned', haltTs: HALT_TS, line: expect.stringContaining(fingerprint) }),
+    ]);
+    expect(sink.events.map((e) => e.rule)).toEqual(['ALLCLEAR_FORGED', 'KEY_ROTATED']);
+    for (const e of sink.events) expect(e.severity).toBe('critical');
+  });
+
+  test('repro 2 (real key pinned): overwrite the .pub, apply an attacker line — not lifted, KEY_ROTATED; the real key still lifts', () => {
+    const { pin } = writeOperatorKeyFiles(paths, 'correct horse battery');
+    const trustedKeys: PinnedOperatorKey[] = [pin];
+    const realPub = readFileSync(paths.publicKeyFile, 'utf8');
+    hoist();
+    const sink = fakeSink();
+
+    const { line: attackerLine, fingerprint: attackerFp } = plantAttackerKey();
+    const r = applyAllClear(attackerLine, { paths, forensics: sink, trustedKeys });
+    expect(r).toEqual({ lifted: false, reason: 'no-public-key' });
+    expect(existsSync(paths.haltFile)).toBe(true);
+    expect(readFileSync(paths.distressFile, 'utf8')).toBe(`${HALT_LINE}\n`); // nothing appended
+    expect(sink.events).toEqual([expect.objectContaining({ rule: 'KEY_ROTATED', metadata: expect.objectContaining({ line: expect.stringContaining(attackerFp) }) })]);
+    const viaLift = liftHalt({ operatorId: 'erich', passphrase: 'correct horse battery', paths, forensics: sink, trustedKeys });
+    expect(viaLift).toMatchObject({ lifted: false, reason: 'no-public-key', violation: { rule: 'KEY_ROTATED' } });
+    expect(haltActive({ paths, forensics: sink, trustedKeys })).toBe(true);
+
+    // The operator restores the real .pub (or it was never touched): the pinned key lifts.
+    writeFileSync(paths.publicKeyFile, realPub);
+    const ok = liftHalt({ operatorId: 'erich', passphrase: 'correct horse battery', paths, forensics: sink, trustedKeys, ts: '2026-09-07T13:00:00Z' });
+    expect(ok.lifted).toBe(true);
+    expect(existsSync(paths.haltFile)).toBe(false);
+  });
+
+  test('a pin that carries the PEM verifies with no .pub on disk (fresh clone, CI, the observer)', () => {
+    const { privateKey, publicKey } = keypair();
+    const publicKeyPem = publicKey.export({ format: 'pem', type: 'spki' }).toString();
+    const pin: PinnedOperatorKey = { fingerprint: publicKeyFingerprint(publicKeyPem), publicKeyPem, holder: 'operator:erich', pinnedOn: '2026-09-07' };
+    expect(existsSync(paths.publicKeyFile)).toBe(false);
+    const r = resolveOperatorPublicKey(paths, { trustedKeys: [pin] });
+    expect(r).toMatchObject({ status: 'committed', trustedFingerprint: pin.fingerprint });
+    hoist();
+    const line = signAllClear({ haltTs: HALT_TS, operatorId: 'erich', privateKey }).line;
+    expect(applyAllClear(line, { paths, forensics: null, trustedKeys: [pin] }).lifted).toBe(true);
+  });
+
+  test('a corrupt pin (PEM does not hash to its fingerprint), a garbled .pub, or a fingerprint-only pin with no file: all inert', () => {
+    const { publicKey } = keypair();
+    const publicKeyPem = publicKey.export({ format: 'pem', type: 'spki' }).toString();
+    const corrupt: PinnedOperatorKey = { fingerprint: '0000000000000000', publicKeyPem, holder: 'operator:erich', pinnedOn: '2026-09-07' };
+    expect(resolveOperatorPublicKey(paths, { trustedKeys: [corrupt] })).toEqual({ key: null, status: 'absent' });
+    const fpOnly: PinnedOperatorKey = { fingerprint: publicKeyFingerprint(publicKeyPem), holder: 'operator:erich', pinnedOn: '2026-09-07' };
+    expect(resolveOperatorPublicKey(paths, { trustedKeys: [fpOnly] })).toEqual({ key: null, status: 'absent' });
+    writeFileSync(paths.publicKeyFile, 'not a pem at all');
+    expect(resolveOperatorPublicKey(paths, { trustedKeys: [fpOnly] })).toEqual({ key: null, status: 'unpinned' });
+    hoist();
+    const ev = readHaltState({ paths, forensics: null, trustedKeys: [fpOnly] });
+    expect(ev.status.state).toBe('hoisted');
+    expect(ev.violations).toEqual([expect.objectContaining({ rule: 'KEY_ROTATED', line: expect.stringContaining('unreadable') })]);
+  });
+
+  test('formatPinEntry renders the literal keygen tells the operator to commit', () => {
+    const { pin } = writeOperatorKeyFiles(paths, 'correct horse battery', { holder: 'operator:erich', now: new Date('2026-09-07T00:00:00Z') });
+    const text = formatPinEntry(pin);
+    expect(text).toContain(`fingerprint: '${pin.fingerprint}'`);
+    expect(text).toContain(`publicKeyPem: ${JSON.stringify(pin.publicKeyPem)}`);
+    expect(text).toContain("holder: 'operator:erich'");
+    expect(text).toContain("pinnedOn: '2026-09-07'");
+    // The rendered PEM is a JSON string literal that round-trips to a key that verifies.
+    const pemLiteral = /publicKeyPem: ("(?:[^"\\]|\\.)*"),/.exec(text)?.[1];
+    expect(pemLiteral).toBeDefined();
+    const parsed: PinnedOperatorKey = { fingerprint: pin.fingerprint, publicKeyPem: JSON.parse(pemLiteral!), holder: pin.holder, pinnedOn: pin.pinnedOn };
+    expect(resolveOperatorPublicKey(paths, { trustedKeys: [parsed] }).status).toBe('pinned');
   });
 });
