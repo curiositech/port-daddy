@@ -95,12 +95,17 @@ export async function mintRepositoryInstallationToken(
   repository: string,
   permissions: Readonly<Record<string, InstallationPermission>>,
 ): Promise<{ token: string; expiresAt: number }> {
+  if (permissions.metadata && permissions.metadata !== 'read') {
+    throw new Error('GitHub App metadata permission must be read-only');
+  }
+  // GitHub always grants Metadata read; request and verify that exact baseline.
+  const requestedPermissions = { ...permissions, metadata: 'read' as const };
   const jwt = await mintAppJwt(appId, privateKeyPem);
   const res = await fetch(`${GH_API}/app/installations/${installationId}/access_tokens`, {
     method: 'POST',
     headers: { ...appHeaders(jwt), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repositories: [repository], permissions }),
-    redirect: 'error',
+    body: JSON.stringify({ repositories: [repository], permissions: requestedPermissions }),
+    redirect: 'manual',
     signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`GitHub App token mint failed ${res.status}`);
@@ -114,7 +119,7 @@ export async function mintRepositoryInstallationToken(
         || selected[0]?.full_name?.toLowerCase() !== exactFullName) {
       throw new Error('GitHub App token mint did not confirm the exact owner/repository scope');
     }
-    const requested = Object.entries(permissions).sort(([left], [right]) => left.localeCompare(right));
+    const requested = Object.entries(requestedPermissions).sort(([left], [right]) => left.localeCompare(right));
     const returned = Object.entries(body.permissions ?? {}).sort(([left], [right]) => left.localeCompare(right));
     if (JSON.stringify(returned) !== JSON.stringify(requested)) {
       throw new Error('GitHub App token mint did not confirm the exact requested permissions');
@@ -137,7 +142,7 @@ export async function revokeInstallationToken(token: string): Promise<boolean> {
     const res = await fetch(`${GH_API}/installation/token`, {
       method: 'DELETE',
       headers: ghHeaders(token),
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
     });
     return res.status === 204;
@@ -158,6 +163,7 @@ export async function getGitHubAppIdentity(
   appId: string,
   privateKeyPem: string,
   kv: KVNamespace,
+  installationToken: string,
 ): Promise<GitHubAppIdentity> {
   const cacheKey = `github_app_identity_${appId}`;
   const cached = await kv.get(cacheKey);
@@ -173,7 +179,7 @@ export async function getGitHubAppIdentity(
   const jwt = await mintAppJwt(appId, privateKeyPem);
   const res = await fetch(`${GH_API}/app`, {
     headers: appHeaders(jwt),
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`GitHub App identity lookup failed ${res.status}`);
@@ -183,8 +189,8 @@ export async function getGitHubAppIdentity(
   }
   const expectedLogin = `${body.slug}[bot]`;
   const botRes = await fetch(`${GH_API}/users/${encodeURIComponent(expectedLogin)}`, {
-    headers: appHeaders(jwt),
-    redirect: 'error',
+    headers: ghHeaders(installationToken),
+    redirect: 'manual',
     signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
   });
   if (!botRes.ok) throw new Error(`GitHub App bot identity lookup failed ${botRes.status}`);
@@ -284,7 +290,7 @@ export async function getRepoInstallationId(
   const jwt = await mintAppJwt(appId, privateKeyPem);
   const res = await fetch(`${GH_API}/repos/${owner}/${repo}/installation`, {
     headers: appHeaders(jwt),
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
   });
   if (!res.ok) {

@@ -46,9 +46,14 @@ describe('repository-scoped GitHub App authority', () => {
       const url = String(input);
       calls.push({ url, init });
       if (url.endsWith('/app')) {
+        expect(new Headers(init.headers).get('Authorization')).toMatch(/^Bearer [^.]+\.[^.]+\.[^.]+$/);
         return new Response(JSON.stringify({ id: 3_810_450, slug: 'port-daddy' }));
       }
       if (url.endsWith('/users/port-daddy%5Bbot%5D')) {
+        // GitHub's users API rejects App JWTs; require the scoped installation token.
+        if (new Headers(init.headers).get('Authorization') !== 'Bearer installation-token') {
+          return new Response(null, { status: 401 });
+        }
         return new Response(JSON.stringify({ id: 286_963_017, login: 'port-daddy[bot]', type: 'Bot' }));
       }
       return new Response('', { status: 404 });
@@ -59,7 +64,7 @@ describe('repository-scoped GitHub App authority', () => {
       put: vi.fn(async (key: string, value: string) => { cache.set(key, value); }),
     } as unknown as KVNamespace;
 
-    await expect(getGitHubAppIdentity('3810450', pkcs8, kv)).resolves.toEqual({
+    await expect(getGitHubAppIdentity('3810450', pkcs8, kv, 'installation-token')).resolves.toEqual({
       id: 286_963_017,
       slug: 'port-daddy',
       botName: 'port-daddy[bot]',
@@ -69,7 +74,10 @@ describe('repository-scoped GitHub App authority', () => {
       'https://api.github.com/app',
       'https://api.github.com/users/port-daddy%5Bbot%5D',
     ]);
-    expect(calls.every(({ init }) => init.redirect === 'error' && init.signal instanceof AbortSignal)).toBe(true);
+    expect(calls.every(({ init }) => init.redirect === 'manual' && init.signal instanceof AbortSignal)).toBe(true);
+    await expect(getGitHubAppIdentity('3810450', pkcs8, kv, 'another-installation-token')).resolves.toMatchObject({ id: 286_963_017 });
+    expect(calls).toHaveLength(2);
+    expect([...cache.values()].join('')).not.toContain('installation-token');
   });
 
   it('mints only the exact repository and permissions with bounded no-redirect I/O', async () => {
@@ -81,7 +89,7 @@ describe('repository-scoped GitHub App authority', () => {
         token: 'installation-token',
         expires_at: new Date(Date.now() + 60_000).toISOString(),
         repositories: [{ id: 1, name: 'port-daddy', full_name: 'curiositech/port-daddy' }],
-        permissions: { contents: 'write', pull_requests: 'write' },
+        permissions: { metadata: 'read', contents: 'write', pull_requests: 'write' },
       }));
     }));
 
@@ -89,11 +97,11 @@ describe('repository-scoped GitHub App authority', () => {
       '3810450', pkcs8, 123, 'curiositech', 'port-daddy',
       { contents: 'write', pull_requests: 'write' },
     )).resolves.toMatchObject({ token: 'installation-token' });
-    expect(request?.redirect).toBe('error');
+    expect(request?.redirect).toBe('manual');
     expect(request?.signal).toBeInstanceOf(AbortSignal);
     expect(JSON.parse(String(request?.body))).toEqual({
       repositories: ['port-daddy'],
-      permissions: { contents: 'write', pull_requests: 'write' },
+      permissions: { metadata: 'read', contents: 'write', pull_requests: 'write' },
     });
   });
 
@@ -108,7 +116,7 @@ describe('repository-scoped GitHub App authority', () => {
         token: 'must-not-leak',
         expires_at: new Date(Date.now() + 60_000).toISOString(),
         repositories: [{ id: 1, name: 'port-daddy', full_name: 'curiositech/port-daddy' }],
-        permissions: { contents: 'write', pull_requests: 'write', issues: 'write' },
+        permissions: { metadata: 'read', contents: 'write', pull_requests: 'write', issues: 'write' },
       }));
     }));
 
@@ -119,8 +127,45 @@ describe('repository-scoped GitHub App authority', () => {
     expect(calls).toHaveLength(2);
     expect(calls[1]).toMatchObject({
       url: 'https://api.github.com/installation/token',
-      init: { method: 'DELETE', redirect: 'error' },
+      init: { method: 'DELETE', redirect: 'manual' },
     });
     expect(calls[1]?.init.signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe('mandatory GitHub Metadata baseline', () => {
+  it.each([
+    { metadata: 'write', contents: 'write' },
+    { metadata: 'read', contents: 'write', unknown_permission: 'read' },
+    { contents: 'write' },
+  ])('revokes returned authority outside the exact baseline: %j', async (permissions) => {
+    const { pkcs8 } = fixtures();
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      calls.push(String(input));
+      if (init.method === 'DELETE') return new Response(null, { status: 204 });
+      return Response.json({
+        token: 'rejected-token',
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        repositories: [{ name: 'port-daddy', full_name: 'curiositech/port-daddy' }],
+        permissions,
+      });
+    }));
+    await expect(mintRepositoryInstallationToken(
+      '3810450', pkcs8, 123, 'curiositech', 'port-daddy', { contents: 'write' },
+    )).rejects.toThrow('exact requested permissions; issued token revocation confirmed');
+    expect(calls).toEqual([
+      'https://api.github.com/app/installations/123/access_tokens',
+      'https://api.github.com/installation/token',
+    ]);
+  });
+
+  it('refuses a requested Metadata write before minting any credential', async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await expect(mintRepositoryInstallationToken(
+      '3810450', fixtures().pkcs8, 123, 'curiositech', 'port-daddy', { metadata: 'write' },
+    )).rejects.toThrow('metadata permission must be read-only');
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
