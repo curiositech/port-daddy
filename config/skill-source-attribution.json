@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "path": "docs/harbor-research/exposition/review-intake-20261106/skill-grafts.json",
+      "sha256": "a5b9d0f9a060707bbd0e3451fe8634872cf4d15056d86949693c0452ffa93d62"
+    },
+    {
       "path": "docs/research/agent-skills-expansion-20260924/ASTRA-BOOK-REVIEW.md",
       "sha256": "6e0c3ab0851f1d1394d6537628c510b15a8ea32e182433781fe3dc81639a2c51"
     },
