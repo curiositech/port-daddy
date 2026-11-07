@@ -1,0 +1,53 @@
+{
+  "worktree": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+  "branch": "codex/research-admission-binding-20261106",
+  "scope": "Independent RED source review and source-gate followup only; root separately verified the seven Node and seven Bun smoke cases.",
+  "previousEvidence": {
+    "path": "EVIDENCE.json",
+    "sha256": "fe899b92dc03c3b67576415319972426feac13a6a635db153b1ca840c2edc5e0",
+    "contractSnapshot": "writer-contract.first-freeze.json",
+    "contractSha256": "9aedec653e7954ada8cac11159b07111ca18bcaab5bac16ea94bcc52fde27d23"
+  },
+  "preclassification": {
+    "exitCode": 1,
+    "newUnclassifiedSites": 6,
+    "stdout": "writer-coverage-adapter-unreviewed.stdout.txt",
+    "stderr": "writer-coverage-adapter-unreviewed.stderr.txt",
+    "sourceFiles": 1785
+  },
+  "sourceFiles": 1784,
+  "reviewedSites": 89,
+  "newFixtureSqlSites": 6,
+  "newFixtureScopeBoundaries": 1,
+  "commands": [
+    {
+      "name": "writer-coverage-adapter-controls",
+      "argv": [
+        "/Users/erichowens/.nvm/versions/node/v22.17.1/bin/node",
+        "--test",
+        "scripts/harbor-research/check_dispatch_writer_coverage.test.mjs"
+      ],
+      "cwd": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+      "exitCode": 0,
+      "stdout": "writer-coverage-adapter-controls.stdout.txt",
+      "stderr": "writer-coverage-adapter-controls.stderr.txt"
+    },
+    {
+      "name": "writer-coverage-adapter-audit",
+      "argv": [
+        "/Users/erichowens/.nvm/versions/node/v22.17.1/bin/node",
+        "scripts/harbor-research/check_dispatch_writer_coverage.mjs"
+      ],
+      "cwd": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+      "exitCode": 0,
+      "stdout": "writer-coverage-adapter-audit.stdout.txt",
+      "stderr": "writer-coverage-adapter-audit.stderr.txt"
+    }
+  ],
+  "sourceHashes": {
+    "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs": "e2c2870d0894fc09c9f699325dd207fceb1ad33e81bea882f96350074da845d0",
+    "scripts/harbor-research/check_dispatch_writer_coverage.mjs": "047942730efd72bda837370ecba11b84619448c158f582696fb8432cabfa425d",
+    "scripts/harbor-research/check_dispatch_writer_coverage.test.mjs": "8bf14cc5999e56aa489ec4a5fe3c4ba7f2e20923f7004a99fd8bef5ba3261043",
+    "docs/harbor-research/campaigns/2026-11-06/round-two/red/writer-contract.json": "b174b790ec4931182e7eaae9b8142d17d95e7e9b57637451cb8af2cd10a8c838"
+  }
+}

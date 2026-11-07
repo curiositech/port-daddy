@@ -1,0 +1,8 @@
+(node:4945) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Test Suites: 2 passed, 2 total
+Tests:       43 passed, 43 total
+Snapshots:   0 total
+Time:        0.141 s, estimated 1 s
+Ran all test suites within paths "tests/unit/dispatch-retention-boundary.test.js", "tests/unit/retention-registry.test.ts".

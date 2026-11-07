@@ -40,12 +40,33 @@ export interface SweepResult {
   error?: string;
 }
 
+/** Validate a simple SQLite identifier before interpolation into retention SQL. */
+function retentionIdentifier(value: string): string {
+  if (typeof value !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+    throw new Error('retention: expected a simple SQL identifier');
+  }
+  return value;
+}
+
+/** Dispatch state and its admission clock are owned by their lifecycle writers. */
+function retentionTable(table: string): string {
+  const identifier = retentionIdentifier(table);
+  const canonical = identifier.toLowerCase();
+  if (canonical === 'dispatches' || canonical === 'nightshift_intents'
+      || canonical.startsWith('dispatch_admission_')) {
+    throw new Error('retention: dispatch control tables require their owned lifecycle operations');
+  }
+  return identifier;
+}
+
 /**
  * Build a TTL policy: `DELETE FROM <table> WHERE <expiresColumn> IS NOT NULL AND <expiresColumn> < now`.
  * Rows with a NULL expiry are intentionally kept (opt-in permanence) — pair with `capPolicy`
  * if "permanent" rows still need an absolute ceiling.
  */
 export function ttlPolicy(db: Database.Database, table: string, expiresColumn: string): RetentionPolicy {
+  table = retentionTable(table);
+  expiresColumn = retentionIdentifier(expiresColumn);
   const stmt = db.prepare(
     `DELETE FROM ${table} WHERE ${expiresColumn} IS NOT NULL AND ${expiresColumn} < ?`,
   );
@@ -63,6 +84,8 @@ export function maxAgePolicy(
   createdColumn: string,
   maxAgeMs: number,
 ): RetentionPolicy {
+  table = retentionTable(table);
+  createdColumn = retentionIdentifier(createdColumn);
   const stmt = db.prepare(`DELETE FROM ${table} WHERE ${createdColumn} < ?`);
   return { name: `${table}:maxage`, sweep: (now) => stmt.run(now - maxAgeMs).changes };
 }
@@ -77,6 +100,8 @@ export function capPolicy(
   orderColumn: string,
   maxRows: number,
 ): RetentionPolicy {
+  table = retentionTable(table);
+  orderColumn = retentionIdentifier(orderColumn);
   const stmt = db.prepare(
     `DELETE FROM ${table} WHERE ${orderColumn} < (
        SELECT MIN(${orderColumn}) FROM (

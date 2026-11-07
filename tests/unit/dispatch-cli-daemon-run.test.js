@@ -130,7 +130,7 @@ describe('pd dispatch run --really-run daemon contract', () => {
     console.log = jest.fn();
     const proposed = dispatch();
     mockQueue.get.mockReturnValue(proposed);
-    mockQueue.prepareForRun.mockReturnValue(proposed);
+    mockQueue.prepareForRun.mockReturnValue({ dispatch: proposed, rollback: 'rollback-receipt' });
   });
 
   afterAll(() => {
@@ -157,7 +157,7 @@ describe('pd dispatch run --really-run daemon contract', () => {
     const claimed = dispatch({ state: 'claimed', claimedAt: 123 });
     const prepared = dispatch({ state: 'proposed', runRequestedAt: 456, claimedAt: null });
     mockQueue.get.mockReturnValue(claimed);
-    mockQueue.prepareForRun.mockReturnValue(prepared);
+    mockQueue.prepareForRun.mockReturnValue({ dispatch: prepared, rollback: 'rollback-receipt' });
     mockIsDaemonRunning.mockResolvedValue(true);
     mockPdFetch.mockResolvedValue(response(true, {
       ok: true,
@@ -180,7 +180,7 @@ describe('pd dispatch run --really-run daemon contract', () => {
       workerActorId: 'daemon-worker',
       sessionId: 'session-daemon-worker',
     });
-    mockQueue.prepareForRun.mockReturnValue(prepared);
+    mockQueue.prepareForRun.mockReturnValue({ dispatch: prepared, rollback: 'rollback-receipt' });
     mockIsDaemonRunning.mockResolvedValue(true);
     mockPdFetch.mockResolvedValue(response(false, {
       ok: false,
@@ -198,7 +198,7 @@ describe('pd dispatch run --really-run daemon contract', () => {
     const claimed = dispatch({ state: 'claimed', claimedAt: 123 });
     const prepared = dispatch({ state: 'proposed', runRequestedAt: 456, claimedAt: null });
     mockQueue.get.mockReturnValue(claimed);
-    mockQueue.prepareForRun.mockReturnValue(prepared);
+    mockQueue.prepareForRun.mockReturnValue({ dispatch: prepared, rollback: 'rollback-receipt' });
     mockIsDaemonRunning.mockResolvedValue(true);
     mockPdFetch.mockResolvedValue(response(false, {
       ok: false,
@@ -208,7 +208,7 @@ describe('pd dispatch run --really-run daemon contract', () => {
 
     await expect(handleDispatch(['run', 'dispatch-1'], { 'really-run': true })).rejects.toThrow('exit:1');
 
-    expect(mockQueue.restorePreparedRun).toHaveBeenCalledWith(claimed, prepared);
+    expect(mockQueue.restorePreparedRun).toHaveBeenCalledWith('rollback-receipt');
     expect(mockUi.error).toHaveBeenCalledWith(expect.stringMatching(/worker is disabled/));
   });
 
@@ -217,7 +217,7 @@ describe('pd dispatch run --really-run daemon contract', () => {
     const prepared = dispatch({ state: 'proposed', runRequestedAt: 456, claimedAt: null });
     const unboundClaim = dispatch({ state: 'claimed', claimedAt: 123 });
     mockQueue.get.mockReturnValue(original);
-    mockQueue.prepareForRun.mockReturnValue(prepared);
+    mockQueue.prepareForRun.mockReturnValue({ dispatch: prepared, rollback: 'rollback-receipt' });
     mockIsDaemonRunning.mockResolvedValue(true);
     mockPdFetch.mockResolvedValue(response(false, {
       ok: false,
@@ -227,7 +227,7 @@ describe('pd dispatch run --really-run daemon contract', () => {
 
     await expect(handleDispatch(['run', 'dispatch-1'], { 'really-run': true })).rejects.toThrow('exit:1');
 
-    expect(mockQueue.restorePreparedRun).toHaveBeenCalledWith(original, prepared);
+    expect(mockQueue.restorePreparedRun).toHaveBeenCalledWith('rollback-receipt');
   });
 
   test('fails closed when the daemon is unavailable', async () => {

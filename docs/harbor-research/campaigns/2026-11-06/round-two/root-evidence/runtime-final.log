@@ -1,0 +1,8 @@
+(node:25043) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Test Suites: 10 passed, 10 total
+Tests:       269 passed, 269 total
+Snapshots:   0 total
+Time:        0.95 s, estimated 1 s
+Ran all test suites within paths "tests/unit/dispatch-admission-red.test.js", "tests/unit/dispatch-atomic-admission.test.js", "tests/unit/dispatch-queue.test.js", "tests/unit/dispatch-state-machine.test.js", "tests/unit/future-admission-conformance.test.js", "tests/unit/harbormaster.test.js", "tests/unit/dispatch-cli-daemon-run.test.js", "tests/unit/seed-berth-db.test.js", "tests/unit/dispatch-retention-boundary.test.js", "tests/unit/retention-registry.test.ts".

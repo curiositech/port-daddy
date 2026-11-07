@@ -1,0 +1,63 @@
+{
+  "recordedAt": "2026-11-07T05:45:57.730503+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+  "branch": "codex/research-admission-binding-20261106",
+  "boundary": "Offline production SQLite adapter; no Port Daddy runtime or external process effects.",
+  "runtimeRuns": [
+    {
+      "command": "TMPDIR=\"$PWD/.cache/test-tmp\" /Users/erichowens/.nvm/versions/node/v22.17.1/bin/node --import tsx docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "exitCode": 0,
+      "summary": {
+        "status": "PASS",
+        "runtime": "node",
+        "nodeVersion": "22.17.1",
+        "bunVersion": null,
+        "adapterClass": "Database",
+        "sqliteVersion": "3.53.2",
+        "cases": 7,
+        "connections": 2,
+        "sourceSha256": {
+          "lib/sqlite-runtime.ts": "54bdbfa8a945dd05b5b5823118e0fcf9f682c707896135d0c8d88b0940bc9287",
+          "lib/dispatch/queue.ts": "363416ac47511e60c026fa7f298f6efb8f01422d83fa48b4157b3849d82374a2",
+          "lib/dispatch/admission.ts": "54d2ad1ebf630427e7a0fe62f8e2b4bad1ccb58430019679f888d1ca876725a7"
+        }
+      }
+    },
+    {
+      "command": "TMPDIR=\"$PWD/.cache/test-tmp\" /Users/erichowens/.bun/bin/bun docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "exitCode": 0,
+      "summary": {
+        "status": "PASS",
+        "runtime": "bun",
+        "nodeVersion": "24.3.0",
+        "bunVersion": "1.2.21",
+        "adapterClass": "CompatDatabase",
+        "sqliteVersion": "3.51.0",
+        "cases": 7,
+        "connections": 2,
+        "sourceSha256": {
+          "lib/sqlite-runtime.ts": "54bdbfa8a945dd05b5b5823118e0fcf9f682c707896135d0c8d88b0940bc9287",
+          "lib/dispatch/queue.ts": "363416ac47511e60c026fa7f298f6efb8f01422d83fa48b4157b3849d82374a2",
+          "lib/dispatch/admission.ts": "54d2ad1ebf630427e7a0fe62f8e2b4bad1ccb58430019679f888d1ca876725a7"
+        }
+      }
+    }
+  ],
+  "typecheck": {
+    "command": "/Users/erichowens/.nvm/versions/node/v22.17.1/bin/node node_modules/typescript/bin/tsc --noEmit --pretty false",
+    "exitCode": 0,
+    "stdoutBytes": 0,
+    "stderrBytes": 0,
+    "dependencyOverlay": ".cache/typecheck-deps",
+    "sourceFilesChangedForDependencyRepair": false
+  },
+  "artifactsSha256": {
+    "sqlite-runtime-node.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sqlite-runtime-node.stdout": "7bc7f23cee3a12afb94dfdd42d4db53b571744bce4e015dd54c3686a7d01dc6c",
+    "typecheck-restored.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sqlite-runtime-bun.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typecheck-restored.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sqlite-runtime-bun.stdout": "2048ab5792dd7e7db37e3e2d61e0b5bde4e3a9ada0f1b3f34207a1a0aff8b6a7",
+    "sqlite-runtime-smoke.mjs": "e2c2870d0894fc09c9f699325dd207fceb1ad33e81bea882f96350074da845d0"
+  }
+}

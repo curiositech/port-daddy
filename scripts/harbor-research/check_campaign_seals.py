@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify four frozen campaign inventories, including an archive-backed input.
+"""Verify four original campaign inventories and the atomic-admission round.
 
 This checks retained byte identities against recorded anchors, not authorship,
 completeness, proof validity or private transcript availability. No extraction.
@@ -18,6 +18,8 @@ ANCHORS = {
     'guest-python': 'b06a66b42b39b29d90d940c554898ac19341fb2d7fcaa395c108c3421358b741',
 }
 
+
+ROUND_TWO_ANCHOR = '5021d42a28538e86908227b5d2552ef4c0a0224f7d65dfdc0ec11dcb2fdfd4e6'
 
 def require(value, message):
     if not value:
@@ -67,6 +69,15 @@ def main():
             require(digest(data) == expected_digest, 'external artifact changed: ' + name)
         print(f'PASS {lane}: {len(files)} frozen files')
     print(f'PASS: {total} inventory entries; {archived} archive-backed input; four original outer seals')
+    directory = CAMPAIGN / 'round-two'
+    raw = (directory / 'seal.json').read_bytes()
+    require(digest(raw) == ROUND_TWO_ANCHOR, 'round-two outer seal changed')
+    files = json.loads(raw)['files']
+    require(bool(files), 'round-two inventory empty')
+    for name, expected_digest in files.items():
+        data, _ = retained_bytes(directory, name)
+        require(digest(data) == expected_digest, 'round-two evidence changed: ' + name)
+    print(f'PASS round-two: {len(files)} retained artifacts')
 
 
 if __name__ == '__main__':

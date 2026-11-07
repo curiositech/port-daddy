@@ -1,0 +1,1 @@
+{"status":"FAIL","sourceFiles":1785,"reviewedSites":88,"scope":"TypeScript/JavaScript source SQL syntax and SQL migrations; exact reviewed lifecycle boundaries. Source-contract audit only, not arbitrary generated SQL, unsupported languages, native filesystem replacement, or malicious privileged DB-owner confinement."}

@@ -1,0 +1,1625 @@
+{
+  "version": 1,
+  "scope": "TypeScript/JavaScript source SQL syntax and SQL migrations; exact reviewed lifecycle boundaries. Source-contract audit only, not arbitrary generated SQL, unsupported languages, native filesystem replacement, or malicious privileged DB-owner confinement.",
+  "boundaries": [
+    {
+      "path": "lib/seed-berth-db.ts",
+      "symbol": "seedBerthDbFromProd",
+      "kind": "lifecycle"
+    },
+    {
+      "path": "lib/seed-berth-db.ts",
+      "symbol": "EXECUTABLE_QUEUE_TABLES",
+      "kind": "selector"
+    },
+    {
+      "path": "lib/seed-berth-db.ts",
+      "symbol": "LOCAL_ONLY_TABLES",
+      "kind": "selector"
+    },
+    {
+      "path": "lib/db.ts",
+      "symbol": "migrateLegacyRegistry",
+      "kind": "lifecycle"
+    },
+    {
+      "path": "lib/backup.ts",
+      "symbol": "restoreBackup",
+      "kind": "lifecycle"
+    },
+    {
+      "path": "scripts/db-consolidate.ts",
+      "symbol": "applyConsolidationPlan",
+      "kind": "lifecycle"
+    },
+    {
+      "path": "scripts/db-consolidate.ts",
+      "symbol": "vacuumInto",
+      "kind": "lifecycle"
+    },
+    {
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "admitted-boundary"
+    },
+    {
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "migrateNightshiftIntents",
+      "kind": "admitted-boundary"
+    },
+    {
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "migrateDispatchFailoverColumns",
+      "kind": "admitted-boundary"
+    },
+    {
+      "path": "lib/dispatch/admission.ts",
+      "symbol": "createDispatchAdmission",
+      "kind": "admitted-boundary"
+    },
+    {
+      "path": "lib/harbormaster.ts",
+      "symbol": "createHarbormaster",
+      "kind": "admitted-boundary"
+    },
+    {
+      "path": "apps/relay/src/retention-sweep.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "lib/agent-harbor/projections.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "lib/cost-ledger.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "lib/observability/retention-registry.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "lib/observability/maintenance.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "lib/parley-store.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "lib/pheromone.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "lib/skill-graft-reconciler.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "scripts/generate-pd-ios-fixtures.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "scripts/registry-reunify.ts",
+      "symbol": "<module>",
+      "kind": "module"
+    },
+    {
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "symbol": "<module>",
+      "kind": "module"
+    }
+  ],
+  "sites": [
+    {
+      "id": "apps/relay/src/retention-sweep.ts#runRetentionSweep#1",
+      "path": "apps/relay/src/retention-sweep.ts",
+      "symbol": "runRetentionSweep",
+      "kind": "sql",
+      "sha256": "675790688c88f55177551e362436a723708eba8d4c85e1f78f96c5bde2cba7d0",
+      "mutations": [
+        {
+          "kind": "DELETE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "D1 account-erasure loop selects exactly roadmap_mirror_items, roadmap_mirror_edges, roadmap_mirror_activity, roadmap_mirrors. Full module pin binds that finite list and its call.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/agent-harbor/projections.ts#txn#1",
+      "path": "lib/agent-harbor/projections.ts",
+      "symbol": "txn",
+      "kind": "sql",
+      "sha256": "317c461d6e922fe5892b6956e537a1eb1e260ba3deb5380a030aad3cd2e36101",
+      "mutations": [
+        {
+          "kind": "DELETE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private PROJECTION_TABLES maps only harbor_proj_* tables. Full module pin binds selector and rebuild implementation; no dispatch target.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/backup.ts#createBackup#1",
+      "path": "lib/backup.ts",
+      "symbol": "createBackup",
+      "kind": "sql",
+      "sha256": "08656757c1371c56050263ee6d91605d4889ca55f909fff5fc31bcd5d89fc008",
+      "mutations": [
+        {
+          "kind": "WHOLE_DATABASE_COPY",
+          "target": "*"
+        }
+      ],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "lib/backup.ts#createBackup#2",
+      "path": "lib/backup.ts",
+      "symbol": "createBackup",
+      "kind": "sql",
+      "sha256": "785fc5c241f82bb36bf6338ae094c1f1bb2f4d6d3ede9467610aecc6cd85f665",
+      "mutations": [
+        {
+          "kind": "WHOLE_DATABASE_COPY",
+          "target": "*"
+        }
+      ],
+      "classification": "nonexecuted-error-message",
+      "rationale": "Exact error-message literal, not SQL execution.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "lib/cost-ledger.ts#ensureColumns#1",
+      "path": "lib/cost-ledger.ts",
+      "symbol": "ensureColumns",
+      "kind": "sql",
+      "sha256": "f6436b11d2e251a5bd1a8a204a3d419039e7661a20552c7402f7c419b67e7b0c",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private ensureColumns is called only with transcript_events and cost_events; full module pin binds exact callers and declaration.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/db.ts#migrateLegacyRegistry#1",
+      "path": "lib/db.ts",
+      "symbol": "migrateLegacyRegistry",
+      "kind": "sql",
+      "sha256": "90cd925a8b7b1403e0ca14bf3aa2bc16771aa395e49e217c77972f043c87faba",
+      "mutations": [
+        {
+          "kind": "WHOLE_DATABASE_COPY",
+          "target": "*"
+        }
+      ],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "lib/dispatch/admission.ts#install#1",
+      "path": "lib/dispatch/admission.ts",
+      "symbol": "install",
+      "kind": "sql",
+      "sha256": "747992e891d8fae08133505d4edf3390b551cede9984e543a08c68887806c1a9",
+      "mutations": [
+        {
+          "kind": "CREATE_TABLE",
+          "target": "dispatch_admission_authority"
+        },
+        {
+          "kind": "CREATE_TABLE",
+          "target": "dispatch_admission_events"
+        }
+      ],
+      "classification": "trusted-admission-metadata-and-clock",
+      "rationale": "Authority/schema installation, trigger clock and event journal are the trusted controller implementation. Exact function pin binds validation, receipt consumption and effect-observation checks independently of the state relation.",
+      "probe": "tests/unit/dispatch-admission-red.test.js"
+    },
+    {
+      "id": "lib/dispatch/admission.ts#install#2",
+      "path": "lib/dispatch/admission.ts",
+      "symbol": "install",
+      "kind": "sql",
+      "sha256": "481c6efa21e0383158e2f806c8a6d0955bcdf37d22f73bd64acae72fe3c73f36",
+      "mutations": [
+        {
+          "kind": "INSERT",
+          "target": "dispatch_admission_authority"
+        }
+      ],
+      "classification": "trusted-admission-metadata-and-clock",
+      "rationale": "Authority/schema installation, trigger clock and event journal are the trusted controller implementation. Exact function pin binds validation, receipt consumption and effect-observation checks independently of the state relation.",
+      "probe": "tests/unit/dispatch-admission-red.test.js"
+    },
+    {
+      "id": "lib/dispatch/admission.ts#install#3",
+      "path": "lib/dispatch/admission.ts",
+      "symbol": "install",
+      "kind": "sql",
+      "sha256": "30a4921ffb22b30eea122f5ec4961c7a2ace25fafefea1fa884522941cffa45e",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatch_admission_authority"
+        }
+      ],
+      "classification": "trusted-admission-metadata-and-clock",
+      "rationale": "Authority/schema installation, trigger clock and event journal are the trusted controller implementation. Exact function pin binds validation, receipt consumption and effect-observation checks independently of the state relation.",
+      "probe": "tests/unit/dispatch-admission-red.test.js"
+    },
+    {
+      "id": "lib/dispatch/admission.ts#expected#1",
+      "path": "lib/dispatch/admission.ts",
+      "symbol": "expected",
+      "kind": "sql",
+      "sha256": "954978df10baedce51ea92354dd76a9a8221338ac2a852012129f9a3c20f5ddf",
+      "mutations": [
+        {
+          "kind": "CREATE_TRIGGER",
+          "target": "dispatches"
+        },
+        {
+          "kind": "UPDATE",
+          "target": "dispatch_admission_authority"
+        },
+        {
+          "kind": "INSERT",
+          "target": "dispatch_admission_events"
+        }
+      ],
+      "classification": "trusted-admission-metadata-and-clock",
+      "rationale": "Authority/schema installation, trigger clock and event journal are the trusted controller implementation. Exact function pin binds validation, receipt consumption and effect-observation checks independently of the state relation.",
+      "probe": "tests/unit/dispatch-admission-red.test.js"
+    },
+    {
+      "id": "lib/dispatch/admission.ts#commit#1",
+      "path": "lib/dispatch/admission.ts",
+      "symbol": "commit",
+      "kind": "sql",
+      "sha256": "b10b832309896e557fdd323db7219a003b3d72891acf252d1840ca10c8fb5e94",
+      "mutations": [
+        {
+          "kind": "DELETE",
+          "target": "dispatch_admission_events"
+        }
+      ],
+      "classification": "trusted-admission-metadata-and-clock",
+      "rationale": "Authority/schema installation, trigger clock and event journal are the trusted controller implementation. Exact function pin binds validation, receipt consumption and effect-observation checks independently of the state relation.",
+      "probe": "tests/unit/dispatch-admission-red.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#SCHEMA_SQL#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "SCHEMA_SQL",
+      "kind": "sql",
+      "sha256": "b683051f378841d7ebe1600baccb33f71a8aeee9585805da136409ca3a9b79bd",
+      "mutations": [
+        {
+          "kind": "CREATE_TABLE",
+          "target": "dispatches"
+        },
+        {
+          "kind": "CREATE_INDEX",
+          "target": "dispatches"
+        },
+        {
+          "kind": "CREATE_INDEX",
+          "target": "dispatches"
+        },
+        {
+          "kind": "CREATE_INDEX",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#insert#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "insert",
+      "kind": "sql",
+      "sha256": "173d44115a62560351c61db3ef3e0d46d67e94ba7ba4fb5b4a38c8ca60e615f5",
+      "mutations": [
+        {
+          "kind": "INSERT",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "migrateNightshiftIntents",
+      "columns": [
+        "inserted-row-fields"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#migrateDispatchFailoverColumns#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "migrateDispatchFailoverColumns",
+      "kind": "sql",
+      "sha256": "243cee93ef5b067235ca502e4dbce22252d0b2640850b45b5fcb4e74fe41c76e",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#createDispatchQueue#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "sql",
+      "sha256": "eb766be3ae0071978200a80c9aba8f6adbd914495fdde077886e2b598bc58e88",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#createDispatchQueue#2",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "sql",
+      "sha256": "25c9ec4ef0ffff3b8506e9f06b3be94fb1dfc791277bc27173234cfddfe68348",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#createDispatchQueue#3",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "sql",
+      "sha256": "f0ac1082b072382e24d332efe51d944d2b13d858aad482ec156cec61e196ce4f",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#createDispatchQueue#4",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "sql",
+      "sha256": "f8518121691c296a9ce1cca4350caabfdfb10305ea7f6396a2ad57e9a75ac15f",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#createDispatchQueue#5",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "sql",
+      "sha256": "ccfc2a404d98d346904d0f0d22e3c8f922a9fcc15c61995b434f94eed49df3a3",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#createDispatchQueue#6",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "sql",
+      "sha256": "f8a994ea6d07444a4205f08636a1974f8e6be7d91906c662cd76f57cdfa26954",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#createDispatchQueue#7",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "sql",
+      "sha256": "3ac774dcaadf5e2c634a767f0d846975089890c9257bdb2fa2951d5ffe657687",
+      "mutations": [
+        {
+          "kind": "CREATE_INDEX",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#insertStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "insertStmt",
+      "kind": "sql",
+      "sha256": "a603a86c3cde50b1d2445e11814a1f9749d32b0dd1d9473fb14f84799882953d",
+      "mutations": [
+        {
+          "kind": "INSERT",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "propose/materializeProjection",
+      "columns": [
+        "inserted-row-fields"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#claimStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "claimStmt",
+      "kind": "sql",
+      "sha256": "c6efd7d8290e08e2ff941576b54c8c83a5102659e69363790f39842e79306c73",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "claim/claimProposed/nextProposed",
+      "columns": [
+        "state",
+        "worker_actor_id",
+        "worktree_path",
+        "branch",
+        "session_id",
+        "run_requested_at",
+        "claimed_at"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#releaseUnboundAutoClaimStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "releaseUnboundAutoClaimStmt",
+      "kind": "sql",
+      "sha256": "31b947844caa004016d314ccf673b10208b626e379e080fab96620fcd8ca7cc5",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "prepareForRun",
+      "columns": [
+        "state",
+        "run_requested_at",
+        "claimed_at"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#prioritizeProposedRunStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "prioritizeProposedRunStmt",
+      "kind": "sql",
+      "sha256": "e5f7a6a1e6f897a7ad133a1c17fbaa59124a6310b72a60d43829b08980425bba",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "prepareForRun",
+      "columns": [
+        "run_requested_at"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#restorePreparedRunStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "restorePreparedRunStmt",
+      "kind": "sql",
+      "sha256": "f301e4a40451a250de94b4f7a12d95317adc3b2054e891b911ee2205287b373f",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "restorePreparedRun",
+      "columns": [
+        "state",
+        "run_requested_at",
+        "claimed_at"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#startStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "startStmt",
+      "kind": "sql",
+      "sha256": "cda9aba6aa0acc5df432a6c1095416dba160c300fdc105b84d1cb7bba5ad8068",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "start",
+      "columns": [
+        "state",
+        "started_at"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#bindExecutionStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "bindExecutionStmt",
+      "kind": "sql",
+      "sha256": "028e545c978656772257ed1729abe34b151cd6a076bf8eb9b5428ebba07b0ae8",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "bindExecution",
+      "columns": [
+        "launch_id",
+        "agent_id",
+        "transcript_id",
+        "model"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#produceStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "produceStmt",
+      "kind": "sql",
+      "sha256": "35580686f294d9e1ddebc7f7753fdcbd2eab4796b6293694eda79d933b8d28a3",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "produce",
+      "columns": [
+        "state",
+        "result_artifact",
+        "cost_usd",
+        "produced_at",
+        "duration_ms"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#requestReviewStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "requestReviewStmt",
+      "kind": "sql",
+      "sha256": "b25daf3e660332d5694b0998ea318206cca59418fea89f3b1d5afa13e59d67f4",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "requestReview",
+      "columns": [
+        "state"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#acceptStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "acceptStmt",
+      "kind": "sql",
+      "sha256": "be50285ac95389fba19c4afff0664eec780c3db381d640974f97304b55199f96",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "accept",
+      "columns": [
+        "state",
+        "reviewed_at",
+        "error_message"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#rejectStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "rejectStmt",
+      "kind": "sql",
+      "sha256": "a08c90e380165821ed038178cd1950c122186de3425b83d7b412ea32aba96c64",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "reject",
+      "columns": [
+        "state",
+        "reviewed_at",
+        "reject_reason"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#settleStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "settleStmt",
+      "kind": "sql",
+      "sha256": "e41091460a32b458e936373e5ed7fbf8bac465f34bc2e3a5ef7d3cac927d07ae",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "settle/cancel",
+      "columns": [
+        "state",
+        "result_artifact",
+        "cost_usd",
+        "error_message",
+        "settled_at"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#requeueStrandedStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "requeueStrandedStmt",
+      "kind": "sql",
+      "sha256": "4dee2f05092b619980092736794508f2168b893b150db475a5f30666a46d22f6",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "recoverStranded",
+      "columns": [
+        "state",
+        "worker_actor_id",
+        "launch_id",
+        "agent_id",
+        "transcript_id",
+        "model",
+        "session_id",
+        "started_at",
+        "error_message"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#salvageStrandedStmt#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "salvageStrandedStmt",
+      "kind": "sql",
+      "sha256": "8f1617314e030ab81fdcd91d21a760bf16a0074030426965daab4ef516f2aaa2",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "recoverStranded",
+      "columns": [
+        "state",
+        "error_message",
+        "settled_at"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#recordSpawnedAgent#1",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "recordSpawnedAgent",
+      "kind": "sql",
+      "sha256": "759eaa68defbe5f71b872b93cd43951dd83c94ea98d22ad66b5f9cc4a7b908e4",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-dispatch-writer",
+      "operation": "recordSpawnedAgent",
+      "columns": [
+        "spawned_agent_id"
+      ],
+      "rationale": "Private SQL site reachable through the compulsory admission operation registry; wrapper/function boundaries are separately pinned. Global revision records even same-state metadata updates.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; tests/unit/dispatch-atomic-admission.test.js"
+    },
+    {
+      "id": "lib/harbormaster.ts#dispatchAdmission#1",
+      "path": "lib/harbormaster.ts",
+      "symbol": "dispatchAdmission",
+      "kind": "sql",
+      "sha256": "3457a5861c9aef7fdff348d2dcc892c2f39acbd77bc49a66088eec1677d0b2c0",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "admitted-conflict-recovery",
+      "operation": "conflictRecovery",
+      "columns": [
+        "state",
+        "error_message",
+        "produced_at"
+      ],
+      "rationale": "Accepted-to-produced SQL consumes the receipt issued before awaits. Whole function pin binds issuance and consumption. GitHub merge side effects remain outside the SQLite transaction claim.",
+      "probe": "tests/unit/dispatch-atomic-admission.test.js; tests/unit/harbormaster.test.js"
+    },
+    {
+      "id": "lib/observability/maintenance.ts#createObservabilityMaintenance#selector-call#1",
+      "path": "lib/observability/maintenance.ts",
+      "symbol": "createObservabilityMaintenance",
+      "kind": "selector-call",
+      "sha256": "9e8b3dc076af717d083b2b0d91fa0ff1f8abc77947b66e03dcae68b93b6bf1af",
+      "mutations": [
+        {
+          "kind": "GENERIC_SQL_CALL",
+          "target": "harbor_issued_tokens"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Only registered builders target harbor_issued_tokens and semantic_resolution_events; exact call sites and module are pinned.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/observability/maintenance.ts#createObservabilityMaintenance#selector-call#2",
+      "path": "lib/observability/maintenance.ts",
+      "symbol": "createObservabilityMaintenance",
+      "kind": "selector-call",
+      "sha256": "34f06297a6034c5a4303f9ec7377daaef4db8f32325a1794e852debaa8c17a38",
+      "mutations": [
+        {
+          "kind": "GENERIC_SQL_CALL",
+          "target": "semantic_resolution_events"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Only registered builders target harbor_issued_tokens and semantic_resolution_events; exact call sites and module are pinned.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/observability/retention-registry.ts#stmt#1",
+      "path": "lib/observability/retention-registry.ts",
+      "symbol": "stmt",
+      "kind": "sql",
+      "sha256": "589eb99fd63663cbd4c23ac700033e065fc305685368a1fd0322f0ae00846bfc",
+      "mutations": [
+        {
+          "kind": "DELETE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "protected-target-refusal-boundary",
+      "rationale": "Generic retention builders are trusted reusable SQL utilities. They must validate identifiers and refuse dispatches, nightshift_intents and admission control tables before prepare; exact module pin binds those guards. Arbitrary callback/DB handles remain trusted.",
+      "probe": "tests/unit/dispatch-retention-boundary.test.js"
+    },
+    {
+      "id": "lib/observability/retention-registry.ts#stmt#2",
+      "path": "lib/observability/retention-registry.ts",
+      "symbol": "stmt",
+      "kind": "sql",
+      "sha256": "c7400091cdd3b3cca8ae089f3555ee7d6279e3580cbe821271ca7ec648d740bb",
+      "mutations": [
+        {
+          "kind": "DELETE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "protected-target-refusal-boundary",
+      "rationale": "Generic retention builders are trusted reusable SQL utilities. They must validate identifiers and refuse dispatches, nightshift_intents and admission control tables before prepare; exact module pin binds those guards. Arbitrary callback/DB handles remain trusted.",
+      "probe": "tests/unit/dispatch-retention-boundary.test.js"
+    },
+    {
+      "id": "lib/observability/retention-registry.ts#stmt#3",
+      "path": "lib/observability/retention-registry.ts",
+      "symbol": "stmt",
+      "kind": "sql",
+      "sha256": "6fcfcd5f470657d9dd6c3d9eb4fdd205cd7dd1a2176738e947ab175f8ba49301",
+      "mutations": [
+        {
+          "kind": "DELETE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "protected-target-refusal-boundary",
+      "rationale": "Generic retention builders are trusted reusable SQL utilities. They must validate identifiers and refuse dispatches, nightshift_intents and admission control tables before prepare; exact module pin binds those guards. Arbitrary callback/DB handles remain trusted.",
+      "probe": "tests/unit/dispatch-retention-boundary.test.js"
+    },
+    {
+      "id": "lib/parley-store.ts#quotaTriggerSql#1",
+      "path": "lib/parley-store.ts",
+      "symbol": "quotaTriggerSql",
+      "kind": "sql",
+      "sha256": "a9c2ab71111e83b97d2e92a06dca8a37ee84b69394966618d0865015e27aae21",
+      "mutations": [
+        {
+          "kind": "CREATE_TRIGGER",
+          "target": "__pd_dynamic_1__"
+        },
+        {
+          "kind": "CREATE_TRIGGER",
+          "target": "__pd_dynamic_20__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private quotaTriggerSql is mapped over immutable QUOTA_TABLES of parley_* tables. Full module pin binds specification and caller.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/pheromone.ts#createPheromoneManager#1",
+      "path": "lib/pheromone.ts",
+      "symbol": "createPheromoneManager",
+      "kind": "sql",
+      "sha256": "4d1d816929e6f5ba37aa393b6f67098d61790a190af5951ac81a4d6b05102748",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "ALLOWED_TABLES contains services, projects, sessions, agents, locks. Each dynamic write checks membership or iterates that set; module pin binds selectors and checks.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/pheromone.ts#getStmts#1",
+      "path": "lib/pheromone.ts",
+      "symbol": "getStmts",
+      "kind": "sql",
+      "sha256": "ee4117ba1d37f06cfb64154c3ba9c4df6ceaec83c0687ae6fb751adca56df913",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "ALLOWED_TABLES contains services, projects, sessions, agents, locks. Each dynamic write checks membership or iterates that set; module pin binds selectors and checks.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/pheromone.ts#spray#1",
+      "path": "lib/pheromone.ts",
+      "symbol": "spray",
+      "kind": "sql",
+      "sha256": "ee4117ba1d37f06cfb64154c3ba9c4df6ceaec83c0687ae6fb751adca56df913",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "ALLOWED_TABLES contains services, projects, sessions, agents, locks. Each dynamic write checks membership or iterates that set; module pin binds selectors and checks.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/pheromone.ts#decayOnRead#1",
+      "path": "lib/pheromone.ts",
+      "symbol": "decayOnRead",
+      "kind": "sql",
+      "sha256": "ee4117ba1d37f06cfb64154c3ba9c4df6ceaec83c0687ae6fb751adca56df913",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "ALLOWED_TABLES contains services, projects, sessions, agents, locks. Each dynamic write checks membership or iterates that set; module pin binds selectors and checks.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/pheromone.ts#sprayResolution#1",
+      "path": "lib/pheromone.ts",
+      "symbol": "sprayResolution",
+      "kind": "sql",
+      "sha256": "ee4117ba1d37f06cfb64154c3ba9c4df6ceaec83c0687ae6fb751adca56df913",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "ALLOWED_TABLES contains services, projects, sessions, agents, locks. Each dynamic write checks membership or iterates that set; module pin binds selectors and checks.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/seed-berth-db.ts#seedBerthDbFromProd#1",
+      "path": "lib/seed-berth-db.ts",
+      "symbol": "seedBerthDbFromProd",
+      "kind": "sql",
+      "sha256": "cf531fe59c14fb42f218086dbe441d414b86d73244f5f033e0976e198320d29a",
+      "mutations": [
+        {
+          "kind": "WHOLE_DATABASE_COPY",
+          "target": "*"
+        }
+      ],
+      "classification": "trusted-whole-database-bootstrap",
+      "rationale": "VACUUM copies the source. A single immediate transaction always deletes dispatches and nightshift_intents, regardless of scrubLocalOnly; bounded constant selectors and lifecycle body are pinned. This is bootstrap, not a per-row admitted operation.",
+      "probe": "tests/unit/seed-berth-db.test.js"
+    },
+    {
+      "id": "lib/seed-berth-db.ts#seedBerthDbFromProd#2",
+      "path": "lib/seed-berth-db.ts",
+      "symbol": "seedBerthDbFromProd",
+      "kind": "sql",
+      "sha256": "b67ac078438da1f5d8b71127bd7846411ef487cdd9682dc5287be6f218e9638f",
+      "mutations": [
+        {
+          "kind": "DELETE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "trusted-whole-database-bootstrap",
+      "rationale": "VACUUM copies the source. A single immediate transaction always deletes dispatches and nightshift_intents, regardless of scrubLocalOnly; bounded constant selectors and lifecycle body are pinned. This is bootstrap, not a per-row admitted operation.",
+      "probe": "tests/unit/seed-berth-db.test.js"
+    },
+    {
+      "id": "lib/skill-graft-reconciler.ts#ensureStateSchema#1",
+      "path": "lib/skill-graft-reconciler.ts",
+      "symbol": "ensureStateSchema",
+      "kind": "sql",
+      "sha256": "5825bac704bb994328d9e371d4a4164a1c48318754005ba03b3c0a9e099ef212",
+      "mutations": [
+        {
+          "kind": "CREATE_TABLE",
+          "target": "__pd_dynamic_0__"
+        },
+        {
+          "kind": "INSERT",
+          "target": "__pd_dynamic_1__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private STATE_TABLE constant is skill_graft_tool2vec_reconcile_state. Module pin binds constant and all template sites.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/skill-graft-reconciler.ts#acquireLease#1",
+      "path": "lib/skill-graft-reconciler.ts",
+      "symbol": "acquireLease",
+      "kind": "sql",
+      "sha256": "73db36e56d0b3234f6affc7750a050ba173a4978b29f299d1a484f6e3f8324c1",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private STATE_TABLE constant is skill_graft_tool2vec_reconcile_state. Module pin binds constant and all template sites.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/skill-graft-reconciler.ts#renewLease#1",
+      "path": "lib/skill-graft-reconciler.ts",
+      "symbol": "renewLease",
+      "kind": "sql",
+      "sha256": "91f43d4e44342494d5c20687b96d6fe99b46fbf6964b8a77a50040b876cff4a8",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private STATE_TABLE constant is skill_graft_tool2vec_reconcile_state. Module pin binds constant and all template sites.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/skill-graft-reconciler.ts#finishLease#1",
+      "path": "lib/skill-graft-reconciler.ts",
+      "symbol": "finishLease",
+      "kind": "sql",
+      "sha256": "5f0f97fa6dcf011f76e0cddcee7e47e6fc576db378344d65ee9d0af18ba136fd",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private STATE_TABLE constant is skill_graft_tool2vec_reconcile_state. Module pin binds constant and all template sites.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "migrations/083_dispatches.sql#sql",
+      "path": "migrations/083_dispatches.sql",
+      "symbol": "<sql-file>",
+      "kind": "sql",
+      "sha256": "62de56d958a54bfb67a561e968de2abd0e91e769505a562044d63778cc11b9ac",
+      "mutations": [
+        {
+          "kind": "CREATE_TABLE",
+          "target": "dispatches"
+        },
+        {
+          "kind": "CREATE_INDEX",
+          "target": "dispatches"
+        },
+        {
+          "kind": "CREATE_INDEX",
+          "target": "dispatches"
+        },
+        {
+          "kind": "CREATE_INDEX",
+          "target": "dispatches"
+        },
+        {
+          "kind": "CREATE_TABLE",
+          "target": "nightshift_intents"
+        },
+        {
+          "kind": "INSERT",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "standalone-schema-and-legacy-bootstrap",
+      "rationale": "Executable migration creates/alters dispatch schema and may import legacy rows before an admission controller exists. It is explicitly classified as trusted offline bootstrap, not a mediated live row writer.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs SQL migration discovery"
+    },
+    {
+      "id": "migrations/088_dispatch_failover.sql#sql",
+      "path": "migrations/088_dispatch_failover.sql",
+      "symbol": "<sql-file>",
+      "kind": "sql",
+      "sha256": "2b1d152a21412aed1a4b0d3c407be0672e4d1bdb388728f0f62fe3e41e2632bc",
+      "mutations": [
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        },
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        },
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        },
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        },
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        },
+        {
+          "kind": "ALTER_TABLE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "standalone-schema-and-legacy-bootstrap",
+      "rationale": "Executable migration creates/alters dispatch schema and may import legacy rows before an admission controller exists. It is explicitly classified as trusted offline bootstrap, not a mediated live row writer.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs SQL migration discovery"
+    },
+    {
+      "id": "scripts/db-consolidate.ts#vacuumInto#1",
+      "path": "scripts/db-consolidate.ts",
+      "symbol": "vacuumInto",
+      "kind": "sql",
+      "sha256": "65da2d4b9fc283c9fd764a0390dae79b3c9ed002722b19d432d1a23c484cbe8b",
+      "mutations": [
+        {
+          "kind": "WHOLE_DATABASE_COPY",
+          "target": "*"
+        }
+      ],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "scripts/db-consolidate.ts#applyConsolidationPlan#1",
+      "path": "scripts/db-consolidate.ts",
+      "symbol": "applyConsolidationPlan",
+      "kind": "sql",
+      "sha256": "e6a55b18ae2d5e316c6acc303fb1c48c94ecb4db0ad55c8631fabc809a1c79d5",
+      "mutations": [
+        {
+          "kind": "WHOLE_DATABASE_COPY",
+          "target": "*"
+        }
+      ],
+      "classification": "nonexecuted-error-message",
+      "rationale": "Exact error-message literal, not SQL execution.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "scripts/generate-pd-ios-fixtures.ts#marker#1",
+      "path": "scripts/generate-pd-ios-fixtures.ts",
+      "symbol": "marker",
+      "kind": "sql",
+      "sha256": "88a8ed8b9e3bc71f5e4ede7f193aef721f587bd2c696a7e5aa1a1e5fd3da41ab",
+      "mutations": [
+        {
+          "kind": "CREATE_TABLE",
+          "target": "__pd_dynamic_0__"
+        }
+      ],
+      "classification": "nonexecuted-fixture-parser-marker",
+      "rationale": "The CREATE TABLE template is a read-only parser marker used to locate SQL schema text, not executed SQL. Fixture generator module is pinned.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "scripts/registry-reunify.ts#main#1",
+      "path": "scripts/registry-reunify.ts",
+      "symbol": "main",
+      "kind": "sql",
+      "sha256": "b39a4a5203fdf81e6037adad17ba712502be57764205cd519840aa2146d11526",
+      "mutations": [
+        {
+          "kind": "WHOLE_DATABASE_COPY",
+          "target": "*"
+        }
+      ],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "lib/seed-berth-db.ts#seedBerthDbFromProd#lifecycle",
+      "path": "lib/seed-berth-db.ts",
+      "symbol": "seedBerthDbFromProd",
+      "kind": "lifecycle",
+      "sha256": "3f40e4b5cea77edbf630ef3573219f200c83ee1fe7c1cac61efbe542b87bcf5a",
+      "mutations": [],
+      "classification": "trusted-whole-database-bootstrap",
+      "rationale": "VACUUM copies the source. A single immediate transaction always deletes dispatches and nightshift_intents, regardless of scrubLocalOnly; bounded constant selectors and lifecycle body are pinned. This is bootstrap, not a per-row admitted operation.",
+      "probe": "tests/unit/seed-berth-db.test.js"
+    },
+    {
+      "id": "lib/seed-berth-db.ts#EXECUTABLE_QUEUE_TABLES#selector",
+      "path": "lib/seed-berth-db.ts",
+      "symbol": "EXECUTABLE_QUEUE_TABLES",
+      "kind": "selector",
+      "sha256": "0337d90f3363df761a14bf9668fb6ed5777f25c5a232f39a36ae896deb64e161",
+      "mutations": [],
+      "classification": "trusted-whole-database-bootstrap",
+      "rationale": "VACUUM copies the source. A single immediate transaction always deletes dispatches and nightshift_intents, regardless of scrubLocalOnly; bounded constant selectors and lifecycle body are pinned. This is bootstrap, not a per-row admitted operation.",
+      "probe": "tests/unit/seed-berth-db.test.js"
+    },
+    {
+      "id": "lib/seed-berth-db.ts#LOCAL_ONLY_TABLES#selector",
+      "path": "lib/seed-berth-db.ts",
+      "symbol": "LOCAL_ONLY_TABLES",
+      "kind": "selector",
+      "sha256": "1d2a7774eae99e1d86fa629e4493124535a85ae1787096953bfb95b2d7aa5215",
+      "mutations": [],
+      "classification": "trusted-whole-database-bootstrap",
+      "rationale": "VACUUM copies the source. A single immediate transaction always deletes dispatches and nightshift_intents, regardless of scrubLocalOnly; bounded constant selectors and lifecycle body are pinned. This is bootstrap, not a per-row admitted operation.",
+      "probe": "tests/unit/seed-berth-db.test.js"
+    },
+    {
+      "id": "lib/db.ts#migrateLegacyRegistry#lifecycle",
+      "path": "lib/db.ts",
+      "symbol": "migrateLegacyRegistry",
+      "kind": "lifecycle",
+      "sha256": "a092c2a34d226532a93d2a38e7c0e9976c6472f1617185a4f4a13ae8e18db646",
+      "mutations": [],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "lib/backup.ts#restoreBackup#lifecycle",
+      "path": "lib/backup.ts",
+      "symbol": "restoreBackup",
+      "kind": "lifecycle",
+      "sha256": "9a58272dedf52ad468c6679929098a3755da6a0c7b9f083d831bd2a0f76bfeb0",
+      "mutations": [],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "scripts/db-consolidate.ts#applyConsolidationPlan#lifecycle",
+      "path": "scripts/db-consolidate.ts",
+      "symbol": "applyConsolidationPlan",
+      "kind": "lifecycle",
+      "sha256": "f7014cba8bf070ebfc99b3a3656eb6cff5f060adcd9962d94d15f6e9c1fd1caf",
+      "mutations": [],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "scripts/db-consolidate.ts#vacuumInto#lifecycle",
+      "path": "scripts/db-consolidate.ts",
+      "symbol": "vacuumInto",
+      "kind": "lifecycle",
+      "sha256": "cafe3fe9f915257aff021647e7700727490055297268dd7aeb1b1b32aaab6c44",
+      "mutations": [],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#createDispatchQueue#admitted-boundary",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "createDispatchQueue",
+      "kind": "admitted-boundary",
+      "sha256": "ca56d9d7c59bc45232b8b9fd15906d1764d0bab303aa6b841a53a8e09d6bcf47",
+      "mutations": [],
+      "classification": "admission-and-bootstrap-boundary",
+      "rationale": "Exact function pin binds the private writer registry, mandatory wrappers, opaque rollback issuance and constructor migration. No unreviewed wrapper deletion can retain this hash.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#migrateNightshiftIntents#admitted-boundary",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "migrateNightshiftIntents",
+      "kind": "admitted-boundary",
+      "sha256": "1d4ddbb794ba762bd2653e1bb39f585e492f2e8de1d74f5323c57b7cc35b7cde",
+      "mutations": [],
+      "classification": "admission-and-bootstrap-boundary",
+      "rationale": "Exact function pin binds the private writer registry, mandatory wrappers, opaque rollback issuance and constructor migration. No unreviewed wrapper deletion can retain this hash.",
+      "probe": "tests/unit/dispatch-admission-red.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/queue.ts#migrateDispatchFailoverColumns#admitted-boundary",
+      "path": "lib/dispatch/queue.ts",
+      "symbol": "migrateDispatchFailoverColumns",
+      "kind": "admitted-boundary",
+      "sha256": "f8ae6f7489c9383b18247b1abab06daf4191e6b961403924e5e98e629b2a85f1",
+      "mutations": [],
+      "classification": "trusted-schema-bootstrap",
+      "rationale": "CREATE/ALTER/index initialization occurs during queue construction; it is not a row-state safety admission. Exact constructor/migration boundaries are pinned. Arbitrary schema mutation is outside runtime proof.",
+      "probe": "tests/unit/dispatch-queue.test.js; check_dispatch_writer_coverage.test.mjs"
+    },
+    {
+      "id": "lib/dispatch/admission.ts#createDispatchAdmission#admitted-boundary",
+      "path": "lib/dispatch/admission.ts",
+      "symbol": "createDispatchAdmission",
+      "kind": "admitted-boundary",
+      "sha256": "0e9d0a569ac697ade56973799ee759b569525de7001d256045dd1b8aba932246",
+      "mutations": [],
+      "classification": "trusted-admission-metadata-and-clock",
+      "rationale": "Authority/schema installation, trigger clock and event journal are the trusted controller implementation. Exact function pin binds validation, receipt consumption and effect-observation checks independently of the state relation.",
+      "probe": "tests/unit/dispatch-admission-red.test.js"
+    },
+    {
+      "id": "lib/harbormaster.ts#createHarbormaster#admitted-boundary",
+      "path": "lib/harbormaster.ts",
+      "symbol": "createHarbormaster",
+      "kind": "admitted-boundary",
+      "sha256": "0f8b92929f6f26746226b3d61e618b68a9d777edbe879a73c8b5ee462ed968c9",
+      "mutations": [],
+      "classification": "admitted-conflict-recovery",
+      "operation": "conflictRecovery",
+      "columns": [
+        "state",
+        "error_message",
+        "produced_at"
+      ],
+      "rationale": "Accepted-to-produced SQL consumes the receipt issued before awaits. Whole function pin binds issuance and consumption. GitHub merge side effects remain outside the SQLite transaction claim.",
+      "probe": "tests/unit/dispatch-atomic-admission.test.js; tests/unit/harbormaster.test.js"
+    },
+    {
+      "id": "apps/relay/src/retention-sweep.ts#<module>#module",
+      "path": "apps/relay/src/retention-sweep.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "eee300d68e8350e48aa2918384250e3d64c0b7521d22eef3a176bbe52d5511c0",
+      "mutations": [],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "D1 account-erasure loop selects exactly roadmap_mirror_items, roadmap_mirror_edges, roadmap_mirror_activity, roadmap_mirrors. Full module pin binds that finite list and its call.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/agent-harbor/projections.ts#<module>#module",
+      "path": "lib/agent-harbor/projections.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "84c7700acf495d1c57d7c9512890796597e90247e69feac840ed0fa3f40c3aab",
+      "mutations": [],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private PROJECTION_TABLES maps only harbor_proj_* tables. Full module pin binds selector and rebuild implementation; no dispatch target.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/cost-ledger.ts#<module>#module",
+      "path": "lib/cost-ledger.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "2a1d4e6108af0e17228f25b3e70180f0da570133ea9ffa25691d42d307ab694e",
+      "mutations": [],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private ensureColumns is called only with transcript_events and cost_events; full module pin binds exact callers and declaration.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/observability/retention-registry.ts#<module>#module",
+      "path": "lib/observability/retention-registry.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "6e3df134631e77e6b2dd8bf47ce55010094b604cd64be60cfb5f635c5b668cdc",
+      "mutations": [],
+      "classification": "protected-target-refusal-boundary",
+      "rationale": "Generic retention builders are trusted reusable SQL utilities. They must validate identifiers and refuse dispatches, nightshift_intents and admission control tables before prepare; exact module pin binds those guards. Arbitrary callback/DB handles remain trusted.",
+      "probe": "tests/unit/dispatch-retention-boundary.test.js"
+    },
+    {
+      "id": "lib/observability/maintenance.ts#<module>#module",
+      "path": "lib/observability/maintenance.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "fc93fd92356cff6704b62901b933095c53b11e0d289af840ce8ac34b494c9b64",
+      "mutations": [],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Only registered builders target harbor_issued_tokens and semantic_resolution_events; exact call sites and module are pinned.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/parley-store.ts#<module>#module",
+      "path": "lib/parley-store.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "a44dfab7d07ac35efb1caff5ca2559f24339097d6702646c46876056c2b53e9e",
+      "mutations": [],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private quotaTriggerSql is mapped over immutable QUOTA_TABLES of parley_* tables. Full module pin binds specification and caller.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/pheromone.ts#<module>#module",
+      "path": "lib/pheromone.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "78c64286f62dc1f3e88c71c1b0bf6b198d2e4b976341db5d95af33a2a4dc3f0a",
+      "mutations": [],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "ALLOWED_TABLES contains services, projects, sessions, agents, locks. Each dynamic write checks membership or iterates that set; module pin binds selectors and checks.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "lib/skill-graft-reconciler.ts#<module>#module",
+      "path": "lib/skill-graft-reconciler.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "3e4113458f7a492ff38ac2dec7510e65a559ed3e6a3379fee1afd74129472322",
+      "mutations": [],
+      "classification": "reviewed-nondispatch-selector",
+      "rationale": "Private STATE_TABLE constant is skill_graft_tool2vec_reconcile_state. Module pin binds constant and all template sites.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "scripts/generate-pd-ios-fixtures.ts#<module>#module",
+      "path": "scripts/generate-pd-ios-fixtures.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "d5fe9a599de4834c3ec21af06b748fd6472bc6d905e159c3ef0691b7611a5b0b",
+      "mutations": [],
+      "classification": "nonexecuted-fixture-parser-marker",
+      "rationale": "The CREATE TABLE template is a read-only parser marker used to locate SQL schema text, not executed SQL. Fixture generator module is pinned.",
+      "probe": "check_dispatch_writer_coverage.test.mjs exact selector/module hash mutation controls"
+    },
+    {
+      "id": "scripts/registry-reunify.ts#<module>#module",
+      "path": "scripts/registry-reunify.ts",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "66e87b3d6539f26d1ecad97d9df1ea30e9ceff14e5b2df9751bb67478125fce6",
+      "mutations": [],
+      "classification": "trusted-whole-database-lifecycle",
+      "rationale": "Snapshot/export/restore/rescue/consolidation can copy complete dispatch and clock state. Existing lifecycle code is a trusted boundary; old receipt objects are controller-local and cannot cross a fresh controller. In-place privileged rollback, arbitrary filesystem replacement and live-runtime deployment are not proved.",
+      "probe": "tests/unit/dispatch-admission-red.test.js copied-database controller test; check_dispatch_writer_coverage.test.mjs lifecycle hash controls"
+    },
+    {
+      "id": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#<module>#1",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "symbol": "<module>",
+      "kind": "sql",
+      "sha256": "e4000085584a5a9c4548e1b4ae4e3a0b199fef5e05466fb5aa1518a4174676ee",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "explicit-offline-adapter-fixture",
+      "rationale": "Raw same-value metadata mutation through the second synthetic SQLite handle invalidates a pending receipt; this is an intentional privileged-writer negative control. The enclosing module is separately pinned to its synthetic scratch database setup and cleanup; this is not a production runtime writer.",
+      "probe": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs; seven runtime cases independently verified by root under Node and Bun."
+    },
+    {
+      "id": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#<module>#2",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "symbol": "<module>",
+      "kind": "sql",
+      "sha256": "15168bd6a28c23175134bb4fd8f10f0e3ba3a8d57752aceaaf6fae931a1abd8c",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "explicit-offline-adapter-fixture",
+      "rationale": "First half of the synthetic state ABA, review_pending to produced, through the second fixture connection. Its companion statement restores review_pending before stale receipt consumption. The enclosing module is separately pinned to its synthetic scratch database setup and cleanup; this is not a production runtime writer.",
+      "probe": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs; seven runtime cases independently verified by root under Node and Bun."
+    },
+    {
+      "id": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#<module>#3",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "symbol": "<module>",
+      "kind": "sql",
+      "sha256": "77d0b74c3e8a4724e7540b21025ec8406a847ba7b713e95a4abf87d4ee1675d3",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "explicit-offline-adapter-fixture",
+      "rationale": "Second half of the synthetic state ABA, produced back to review_pending, through the second fixture connection. A matching state does not restore receipt freshness. The enclosing module is separately pinned to its synthetic scratch database setup and cleanup; this is not a production runtime writer.",
+      "probe": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs; seven runtime cases independently verified by root under Node and Bun."
+    },
+    {
+      "id": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#wrongTarget#1",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "symbol": "wrongTarget",
+      "kind": "sql",
+      "sha256": "759eaa68defbe5f71b872b93cd43951dd83c94ea98d22ad66b5f9cc4a7b908e4",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "explicit-offline-adapter-fixture",
+      "rationale": "Intentionally faulty registered handler attempts to update other.id instead of its bound primary.id. The smoke asserts target-identity refusal and rollback of row, clock and receipt. The enclosing module is separately pinned to its synthetic scratch database setup and cleanup; this is not a production runtime writer.",
+      "probe": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs; seven runtime cases independently verified by root under Node and Bun."
+    },
+    {
+      "id": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#serialized#1",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "symbol": "serialized",
+      "kind": "sql",
+      "sha256": "759eaa68defbe5f71b872b93cd43951dd83c94ea98d22ad66b5f9cc4a7b908e4",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "explicit-offline-adapter-fixture",
+      "rationale": "Second synthetic connection attempts to write while the first holds the admission IMMEDIATE transaction. The smoke requires SQLITE_BUSY/locked refusal. The enclosing module is separately pinned to its synthetic scratch database setup and cleanup; this is not a production runtime writer.",
+      "probe": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs; seven runtime cases independently verified by root under Node and Bun."
+    },
+    {
+      "id": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#serialized#2",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "symbol": "serialized",
+      "kind": "sql",
+      "sha256": "759eaa68defbe5f71b872b93cd43951dd83c94ea98d22ad66b5f9cc4a7b908e4",
+      "mutations": [
+        {
+          "kind": "UPDATE",
+          "target": "dispatches"
+        }
+      ],
+      "classification": "explicit-offline-adapter-fixture",
+      "rationale": "First synthetic connection performs the admitted winning metadata write inside the same transaction after the competing connection is refused. The enclosing module is separately pinned to its synthetic scratch database setup and cleanup; this is not a production runtime writer.",
+      "probe": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs; seven runtime cases independently verified by root under Node and Bun."
+    },
+    {
+      "id": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs#<module>#module",
+      "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs",
+      "symbol": "<module>",
+      "kind": "module",
+      "sha256": "e2c2870d0894fc09c9f699325dd207fceb1ad33e81bea882f96350074da845d0",
+      "mutations": [],
+      "classification": "offline-fixture-scope-boundary",
+      "rationale": "Exact module pin binds all six intentionally direct SQL probes to file-backed synthetic databases under the linked worktree .cache/blue-runtime-smoke, two local connections, and finally-close/removal. Source imports the production SQLite adapter and queue; no daemon, provider, network or external process is invoked.",
+      "probe": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/sqlite-runtime-smoke.mjs; root independently verified seven cases under Node and seven under Bun."
+    }
+  ],
+  "reviewedSourceFileCount": 1784,
+  "limitations": [
+    "The audit parses tracked and untracked non-test .ts/.tsx/.js/.jsx/.mjs/.cjs/.sql files; it does not parse Swift/Rust/Python/shell, external dependencies, ignored generated output or inline HTML JavaScript.",
+    "Recognizable source SQL literals, templates and concatenations are checked. SQL synthesized without recognizable mutation syntax, reflective helper aliases and arbitrary new filesystem replacement calls are not a complete static dataflow proof.",
+    "Known whole-database functions and bounded generic selector modules are exact-hash pinned; classification does not place them inside the runtime admission transaction.",
+    "An authorized source reviewer must inspect changed sites before updating this contract. There is intentionally no bless/update command.",
+    "SQL-bearing diagnostic literals and fixture parser markers are exact-site classified, never ignored using blanket source patterns.",
+    "Caller-created raw DB handles, trusted callbacks, malicious privileged schema owners, hostile host execution and external GitHub/provider effects are not confined by this guard."
+  ]
+}

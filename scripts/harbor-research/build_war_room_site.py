@@ -7,6 +7,7 @@ published repository tree (prefer an immutable commit). Omit it while unpublishe
 import argparse
 import hashlib
 import json
+import re
 import zipfile
 from collections import Counter
 from pathlib import Path
@@ -21,14 +22,58 @@ def read(relative):
     return json.loads((ROOT / relative).read_text())
 
 
+def source_base(value):
+    if not value:
+        return ''
+    parsed = urlparse(value)
+    if (parsed.scheme != 'https' or parsed.netloc != 'github.com'
+            or not re.fullmatch(r'/curiositech/port-daddy/blob/[0-9a-f]{40}/?', parsed.path)
+            or parsed.query or parsed.fragment):
+        raise argparse.ArgumentTypeError('source base must be the HTTPS GitHub blob tree for a full immutable curiositech/port-daddy commit')
+    return value.rstrip('/')
+
+
+def source_artifact(label, path, base):
+    target = ROOT / path
+    if target.resolve().is_relative_to(ROOT.resolve()) is False or not target.is_file():
+        raise SystemExit(f'Missing or out-of-tree curated source: {path}')
+    return {'label': label, 'path': path, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest(),
+            'url': base + '/' + quote(path) if base else None}
+
+
+def atomic_admission(summary, base):
+    """Publish selected values only; model logs contain private local tool paths."""
+    if base and summary['adjudication']['status'] != 'accepted':
+        raise SystemExit('Round-two publication requires recorded final adjudication')
+    white = json.loads((CAMPAIGN / 'round-two/white/evidence/final/summary.json').read_text())
+    contract = json.loads((CAMPAIGN / 'round-two/red/writer-contract.json').read_text())
+    cases = white['cases']
+    defended = [case for case in cases if case['case'] == 'bound']
+    if (white['status'] != 'passed' or len(defended) != 1
+            or defended[0]['verdict'] != 'finite safety pass' or defended[0]['queued_states'] != 0
+            or any(case['verdict'] != 'expected exact witness' for case in cases if case['case'] != 'bound')):
+        raise SystemExit('Atomic admission model receipts require review')
+    mutant_count = sum(case['case'].startswith('mutant_') for case in cases)
+    result = {key: summary[key] for key in ('title', 'purpose', 'scope', 'adjudication', 'binding',
+              'implementation', 'policy', 'formalLimit', 'coverageLimit', 'runtime', 'repairs', 'openBoundaries')}
+    result['formal'] = {'configurations': len(cases), 'distinctStates': defended[0]['distinct_states'],
+                        'controls': len(cases) - mutant_count - 1, 'mutants': mutant_count,
+                        'modelSha256': white['model_sha256'], 'checkerSha256': white['checker_sha256']}
+    result['coverage'] = {'sites': len(contract['sites']), 'sourceFiles': contract['reviewedSourceFileCount'],
+                          'classifications': dict(Counter(site['classification'] for site in contract['sites'])),
+                          'limitations': contract['limitations']}
+    result['sources'] = [source_artifact(source['label'], source['path'], base) for source in summary['sources']]
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source-base', default='', help='Published GitHub blob base, including immutable commit')
+    parser.add_argument('--source-base', default='', type=source_base, help='Explicitly refresh the first-round source snapshot at this immutable GitHub commit; omitted preserves its published URL/hash pairs')
+    parser.add_argument('--round-two-source-base', default='', type=source_base, help='Publish the accepted round-two sources at this immutable GitHub commit')
     args = parser.parse_args()
-    if args.source_base:
-        parsed = urlparse(args.source_base)
-        if parsed.scheme != 'https' or parsed.netloc != 'github.com' or not parsed.path.startswith('/curiositech/port-daddy/blob/'):
-            parser.error('source-base must be the HTTPS GitHub blob tree for curiositech/port-daddy')
+    round_two_path = CAMPAIGN / 'round-two/public-summary.json'
+    round_two_summary = json.loads(round_two_path.read_text()) if round_two_path.is_file() else None
+    prior_sources = {source['path']: source for source in round_two_summary['priorEvidenceSources']} if round_two_summary else {}
     ledger = read('docs/harbor-research/omni-ledger.json')
     records = {r['id']: r for r in ledger['records']}
     intake = records['REVIEW-INTAKE-20261106']['review_intake']
@@ -98,7 +143,14 @@ def main():
         target = ROOT / path
         if not target.is_file():
             raise SystemExit(f'Missing curated source: {path}')
-        artifacts.append({'label': label, 'path': path, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'url': args.source_base.rstrip('/') + '/' + quote(path) if args.source_base else None})
+        if not args.source_base and path in prior_sources:
+            prior = prior_sources[path]
+            if not re.fullmatch(r'[0-9a-f]{64}', prior['sha256']) or not prior['url']:
+                raise SystemExit(f'Invalid preserved source receipt: {path}')
+            source_base(prior['url'].split('/' + quote(path))[0])
+            artifacts.append(prior)
+        else:
+            artifacts.append(source_artifact(label, path, args.source_base))
     coverage = []
     for item in intake['items']:
         coverage.append({key: item[key] for key in ('id', 'summary', 'classification', 'targets', 'status') } | {'document': item['source']['document'], 'line': item['source']['line_start'], 'section': item['section']})
@@ -134,6 +186,7 @@ def main():
         'nextP6': {key: records['NEXT-P6'][key] for key in ('title', 'status', 'result', 'next', 'assumptions')},
         'transcripts': {'scope': transcripts['scope'], 'projection': transcripts['projection'], 'sources_count': len(transcripts['sources']), 'publication': 'Visible-event projections are saved separately. Raw conversation logs and transcript bodies are not included in this viewer.'},
         'sources': artifacts,
+        'atomicAdmission': atomic_admission(round_two_summary, args.round_two_source_base) if round_two_summary else None,
     }
     output = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + '\n'
     if '/Users/' in output or 'pdr_' in output:
@@ -141,13 +194,13 @@ def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     (OUTPUT / 'campaign-data.json').write_text(output)
     manifest = {'schema': 'harbor-public-viewer-manifest/v1', 'files': []}
-    for name in ('index.html', 'styles.css', 'viewer.js', 'campaign-data.json', 'walkthrough.webm', 'walkthrough-poster.png', 'viewer-qa.json'):
+    for name in ('index.html', 'styles.css', 'viewer.js', 'campaign-data.json', 'walkthrough.webm', 'walkthrough-poster.png', 'viewer-qa.json', 'round-two-viewer-qa.json'):
         path = OUTPUT / name
         if path.is_file():
             body = path.read_bytes()
             manifest['files'].append({'file': name, 'bytes': len(body), 'sha256': hashlib.sha256(body).hexdigest()})
     (OUTPUT / 'viewer-manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
-    print(json.dumps({'advice_units': len(coverage), 'findings': len(findings), 'source_links': 'published' if args.source_base else 'pending', 'output_sha256': hashlib.sha256(output.encode()).hexdigest()}))
+    print(json.dumps({'advice_units': len(coverage), 'findings': len(findings), 'source_links': 'published' if all(s['url'] for s in artifacts) else 'pending', 'round_two_links': 'published' if args.round_two_source_base else 'pending', 'output_sha256': hashlib.sha256(output.encode()).hexdigest()}))
 
 
 if __name__ == '__main__':

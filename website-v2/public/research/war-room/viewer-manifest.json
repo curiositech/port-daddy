@@ -1,24 +1,24 @@
 {
   "files": [
     {
-      "bytes": 8385,
+      "bytes": 11116,
       "file": "index.html",
-      "sha256": "6fa196a17a5c449d75371fea027677f1d7626f01c3d8398f227e718c4ff7ce93"
+      "sha256": "290fc10aa71ecd201ccc30d65a4e08e0e92cd84bde84ab0e20b8af1bb89ed2bd"
     },
     {
-      "bytes": 8312,
+      "bytes": 9132,
       "file": "styles.css",
-      "sha256": "5d5f0259894c11eeaa9abf613ba2117b96077ff49a00f6ea9ec61817740caa09"
+      "sha256": "9938859e9c91dbb4530134a0bc86309a52789a0b14624976f278205fd6bb2ebf"
     },
     {
-      "bytes": 10211,
+      "bytes": 13038,
       "file": "viewer.js",
-      "sha256": "2e73f2e80c9487432bf53e846f29e308da7ed9e1a92f9b6e160cd2bd531eec47"
+      "sha256": "bf81607358bda6c1a1a4812563792decb11b49d3cf12fe076d8a46c01811c0dc"
     },
     {
-      "bytes": 675534,
+      "bytes": 686700,
       "file": "campaign-data.json",
-      "sha256": "674f387e734b4456ed59278f9a45f5e36ed7b3fb3821d48ce4f9ecb3b678ec97"
+      "sha256": "2e6a7999e0cba7d0f89a0c38471dbd77701414ac4d9f1fd8918158c43f8cfea9"
     },
     {
       "bytes": 1422597,
@@ -34,6 +34,11 @@
       "bytes": 5555,
       "file": "viewer-qa.json",
       "sha256": "ec47406df4178276ddf46accd5bbc86a6f4d30d151e732d16533707d39ffc83a"
+    },
+    {
+      "bytes": 3713,
+      "file": "round-two-viewer-qa.json",
+      "sha256": "ab287a40e08ee289788f34dc7fa3c677578cb7707aba9e5f433844fa97563905"
     }
   ],
   "schema": "harbor-public-viewer-manifest/v1"

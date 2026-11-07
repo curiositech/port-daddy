@@ -1,0 +1,69 @@
+{
+  "worktree": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+  "branch": "codex/research-admission-binding-20261106",
+  "runtimeStarted": false,
+  "privacyEnforced": false,
+  "commands": [
+    {
+      "name": "red-and-bootstrap-retention",
+      "argv": [
+        "/Users/erichowens/.nvm/versions/node/v22.17.1/bin/node",
+        "--experimental-vm-modules",
+        "node_modules/jest/bin/jest.js",
+        "--config",
+        ".cache/jest-admission.config.mjs",
+        "--runInBand",
+        "tests/unit/dispatch-admission-red.test.js",
+        "tests/unit/seed-berth-db.test.js",
+        "tests/unit/dispatch-retention-boundary.test.js"
+      ],
+      "cwd": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+      "exitCode": 0,
+      "stdout": "red-and-bootstrap-retention.stdout.txt",
+      "stderr": "red-and-bootstrap-retention.stderr.txt"
+    },
+    {
+      "name": "writer-coverage-controls",
+      "argv": [
+        "/Users/erichowens/.nvm/versions/node/v22.17.1/bin/node",
+        "--test",
+        "scripts/harbor-research/check_dispatch_writer_coverage.test.mjs"
+      ],
+      "cwd": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+      "exitCode": 0,
+      "stdout": "writer-coverage-controls.stdout.txt",
+      "stderr": "writer-coverage-controls.stderr.txt"
+    },
+    {
+      "name": "writer-coverage-audit",
+      "argv": [
+        "/Users/erichowens/.nvm/versions/node/v22.17.1/bin/node",
+        "scripts/harbor-research/check_dispatch_writer_coverage.mjs"
+      ],
+      "cwd": "/Users/erichowens/coding/tmp/research-admission-binding-20261106",
+      "exitCode": 0,
+      "stdout": "writer-coverage-audit.stdout.txt",
+      "stderr": "writer-coverage-audit.stderr.txt"
+    }
+  ],
+  "sourceHashes": {
+    "lib/dispatch/admission.ts": "54d2ad1ebf630427e7a0fe62f8e2b4bad1ccb58430019679f888d1ca876725a7",
+    "lib/dispatch/queue.ts": "363416ac47511e60c026fa7f298f6efb8f01422d83fa48b4157b3849d82374a2",
+    "lib/harbormaster.ts": "2f8c496e42e631415e5f82e39b48108f8f59a958f212fac1a6ed3404174842d3",
+    "lib/seed-berth-db.ts": "d95b7b694d9937c36889598bcbe40f30476cffbd30869c64c62717d4e9940b82",
+    "lib/observability/retention-registry.ts": "6e3df134631e77e6b2dd8bf47ce55010094b604cd64be60cfb5f635c5b668cdc",
+    "tests/unit/dispatch-admission-red.test.js": "204aae2afb38d8b8ea639b4994e519e715fff56fa4f74ca8da897e0c6835065a",
+    "scripts/harbor-research/check_dispatch_writer_coverage.mjs": "047942730efd72bda837370ecba11b84619448c158f582696fb8432cabfa425d",
+    "scripts/harbor-research/check_dispatch_writer_coverage.test.mjs": "8bf14cc5999e56aa489ec4a5fe3c4ba7f2e20923f7004a99fd8bef5ba3261043",
+    "docs/harbor-research/campaigns/2026-11-06/round-two/red/writer-contract.json": "9aedec653e7954ada8cac11159b07111ca18bcaab5bac16ea94bcc52fde27d23"
+  },
+  "initialWrongRowCounterexample": {
+    "test": "descriptor identity probe: wrong-row same-state handler must refuse",
+    "beforeRepair": {
+      "passed": 36,
+      "failed": 1,
+      "error": "Expected function toThrow; received function did not throw. Receipt arguments named first.id but handler changed other.id with the same abstract state."
+    },
+    "afterRepair": "Targets descriptor bound at prepare and dispatch_id verified from mutation journal; independent regression passes."
+  }
+}

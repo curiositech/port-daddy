@@ -4,14 +4,15 @@
  * Real SQLite round-trips: build a fake "prod" registry with both board data
  * (roadmap_items) and LOCAL-ONLY data (services, locks), seed a berth from it,
  * and assert the copy preserves board data while scrubbing the machine-local
- * tables. Scratch DBs live under ~/.port-daddy (never /tmp, per repo policy)
+ * tables. Scratch DBs live under the linked worktree cache (never /tmp)
  * and are removed after each test.
  */
 
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 import { mkdtempSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { resolve } from 'node:path';
+import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 
 import Database from '../../lib/sqlite-runtime.js';
 import {
@@ -25,7 +26,7 @@ import {
 let scratch;
 
 beforeEach(() => {
-  const root = join(homedir(), '.port-daddy');
+  const root = resolve(process.cwd(), '.cache', 'seed-berth-tests');
   mkdirSync(root, { recursive: true });
   scratch = mkdtempSync(join(root, 'test-seed-berth-'));
 });
@@ -45,12 +46,14 @@ function makeProdDb() {
     CREATE TABLE endpoints (id TEXT PRIMARY KEY, url TEXT);
     CREATE TABLE locks (key TEXT PRIMARY KEY, holder TEXT);
     CREATE TABLE dispatches (id TEXT PRIMARY KEY, state TEXT, goal TEXT);
+    CREATE TABLE nightshift_intents (id TEXT PRIMARY KEY, status TEXT);
     INSERT INTO roadmap_items VALUES ('r1', 'ship berths'), ('r2', 'seed db');
     INSERT INTO session_notes VALUES ('n1', 'scope note');
     INSERT INTO services VALUES ('webapp:api:main', 9876), ('other:ui:main', 5173);
     INSERT INTO endpoints VALUES ('e1', 'http://127.0.0.1:9876');
     INSERT INTO locks VALUES ('release', 'agent-7');
     INSERT INTO dispatches VALUES ('d1', 'proposed', 'launch me'), ('d2', 'in_progress', 'recover me');
+    INSERT INTO nightshift_intents VALUES ('legacy', 'running');
   `);
   db.close();
   return path;
@@ -100,7 +103,40 @@ describe('seedBerthDbFromProd', () => {
 
     expect(result.seeded).toBe(true);
     expect(count(target, 'services')).toBe(2);
-    expect(result.scrubbedTables).toEqual([]);
+    expect(result.scrubbedTables).toEqual([...EXECUTABLE_QUEUE_TABLES]);
+    for (const table of EXECUTABLE_QUEUE_TABLES) expect(count(target, table)).toBe(0);
+  });
+
+  test.each([true, false])('legacy executable work cannot reappear after seeding (scrub local: %s)', (scrubLocalOnly) => {
+    const source = join(scratch, 'legacy-source.db');
+    const db = new Database(source);
+    db.exec(`CREATE TABLE nightshift_intents (
+      id TEXT PRIMARY KEY, slug TEXT, intent TEXT, tags_json TEXT, status TEXT,
+      backend TEXT, budget_usd REAL, timeout_ms INTEGER, worktree_path TEXT,
+      branch_name TEXT, session_id TEXT, pr_url TEXT, cost_usd REAL, duration_ms INTEGER,
+      error_message TEXT, created_at INTEGER, queued_at INTEGER, started_at INTEGER,
+      completed_at INTEGER, reviewed_at INTEGER
+    ); CREATE TABLE roadmap_items (id TEXT PRIMARY KEY, title TEXT);
+    INSERT INTO roadmap_items VALUES ('keep-board-history', 'retained');`);
+    const legacy = db.prepare('INSERT INTO nightshift_intents (id,slug,intent,tags_json,status,created_at) VALUES (?,?,?,?,?,?)');
+    for (const [i, state] of ['proposed', 'queued', 'running'].entries()) {
+      legacy.run(`legacy-${i}`, `legacy-${i}`, 'must not execute in a copied berth', '[]', state, 1700000000000);
+    }
+    const originalQueue = createDispatchQueue({ db });
+    expect(originalQueue.list()).toHaveLength(3);
+    db.close();
+    const target = join(scratch, 'legacy-berth.db');
+    const result = seedBerthDbFromProd({ sourceDbPath: source, targetDbPath: target, scrubLocalOnly });
+    expect(result.seeded).toBe(true);
+    const copy = new Database(target);
+    try {
+      const queue = createDispatchQueue({ db: copy });
+      expect(queue.list()).toEqual([]);
+      expect(copy.prepare('SELECT COUNT(*) AS n FROM nightshift_intents').get().n).toBe(0);
+      expect(copy.prepare('SELECT title FROM roadmap_items').get().title).toBe('retained');
+    } finally { copy.close(); }
+    expect(count(source, 'dispatches')).toBe(3);
+    expect(count(source, 'nightshift_intents')).toBe(3);
   });
 
   test('is idempotent — never clobbers an existing berth DB', () => {

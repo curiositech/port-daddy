@@ -76,8 +76,10 @@ describe('canTransition -- illegal transitions', () => {
     expect(canTransition('produced', 'rejected')).toBe(false);
   });
 
-  test('cannot go backwards', () => {
-    expect(canTransition('claimed', 'proposed')).toBe(false);
+  test('includes concrete recovery back-edges but rejects unimplemented ones', () => {
+    expect(canTransition('claimed', 'proposed')).toBe(true);
+    expect(canTransition('in_progress', 'proposed')).toBe(true);
+    expect(canTransition('accepted', 'produced')).toBe(true);
     expect(canTransition('in_progress', 'claimed')).toBe(false);
     expect(canTransition('accepted', 'review_pending')).toBe(false);
   });
@@ -109,24 +111,24 @@ describe('assertTransition', () => {
   });
 
   test('throws with a clear message on illegal transitions', () => {
-    expect(() => assertTransition('proposed', 'settled')).toThrow(/illegal/);
+    expect(() => assertTransition('rejected', 'settled')).toThrow(/illegal/);
     expect(() => assertTransition('settled', 'failed')).toThrow(/illegal/);
   });
 });
 
 describe('nextStates', () => {
-  test('proposed -> [claimed, failed, salvage]', () => {
-    expect(nextStates('proposed').sort()).toEqual(['claimed', 'failed', 'salvage']);
+  test('proposed includes the worker settlement shortcut', () => {
+    expect(nextStates('proposed').sort()).toEqual(['claimed', 'failed', 'salvage', 'settled']);
   });
 
   test('review_pending -> [accepted, rejected, failed, salvage]', () => {
     expect(nextStates('review_pending').sort()).toEqual(
-      ['accepted', 'failed', 'rejected', 'salvage'],
+      ['accepted', 'failed', 'rejected', 'salvage', 'settled'],
     );
   });
 
   test('accepted -> [settled, failed, salvage]', () => {
-    expect(nextStates('accepted').sort()).toEqual(['failed', 'salvage', 'settled']);
+    expect(nextStates('accepted').sort()).toEqual(['failed', 'produced', 'salvage', 'settled']);
   });
 
   test('settled (terminal) -> []', () => {

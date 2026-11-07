@@ -40,6 +40,18 @@ on:
       - 'scripts/harbor-research/**'
       - 'docs/harbor-research/campaigns/2026-11-06/models/**'
       - 'docs/harbor-research/campaigns/2026-11-06/white/**'
+      - 'docs/harbor-research/campaigns/2026-11-06/round-two/**'
+      - 'skills/harbor-results/SKILL.md'
+      - 'package.json'
+      - 'package-lock.json'
+      # The writer audit discovers new files, not only known dispatch paths.
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '**/*.sql'
   pull_request:
     branches: [main]
     paths:
@@ -60,6 +72,18 @@ on:
       - 'scripts/harbor-research/**'
       - 'docs/harbor-research/campaigns/2026-11-06/models/**'
       - 'docs/harbor-research/campaigns/2026-11-06/white/**'
+      - 'docs/harbor-research/campaigns/2026-11-06/round-two/**'
+      - 'skills/harbor-results/SKILL.md'
+      - 'package.json'
+      - 'package-lock.json'
+      # Match the source audit's language domain, including future writers.
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '**/*.sql'
   # Merge queue: trigger on the queued group so every proof job reports a check
   # context (no path filter is possible on merge_group). The heavy jobs SKIP on
   # merge_group via their per-job `if:` below, and a skipped job reports
@@ -234,6 +258,12 @@ jobs:
       - name: Check admission revision and concrete TLC controls
         run: python3 -B scripts/harbor-research/check_admission_revision.py --jar "${TLA_TOOLS_JAR}"
 
+      - name: Check atomic admission and exact TLC witnesses
+        run: python3 -B scripts/harbor-research/check_atomic_admission_model.py --jar "${TLA_TOOLS_JAR}"
+
+      - name: Check atomic admission evidence validation
+        run: python3 -B -m unittest discover -s scripts/harbor-research -p test_atomic_admission_model.py -v
+
       - name: Upload TLC log
         if: always()
         uses: actions/upload-artifact@v4
@@ -245,6 +275,7 @@ jobs:
             proofs/economics/claim_signaling_delta30.tlc.log
             proofs/economics/sweep-delta.tlc.log
             .cache/admission-revision/
+            .cache/atomic-admission/
 
   tla-claim-signaling-apalache:
     if: github.event_name != 'merge_group'
@@ -808,8 +839,9 @@ jobs:
   # book/corpus.json is the ledger every formal artifact and R-script
   # must appear in; scripts/check-whitepaper-corpus.mjs fails the build if an
   # on-disk formal artifact (or #[kani::proof] harness) is unregistered, or if
-  # a registered path is missing on disk. Node/stdlib-only; no TLA+/Z3/
-  # ProVerif/Kani toolchain needed, so this job is fast.
+  # a registered path is missing on disk. The manifest uses Node/stdlib; the
+  # dispatch writer audit adds only the locked TypeScript parser. No solver
+  # or native database dependency is needed in this job.
   whitepaper-corpus-manifest:
     name: Proof estate / manifest (WIRED or RETIRED)
     runs-on: ubuntu-latest
@@ -826,3 +858,43 @@ jobs:
 
       - name: ProVerif result-comparison unit tests (offline, no ProVerif needed)
         run: node --test tests/unit/proverif-runner-comparison.test.mjs
+
+      - name: Install the locked TypeScript parser for the writer audit
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/dispatch-writer-tools
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const version = '5.9.3';
+          const locked = JSON.parse(readFileSync('package-lock.json', 'utf8')).packages['node_modules/typescript'];
+          if (locked.version !== version || !locked.integrity) throw new Error('review the TypeScript parser pin before changing it');
+          const pkg = { name: 'dispatch-writer-proof-tools', version: '1.0.0', private: true, devDependencies: { typescript: version } };
+          const prefix = '.cache/dispatch-writer-tools/';
+          writeFileSync(prefix + 'package.json', JSON.stringify(pkg));
+          writeFileSync(prefix + 'package-lock.json', JSON.stringify({
+            name: pkg.name, version: pkg.version, lockfileVersion: 3, requires: true,
+            packages: { '': pkg, 'node_modules/typescript': locked },
+          }));
+          NODE
+          npm ci --prefix .cache/dispatch-writer-tools --ignore-scripts --no-audit --no-fund --cache .cache/npm-proof-tools
+          mkdir -p node_modules
+          ln -s ../.cache/dispatch-writer-tools/node_modules/typescript node_modules/typescript
+
+      - name: Check reviewed dispatch writers and scanner controls
+        run: |
+          set -euo pipefail
+          node scripts/harbor-research/check_dispatch_writer_coverage.mjs \
+            | tee .cache/dispatch-writer-tools/coverage.json
+          node --test scripts/harbor-research/check_dispatch_writer_coverage.test.mjs \
+            | tee .cache/dispatch-writer-tools/controls.log
+
+      - name: Upload dispatch writer audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dispatch-writer-coverage
+          include-hidden-files: true
+          path: |
+            .cache/dispatch-writer-tools/coverage.json
+            .cache/dispatch-writer-tools/controls.log
+            .cache/dispatch-writer-tools/package-lock.json

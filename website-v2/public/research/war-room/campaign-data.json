@@ -1,4 +1,191 @@
 {
+  "atomicAdmission": {
+    "adjudication": {
+      "label": "Local verification accepted",
+      "note": "The lead accepted the result within this domain after independent source review and execution. Hosted checks, protected merge and production readback are separate delivery gates.",
+      "status": "accepted"
+    },
+    "binding": [
+      "Exact operation and copied input",
+      "Affected dispatch IDs",
+      "Durable database revision",
+      "Policy, model and authority epoch",
+      "Single-use consumption and journal validation"
+    ],
+    "coverage": {
+      "classifications": {
+        "admission-and-bootstrap-boundary": 2,
+        "admitted-conflict-recovery": 2,
+        "admitted-dispatch-writer": 16,
+        "explicit-offline-adapter-fixture": 6,
+        "nonexecuted-error-message": 2,
+        "nonexecuted-fixture-parser-marker": 2,
+        "offline-fixture-scope-boundary": 1,
+        "protected-target-refusal-boundary": 4,
+        "reviewed-nondispatch-selector": 22,
+        "standalone-schema-and-legacy-bootstrap": 2,
+        "trusted-admission-metadata-and-clock": 6,
+        "trusted-schema-bootstrap": 10,
+        "trusted-whole-database-bootstrap": 5,
+        "trusted-whole-database-lifecycle": 9
+      },
+      "limitations": [
+        "The audit parses tracked and untracked non-test .ts/.tsx/.js/.jsx/.mjs/.cjs/.sql files; it does not parse Swift/Rust/Python/shell, external dependencies, ignored generated output or inline HTML JavaScript.",
+        "Recognizable source SQL literals, templates and concatenations are checked. SQL synthesized without recognizable mutation syntax, reflective helper aliases and arbitrary new filesystem replacement calls are not a complete static dataflow proof.",
+        "Known whole-database functions and bounded generic selector modules are exact-hash pinned; classification does not place them inside the runtime admission transaction.",
+        "An authorized source reviewer must inspect changed sites before updating this contract. There is intentionally no bless/update command.",
+        "SQL-bearing diagnostic literals and fixture parser markers are exact-site classified, never ignored using blanket source patterns.",
+        "Caller-created raw DB handles, trusted callbacks, malicious privileged schema owners, hostile host execution and external GitHub/provider effects are not confined by this guard."
+      ],
+      "sites": 89,
+      "sourceFiles": 1784
+    },
+    "coverageLimit": "The source audit classifies every discovered site and boundary in its supported TypeScript, JavaScript and SQL scope. It includes generic selectors, schema work, database copying and diagnostic literals; the count is not a count of admitted runtime writers. Generated SQL, unsupported languages and privileged database access remain outside this static guarantee.",
+    "formal": {
+      "checkerSha256": "13fcf880bfd0b9452240684308fcfe12d3ca75a618dd9f353b426ec37a30a098",
+      "configurations": 31,
+      "controls": 15,
+      "distinctStates": 602,
+      "modelSha256": "96240af208968beed1701c02f9a7e0a0e975e40b41685ff03763d1cc13f78b18",
+      "mutants": 15
+    },
+    "formalLimit": "TLC checks a bounded receipt-binding model. The transfer to implementation is a conditional simulation argument; the model does not prove SQLite internals, arbitrary SQL mediation, external effects, or unbounded implementation safety.",
+    "implementation": "The real queue uses the admission controller. A stale receipt is rejected; a handler that writes an unapproved dispatch or transition is rolled back. The original rollback receipt survives the caller’s await, so old snapshots cannot obtain fresh authority.",
+    "openBoundaries": [
+      {
+        "detail": "Successful GitHub merges, auto-merge, Conductor launches, failover work and filesystem effects need their own authority and idempotency boundaries. A local transaction cannot make these remote actions atomic.",
+        "title": "External effects"
+      },
+      {
+        "detail": "Fresh admission does not prove that the requesting worker still owns a run or lease. An old worker can request a new decision unless a separate ownership check refuses it.",
+        "title": "Worker ownership"
+      },
+      {
+        "detail": "Raw database handles can bypass admission. Replacing old database and clock bytes under a live controller violates the non-reused-authority assumption. Trusted schema ownership and lifecycle controls remain explicit.",
+        "title": "Privileged storage changes"
+      }
+    ],
+    "policy": "The executable policy forbids named workflow states and explores their complete declared future graph. A nonempty policy accepts a real produced → review_pending transition while refusing recovery-capable futures. The default empty forbidden set makes no substantive safety prohibition.",
+    "purpose": "A dispatch may be approved, then cancelled or changed before the write runs. Admission now consumes an opaque, single-use receipt inside the same SQLite write transaction that checks the current authority and applies the original operation.",
+    "repairs": [
+      {
+        "attack": "A registered handler changed a different dispatch with the same workflow state. State checks alone accepted it.",
+        "repair": "Bind the allowed affected IDs at issuance and compare every journaled row before commit.",
+        "status": "Independent red and lead retests passed; accepted within the registered-handler boundary.",
+        "title": "Receipt for one dispatch writes another"
+      },
+      {
+        "attack": "A snapshot-selected rollback could be newly approved after intervening changes, even when the visible state returned to its earlier value.",
+        "repair": "Issue rollback authority before the await and consume that original opaque receipt.",
+        "status": "Original-receipt behavior passed actual API controls; the weakened formal control produced its exact counterexample.",
+        "title": "Old rollback snapshots gain fresh authority"
+      },
+      {
+        "attack": "Clearing dispatch rows while retaining legacy intents allowed construction to import executable jobs again.",
+        "repair": "Clear both executable queues in one transaction, including when local bindings are retained.",
+        "status": "Reproduced on actual SQLite; both copy modes retested.",
+        "title": "A copied database resurrects legacy jobs"
+      },
+      {
+        "attack": "Generic cleanup helpers accepted dispatch or admission-control table names.",
+        "repair": "Reject protected targets and malformed identifiers before preparing the cleanup statement.",
+        "status": "Protected-target refusals and ordinary retention controls passed.",
+        "title": "Generic retention targets control tables"
+      }
+    ],
+    "runtime": {
+      "status": "passed",
+      "summary": "269 implementation, lifecycle and regression tests passed across 10 suites, including 42 independent red cases. Seven real SQLite adapter cases passed under each of Node 22 and Bun, using two connections per run. The full TypeScript check passed with an isolated dependency overlay."
+    },
+    "scope": "Registered synchronous dispatch mutations: the queue, admitted legacy import, and Harbormaster conflict recovery. This is a local database guarantee under the stated trust assumptions.",
+    "sources": [
+      {
+        "label": "Lead adjudication and all finding dispositions",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/ADJUDICATION.md",
+        "sha256": "63ba3a9048b064bca698b63c565514cdf50ba147e4520156438416bf2737e19a",
+        "url": null
+      },
+      {
+        "label": "Research result and conditional simulation argument",
+        "path": "docs/harbor-research/research/dispatch-admission-binding.md",
+        "sha256": "f83507cec5c7cb46f6d917749a4fd8b4888f7178864c9ef0808f4a70910972d2",
+        "url": null
+      },
+      {
+        "label": "Red: independent final audit",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/FINAL.md",
+        "sha256": "4d1545814b75a9978d11626df39532e2a6f64cc654202a61ada4b98694c99335",
+        "url": null
+      },
+      {
+        "label": "Red: commands, results and source hashes",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/EVIDENCE.json",
+        "sha256": "fe899b92dc03c3b67576415319972426feac13a6a635db153b1ca840c2edc5e0",
+        "url": null
+      },
+      {
+        "label": "Blue: Node, Bun and TypeScript receipts",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/runtime-typecheck-receipt.json",
+        "sha256": "d4959bde9860c8f144ef570ef6edcd6e927368403d8ab01093c94756b9e2aa77",
+        "url": null
+      },
+      {
+        "label": "White: conditional contract",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/CONTRACT.md",
+        "sha256": "ac4106bd559cd74d4a7722a609b0c6d54cef1a5bc21b46aec193c96e8d69feb2",
+        "url": null
+      },
+      {
+        "label": "White: finite model and exact controls",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/REPORT.md",
+        "sha256": "38e58243cc78f50351eaf4fdd3ae3aeababf2bf7864dcc8144166cf9a419141f",
+        "url": null
+      },
+      {
+        "label": "White: retained evidence inventory",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence-index.json",
+        "sha256": "9cb7ca872b095c167eb33fa30ebffbf7e0c477061f7b3d1107a200237b98a997",
+        "url": null
+      },
+      {
+        "label": "Blue: actual implementation and executed checks",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/implementation-report.md",
+        "sha256": "a5128f2cf9016cda844e54fb1ce8b31918468b0074dde0566e6d0ddb212ac615",
+        "url": null
+      },
+      {
+        "label": "Red: source-writer inventory",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/INVENTORY.md",
+        "sha256": "fdb02cdd3bbff7c50ee0da14634760c5f912a7cf9134ede267fd9703eb39e85b",
+        "url": null
+      },
+      {
+        "label": "Red: reviewed source contract",
+        "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/writer-contract.json",
+        "sha256": "b174b790ec4931182e7eaae9b8142d17d95e7e9b57637451cb8af2cd10a8c838",
+        "url": null
+      },
+      {
+        "label": "Actual admission controller",
+        "path": "lib/dispatch/admission.ts",
+        "sha256": "54d2ad1ebf630427e7a0fe62f8e2b4bad1ccb58430019679f888d1ca876725a7",
+        "url": null
+      },
+      {
+        "label": "Independent implementation attacks",
+        "path": "tests/unit/dispatch-admission-red.test.js",
+        "sha256": "204aae2afb38d8b8ea639b4994e519e715fff56fa4f74ca8da897e0c6835065a",
+        "url": null
+      },
+      {
+        "label": "Source coverage checker",
+        "path": "scripts/harbor-research/check_dispatch_writer_coverage.mjs",
+        "sha256": "047942730efd72bda837370ecba11b84619448c158f582696fb8432cabfa425d",
+        "url": null
+      }
+    ],
+    "title": "Bind the checked decision to the write"
+  },
   "blue": {
     "executions": {
       "evidence-gate": {
@@ -16209,9 +16396,9 @@
   ],
   "nextP6": {
     "assumptions": "Declared observation, authority, and cost model; no field validation inferred from finite fixtures.",
-    "next": "Inventory and verify every dispatch writer and guard partition, then add revision-bound admission at a real effect boundary. Recovery-only conformance is insufficient; successful merge cancellation and other direct writers remain open.",
-    "result": "Future-conflict witnesses distinguish reachable states from impossible unions. Actual SQLite recovery demonstrates that the central dispatch table can produce a false-safe admission model; adding and replaying the omitted transition exposes the conflict.",
-    "status": "bounded provider and real queue counterexample verified; complete writer conformance and atomic mediation open",
+    "next": "Finish delivery of ADMISSION-BINDING-20261106, then ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races.",
+    "result": "Complete operation-labeled dispatch state graph plus atomic, one-use admission for registered synchronous SQLite mutations. Independent source audit, actual Node/Bun adapter checks and a bounded TLC binding model support the explicit domain; external effects and worker ownership remain open.",
+    "status": "registered SQLite admission binding verified locally; hosted delivery pending; external effects and ownership open",
     "title": "Future-safe commitments and output-sensitive conflict checking"
   },
   "retest": {

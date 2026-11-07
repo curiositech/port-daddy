@@ -1,0 +1,14 @@
+test_all_fixed_witness_schemas (test_atomic_admission_model.EvidenceGateTest.test_all_fixed_witness_schemas) ... ok
+test_conflicting_verdict_and_stderr_fail (test_atomic_admission_model.EvidenceGateTest.test_conflicting_verdict_and_stderr_fail) ... ok
+test_missing_duplicate_summary_fail (test_atomic_admission_model.EvidenceGateTest.test_missing_duplicate_summary_fail) ... ok
+test_missing_duplicate_unsupported_and_wrong_type_assignments_fail (test_atomic_admission_model.EvidenceGateTest.test_missing_duplicate_unsupported_and_wrong_type_assignments_fail) ... ok
+test_nonconsecutive_states_fail (test_atomic_admission_model.EvidenceGateTest.test_nonconsecutive_states_fail) ... ok
+test_positive_and_replay_controls_are_nonvacuous (test_atomic_admission_model.EvidenceGateTest.test_positive_and_replay_controls_are_nonvacuous) ... ok
+test_vacuous_and_partial_exploration_fail (test_atomic_admission_model.EvidenceGateTest.test_vacuous_and_partial_exploration_fail) ... ok
+test_wrong_exact_witness_fails (test_atomic_admission_model.EvidenceGateTest.test_wrong_exact_witness_fails) ... ok
+test_wrong_exit_invariant_and_tool_error_fail (test_atomic_admission_model.EvidenceGateTest.test_wrong_exit_invariant_and_tool_error_fail) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.004s
+
+OK
