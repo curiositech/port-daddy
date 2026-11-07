@@ -9,8 +9,10 @@ import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
+import { documentCitationViolations, isSealedSyntheticCitation } from '../../scripts/check-doc-citations.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..');
@@ -38,6 +40,72 @@ function runScript(scriptPath, ...files) {
 }
 
 describe('check-doc-citations guard', () => {
+  const sealedReports = [
+    'docs/harbor-research/campaigns/2026-11-06/round-two/red/FINAL.md',
+    'docs/harbor-research/campaigns/2026-11-06/round-two/red/FINAL.first-freeze.md',
+  ];
+  const syntheticToken = 'routes/future/direct-writer.ts';
+
+  test.each(sealedReports)('the exact sealed synthetic reference passes without editing %s', documentPath => {
+    const bytes = readFileSync(join(repo, documentPath));
+    const documentSha256 = createHash('sha256').update(bytes).digest('hex');
+    expect(bytes.toString('utf8').split('\n')[46]).toContain('`' + syntheticToken + '`');
+    expect(isSealedSyntheticCitation({ documentPath, documentSha256, line: 47, token: syntheticToken })).toBe(true);
+    expect(documentCitationViolations(documentPath, bytes)).toEqual([]);
+    expect(run(documentPath).code).toBe(0);
+  });
+
+  test.each([
+    ['document hash', { documentSha256: '0'.repeat(64) }],
+    ['document path', { documentPath: 'docs/harbor-research/campaigns/2026-11-06/round-two/red/UNREVIEWED.md' }],
+    ['line', { line: 48 }],
+    ['literal token', { token: 'routes/future/other-writer.ts' }],
+    ['literal line suffix', { token: 'routes/future/direct-writer.ts:1' }],
+    ['literal whitespace', { token: ' routes/future/direct-writer.ts ' }],
+  ])('sealed annotation refuses changed %s', (_name, altered) => {
+    const documentPath = sealedReports[0];
+    const documentSha256 = createHash('sha256').update(readFileSync(join(repo, documentPath))).digest('hex');
+    expect(isSealedSyntheticCitation({ documentPath, documentSha256, line: 47, token: syntheticToken, ...altered })).toBe(false);
+  });
+
+  test.each(sealedReports)('changed bytes fail closed and neighboring missing citations remain checked: %s', documentPath => {
+    const bytes = readFileSync(join(repo, documentPath));
+    const lines = bytes.toString('utf8').split('\n');
+    const missingPath = 'routes/citation-neighbor-does-not-exist.ts';
+    const missingLink = 'citation-neighbor-does-not-exist.md';
+    lines[46] += ` Neighbor \`${missingPath}\` and [missing](${missingLink}).`;
+    const changed = Buffer.from(lines.join('\n'));
+    const violations = documentCitationViolations(documentPath, changed);
+    expect(violations).toEqual(expect.arrayContaining([
+      { file: documentPath, line: 47, kind: 'path', token: syntheticToken },
+      { file: documentPath, line: 47, kind: 'path', token: missingPath },
+      { file: documentPath, line: 47, kind: 'link', token: missingLink },
+    ]));
+    // The source report and its existing seal are untouched by the test.
+    expect(readFileSync(join(repo, documentPath))).toEqual(bytes);
+  });
+
+  test('an otherwise identical unannotated document cannot reuse a sealed annotation', () => {
+    const bytes = readFileSync(join(repo, sealedReports[0]));
+    const documentPath = 'docs/harbor-research/campaigns/2026-11-06/round-two/red/UNREVIEWED.md';
+    expect(documentCitationViolations(documentPath, bytes)).toContainEqual({
+      file: documentPath, line: 47, kind: 'path', token: syntheticToken,
+    });
+  });
+
+  test('the import guard preserves CLI enforcement through a script symlink', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'doc-citations-symlink-'));
+    const linkedScript = join(dir, 'check-doc-citations.mjs');
+    symlinkSync(script, linkedScript);
+    try {
+      const { code, stderr } = runScript(linkedScript, fixture('broken.md'));
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/lib\/this-module-does-not-exist-xyz\.ts/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('passes a clean doc (real paths, proposal-marked fakes, placeholders, site routes)', () => {
     const { code, stdout } = run(fixture('clean.md'));
     expect(code).toBe(0);
