@@ -10,7 +10,7 @@ import {
   mintCoordinationMacaroon,
   verifyCoordinationMacaroon,
 } from './coordination-auth.js';
-import { operatorOnly } from './handlers.js';
+import { operatorOnly, safeDecodeSegment } from './handlers.js';
 import type { Env } from './types.js';
 
 const MAX_SYNC_BODY_BYTES = 1024 * 1024;
@@ -19,13 +19,15 @@ function error(code: string, message: string, status: number): Response {
   return Response.json({ error: message, code }, { status });
 }
 
+/**
+ * A malformed percent-escape decodes to '' via safeDecodeSegment (the one
+ * sanctioned decode path — see handlers.ts). isCoordinationScopeId requires
+ * non-empty input, so '' is rejected the same way any other malformed
+ * project id is: null here, a 400 at the route in index.ts.
+ */
 export function parseCoordinationProject(encoded: string): string | null {
-  try {
-    const project = decodeURIComponent(encoded);
-    return isCoordinationScopeId(project, 200) ? project : null;
-  } catch {
-    return null;
-  }
+  const project = safeDecodeSegment(encoded);
+  return isCoordinationScopeId(project, 200) ? project : null;
 }
 
 export async function handleCoordinationGrant(
