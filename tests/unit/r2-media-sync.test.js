@@ -9,7 +9,7 @@
  * than merely asserted in a comment.
  */
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync, symlinkSync, renameSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -615,6 +615,41 @@ describe('seal consumers retain exact asset identity', () => {
       const plan = planMove(root, ['docs/pr-assets/']);
       expect(plan.refused).toEqual([]);
       expect(plan.move.map(entry => entry.path)).toEqual([oldAsset]);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  test('a repository-root alias preserves exact seal identity', () => {
+    const root = makeRepo({ [oldAsset]: 'older bytes', [sealedAsset]: body, [sealFile]: seal() });
+    const aliasDirectory = mkdtempSync(join(tmpdir(), 'r2-root-alias-'));
+    const alias = join(aliasDirectory, 'checkout');
+    symlinkSync(root, alias, 'dir');
+    try {
+      expect(realpathSync(alias)).toBe(realpathSync(root));
+      const refs = findReferrers(alias, new Set([oldAsset, sealedAsset]), [sealFile]);
+      expect([...refs.get(oldAsset)]).toEqual([]);
+      expect([...refs.get(sealedAsset)]).toEqual([[sealFile, 'consumer']]);
+      expect(planMove(alias, ['docs/pr-assets/']).move.map(entry => entry.path)).toEqual([oldAsset]);
+    } finally {
+      rmSync(aliasDirectory, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('a descendant directory symlink retains the conservative seal consumer', () => {
+    const root = makeRepo({ [oldAsset]: 'older bytes', [sealedAsset]: body, [sealFile]: seal() });
+    const originalDirectory = dirname(join(root, sealedAsset));
+    const targetDirectory = join(root, 'linked-site-target');
+    renameSync(originalDirectory, targetDirectory);
+    symlinkSync(targetDirectory, originalDirectory, 'dir');
+    try {
+      // The file still has the expected bytes and tracked spelling, but the
+      // path crosses a link below the repository boundary and stays ambiguous.
+      expect(readFileSync(join(root, sealedAsset), 'utf8')).toBe(body);
+      expect(trackedFiles(root)).toContain(sealedAsset);
+      const refs = findReferrers(root, new Set([oldAsset, sealedAsset]), [sealFile]);
+      expect([...refs.get(oldAsset)]).toEqual([[sealFile, 'consumer']]);
+      expect([...refs.get(sealedAsset)]).toEqual([[sealFile, 'consumer']]);
+      expect(planMove(root, ['docs/pr-assets/']).refused).toEqual([{ path: oldAsset, consumers: [sealFile] }]);
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
