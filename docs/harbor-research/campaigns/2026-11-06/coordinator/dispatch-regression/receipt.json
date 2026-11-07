@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "/Users/erichowens/.nvm/versions/node/v22.17.1/bin/node",
+    "--experimental-vm-modules",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    ".cache/jest-research.config.mjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "tests/unit/harbormaster.test.js",
+    "tests/unit/future-admission-conformance.test.js"
+  ],
+  "exit_code": 0,
+  "seconds": 0.606,
+  "scope": "Two inert unit suites; in-memory SQLite and injected commands; no daemon or real git/agent effects",
+  "source_sha256": {
+    "lib/harbormaster.ts": "157e12f948b41fbb01ec1ec965ee5198f52abce3189ba923c84fab64c472bb78",
+    "tests/unit/harbormaster.test.js": "d55a713ef2631a8225c3201e89e6969d7c8a5ac360010f3f6bd33166b9c919a2",
+    "tests/unit/future-admission-conformance.test.js": "e493edcbed2797df3c09737fe86d00365a52495f5e045069bdfbcf251edff776",
+    "lib/dispatch/queue.ts": "607390831b86f89d3721f3c088f10cfd5228793f2a0c53ed04526120a91c0d8c",
+    "lib/dispatch/state-machine.ts": "137e827756830d8148889f9225d9ffb71af8b0dba8d91b4254460329928b1013",
+    "skills/harbor-results/scripts/future_fact_reachability.py": "2fdf4522e6703de39f6ceb0b0498a7cf0bd2cb35ec7e9c4c80fb8e3beaa99cde"
+  },
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "3a59712bd7964ae93ac0ce20723c160bf57155b43775ae9e1ee1195427bdc4ab"
+}

@@ -1,0 +1,6 @@
+{
+  "cause": "Coordinator selected README.md for new archive guidance without noticing it was already a sealed input. New seal checker rejected its changed hash.",
+  "repair": "Restored exact committed README.md bytes; put additive guidance in previously absent ARCHIVE-RETENTION.md.",
+  "restored_sha256": "61407c33eb438b5d20e84be9d2fb756e5db276304e5ac1904f6bbb772c710ed9",
+  "original_seals_unchanged": true
+}

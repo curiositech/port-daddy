@@ -59,6 +59,8 @@ def main():
         ('Literature-scout source manifest', 'docs/harbor-research/exposition/literature-scout-20261106/source-manifest.json'),
         ('Current mathematical review of all 14 scout directions', 'docs/harbor-research/exposition/literature-scout-20261106/math-review.md'),
         ('Constructed scout counterexamples', 'docs/harbor-research/research/scout-claim-counterexamples.md'),
+        ('Actual queue conformance experiment', 'docs/harbor-research/research/dispatch-admission-conformance.md'),
+        ('Cancellation race and compare-and-set repair', 'docs/harbor-research/research/dispatch-cancellation-mediation.md'),
         ('Source-intake manifest', 'docs/harbor-research/exposition/review-intake-20261106/source-manifest.json'),
         ('Transcript capture contract', 'docs/harbor-research/campaigns/2026-11-06/transcripts/README.md'),
         ('Transcript inventory', 'docs/harbor-research/campaigns/2026-11-06/transcripts/manifest.json'),

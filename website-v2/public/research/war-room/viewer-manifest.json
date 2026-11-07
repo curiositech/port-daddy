@@ -11,14 +11,14 @@
       "sha256": "5d5f0259894c11eeaa9abf613ba2117b96077ff49a00f6ea9ec61817740caa09"
     },
     {
-      "bytes": 10125,
+      "bytes": 10211,
       "file": "viewer.js",
-      "sha256": "2aa4977cdc618c60fbf59a642f48aa637306d4131e89026c56c1d8662d3f2a42"
+      "sha256": "2e73f2e80c9487432bf53e846f29e308da7ed9e1a92f9b6e160cd2bd531eec47"
     },
     {
-      "bytes": 671666,
+      "bytes": 672372,
       "file": "campaign-data.json",
-      "sha256": "5ec9a71cc4030d768eb3b11daae4d7db258a011bef70c2ced339422be87c38c7"
+      "sha256": "2dc19bd0fee08ec4a9e139892ef63afdbb94e18bf6309752cd736b0e58b5ae4a"
     },
     {
       "bytes": 1422597,

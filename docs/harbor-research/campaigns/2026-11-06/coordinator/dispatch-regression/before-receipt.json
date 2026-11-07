@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/Users/erichowens/.nvm/versions/node/v22.17.1/bin/node",
+    "--experimental-vm-modules",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/jest-harbormaster-before.config.mjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "tests/unit/harbormaster.test.js",
+    "--testNamePattern",
+    "preserves cancellation"
+  ],
+  "original_source_commit": "449e842ae8e2292d4a67d0ab0b06981dbdc3c87f",
+  "original_source_sha256": "0c4c42d87a0b24a9467c7f9e773ab53117e956322fce72ef2732f56bd6fba926",
+  "test_sha256": "d55a713ef2631a8225c3201e89e6969d7c8a5ac360010f3f6bd33166b9c919a2",
+  "exit_code": 1,
+  "expected_three_regressions_failed": true,
+  "stderr_sha256": "2462003eabb9aba4d1da2d1b56025317c2f4d60519b42aba3a0733cd187b4dfa"
+}

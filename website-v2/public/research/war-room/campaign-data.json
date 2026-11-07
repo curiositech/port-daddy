@@ -16209,9 +16209,9 @@
   ],
   "nextP6": {
     "assumptions": "Declared observation, authority, and cost model; no field validation inferred from finite fixtures.",
-    "next": "Complete source/hosted integration of the bounded provider receipts. Then validate a real adapter and matched batch/SAT-SMT workloads including provider construction and output cost.",
-    "result": "Dormant facts can activate conflict after admission; all-conflict enumeration must charge output size.",
-    "status": "finite reachable-family result verified; bounded provider and independent oracle checked; real adapter conformance open",
+    "next": "Inventory and verify every dispatch writer and guard partition, then add revision-bound admission at a real effect boundary. Recovery-only conformance is insufficient; successful merge cancellation and other direct writers remain open.",
+    "result": "Future-conflict witnesses distinguish reachable states from impossible unions. Actual SQLite recovery demonstrates that the central dispatch table can produce a false-safe admission model; adding and replaying the omitted transition exposes the conflict.",
+    "status": "bounded provider and real queue counterexample verified; complete writer conformance and atomic mediation open",
     "title": "Future-safe commitments and output-sensitive conflict checking"
   },
   "retest": {
@@ -16653,7 +16653,7 @@
     {
       "label": "Source advice and coverage ledger",
       "path": "docs/harbor-research/OMNI-LEDGER.md",
-      "sha256": "245f8f642883d8924a37c48aee53bce6b4ca099bf50c7dc7eb844377ef1ad87a",
+      "sha256": "8797f0cba4a07692c6b2b77809de258cf7f670d83fa71f1137ac1c3ebc577c76",
       "url": null
     },
     {
@@ -16681,6 +16681,18 @@
       "url": null
     },
     {
+      "label": "Actual queue conformance experiment",
+      "path": "docs/harbor-research/research/dispatch-admission-conformance.md",
+      "sha256": "58dad499e614e3ebc9d62aef3710def8f6a617753686fa19bf5491dc9bbc5a15",
+      "url": null
+    },
+    {
+      "label": "Cancellation race and compare-and-set repair",
+      "path": "docs/harbor-research/research/dispatch-cancellation-mediation.md",
+      "sha256": "b203f9fbccf897973c0556db6f4f50731bb5a12c1c63ac1f21786124f9c9b3ae",
+      "url": null
+    },
+    {
       "label": "Source-intake manifest",
       "path": "docs/harbor-research/exposition/review-intake-20261106/source-manifest.json",
       "sha256": "4ec139370d6fbca07e5d6cf8dccd41771c4a61292ef8be4d913e886acfda0c3d",
@@ -16695,7 +16707,7 @@
     {
       "label": "Transcript inventory",
       "path": "docs/harbor-research/campaigns/2026-11-06/transcripts/manifest.json",
-      "sha256": "77c8d13048b7db12510ccab89eb8569cec64d15357afb1213cd2eb7cfb07f209",
+      "sha256": "18177ac117bae03f48b9734a100b01d1f813e6f07c56dcaf2b66468ba3db03e3",
       "url": null
     },
     {
@@ -16733,6 +16745,6 @@
     "projection": "Allowed visible field values are preserved exactly after JSON decoding; JSON serialization and envelopes are normalized. This is not a raw source-log copy.",
     "publication": "Visible-event projections are saved separately. Raw conversation logs and transcript bodies are not included in this viewer.",
     "scope": "Visible events exported from each recorded complete-line source prefix; not all future events.",
-    "sources_count": 13
+    "sources_count": 17
   }
 }

@@ -460,6 +460,7 @@ jobs:
           mkdir -p "${HOME}/coding/tmp"
           python3 -B scripts/harbor-research/test_war_room.py
           python3 -B scripts/harbor-research/test_export_campaign_transcripts.py
+          python3 -B scripts/harbor-research/check_campaign_seals.py
 
   # ── ProVerif (2.05): the model estate that never ran ────────────────────────
   # 25 .pv models under analyses/ and proofs/** previously had

@@ -63,7 +63,7 @@ fetch('campaign-data.json').then(response => { if (!response.ok) throw new Error
     $('#scout-directions').append(article);
   }
   for (const [name, result] of Object.entries(data.retest.new_mutant_observations)) $('#mutants').append(text('li', `${human(name)}: ${result}.`));
-  for (const h of data.blue.harnesses) { const li = text('li', human(h.name.replace('proof_', ''))); li.append(text('span', `${h.successful ? 'PASS' : 'OPEN'} · ${h.covers_satisfied}/${h.covers_total} covers`)); $('#harnesses').append(li); }
+  for (const h of data.blue.harnesses) { const li = text('li', h.name === 'proof_constant_time_behavior' ? 'Comparator execution; timing unproved' : human(h.name.replace('proof_', ''))); li.append(text('span', `${h.successful ? 'PASS' : 'OPEN'} · ${h.covers_satisfied}/${h.covers_total} covers`)); $('#harnesses').append(li); }
   $('#blue-scope').textContent = data.blue.source_scope;
   if (data.guestPython) {
     const guest = data.guestPython, results = guest.research_results;
