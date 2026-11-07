@@ -103,85 +103,91 @@
         "label": "Lead adjudication and all finding dispositions",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/ADJUDICATION.md",
         "sha256": "63ba3a9048b064bca698b63c565514cdf50ba147e4520156438416bf2737e19a",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/ADJUDICATION.md"
       },
       {
         "label": "Research result and conditional simulation argument",
         "path": "docs/harbor-research/research/dispatch-admission-binding.md",
         "sha256": "f83507cec5c7cb46f6d917749a4fd8b4888f7178864c9ef0808f4a70910972d2",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/research/dispatch-admission-binding.md"
       },
       {
         "label": "Red: independent final audit",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/FINAL.md",
         "sha256": "4d1545814b75a9978d11626df39532e2a6f64cc654202a61ada4b98694c99335",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/red/FINAL.md"
       },
       {
         "label": "Red: commands, results and source hashes",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/EVIDENCE.json",
         "sha256": "fe899b92dc03c3b67576415319972426feac13a6a635db153b1ca840c2edc5e0",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/red/EVIDENCE.json"
       },
       {
         "label": "Blue: Node, Bun and TypeScript receipts",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/runtime-typecheck-receipt.json",
         "sha256": "d4959bde9860c8f144ef570ef6edcd6e927368403d8ab01093c94756b9e2aa77",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/blue/runtime-typecheck-receipt.json"
       },
       {
         "label": "White: conditional contract",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/CONTRACT.md",
         "sha256": "ac4106bd559cd74d4a7722a609b0c6d54cef1a5bc21b46aec193c96e8d69feb2",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/white/CONTRACT.md"
       },
       {
         "label": "White: finite model and exact controls",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/REPORT.md",
         "sha256": "38e58243cc78f50351eaf4fdd3ae3aeababf2bf7864dcc8144166cf9a419141f",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/white/REPORT.md"
       },
       {
         "label": "White: retained evidence inventory",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence-index.json",
         "sha256": "9cb7ca872b095c167eb33fa30ebffbf7e0c477061f7b3d1107a200237b98a997",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/white/evidence-index.json"
       },
       {
         "label": "Blue: actual implementation and executed checks",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/blue/implementation-report.md",
         "sha256": "a5128f2cf9016cda844e54fb1ce8b31918468b0074dde0566e6d0ddb212ac615",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/blue/implementation-report.md"
       },
       {
         "label": "Red: source-writer inventory",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/INVENTORY.md",
         "sha256": "fdb02cdd3bbff7c50ee0da14634760c5f912a7cf9134ede267fd9703eb39e85b",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/red/INVENTORY.md"
       },
       {
         "label": "Red: reviewed source contract",
         "path": "docs/harbor-research/campaigns/2026-11-06/round-two/red/writer-contract.json",
         "sha256": "b174b790ec4931182e7eaae9b8142d17d95e7e9b57637451cb8af2cd10a8c838",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/campaigns/2026-11-06/round-two/red/writer-contract.json"
       },
       {
         "label": "Actual admission controller",
         "path": "lib/dispatch/admission.ts",
         "sha256": "54d2ad1ebf630427e7a0fe62f8e2b4bad1ccb58430019679f888d1ca876725a7",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/lib/dispatch/admission.ts"
       },
       {
         "label": "Independent implementation attacks",
         "path": "tests/unit/dispatch-admission-red.test.js",
         "sha256": "204aae2afb38d8b8ea639b4994e519e715fff56fa4f74ca8da897e0c6835065a",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/tests/unit/dispatch-admission-red.test.js"
       },
       {
         "label": "Source coverage checker",
         "path": "scripts/harbor-research/check_dispatch_writer_coverage.mjs",
         "sha256": "047942730efd72bda837370ecba11b84619448c158f582696fb8432cabfa425d",
-        "url": null
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/scripts/harbor-research/check_dispatch_writer_coverage.mjs"
+      },
+      {
+        "label": "Omni: accepted local result and remaining effect work",
+        "path": "docs/harbor-research/OMNI-LEDGER.md",
+        "sha256": "88df5b3139388e198f8342bd1d9daa9ca06e670a405bf6bf0a4ab5a3b878a078",
+        "url": "https://github.com/curiositech/port-daddy/blob/6cc9b6d1caa866ced816fb4224314de93901620e/docs/harbor-research/OMNI-LEDGER.md"
       }
     ],
     "title": "Bind the checked decision to the write"
@@ -16396,9 +16402,9 @@
   ],
   "nextP6": {
     "assumptions": "Declared observation, authority, and cost model; no field validation inferred from finite fixtures.",
-    "next": "Finish delivery of ADMISSION-BINDING-20261106, then ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races.",
+    "next": "ADMISSION-EFFECTS-20261106: bind run/lease identity and external effect authority across awaits, beginning with successful Harbormaster merge cancellation races.",
     "result": "Complete operation-labeled dispatch state graph plus atomic, one-use admission for registered synchronous SQLite mutations. Independent source audit, actual Node/Bun adapter checks and a bounded TLC binding model support the explicit domain; external effects and worker ownership remain open.",
-    "status": "registered SQLite admission binding verified locally; hosted delivery pending; external effects and ownership open",
+    "status": "registered SQLite admission binding verified; external effects and worker ownership remain open",
     "title": "Future-safe commitments and output-sensitive conflict checking"
   },
   "retest": {

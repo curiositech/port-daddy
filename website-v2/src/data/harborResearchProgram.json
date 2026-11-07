@@ -966,23 +966,24 @@
   ],
   "estate": {
     "manifest": "book/corpus.json",
-    "formalArtifacts": 47,
+    "formalArtifacts": 49,
     "researchProgramArtifacts": 10,
     "ci": {
-      "wired": 46,
-      "retired": 11
+      "wired": 47,
+      "retired": 12
     },
     "byMethod": {
       "EasyCrypt": 1,
       "Kani": 6,
       "ProVerif": 31,
-      "TLA+": 3,
+      "TLA+": 5,
       "TLA+/TLC": 4,
       "TLA+/TLC + Apalache": 1,
       "Z3": 1
     },
     "byKind": {
-      "bounded-model-and-controls": 2,
+      "bounded-model-and-controls": 3,
+      "campaign-evidence-snapshots": 1,
       "negative-control": 6,
       "proof-skeleton": 1,
       "protocol-model": 19,
@@ -1028,6 +1029,12 @@
         "status": "historical",
         "method": "TLA+",
         "note": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims."
+      },
+      {
+        "id": "campaign-20261106-round-two-atomic-admission-historical",
+        "status": "historical",
+        "method": "TLA+",
+        "note": "Retained final model/configuration snapshots and the rejected incomplete-assignment attempt accompany raw logs. Historical evidence does not constitute an additional maintained proof claim."
       },
       {
         "id": "campaign-20261106-white-proverif-historical",
