@@ -1,0 +1,32 @@
+[
+  {
+    "mutant": "expiry-removed",
+    "harness": "proof_decoded_claims_policy",
+    "expectedAssertion": "decoded policy matches temporal contract",
+    "exitCode": 1,
+    "result": "counterexample found",
+    "kaniVersion": "cargo-kani 0.67.0",
+    "sourceSha256": {
+      "Cargo.toml": "ab46443190ea9ccfb29d9178ec74fd5fbffabc947977873b186bb92ffd6eadbe",
+      "Cargo.lock": "8cb65baf011f4a4be7dd715e7fbb9159a40214d5ca215ff771c7a8e6356ba205",
+      "src/kani_claims.rs": "5e8eb1316fde7d0bab7319e9875f6685e343fc9ab42ed1972999aca803843edf",
+      "src/kani_claims_domain.rs": "95cd76f76347224238a609640ca1f36e3f66bcb2c0125d73d976d42f05e07eb1",
+      "src/lib.rs": "d886615fbcd5ce7c2dde13787bc5b64f695bb6365d95c4f57fc6510c062f3489"
+    }
+  },
+  {
+    "mutant": "ceiling-removed",
+    "harness": "proof_decoded_delegation_two_hops",
+    "expectedAssertion": "rate ceiling preserved",
+    "exitCode": 1,
+    "result": "counterexample found",
+    "kaniVersion": "cargo-kani 0.67.0",
+    "sourceSha256": {
+      "Cargo.toml": "ab46443190ea9ccfb29d9178ec74fd5fbffabc947977873b186bb92ffd6eadbe",
+      "Cargo.lock": "8cb65baf011f4a4be7dd715e7fbb9159a40214d5ca215ff771c7a8e6356ba205",
+      "src/kani_claims.rs": "5e8eb1316fde7d0bab7319e9875f6685e343fc9ab42ed1972999aca803843edf",
+      "src/kani_claims_domain.rs": "95cd76f76347224238a609640ca1f36e3f66bcb2c0125d73d976d42f05e07eb1",
+      "src/lib.rs": "d886615fbcd5ce7c2dde13787bc5b64f695bb6365d95c4f57fc6510c062f3489"
+    }
+  }
+]

@@ -1,0 +1,15 @@
+Proverif 2.05. Cryptographic protocol verifier, by Bruno Blanchet, Vincent Cheval, and Marc Sylvestre
+  -test 		display a bit more information for debugging
+  -in <format> 		choose the input format (horn, horntype, spass, pi, pitype)
+  -out <format> 	choose the output format (solve, spass)
+  -o <filename> 	choose the output file name (for spass output)
+  -lib <filename> 	choose the library file (for pitype front-end only)
+  -set <param> <value> 	equivalent to adding set <param> = <value> to the input file
+  -TulaFale <version> 	indicate the version of TulaFale when ProVerif is used inside TulaFale
+  -graph 			create the trace graph from the dot file in the directory specified
+  -commandLineGraph 			Define the command for the creation of the graph trace from the dot file
+  -gc 			display gc statistics
+  -parse-only 		just parse the input file and report errors (if any)
+  -html 			HTML display
+  -help  Display this list of options
+  --help  Display this list of options

@@ -966,25 +966,28 @@
   ],
   "estate": {
     "manifest": "book/corpus.json",
-    "formalArtifacts": 39,
-    "researchProgramArtifacts": 8,
+    "formalArtifacts": 47,
+    "researchProgramArtifacts": 10,
     "ci": {
-      "wired": 42,
-      "retired": 5
+      "wired": 46,
+      "retired": 11
     },
     "byMethod": {
       "EasyCrypt": 1,
       "Kani": 6,
-      "ProVerif": 26,
+      "ProVerif": 31,
+      "TLA+": 3,
       "TLA+/TLC": 4,
       "TLA+/TLC + Apalache": 1,
       "Z3": 1
     },
     "byKind": {
+      "bounded-model-and-controls": 2,
       "negative-control": 6,
       "proof-skeleton": 1,
       "protocol-model": 19,
       "rust-proof-harness": 6,
+      "sealed-campaign-evidence": 6,
       "smt-model": 1,
       "state-machine-model": 5,
       "teaching-template": 1
@@ -995,6 +998,42 @@
         "status": "partial",
         "method": "EasyCrypt",
         "note": "EasyCrypt is not installed anywhere in this estate's CI; 3 `admit.` tactics remain undischarged (see binding.ec around lines 346, 371, 397 -- hashLeafE's algebraic combination). binding.run.log documents a manual proof-sketch review, not a machine-checked result."
+      },
+      {
+        "id": "campaign-20261106-packet-r1-proverif-historical",
+        "status": "historical",
+        "method": "ProVerif",
+        "note": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims."
+      },
+      {
+        "id": "campaign-20261106-packet-r1-tlaplus-historical",
+        "status": "historical",
+        "method": "TLA+",
+        "note": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims."
+      },
+      {
+        "id": "campaign-20261106-red-proverif-historical",
+        "status": "historical",
+        "method": "ProVerif",
+        "note": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims."
+      },
+      {
+        "id": "campaign-20261106-red-retest-proverif-historical",
+        "status": "historical",
+        "method": "ProVerif",
+        "note": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims."
+      },
+      {
+        "id": "campaign-20261106-red-tlaplus-historical",
+        "status": "historical",
+        "method": "TLA+",
+        "note": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims."
+      },
+      {
+        "id": "campaign-20261106-white-proverif-historical",
+        "status": "historical",
+        "method": "ProVerif",
+        "note": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims."
       },
       {
         "id": "pd-relay-zero-trust-skill-template-proverif",

@@ -448,14 +448,14 @@
     {
       "id": "coordination-isolation-proverif",
       "kind": "protocol-model",
-      "authority": "product-runtime",
+      "authority": "design-claim",
       "status": "current",
       "paths": [
         "proofs/coordination/isolation.pv"
       ],
       "method": "ProVerif",
       "owner": "core/kernel",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "evidencePolicy": "ProVerif 2.05, 2026-11-06: six security queries and four concrete reachability traces; seeded mutants and independent RED retest. One honest session with private key provisioning. Symbolic secrecy is not host isolation, multi-session security, or runtime conformance.",
       "ci": {
         "status": "wired",
         "job": [
@@ -724,6 +724,183 @@
         "status": "retired",
         "reason": "skill teaching template, not a protocol claim about this repository; deliberately outside scripts/proofs/run-proverif.py's two scan roots (analyses/, proofs/**) -- see that script's module docstring"
       }
+    },
+    {
+      "id": "campaign-20261106-models-tlaplus-active",
+      "kind": "bounded-model-and-controls",
+      "authority": "design-claim",
+      "status": "current",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/models/AdmissionRevision.tla",
+        "docs/harbor-research/campaigns/2026-11-06/models/accepted.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/models/bound.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/models/stale_rejected.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/models/unbound.cfg"
+      ],
+      "method": "TLA+",
+      "owner": "docs/harbor-research/campaigns/2026-11-06",
+      "evidencePolicy": "CI checks positive reachability and seeded failure controls. Finite/symbolic model scope only; no deployed-system claim.",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "tla-claim-signaling"
+        ]
+      }
+    },
+    {
+      "id": "campaign-20261106-white-proverif-active",
+      "kind": "bounded-model-and-controls",
+      "authority": "design-claim",
+      "status": "current",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/white/probes/early-release.pv",
+        "docs/harbor-research/campaigns/2026-11-06/white/probes/leak-defense.pv",
+        "docs/harbor-research/campaigns/2026-11-06/white/probes/leak-red.pv",
+        "docs/harbor-research/campaigns/2026-11-06/white/probes/repaired.pv",
+        "docs/harbor-research/campaigns/2026-11-06/white/probes/unauthenticated-receiver.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "docs/harbor-research/campaigns/2026-11-06",
+      "evidencePolicy": "CI checks positive reachability and seeded failure controls. Finite/symbolic model scope only; no deployed-system claim.",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "campaign-20261106-packet-r1-proverif-historical",
+      "kind": "sealed-campaign-evidence",
+      "authority": "design-claim",
+      "status": "historical",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/packet-r1/isolation.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "docs/harbor-research/campaigns/2026-11-06",
+      "evidencePolicy": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims.",
+      "ci": {
+        "status": "retired",
+        "reason": "Frozen campaign evidence retained for exact replay; current canonical models and controls have separate CI entries. Do not rewrite sealed historical attack inputs when fixing the target."
+      }
+    },
+    {
+      "id": "campaign-20261106-packet-r1-tlaplus-historical",
+      "kind": "sealed-campaign-evidence",
+      "authority": "design-claim",
+      "status": "historical",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/packet-r1/AdmissionRevision.tla",
+        "docs/harbor-research/campaigns/2026-11-06/packet-r1/AdmissionRevision_TTrace_1794022580.tla",
+        "docs/harbor-research/campaigns/2026-11-06/packet-r1/accepted.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/packet-r1/bound.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/packet-r1/stale_rejected.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/packet-r1/unbound.cfg"
+      ],
+      "method": "TLA+",
+      "owner": "docs/harbor-research/campaigns/2026-11-06",
+      "evidencePolicy": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims.",
+      "ci": {
+        "status": "retired",
+        "reason": "Frozen campaign evidence retained for exact replay; current canonical models and controls have separate CI entries. Do not rewrite sealed historical attack inputs when fixing the target."
+      }
+    },
+    {
+      "id": "campaign-20261106-red-proverif-historical",
+      "kind": "sealed-campaign-evidence",
+      "authority": "design-claim",
+      "status": "historical",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/red/inputs/isolation.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/joint-defense-roles-live.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/joint-defense-roles-two-keys-live.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/joint-defense-roles-two-keys.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/joint-defense-roles.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/leak-defense-control-live.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/leak-defense-control.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/leak-red-control-live.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/leak-red-control.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/parallel-one-defense-key.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/parallel-two-defense-keys.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/reachability-live.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/reachability.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/seal-before-receive-live.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/seal-before-receive.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "docs/harbor-research/campaigns/2026-11-06",
+      "evidencePolicy": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims.",
+      "ci": {
+        "status": "retired",
+        "reason": "Frozen campaign evidence retained for exact replay; current canonical models and controls have separate CI entries. Do not rewrite sealed historical attack inputs when fixing the target."
+      }
+    },
+    {
+      "id": "campaign-20261106-red-tlaplus-historical",
+      "kind": "sealed-campaign-evidence",
+      "authority": "design-claim",
+      "status": "historical",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/red/inputs/AdmissionRevision.tla",
+        "docs/harbor-research/campaigns/2026-11-06/red/inputs/accepted.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/red/inputs/bound.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/red/inputs/stale_rejected.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/red/inputs/unbound.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/AdmissionRevision.tla",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/AdmissionRevision_TTrace_1794022574.tla",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/AdmissionRevision_TTrace_1794022575.tla",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/StableRevisionMutant.tla",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/StableRevisionMutant_TTrace_1794022622.tla",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/accepted.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/bound.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/stale_rejected.cfg",
+        "docs/harbor-research/campaigns/2026-11-06/red/probes/unbound.cfg"
+      ],
+      "method": "TLA+",
+      "owner": "docs/harbor-research/campaigns/2026-11-06",
+      "evidencePolicy": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims.",
+      "ci": {
+        "status": "retired",
+        "reason": "Frozen campaign evidence retained for exact replay; current canonical models and controls have separate CI entries. Do not rewrite sealed historical attack inputs when fixing the target."
+      }
+    },
+    {
+      "id": "campaign-20261106-red-retest-proverif-historical",
+      "kind": "sealed-campaign-evidence",
+      "authority": "design-claim",
+      "status": "historical",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/red-retest/inputs/isolation.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red-retest/probes/duplicate-receiver.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red-retest/probes/late-seal-event.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red-retest/probes/public-id-undomain-separated-seal.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red-retest/probes/public-manifest-id.pv",
+        "docs/harbor-research/campaigns/2026-11-06/red-retest/probes/undomain-separated-seal.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "docs/harbor-research/campaigns/2026-11-06",
+      "evidencePolicy": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims.",
+      "ci": {
+        "status": "retired",
+        "reason": "Frozen campaign evidence retained for exact replay; current canonical models and controls have separate CI entries. Do not rewrite sealed historical attack inputs when fixing the target."
+      }
+    },
+    {
+      "id": "campaign-20261106-white-proverif-historical",
+      "kind": "sealed-campaign-evidence",
+      "authority": "design-claim",
+      "status": "historical",
+      "paths": [
+        "docs/harbor-research/campaigns/2026-11-06/white/inputs/isolation-before.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "docs/harbor-research/campaigns/2026-11-06",
+      "evidencePolicy": "Immutable input snapshots, attacks and generated counterexample traces retained with round reports and raw logs. These are historical evidence, not independent currently maintained proof claims.",
+      "ci": {
+        "status": "retired",
+        "reason": "Frozen campaign evidence retained for exact replay; current canonical models and controls have separate CI entries. Do not rewrite sealed historical attack inputs when fixing the target."
+      }
     }
   ],
   "researchProgramArtifacts": [
@@ -774,7 +951,9 @@
       "owner": ".github/workflows/proofs.yml",
       "ci": {
         "status": "wired",
-        "job": ["harbor-results-estate"]
+        "job": [
+          "harbor-results-estate"
+        ]
       }
     },
     {
@@ -792,7 +971,27 @@
       "owner": ".github/workflows/proofs.yml",
       "ci": {
         "status": "wired",
-        "job": ["harbor-results-estate"]
+        "job": [
+          "harbor-results-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-future-admission-and-bonded-audit",
+      "kind": "bounded-research-model-checkers",
+      "status": "current",
+      "paths": [
+        "skills/harbor-results/scripts/future_fact_reachability.py",
+        "skills/harbor-results/scripts/test_future_fact_reachability.py",
+        "skills/harbor-results/scripts/bonded_trigger_audit.py",
+        "skills/harbor-results/scripts/test_bonded_trigger_audit.py"
+      ],
+      "owner": ".github/workflows/proofs.yml",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "harbor-results-estate"
+        ]
       }
     },
     {
@@ -862,6 +1061,22 @@
       "ci": {
         "status": "retired",
         "reason": "exploratory repeated-game cartel sweep with a checked-in simulation-cartel.run.log from a local run; only threat-bands.mjs is asserted in CI (monte-carlo-threat-bands)"
+      }
+    },
+    {
+      "id": "literature-scout-exact-falsifiers",
+      "kind": "exact-counterexample-checks",
+      "status": "current",
+      "paths": [
+        "skills/harbor-results/scripts/scout_claim_counterexamples.py",
+        "skills/harbor-results/scripts/scout_graph_code_checks.py"
+      ],
+      "owner": "skills/harbor-results",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "harbor-results-estate"
+        ]
       }
     }
   ]

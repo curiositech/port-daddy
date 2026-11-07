@@ -1,0 +1,126 @@
+[
+  {
+    "at": "2026-11-07T03:34:05.256848+00:00",
+    "case": "bound",
+    "argv": [
+      "/opt/homebrew/opt/openjdk/bin/java",
+      "-XX:+UseParallelGC",
+      "-cp",
+      "/Users/erichowens/coding/tmp/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-metadir",
+      "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/war-room/tlc/bound",
+      "-config",
+      "bound.cfg",
+      "AdmissionRevision.tla"
+    ],
+    "cwd": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/models",
+    "exit": 150,
+    "seconds": 0.2094,
+    "expected": "No error has been found.",
+    "matched": false,
+    "execution": "host-reviewed-process",
+    "stdout_sha256": "7f1b2398690da75b10f7f4c607de020353be0376023f7739c33810d2c2cc54ff",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inputs": {
+      "AdmissionRevision.tla": "4490c2dc618ece27788561802257a4ab554ca97dc6db7d736401f69a2a976592",
+      "bound.cfg": "d370a8a1e2a0bec2e674969e3cc31cb71dfb7a620e512621e55dec165a0696ba"
+    },
+    "tool_sha256": "237332bdcc79a35c7d26efa7b82c77c85c2744591c5598673a8a45085ff2a4fb"
+  },
+  {
+    "at": "2026-11-07T03:34:05.390237+00:00",
+    "case": "unbound",
+    "argv": [
+      "/opt/homebrew/opt/openjdk/bin/java",
+      "-XX:+UseParallelGC",
+      "-cp",
+      "/Users/erichowens/coding/tmp/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-metadir",
+      "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/war-room/tlc/unbound",
+      "-config",
+      "unbound.cfg",
+      "AdmissionRevision.tla"
+    ],
+    "cwd": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/models",
+    "exit": 150,
+    "seconds": 0.1308,
+    "expected": "Invariant SafeAdmission is violated.",
+    "matched": false,
+    "execution": "host-reviewed-process",
+    "stdout_sha256": "1caebcea9326c3b11eec92f4f63f75e656110cc574c466d176fbadd04e04c651",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inputs": {
+      "AdmissionRevision.tla": "4490c2dc618ece27788561802257a4ab554ca97dc6db7d736401f69a2a976592",
+      "unbound.cfg": "ae3c65330151f6d445b92ff7dcaa1f9b58b77484fc684e2566af67f96d352061"
+    },
+    "tool_sha256": "237332bdcc79a35c7d26efa7b82c77c85c2744591c5598673a8a45085ff2a4fb"
+  },
+  {
+    "at": "2026-11-07T03:34:05.520510+00:00",
+    "case": "accepted",
+    "argv": [
+      "/opt/homebrew/opt/openjdk/bin/java",
+      "-XX:+UseParallelGC",
+      "-cp",
+      "/Users/erichowens/coding/tmp/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-metadir",
+      "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/war-room/tlc/accepted",
+      "-config",
+      "accepted.cfg",
+      "AdmissionRevision.tla"
+    ],
+    "cwd": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/models",
+    "exit": 150,
+    "seconds": 0.1282,
+    "expected": "Invariant NoAdmission is violated.",
+    "matched": false,
+    "execution": "host-reviewed-process",
+    "stdout_sha256": "4119e1ff3bf0ba2a568385b43cc05785be08313b7eaf8a033e25ddd9a4747e1b",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inputs": {
+      "AdmissionRevision.tla": "4490c2dc618ece27788561802257a4ab554ca97dc6db7d736401f69a2a976592",
+      "accepted.cfg": "aed1f131e98b00162369791718750cca06c708976facbd897caef117d7d1e08d"
+    },
+    "tool_sha256": "237332bdcc79a35c7d26efa7b82c77c85c2744591c5598673a8a45085ff2a4fb"
+  },
+  {
+    "at": "2026-11-07T03:34:05.659006+00:00",
+    "case": "stale_rejected",
+    "argv": [
+      "/opt/homebrew/opt/openjdk/bin/java",
+      "-XX:+UseParallelGC",
+      "-cp",
+      "/Users/erichowens/coding/tmp/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-metadir",
+      "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/war-room/tlc/stale_rejected",
+      "-config",
+      "stale_rejected.cfg",
+      "AdmissionRevision.tla"
+    ],
+    "cwd": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/models",
+    "exit": 150,
+    "seconds": 0.1365,
+    "expected": "Invariant NoStaleRejection is violated.",
+    "matched": false,
+    "execution": "host-reviewed-process",
+    "stdout_sha256": "6a5b08a797b9336fc62eb77589454afaa2d835ee0640f1560cf6914d3f9f57d5",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inputs": {
+      "AdmissionRevision.tla": "4490c2dc618ece27788561802257a4ab554ca97dc6db7d736401f69a2a976592",
+      "stale_rejected.cfg": "981489e5563099fdbe69d468e5c77215f546d2ad97f246284219084c193f5dd0"
+    },
+    "tool_sha256": "237332bdcc79a35c7d26efa7b82c77c85c2744591c5598673a8a45085ff2a4fb"
+  }
+]

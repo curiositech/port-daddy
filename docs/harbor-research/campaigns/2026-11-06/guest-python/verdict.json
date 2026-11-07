@@ -1,0 +1,86 @@
+{
+  "scope": "one fixed Python research checker and intentional assertion control inside an offline guest",
+  "verdict": "PASS",
+  "research_results": {
+    "D14": {
+      "bounded_positive_cases": 2168,
+      "conserved_balance": "9/5",
+      "unsplit_payoff": "1",
+      "split_payoff": "9/5"
+    },
+    "D8": {
+      "worlds": 4,
+      "digest_cells": 2,
+      "zero_miss_opening_loss": "0",
+      "full_guess_risk": "0",
+      "digest_guess_risk": "1/2"
+    },
+    "D29": {
+      "schedules": 6,
+      "violating_schedules": 4,
+      "witness": [
+        "a.read",
+        "b.read",
+        "a.grant",
+        "b.grant"
+      ],
+      "atomic_orders_checked": 2
+    }
+  },
+  "checks": {
+    "research_results_exact": true,
+    "python_version_observed": true,
+    "python_binary_hash_observed": true,
+    "required_markers": true,
+    "readonly_input_unchanged": true,
+    "private_state_write": true,
+    "host_devices_absent": true,
+    "runtime_devices_absent": true,
+    "guest_stopped": true,
+    "no_failure_marker": true
+  },
+  "guest_log": "guest-1794024180897422000.log",
+  "host_events": [
+    {
+      "audio_devices": 0,
+      "deadline_seconds": 60,
+      "directory_sharing_devices": 0,
+      "entropy_devices": 1,
+      "event": "configuration",
+      "graphics_devices": 0,
+      "memory_bytes": 268435456,
+      "network_devices": 0,
+      "pid": 1811,
+      "profile": "proof-offline-v1",
+      "serial_byte_limit": 262144,
+      "serial_ports": 1,
+      "socket_devices": 0,
+      "storage": [
+        {
+          "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/python-f28f308f3be5/input.raw",
+          "read_only": true
+        },
+        {
+          "bytes": 8388608,
+          "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/python-f28f308f3be5/state.raw",
+          "read_only": false
+        }
+      ],
+      "vcpus": 1,
+      "witness": "HOST_OBSERVED"
+    },
+    {
+      "event": "started",
+      "runtime_directory_sharing_devices": 0,
+      "runtime_network_devices": 0,
+      "runtime_socket_devices": 0,
+      "witness": "HOST_OBSERVED"
+    },
+    {
+      "event": "guest_stopped",
+      "witness": "HOST_OBSERVED"
+    }
+  ],
+  "manifest_sha256": "50a3c3f03cffdf11f55a6b551b1e9fd1a69c34f4204dca1291ceb651cb3d05cf",
+  "vm_exit_code": 0
+}

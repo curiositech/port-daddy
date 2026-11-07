@@ -1,0 +1,29 @@
+{
+  "events": 2,
+  "index": {
+    "blue": {
+      "count": 1,
+      "head": "69b386228ee711ec7f259250d83b06e88b1c777ec100ef0ba3d0d6fcf5fff157",
+      "sha256": "3190749f6f000840a7a04a5e538c1f3a7524ae5dda1c21c88962bbdcf83e3921"
+    },
+    "red": {
+      "count": 0,
+      "head": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "root": {
+      "count": 1,
+      "head": "4bf050de4fa7de73a10ff1e2df7c83757e8404093ee7fbf939aa0be3b3b8fae3",
+      "sha256": "4074956e78e7e4f7f082b67a7b9c6c3d8c5ea69c4ab3fc848c31fc52afd4a69f"
+    },
+    "white": {
+      "count": 0,
+      "head": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "sealed": true,
+  "seal_sha256": "742fd2ff42f240fde8528973fa81c663f03c9561723137fa136c3f7b5cb7ade6",
+  "incomplete_runs": [],
+  "mode": "host-reviewed-process"
+}

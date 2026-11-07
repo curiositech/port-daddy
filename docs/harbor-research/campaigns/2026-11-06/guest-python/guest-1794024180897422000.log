@@ -1,0 +1,48 @@
+PROOF_BOOTED
+PROOF_TWO_DISKS
+PROOF_OWN_INPUT=python-fixed-input-3cb19826bdd38e95
+PROOF_READONLY_DENIED
+PROOF_STATE_WRITE_OK
+PROOF_CROSSREAD_ABSENT
+PROOF_ONLY_LOOPBACK
+PROOF_NETWORK_DENIED
+PYTHON_PAYLOAD_HASH_OK
+Python 3.12.16
+fcb8097ce3f0973319a51b2aac2a6248924da46f638a548723328e141495803f  /usr/bin/python3.12
+PYTHON_POSITIVE_BEGIN
+{
+  "D14": {
+    "bounded_positive_cases": 2168,
+    "conserved_balance": "9/5",
+    "unsplit_payoff": "1",
+    "split_payoff": "9/5"
+  },
+  "D8": {
+    "worlds": 4,
+    "digest_cells": 2,
+    "zero_miss_opening_loss": "0",
+    "full_guess_risk": "0",
+    "digest_guess_risk": "1/2"
+  },
+  "D29": {
+    "schedules": 6,
+    "violating_schedules": 4,
+    "witness": [
+      "a.read",
+      "b.read",
+      "a.grant",
+      "b.grant"
+    ],
+    "atomic_orders_checked": 2
+  }
+}
+PYTHON_POSITIVE_EXIT=0
+PYTHON_NEGATIVE_BEGIN
+Traceback (most recent call last):
+  File "/proof/negative.py", line 1, in <module>
+    assert False, "INTENTIONAL_NEGATIVE_CONTROL"
+           ^^^^^
+AssertionError: INTENTIONAL_NEGATIVE_CONTROL
+PYTHON_NEGATIVE_EXIT=1
+PYTHON_NEGATIVE_CONTROL_OK
+PROOF_DONE

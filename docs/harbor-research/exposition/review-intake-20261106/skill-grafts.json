@@ -1,0 +1,209 @@
+{
+  "date": "2026-11-06",
+  "mode": "offline; no live graft claimed",
+  "skills": [
+    {
+      "name": "textbook-craft",
+      "source_path": "/Users/erichowens/.codex/skills/textbook-craft/SKILL.md",
+      "resolved_path": "/Users/erichowens/.codex/skills/textbook-craft/SKILL.md",
+      "sha256": "b4f9a56d5ef5003de28850c966c73e76cc749fd99f2c8d50a440ab3bdebefd97",
+      "bytes": 20606,
+      "read_complete": true
+    },
+    {
+      "name": "technical-writer",
+      "source_path": "/Users/erichowens/coding/windags-skills/skills/technical-writer/SKILL.md",
+      "resolved_path": "/Users/erichowens/coding/windags-skills/skills/technical-writer/SKILL.md",
+      "sha256": "a300cde2e43c995225cefc56a88206b47bae4364e7de17de7474ead7c241c69d",
+      "bytes": 5807,
+      "read_complete": true
+    },
+    {
+      "name": "technical-evangelism-for-formal-systems",
+      "source_path": "/Users/erichowens/.local/share/mapskills/installations/20261026T035526Z/mapskills-technical-evangelism-for-formal-systems/SKILL.md",
+      "resolved_path": "/Users/erichowens/.local/share/mapskills/installations/20261026T035526Z/mapskills-technical-evangelism-for-formal-systems/SKILL.md",
+      "sha256": "9c59895e892a02e6d0681b7571395d94c48c2e1aba5c3e3cb3ff71e4abe5f40d",
+      "bytes": 20960,
+      "read_complete": true
+    },
+    {
+      "name": "port-daddy-expository-writer",
+      "source_path": "/Users/erichowens/coding/port-daddy/skills/port-daddy-expository-writer/SKILL.md",
+      "resolved_path": "/Users/erichowens/coding/port-daddy/skills/port-daddy-expository-writer/SKILL.md",
+      "sha256": "845737f205f38971283ff587a085c530f05caa50826c5172d979ecf0ba57605f",
+      "bytes": 24115,
+      "read_complete": true
+    },
+    {
+      "name": "ai-introduction-educator",
+      "source_path": "/Users/erichowens/coding/windags-skills/skills/ai-introduction-educator/SKILL.md",
+      "resolved_path": "/Users/erichowens/coding/windags-skills/skills/ai-introduction-educator/SKILL.md",
+      "sha256": "c9a2f2f702c68eabf47b0caa3f47ecd6efccdbf2228060e97ed8bf6b8f586303",
+      "bytes": 12484,
+      "read_complete": true
+    },
+    {
+      "name": "cambridge-handbook-of-expertise",
+      "source_path": "/Users/erichowens/.local/share/mapskills/installations/20261026T035526Z/mapskills-cambridge-handbook-of-expertise/SKILL.md",
+      "resolved_path": "/Users/erichowens/.local/share/mapskills/installations/20261026T035526Z/mapskills-cambridge-handbook-of-expertise/SKILL.md",
+      "sha256": "f6ce8f8a19a9a30eb5dce34deba429648ba750b145caadb59590a66f048bd2fd",
+      "bytes": 21044,
+      "read_complete": true
+    }
+  ],
+  "deep_references": [
+    {
+      "source_path": "/Users/erichowens/.codex/skills/textbook-craft/references/exercise-design.md",
+      "sha256": "45fa8c604e77b76c5e9cfb334bd0c69477b3e88bb71b7dd93ad4cd11295f17f6",
+      "read_complete": true
+    },
+    {
+      "source_path": "/Users/erichowens/.local/share/mapskills/installations/20261026T035526Z/mapskills-cambridge-handbook-of-expertise/references/scaffolding-over-extraction.md",
+      "sha256": "42491e67334c5246b213ae40292b1e36c45cd7363d83418d6df83814c126c051",
+      "read_complete": true
+    },
+    {
+      "source_path": "/Users/erichowens/.local/share/mapskills/installations/20261026T035526Z/mapskills-cambridge-handbook-of-expertise/references/three-level-knowledge-architecture.md",
+      "sha256": "eb4117d6322e6697c84496a3bea24d377aae18ff558e01840b567bb120405917",
+      "read_complete": true
+    }
+  ],
+  "source_skill_acceptance": [
+    {
+      "source_units": [
+        "V5-L395",
+        "V4-L359",
+        "V4-L361"
+      ],
+      "target": "NEXT-P6 / NEXT-P2",
+      "skills": [
+        "cambridge-handbook-of-expertise: three-level-knowledge-architecture",
+        "textbook-craft: exercise-design"
+      ],
+      "decision_point": "Is the gap in possible transitions, the fact vocabulary, or the choice to admit?",
+      "prerequisite": "Read the initial state, enabled transitions and fixed positive-rule contract.",
+      "worked_example": "Compare separate futures {a} and {b} with a reachable {a,b}; replay the activating transition.",
+      "misconception": "A theorem about a supplied reachable family proves the family matches an adapter.",
+      "reuse": "Repeat the same decision on one observed adapter incident; retain state, observation and authority separately.",
+      "acceptance": "Independent all-state oracle agrees with provider admission and witness replay; model/version mismatch rejects; operational conformance remains an explicit next obligation."
+    },
+    {
+      "source_units": [
+        "V4-L375",
+        "V4-L377",
+        "V4-L379",
+        "V5-L367",
+        "V5-L375"
+      ],
+      "target": "NEXT-P1 / X2 / X15",
+      "skills": [
+        "textbook-craft: exercise-design solution-key rules",
+        "ai-introduction-educator: demo failure and complexity ladder"
+      ],
+      "decision_point": "Is the statement a lower bound, an attainable code, or a decision-loss result?",
+      "prerequisite": "Specify N,k,m, allowed messages, prior/loss and budget allocation.",
+      "worked_example": "N=4,k=1,m=2 with one bit selecting {1,2} or {3,4}; then compare equal-budget pooling floors.",
+      "misconception": "A one-bit message always requires opening everything, or a lower-bound ratio measures achieved savings.",
+      "reuse": "Fade one step into a Check, then trace a changed message contract, then leave attainable optimal coding as an Open obligation.",
+      "acceptance": "Preserve the counterexample; any replacement has complete hypotheses and independent feasible-code comparison; never manufacture the requested false corollary."
+    },
+    {
+      "source_units": [
+        "V4-L389",
+        "V4-L444",
+        "V5-L140",
+        "V5-L215"
+      ],
+      "target": "REVIEW-MATH-20261106 / PROOF-LIFTS",
+      "skills": [
+        "port-daddy-expository-writer: concrete example before theorem",
+        "textbook-craft: exercise-design looking back"
+      ],
+      "decision_point": "Does the sanction apply in punishment, and what does q mean?",
+      "prerequisite": "Define stage payoffs, public observation, reset policy and tie behavior.",
+      "worked_example": "At t=.5 and delta=.19 compare all-false-action forfeiture with punishment-exempt forfeiture.",
+      "misconception": "Adding qb only to one payoff leaves the repeated game and punishment incentives otherwise unchanged.",
+      "reuse": "Check every punishment state, then change the monitoring model and restate what no longer follows.",
+      "acceptance": "Model-specific frontier, all-state deviation checks and equality treatment accompany the claim; no unbounded or imperfect-monitoring proof inferred from finite tests."
+    },
+    {
+      "source_units": [
+        "V4-L144",
+        "V4-L385",
+        "V5-L381"
+      ],
+      "target": "R12-A6 / P5-C1",
+      "skills": [
+        "cambridge-handbook-of-expertise: scaffolding-over-extraction",
+        "textbook-craft: exercise-design premise corrections"
+      ],
+      "decision_point": "Is the operation a sequential current-balance transfer or a simultaneous batch?",
+      "prerequisite": "Specify per-source balances, child budgets and atomic debit.",
+      "worked_example": "One unit copied to two .9 children gives1.8; compare a budgeted split and the actual sequential code.",
+      "misconception": "Conservation of credit alone proves coalition Sybil-proof incentives.",
+      "reuse": "Trace migration with an unresolved external effect and verify both accounting and authority independently.",
+      "acceptance": "Source/child row sums and atomicity are explicit; correct implementation and misleading wording are classified separately; one-fork mutant is not called a shortest two-fork trace."
+    },
+    {
+      "source_units": [
+        "V5-L23",
+        "V5-L25",
+        "V5-L31",
+        "V5-L41",
+        "V4-L448",
+        "V4-L452"
+      ],
+      "target": "BOOK-READING / BOOK-EXERCISES / BOOK-PROOFS",
+      "skills": [
+        "textbook-craft: exercise-design fading",
+        "technical-writer: prerequisites and document type"
+      ],
+      "decision_point": "Does a cut remove a reader prerequisite or a required boundary?",
+      "prerequisite": "Identify the audience, first treatment and downstream use of the concept.",
+      "worked_example": "For one section, show a full example, a last-step Check, a Trace and an explicit Open obligation.",
+      "misconception": "Fixed page, theorem or exercise counts establish learning quality.",
+      "reuse": "Ask the same concept again in a later chapter from its new application.",
+      "acceptance": "A cold reader can answer from the supplied chapter; prerequisites, hypotheses and later reuse remain intact; no arbitrary quota is adopted."
+    },
+    {
+      "source_units": [
+        "V5-L351",
+        "V5-L369",
+        "V5-L417",
+        "V5-L421",
+        "V4-L363",
+        "V4-L383",
+        "V4-L399"
+      ],
+      "target": "INSTRUMENTATION / TRIAL-BASIN",
+      "skills": [
+        "cambridge-handbook-of-expertise: scaffolding-over-extraction",
+        "technical-writer: reproducible reference"
+      ],
+      "decision_point": "Does the artifact record work as performed or only a documented procedure?",
+      "prerequisite": "Freeze task population, provenance, baseline, consent/authority and missingness.",
+      "worked_example": "Replay one concrete incident with observed cues, decision alternatives and independently adjudicated outcome.",
+      "misconception": "A filled ledger or model-generated grade is measured operational success.",
+      "reuse": "Use the incident to design a held-out task and a counterexample control before collecting broader data.",
+      "acceptance": "Separate domain constraints, conceptual claims and decision cues; ground truth and equal budgets are independent; human/cloud/runtime studies require their stated prerequisites."
+    },
+    {
+      "source_units": [
+        "V5-L409",
+        "V4-L182",
+        "V4-L325"
+      ],
+      "target": "NEXT-P8 / P8-T3 / P8-T6",
+      "skills": [
+        "technical-evangelism-for-formal-systems: precise scope and no straw-man comparisons",
+        "ai-introduction-educator: show failure before generalizing"
+      ],
+      "decision_point": "Are observations raw signed claims, edge differences or typed packets?",
+      "prerequisite": "Fix fact/schema/snapshot identity, error grouping and admitted evidence.",
+      "worked_example": "Compare a cycle residual and direct claim checker on identical admitted receipts, including a consistent false account.",
+      "misconception": "A residual names the lying agent or adds information absent from the inputs.",
+      "reuse": "Choose an additional observation against a declared fault objective and price it.",
+      "acceptance": "Equal-information direct baseline, categorical oracle and independently known incident truth precede any detection or utility claim."
+    }
+  ]
+}

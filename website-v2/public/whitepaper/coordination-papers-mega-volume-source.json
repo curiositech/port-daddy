@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40157803,
+    "bytes": 40158458,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/4c10503293bf06ead0ccdf88e98486c2b56c0b7a0af38839798ce14245dad9f4.tar.gz",
-    "sha256": "4c10503293bf06ead0ccdf88e98486c2b56c0b7a0af38839798ce14245dad9f4",
-    "url": "https://media.portdaddy.dev/book/source/sha256/4c10503293bf06ead0ccdf88e98486c2b56c0b7a0af38839798ce14245dad9f4.tar.gz"
+    "key": "book/source/sha256/aeb8baeba39091f26184a76c8027971e3d92a324f0f37ef04a25046e55fbf813.tar.gz",
+    "sha256": "aeb8baeba39091f26184a76c8027971e3d92a324f0f37ef04a25046e55fbf813",
+    "url": "https://media.portdaddy.dev/book/source/sha256/aeb8baeba39091f26184a76c8027971e3d92a324f0f37ef04a25046e55fbf813.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "9913040c4e4f5cc1a5b7d3f11dab1ab44cf03a536be12bf7ac76d33060a0416f",
+  "manifestSha256": "cbd0be52b5a78db4692bd9bdbe618657b222dea774fbedbc7566b7a94a89dcf5",
   "schemaVersion": 1,
   "source": {
     "fileCount": 511,
@@ -154,10 +154,10 @@
         "sha256": "172eadb87199b23bea81ef6c276f1adf256143358da904b74f53cf1a4e9fb82f"
       },
       {
-        "bytes": 35794,
+        "bytes": 47246,
         "mode": 420,
         "path": "book/corpus.json",
-        "sha256": "03e56df1fb4bf7119206fe71ec4f6a2fd11d10ed8ff78e6a08f6517b49e74042"
+        "sha256": "78b1434f398fc455e63ea3b961f167af2a31e52d2ab3c9609b62990fe3cddc3e"
       },
       {
         "bytes": 5235,
@@ -3088,6 +3088,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "577afca021a9d28fe7d71933174371f5a803f1c6232852c283c9549cc977b5d1"
+    "sha256": "b75edbbb4f4970496cf9565e8489114d3cbd6638b7e89866923d54f76095a0f4"
   }
 }

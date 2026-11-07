@@ -1,0 +1,73 @@
+{
+  "observed_utc": "2026-11-07T03:50:17.801678+00:00",
+  "worktree": "/Users/erichowens/coding/tmp/research-program-next-result-20261106",
+  "branch": "codex/research-program-next-result-20261106",
+  "gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/research-program-next-result-20261106",
+  "runs": [
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "docs/harbor-research/exposition/literature-scout-20261106/intake.py",
+        "check"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"check\": \"PASS\",\n  \"coverage\": {\n    \"lines\": 444,\n    \"nonblank_units\": 331,\n    \"directions\": 14,\n    \"source_notes\": 74,\n    \"prior_units\": 668,\n    \"combined_nonblank_units\": 999\n  },\n  \"archive_sha256\": \"3dd2c778fd0bf3ec420ab578319ce40122416cdb5bd14b0a3a56186f783da1b7\",\n  \"canonical_records\": 1887\n}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "docs/harbor-research/exposition/review-intake-20261106/intake.py",
+        "check"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"source_units\": 668,\n  \"directions\": 30,\n  \"briefs\": 22,\n  \"target_records\": 85,\n  \"classification_counts\": {\n    \"source_context\": 62,\n    \"editorial_judgment\": 142,\n    \"mixed_prescription_requires_current_verification\": 145,\n    \"unsupported_execution_prescription\": 32,\n    \"historical_status_requires_refresh\": 30,\n    \"proposed_research\": 52,\n    \"external_claim_unverified\": 26,\n    \"reviewer_judgment\": 42,\n    \"reported_defect_unverified\": 114,\n    \"publication_judgment_unverified\": 23\n  },\n  \"coverage\": {\n    \"v5\": {\n      \"total_lines\": 473,\n      \"nonblank_lines\": 309,\n      \"covered_nonblank_lines\": 309\n    },\n    \"v4\": {\n      \"total_lines\": 507,\n      \"nonblank_lines\": 359,\n      \"covered_nonblank_lines\": 359\n    }\n  },\n  \"archive_sha256\": \"6a1e32cb2abb0043e5d1f34bd6408cb9213cf2b9239b510172b491abf368e7fd\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "scripts/harbor-research/omni_ledger.py",
+        "check"
+      ],
+      "exit": 0,
+      "stdout": "Omni ledger: source checksums, archive membership, work records, and dependencies pass\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "skills/harbor-results/scripts/scout_claim_counterexamples.py"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"D14\": {\n    \"bounded_positive_cases\": 2168,\n    \"conserved_balance\": \"9/5\",\n    \"unsplit_payoff\": \"1\",\n    \"split_payoff\": \"9/5\"\n  },\n  \"D8\": {\n    \"worlds\": 4,\n    \"digest_cells\": 2,\n    \"zero_miss_opening_loss\": \"0\",\n    \"full_guess_risk\": \"0\",\n    \"digest_guess_risk\": \"1/2\"\n  },\n  \"D29\": {\n    \"schedules\": 6,\n    \"violating_schedules\": 4,\n    \"witness\": [\n      \"a.read\",\n      \"b.read\",\n      \"a.grant\",\n      \"b.grant\"\n    ],\n    \"atomic_orders_checked\": 2\n  }\n}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "docs/harbor-research/omni-ledger.json",
+        "docs/harbor-research/OMNI-LEDGER.md"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "artifact_hashes": {
+    "README.md": "205aa70d6c5669e165af829da487d6d4b87db948bf0f44bf3558e703aa2c6f39",
+    "intake.py": "5b560326ea2bc5a541e2dadcb79b1f01778d151fc72b483fd3f59e76f018dbb6",
+    "literature-scout.zip": "3dd2c778fd0bf3ec420ab578319ce40122416cdb5bd14b0a3a56186f783da1b7",
+    "preservation-receipt.json": "4dc552e055858a1f481dc0d80ce212977f1a21babc7378729f4f00e55d0039b3",
+    "skill-grafts.json": "a0959a42f58d73138c8b3808237c6724189659d15e5775a1e05fddb91c905e59",
+    "source-manifest.json": "7f12c5d7d46ae042455a6df9f319297875e09882fa976cd8432bcfccc0a942ec"
+  },
+  "scope": "Archive and crosswalk integrity, canonical ledger consistency and constructed falsifiers; not a primary-literature audit, hosted CI, publication or completion of all research."
+}

@@ -1,0 +1,227 @@
+{
+  "schema": "war-room-render-qa/v1",
+  "browser": "Chromium",
+  "checks": [
+    {
+      "name": "Desktop light has no horizontal overflow",
+      "pass": true,
+      "details": {
+        "scroll": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "name": "Red perspective filters visible content",
+      "pass": true
+    },
+    {
+      "name": "Advice filters update the exact document/category selection",
+      "pass": true
+    },
+    {
+      "name": "Keyboard tab reaches enabled pager",
+      "pass": true
+    },
+    {
+      "name": "Keyboard focus has visible outline",
+      "pass": true,
+      "details": {
+        "style": "solid",
+        "width": "3px"
+      }
+    },
+    {
+      "name": "Keyboard activates next page",
+      "pass": true
+    },
+    {
+      "name": "Scout source filter contains 331 exact routed units",
+      "pass": true
+    },
+    {
+      "name": "Current mathematical adjudications supersede intake prose",
+      "pass": true
+    },
+    {
+      "name": "Desktop dark has no horizontal overflow",
+      "pass": true,
+      "details": {
+        "scroll": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "name": "Phone dark has no horizontal overflow",
+      "pass": true,
+      "details": {
+        "scroll": 390,
+        "viewport": 390
+      }
+    },
+    {
+      "name": "Phone light has no horizontal overflow",
+      "pass": true,
+      "details": {
+        "scroll": 390,
+        "viewport": 390
+      }
+    },
+    {
+      "name": "Phone 200% text has no horizontal overflow",
+      "pass": true,
+      "details": {
+        "scroll": 390,
+        "viewport": 390
+      }
+    },
+    {
+      "name": "Landscape short viewport 200% text has no horizontal overflow",
+      "pass": true,
+      "details": {
+        "scroll": 844,
+        "viewport": 844
+      }
+    },
+    {
+      "name": "Desktop 200% text has no horizontal overflow",
+      "pass": true,
+      "details": {
+        "scroll": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "name": "Forced colors 200% text has no horizontal overflow",
+      "pass": true,
+      "details": {
+        "scroll": 1440,
+        "viewport": 1440
+      }
+    },
+    {
+      "name": "No browser JavaScript errors",
+      "pass": true,
+      "details": []
+    },
+    {
+      "name": "Full advice ledger retained",
+      "pass": true
+    },
+    {
+      "name": "Public data contains no local paths or raw transcripts",
+      "pass": true
+    },
+    {
+      "name": "Literature-audit counts shown without overflow at phone 200% text",
+      "pass": true
+    }
+  ],
+  "consoleErrors": [],
+  "recording": "Real Playwright recordVideo browser frames; no generated movie or unrelated desktop capture.",
+  "videoBytes": 1422597,
+  "contrast_and_video": {
+    "browser": "145.0.7632.6",
+    "minimumTextContrast": 6.38,
+    "video": {
+      "duration": 9.68,
+      "width": 1440,
+      "height": 1000
+    },
+    "contrast": {
+      "light": {
+        "--ink / --paper": 15.09,
+        "--ink / --surface": 16,
+        "--ink / --subtle": 13.86,
+        "--muted / --paper": 6.99,
+        "--muted / --surface": 7.42,
+        "--muted / --subtle": 6.42,
+        "--red / --paper": 8.3,
+        "--red / --surface": 8.8,
+        "--red / --subtle": 7.62,
+        "--blue / --paper": 8.46,
+        "--blue / --surface": 8.97,
+        "--blue / --subtle": 7.77
+      },
+      "dark": {
+        "--ink / --paper": 14.77,
+        "--ink / --surface": 13.35,
+        "--ink / --subtle": 11.92,
+        "--muted / --paper": 7.9,
+        "--muted / --surface": 7.14,
+        "--muted / --subtle": 6.38,
+        "--red / --paper": 8,
+        "--red / --surface": 7.23,
+        "--red / --subtle": 6.46,
+        "--blue / --paper": 8.75,
+        "--blue / --surface": 7.91,
+        "--blue / --subtle": 7.06
+      }
+    }
+  },
+  "validation_scope": "Earlier complete viewer checks are retained in checks. This bounded refresh reran only the guest card, final audit summary and affected responsive views; see refresh_checks.",
+  "refresh_checks": [
+    {
+      "name": "Guest Python card reflects PASS, runtime and exact D14/D8/D29 results",
+      "pass": true
+    },
+    {
+      "name": "Guest Python card retains host-agent and Rust/TLC/ProVerif exclusions",
+      "pass": true
+    },
+    {
+      "name": "Bootstrap probes remain separate",
+      "pass": true
+    },
+    {
+      "name": "Changed card has no desktop light overflow",
+      "pass": true,
+      "details": {
+        "width": 1440,
+        "scroll": 1440
+      }
+    },
+    {
+      "name": "Changed card has no desktop dark overflow",
+      "pass": true,
+      "details": {
+        "width": 1440,
+        "scroll": 1440
+      }
+    },
+    {
+      "name": "Final literature audit shows 74 citations, 14 checks, 27 abstract-only records",
+      "pass": true
+    },
+    {
+      "name": "Changed card has no phone overflow",
+      "pass": true,
+      "details": {
+        "width": 390,
+        "scroll": 390
+      }
+    },
+    {
+      "name": "Changed card has no phone 200% text overflow",
+      "pass": true,
+      "details": {
+        "width": 390,
+        "scroll": 390
+      }
+    },
+    {
+      "name": "Guest export is allowlisted and host-agent privacy remains false",
+      "pass": true
+    },
+    {
+      "name": "Guest report and final literature report are included",
+      "pass": true
+    },
+    {
+      "name": "No browser script errors in changed views",
+      "pass": true,
+      "details": []
+    }
+  ],
+  "refresh_browser": "145.0.7632.6",
+  "refresh_checked_at": "2026-11-07T04:05:28.691Z"
+}

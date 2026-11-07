@@ -1,0 +1,46 @@
+{
+  "verdict": "PASS",
+  "scope": "three sequential fixed pure-proof VM runs only; not agent containment or production Drydock",
+  "controller_status": "DEV_UNTRUSTED",
+  "results": [
+    {
+      "team": "red",
+      "checks": {
+        "guest_markers": true,
+        "no_guest_failure": true,
+        "readonly_input_unchanged": true,
+        "state_write_observed": true,
+        "host_devices_absent": true,
+        "runtime_devices_absent": true,
+        "guest_stopped": true
+      },
+      "pass": true
+    },
+    {
+      "team": "blue",
+      "checks": {
+        "guest_markers": true,
+        "no_guest_failure": true,
+        "readonly_input_unchanged": true,
+        "state_write_observed": true,
+        "host_devices_absent": true,
+        "runtime_devices_absent": true,
+        "guest_stopped": true
+      },
+      "pass": true
+    },
+    {
+      "team": "white",
+      "checks": {
+        "guest_markers": true,
+        "no_guest_failure": true,
+        "readonly_input_unchanged": true,
+        "state_write_observed": true,
+        "host_devices_absent": true,
+        "runtime_devices_absent": true,
+        "guest_stopped": true
+      },
+      "pass": true
+    }
+  ]
+}

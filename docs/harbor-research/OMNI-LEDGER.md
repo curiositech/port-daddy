@@ -10,7 +10,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 |---|---|---|---|---|
 | [BOOK-RESEARCH-UPTAKE](#work-book-research-uptake) | Book uptake of the research: coverage, corrections and useful imports | ["Book", "1", "2", "3", "4", "5", "6", "7", "8"] | twelve scoped corrections and pinned publication reconciliation complete; final source CI pending | Finish exact-head source CI and protected merge; remaining research imports stay open and ordered in PROGRAM-RECONCILIATION. |
 | [NEXT-P1](#work-next-p1) | Decision-preserving oversight and manuscript arithmetic | ["1"] | arithmetic and publication corrections complete; comparative utility open | Evaluate a witness-preserving digest against a structured index using held-out decision loss and total inspection cost. |
-| [NEXT-P6](#work-next-p6) | Future-safe commitments and output-sensitive conflict checking | ["6"] | finite reachable-family result verified; reachability integration open | Supply and validate a real reachability provider; compare incremental admission and witness enumeration with batch Horn closure and SAT/SMT on matched workloads. |
+| [NEXT-P6](#work-next-p6) | Future-safe commitments and output-sensitive conflict checking | ["6"] | finite reachable-family result verified; bounded provider and independent oracle checked; real adapter conformance open | Complete source/hosted integration of the bounded provider receipts. Then validate a real adapter and matched batch/SAT-SMT workloads including provider construction and output cost. |
 | [NEXT-P8](#work-next-p8) | Authenticated typed evidence auditor and topology design | ["8"] | open | Add authenticated packet admission and a framework adapter; design topology for declared detection/correction distance and cost. |
 | [PROGRAM-RECONCILIATION](#work-program-reconciliation) | Correct the scientific estate and develop evidence-safe decisions | ["Book", "research portfolio"] | scientific and pinned publication verification complete; final source checks and merge pending | Publish reconciled sources and PDF evidence, follow exact-head CI/review, then execute the two-operation continuation protocol. |
 | [SOURCE-RETENTION](#work-source-retention) | Exact source preservation and paper retention | [] | implemented; local integrity checks passed | Keep the ledger and its projections current; observe hosted checks for publication. |
@@ -23,6 +23,8 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [NEXT-P4](#work-next-p4) | Release model with explicit submitted payloads | ["4"] | open | Model submit(payload), committed input, refusals, timing and adaptive strategies. |
 | [NEXT-P5](#work-next-p5) | Concurrent continuity and unknown-effect recovery | ["5"] | open | Extend to multiple operations, forks, finite dedup retention and authority transfer; test one real adapter. |
 | [NEXT-P7](#work-next-p7) | Evidence acquisition with uncertain answers | ["7"] | open | Specify answer distributions or adversarial objective, packet prices and missingness; compare with exact small-instance optimum. |
+| [REVIEW-INTAKE-20261106](#work-review-intake-20261106) | Preserve and reconcile the November 6 review and prescriptions | ["Book", "research portfolio"] | complete source intake; candidate research and unverified defects remain open | Use linked existing records and independent findings to select bounded work; refresh citations and current source/PDF before adopting defects or publication claims. |
+| [REVIEW-MATH-20261106](#work-review-math-20261106) | Independently triage the review's mathematical replacement claims | ["1", "5", "Book"] | six bounded findings recorded; manuscript repair and broader review remain open | Root integrates minimal independently checked corrections and preserves falsifiers. Do not rewrite Book prose under this research ownership. |
 | [BOOK-VISUAL-ATLAS-20261026](#work-book-visual-atlas-20261026) | Preserve the frozen Book visual atlas and separate proposed family generators from current adoption | ["Book"] | frozen local atlas integrity verified; current-render atlas and full generator standardization incomplete | Implement one authoritative layer registry that generates the full stack, reference table and margin ladder, including chapters spanning multiple layers. Then implement typed comparison/accounting/numeric/protocol families and the shared glyph interface. Review a new digest-bound atlas for the accepted publication PDF; retain the frozen 812-page scores as provenance rather than relabeling them. |
 | [BOOK-EDITORIAL-CONTINUITY-20261104](#work-book-editorial-continuity-20261104) | Worked-case exposition and verified Book publication artifacts | ["Book", "Chapter0", "Chapter1", "Chapter2", "Chapter3", "Chapter4", "Chapter5", "Chapter6", "Chapter7", "Chapter8"] | source and print accepted | Maintain the accepted source/PDF bindings and verify hosted bytes when publishing. Merge, deployment and public readback are recorded in the publication PR. |
 | [BOOK-TEXTBOOK-CRAFT-20261103](#work-book-textbook-craft-20261103) | Sequential whole-book exposition and concept-lifecycle review | ["Book", "Chapter0", "Chapter1", "Chapter2", "Chapter3", "Chapter4", "Chapter5", "Chapter6", "Chapter7", "Chapter8"] | complete source reading and accepted print; publication tracked by PR10346 | Use PR #10346 delivery receipts for protected artifact merge, deployment and public-byte verification. Diagram-family standardization remains separate work. |
@@ -86,6 +88,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [LIT-PART-II](#work-lit-part-ii) | Part II legibility literature and calibration | ["Chapter4"] | completed-source-reported | Integrate closest formal and human-factors comparators. |
 | [LIT-PART-III](#work-lit-part-iii) | Part III continuity and audit precedents | ["Chapter5"] | completed-source-reported | Add serious counterarguments and precise comparison to no-mint mechanism. |
 | [LIT-PART-IV](#work-lit-part-iv) | Part IV economy, deontic and federation precedents | ["Chapter6", "Chapter7", "Chapter8"] | completed-source-reported | Rescope novelty and perform direct protocol/federation comparison. |
+| [LITERATURE-SCOUT-20261106](#work-literature-scout-20261106) | Literature scout reconciled with the existing review and research tasks | ["Book", "research portfolio"] | 999 source units routed; fourteen mathematical dispositions and 74 reference dispositions recorded; further primary verification and research remain open | Use the fourteen adjudications and the per-reference audit to develop existing tasks. Highest priority: observed workflow to future-admission model; then resource-aware bond participation and semantic anchors for graph diagnosis. |
 | [MARGINALIA](#work-marginalia) | Portrait licensing and placement | ["Book"] | partial-source-reported | Verify actual current files and source pages before publication. |
 | [OLD-HANDOFF-WAVES](#work-old-handoff-waves) | Historical W1-W13 wave plan | ["1", "2", "3", "4", "5", "6", "7"] | superseded-partly | Map undischarged wave deliverables to current evidence and discard stale schedule assumptions. |
 | [P1-C1](#work-p1-c1) | Digest quality as operator decision preservation | ["1"] | source-asserted | Compare deterministic two-projection index, flat inspect-all and learned digest on held-out tasks. |
@@ -138,6 +141,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 | [R8](#work-r8) | Finite work-unit safety machine | ["4", "8-substrate", "Chapter1"] | source-reported bounded result; current validation recorded separately | Lift to Apalache and connect adapter traces to state transitions. |
 | [R9](#work-r9) | Sealed-room finite noninterference | ["4", "Chapter3"] | source-reported bounded result; current validation recorded separately | Build with explicit payloads transition and public trace inventory; pursue Isabelle unwinding. |
 | [RELEASE-FACTORIZATION](#work-release-factorization) | Adversarial candidate laundering | ["4"] | source-reported bounded result; current validation recorded separately | Build with explicit payloads transition model with refusal, timing and schedules. |
+| [RESEARCH-WAR-ROOM-20261106](#work-research-war-room-20261106) | November 6 staged research verification campaign | ["research portfolio"] | three model findings independently closed; fixed Python proof executed in isolated guest; real adapter and general agent isolation open | Establish real workflow/model conformance and finite-bankroll participation. Port additional proof runtimes and fault-test the guest controller before arbitrary agent admission. Native agents still share filesystem authority. |
 | [REVIEW-OPS](#work-review-ops) | Fleet and Purser publication closure | ["Book"] | open-source-reported | Requery exact current checks and repair branch-caused failures before release. |
 | [REVIEW-PILOT](#work-review-pilot) | Conditional reviewer detection benchmark | ["3"] | protocol prepared; empirical study not run | Recruit/adjudicate case set and seek separate authorization for paid pilot. |
 | [ROADMAP-OP9](#work-roadmap-op9) | Origination of unowned defects | ["Book", "Chapter7"] | open | Trial Basin scenario measures time-to-owner and time-to-fix under each rule. |
@@ -232,6 +236,7 @@ A source-reported proof, run, or completion is not a fresh verification. Current
 - The current-work records NEXT-P1 through NEXT-P8 set the research development direction. Archived critique and section records preserve all objections and rationale without automatically reopening them.
 - Exact original Markdown and PDF bytes, including graphics, remain recoverable in omni-sources.zip. Searchable transcripts do not replace the original mathematical layout.
 - Active paper TeX, publication PDFs, code, data, formal models, figures, and executable skill/study contracts remain live. Build outputs are restricted to the eight papers so supporting PDFs do not reappear.
+- 2026-11-06 review intake: preserve both operator documents in an immutable supplemental archive; route all recommendations into existing Omni records; retain local runtime halt and evidence-specific authority. Only NEXT-P6 provider development, independent checks and review triage are active in this slice.
 
 ## Record details
 
@@ -324,21 +329,21 @@ The main text should teach these as a small set of worked decisions, with exact 
 <a id="work-next-p6"></a>
 ### NEXT-P6: Future-safe commitments and output-sensitive conflict checking
 
-**Status:** finite reachable-family result verified; reachability integration open. **Kind:** research task.
+**Status:** finite reachable-family result verified; bounded provider and independent oracle checked; real adapter conformance open. **Kind:** research task.
 
 **Result or question:** Dormant facts can activate conflict after admission; all-conflict enumeration must charge output size.
 
 **Assumptions:** Declared observation, authority, and cost model; no field validation inferred from finite fixtures.
 
-**Evidence:** PROGRAM-RECONCILIATION: maximal reachable-family theorem,130560 finite families,4096 truth-table cases, current-only and unreachable-union mutants; Paper6 and Chapter6 publication verified.
+**Evidence:** PROGRAM-RECONCILIATION: maximal reachable-family theorem,130560 finite families,4096 truth-table cases, current-only and unreachable-union mutants; Paper6 and Chapter6 publication verified.; 2026-11-06: bounded provider independent oracle checked 49152 decisions (18624 safe,30528 unsafe); all30528 witnesses replayed. 27 tests; no real-adapter conformance claim. AdmissionRevision model:12 distinct safe states plus unsafe stale-admission, positive-admission and stale-rejection trace controls.
 
-**Next action:** Supply and validate a real reachability provider; compare incremental admission and witness enumeration with batch Horn closure and SAT/SMT on matched workloads.
+**Next action:** Complete source/hosted integration of the bounded provider receipts. Then validate a real adapter and matched batch/SAT-SMT workloads including provider construction and output cost.
 
 **Completion condition:** Preserve current-state and unreachable-union counterexamples; verify reachability provenance and output-sensitive cost on operational workloads.
 
 **Dependencies:** FUTURE-HORN; R17-B4; R5
 
-**Sources:** [docs/harbor-research/research/research-program-20260930.md](#source-src-142) — Opportunity 1
+**Sources:** [docs/harbor-research/research/research-program-20260930.md](#source-src-142) — Opportunity 1; [docs/harbor-research/research/future-admission-and-bonded-audit.md](research/future-admission-and-bonded-audit.md) — Provider theorem, exact oracle results and model revision boundary
 
 <a id="work-next-p8"></a>
 ### NEXT-P8: Authenticated typed evidence auditor and topology design
@@ -680,6 +685,44 @@ The main text should teach these as a small set of worked decisions, with exact 
 **Dependencies:** CLAIM-COST; P7-BUNDLES
 
 **Sources:** [docs/harbor-research/research/research-program-20260930.md](#source-src-142) — Exact categorical auditing
+
+<a id="work-review-intake-20261106"></a>
+### REVIEW-INTAKE-20261106: Preserve and reconcile the November 6 review and prescriptions
+
+**Status:** complete source intake; candidate research and unverified defects remain open. **Kind:** source intake and adjudication.
+
+**Result or question:** Two operator-supplied documents are archived byte-for-byte. Every nonblank source unit has a locator and an existing-record route, including all 30 D-directions and 22 A-V briefs. Recommendations are evidence inputs, not instructions, scheduled jobs, novelty findings or permission to restart the halted runtime.
+
+**Assumptions:** Review page numbers and inventory describe their claimed edition; current source and publication may differ. Preserve originals and old omni-sources.zip. Local Register returned 401, so listed ownership is tool-native coordination, not a live Register claim.
+
+**Evidence:** 668 nonblank source units routed; 30 D-directions and 22 A-V briefs captured.; Immutable supplemental archive SHA-256 6a1e32cb2abb0043e5d1f34bd6408cb9213cf2b9239b510172b491abf368e7fd
+
+**Next action:** Use linked existing records and independent findings to select bounded work; refresh citations and current source/PDF before adopting defects or publication claims.
+
+**Completion condition:** Both complete sources recover with matching hashes; every source unit and all D/A-V aliases route to an existing record; proposed tasks have hypotheses, owners, dependencies, acceptance, falsifiers and next actions; original records and old source archive remain intact.
+
+**Dependencies:** SOURCE-RETENTION; BOOK-RESEARCH-UPTAKE
+
+**Sources:** [docs/harbor-research/exposition/review-intake-20261106/source-manifest.json](exposition/review-intake-20261106/source-manifest.json) — Both source hashes, byte counts, members and immutable archive hash; [docs/harbor-research/exposition/review-intake-20261106/review-sources.zip](exposition/review-intake-20261106/review-sources.zip) — prescriptions-v5.md lines1-473 and review-v4.md lines1-507; [docs/harbor-research/exposition/review-intake-20261106/README.md](exposition/review-intake-20261106/README.md) — Reader contract, grafts and operational exclusions
+
+<a id="work-review-math-20261106"></a>
+### REVIEW-MATH-20261106: Independently triage the review's mathematical replacement claims
+
+**Status:** six bounded findings recorded; manuscript repair and broader review remain open. **Kind:** adversarial review findings.
+
+**Result or question:** Independent math triage distinguishes stale pooling criticism, a false unrestricted one-bit corollary, conditional covering asymptotics, model-dependent bond frontiers, batch-versus-sequential no-mint semantics, and a remaining one-fork witness wording defect.
+
+**Assumptions:** Checks reported by codex:/root/review_math_triage on source base8115021e3. Finite sweeps are not unbounded proof; no proof assistant result, operational conformance or publication is inferred.
+
+**Evidence:** pooling: Equal-total-open-budget pooling inequality holds for the stated integer domain, including even m; independent exact sweep reported 22140 cases N<=80. Ratios .765593,.777991,.795017,.826991 compare lower bounds, not achieved bits or architecture utility. Current Book and Paper1 already distinguish budgets.; one-bit: The unrestricted one-bit ambient corollary is false: N=4,k=1,m=2; the two codewords {1,2} and {3,4} cover every singleton. Current Book already contains this witness. An alarm-specific semantics or narrower parameter theorem is required.; rodl: The proposed covering asymptotic requires fixed m,k as N tends to infinity; it is not finite equality or a theorem for growing m,k. The math worker checked the constructive primary reference; intake does not extend its scope.; bond-frontier: The proposed cubic depends on punishment actions being exempt from forfeiture and perfect state observation. If every false action loses t=qb, payoffs c=3,d=4-t,p=1-t,s=0 yield 1-t <= (2+t)*sum(delta^j,j=1..k). At t=.5,k=3 the root is .1673198096 and grim threshold 1/6, not .2013139706 and .2. At delta=.19 the two interpretations disagree on gain. Weak IC includes equality. An SPE upgrade still needs all-state deviation checks.; no-mint: An unbudgeted simultaneous split 1 -> .9+.9 mints 1.8. Current sequential current-balance Ledger transfers are safe in the represented model; 1000 seeded sequences/15000 transitions passed its 1e-9 tolerance, and an independent rational budgeted batch model passed 660 fraction cases. Conservation does not imply coalition Sybil-proofness. A deterministic nonincrease can also be a degenerate supermartingale.; one-fork-witness: Paper5's copy-full mutant still calls witness then fork twice a shortest crime; one fork already raises total to 1.9 from 1. Book wording already says recorded two-fork trace. The source mismatch is a bounded manuscript defect, not a failure of the correct transfer implementation.
+
+**Next action:** Root integrates minimal independently checked corrections and preserves falsifiers. Do not rewrite Book prose under this research ownership.
+
+**Completion condition:** Each accepted correction has exact source locator, independent calculation/counterexample, complete hypotheses and scoped source/publication validation. Review assertions never self-certify.
+
+**Dependencies:** NEXT-P1; R12-A6; PROOF-LIFTS
+
+**Sources:** [docs/harbor-research/exposition/review-intake-20261106/review-sources.zip](exposition/review-intake-20261106/review-sources.zip) — Mathematical source aliases in findings; [docs/harbor-research/exposition/review-intake-20261106/intake.py](exposition/review-intake-20261106/intake.py) — FINDINGS: immutable triage receipt and source routes; [skills/harbor-results/scripts/bonded_trigger_audit.py](../../skills/harbor-results/scripts/bonded_trigger_audit.py) — Three explicit forfeiture conventions and emitted assumptions; [skills/harbor-results/scripts/test_bonded_trigger_audit.py](../../skills/harbor-results/scripts/test_bonded_trigger_audit.py) — Independent all-state comparisons and negative controls
 
 <a id="work-book-visual-atlas-20261026"></a>
 ### BOOK-VISUAL-ATLAS-20261026: Preserve the frozen Book visual atlas and separate proposed family generators from current adoption
@@ -1854,6 +1897,25 @@ The main text should teach these as a small set of worked decisions, with exact 
 
 **Sources:** [docs/harbor-research/exposition/literature/part-IV-trade-between-strangers.md](#source-src-096) — Verdict; Ideas 8-12; federation note
 
+<a id="work-literature-scout-20261106"></a>
+### LITERATURE-SCOUT-20261106: Literature scout reconciled with the existing review and research tasks
+
+**Status:** 999 source units routed; fourteen mathematical dispositions and 74 reference dispositions recorded; further primary verification and research remain open. **Kind:** source intake and prior-art obligations.
+
+**Result or question:** All 999 nonblank units from three documents are retained and routed. All fourteen scout proposals have an independent mathematical disposition. Exact falsifiers reject overbroad D8, D14, D25 and D29 formulations; useful replacements have explicit hypotheses and acceptance criteria.
+
+**Assumptions:** This document is advice, not instructions. Scout labels such as verified, known, open and gap confirmed remain source assertions. A citation lead does not authenticate a paper or support its attributed theorem. Existing task owners and statuses remain authoritative; no duplicate research queue or blanket completion claim.
+
+**Evidence:** 331 nonblank units plus prior 668 = 999 traceable units across three supplied documents.; All 14 directions link previous D aliases and relevant A-V briefs; the previous 30 directions and 22 briefs remain intact.; D14 split reward 9/5 > 1 despite conservation; D8 exact-guess risk 1/2 versus 0 despite zero-miss opening; D29 four of six non-atomic schedules overreserve, both atomic orders safe.; D3 order/closure terminology, D1 controllability and D25 edge/vertex attribution remain pending primary checks.; Independent review rejects the whole-star attribution inference and min-cut decoder recipe; exact K4 distance-three code still has vertex-error distance one.; 74 numbered citations individually inventoried; fourteen targeted primary comparisons and41query/excerptrecords. 27recordsremainmetadata/abstractonly. Citationmismatches andoriginaltextaccessgaps explicitlyretained; nofirstnessclaim.; Supplementary unnumbered-lead accounting:186leadrecords/366occurrences;56existing-scoped-evidence,130open. All444source lines individually classified;74numberedrecordsand14directionchecks preserved.
+
+**Next action:** Use the fourteen adjudications and the per-reference audit to develop existing tasks. Highest priority: observed workflow to future-admission model; then resource-aware bond participation and semantic anchors for graph diagnosis.
+
+**Completion condition:** Every nonblank source unit and numbered note has a source hash and line locator, an existing task route and direction disposition; meaningful direction annotations name hypothesis, owner, dependencies, acceptance, falsifier and next action. Prior records and archives are preserved.
+
+**Dependencies:** REVIEW-INTAKE-20261106; SOURCE-RETENTION
+
+**Sources:** [docs/harbor-research/exposition/literature-scout-20261106/source-manifest.json](exposition/literature-scout-20261106/source-manifest.json) — Source and archive hashes; [docs/harbor-research/exposition/literature-scout-20261106/literature-scout.zip](exposition/literature-scout-20261106/literature-scout.zip) — literature-scout.md lines 1-444; [docs/harbor-research/exposition/literature-scout-20261106/README.md](exposition/literature-scout-20261106/README.md) — Unified crosswalk and scope; [docs/harbor-research/exposition/literature-scout-20261106/skill-grafts.json](exposition/literature-scout-20261106/skill-grafts.json) — Source-to-skill-to-acceptance mappings; [docs/harbor-research/exposition/literature-scout-20261106/math-review.md](exposition/literature-scout-20261106/math-review.md) — All fourteen direction dispositions and primary hypothesis checks; [skills/harbor-results/scripts/scout_graph_code_checks.py](../../skills/harbor-results/scripts/scout_graph_code_checks.py) — 43 connected graphs, 646 received words, 166 invisible stars; [docs/harbor-research/exposition/literature-scout-20261106/source-verification.json](exposition/literature-scout-20261106/source-verification.json) — 74 reference dispositions and fourteen targeted primary comparisons; [docs/harbor-research/exposition/literature-scout-20261106/literature-audit.md](exposition/literature-scout-20261106/literature-audit.md) — Citation corrections, exact scope and remaining access gaps
+
 <a id="work-marginalia"></a>
 ### MARGINALIA: Portrait licensing and placement
 
@@ -2837,6 +2899,25 @@ The main text should teach these as a small set of worked decisions, with exact 
 **Dependencies:** R10-A3; R9
 
 **Sources:** [docs/harbor-research/pdf/paper4.pdf](#source-src-126) — pp. 5,7,9-10,13; [docs/harbor-research/pdf/The-Harbor-After-the-Harbor.pdf](#source-src-113) — pp. 43-46; [docs/harbor-research/research/research-program-20260930.md](#source-src-142) — Factorization criterion — proved here
+
+<a id="work-research-war-room-20261106"></a>
+### RESEARCH-WAR-ROOM-20261106: November 6 staged research verification campaign
+
+**Status:** three model findings independently closed; fixed Python proof executed in isolated guest; real adapter and general agent isolation open. **Kind:** bounded evidence campaign.
+
+**Result or question:** RED exposed initialization deadlock, key fanout and missing seal-order gate. WHITE repaired the symbolic model; independent RED Gate C reran the exact sealed repair and closed all three findings in-model. BLUE checked five Kani harnesses, 17 covers and two mutants; the logic-only timeout remains incomplete. Three isolated fixed VM probes pass only their declared probe scope. A reviewed Python checker now runs in the zero-NIC/no-share guest with exact expected output, verified interpreter identity, successful acceptance and intentional assertion failure.
+
+**Assumptions:** Host-reviewed proof processes have procedural blindness, not operating-system privacy. VM probes do not establish that proof runtimes or agents ran inside guests. Hash seals bind retained bytes, not completeness or actor identity. Model results do not establish deployed conformance.
+
+**Evidence:** RED: R1-RED-001 initialization, R1-RED-002 key fanout, R1-RED-003 missing sealed-manifest gate.; WHITE and independent RED Gate C: six security queries true, four concrete reachability traces, four intended mutant failures; duplicate receiver and public-identifier/domain-separation probes establish additional scope boundaries.; TLC: final evidence-r1 records all four expected outcomes; bound model has 12 distinct states. Unbound mutant violates; acceptance and stale-rejection controls have witnesses. Earlier preparation parser failures are retained.; BLUE: 5/5 Kani harnesses; 17/17 covers; expiry and ceiling mutants detected; logic-only run INCOMPLETE_TIMEOUT after 90 seconds.; VM: 3 sequential fixed probes PASS with zero NIC, shared-directory or vsock devices; controller DEV_UNTRUSTED. Actual proof runtimes and agent privacy are not established inside guests.; Visible transcript prefix export has a manifest; it omits hidden/internal material and declares capture/exclusion limits. It is not a complete raw conversation archive.; Fixed Python guest: Python3.12.16 and binary hash match; exact D14/D8/D29 JSON matches; positive exit0, intentional assertion exit1; no NIC/share/vsock; private state removed. Original bootstrap report remains unchanged.; Native transcript refresh:13authorizedsessions,1321visible events; hidden/internal/credential-bearing/export-recursive events omitted with reasons. Compressed bodies retained privately at0600andGitignored; publicmanifestonly. Exporter16regressiontests passed after independent review repairs.
+
+**Next action:** Establish real workflow/model conformance and finite-bankroll participation. Port additional proof runtimes and fault-test the guest controller before arbitrary agent admission. Native agents still share filesystem authority.
+
+**Completion condition:** Each claim points to immutable input identities, raw outputs, positive reachability and seeded failure controls; independent retest closes only its assigned finding; model, host, guest, provenance and publication claims stay separate.
+
+**Dependencies:** NEXT-P6; REVIEW-MATH-20261106; LITERATURE-SCOUT-20261106
+
+**Sources:** [docs/harbor-research/campaigns/2026-11-06/red/report.md](campaigns/2026-11-06/red/report.md) — Snapshot observed during scout intake; see claim-specific evidence and scope; [docs/harbor-research/campaigns/2026-11-06/red/seal.json](campaigns/2026-11-06/red/seal.json) — Snapshot observed during scout intake; see claim-specific evidence and scope; [docs/harbor-research/campaigns/2026-11-06/white/report.md](campaigns/2026-11-06/white/report.md) — Snapshot observed during scout intake; see claim-specific evidence and scope; [docs/harbor-research/campaigns/2026-11-06/blue/verification-summary.json](campaigns/2026-11-06/blue/verification-summary.json) — Snapshot observed during scout intake; see claim-specific evidence and scope; [docs/harbor-research/campaigns/2026-11-06/isolation/verdict.json](campaigns/2026-11-06/isolation/verdict.json) — Snapshot observed during scout intake; see claim-specific evidence and scope; [docs/harbor-research/campaigns/2026-11-06/coordinator/evidence-r1/root.jsonl](campaigns/2026-11-06/coordinator/evidence-r1/root.jsonl) — Snapshot observed during scout intake; see claim-specific evidence and scope; [docs/harbor-research/campaigns/2026-11-06/transcripts/manifest.json](campaigns/2026-11-06/transcripts/manifest.json) — Snapshot observed during scout intake; see claim-specific evidence and scope; [docs/harbor-research/campaigns/2026-11-06/red-retest/report.md](campaigns/2026-11-06/red-retest/report.md) — Independent Gate C exact-input retest; [docs/harbor-research/campaigns/2026-11-06/red-retest/seal.json](campaigns/2026-11-06/red-retest/seal.json) — Independent Gate C exact-input retest; [docs/harbor-research/campaigns/2026-11-06/red-retest/run-index.json](campaigns/2026-11-06/red-retest/run-index.json) — Independent Gate C exact-input retest; [docs/harbor-research/campaigns/2026-11-06/guest-python/REPORT.md](campaigns/2026-11-06/guest-python/REPORT.md) — Actual fixed Python guest run, distinct from earlier bootstrap-only probes; [docs/harbor-research/campaigns/2026-11-06/guest-python/manifest.json](campaigns/2026-11-06/guest-python/manifest.json) — Actual fixed Python guest run, distinct from earlier bootstrap-only probes; [docs/harbor-research/campaigns/2026-11-06/guest-python/verdict.json](campaigns/2026-11-06/guest-python/verdict.json) — Actual fixed Python guest run, distinct from earlier bootstrap-only probes; [docs/harbor-research/campaigns/2026-11-06/guest-python/seal.json](campaigns/2026-11-06/guest-python/seal.json) — Actual fixed Python guest run, distinct from earlier bootstrap-only probes
 
 <a id="work-review-ops"></a>
 ### REVIEW-OPS: Fleet and Purser publication closure

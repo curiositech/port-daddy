@@ -1,0 +1,2 @@
+PASS: expiry-removed has a counterexample to decoded policy matches temporal contract
+PASS: ceiling-removed has a counterexample to rate ceiling preserved

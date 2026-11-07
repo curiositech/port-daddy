@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Research war room · Port Daddy</title>
+<meta name="description" content="Inspect the November 6 research campaign: attacks, responses, independent verdicts, proof limits, and every source-advice route.">
+<link rel="stylesheet" href="styles.css">
+<script src="viewer.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#findings">Skip to findings</a>
+<header class="masthead"><a href="/" class="wordmark">Port Daddy <span>/ Research</span></a><span>November 6, 2026</span><button id="theme" type="button" aria-label="Switch to dark theme">Dark theme</button></header>
+<main>
+<section class="intro" aria-labelledby="page-title">
+<p class="edition">Campaign 01 <span>•</span> Evidence review</p>
+<h1 id="page-title">Research war room</h1>
+<p class="lead">Three attacks. Three model repairs.<br>Independent retesting, with the limits kept visible.</p>
+<p class="intro-note">Follow each finding from red-team challenge to white-team response, then inspect the independent verdict and the evidence it actually supports.</p>
+<nav class="jump-links" aria-label="On this page"><a href="#findings">Findings</a><a href="#verification">Verification</a><a href="#coverage">Advice ledger</a><a href="#recording">Recording & sources</a></nav>
+</section>
+<div id="load-error" role="alert" hidden>Campaign evidence could not be loaded. Reload this page to try again.</div>
+<div id="evidence" hidden>
+<section class="scope-note" aria-label="Proof scope"><strong>Closed in the model.</strong><p id="scope-text"></p><p>The proof agents ran on the host with procedural separation. Three fixed guest probes passed separately; agent containment and production conformance remain open.</p></section>
+<section id="findings" aria-labelledby="findings-title">
+<div class="section-heading"><div><p class="section-number">01 / Adversarial review</p><h2 id="findings-title">Attack → response → verdict</h2></div><p id="findings-count" class="quiet"></p></div>
+<div class="filters" role="group" aria-label="Team perspective"><button type="button" data-team="all" aria-pressed="true">All teams</button><button type="button" data-team="red" aria-pressed="false">Red · attacks</button><button type="button" data-team="white" aria-pressed="false">White · responses</button><button type="button" data-team="blue" aria-pressed="false">Independent verdicts</button></div>
+<div id="finding-list"></div>
+<details class="detail-block"><summary>Five new challenges in the independent retest</summary><ul id="mutants"></ul><p class="quiet">A surviving mutation is retained as evidence about the assumptions. It is not silently counted as a discovered defect.</p></details>
+</section>
+<section id="verification" aria-labelledby="verification-title">
+<div class="section-heading"><div><p class="section-number">02 / Executed checks</p><h2 id="verification-title">What the tools establish</h2></div></div>
+<div class="verification-grid">
+<article class="verification-card blue"><p class="team-label">Blue / Kani</p><h3>Five harnesses verified</h3><p>17 of 17 cover obligations satisfied. Two deliberately broken policy controls produced the intended assertion counterexamples.</p><ul id="harnesses" class="check-list"></ul><div class="limit"><strong>Incomplete: logic-only verification</strong><p>The separate attempt reached its 90-second limit without a successful verdict. No parser-completeness or cryptographic verification claim follows.</p></div><p id="blue-scope" class="quiet"></p></article>
+<article class="verification-card"><p class="team-label">Infrastructure / fixed guest probes</p><h3>Three bootstrap probes passed</h3><p>Each fixed red, white, and blue guest probe observed read-only input, writable guest state, absent host/runtime devices, and a stopped guest after execution.</p><div class="limit"><strong>Scope: fixed pure-proof probes</strong><p>These sequential guest runs did not contain the research agents. The controller is marked DEV_UNTRUSTED; arbitrary agent-code confinement and production Drydock are unproved.</p></div><p class="quiet">Hashes establish byte integrity. They do not authenticate an actor or establish privacy.</p></article>
+</div>
+<article id="guest-python" class="verification-card guest-python" hidden><p class="team-label">Offline guest / fixed Python workload</p><h3>Python checker executed inside the guest</h3><p id="guest-python-verdict"></p><div id="guest-python-results" class="guest-results"></div><div class="limit"><strong>Scope: one fixed checker and assertion control</strong><p>The host-side research agents remain outside this guest. This run does not establish general hostile-code admission, agent privacy, or Rust, TLC, or ProVerif execution inside the guest.</p></div><p id="guest-python-provenance" class="quiet"></p></article>
+<article class="next-work"><p class="section-number">Active research / NEXT-P6</p><h3 id="next-title"></h3><p id="next-status"></p><p id="next-result"></p><p><strong>Next obligation.</strong> <span id="next-action"></span></p></article>
+</section>
+<section id="coverage" aria-labelledby="coverage-title">
+<div class="section-heading"><div><p class="section-number">03 / Source advice</p><h2 id="coverage-title">Every source unit has a route</h2></div><a href="campaign-data.json" download>Download evidence data ↓</a></div>
+<p class="measure">Coverage means the supplied advice was preserved and routed to an existing record. It does not mean every recommendation was accepted, proved, implemented, or scheduled.</p>
+<div id="coverage-summary" class="coverage-summary"></div>
+<p id="scout-summary" class="measure"></p><p id="scholarship-status" class="measure quiet"></p>
+<details class="detail-block"><summary>Literature scout: 14 mathematical decisions</summary><p class="measure">Three exact constructed examples challenge the scout’s payoff-splitting, all-decision-equivalence, and component-composition formulations. They do not establish defects in the cited primary papers. Primary-source and novelty judgments remain unverified.</p><div id="scout-directions"></div></details>
+<details class="detail-block"><summary>Six independent mathematical findings</summary><div id="math-list"></div></details>
+<div class="ledger-controls"><label>Source document<select id="document"><option value="all">All three documents</option></select></label><label>Disposition category<select id="classification"><option value="all">All categories</option></select></label></div>
+<p id="ledger-count" class="quiet" role="status" aria-live="polite"></p>
+<div id="ledger" class="ledger"></div>
+<div class="pagination"><button id="previous" type="button">← Previous</button><span id="page-count" aria-live="polite"></span><button id="next" type="button">Next →</button></div>
+</section>
+<section id="recording" aria-labelledby="recording-title">
+<div class="section-heading"><div><p class="section-number">04 / Inspect and replay</p><h2 id="recording-title">Recording & source evidence</h2></div></div>
+<div class="recording-grid"><div><video id="walkthrough" poster="walkthrough-poster.png" controls preload="metadata" aria-label="Recorded browser walkthrough of the research war room"><source src="walkthrough.webm" type="video/webm"><a href="walkthrough.webm">Download the browser walkthrough</a></video><p class="quiet">Real browser interaction with this viewer: team filters, advice categories, keyboard navigation, and responsive layout. This recording preserves the captured interface snapshot; it does not record the proof-tool executions. <a href="viewer-qa.json">Browser QA receipt</a> · <a href="viewer-manifest.json">File hashes</a></p></div><div><h3>Visible interactions are preserved</h3><p id="transcript-scope"></p><p id="transcript-publication"></p><p class="quiet">Hidden reasoning, internal prompts, unrelated chats, and detected credentials are excluded from the saved projections. A recorded source prefix does not include future events.</p><ul id="source-list" class="source-list"></ul></div></div>
+</section>
+</div>
+</main>
+<footer><p>Port Daddy research · November 6 campaign</p><p>Local executions, source review, hosted checks, and production behavior are separate forms of evidence.</p></footer>
+</body>
+</html>

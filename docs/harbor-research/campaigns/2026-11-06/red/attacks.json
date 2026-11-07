@@ -1,0 +1,100 @@
+{
+  "round": "2026-11-06-R1",
+  "team": "red",
+  "mode": "host-reviewed-process",
+  "privacy_enforced": false,
+  "attacks": [
+    {
+      "id": "R1-RED-001",
+      "title": "Private initialization precedes every receiving process",
+      "severity": "high",
+      "target": "proofs/coordination/isolation.pv top-level process",
+      "claim": "The three positive secrecy/authentication results describe an executing adversarial-review protocol.",
+      "observation": "All receivers lie in the continuation after the first private output. Under synchronous private communication the initial output cannot rendezvous; protocol roles never run. ProVerif returns all three original queries true, but added reachability queries cannot reconstruct traces.",
+      "evidence": [
+        "pv-baseline",
+        "pv-reachability",
+        "pv-leak-red-control",
+        "pv-leak-defense-control",
+        "pv-reachability-live",
+        "pv-leak-red-control-live",
+        "pv-leak-defense-control-live"
+      ],
+      "minimized_source_witness": "process out(private_keychan,key); (in(private_keychan,x); event(RoleStarted))",
+      "counterfactual": "Direct private parameter provisioning makes RedWrites, LeadEmitsToDefense and DefenseLearnsRed reachable with concrete traces, while all three security queries remain true; seeded plaintext leaks then yield false with traces.",
+      "qualification": "Deadlock is a source-level process-semantics argument. ProVerif says cannot be proved for reachability, not proved unreachable. This is a vacuity/model-initialization finding, not a cryptographic break.",
+      "owner": "defense:proofs",
+      "close_with": "Reachable initialization plus positive event traces and seeded confidentiality/authentication mutation controls."
+    },
+    {
+      "id": "R1-RED-002",
+      "title": "One defense-key send cannot provision two consuming roles",
+      "severity": "medium",
+      "target": "proofs/coordination/isolation.pv def_keychan producer and two inputs",
+      "claim": "Both the defense publisher and Gate-B receiver participate in one round.",
+      "observation": "After parallelizing private key distribution, only one defense role can consume the sole key tuple. A joint DefenseWrites-and-DefenseLearnsRed marker has no reconstructable trace; providing a second tuple produces a concrete joint trace.",
+      "evidence": [
+        "pv-parallel-one-defense-key",
+        "pv-parallel-two-defense-keys",
+        "pv-joint-defense-roles-live"
+      ],
+      "minimized_source_witness": "out(c,key) | (in(c,x); Sender) | (in(c,y); Receiver)",
+      "qualification": "This latent modeling bug is exposed after fixing R1-RED-001. Non-reachability follows from one-send/two-consumer resource counting; ProVerif does not itself prove non-reachability here.",
+      "owner": "defense:proofs",
+      "close_with": "Provision every role explicitly, then require a single trace witnessing both defense publication and Gate-B receipt."
+    },
+    {
+      "id": "R1-RED-003",
+      "title": "Authenticated lead emission does not enforce seal-before-delivery",
+      "severity": "high",
+      "target": "skills/redteam-review/references/comms-protocol.md sealed round lifecycle and isolation.pv S3",
+      "claim": "White receives red plaintext only after the attack manifest has been sealed.",
+      "observation": "In the live-provisioning variant, insert AttackManifestSealed immediately after the red output and ask DefenseLearnsRed(red_msg) ==> AttackManifestSealed. ProVerif returns false with a concrete trace; original S1/S2/S3 still hold. The lead can relay the first ciphertext before the red continuation seals.",
+      "evidence": [
+        "pv-seal-before-receive-live"
+      ],
+      "trace": [
+        "RedWrites(red_msg)",
+        "Red emits ciphertext",
+        "Daemon forwards ciphertext to lead",
+        "LeadEmitsToDefense(red_msg)",
+        "Lead emits authenticated defense ciphertext",
+        "DefenseLearnsRed(red_msg)",
+        "AttackManifestSealed has not occurred"
+      ],
+      "qualification": "Counterexample applies to the instrumented, operational repaired harness and the stronger lifecycle claim. The original S3 is only source authentication; no claim of an exploit in a deployed daemon.",
+      "owner": "defense:proofs",
+      "close_with": "Model a sealed manifest identity and explicit release gate; bind delivered content to that identity; prove seal precedes release and include reachable success plus early-delivery mutant."
+    }
+  ],
+  "controls_not_discoveries": [
+    {
+      "name": "TLC bound",
+      "result": "SafeAdmission holds: 12 distinct states, 22 generated; no error."
+    },
+    {
+      "name": "TLC unbound",
+      "result": "Known negative control: Init -> Check -> ChangeModel -> Admit violates SafeAdmission; exit 12."
+    },
+    {
+      "name": "TLC accepted",
+      "result": "Known reachability control: Init -> Check -> Admit violates NoAdmission; exit 12 is expected."
+    },
+    {
+      "name": "TLC stale rejected",
+      "result": "Known reachability control: Init -> Check -> ChangeModel -> RejectStale violates NoStaleRejection; exit 12 is expected."
+    },
+    {
+      "name": "Stable revision mutation",
+      "result": "Changing conflict while keeping revision zero defeats binding; shortest trace Check -> ChangeModel -> Admit. Mutation of a stated assumption, not a discovered bug."
+    },
+    {
+      "name": "Python finite graph sweep",
+      "result": "32768 complete cases plus 1024 budget cases: zero mismatches; every unsafe witness replayed. Independent graph exploration uses the same R17 checker, so it does not independently validate R17."
+    }
+  ],
+  "unfalsified_claims": [
+    "Exact finite AdmissionRevision effect-time SafeAdmission claim under correct verdict, revision advance and atomic comparison/admission.",
+    "future_fact_reachability graph/reduction contract within the enumerated small graph family."
+  ]
+}

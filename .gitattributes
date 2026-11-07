@@ -50,3 +50,10 @@ docs/pr-assets/figure-rivals/**/*.webp filter=lfs diff=lfs merge=lfs -text
 
 # Facing PDFs can begin with a long text object; never diff or merge them as text.
 website-v2/public/whitepaper/coordination-papers-mega-volume-spreads.pdf -text -diff -merge
+
+# Frozen research tool output retains exact whitespace and line endings for seals.
+# This applies only to captured bytes and generated traces, not maintained models.
+docs/harbor-research/campaigns/2026-11-06/**/*.stdout -text whitespace=-blank-at-eol,-blank-at-eof
+docs/harbor-research/campaigns/2026-11-06/**/*.stderr -text whitespace=-blank-at-eol,-blank-at-eof
+docs/harbor-research/campaigns/2026-11-06/**/*.log -text whitespace=-blank-at-eol,-blank-at-eof
+docs/harbor-research/campaigns/2026-11-06/**/*_TTrace_*.tla -text whitespace=-blank-at-eol,-blank-at-eof

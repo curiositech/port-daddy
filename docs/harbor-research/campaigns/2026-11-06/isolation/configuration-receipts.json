@@ -1,0 +1,181 @@
+{
+  "profile": "proof-offline-v1",
+  "status": "DEV_UNTRUSTED",
+  "source_sha256": {
+    "proof-init.sh": "24ed6970403382e8fccc9f782a44afe43fff5238ecafa877f3719aaa60bb4ec4",
+    "run.py": "59d4d129ac3ffe4ed5d2166d5956dd06967032b9b5d71786d185d8957b18838c",
+    "virtualization.entitlements": "915e2b39357ecf8d211dc7fac43195c9cdcf55a0a1ecdbf931c116a4eac421f3",
+    "ProofGuest.swift": "b5a21f1cb46a552aa64a63575400dbdd9de6f8df292f42b64c14c52d572a76f8",
+    "README.md": "60a34f4951ccbdbeb53a2c123f592623a6cf77951e40fc7cc5092ff658ba0c78"
+  },
+  "runs": [
+    {
+      "team": "red",
+      "argv": [
+        "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/proof-guest",
+        "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/red-8c00faacb271"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1.718,
+      "host_events": [
+        {
+          "audio_devices": 0,
+          "deadline_seconds": 60,
+          "directory_sharing_devices": 0,
+          "entropy_devices": 1,
+          "event": "configuration",
+          "graphics_devices": 0,
+          "memory_bytes": 268435456,
+          "network_devices": 0,
+          "pid": 51316,
+          "profile": "proof-offline-v1",
+          "serial_byte_limit": 262144,
+          "serial_ports": 1,
+          "socket_devices": 0,
+          "storage": [
+            {
+              "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/red-8c00faacb271/input.raw",
+              "read_only": true
+            },
+            {
+              "bytes": 8388608,
+              "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/red-8c00faacb271/state.raw",
+              "read_only": false
+            }
+          ],
+          "vcpus": 1,
+          "witness": "HOST_OBSERVED"
+        },
+        {
+          "event": "started",
+          "runtime_directory_sharing_devices": 0,
+          "runtime_network_devices": 0,
+          "runtime_socket_devices": 0,
+          "witness": "HOST_OBSERVED"
+        },
+        {
+          "event": "guest_stopped",
+          "witness": "HOST_OBSERVED"
+        }
+      ],
+      "boot_input_sha256": {
+        "kernel": "ee66670649107e2efe319a436c9b9caf84b093d471f73577d54292e5c081b80b",
+        "initrd": "679eaeaca6fe172bf7f152f0414d7985570273b2f49b6143227aa878d240944e",
+        "input.raw": "05330c52e467ba7000114da28cfb065b7352d22fdf30ec9fa3bfe4325ba1dc74"
+      },
+      "state_disk_removed": true
+    },
+    {
+      "team": "blue",
+      "argv": [
+        "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/proof-guest",
+        "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/blue-418e517013f2"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1.538,
+      "host_events": [
+        {
+          "audio_devices": 0,
+          "deadline_seconds": 60,
+          "directory_sharing_devices": 0,
+          "entropy_devices": 1,
+          "event": "configuration",
+          "graphics_devices": 0,
+          "memory_bytes": 268435456,
+          "network_devices": 0,
+          "pid": 51443,
+          "profile": "proof-offline-v1",
+          "serial_byte_limit": 262144,
+          "serial_ports": 1,
+          "socket_devices": 0,
+          "storage": [
+            {
+              "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/blue-418e517013f2/input.raw",
+              "read_only": true
+            },
+            {
+              "bytes": 8388608,
+              "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/blue-418e517013f2/state.raw",
+              "read_only": false
+            }
+          ],
+          "vcpus": 1,
+          "witness": "HOST_OBSERVED"
+        },
+        {
+          "event": "started",
+          "runtime_directory_sharing_devices": 0,
+          "runtime_network_devices": 0,
+          "runtime_socket_devices": 0,
+          "witness": "HOST_OBSERVED"
+        },
+        {
+          "event": "guest_stopped",
+          "witness": "HOST_OBSERVED"
+        }
+      ],
+      "boot_input_sha256": {
+        "kernel": "ee66670649107e2efe319a436c9b9caf84b093d471f73577d54292e5c081b80b",
+        "initrd": "679eaeaca6fe172bf7f152f0414d7985570273b2f49b6143227aa878d240944e",
+        "input.raw": "41efce08812810b9e4cafc16008e992ddf0515699aa5b4d0122de13f3b8af5eb"
+      },
+      "state_disk_removed": true
+    },
+    {
+      "team": "white",
+      "argv": [
+        "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/proof-guest",
+        "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/white-b81532accf01"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1.536,
+      "host_events": [
+        {
+          "audio_devices": 0,
+          "deadline_seconds": 60,
+          "directory_sharing_devices": 0,
+          "entropy_devices": 1,
+          "event": "configuration",
+          "graphics_devices": 0,
+          "memory_bytes": 268435456,
+          "network_devices": 0,
+          "pid": 51468,
+          "profile": "proof-offline-v1",
+          "serial_byte_limit": 262144,
+          "serial_ports": 1,
+          "socket_devices": 0,
+          "storage": [
+            {
+              "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/white-b81532accf01/input.raw",
+              "read_only": true
+            },
+            {
+              "bytes": 8388608,
+              "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/white-b81532accf01/state.raw",
+              "read_only": false
+            }
+          ],
+          "vcpus": 1,
+          "witness": "HOST_OBSERVED"
+        },
+        {
+          "event": "started",
+          "runtime_directory_sharing_devices": 0,
+          "runtime_network_devices": 0,
+          "runtime_socket_devices": 0,
+          "witness": "HOST_OBSERVED"
+        },
+        {
+          "event": "guest_stopped",
+          "witness": "HOST_OBSERVED"
+        }
+      ],
+      "boot_input_sha256": {
+        "kernel": "ee66670649107e2efe319a436c9b9caf84b093d471f73577d54292e5c081b80b",
+        "initrd": "679eaeaca6fe172bf7f152f0414d7985570273b2f49b6143227aa878d240944e",
+        "input.raw": "6e3e4f5934f9b671ec8def0c39c7e28cf5a1106e3eab697fe2b660ad428fc54f"
+      },
+      "state_disk_removed": true
+    }
+  ]
+}

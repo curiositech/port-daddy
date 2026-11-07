@@ -1,0 +1,55 @@
+{
+  "facts": [
+    "promise_wait_for_receipts"
+  ],
+  "horn": [
+    [
+      [
+        "operation_a_pending"
+      ],
+      "receipt_missing"
+    ],
+    [
+      [
+        "operation_b_pending"
+      ],
+      "receipt_missing"
+    ]
+  ],
+  "deontic": [
+    [
+      [
+        "promise_wait_for_receipts",
+        "receipt_missing"
+      ],
+      "F",
+      "publish_report",
+      [
+        "shared_report"
+      ],
+      [
+        10,
+        10
+      ],
+      "promise-1-wait-for-both-receipts"
+    ],
+    [
+      [
+        "deadline_elapsed"
+      ],
+      "O",
+      "publish_report",
+      [
+        "shared_report"
+      ],
+      [
+        10,
+        10
+      ],
+      "promise-2-publish-at-deadline"
+    ]
+  ],
+  "claims": [],
+  "nvars": 0,
+  "cons": []
+}

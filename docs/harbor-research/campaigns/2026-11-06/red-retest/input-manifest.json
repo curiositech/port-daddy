@@ -1,0 +1,30 @@
+{
+  "white_files_verified": 39,
+  "inputs": [
+    {
+      "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/proofs/coordination/isolation.pv",
+      "snapshot": "isolation.pv",
+      "sha256": "1bb15bbc09eec6ad88d43acc092f7129df9e35fb053d51998cbad5d9b3eb3189"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/white/report.md",
+      "snapshot": "white-report.md",
+      "sha256": "1ec61410fa08c291e42ba3dc029af1183382c48662d62643ad91acc50488ea3d"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/white/verify_controls.py",
+      "snapshot": "white-verify-controls.py",
+      "sha256": "929a56ef1e27391cf93bcea9ccbbc8f9be4948f40d03670af9da0d6a46e166c0"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/docs/harbor-research/campaigns/2026-11-06/white/seal.json",
+      "snapshot": "white-seal.json",
+      "sha256": "6d4da545af5fbf9be21bc4932067adeb2ad6f966d6cd777d8e76d4d54d810244"
+    },
+    {
+      "path": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/scripts/harbor-research/war_room.py",
+      "snapshot": "war_room.py",
+      "sha256": "ed04e8312daa54231473ad6e3a4d736fadb31c6a7a3fed17db8c3854be490dea"
+    }
+  ]
+}

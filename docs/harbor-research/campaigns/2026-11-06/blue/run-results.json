@@ -1,0 +1,97 @@
+{
+  "tool-version": {
+    "run_id": "58bf236b055141339361def20141d841",
+    "mode": "host-reviewed-process",
+    "exit_code": 0,
+    "timed_out": false,
+    "launch_error": null,
+    "elapsed_seconds": 0.04046279200701974,
+    "artifacts": [
+      {
+        "name": "58bf236b055141339361def20141d841.stdout",
+        "sha256": "c635232263cfca72ff15cc631e3f835220274793bb069f5eabaacbf5cb14a5c5"
+      },
+      {
+        "name": "58bf236b055141339361def20141d841.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "status": "completed"
+  },
+  "five-harnesses": {
+    "run_id": "a41acaf512aa479a894c910275524960",
+    "mode": "host-reviewed-process",
+    "exit_code": 0,
+    "timed_out": false,
+    "launch_error": null,
+    "elapsed_seconds": 82.02101316599874,
+    "artifacts": [
+      {
+        "name": "a41acaf512aa479a894c910275524960.stdout",
+        "sha256": "a242669994e71ca64a747ece1e23c4608cb6d438ada08d8eb7ea59fe3d38172f"
+      },
+      {
+        "name": "a41acaf512aa479a894c910275524960.stderr",
+        "sha256": "b3fbe0167effc52006fd9cf4c36cce5af24403b891bb6841d46007af5583ed8d"
+      }
+    ],
+    "status": "completed"
+  },
+  "evidence-gate": {
+    "run_id": "0ef2718f810c4907ab01bd899b429dab",
+    "mode": "host-reviewed-process",
+    "exit_code": 0,
+    "timed_out": false,
+    "launch_error": null,
+    "elapsed_seconds": 0.07657879198086448,
+    "artifacts": [
+      {
+        "name": "0ef2718f810c4907ab01bd899b429dab.stdout",
+        "sha256": "d11bec93e1980f067ec83d8cc7b0710ba6fe1193549d3c3be12ba0196d01b626"
+      },
+      {
+        "name": "0ef2718f810c4907ab01bd899b429dab.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "status": "completed"
+  },
+  "negative-controls": {
+    "run_id": "2003e569dcc3424b9920f66845995764",
+    "mode": "host-reviewed-process",
+    "exit_code": 0,
+    "timed_out": false,
+    "launch_error": null,
+    "elapsed_seconds": 22.28390229199431,
+    "artifacts": [
+      {
+        "name": "2003e569dcc3424b9920f66845995764.stdout",
+        "sha256": "b70454b990acf71d378301a9b13d4b0697c2560e57d258a54b26b8e1383e7ca7"
+      },
+      {
+        "name": "2003e569dcc3424b9920f66845995764.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "status": "completed"
+  },
+  "logic-only-bounded": {
+    "run_id": "0cbaf75d296542c78d29b1d4376b39c6",
+    "mode": "host-reviewed-process",
+    "exit_code": -9,
+    "timed_out": true,
+    "launch_error": null,
+    "elapsed_seconds": 90.00420399999712,
+    "artifacts": [
+      {
+        "name": "0cbaf75d296542c78d29b1d4376b39c6.stdout",
+        "sha256": "42306f36aee4a3b29a0cdb16cdbf8a3368c0c887c726a3e02cb1f0b79f13cd5b"
+      },
+      {
+        "name": "0cbaf75d296542c78d29b1d4376b39c6.stderr",
+        "sha256": "5cc21469a55a1c611d6cb94d619dddcab757d8e80dc565059f473b8529cc0381"
+      }
+    ],
+    "status": "timeout"
+  }
+}

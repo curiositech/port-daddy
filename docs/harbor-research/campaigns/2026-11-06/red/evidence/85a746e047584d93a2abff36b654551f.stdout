@@ -1,0 +1,1 @@
+{"complete_graph_cases": 32768, "budget_cases": 1024, "mismatches": 0, "oracle": "independent graph reachability plus same R17 checker; not an independent R17 correctness proof", "bounds": "three labeled states, two positive facts, all 512 directed graphs, fixed overlapping O/F policy"}

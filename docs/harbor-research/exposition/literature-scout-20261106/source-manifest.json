@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "source_original_name": "2026-11-06_Governing-AI-Agents_ Literature-Scout-for-Fourteen-Research-Directions.md",
+  "member": "literature-scout.md",
+  "bytes": 48613,
+  "lines": 444,
+  "sha256": "611c2f5a0652e7f1915cfb25d3e7fc037e957b6f632b5b0f58749ba2c9bbb2bb",
+  "archive_sha256": "3dd2c778fd0bf3ec420ab578319ce40122416cdb5bd14b0a3a56186f783da1b7",
+  "archive_contract": "Append-only evidence. Do not replace this archive or user original; a revised source requires a new versioned intake.",
+  "old_omni_archive_sha256": "936e843cbf087a321df953bada86d92db68351c8e1b2f06082b052201e94ed61",
+  "prior_review_archive_sha256": "6a1e32cb2abb0043e5d1f34bd6408cb9213cf2b9239b510172b491abf368e7fd",
+  "captured_head": "8115021e344cc177e4195b4b2407e3531ecd01a5",
+  "branch": "codex/research-program-next-result-20261106",
+  "linked_gitdir": "/Users/erichowens/coding/port-daddy/.git/worktrees/research-program-next-result-20261106"
+}

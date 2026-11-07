@@ -1,0 +1,264 @@
+[
+  {
+    "name": "pv-baseline",
+    "run_id": "2cabe1ec052c4f62b6e95f21546a1358",
+    "exit_code": 0,
+    "elapsed_seconds": 0.010635624988935888,
+    "stdout": "2cabe1ec052c4f62b6e95f21546a1358.stdout",
+    "stderr": "2cabe1ec052c4f62b6e95f21546a1358.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true."
+    ]
+  },
+  {
+    "name": "pv-reachability",
+    "run_id": "ee9c8a4e20de4d4bbfd3ab9082556187",
+    "exit_code": 0,
+    "elapsed_seconds": 0.02065874999971129,
+    "stdout": "ee9c8a4e20de4d4bbfd3ab9082556187.stdout",
+    "stderr": "ee9c8a4e20de4d4bbfd3ab9082556187.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.",
+      "RESULT not event(RedWrites(red_msg[])) cannot be proved.",
+      "RESULT not event(LeadEmitsToDefense(red_msg[])) cannot be proved.",
+      "RESULT not event(DefenseLearnsRed(red_msg[])) cannot be proved."
+    ]
+  },
+  {
+    "name": "pv-joint",
+    "run_id": "f5e8593e36954710982283472290c362",
+    "exit_code": 0,
+    "elapsed_seconds": 0.02068458401481621,
+    "stdout": "f5e8593e36954710982283472290c362.stdout",
+    "stderr": "f5e8593e36954710982283472290c362.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.",
+      "RESULT not event(DefenseWrites(def_msg[])) cannot be proved.",
+      "RESULT not event(BothDefenseRoles) cannot be proved."
+    ]
+  },
+  {
+    "name": "pv-leak-red-control",
+    "run_id": "ccbce465be0d4023b406e4bcc529d92f",
+    "exit_code": 0,
+    "elapsed_seconds": 0.010191958019277081,
+    "stdout": "ccbce465be0d4023b406e4bcc529d92f.stdout",
+    "stderr": "ccbce465be0d4023b406e4bcc529d92f.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) cannot be proved.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true."
+    ]
+  },
+  {
+    "name": "pv-leak-defense-control",
+    "run_id": "12a8586688f84c3c92790993309fd31a",
+    "exit_code": 0,
+    "elapsed_seconds": 0.01037012500455603,
+    "stdout": "12a8586688f84c3c92790993309fd31a.stdout",
+    "stderr": "12a8586688f84c3c92790993309fd31a.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) cannot be proved.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true."
+    ]
+  },
+  {
+    "name": "pv-reachability-live",
+    "run_id": "c8dcd99d10204b438acb990b5266426c",
+    "exit_code": 0,
+    "elapsed_seconds": 0.010800374991958961,
+    "stdout": "c8dcd99d10204b438acb990b5266426c.stdout",
+    "stderr": "c8dcd99d10204b438acb990b5266426c.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.",
+      "RESULT not event(RedWrites(red_msg[])) is false.",
+      "RESULT not event(LeadEmitsToDefense(red_msg[])) is false.",
+      "RESULT not event(DefenseLearnsRed(red_msg[])) is false."
+    ]
+  },
+  {
+    "name": "pv-joint-defense-roles-live",
+    "run_id": "0c7297eb1032493c92c5acb44a90c469",
+    "exit_code": 0,
+    "elapsed_seconds": 0.010185583989368752,
+    "stdout": "0c7297eb1032493c92c5acb44a90c469.stdout",
+    "stderr": "0c7297eb1032493c92c5acb44a90c469.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.",
+      "RESULT not event(DefenseWrites(def_msg[])) is false.",
+      "RESULT not event(BothDefenseRoles) is false."
+    ]
+  },
+  {
+    "name": "pv-leak-red-control-live",
+    "run_id": "d14d9a8afa8c42aabd3a2c924b951c52",
+    "exit_code": 0,
+    "elapsed_seconds": 0.010420000005979091,
+    "stdout": "d14d9a8afa8c42aabd3a2c924b951c52.stdout",
+    "stderr": "d14d9a8afa8c42aabd3a2c924b951c52.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is false.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true."
+    ]
+  },
+  {
+    "name": "pv-leak-defense-control-live",
+    "run_id": "b2434c5f3e0345e9b0af0ef19099d334",
+    "exit_code": 0,
+    "elapsed_seconds": 0.010406959016108885,
+    "stdout": "b2434c5f3e0345e9b0af0ef19099d334.stdout",
+    "stderr": "b2434c5f3e0345e9b0af0ef19099d334.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is false.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true."
+    ]
+  },
+  {
+    "name": "pv-seal-before-receive-live",
+    "run_id": "d9de71c0fe9e49809df20b2c86981590",
+    "exit_code": 0,
+    "elapsed_seconds": 0.010308584023732692,
+    "stdout": "d9de71c0fe9e49809df20b2c86981590.stdout",
+    "stderr": "d9de71c0fe9e49809df20b2c86981590.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.",
+      "RESULT event(DefenseLearnsRed(red_msg[])) ==> event(AttackManifestSealed) is false."
+    ]
+  },
+  {
+    "name": "tlc-bound",
+    "run_id": "f31406e99ed34415bedbc49658526c57",
+    "exit_code": 0,
+    "elapsed_seconds": 0.2928116249968298,
+    "stdout": "f31406e99ed34415bedbc49658526c57.stdout",
+    "stderr": "f31406e99ed34415bedbc49658526c57.stderr",
+    "results": [
+      "Model checking completed. No error has been found.",
+      "22 states generated, 12 distinct states found, 0 states left on queue."
+    ]
+  },
+  {
+    "name": "tlc-unbound",
+    "run_id": "ef51171dee67435bbecc9e75817412bd",
+    "exit_code": 12,
+    "elapsed_seconds": 0.3514183329825755,
+    "stdout": "ef51171dee67435bbecc9e75817412bd.stdout",
+    "stderr": "ef51171dee67435bbecc9e75817412bd.stderr",
+    "results": [
+      "Error: Invariant SafeAdmission is violated.",
+      "Error: The behavior up to this point is:",
+      "10 states generated, 7 distinct states found, 2 states left on queue."
+    ]
+  },
+  {
+    "name": "tlc-accepted",
+    "run_id": "40d38cc88b744b968fb946cb4b872c8c",
+    "exit_code": 12,
+    "elapsed_seconds": 0.3438394580152817,
+    "stdout": "40d38cc88b744b968fb946cb4b872c8c.stdout",
+    "stderr": "40d38cc88b744b968fb946cb4b872c8c.stderr",
+    "results": [
+      "Error: Invariant NoAdmission is violated.",
+      "Error: The behavior up to this point is:",
+      "6 states generated, 5 distinct states found, 2 states left on queue."
+    ]
+  },
+  {
+    "name": "tlc-stale_rejected",
+    "run_id": "31db798d1b9e4dcf88e2ff3e07ee0330",
+    "exit_code": 12,
+    "elapsed_seconds": 0.34364966698922217,
+    "stdout": "31db798d1b9e4dcf88e2ff3e07ee0330.stdout",
+    "stderr": "31db798d1b9e4dcf88e2ff3e07ee0330.stderr",
+    "results": [
+      "Error: Invariant NoStaleRejection is violated.",
+      "Error: The behavior up to this point is:",
+      "9 states generated, 7 distinct states found, 2 states left on queue."
+    ]
+  },
+  {
+    "name": "pv-parallel-one-defense-key",
+    "run_id": "68cc8387900241a393f003b13f129c90",
+    "exit_code": 0,
+    "elapsed_seconds": 0.020732375007355586,
+    "stdout": "68cc8387900241a393f003b13f129c90.stdout",
+    "stderr": "68cc8387900241a393f003b13f129c90.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.",
+      "RESULT not event(DefenseWrites(def_msg[])) is false.",
+      "RESULT not event(BothDefenseRoles) cannot be proved."
+    ]
+  },
+  {
+    "name": "pv-parallel-two-defense-keys",
+    "run_id": "b82552cd2af24e37b5cd301780260e7c",
+    "exit_code": 0,
+    "elapsed_seconds": 0.01897512498544529,
+    "stdout": "b82552cd2af24e37b5cd301780260e7c.stdout",
+    "stderr": "b82552cd2af24e37b5cd301780260e7c.stderr",
+    "results": [
+      "RESULT not attacker(red_msg[]) is true.",
+      "RESULT not attacker(def_msg[]) is true.",
+      "RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.",
+      "RESULT not event(DefenseWrites(def_msg[])) is false.",
+      "RESULT not event(BothDefenseRoles) is false."
+    ]
+  },
+  {
+    "name": "tlc-stable-revision-mutant",
+    "run_id": "fe3cd3085f334327bfbcde18ee9445ec",
+    "exit_code": 12,
+    "elapsed_seconds": 0.34112720799748786,
+    "stdout": "fe3cd3085f334327bfbcde18ee9445ec.stdout",
+    "stderr": "fe3cd3085f334327bfbcde18ee9445ec.stderr",
+    "results": [
+      "Error: Invariant SafeAdmission is violated.",
+      "Error: The behavior up to this point is:",
+      "11 states generated, 7 distinct states found, 2 states left on queue."
+    ]
+  },
+  {
+    "name": "python-reachability-sweep",
+    "run_id": "85a746e047584d93a2abff36b654551f",
+    "exit_code": 0,
+    "elapsed_seconds": 1.5334932080004364,
+    "stdout": "85a746e047584d93a2abff36b654551f.stdout",
+    "stderr": "85a746e047584d93a2abff36b654551f.stderr",
+    "results": []
+  },
+  {
+    "name": "proverif-version",
+    "run_id": "a7392d0c632e4b69b70fc8dc853328ed",
+    "exit_code": 0,
+    "elapsed_seconds": 0.00569937500404194,
+    "stdout": "a7392d0c632e4b69b70fc8dc853328ed.stdout",
+    "stderr": "a7392d0c632e4b69b70fc8dc853328ed.stderr",
+    "results": []
+  },
+  {
+    "name": "java-version",
+    "run_id": "b1d8a9d9945b4c20bbf92f7966ed95d2",
+    "exit_code": 0,
+    "elapsed_seconds": 0.039777290978236124,
+    "stdout": "b1d8a9d9945b4c20bbf92f7966ed95d2.stdout",
+    "stderr": "b1d8a9d9945b4c20bbf92f7966ed95d2.stderr",
+    "results": []
+  }
+]

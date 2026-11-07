@@ -1,0 +1,207 @@
+Process 0 (that is, the initial process):
+{1}new rk: key;
+{2}new dk: key;
+{3}new sk_red: signkey;
+{4}new sk_def: signkey;
+{5}new sk_lead: signkey;
+{6}out(daemon, pk(sk_lead));
+(
+    {7}let rk_1: key = rk in
+    {8}let sk_red_1: signkey = sk_red in
+    {9}event RedWrites(red_msg);
+    {10}let ct: bitstring = aenc(red_msg,rk_1,ad_red_v21) in
+    {11}let s: bitstring = sign(ct,sk_red_1) in
+    {12}out(daemon, (ct,s,pk(sk_red_1)));
+    {13}event AttackManifestSealed
+) | (
+    {14}let dk_1: key = dk in
+    {15}let sk_def_1: signkey = sk_def in
+    {16}let ct_1: bitstring = aenc(def_msg,dk_1,ad_def_v21) in
+    {17}let s_1: bitstring = sign(ct_1,sk_def_1) in
+    {18}out(daemon, (ct_1,s_1,pk(sk_def_1)))
+) | (
+    {19}let dk_2: key = dk in
+    {20}let sk_lead_pub: vkey = pk(sk_lead) in
+    {21}in(daemon, (gate_ct: bitstring,gate_sig: bitstring));
+    {22}if (verify(gate_sig,gate_ct,sk_lead_pub) = true) then
+    {23}let plain: bitstring = adec(gate_ct,dk_2,ad_def_v21) in
+    {24}event DefenseLearnsRed(plain)
+) | (
+    {25}let rk_2: key = rk in
+    {26}let dk_3: key = dk in
+    {27}let sk_lead_1: signkey = sk_lead in
+    {28}let sk_red_pub: vkey = pk(sk_red) in
+    {29}in(daemon, (ct_2: bitstring,s_2: bitstring,pkr: vkey));
+    {30}if (verify(s_2,ct_2,sk_red_pub) = true) then
+    {31}let plain_1: bitstring = adec(ct_2,rk_2,ad_red_v21) in
+    {32}event LeadEmitsToDefense(plain_1);
+    {33}let resealed: bitstring = aenc(plain_1,dk_3,ad_def_v21) in
+    {34}let s2: bitstring = sign(resealed,sk_lead_1) in
+    {35}out(daemon, (resealed,s2))
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new rk: key;
+{2}new dk: key;
+{3}new sk_red: signkey;
+{4}new sk_def: signkey;
+{5}new sk_lead: signkey;
+{6}out(daemon, pk(sk_lead));
+(
+    {9}event RedWrites(red_msg);
+    {7}let rk_1: key = rk in
+    {10}let ct: bitstring = aenc(red_msg,rk_1,ad_red_v21) in
+    {8}let sk_red_1: signkey = sk_red in
+    {11}let s: bitstring = sign(ct,sk_red_1) in
+    {12}out(daemon, (ct,s,pk(sk_red_1)));
+    {13}event AttackManifestSealed
+) | (
+    {14}let dk_1: key = dk in
+    {16}let ct_1: bitstring = aenc(def_msg,dk_1,ad_def_v21) in
+    {15}let sk_def_1: signkey = sk_def in
+    {17}let s_1: bitstring = sign(ct_1,sk_def_1) in
+    {18}out(daemon, (ct_1,s_1,pk(sk_def_1)))
+) | (
+    {21}in(daemon, (gate_ct: bitstring,gate_sig: bitstring));
+    {20}let sk_lead_pub: vkey = pk(sk_lead) in
+    {22}if (verify(gate_sig,gate_ct,sk_lead_pub) = true) then
+    {19}let dk_2: key = dk in
+    {23}let plain: bitstring = adec(gate_ct,dk_2,ad_def_v21) in
+    {24}event DefenseLearnsRed(plain)
+) | (
+    {29}in(daemon, (ct_2: bitstring,s_2: bitstring,pkr: vkey));
+    {28}let sk_red_pub: vkey = pk(sk_red) in
+    {30}if (verify(s_2,ct_2,sk_red_pub) = true) then
+    {25}let rk_2: key = rk in
+    {31}let plain_1: bitstring = adec(ct_2,rk_2,ad_red_v21) in
+    {32}event LeadEmitsToDefense(plain_1);
+    {26}let dk_3: key = dk in
+    {33}let resealed: bitstring = aenc(plain_1,dk_3,ad_def_v21) in
+    {27}let sk_lead_1: signkey = sk_lead in
+    {34}let s2: bitstring = sign(resealed,sk_lead_1) in
+    {35}out(daemon, (resealed,s2))
+)
+
+-- Query not attacker(red_msg[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(red_msg[])
+RESULT not attacker(red_msg[]) is true.
+-- Query not attacker(def_msg[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(def_msg[])
+RESULT not attacker(def_msg[]) is true.
+-- Query inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x))
+goal reachable: b-inj-event(LeadEmitsToDefense(red_msg[]),@occ32_1) && attacker(pkr_1) -> inj-event(DefenseLearnsRed(red_msg[]),@occ24_1)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+@occ24_1 = @occ24[gate_sig = sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]),gate_ct = aenc(red_msg[],dk[],ad_def_v21[])]
+@occ32_1 = @occ32[pkr = pkr_1,s_2 = sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),ct_2 = aenc(red_msg[],rk[],ad_red_v21[])]
+RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.
+-- Query event(DefenseLearnsRed(red_msg[])) ==> event(AttackManifestSealed) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(DefenseLearnsRed(red_msg[])) ==> event(AttackManifestSealed)
+goal reachable: event(DefenseLearnsRed(red_msg[]))
+
+Derivation:
+
+1. The attacker has some term pkr_1.
+attacker(pkr_1).
+
+2. The message (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pk(sk_red[])) may be sent to the attacker at output {12}.
+attacker((aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pk(sk_red[]))).
+
+3. By 2, the attacker may know (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pk(sk_red[])).
+Using the function 2-proj-3-tuple the attacker may obtain sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]).
+attacker(sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[])).
+
+4. By 2, the attacker may know (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pk(sk_red[])).
+Using the function 1-proj-3-tuple the attacker may obtain aenc(red_msg[],rk[],ad_red_v21[]).
+attacker(aenc(red_msg[],rk[],ad_red_v21[])).
+
+5. By 4, the attacker may know aenc(red_msg[],rk[],ad_red_v21[]).
+By 3, the attacker may know sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]).
+By 1, the attacker may know pkr_1.
+Using the function 3-tuple the attacker may obtain (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pkr_1).
+attacker((aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pkr_1)).
+
+6. The message (aenc(red_msg[],rk[],ad_red_v21[]),sign(aenc(red_msg[],rk[],ad_red_v21[]),sk_red[]),pkr_1) that the attacker may have by 5 may be received at input {29}.
+So the message (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])) may be sent to the attacker at output {35}.
+attacker((aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]))).
+
+7. By 6, the attacker may know (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]).
+attacker(sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])).
+
+8. By 6, the attacker may know (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])).
+Using the function 1-proj-2-tuple the attacker may obtain aenc(red_msg[],dk[],ad_def_v21[]).
+attacker(aenc(red_msg[],dk[],ad_def_v21[])).
+
+9. By 8, the attacker may know aenc(red_msg[],dk[],ad_def_v21[]).
+By 7, the attacker may know sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]).
+Using the function 2-tuple the attacker may obtain (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])).
+attacker((aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[]))).
+
+10. The message (aenc(red_msg[],dk[],ad_def_v21[]),sign(aenc(red_msg[],dk[],ad_def_v21[]),sk_lead[])) that the attacker may have by 9 may be received at input {21}.
+So event DefenseLearnsRed(red_msg[]) may be executed at {24}.
+event(DefenseLearnsRed(red_msg[])).
+
+11. By 10, event(DefenseLearnsRed(red_msg[])).
+The goal is reached, represented in the following fact:
+event(DefenseLearnsRed(red_msg[])).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new rk: key creating rk_3 at {1}
+
+new dk: key creating dk_4 at {2}
+
+new sk_red: signkey creating sk_red_2 at {3}
+
+new sk_def: signkey creating sk_def_2 at {4}
+
+new sk_lead: signkey creating sk_lead_2 at {5}
+
+out(daemon, ~M) with ~M = pk(sk_lead_2) at {6}
+
+out(daemon, (~M_1,~M_2,~M_3)) with ~M_1 = aenc(def_msg,dk_4,ad_def_v21), ~M_2 = sign(aenc(def_msg,dk_4,ad_def_v21),sk_def_2), ~M_3 = pk(sk_def_2) at {18}
+
+event RedWrites(red_msg) at {9}
+
+out(daemon, (~M_4,~M_5,~M_6)) with ~M_4 = aenc(red_msg,rk_3,ad_red_v21), ~M_5 = sign(aenc(red_msg,rk_3,ad_red_v21),sk_red_2), ~M_6 = pk(sk_red_2) at {12}
+
+in(daemon, (~M_4,~M_5,a)) with ~M_4 = aenc(red_msg,rk_3,ad_red_v21), ~M_5 = sign(aenc(red_msg,rk_3,ad_red_v21),sk_red_2) at {29}
+
+event LeadEmitsToDefense(red_msg) at {32}
+
+out(daemon, (~M_7,~M_8)) with ~M_7 = aenc(red_msg,dk_4,ad_def_v21), ~M_8 = sign(aenc(red_msg,dk_4,ad_def_v21),sk_lead_2) at {35}
+
+in(daemon, (~M_7,~M_8)) with ~M_7 = aenc(red_msg,dk_4,ad_def_v21), ~M_8 = sign(aenc(red_msg,dk_4,ad_def_v21),sk_lead_2) at {21}
+
+event DefenseLearnsRed(red_msg) at {24} (goal)
+
+The event DefenseLearnsRed(red_msg) is executed at {24}.
+A trace has been found.
+RESULT event(DefenseLearnsRed(red_msg[])) ==> event(AttackManifestSealed) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(red_msg[]) is true.
+
+Query not attacker(def_msg[]) is true.
+
+Query inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.
+
+Query event(DefenseLearnsRed(red_msg[])) ==> event(AttackManifestSealed) is false.
+
+--------------------------------------------------------------
+

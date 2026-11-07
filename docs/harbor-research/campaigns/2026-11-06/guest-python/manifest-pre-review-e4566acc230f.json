@@ -1,0 +1,38 @@
+{
+  "kind": "fixed-python-proof-v1",
+  "payload_source": "skills/harbor-results/scripts/scout_claim_counterexamples.py",
+  "payload_sha256": "a4f42505a4bfc7dfe71aa5a37aedaa86861e5c09f0c1f37009d88f39eed869a2",
+  "negative_control_sha256": "c4b12b0a0031456ac72dcbd1d6eed0bbc2a9371dcb0d499339687cd85e20686e",
+  "python_version": "3.12.16-r0",
+  "runtime_lock_sha256": "edb683fa5f4d46c248e3a6c90eb6c831f6177e0b1cd3a6700ad951cfdb3decba",
+  "positive_command": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/proof/payload.py"
+  ],
+  "negative_command": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/proof/negative.py"
+  ],
+  "expected_exit_codes": {
+    "positive": 0,
+    "negative": 1
+  },
+  "boundary_profile": "proof-offline-v1",
+  "staging_directory": "/Users/erichowens/coding/tmp/research-program-next-result-20261106/.cache/proof-guest/python-0192b1b4c3ad",
+  "input_token": "python-fixed-input-3637607b18a100fc",
+  "runtime_files": 756,
+  "runtime_file_bytes": 39668425,
+  "sha256": {
+    "kernel": "ee66670649107e2efe319a436c9b9caf84b093d471f73577d54292e5c081b80b",
+    "initrd": "fb633ed0e67764f818ff9fcb2d8ea55d33a5f84fd30ac15ef536ae66f9f776eb",
+    "input.raw": "913f50b77f9e1f11974652f4744f75749a50180a1292b3f301edd3246a07441c",
+    "state.raw": "2daeb1f36095b44b318410b3f4e8b5d989dcc7bb023d1426c492dab0a3053e74"
+  },
+  "helper_sha256": "2833851af7b10230e97c6b9014e90bf1dc085687bfc2f5d873ad297df4f5e8ca",
+  "controller_sha256": "54f09aadbe1f3c8902b2ec0252efad56d18298a9df224b700239f9b07da41a1e",
+  "guest_workload_sha256": "792a69813c840eef14b444d54a9ea3160611bc2625c293f14304b5a074bcc67d"
+}

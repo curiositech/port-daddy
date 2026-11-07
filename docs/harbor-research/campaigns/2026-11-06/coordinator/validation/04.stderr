@@ -1,0 +1,16 @@
+test_changed_seal_and_untracked_artifacts_fail_closed (__main__.WarRoomTests.test_changed_seal_and_untracked_artifacts_fail_closed) ... ok
+test_cli_rejects_missing_evidence (__main__.WarRoomTests.test_cli_rejects_missing_evidence) ... ok
+test_host_mode_is_not_cross_team_privacy (__main__.WarRoomTests.test_host_mode_is_not_cross_team_privacy) ... ok
+test_incomplete_start_cannot_run_or_seal (__main__.WarRoomTests.test_incomplete_start_cannot_run_or_seal) ... ok
+test_log_mutation_and_truncation_fail_closed (__main__.WarRoomTests.test_log_mutation_and_truncation_fail_closed) ... ok
+test_missing_log_and_changed_input_fail_closed (__main__.WarRoomTests.test_missing_log_and_changed_input_fail_closed) ... ok
+test_no_shell_interpolation_and_no_ambient_secret_env (__main__.WarRoomTests.test_no_shell_interpolation_and_no_ambient_secret_env) ... ok
+test_output_tampering_and_missing_file (__main__.WarRoomTests.test_output_tampering_and_missing_file) ... ok
+test_reject_bad_paths_symlink_and_unreviewed_command (__main__.WarRoomTests.test_reject_bad_paths_symlink_and_unreviewed_command) ... ok
+test_run_capture_seal_and_external_anchor (__main__.WarRoomTests.test_run_capture_seal_and_external_anchor) ... ok
+test_timeout_is_logged_not_a_success_claim (__main__.WarRoomTests.test_timeout_is_logged_not_a_success_claim) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.412s
+
+OK

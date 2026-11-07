@@ -1,0 +1,6 @@
+dense fixture: 1 unsafe fact-set decision; 16 distinct O/F pairs; 32 shared-scope pair incidences; same-mode control safe; no optimized-scan claim
+exhaustive graph/label/policy decisions: 49152; safe=18624; unsafe=30528; replayed unsafe witnesses=30528; disagreements=0
+model schema rejection cases: 16
+policy schema rejection cases: 7; invalid budget cases: 4
+modeled two-operation workflow: 8 reachable states, 8 distinct fact sets, 4 maximal sets; before=safe, admitted=unsafe; witness transitions=1
+model adequacy control: omitted route=safe; supplied route=unsafe; artifact binding does not establish runtime route coverage
