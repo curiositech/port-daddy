@@ -63,6 +63,8 @@ def atomic_admission(summary, base):
                           'classifications': dict(Counter(site['classification'] for site in contract['sites'])),
                           'limitations': contract['limitations']}
     result['sources'] = [source_artifact(source['label'], source['path'], base) for source in summary['sources']]
+    result['sources'].append(source_artifact('Omni: accepted local result and remaining effect work',
+        'docs/harbor-research/OMNI-LEDGER.md', base))
     return result
 
 
