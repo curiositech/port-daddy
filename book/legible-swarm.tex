@@ -3187,6 +3187,7 @@ design proposal without treating the arrows as a deduction.
 \input{figures/legible-swarm-hayek-scott}
 
 \pdexercisepointer{\ref{ex:ls-hobbes-mapping}}{\ref{ex:ls-ranker-political-organ}}{\pageref{ex:ls-hobbes-mapping}}
+\input{additions/ls-many-authors}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section*{Review of the key ideas}
@@ -3214,6 +3215,9 @@ counterexample shows why a one-record budget can force conflicting choices.
 The counting comparison prices different coverage budgets. The classical
 cache bound controls retrieval cost for its specified algorithm and comparator,
 not comprehension or arbitrary pinning policies.
+\item \textbf{Several authors, one sovereign.} Many principals keep the single
+writer; what they add is one charter, one owner per scope, and a delegation
+tree. Escalation has a well-defined path exactly when delegation is a tree.
 \end{enumerate}
 
 \section{Exercises}
@@ -3787,6 +3791,7 @@ terminate, and on what principle?
 \begin{pdsolution}{ex:ls-ranker-political-organ}
 Same construction as Exercise~\ref{ex:ls-ranker-counter-surface}: one complete, append-only decision ledger recording every candidate, its ranking decision, reason codes, and a counterfactual, queryable directly and sampled independently of the production ranker rather than re-ranked by a second dashboard. The regress terminates at completeness plus direct sampling --- the base ledger already records every candidate and decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to audit the ranker's omissions. The remaining trust assumption is the completeness of the event-capture boundary itself; that assumption should be tested and externally anchored, not hidden behind another summary.
 \end{pdsolution}
+\input{additions/ls-exercises-authors}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Related work and prior art}\label{sec:related}
@@ -4361,12 +4366,95 @@ Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable
 \newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
 \newblock \url{https://doi.org/10.14722/ndss.2014.23212}
 
-% Bibliography entries for ls-fit-uplift.tex (attribution strand).
 \bibitem{li2026skillsbench}
 Xiangyi Li, Yimin Liu, Wenbo Chen, Bingran You, et al.
 \newblock SkillsBench: Benchmarking How Well Agent Skills Work Across Diverse Tasks.
 \newblock arXiv:2602.12670, 2026.
 \newblock \url{https://arxiv.org/abs/2602.12670}
+\bibitem{mediratta2026parallact}
+Rishabh Mediratta, Lingyun Xiao, Peter Stone, Joydeep Biswas, and Elias Stengel-Eskin.
+\newblock Decentralized Multi-Agent Coordination and Communication in Shared Codebases.
+\newblock arXiv:2611.00314, 2026. \url{https://arxiv.org/abs/2611.00314}
+
+\bibitem{fema2017nims}
+FEMA.
+\newblock \textit{National Incident Management System}, Third Edition.
+\newblock U.S.\ Department of Homeland Security, Federal Emergency Management Agency, October 2017.
+
+\bibitem{ostrom2010polycentric}
+Elinor Ostrom.
+\newblock Beyond Markets and States: Polycentric Governance of Complex Economic Systems.
+\newblock \textit{American Economic Review}, 100(3):641--672, 2010.
+\newblock \url{https://web.pdx.edu/~nwallace/EHP/OstromPolyGov.pdf}
+
+\bibitem{hardy1988confused}
+Norm Hardy.
+\newblock The Confused Deputy (or why capabilities might have been invented).
+\newblock \textit{ACM SIGOPS Operating Systems Review}, 22(4):36--38, 1988.
+\newblock \url{https://css.csail.mit.edu/6.566/2011/readings/confused-deputy.html}
+
+\bibitem{olson2024defeasible}
+Taylor Olson, Roberto Salas-Damian, and Kenneth D.\ Forbus.
+\newblock A Defeasible Deontic Calculus for Resolving Norm Conflicts.
+\newblock arXiv:2407.04869, 2024. \url{https://arxiv.org/abs/2407.04869}
+
+\bibitem{githubcodeowners}
+GitHub.
+\newblock About Code Owners.
+\newblock GitHub Docs, accessed November 2026.
+\newblock \url{https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners}
+
+\bibitem{brun2011proactive}
+Yuriy Brun, Reid Holmes, Michael D.\ Ernst, and David Notkin.
+\newblock Proactive Detection of Collaboration Conflicts.
+\newblock In \textit{Proceedings of ESEC/FSE}, 2011.
+\newblock \url{https://homes.cs.washington.edu/~mernst/pubs/vc-conflicts-fse2011.pdf}
+
+\bibitem{ananthanarayanan2019keeping}
+Sundaram Ananthanarayanan, Masoud Saeida Ardekani, Denis Haenikel, Balaji Varadarajan, Simon Soriano, Dhaval Patel, and Ali-Reza Adl-Tabatabai.
+\newblock Keeping Master Green at Scale.
+\newblock In \textit{Proceedings of EuroSys}, 2019.
+\newblock \url{https://www.uber.com/blog/research/keeping-master-green-at-scale}
+
+\bibitem{horwitz1989integrating}
+Susan Horwitz, Jan Prins, and Thomas Reps.
+\newblock Integrating Noninterfering Versions of Programs.
+\newblock \textit{ACM Transactions on Programming Languages and Systems}, 11(3):345--387, 1989.
+\newblock \url{https://www.cs.purdue.edu/homes/xyzhang/fall07/Papers/p345-horwitz.pdf}
+
+\bibitem{shapiro2011crdt}
+Marc Shapiro, Nuno Pregui\c{c}a, Carlos Baquero, and Marek Zawirski.
+\newblock Conflict-Free Replicated Data Types.
+\newblock In \textit{Stabilization, Safety, and Security of Distributed Systems (SSS)}, 2011.
+\newblock \url{https://www.cs.tufts.edu/~nr/cs257/archive/marc-shapiro/CRDTs_SSS-2011.pdf}
+
+\bibitem{kleppmann2019interleaving}
+Martin Kleppmann, Victor B.\ F.\ Gomes, Dominic P.\ Mulligan, and Alastair R.\ Beresford.
+\newblock Interleaving Anomalies in Collaborative Text Editors.
+\newblock In \textit{Workshop on Principles and Practice of Consistency for Distributed Data (PaPoC)}, 2019.
+\newblock \url{https://www.cl.cam.ac.uk/~arb33/papers/KleppmannEtAl-InterleavingAnomalies-PaPoC2019.pdf}
+
+\bibitem{fickinger2020multi}
+Arnaud Fickinger, Simon Zhuang, Dylan Hadfield-Menell, and Stuart Russell.
+\newblock Multi-Principal Assistance Games.
+\newblock Workshop on Incentives in Machine Learning, ICML, 2020. arXiv:2007.09540. \url{https://arxiv.org/abs/2007.09540}
+
+\bibitem{sen1970impossibility}
+Amartya Sen.
+\newblock The Impossibility of a Paretian Liberal.
+\newblock \textit{Journal of Political Economy}, 78(1):152--157, 1970.
+\newblock \url{https://doi.org/10.1086/259614}
+
+\bibitem{bernheim1986common}
+B.\ Douglas Bernheim and Michael D.\ Whinston.
+\newblock Common Agency.
+\newblock \textit{Econometrica}, 54(4):923--942, 1986.
+\newblock \url{https://bernheim.people.stanford.edu/publications/common-agency}
+
+\bibitem{critch2017servant}
+Andrew Critch and Stuart Russell.
+\newblock Servant of Many Masters: Shifting Priorities in Pareto-Optimal Sequential Decision-Making.
+\newblock arXiv:1711.00363, 2017. \url{https://arxiv.org/abs/1711.00363}
 \end{thebibliography}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -4442,6 +4530,7 @@ A & Thoughtful landing / merge ordering & \BuiltWeak & \path{lib/}\allowbreak\pa
 O & Operator-attention objective (SDT-spined) & \Vision & Invariant~\ref{def:sdt}; unmodeled in code \\
 O & Trust calibration via canary + catch-rate & \Vision & no implementation \\
 O & Consent grant + inalienable override & \Vision & Invariant~\ref{def:consent}, Invariant~\ref{prop:override} \\
+O & Many-author charter, owner table and escalation routing & \Vision & Invariant~\ref{def:ls-many-authors}; no implementation \\
 O & Time-axis legibility (replay, provenance) & \Designed & Event log \Built; interactive replay and provenance navigation proposed \\
 O & Ambient legibility (menu-bar indicator on PASS$\to$FAIL) & \BuiltWeak & indicator exists; watchdog wire \Designed \\
 \end{xltabular}}

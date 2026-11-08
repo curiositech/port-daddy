@@ -61,17 +61,17 @@ channels.
 principal. Figures are the cited studies' measurements on their own models and
 data, not measurements of the reference system.}
 \label{tab:sealed-tenant-channels}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}p{2.5cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.9cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.4cm}@{}}
 \toprule
-Channel & Mechanism & Evidence & Defense in this design \\
+Channel & Evidence & Defense \\
 \midrule
-Shared weights & rare or repeated sequences regurgitated & 604 verbatim training examples among 1{,}800 GPT-2 candidates, some from a single document \pdcite{carlini2021extracting}; more than 10{,}000 examples from ChatGPT for \$200, with memorized personal information in 16.9\% of tested generations \pdcite{nasr2023scalable} & ledger-charged training; deduplication as hygiene \\
-Fine-tuned adapter & small, recent data; reactivated memory & 23\% of personal information extracted at 30\% precision, about 3\% at $\varepsilon=8$ \pdcite{lukas2023pii}; ten fine-tuning examples recover 69.9\% of targeted email addresses, where jailbreaks recover none \pdcite{chen2023janus} & per-tenant adapter; ledger; no fine-tuning interface on shared models \\
-Shared memory, read & exact release & 116 of 250 prompts reproduce retrieved records; 250 targeted prompts extract 205 items of personal information \pdcite{zeng2024rag} & owner labels; per-tenant stores \\
-Shared memory, write & planted record replayed as instruction & 98.2\% injection and 76.8\% attack success from queries alone \pdcite{dong2025minja}; five texts per target, about 90\% \pdcite{zou2024poisonedrag} & integrity class \\
-Prompt or key-value cache & timing of cache hits & caches shared globally across users at seven API providers, including OpenAI \pdcite{gu2025caching} & Design invariant~\ref{inv:sealed-label-keyed} \\
-Preference data & route of training & reward model and RL memorize far less than direct fine-tuning; IPO-style learning more than RL \pdcite{pappu2024rlhf} & reward-model route; ledger \\
-Deletion & influence left in weights & unlearning well defined only at the algorithmic level \pdcite{thudi2021unlearning} & retrain the tenant adapter; ledger bound \\
+Shared weights: rare sequences regurgitated & 604 of 1{,}800 GPT-2 candidates were verbatim training text \pdcite{carlini2021extracting}; over 10{,}000 examples from ChatGPT for \$200 \pdcite{nasr2023scalable} & ledger-charged training; deduplication \\
+Fine-tuned adapter: small, recent data & 23\% of personal data extracted, about 3\% at $\varepsilon=8$ \pdcite{lukas2023pii}; ten examples recover 69.9\% of targeted addresses \pdcite{chen2023janus} & per-tenant adapter; ledger \\
+Shared memory, read: exact release & 116 of 250 prompts reproduce retrieved records \pdcite{zeng2024rag} & owner labels; per-tenant stores \\
+Shared memory, write: planted instruction & 98.2\% injection success from queries alone \pdcite{dong2025minja}; five texts per target, about 90\% \pdcite{zou2024poisonedrag} & integrity class \\
+Prompt or key-value cache: hit timing & caches shared across users at seven API providers, including OpenAI \pdcite{gu2025caching} & Design invariant~\ref{inv:sealed-label-keyed} \\
+Preference data: training route & reward model and RL memorize far less than direct fine-tuning; IPO-style learning more than RL \pdcite{pappu2024rlhf} & reward-model route; ledger \\
+Deletion: influence left in weights & unlearning is well defined only at the algorithmic level \pdcite{thudi2021unlearning} & retrain the adapter; ledger bound \\
 \bottomrule
 \end{tabularx}
 \end{table}

@@ -122,7 +122,7 @@ pause escalates to the scope's owner.
 \end{enumerate}
 \end{pdclaim}
 
-\noindent Three of these rules answer objections the single-operator design
+\noindent Five of these rules answer objections the single-operator design
 never met.
 
 Rule R1 is not ``one administrator'' under another name. The incident command
@@ -171,37 +171,51 @@ daemon holds only commitments: what each person obliged, forbade, claimed and
 scheduled. At \emph{claim time} it also holds what each agent plans to touch.
 At \emph{admission time} it holds the actual combined state that a commit would
 produce. Each moment sees more and comes later.
-Table~\ref{tab:ls-conflict-classes} sorts conflicts by the earliest moment that
-can see them. ``Detectable'' means a stated procedure decides the question; it
+Tables~\ref{tab:ls-conflict-classes} and~\ref{tab:ls-conflict-classes-code}
+sort conflicts by the earliest moment that can see them. ``Detectable'' means a stated procedure decides the question; it
 does not mean the procedure has been run on this system.
 
 \begin{table}[tp]
 \centering
-\caption{Conflict classes between directions from several principals, the
-earliest moment each can be found, and what happens when it is. Rows 2--5 use
-the commitment checker of \pdchapref{he}{The Harbor Economy}; rows 6--8 concern
-program behavior, where detection weakens and then fails.}
+\caption{Conflicts between principals' commitments and claims, the earliest
+moment each can be found, and the response. Rows 2--5 use the commitment
+checker of \pdchapref{he}{The Harbor Economy}.}
 \label{tab:ls-conflict-classes}
 \small
 \renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.22\linewidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Class (example)} & \textbf{Found before execution?} & \textbf{Mechanism} & \textbf{When found} \\
+\textbf{Class (example)} & \textbf{Found before execution?} & \textbf{Response} \\
 \midrule
-1.\ Claim overlap (two agents claim one file) & Yes, at claim time; complete for the overlap relation & Overlap scan; fenced lease & Release, expiry, bonded preemption, then a human ruling routed by R8 \\
-2.\ Opposed directions, including derived ones (migrate vs.\ freeze) & Yes, at instruction time; polynomial, with a witness & Tagged commitment checker & Precedence (R7); otherwise escalate (R8) \\
-3.\ Choices that cannot all be met (``use A or B'') & Decidable but NP-complete, even when each person alone is consistent & Bounded search for a checkable selection & A timeout refuses admission; escalate with the partial witness \\
-4.\ Infeasible schedule (deadline vs.\ review window) & Yes; a negative cycle in the deadline graph & Shortest-path feasibility test & Owner of the deadline \\
-5.\ A later direction fires a dormant rule & Only against a declared family of reachable futures & Recheck at every admission & Later issuer informed; owner resolves \\
-6.\ Clean textual merge, broken build (signature change vs.\ caller) & Partly at claim time, by symbol claims and a dependency graph; certainly only by building the combined state & Speculative merge and build~\pdcite{brun2011proactive}; build-graph conflict analysis~\pdcite{ananthanarayanan2019keeping}; combined-head guard & Integration owner issues a narrow joint grant \\
-7.\ Merged code meets one specification only & No: undecidable in general~\pdcite{horwitz1989integrating} & Safe approximation; tests as a partial oracle & Both specification owners; dissent recorded \\
-8.\ Two people editing one text live & Convergence is guaranteed; intent is not~\pdcite{shapiro2011crdt,kleppmann2019interleaving} & CRDT or operational transform, for text & Result treated as a proposal for admission \\
-9.\ Disagreement about values, with no fact to find & Detectable as a clash; not decidable by computation & None; the charter decides & One binary proposal to the scope owner \\
+1.\ Claim overlap (two agents, one file) & Yes, at claim time, by overlap scan & Release, expiry, preemption, then a ruling routed by R8 \\
+2.\ Opposed directions (migrate vs.\ freeze) & Yes; polynomial, with a witness & Precedence (R7), else escalate (R8) \\
+3.\ Choices that cannot all be met & Decidable; NP-complete even when each person is consistent & Bounded search; a timeout refuses admission \\
+4.\ Infeasible schedule & Yes; a negative cycle & Owner of the deadline \\
+5.\ A later direction fires a dormant rule & Only against declared reachable futures & Recheck at each admission \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Three rows deserve a sentence. Row~1's completeness is real but narrow. The
+\begin{table}[tp]
+\centering
+\caption{Conflicts in program behavior and shared text. Detection weakens from
+row 6 to row 7 and is absent in row 9.}
+\label{tab:ls-conflict-classes-code}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Class (example)} & \textbf{Found before execution?} & \textbf{Response} \\
+\midrule
+6.\ Clean merge, broken build & Partly by symbol claims; surely only by building the combined state & Integration owner grants a narrow fix \\
+7.\ Merged code meets one specification & No; undecidable in general & Both owners decide; dissent recorded \\
+8.\ Live co-editing of one text & Convergence yes, intent no & Result is a proposal for admission \\
+9.\ Disagreement about values & A clash, but not decidable & One binary proposal to the owner \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Four rows deserve a sentence. Row~1's completeness is real but narrow. The
 advisory-claim theorem of \pdchapref{bonded}{The Bonded Commons} reports every
 overlap%
 \ifpdbook
@@ -209,7 +223,11 @@ overlap%
 \fi
 , and its overlap relation is about files. A signature change in one file and a
 call in another overlap nowhere, so row~6 lies outside that guarantee
-entirely. Horwitz, Prins and Reps state row~7's limit precisely: ``it is
+entirely. Row~6's mechanisms exist in practice. Speculative analysis performs
+the likely merge, build and test ahead of time on clones and reports only the
+conflicts those steps reveal~\pdcite{brun2011proactive}; at larger scale, two
+changes are flagged when they affect a common set of build
+targets~\pdcite{ananthanarayanan2019keeping}. Horwitz, Prins and Reps state row~7's limit precisely: ``it is
 undecidable whether a program modification actually leads to'' a change in
 behavior, so their integration algorithm computes ``a safe
 approximation''~\pdcite{horwitz1989integrating}. Row~8 is the collaborative
