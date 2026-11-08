@@ -30,8 +30,8 @@ gets $W$ of them right, then for every $v$,
 $\Pr[W\ge v]$ is at most
 $\Pr\bigl[\mathrm{Bin}(r,\tfrac{e^\varepsilon}{1+e^\varepsilon})\ge v\bigr]$
 plus a term in $\delta$ that is at most $2m\delta$ \pdcite{steinke2023onerun}.
-An observed $W$ whose bound falls below $\beta$ refutes the declaration at
-level $\beta$.
+If that bound, evaluated at the observed $W$, falls below a significance level
+$\gamma$, the declaration is refuted at level $\gamma$.
 \end{pdclaim}
 
 \paragraph{Proof sketch.}
@@ -55,9 +55,9 @@ The per-canary miss rate $\beta$ depends on the canary as much as on the
 model. In non-private fine-tuning, canaries built from new tokens added to the
 vocabulary reached a 49.6\% true-positive rate at a 1\% false-positive rate,
 where random canaries reached 4.2\% \pdcite{panda2025audit}. Under private
-fine-tuning at an analytic $\varepsilon=4$ it reports an empirical lower bound
-of about 1, and a low-rank (LoRA) adapter with frozen embeddings defeats
-new-token canaries. Canaries must match the parameters the pipeline trains.
+fine-tuning at an analytic $\varepsilon=4$, the same study's audit reaches an
+empirical lower bound of only about 1, and a low-rank (LoRA) adapter with
+frozen embeddings defeats new-token canaries. Canaries must match the parameters the pipeline trains.
 
 \paragraph{A protocol for the reference system.}
 \Vision{}; nothing below has been run. Plant 1{,}000 canaries as synthetic

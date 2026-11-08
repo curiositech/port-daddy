@@ -22,10 +22,11 @@ outputs.
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sealed-person-ledger}
 Initially $\sigma(u)=0$ for every $u\in U$ and $\Lambda=()$, with budget
-$B\ge0$. The only spending transition is $\mathrm{train}(t,\rho_t)$. It
-computes the participating set
+$B\ge0$. The only spending transition is $\mathrm{train}(t,\rho_t)$. Let
+$O_t$ be the persons named in the owner labels of the round's candidate
+records. The round computes the participating set
 \[
-P_t=\{u\in U:\sigma(u)+\rho_t\le B\},
+P_t=\{u\in O_t:\sigma(u)+\rho_t\le B\},
 \]
 admits only records whose owner labels lie inside $P_t$, and \emph{atomically}
 appends $(t,P_t,\rho_t,\text{artifact hash},\text{policy hash})$ to $\Lambda$
@@ -42,7 +43,7 @@ serialization as Theorem~\ref{thm:sealed-conservation}.
 
 \textbf{Conditional privacy corollary.} Fix the person-level neighboring
 relation. Suppose every admitted round is
-$(\alpha,\rho_t)$-RDP for each person it admits, conditional on the prior
+$(\alpha,\rho_t)$-RDP for each person in $P_t$, conditional on the prior
 transcript, with mechanisms and costs selected from public information and
 previous outputs. Suppose also that the complete observer-visible interaction
 is covered, including metadata, refusals and timing. The individual privacy
@@ -62,6 +63,14 @@ changes. Non-spending transitions touch neither component. Concurrency reduces
 to the sequential case as in Theorem~\ref{thm:sealed-conservation}. With a
 single person, the theorem is that theorem with $\rho$ in place of
 $\varepsilon$. \qed
+
+A round charges only the people whose records it could read. Removing a person
+with no candidate record leaves the round's input unchanged, so the round costs
+that person nothing, and their meter does not move. This is what makes the
+meters differ: Alice, whose logs feed every round, reaches $B$ while Bob, who
+appears in one round in five, has spent a fifth as much. A ledger that charged
+everyone with budget left would be sound but would move every meter in
+lockstep.
 
 The journal records $P_t$, and whether a person's records were used is itself
 personal data. The journal therefore stays inside the confidential domain;

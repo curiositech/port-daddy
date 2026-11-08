@@ -340,6 +340,20 @@ cost~\pdcite{bernheim1986common}. ``Account, don't auction''
 (\S\ref{sec:account}) was a single-operator rule. With several operators it
 becomes an open question.
 
+\paragraph{Notation for the example.} \pdchapref{he}{The Harbor Economy}
+develops the commitment checker in full; the example below needs four pieces
+of it. $\mathsf O(a,S,[t_1,t_2])$ is an obligation: action $a$ on the scopes
+$S$ must happen between minute $t_1$ and minute $t_2$.
+$\mathsf F(a,S,[t_1,t_2])$ is a prohibition: it must not happen in that
+window. A Horn rule $p\to q$ says that whenever $p$ holds, $q$ holds too. The
+checker applies such rules until nothing new follows, and reports a conflict
+when an obligation and a prohibition on the same action and scope have
+overlapping windows. To find who is responsible, the \emph{deletion filter}
+removes one principal's commitments at a time and reruns the check, keeping a
+principal whenever the conflict disappears without them. The principals left
+at the end form the \emph{blame set}: a group whose directions still conflict
+on their own, from which no one can be dropped.
+
 \begin{pdexample}{Two Authors, Three Agents, One Afternoon}
 \setlength{\parskip}{4pt plus 1pt}
 Bob holds the charter. His grant to Alice covers writes in \texttt{payments/},
