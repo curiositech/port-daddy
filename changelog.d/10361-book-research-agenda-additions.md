@@ -1,0 +1,3 @@
+type: added
+
+- **The Book now covers control evaluations, isolation, tenancy, memory and attribution.** New sections state what a control evaluation can measure against an exact gate and a proof that one unmediated channel defeats every protocol; grade containers, gVisor, Firecracker, seL4, WebAssembly and trusted execution by which effects they make absent, gated or residual; treat many tenants, per-person ledgers and canary audits in the Sealed Harbor; add memory consolidation, skill and system-prompt attribution, incentive transmission and a players test battery; and split the Harbor Economy's licence, principal-tagged commitments and effective reviewer count. Every new research protocol is tagged Vision and says that nothing has been run.
