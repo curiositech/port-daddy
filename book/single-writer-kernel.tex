@@ -1360,6 +1360,11 @@ instead characterizes exact realization of a specified prefix-closed language
 under full observation. It distinguishes owning the credential channel for a
 push from observing an internal model event after it has happened. Neither
 statement makes local database computability necessary for every safe protocol.
+Dastani, Sardina and Yazdanpanah model three norm-enforcement mechanisms of
+normative multi-agent systems as supervisory control of discrete-event systems,
+which gives those mechanisms a formal-language semantics and lets enforcers be
+synthesized automatically for some classes of systems and
+properties~\pdcite{dastani2017normenforcement}.
 
 
 
@@ -1692,6 +1697,7 @@ property: it reports each rule as \emph{enforced}, \emph{degraded}, or
 note in \S\ref{sec:threatmodel} that one rule's enforcement (capability escalation)
 is backed by a separate native component whose evidence is the weakest in the
 subsystem, carrying a time-of-check-to-time-of-use surface.
+\input{additions/swk-control-game}
 
 % The open-font proof needs an empty margin queue here; Suisse keeps its layout.
 \ifdefined\pdbookfontprofile
@@ -2931,6 +2937,7 @@ Extend the Law-2 oracle vocabulary to capture a ``done'' condition it currently 
 A protected-run receipt: tree hash, a suite hash the principal controls, runner or image hash, command, timestamp and nonce, exit code, and a signed result. Closure verifies every binding and the freshness. This resists free-text and stale-result manipulation; it is not universally Goodhart-proof, because the suite may be incomplete or poisoned. The honest theorem is syntactic provenance and non-replay, not semantic correctness.
 \end{pdsolution}
 
+\input{additions/swk-exercises-control}
 \pdexercisesfor{\S\ref{sec:continuity}}{The continuity subsystem: memory, checkpoint, and the foundation of the economy}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-notes-vs-work}
@@ -3658,6 +3665,71 @@ ISO/IEC 15408-1:2022.
 criteria for IT security --- Part 1: Introduction and general model} (Common Criteria, CC:2022).
 \newblock International Organization for Standardization, 2022.
 
+\bibitem{dastani2017normenforcement}
+Mehdi Dastani, Sebastian Sardina, and Vahid Yazdanpanah.
+\newblock Norm Enforcement as Supervisory Control.
+\newblock In \textit{Principles and Practice of Multi-Agent Systems (PRIMA 2017)}, LNCS 10621, pages 330--348, Springer, 2017.
+\newblock \url{https://research.utwente.nl/en/publications/norm-enforcement-as-supervisory-control/}.
+
+\bibitem{hubinger2024sleeper}
+Evan Hubinger, Carson Denison, Jesse Mu, Mike Lambert, Meg Tong, Monte MacDiarmid, et al.
+\newblock Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training.
+\newblock arXiv:2401.05566, 2024.
+\newblock \url{https://arxiv.org/abs/2401.05566}.
+
+\bibitem{greenblatt2024control}
+Ryan Greenblatt, Buck Shlegeris, Kshitij Sachan, and Fabien Roger.
+\newblock AI Control: Improving Safety Despite Intentional Subversion.
+\newblock In \textit{International Conference on Machine Learning (ICML)}, PMLR 235, pages 16295--16336, 2024.
+\newblock \url{https://arxiv.org/abs/2312.06942}.
+
+\bibitem{griffin2024controlgames}
+Charlie Griffin, Louis Thomson, Buck Shlegeris, and Alessandro Abate.
+\newblock Games for AI Control: Models of Safety Evaluations of AI Deployment Protocols.
+\newblock arXiv:2409.07985, 2024; presented at the Second IASEAI Conference, 2026.
+\newblock \url{https://arxiv.org/abs/2409.07985}.
+
+\bibitem{bhatt2025ctrlz}
+Aryan Bhatt, Cody Rushing, Adam Kaufman, Tyler Tracy, Vasil Georgiev, David Matolcsi, Akbir Khan, and Buck Shlegeris.
+\newblock Ctrl-Z: Controlling AI Agents via Resampling.
+\newblock arXiv:2504.10374, 2025.
+\newblock \url{https://arxiv.org/abs/2504.10374}.
+
+\bibitem{zhong2025impossiblebench}
+Ziqian Zhong, Aditi Raghunathan, and Nicholas Carlini.
+\newblock ImpossibleBench: Measuring LLMs' Propensity of Exploiting Test Cases.
+\newblock arXiv:2510.20270, 2025.
+\newblock \url{https://arxiv.org/abs/2510.20270}.
+
+\bibitem{murray2013sel4infoflow}
+Toby Murray, Daniel Matichuk, Matthew Brassil, Peter Gammie, Timothy Bourke, Sean Seefried, Corey Lewis, Xin Gao, and Gerwin Klein.
+\newblock seL4: from General Purpose to a Proof of Information Flow Enforcement.
+\newblock In \textit{IEEE Symposium on Security and Privacy}, pages 415--429, 2013.
+\newblock \url{https://trustworthy.systems/publications/nicta_full_text/6464.pdf}.
+
+\bibitem{lehmann2020wasm}
+Daniel Lehmann, Johannes Kinder, and Michael Pradel.
+\newblock Everything Old is New Again: Binary Security of WebAssembly.
+\newblock In \textit{USENIX Security Symposium}, 2020.
+\newblock \url{https://www.usenix.org/system/files/sec20-lehmann.pdf}.
+
+\bibitem{chuang2026teefail}
+Jalen Chuang, Alex Seto, Nicolas Berrios, Stephan van Schaik, Christina Garman, and Daniel Genkin.
+\newblock TEE.fail: Breaking Trusted Execution Environments via DDR5 Memory Bus Interposition.
+\newblock In \textit{IEEE Symposium on Security and Privacy}, 2026.
+\newblock \url{https://tee.fail/}.
+
+\bibitem{marchand2026sandboxescape}
+Rahul Marchand, Art O Cathain, Jerome Wynne, Philippos Maximos Giavridis, Stuart Jennings, Freddy Tuxworth, Tolga H. Dur, Sam Deverett, John Wilkinson, Jason Gwartz, and Harry Coppock.
+\newblock Quantifying Frontier LLM Capabilities for Container Sandbox Escape.
+\newblock In \textit{International Conference on Machine Learning (ICML)}, PMLR 306, 2026.
+\newblock \url{https://arxiv.org/abs/2603.02277}.
+
+\bibitem{debenedetti2025camel}
+Edoardo Debenedetti, Ilia Shumailov, Tianqi Fan, Jamie Hayes, Nicholas Carlini, Daniel Fabian, Christoph Kern, Chongyang Shi, Andreas Terzis, and Florian Tram\`er.
+\newblock Defeating Prompt Injections by Design.
+\newblock arXiv:2503.18813, 2025.
+\newblock \url{https://arxiv.org/abs/2503.18813}.
 \end{thebibliography}
 
 \end{document}
