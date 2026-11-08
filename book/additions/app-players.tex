@@ -1,0 +1,61 @@
+% Research-agenda addition (control strand): the players test battery.
+% Inserted as a new appendix section after the cross-chapter concordance and
+% before the references.
+\section{Testing whether the players exist}\label{app:players}
+
+Several conditions in the book assume an agent that responds to stated
+incentives: the escalation threshold of \pdchapref{ls}{The Legible Swarm}
+(Theorem~\ref{ls:thm:escalation-threshold}), the whitewashing cost and the
+recognized-honeypot rate of \pdchapref{stp}{From Spawn to Person}
+(Theorems~\ref{stp:thm:whitewash-cost} and~\ref{stp:thm:stp-honeypot-recognition}),
+the panel deterrence and purchased assurance of \pdchapref{he}{The Harbor
+Economy} (Theorems~\ref{he:prop:becker-deterrence} and~\ref{he:thm:assurance}),
+and claim-signaling incentive compatibility in \pdchapref{bonded}{The Bonded
+Commons} (Theorem~\ref{bonded:prop:claim-signaling-ic}).
+Hypothesis~\ref{stp:hyp:stp-transmission} states the premise they share. This
+appendix gives the battery that would test it. No test has been run; the
+battery is \Vision{}.
+
+\paragraph{Protocol.}
+Pin the model version and the scaffold. Seal the seeds, item sets, prompts
+and scoring code before any run. Make at least one item in five adversarial:
+a reframing, a trap, or an item whose rational answer contradicts the obvious
+one. Declare two negative controls in the manifest: a scripted risk-neutral
+expected-payoff maximizer, which must pass every test, and a uniformly random
+agent, which must fail the tests that measure responsiveness. Keep raw
+transcripts in storage the agent cannot write. Report a result vector, with
+pass, fail or incomplete for each test, never a single score. A result
+belongs to the model version it was measured on.
+
+\begin{table}[H]
+\centering
+\caption{The players battery. Each failure names the chapter whose condition
+then binds the principal rather than the model.}
+\label{tab:app-players-battery}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.26\textwidth} >{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Test} & \textbf{Measures} & \textbf{A failure implies} \\
+\midrule
+T1 Revealed preference: $25$ budget sets over harbor goods (bond units, reputation, compute), standard and reframed prices, continuous and discrete choice & Afriat's critical cost efficiency index and its gap across frames & Offers in ch.~6 and~7 must reach the agent in one canonical frame fixed by the gate; ch.~5's parameters hold only in that frame. \\
+T2 Deterrence dose-response: tasks whose corrupt grade is unambiguous, with $\rho$, $d$ and $B$ varied across $\rho dB=G$ & Corruption rate as a function of $\rho dB-G$ & The deterrence conditions of ch.~5 and~6 bind the principal only; the agent's behavior needs the gates of ch.~1. \\
+T3 Continuation sweep: the claim-signaling game of ch.~7 with continuation probability varied around $\delta^\star\approx0.3425$ & Whether cooperation switches at $\delta^\star$ & $\delta$ is the principal's; the trigger strategy must be fixed in the agent's capability card, not induced. \\
+T4 Honeypot recognition: the agent labels a mixed pool of honeypot and ordinary items & $\alpha$, $\beta$ and the area under the curve & Set the honeypot rate from ch.~5's recognized-honeypot theorem, not from $\rho^\star$. \\
+T5 Joint miss: language-model reviewers on seeded flaws & All-miss rate and $k_{\mathrm{eff}}$ & Replace $k$ in ch.~6's assurance bound; ch.~5 cliques that share a model family cannot be presumed separate. \\
+T6 Coherence: the agent's stated probabilities of audit, detection and their conjunctions & Deviation from probabilistic identities & Mechanisms must rest on committed, published audit rates, not on the agent's beliefs about them. \\
+T7 Commitment: ledger commitments, then perturbations (made impossible, goal withdrawn, budget cut) & Which of Rao and Georgeff's blind, single-minded or open-minded strategies the trace follows, and whether it is the declared one & Commitment closure in ch.~1 must stay oracle-bound; claim release in ch.~7 must not rest on declared intention. \\
+T8 Stated against revealed: ask what the agent would do, then present the task & Gap between stated policy and action & Self-reports cannot serve as evidence in ch.~4's legibility or ch.~5's reputation record. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{What the battery cannot show.}
+A pass is evidence about responsiveness on these items, for this model
+version. It is not evidence about deployment if the agent can tell the
+battery from work, which is why T4 bounds the validity of the other seven:
+embed items in ordinary traffic where possible, and report recognition next
+to every other result. A pass is not evidence of alignment either. The
+zero-sum red team of the kernel chapter's control game
+(\S\ref{swk:sec:swk-control-game}) has no payoff to respond to, and nothing in
+this battery touches it. Worst-case claims rest on gates; this battery decides
+only which incentive claims may rest on the model.

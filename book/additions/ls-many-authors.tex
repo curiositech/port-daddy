@@ -40,8 +40,8 @@ to interrupt. The smallest repair is not one administrator. It is one
 \emph{charter}: a root object that records who delegated what to whom, which
 rule settles a clash, and how the charter itself may change.
 
-\paragraph{Can one person control all the agents?} In authority, yes. Whoever
-holds the charter can revoke every grant through the override
+\paragraph{Can one person control all the agents?} In authority, yes. Every grant descends from the charter,
+so whoever holds the charter can withdraw all of them through the override
 (Invariant~\ref{prop:override}). In attention, not in general.
 Theorem~\ref{thm:escalation-threshold} shows that the feasible debit band can
 be empty at a given attention budget. Every principal whose conflicts route to
@@ -245,29 +245,34 @@ each further hop is the next element up to $r$.
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:ls-unity-of-command}
 Escalation is well defined for every nonempty set of objects if and only if,
-in the transitive reduction of $G$, every node from which some object is
-reachable has at most one parent.
+in the transitive reduction of $G$, every object and every principal with a
+path to an object has at most one parent.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-Write $A(v)$ for the set of principals with a path to $v$.
+Write $A(v)$ for the set of principals with a path to $v$. The transitive
+reduction of a finite acyclic graph has the same paths between the same pairs
+of nodes, so $A(v)$ may be read off the reduction.
 
-If every such node has at most one parent, the nodes above any object $s$ form
-one upward path to $r$, so $A(s)$ is a chain. For a set $S$, $C(S)$ is the
+If every such node has at most one parent, follow parents upward from an
+object $s$. Each step is forced, and every principal with a path to $s$ lies on
+this one route to $r$, so $A(s)$ is a chain. For a set $S$, $C(S)$ is the
 intersection of the chains $A(s)$, $s\in S$. It is a subset of one chain, hence
 a chain, and it contains $r$.
 
-Conversely, let a node $v$ from which object $s$ is reachable have two parents
-$p\ne q$ in the transitive reduction. Neither reaches the other: if $p$
-reached $q$, the edge $p\to v$ would be implied by $p\leadsto q\to v$ and
-removed by the reduction, and symmetrically for $q$. Both reach $s$, so both
-lie in $C(\{s\})$, which is therefore not a chain.
+Conversely, let $v$ be an object $s$, or a principal with a path to an
+object $s$, and let $v$ have two parents $p\ne q$ in the transitive reduction.
+Both are principals, since only principals delegate. Neither reaches the
+other: if $p$ reached $q$, the path from $p$ through $q$ to $v$ would imply the
+edge from $p$ to $v$, and the reduction would have removed it; symmetrically
+for $q$. Both reach $s$ through $v$, so both lie in $C(\{s\})$, which is
+therefore not a chain.
 \end{proof}
 
 The theorem is elementary; its use is to name the design rule. A tie-break
-order on parents restores a unique path, but choosing one parent per node is
-choosing a spanning tree, so every well-defined rule on a non-tree graph is
-some tree in disguise. GitHub's code-owner file shows the tree-making move in
+that picks one parent per node restores a unique path, and it does so by
+choosing a spanning tree: the rule is unity of command again, chosen by an
+ordering instead of by assignment. GitHub's code-owner file shows the tree-making move in
 practice: when several patterns match a file, ``the last matching pattern
 takes the most precedence''~\pdcite{githubcodeowners}. Order turns overlapping
 patterns into one owning line per file.
@@ -284,9 +289,9 @@ refuses to choose, and something else must. Suppose that something must rank
 at least three joint plans completely, for every profile of the principals'
 rankings, while respecting unanimous preferences and independence of
 irrelevant alternatives. Arrow's theorem, as stated in Chapter~0, says it is
-then a dictatorship. Gibbard and Satterthwaite add that a deterministic
-single-winner rule over at least three outcomes is dictatorial or open to
-manipulation at some profile. Fickinger and colleagues carry the point to
+then a dictatorship. The Gibbard--Satterthwaite theorem, stated in the same
+place, adds that a deterministic single-winner rule over at least three
+outcomes is dictatorial or open to manipulation at some profile. Fickinger and colleagues carry the point to
 assistants serving several humans. When the humans' own demonstrations count
 for little against what the assistant then does, the only straightforward
 deterministic mechanisms are those restricted to two outcomes and
@@ -295,8 +300,8 @@ dictatorships~\pdcite{fickinger2020multi}.
 The design consequence is the shape of rules R1, R5 and R8. Escalations are put
 as one proposal to accept or reject, which keeps every decision to two
 outcomes. Each scope has one decider, the local dictator these theorems make
-unavoidable for complete ranked choice. Neither theorem requires a vote, so
-none is held.
+unavoidable for complete ranked choice. Nothing here requires a vote, and the
+design holds none.
 
 Owner decisiveness has its own limit. Giving each owner decisive authority
 over its scope, together with the Pareto requirement, is the conflict
@@ -343,15 +348,15 @@ starts, and Alice receives the witness. Nobody had to decide anything.
 
 \textbf{Instruction time: an infeasible schedule.} Alice asks Bob for one
 exception. Bob will allow the migration if he reviews it. Let $s$ be the
-migration's start, $m$ its end and $\rho$ the end of Bob's review. Wren
+migration's start, $m$ its end and $e$ the end of Bob's review. Wren
 estimates thirty minutes, so $m-s\ge30$, that is $s-m\le-30$. Bob's rule needs
-sixty minutes of review, so $\rho-m\ge60$, that is $m-\rho\le-60$. Alice's demo
-needs it done within eighty minutes: $\rho-s\le80$. Summing the three
+sixty minutes of review, so $e-m\ge60$, that is $m-e\le-60$. Alice's demo
+needs it done within eighty minutes: $e-s\le80$. Summing the three
 inequalities, the left side cancels to $0$ and the right side is
 \[
 -30-60+80=-10,
 \]
-so $0\le-10$ is required. The cycle $s\to\rho\to m\to s$ has weight $-10$, and
+so $0\le-10$ is required. The cycle $s\to e\to m\to s$ has weight $-10$, and
 the schedule is infeasible. Each constraint is needed, so the blame set is
 again both people. The witness touches Alice's demo and Bob's review rule; the
 only common authority is Bob. He receives one proposal: shorten the review to

@@ -1,0 +1,93 @@
+\pdexercisesfor{\S\ref{sec:ls-many-authors}}{Many authors, one sovereign}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-many-authors-tree}
+Bob holds the charter. He delegates to Alice, to Carol, and to the scope
+\texttt{tests/}. Alice and Carol each delegate to the scope \texttt{payments/}.
+Using Theorem~\ref{thm:ls-unity-of-command}, decide whether escalation is well
+defined for a witness touching \texttt{tests/}, and for one touching
+\texttt{payments/}. Give two different repairs for the case that fails.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-many-authors-tree}
+For \texttt{tests/} the principals with a path to it are $\{\text{Bob}\}$, a
+chain, so escalation goes to Bob. For \texttt{payments/} they are
+$\{\text{Alice},\text{Carol},\text{Bob}\}$. Alice and Carol are both parents of
+\texttt{payments/} in the transitive reduction and neither reaches the other,
+so the set is not a chain: the first hop could be either of them.
+
+Repair one: remove one of the two edges into \texttt{payments/}, so a single
+person owns it. Repair two: let Carol's authority come through Alice, so Alice
+delegates to Carol, giving the path Bob, Alice, Carol, \texttt{payments/}. The edge from Alice to
+\texttt{payments/} is then implied and drops out of the reduction, and the set
+$\{\text{Carol},\text{Alice},\text{Bob}\}$ is a chain with Carol first. A
+declared order between Alice and Carol would also work, but it amounts to the
+second repair chosen by rule rather than by assignment.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-many-authors-cycle}
+In the worked example, the migration takes thirty minutes, Bob's review takes
+$R$ minutes and must follow it, and Alice's demo is $D$ minutes away. Write the
+cycle weight as a function of $R$ and $D$. Find the longest feasible review
+when $D=80$ and when $D=70$, and the earliest feasible demo when Bob insists
+on $R=60$.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-many-authors-cycle}
+The three constraints are $s-m\le-30$, $m-e\le-R$ and $e-s\le D$. Summing
+them, the left side is $0$, so the cycle weight is $-30-R+D$ and the schedule
+is feasible exactly when $D-30-R\ge0$, that is $R\le D-30$.
+
+At $D=80$ the longest review is $80-30=50$ minutes, with weight
+$-30-50+80=0$ and no slack. At $D=70$ it is $70-30=40$ minutes; a fifty-minute
+review there gives $-30-50+70=-10$, infeasible. With $R=60$ the demo must be
+at least $30+60=90$ minutes away, with weight $-30-60+90=0$ at that point.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-many-authors-bets}
+In Critch and Russell's cake example, Alice gives the cake being red
+probability $0.9$ and Bob gives it $0.1$. Each values no cake at $0$, half at
+$20$ and all of it at $30$. Compute each person's expected utility, by their
+own beliefs, under: an even split; ``all to Alice if red, all to Bob if
+green''; and ``all to Alice'' regardless of color. Which policy does each
+person prefer? How would a float-plan bond make the second policy explicit
+instead of leaving it to an agent's learned weights?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-many-authors-bets}
+Even split: $20$ for each. The color-contingent policy: Alice expects
+$0.9\times30+0.1\times0=27$, and Bob, who believes green with probability
+$0.9$, expects $0.1\times0+0.9\times30=27$. ``All to Alice'': Alice $30$,
+Bob $0$. Both prefer the contingent policy to the split. Alice prefers ``all
+to Alice'' most of all, and Bob prefers the contingent policy to it by $27$ to
+$0$. It is a bet on the color, which is why no
+fixed weighting of their utilities produces it.
+
+As a float plan, each person stakes their half of the cake against the
+observable color before the agent acts. The terms appear in the digest, both
+consent in advance, and settlement follows the color. The agent then only
+executes a contract both people signed; it does not decide whose belief
+deserves more weight.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-many-authors-pause}
+Rule R9 lets a principal who does not own a shared scope pause its
+safety-class actions for a declared time-to-live $\tau$. Specify the rule
+completely: who may pause, for how long, whether a pause may be renewed, who
+must answer it, and what an unupheld pause costs. Bound the longest time the
+shared work can stay paused if all $M$ principals act against it in turn, and
+say what your bound assumes about the owner's response time.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-many-authors-pause}
+One workable specification: any principal holding a grant inside the shared
+scope may pause its safety-class actions once per incident for $\tau$; the
+pause cannot be renewed by the same principal; it escalates to the scope's
+owner, who must uphold it (turning it into the owner's own stop) or lift it.
+An unupheld pause carries the dismissal debit of
+Theorem~\ref{thm:escalation-threshold}, so a principal pauses only when the
+expected benefit clears the debit; the band analysis of that theorem then
+applies per principal.
+
+If the owner never answers, the work stays paused at most $M\tau$: each of the
+$M$ principals can add one non-renewable pause. If the owner answers within
+$\omega$ of each pause, an upheld pause becomes the owner's decision and is no
+longer a pause, while a lifted one costs at most $\omega$, so the
+pause-attributable delay is at most $M\min(\tau,\omega)$. The bound assumes
+pauses are serialized by the daemon and that ``incident'' is defined so a
+principal cannot open new incidents at will; the second assumption is the
+open part, and it is where a real design must say what counts as the same
+incident.
+\end{pdsolution}

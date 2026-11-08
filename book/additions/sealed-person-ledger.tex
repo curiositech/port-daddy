@@ -6,8 +6,11 @@
 
 \noindent The ledger above keeps one balance. A harbor that trains on many
 people's logs needs one balance per person, because the guarantee a person
-cares about is their own (Section~\ref{sec:sealed-tenants}). Keep the
-chapter's state and add an index. Let $U$ be the set of persons, and fix an
+cares about is their own. Two logs are \textbf{person-level neighbors} when
+one removes every record of a single person, and each record carries an
+\textbf{owner label}, the set of persons whose data it carries
+(Section~\ref{sec:sealed-tenants}). Keep the chapter's state and add an
+index. Let $U$ be the set of persons, and fix an
 order $\alpha>1$ of \textbf{R\'enyi differential privacy} (RDP): a mechanism
 is $(\alpha,\rho)$-RDP if the R\'enyi divergence of order $\alpha$ between its
 output distributions on any two neighbors, in either direction, is at most
@@ -38,7 +41,7 @@ including under concurrent invocation, by the same single-writer
 serialization as Theorem~\ref{thm:sealed-conservation}.
 
 \textbf{Conditional privacy corollary.} Fix the person-level neighboring
-relation of Section~\ref{sec:sealed-tenants}. Suppose every admitted round is
+relation. Suppose every admitted round is
 $(\alpha,\rho_t)$-RDP for each person it admits, conditional on the prior
 transcript, with mechanisms and costs selected from public information and
 previous outputs. Suppose also that the complete observer-visible interaction
