@@ -41,7 +41,7 @@ Containers & Paths outside the namespaces; refused system calls. & The shared ho
 gVisor & Guest system calls, answered by a user-space kernel ($211$ of $319$ implemented with $55$ host calls). & Flaws in that kernel; timing. System calls run $2.8\times$ slower or worse. \\
 Firecracker & Every device outside a four-device model; a jailer admitting $24$ system calls; about $50{,}000$ lines of Rust against $1.4$ million for QEMU. & Traffic over the virtio network device; the host kernel; microarchitectural channels unless the host disables SMT. \\
 seL4 & Storage channels, by a machine-checked noninterference proof carried to the C code. & Covert timing channels; it assumes no DMA, a static schedule, and a correct compiler and hardware. \\
-WebAssembly & Host memory and code outside the module; typed control flow. & Memory safety inside linear memory: no canaries, no guard pages, writable constants. \\
+Web\-Assembly & Host memory and code outside the module; typed control flow. & Memory safety inside linear memory: no canaries, no guard pages, writable constants. \\
 Trusted execution & Plaintext from host software; an attestation that can condition key release. & Physical access: TEE.fail forged a TDX quote that verified as ``UpToDate'' with an interposer under $\$1{,}000$; vendors treat interposition as out of scope. \\
 \bottomrule
 \end{tabularx}
