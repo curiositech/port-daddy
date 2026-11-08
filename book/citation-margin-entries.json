@@ -490,5 +490,443 @@
     "original": "Mike Burrows.\n\\newblock The Chubby Lock Service for Loosely-Coupled Distributed Systems.\n\\newblock In \\textit{Symposium on Operating Systems Design and Implementation (OSDI)}, 2006.",
     "margin": "Burrows 2006. \\emph{The Chubby Lock Service for Loosely-Coupled Distributed Systems}.",
     "reason": "Six consecutive cited items in chapter 0, and Figure 1.5's caption with two citations and an evidence block in chapter 1, put more margin content on one page than it holds once the figures were redrawn; author-date and complete title beside the text, full metadata remains in the bibliography."
+  },
+  {
+    "key": "dastani2017normenforcement",
+    "original": "Mehdi Dastani, Sebastian Sardina, and Vahid Yazdanpanah.\n\\newblock Norm Enforcement as Supervisory Control.\n\\newblock In \\textit{Principles and Practice of Multi-Agent Systems (PRIMA 2017)}, LNCS 10621, pages 330--348, Springer, 2017.\n\\newblock \\url{https://research.utwente.nl/en/publications/norm-enforcement-as-supervisory-control/}.",
+    "margin": "Dastani et al. 2017. \\emph{Norm Enforcement as Supervisory Control}. \\url{https://research.utwente.nl/en/publications/norm-enforcement-as-supervisory-control/}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "hubinger2024sleeper",
+    "original": "Evan Hubinger, Carson Denison, Jesse Mu, Mike Lambert, Meg Tong, Monte MacDiarmid, et al.\n\\newblock Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training.\n\\newblock arXiv:2401.05566, 2024.\n\\newblock \\url{https://arxiv.org/abs/2401.05566}.",
+    "margin": "Hubinger et al. 2024. \\emph{Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training}. \\url{https://arxiv.org/abs/2401.05566}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "greenblatt2024control",
+    "original": "Ryan Greenblatt, Buck Shlegeris, Kshitij Sachan, and Fabien Roger.\n\\newblock AI Control: Improving Safety Despite Intentional Subversion.\n\\newblock In \\textit{International Conference on Machine Learning (ICML)}, PMLR 235, pages 16295--16336, 2024.\n\\newblock \\url{https://arxiv.org/abs/2312.06942}.",
+    "margin": "Greenblatt et al. 2024. \\emph{AI Control: Improving Safety Despite Intentional Subversion}. \\url{https://arxiv.org/abs/2312.06942}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "bhatt2025ctrlz",
+    "original": "Aryan Bhatt, Cody Rushing, Adam Kaufman, Tyler Tracy, Vasil Georgiev, David Matolcsi, Akbir Khan, and Buck Shlegeris.\n\\newblock Ctrl-Z: Controlling AI Agents via Resampling.\n\\newblock arXiv:2504.10374, 2025.\n\\newblock \\url{https://arxiv.org/abs/2504.10374}.",
+    "margin": "Bhatt et al. 2025. \\emph{Ctrl-Z: Controlling AI Agents via Resampling}. \\url{https://arxiv.org/abs/2504.10374}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "zhong2025impossiblebench",
+    "original": "Ziqian Zhong, Aditi Raghunathan, and Nicholas Carlini.\n\\newblock ImpossibleBench: Measuring LLMs' Propensity of Exploiting Test Cases.\n\\newblock arXiv:2510.20270, 2025.\n\\newblock \\url{https://arxiv.org/abs/2510.20270}.",
+    "margin": "Zhong et al. 2025. \\emph{ImpossibleBench: Measuring LLMs' Propensity of Exploiting Test Cases}. \\url{https://arxiv.org/abs/2510.20270}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "mcmahan2017userdp",
+    "original": "H.~B. McMahan, D.~Ramage, K.~Talwar, and L.~Zhang. Learning differentially\nprivate recurrent language models. \\emph{arXiv preprint arXiv:1710.06963}, 2017.\n\\url{https://arxiv.org/abs/1710.06963}",
+    "margin": "McMahan et al. 2017. \\emph{Learning differentially private recurrent language models}. \\url{https://arxiv.org/abs/1710.06963}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "zeng2024rag",
+    "original": "S.~Zeng, J.~Zhang, P.~He, Y.~Xing, Y.~Liu, H.~Xu, J.~Ren, S.~Wang, D.~Yin,\nY.~Chang, and J.~Tang. The good and the bad: exploring privacy issues in retrieval-augmented\ngeneration (RAG). \\emph{arXiv preprint arXiv:2402.16893}, 2024.\n\\url{https://arxiv.org/abs/2402.16893}",
+    "margin": "Zeng et al. 2024. \\emph{The good and the bad: exploring privacy issues in retrieval-augmented generation (RAG)}. \\url{https://arxiv.org/abs/2402.16893}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "morris2023vec2text",
+    "original": "J.~X. Morris, V.~Kuleshov, V.~Shmatikov, and A.~M. Rush. Text\nembeddings reveal (almost) as much as text. \\emph{arXiv preprint arXiv:2310.06816}, 2023.\n\\url{https://arxiv.org/abs/2310.06816}",
+    "margin": "Morris et al. 2023. \\emph{Text embeddings reveal (almost) as much as text}. \\url{https://arxiv.org/abs/2310.06816}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "duan2024mia",
+    "original": "M.~Duan, A.~Suri, N.~Mireshghallah, S.~Min, W.~Shi, L.~Zettlemoyer,\nY.~Tsvetkov, Y.~Choi, D.~Evans, and H.~Hajishirzi. Do membership inference attacks work on large\nlanguage models? In \\emph{Proc.\\ Conference on Language Modeling (COLM)}, 2024.\n\\url{https://arxiv.org/abs/2402.07841}",
+    "margin": "Duan et al. 2024. \\emph{Do membership inference attacks work on large language models?} \\url{https://arxiv.org/abs/2402.07841}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "lukas2023pii",
+    "original": "N.~Lukas, A.~Salem, R.~Sim, S.~Tople, L.~Wutschitz, and\nS.~Zanella-B\\'eguelin. Analyzing leakage of personally identifiable information in language\nmodels. In \\emph{Proc.\\ IEEE Symposium on Security and Privacy}, 2023.\n\\url{https://arxiv.org/abs/2302.00539}",
+    "margin": "Lukas et al. 2023. \\emph{Analyzing leakage of personally identifiable information in language models}. \\url{https://arxiv.org/abs/2302.00539}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "pappu2024rlhf",
+    "original": "A.~Pappu, B.~Porter, I.~Shumailov, and J.~Hayes. Measuring memorization\nin RLHF for code completion. \\emph{arXiv preprint arXiv:2406.11715}, 2024.\n\\url{https://arxiv.org/abs/2406.11715}",
+    "margin": "Pappu et al. 2024. \\emph{Measuring memorization in RLHF for code completion}. \\url{https://arxiv.org/abs/2406.11715}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "carlini2021extracting",
+    "original": "N.~Carlini, F.~Tram\\`er, E.~Wallace, M.~Jagielski,\nA.~Herbert-Voss, K.~Lee, A.~Roberts, T.~Brown, D.~Song, \\'U.~Erlingsson, A.~Oprea, and C.~Raffel.\nExtracting training data from large language models. \\emph{arXiv preprint arXiv:2012.07805},\n2020. \\url{https://arxiv.org/abs/2012.07805}",
+    "margin": "Carlini et al. 2020. \\emph{Extracting training data from large language models}. \\url{https://arxiv.org/abs/2012.07805}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "dong2025minja",
+    "original": "S.~Dong, S.~Xu, P.~He, Y.~Li, J.~Tang, T.~Liu, H.~Liu, and Z.~Xiang.\nMemory injection attacks on LLM agents via query-only interaction. In \\emph{Proc.\\ 39th Conference on\nNeural Information Processing Systems (NeurIPS)}, 2025. \\url{https://arxiv.org/abs/2503.03704}",
+    "margin": "Dong et al. 2025. \\emph{Memory injection attacks on LLM agents via query-only interaction}. \\url{https://arxiv.org/abs/2503.03704}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "greshake2023indirect",
+    "original": "K.~Greshake, S.~Abdelnabi, S.~Mishra, C.~Endres, T.~Holz, and\nM.~Fritz. Not what you've signed up for: compromising real-world LLM-integrated applications\nwith indirect prompt injection. \\emph{arXiv preprint arXiv:2302.12173}, 2023.\n\\url{https://arxiv.org/abs/2302.12173}",
+    "margin": "Greshake et al. 2023. \\emph{Not what you've signed up for: compromising real-world LLM-integrated applications with indirect prompt injection}. \\url{https://arxiv.org/abs/2302.12173}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "gu2025caching",
+    "original": "C.~Gu, X.~L. Li, R.~Kuditipudi, P.~Liang, and T.~Hashimoto. Auditing\nprompt caching in language model APIs. In \\emph{Proc.\\ 42nd International Conference on Machine\nLearning (ICML)}, PMLR 267, 2025. \\url{https://arxiv.org/abs/2502.07776}",
+    "margin": "Gu et al. 2025. \\emph{Auditing prompt caching in language model APIs}. \\url{https://arxiv.org/abs/2502.07776}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "thudi2021unlearning",
+    "original": "A.~Thudi, H.~Jia, I.~Shumailov, and N.~Papernot. On the necessity\nof auditable algorithmic definitions for machine unlearning. \\emph{arXiv preprint\narXiv:2110.11891}, 2021. \\url{https://arxiv.org/abs/2110.11891}",
+    "margin": "Thudi et al. 2021. \\emph{On the necessity of auditable algorithmic definitions for machine unlearning}. \\url{https://arxiv.org/abs/2110.11891}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "cooper2024unlearning",
+    "original": "A.~F. Cooper, C.~A. Choquette-Choo, M.~Bogen, and 34 others.\nMachine unlearning doesn't do what you think: lessons for generative AI policy and research.\n\\emph{arXiv preprint arXiv:2412.06966}, 2024. \\url{https://arxiv.org/abs/2412.06966}",
+    "margin": "Cooper et al. 2024. \\emph{Machine unlearning doesn't do what you think: lessons for generative AI policy and research}. \\url{https://arxiv.org/abs/2412.06966}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "brown2022privacy",
+    "original": "H.~Brown, K.~Lee, F.~Mireshghallah, R.~Shokri, and F.~Tram\\`er. What\ndoes it mean for a language model to preserve privacy? \\emph{arXiv preprint arXiv:2202.05520},\n2022. \\url{https://arxiv.org/abs/2202.05520}",
+    "margin": "Brown et al. 2022. \\emph{What does it mean for a language model to preserve privacy?} \\url{https://arxiv.org/abs/2202.05520}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "yue2022synthetic",
+    "original": "X.~Yue, H.~A. Inan, X.~Li, G.~Kumar, J.~McAnallen, H.~Shajari,\nH.~Sun, D.~Levitan, and R.~Sim. Synthetic text generation with differential privacy: a simple\nand practical recipe. \\emph{arXiv preprint arXiv:2210.14348}, 2022.\n\\url{https://arxiv.org/abs/2210.14348}",
+    "margin": "Yue et al. 2022. \\emph{Synthetic text generation with differential privacy: a simple and practical recipe}. \\url{https://arxiv.org/abs/2210.14348}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "nissenbaum2004ci",
+    "original": "H.~Nissenbaum. Privacy as contextual integrity. \\emph{Washington Law\nReview}, 79(1):119, 2004.\n\\url{https://digitalcommons.law.uw.edu/wlr/vol79/iss1/10}",
+    "margin": "Nissenbaum 2004. \\emph{Privacy as contextual integrity}. \\url{https://digitalcommons.law.uw.edu/wlr/vol79/iss1/10}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "mireshghallah2023confaide",
+    "original": "N.~Mireshghallah, H.~Kim, X.~Zhou, Y.~Tsvetkov, M.~Sap,\nR.~Shokri, and Y.~Choi. Can LLMs keep a secret? Testing privacy implications of language models\nvia contextual integrity theory. \\emph{arXiv preprint arXiv:2310.17884}, 2023.\n\\url{https://arxiv.org/abs/2310.17884}",
+    "margin": "Mireshghallah et al. 2023. \\emph{Can LLMs keep a secret?} \\url{https://arxiv.org/abs/2310.17884}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "feldman2020renyi",
+    "original": "V.~Feldman and T.~Zrnic. Individual privacy accounting via a R\\'enyi\nfilter. \\emph{arXiv preprint arXiv:2008.11193}, 2020. \\url{https://arxiv.org/abs/2008.11193}",
+    "margin": "Feldman and Zrnic 2020. \\emph{Individual privacy accounting via a R\\'enyi filter}. \\url{https://arxiv.org/abs/2008.11193}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "xu2023gboard",
+    "original": "Z.~Xu, Y.~Zhang, G.~Andrew, C.~A. Choquette-Choo, P.~Kairouz,\nH.~B. McMahan, J.~Rosenstock, and Y.~Zhang. Federated learning of Gboard language models with\ndifferential privacy. \\emph{arXiv preprint arXiv:2305.18465}, 2023.\n\\url{https://arxiv.org/abs/2305.18465}",
+    "margin": "Xu et al. 2023. \\emph{Federated learning of Gboard language models with differential privacy}. \\url{https://arxiv.org/abs/2305.18465}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "carlini2019secret",
+    "original": "N.~Carlini, C.~Liu, \\'U.~Erlingsson, J.~Kos, and D.~Song. The secret\nsharer: evaluating and testing unintended memorization in neural networks. In \\emph{Proc.\\ USENIX\nSecurity Symposium}, 2019. \\url{https://arxiv.org/abs/1802.08232}",
+    "margin": "Carlini et al. 2019. \\emph{The secret sharer: evaluating and testing unintended memorization in neural networks}. \\url{https://arxiv.org/abs/1802.08232}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "steinke2023onerun",
+    "original": "T.~Steinke, M.~Nasr, and M.~Jagielski. Privacy auditing with one (1)\ntraining run. \\emph{arXiv preprint arXiv:2305.08846}, 2023.\n\\url{https://arxiv.org/abs/2305.08846}",
+    "margin": "Steinke et al. 2023. \\emph{Privacy auditing with one (1) training run}. \\url{https://arxiv.org/abs/2305.08846}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "panda2025audit",
+    "original": "A.~Panda, X.~Tang, M.~Nasr, C.~A. Choquette-Choo, and P.~Mittal.\nPrivacy auditing of large language models. \\emph{arXiv preprint arXiv:2503.06808}, 2025.\n\\url{https://arxiv.org/abs/2503.06808}",
+    "margin": "Panda et al. 2025. \\emph{Privacy auditing of large language models}. \\url{https://arxiv.org/abs/2503.06808}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "li2026skillsbench",
+    "original": "Xiangyi Li, Yimin Liu, Wenbo Chen, Bingran You, et al.\n\\newblock SkillsBench: Benchmarking How Well Agent Skills Work Across Diverse Tasks.\n\\newblock arXiv:2602.12670, 2026.\n\\newblock \\url{https://arxiv.org/abs/2602.12670}",
+    "margin": "Li et al. 2026. \\emph{SkillsBench: Benchmarking How Well Agent Skills Work Across Diverse Tasks}. \\url{https://arxiv.org/abs/2602.12670}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "mediratta2026parallact",
+    "original": "Rishabh Mediratta, Lingyun Xiao, Peter Stone, Joydeep Biswas, and Elias Stengel-Eskin.\n\\newblock Decentralized Multi-Agent Coordination and Communication in Shared Codebases.\n\\newblock arXiv:2611.00314, 2026. \\url{https://arxiv.org/abs/2611.00314}",
+    "margin": "Mediratta et al. 2026. \\emph{Decentralized Multi-Agent Coordination and Communication in Shared Codebases}. \\url{https://arxiv.org/abs/2611.00314}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "fema2017nims",
+    "original": "FEMA.\n\\newblock \\textit{National Incident Management System}, Third Edition.\n\\newblock U.S.\\ Department of Homeland Security, Federal Emergency Management Agency, October 2017.",
+    "margin": "FEMA 2017. \\emph{National Incident Management System}, third edition.",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "ostrom2010polycentric",
+    "original": "Elinor Ostrom.\n\\newblock Beyond Markets and States: Polycentric Governance of Complex Economic Systems.\n\\newblock \\textit{American Economic Review}, 100(3):641--672, 2010.\n\\newblock \\url{https://web.pdx.edu/~nwallace/EHP/OstromPolyGov.pdf}",
+    "margin": "Ostrom 2010. \\emph{Beyond Markets and States: Polycentric Governance of Complex Economic Systems}. \\url{https://web.pdx.edu/~nwallace/EHP/OstromPolyGov.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "hardy1988confused",
+    "original": "Norm Hardy.\n\\newblock The Confused Deputy (or why capabilities might have been invented).\n\\newblock \\textit{ACM SIGOPS Operating Systems Review}, 22(4):36--38, 1988.\n\\newblock \\url{https://css.csail.mit.edu/6.566/2011/readings/confused-deputy.html}",
+    "margin": "Hardy 1988. \\emph{The Confused Deputy (or why capabilities might have been invented)}. \\url{https://css.csail.mit.edu/6.566/2011/readings/confused-deputy.html}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "olson2024defeasible",
+    "original": "Taylor Olson, Roberto Salas-Damian, and Kenneth D.\\ Forbus.\n\\newblock A Defeasible Deontic Calculus for Resolving Norm Conflicts.\n\\newblock arXiv:2407.04869, 2024. \\url{https://arxiv.org/abs/2407.04869}",
+    "margin": "Olson et al. 2024. \\emph{A Defeasible Deontic Calculus for Resolving Norm Conflicts}. \\url{https://arxiv.org/abs/2407.04869}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "githubcodeowners",
+    "original": "GitHub.\n\\newblock About Code Owners.\n\\newblock GitHub Docs, accessed November 2026.\n\\newblock \\url{https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners}",
+    "margin": "GitHub 2026. \\emph{About Code Owners}. \\url{https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "brun2011proactive",
+    "original": "Yuriy Brun, Reid Holmes, Michael D.\\ Ernst, and David Notkin.\n\\newblock Proactive Detection of Collaboration Conflicts.\n\\newblock In \\textit{Proceedings of ESEC/FSE}, 2011.\n\\newblock \\url{https://homes.cs.washington.edu/~mernst/pubs/vc-conflicts-fse2011.pdf}",
+    "margin": "Brun et al. 2011. \\emph{Proactive Detection of Collaboration Conflicts}. \\url{https://homes.cs.washington.edu/~mernst/pubs/vc-conflicts-fse2011.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "ananthanarayanan2019keeping",
+    "original": "Sundaram Ananthanarayanan, Masoud Saeida Ardekani, Denis Haenikel, Balaji Varadarajan, Simon Soriano, Dhaval Patel, and Ali-Reza Adl-Tabatabai.\n\\newblock Keeping Master Green at Scale.\n\\newblock In \\textit{Proceedings of EuroSys}, 2019.\n\\newblock \\url{https://www.uber.com/blog/research/keeping-master-green-at-scale}",
+    "margin": "Ananthanarayanan et al. 2019. \\emph{Keeping Master Green at Scale}. \\url{https://www.uber.com/blog/research/keeping-master-green-at-scale}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "horwitz1989integrating",
+    "original": "Susan Horwitz, Jan Prins, and Thomas Reps.\n\\newblock Integrating Noninterfering Versions of Programs.\n\\newblock \\textit{ACM Transactions on Programming Languages and Systems}, 11(3):345--387, 1989.\n\\newblock \\url{https://www.cs.purdue.edu/homes/xyzhang/fall07/Papers/p345-horwitz.pdf}",
+    "margin": "Horwitz et al. 1989. \\emph{Integrating Noninterfering Versions of Programs}. \\url{https://www.cs.purdue.edu/homes/xyzhang/fall07/Papers/p345-horwitz.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "shapiro2011crdt",
+    "original": "Marc Shapiro, Nuno Pregui\\c{c}a, Carlos Baquero, and Marek Zawirski.\n\\newblock Conflict-Free Replicated Data Types.\n\\newblock In \\textit{Stabilization, Safety, and Security of Distributed Systems (SSS)}, 2011.\n\\newblock \\url{https://www.cs.tufts.edu/~nr/cs257/archive/marc-shapiro/CRDTs_SSS-2011.pdf}",
+    "margin": "Shapiro et al. 2011. \\emph{Conflict-Free Replicated Data Types}. \\url{https://www.cs.tufts.edu/~nr/cs257/archive/marc-shapiro/CRDTs_SSS-2011.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "kleppmann2019interleaving",
+    "original": "Martin Kleppmann, Victor B.\\ F.\\ Gomes, Dominic P.\\ Mulligan, and Alastair R.\\ Beresford.\n\\newblock Interleaving Anomalies in Collaborative Text Editors.\n\\newblock In \\textit{Workshop on Principles and Practice of Consistency for Distributed Data (PaPoC)}, 2019.\n\\newblock \\url{https://www.cl.cam.ac.uk/~arb33/papers/KleppmannEtAl-InterleavingAnomalies-PaPoC2019.pdf}",
+    "margin": "Kleppmann et al. 2019. \\emph{Interleaving Anomalies in Collaborative Text Editors}. \\url{https://www.cl.cam.ac.uk/~arb33/papers/KleppmannEtAl-InterleavingAnomalies-PaPoC2019.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "fickinger2020multi",
+    "original": "Arnaud Fickinger, Simon Zhuang, Dylan Hadfield-Menell, and Stuart Russell.\n\\newblock Multi-Principal Assistance Games.\n\\newblock Workshop on Incentives in Machine Learning, ICML, 2020. arXiv:2007.09540. \\url{https://arxiv.org/abs/2007.09540}",
+    "margin": "Fickinger et al. 2020. \\emph{Multi-Principal Assistance Games}. \\url{https://arxiv.org/abs/2007.09540}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "sen1970impossibility",
+    "original": "Amartya Sen.\n\\newblock The Impossibility of a Paretian Liberal.\n\\newblock \\textit{Journal of Political Economy}, 78(1):152--157, 1970.\n\\newblock \\url{https://doi.org/10.1086/259614}",
+    "margin": "Sen 1970. \\emph{The Impossibility of a Paretian Liberal}. \\url{https://doi.org/10.1086/259614}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "bernheim1986common",
+    "original": "B.\\ Douglas Bernheim and Michael D.\\ Whinston.\n\\newblock Common Agency.\n\\newblock \\textit{Econometrica}, 54(4):923--942, 1986.\n\\newblock \\url{https://bernheim.people.stanford.edu/publications/common-agency}",
+    "margin": "Bernheim and Whinston 1986. \\emph{Common Agency}. \\url{https://bernheim.people.stanford.edu/publications/common-agency}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "critch2017servant",
+    "original": "Andrew Critch and Stuart Russell.\n\\newblock Servant of Many Masters: Shifting Priorities in Pareto-Optimal Sequential Decision-Making.\n\\newblock arXiv:1711.00363, 2017. \\url{https://arxiv.org/abs/1711.00363}",
+    "margin": "Critch and Russell 2017. \\emph{Servant of Many Masters: Shifting Priorities in Pareto-Optimal Sequential Decision-Making}. \\url{https://arxiv.org/abs/1711.00363}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "lin2025sleeptime",
+    "original": "Kevin Lin, Charlie Snell, Yu Wang, Charles Packer, Sarah Wooders, Ion Stoica, and Joseph E.\\ Gonzalez.\n\\newblock Sleep-time Compute: Beyond Inference Scaling at Test-time.\n\\newblock arXiv:2504.13171, 2025.\n\\newblock \\url{https://arxiv.org/abs/2504.13171}",
+    "margin": "Lin et al. 2025. \\emph{Sleep-time Compute: Beyond Inference Scaling at Test-time}. \\url{https://arxiv.org/abs/2504.13171}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "hafner2023dreamerv3",
+    "original": "Danijar Hafner, Jurgis Pasukonis, Jimmy Ba, and Timothy Lillicrap.\n\\newblock Mastering Diverse Domains through World Models.\n\\newblock arXiv:2301.04104, 2023.\n\\newblock \\url{https://arxiv.org/abs/2301.04104}",
+    "margin": "Hafner et al. 2023. \\emph{Mastering Diverse Domains through World Models}. \\url{https://arxiv.org/abs/2301.04104}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "behrouz2026sleep",
+    "original": "Ali Behrouz, Farnoosh Hashemi, Adel Javanmard, and Vahab Mirrokni.\n\\newblock Language Models Need Sleep: Learning to Self-Modify and Consolidate Memories.\n\\newblock arXiv:2606.03979, 2026.\n\\newblock \\url{https://arxiv.org/abs/2606.03979}",
+    "margin": "Behrouz et al. 2026. \\emph{Language Models Need Sleep: Learning to Self-Modify and Consolidate Memories}. \\url{https://arxiv.org/abs/2606.03979}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "packer2023memgpt",
+    "original": "Charles Packer, Sarah Wooders, Kevin Lin, Vivian Fang, Shishir G.\\ Patil, Ion Stoica, and Joseph E.\\ Gonzalez.\n\\newblock MemGPT: Towards LLMs as Operating Systems.\n\\newblock arXiv:2310.08560, 2023.\n\\newblock \\url{https://arxiv.org/abs/2310.08560}",
+    "margin": "Packer et al. 2023. \\emph{MemGPT: Towards LLMs as Operating Systems}. \\url{https://arxiv.org/abs/2310.08560}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "xu2025amem",
+    "original": "Wujiang Xu, Zujie Liang, Kai Mei, Hang Gao, Juntao Tan, and Yongfeng Zhang.\n\\newblock A-Mem: Agentic Memory for LLM Agents.\n\\newblock arXiv:2502.12110, 2025.\n\\newblock \\url{https://arxiv.org/abs/2502.12110}",
+    "margin": "Xu et al. 2025. \\emph{A-Mem: Agentic Memory for LLM Agents}. \\url{https://arxiv.org/abs/2502.12110}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "chhikara2025mem0",
+    "original": "Prateek Chhikara, Dev Khant, Saket Aryan, Taranjeet Singh, and Deshraj Yadav.\n\\newblock Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory.\n\\newblock arXiv:2504.19413, 2025.\n\\newblock \\url{https://arxiv.org/abs/2504.19413}",
+    "margin": "Chhikara et al. 2025. \\emph{Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory}. \\url{https://arxiv.org/abs/2504.19413}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "rasmussen2025zep",
+    "original": "Preston Rasmussen, Pavlo Paliychuk, Travis Beauvais, Jack Ryan, and Daniel Chalef.\n\\newblock Zep: A Temporal Knowledge Graph Architecture for Agent Memory.\n\\newblock arXiv:2501.13956, 2025.\n\\newblock \\url{https://arxiv.org/abs/2501.13956}",
+    "margin": "Rasmussen et al. 2025. \\emph{Zep: A Temporal Knowledge Graph Architecture for Agent Memory}. \\url{https://arxiv.org/abs/2501.13956}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "anthropic2026memory",
+    "original": "Anthropic.\n\\newblock How Claude Remembers Your Project.\n\\newblock Claude Code documentation, accessed 7 November 2026.\n\\newblock \\url{https://code.claude.com/docs/en/memory}",
+    "margin": "Anthropic 2026. \\emph{How Claude Remembers Your Project}. \\url{https://code.claude.com/docs/en/memory}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "zhang2026faultymemory",
+    "original": "Dylan Zhang, Yanshan Lin, Zhengkun Wu, Yihang Sun, Bingxuan Li, Dianqi Li, and Hao Peng.\n\\newblock Useful Memories Become Faulty When Continuously Updated by LLMs.\n\\newblock arXiv:2605.12978, 2026.\n\\newblock \\url{https://arxiv.org/abs/2605.12978}",
+    "margin": "Zhang et al. 2026. \\emph{Useful Memories Become Faulty When Continuously Updated by LLMs}. \\url{https://arxiv.org/abs/2605.12978}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "cerruti2026eal",
+    "original": "Tommaso Cerruti, Mika Okamoto, and Ansel Kaplan Erol.\n\\newblock Agent Memory Is a Surface for Endogenous Authorization Laundering.\n\\newblock arXiv:2609.01836v1, 2026.\n\\newblock \\url{https://arxiv.org/abs/2609.01836v1}",
+    "margin": "Cerruti et al. 2026. \\emph{Agent Memory Is a Surface for Endogenous Authorization Laundering}. \\url{https://arxiv.org/abs/2609.01836v1}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "zhan2026authmem",
+    "original": "Qiuyang Zhan, Rui Zhang, Sheng Guo, Lepeng Zhao, and Zhuotao Liu.\n\\newblock When Memory Becomes Authority: Benchmarking Authority Collapse at the Memory Consolidation Boundary.\n\\newblock arXiv:2608.01679, 2026.\n\\newblock \\url{https://arxiv.org/abs/2608.01679}",
+    "margin": "Zhan et al. 2026. \\emph{When Memory Becomes Authority: Benchmarking Authority Collapse at the Memory Consolidation Boundary}. \\url{https://arxiv.org/abs/2608.01679}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "chen2024agentpoison",
+    "original": "Zhaorun Chen, Zhen Xiang, Chaowei Xiao, Dawn Song, and Bo Li.\n\\newblock AgentPoison: Red-teaming LLM Agents via Poisoning Memory or Knowledge Bases.\n\\newblock arXiv:2407.12784, 2024.\n\\newblock \\url{https://arxiv.org/abs/2407.12784}",
+    "margin": "Chen et al. 2024. \\emph{AgentPoison: Red-teaming LLM Agents via Poisoning Memory or Knowledge Bases}. \\url{https://arxiv.org/abs/2407.12784}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "das2026selfpropagation",
+    "original": "Debeshee Das, Jacqueline Tay, Bruce Tsai, David Huang, and Javier Rando.\n\\newblock Self-Propagating Misalignment in LLM Agents, and Why Auditing or Disabling Memory Is Not Enough.\n\\newblock arXiv:2610.04083, 2026.\n\\newblock \\url{https://arxiv.org/abs/2610.04083}",
+    "margin": "Das et al. 2026. \\emph{Self-Propagating Misalignment in LLM Agents, and Why Auditing or Disabling Memory Is Not Enough}. \\url{https://arxiv.org/abs/2610.04083}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "reid1785memory",
+    "original": "Thomas Reid.\n\\newblock Essays on the Intellectual Powers of Man, Essay III: Memory. 1785.\n\\newblock Version prepared by Jonathan Bennett, 2017.\n\\newblock \\url{https://earlymoderntexts.com/assets/pdfs/reid1785essay3.pdf}",
+    "margin": "Reid 1785 (Bennett version). \\emph{Essays on the Intellectual Powers of Man}, Essay III. \\url{https://earlymoderntexts.com/assets/pdfs/reid1785essay3.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "gordonroth2019locke",
+    "original": "Jessica Gordon-Roth.\n\\newblock Locke on Personal Identity.\n\\newblock \\textit{Stanford Encyclopedia of Philosophy}, 2019; substantive revision 29 September 2025.\n\\newblock \\url{https://plato.stanford.edu/entries/locke-personal-identity/}",
+    "margin": "Gordon-Roth 2019, rev.\\ 2025. \\emph{Locke on Personal Identity}, SEP. \\url{https://plato.stanford.edu/entries/locke-personal-identity/}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "anthropic2026skills",
+    "original": "Anthropic.\n\\newblock Agent Skills: overview. Claude Developer Platform documentation.\n\\newblock Accessed November 2026.\n\\newblock \\url{https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview}",
+    "margin": "Anthropic 2026. \\emph{Agent Skills: overview}. \\url{https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "zhang2026estimands",
+    "original": "Shuyang Zhang.\n\\newblock What Does a Skill Actually Do? Estimands and Evaluation Validity for Tool and Skill Use in LLM Agents: A Critical Review.\n\\newblock arXiv:2609.33153, 2026.\n\\newblock \\url{https://arxiv.org/abs/2609.33153}",
+    "margin": "Zhang 2026. \\emph{What Does a Skill Actually Do? Estimands and Evaluation Validity for Tool and Skill Use}. \\url{https://arxiv.org/abs/2609.33153}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "dong2026harmful",
+    "original": "Gen Dong, Yanjie Gao, Liqun Li, Tianyin Xu, Yu Hua, and Fan Yang.\n\\newblock Agent Skills Can Be Harmful: An Empirical Study of Skill-Induced Failures in LLM Agents.\n\\newblock arXiv:2608.11888, 2026.\n\\newblock \\url{https://arxiv.org/abs/2608.11888}",
+    "margin": "Dong et al. 2026. \\emph{Agent Skills Can Be Harmful: An Empirical Study of Skill-Induced Failures in LLM Agents}. \\url{https://arxiv.org/abs/2608.11888}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "dudik2011dr",
+    "original": "Miroslav Dud\\'{\\i}k, John Langford, and Lihong Li.\n\\newblock Doubly Robust Policy Evaluation and Learning.\n\\newblock In \\textit{Proc.\\ 28th International Conference on Machine Learning (ICML)}, 2011. arXiv:1103.4601.\n\\newblock \\url{https://arxiv.org/abs/1103.4601}",
+    "margin": "Dud\\'{\\i}k et al. 2011. \\emph{Doubly Robust Policy Evaluation and Learning}. \\url{https://arxiv.org/abs/1103.4601}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "lewontin1974",
+    "original": "Richard C. Lewontin.\n\\newblock The Analysis of Variance and the Analysis of Causes.\n\\newblock \\textit{American Journal of Human Genetics}, 1974. Reprinted in \\textit{International Journal of Epidemiology}, 35(3):520--525, 2006.\n\\newblock \\url{https://mail.joelvelasco.net/teaching/3334/lewontin-anova.pdf}",
+    "margin": "Lewontin 1974 (reprint 2006). \\emph{The Analysis of Variance and the Analysis of Causes}. \\url{https://mail.joelvelasco.net/teaching/3334/lewontin-anova.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "sclar2024",
+    "original": "Melanie Sclar, Yejin Choi, Yulia Tsvetkov, and Alane Suhr.\n\\newblock Quantifying Language Models' Sensitivity to Spurious Features in Prompt Design, or: How I Learned to Start Worrying about Prompt Formatting.\n\\newblock In \\textit{International Conference on Learning Representations (ICLR)}, 2024. arXiv:2310.11324.\n\\newblock \\url{https://arxiv.org/abs/2310.11324}",
+    "margin": "Sclar et al. 2024. \\emph{Quantifying Language Models' Sensitivity to Spurious Features in Prompt Design}. \\url{https://arxiv.org/abs/2310.11324}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "srinivasan2026ddr",
+    "original": "Vasundra Srinivasan.\n\\newblock Deployment Decision Reliability: A Generalizability-Theory Framework for Sizing Long-Horizon Agent Evaluations.\n\\newblock arXiv:2608.11323, 2026.\n\\newblock \\url{https://arxiv.org/abs/2608.11323}",
+    "margin": "Srinivasan 2026. \\emph{Deployment Decision Reliability: A Generalizability-Theory Framework for Sizing Long-Horizon Agent Evaluations}. \\url{https://arxiv.org/abs/2608.11323}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "chen2023gptrationality",
+    "original": "Yiting Chen, Tracy Xiao Liu, You Shan, and Songfa Zhong.\n\\newblock The Emergence of Economic Rationality of GPT.\n\\newblock arXiv:2305.12763, 2023.\n\\newblock \\url{https://arxiv.org/abs/2305.12763}.",
+    "margin": "Chen et al. 2023. \\emph{The Emergence of Economic Rationality of GPT}. \\url{https://arxiv.org/abs/2305.12763}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "akata2023repeated",
+    "original": "Elif Akata, Lion Schulz, Julian Coda-Forno, Seong Joon Oh, Matthias Bethge, and Eric Schulz.\n\\newblock Playing Repeated Games with Large Language Models.\n\\newblock arXiv:2305.16867, 2023.\n\\newblock \\url{https://arxiv.org/abs/2305.16867}.",
+    "margin": "Akata et al. 2023. \\emph{Playing Repeated Games with Large Language Models}. \\url{https://arxiv.org/abs/2305.16867}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "zhou2026utilitybehavior",
+    "original": "Yujun Zhou and Christopher M. Ackerman.\n\\newblock When Preferences Fail to Become Incentives: A Utility--Behavior Gap in Large Language Models.\n\\newblock arXiv:2606.22974, 2026.\n\\newblock \\url{https://arxiv.org/abs/2606.22974}.",
+    "margin": "Zhou and Ackerman 2026. \\emph{When Preferences Fail to Become Incentives: A Utility--Behavior Gap in Large Language Models}. \\url{https://arxiv.org/abs/2606.22974}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "needham2025evalaware",
+    "original": "Joe Needham, Giles Edkins, Govind Pimpale, Henning Bartsch, and Marius Hobbhahn.\n\\newblock Large Language Models Often Know When They Are Being Evaluated.\n\\newblock arXiv:2505.23836, 2025.\n\\newblock \\url{https://arxiv.org/abs/2505.23836}.",
+    "margin": "Needham et al. 2025. \\emph{Large Language Models Often Know When They Are Being Evaluated}. \\url{https://arxiv.org/abs/2505.23836}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "agarwal2019market",
+    "original": "A. Agarwal, M. Dahleh \\& T. Sarkar. ``A Marketplace\nfor Data: An Algorithmic Solution.'' \\emph{Proc. ACM Conference on Economics and\nComputation (EC)}, 2019. arXiv:1805.08125.\n\\url{https://arxiv.org/abs/1805.08125}",
+    "margin": "Agarwal, Dahleh and Sarkar 2019. \\emph{A Marketplace for Data: An Algorithmic Solution}. \\url{https://arxiv.org/abs/1805.08125}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "kohli2026ninejudges",
+    "original": "G. Kohli. ``Nine Judges, Two Effective Votes: Correlated\nErrors Undermine LLM Evaluation Panels.'' arXiv:2605.29800, 2026.\n\\url{https://arxiv.org/abs/2605.29800}",
+    "margin": "Kohli 2026. \\emph{Nine Judges, Two Effective Votes}. \\url{https://arxiv.org/abs/2605.29800}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "kasi2013cassandra",
+    "original": "B. K. Kasi \\& A. Sarma. ``Cassandra: Proactive Conflict\nMinimization through Optimized Task Scheduling.'' \\emph{ICSE}, 2013.\n\\url{https://web.engr.oregonstate.edu/~sarmaa/wp-content/uploads/2020/08/2486788.2486884.pdf}",
+    "margin": "Kasi and Sarma 2013. \\emph{Cassandra: Proactive Conflict Minimization through Optimized Task Scheduling}. \\url{https://web.engr.oregonstate.edu/~sarmaa/wp-content/uploads/2020/08/2486788.2486884.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "komenda2016distributed",
+    "original": "J. Komenda, T. Masopust \\& J. H. van Schuppen. ``On a\nDistributed Computation of Supervisors in Modular Supervisory Control.''\narXiv:1609.01458, 2016. \\url{https://arxiv.org/abs/1609.01458}",
+    "margin": "Komenda et al. 2016. \\emph{On a Distributed Computation of Supervisors in Modular Supervisory Control}. \\url{https://arxiv.org/abs/1609.01458}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "rohloff2005pspace",
+    "original": "K. Rohloff \\& S. Lafortune. ``PSPACE-Completeness of Modular\nSupervisory Control Problems.'' \\emph{Discrete Event Dynamic Systems} 15:145--167,\n2005. \\url{https://web.njit.edu/~rohloff/papers/2005/Rohloff_Lafortune_Disc693-03.pdf}",
+    "margin": "Rohloff and Lafortune 2005. \\emph{PSPACE-Completeness of Modular Supervisory Control Problems}. \\url{https://web.njit.edu/~rohloff/papers/2005/Rohloff_Lafortune_Disc693-03.pdf}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
   }
 ]

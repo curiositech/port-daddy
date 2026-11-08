@@ -20,9 +20,7 @@ the untrusted model with an attack policy; safety is the probability that no
 unacceptable outcome occurs over the scenario, and usefulness is measured with
 the honest model. Auditing the $2\%$ most suspicious programs gave $62\%$
 safety at $97\%$ usefulness; trusted editing gave $92\%$ at
-$94\%$~\pdcite{greenblatt2024control}. Griffin and colleagues formalize the
-exercise as a partially observable, multi-objective
-game~\pdcite{griffin2024controlgames}. In a multi-step shell setting,
+$94\%$~\pdcite{greenblatt2024control}. In a multi-step shell setting,
 resampling suspicious actions before execution cut attack success from $58\%$
 to $7\%$ at a $5\%$ cost in usefulness~\pdcite{bhatt2025ctrlz}. Every lever
 acts before the effect: defer, resample, audit, shut down. A protocol is a
@@ -82,9 +80,8 @@ boundary from the other side. Every channel the isolation layer leaves
 unmediated, from a raw socket to a container escape to a timing channel, is an
 uncontrollable event available from the first step. Which channels a microVM,
 a user-space kernel, a verified microkernel, WebAssembly or a trusted
-execution environment removes is a separate
-question~\pdcite{agache2020firecracker,young2019gvisor,klein2009sel4,murray2013sel4infoflow,lehmann2020wasm,chuang2026teefail,marchand2026sandboxescape,debenedetti2025camel}\ifpdbook;
-the Book's appendices grade each\fi.
+execution environment removes is a separate question\ifpdbook, which
+the Book's appendices grade\fi.
 
 Between the two parts lie the policies that are controllable but not
 observable, or not controllable yet with a nonempty supremal controllable
