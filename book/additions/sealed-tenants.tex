@@ -120,15 +120,15 @@ ledger; \emph{handle}: an opaque reference, never the value; \emph{no}:
 forbidden. The cache column names the key scope. A ledger-charged synthetic
 derivative enters as the first row. A proposed policy, not a measured one.}
 \label{tab:sealed-tenant-policy}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 Data class & Tenant memory & Shared memory & Tenant adapter & Shared training & Cache \\
 \midrule
 Public or operator-signed (empty label) & yes & yes & yes & yes & shared \\
 Tenant-confidential, no person & yes & release & yes & ledger, tenant as unit & tenant key \\
 The requesting person's data & release, person scope & no & release if one person, else ledger & ledger & person key \\
-Third parties named in content & discloser's scope only & no & no & no & person key \\
-Special category: health, finance & release, retention-limited & no & no & no & person key \\
+Third parties named in content & the discloser's & no & no & no & person key \\
+Special category: health, finance & release, time-limited & no & no & no & person key \\
 Secrets and credentials & handle & no & no & no & no \\
 Untrusted third-party content & data use only & no & no & no & tenant key \\
 Model inferences about a person & release, visible to that person & no & no & no & person key \\
