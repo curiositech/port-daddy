@@ -1,9 +1,8 @@
 % Research-agenda addition (control strand): what isolation supplies.
 % Inserted in Appendix A after "What exists now", before the mechanized claims.
 % The appendices are not passed through the Book generator's citation
-% rewriting, so sources are named in prose; their entries are cited from
-% The Single-Writer Kernel (section "The control game") and appear in the
-% collected references.
+% rewriting, so sources are named in prose and listed in full at the end of
+% this subsection.
 \subsection{What isolation supplies, and what it leaves}\label{app:isolation}
 
 The book's guarantees hold on mediated events. In
@@ -25,8 +24,7 @@ sorting. The sources are Agache and colleagues on Firecracker, Young and
 colleagues on gVisor, Klein and colleagues and Murray and colleagues on seL4,
 Lehmann, Kinder and Pradel on WebAssembly, Chuang and colleagues on TEE.fail,
 Marchand and colleagues on container escape, and Debenedetti and colleagues
-on CaMeL; their entries are cited from the control-game section of
-\pdchapref{swk}{The Single-Writer Kernel}.
+on CaMeL; full references close this subsection.
 
 \begin{table}[H]
 \centering
@@ -96,3 +94,21 @@ timing channels over the permitted output in bits per second. Logs written
 inside the guest may corroborate; they cannot decide. The result is the
 $\Sigma_c$/$\Sigma_u$ inventory that the kernel chapter says a red team, not a
 proof, must supply. Nothing here has been run.
+
+\paragraph{Sources for this subsection.}
+{\footnotesize
+A.~Agache et al., ``Firecracker: Lightweight Virtualization for Serverless
+Applications,'' NSDI 2020.
+E.~G.~Young et al., ``The True Cost of Containing: A gVisor Case Study,''
+HotCloud 2019.
+G.~Klein et al., ``seL4: Formal Verification of an OS Kernel,'' SOSP 2009.
+T.~Murray et al., ``seL4: from General Purpose to a Proof of Information Flow
+Enforcement,'' IEEE S\&P 2013.
+D.~Lehmann, J.~Kinder and M.~Pradel, ``Everything Old is New Again: Binary
+Security of WebAssembly,'' USENIX Security 2020.
+J.~Chuang et al., ``TEE.fail: Breaking Trusted Execution Environments via DDR5
+Memory Bus Interposition,'' IEEE S\&P 2026, \url{https://tee.fail/}.
+R.~Marchand et al., ``Quantifying Frontier LLM Capabilities for Container
+Sandbox Escape,'' ICML 2026, arXiv:2603.02277.
+E.~Debenedetti et al., ``Defeating Prompt Injections by Design,''
+arXiv:2503.18813, 2025.\par}

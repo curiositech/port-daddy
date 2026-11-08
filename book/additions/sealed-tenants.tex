@@ -65,12 +65,12 @@ data, not measurements of the reference system.}
 \toprule
 Channel & Evidence & Defense \\
 \midrule
-Shared weights: rare sequences regurgitated & 604 of 1{,}800 GPT-2 candidates were verbatim training text \pdcite{carlini2021extracting}; over 10{,}000 examples from ChatGPT for \$200 \pdcite{nasr2023scalable} & ledger-charged training; deduplication \\
-Fine-tuned adapter: small, recent data & 23\% of personal data extracted, about 3\% at $\varepsilon=8$ \pdcite{lukas2023pii}; ten examples recover 69.9\% of targeted addresses \pdcite{chen2023janus} & per-tenant adapter; ledger \\
-Shared memory, read: exact release & 116 of 250 prompts reproduce retrieved records \pdcite{zeng2024rag} & owner labels; per-tenant stores \\
-Shared memory, write: planted instruction & 98.2\% injection success from queries alone \pdcite{dong2025minja}; five texts per target, about 90\% \pdcite{zou2024poisonedrag} & integrity class \\
+Shared weights: rare sequences regurgitated & 604 of 1{,}800 GPT-2 candidates were verbatim training text \pdcite{carlini2021extracting} & ledger-charged training; deduplication \\
+Fine-tuned adapter: small, recent data & 23\% of personal data extracted, about 3\% at $\varepsilon=8$ (Lukas et al.) & per-tenant adapter; ledger \\
+Shared memory, read: exact release & 116 of 250 prompts reproduce retrieved records (Zeng et al.) & owner labels; per-tenant stores \\
+Shared memory, write: planted instruction & 98.2\% injection success from queries alone \pdcite{dong2025minja} & integrity class \\
 Prompt or key-value cache: hit timing & caches shared across users at seven API providers, including OpenAI \pdcite{gu2025caching} & Design invariant~\ref{inv:sealed-label-keyed} \\
-Preference data: training route & reward model and RL memorize far less than direct fine-tuning; IPO-style learning more than RL \pdcite{pappu2024rlhf} & reward-model route; ledger \\
+Preference data: training route & reward model and RL memorize far less than direct fine-tuning; IPO-style learning more than RL (Pappu et al.) & reward-model route; ledger \\
 Deletion: influence left in weights & unlearning is well defined only at the algorithmic level \pdcite{thudi2021unlearning} & retrain the adapter; ledger bound \\
 \bottomrule
 \end{tabularx}
