@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40158855,
+    "bytes": 40242670,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/5c7dbf58d6d4ce913dac3702f7843a4a4c3be069a40e4e5ee58c8b136a134503.tar.gz",
-    "sha256": "5c7dbf58d6d4ce913dac3702f7843a4a4c3be069a40e4e5ee58c8b136a134503",
-    "url": "https://media.portdaddy.dev/book/source/sha256/5c7dbf58d6d4ce913dac3702f7843a4a4c3be069a40e4e5ee58c8b136a134503.tar.gz"
+    "key": "book/source/sha256/9e09fe2d0af74336bef0bdca474f31b1d46bf1a501dc21cb344ca13683d7e27e.tar.gz",
+    "sha256": "9e09fe2d0af74336bef0bdca474f31b1d46bf1a501dc21cb344ca13683d7e27e",
+    "url": "https://media.portdaddy.dev/book/source/sha256/9e09fe2d0af74336bef0bdca474f31b1d46bf1a501dc21cb344ca13683d7e27e.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,10 +16,10 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "fc013f30d84f6184b02d665360ae12631a01c7cbb853ee063ae2c20cd2db9353",
+  "manifestSha256": "c42abe792aa2068cfb5946f9078849e2ec27a96503774f7eee363ecf0cb57002",
   "schemaVersion": 1,
   "source": {
-    "fileCount": 511,
+    "fileCount": 535,
     "files": [
       {
         "bytes": 1202,
@@ -38,6 +38,150 @@
         "mode": 493,
         "path": "book/BUILDING.sh",
         "sha256": "cc87d30a2fd82dec82037aa4846d99b22d0335abd5a37eaece9011bea3093122"
+      },
+      {
+        "bytes": 7474,
+        "mode": 420,
+        "path": "book/additions/app-isolation.tex",
+        "sha256": "5b3d891d73cabb2c6ad584143479f8eab12132d6f74eb9cb3414046b5e80ddf0"
+      },
+      {
+        "bytes": 4182,
+        "mode": 420,
+        "path": "book/additions/app-players.tex",
+        "sha256": "e37c4fdaf2b04b830b717868a41b705087708906dfb96a3e193bd0890699b5aa"
+      },
+      {
+        "bytes": 1482,
+        "mode": 420,
+        "path": "book/additions/he-effective-reviewers.tex",
+        "sha256": "40f13fcdfa5c7a277ec2d265dcce7342035330f8bec73d51ad73604996978876"
+      },
+      {
+        "bytes": 3723,
+        "mode": 420,
+        "path": "book/additions/he-exercises-attribution.tex",
+        "sha256": "790e85c66b50c168127ee07133005824956c8a5d9fc4f2ac04506eeb7ae30526"
+      },
+      {
+        "bytes": 2774,
+        "mode": 420,
+        "path": "book/additions/he-exercises-authors.tex",
+        "sha256": "60c8806f454ce54421d0af9d285493b6be391debb636d8124cc5b95856158c62"
+      },
+      {
+        "bytes": 1004,
+        "mode": 420,
+        "path": "book/additions/he-exercises-control.tex",
+        "sha256": "cf4e584a2840e8412cfeaa0299139dad8ee1ae3d784326f79cb51d37c5ba417c"
+      },
+      {
+        "bytes": 9679,
+        "mode": 420,
+        "path": "book/additions/he-licence-split.tex",
+        "sha256": "522431e26dc6770f7d9e23b28b41e075b089de71ea9b0335157bb5779e060c19"
+      },
+      {
+        "bytes": 8831,
+        "mode": 420,
+        "path": "book/additions/he-principal-commitments.tex",
+        "sha256": "c3df0ae55f420936141140c24866581088b33811602ca8f9c0e579c0bc0072a2"
+      },
+      {
+        "bytes": 854,
+        "mode": 420,
+        "path": "book/additions/ls-exercises-attribution.tex",
+        "sha256": "56e94d3f7d350a8371edecec4bd856dad2151c9f7ee84a37d5b54244214217e7"
+      },
+      {
+        "bytes": 5614,
+        "mode": 420,
+        "path": "book/additions/ls-exercises-authors.tex",
+        "sha256": "125c56bd75e959a26b8166ebb10fc73844affe6179bb9ac36aaa9bb701a2eec7"
+      },
+      {
+        "bytes": 2276,
+        "mode": 420,
+        "path": "book/additions/ls-fit-uplift.tex",
+        "sha256": "9cff61a6da811d49427d752741f146f8ecbe26b48b5f53f21dc9180a77166894"
+      },
+      {
+        "bytes": 26748,
+        "mode": 420,
+        "path": "book/additions/ls-many-authors.tex",
+        "sha256": "6766f166074edbf9ac5a4ca8f746a294c8b663ee4bfa4808a54b99e7ce49c83f"
+      },
+      {
+        "bytes": 4742,
+        "mode": 420,
+        "path": "book/additions/sealed-canary-audit.tex",
+        "sha256": "ea4856d866cf8696eaa4e236f19dcd29f3c5b606434b3b1f57f4977c01127ed7"
+      },
+      {
+        "bytes": 6563,
+        "mode": 420,
+        "path": "book/additions/sealed-exercises-tenants.tex",
+        "sha256": "fcf9d7abd8c07ec9c46bca60eba77632514c9f93148c3d111db43fce0f6c430e"
+      },
+      {
+        "bytes": 7025,
+        "mode": 420,
+        "path": "book/additions/sealed-person-ledger.tex",
+        "sha256": "387e4b4bf9f460dfd296cf20dc851405a476bc9f730b38fbdd5f10ff5db4404d"
+      },
+      {
+        "bytes": 14635,
+        "mode": 420,
+        "path": "book/additions/sealed-tenants.tex",
+        "sha256": "15e4e8c4b0cd8ee0eda08d466f444b0d80b429b52e36d608b3f5b127c4a8fa36"
+      },
+      {
+        "bytes": 17049,
+        "mode": 420,
+        "path": "book/additions/stp-consolidation.tex",
+        "sha256": "e3ea23c39cecf735b68663f72770ee63f4c6a46cc22cffdcd66c6259806fea29"
+      },
+      {
+        "bytes": 2419,
+        "mode": 420,
+        "path": "book/additions/stp-exercises-attribution.tex",
+        "sha256": "353ef5691bb86021fa58a1a6292edf7346b4de5c0fa49d57bd6affb0badfbe2d"
+      },
+      {
+        "bytes": 2359,
+        "mode": 420,
+        "path": "book/additions/stp-exercises-control.tex",
+        "sha256": "33184f7c99dd325d7fbcb6b93bb985df5253dfb1bad08fda12626321e7e369b9"
+      },
+      {
+        "bytes": 4095,
+        "mode": 420,
+        "path": "book/additions/stp-exercises-memory.tex",
+        "sha256": "d36e89fc916fef85b84b0f7c0c8832b454ff939d230d33280ca02e41e7371971"
+      },
+      {
+        "bytes": 5894,
+        "mode": 420,
+        "path": "book/additions/stp-skill-attribution.tex",
+        "sha256": "c30e41b1cf78d07401075360b4ab12b00fb42bc65d924f99c3f93465e0a66123"
+      },
+      {
+        "bytes": 5831,
+        "mode": 420,
+        "path": "book/additions/stp-transmission.tex",
+        "sha256": "3e9a712b41318c7d5c8a9d56933591449352930ff611a211eec00a8a5307652d"
+      },
+      {
+        "bytes": 8798,
+        "mode": 420,
+        "path": "book/additions/swk-control-game.tex",
+        "sha256": "64be155f1e19be1329f675c25eb8d6786d2a0776b07489d880c410110482fe27"
+      },
+      {
+        "bytes": 2656,
+        "mode": 420,
+        "path": "book/additions/swk-exercises-control.tex",
+        "sha256": "e2691457a66c226ad08008f1e093d121d7c9f20efda19353e12e8e2597a49e29"
       },
       {
         "bytes": 212921,
@@ -76,10 +220,10 @@
         "sha256": "d392563bd9d987341befcb38d359a0bcdc74ac31652229e369fa8ee525e0cdc8"
       },
       {
-        "bytes": 43206,
+        "bytes": 92777,
         "mode": 420,
         "path": "book/citation-margin-entries.json",
-        "sha256": "724b367ed77b030201b83a2bd7dccd817bf6def4280ea4372881693ebabc0af8"
+        "sha256": "84e283a169e082a9ee65fabb6699cd178c16c8957881ace55203014ff8e76c8f"
       },
       {
         "bytes": 1770,
@@ -88,10 +232,10 @@
         "sha256": "c50d33adec516b53923f2f87b9e4b00f9c5570d6ef5cfa193e6cccf13c555214"
       },
       {
-        "bytes": 19028,
+        "bytes": 19090,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-appendices.tex",
-        "sha256": "4c5b0f8fed63abac37ba35c436cfb66a636a6add2089c61ac1fe7b1906454e04"
+        "sha256": "50149335a5d26a6767056de00796dd834bdd7bf9e2073178f49980f313801dfa"
       },
       {
         "bytes": 108812,
@@ -1492,10 +1636,10 @@
         "sha256": "8228effc791d0ff7c73aecb20260cb0c3f127e8ace554a9a57876a6f05772a1f"
       },
       {
-        "bytes": 26549,
+        "bytes": 32530,
         "mode": 420,
         "path": "book/figures/pd-cite-shortforms.tex",
-        "sha256": "54780150b4f61b44d23088bba3316ab4af9bb9086bc56031ccf0c74ab0d0ad12"
+        "sha256": "cb58baa5f3a13ffa892229c6dba2075ab8ee0c266eff428d882693fb060720fe"
       },
       {
         "bytes": 898,
@@ -1882,16 +2026,16 @@
         "sha256": "2f548ebe7b4e535e4e5e9a3d6f7bff4436387e837c0925fef782be2736b6f982"
       },
       {
-        "bytes": 198058,
+        "bytes": 199464,
         "mode": 420,
         "path": "book/harbor-economy.tex",
-        "sha256": "34a961f5bb36338a98bfe9b765c8bc4307352a149a752faed2c5cf68fa5d2a2a"
+        "sha256": "7d5e360ec53d2a726cd166c0202142d008516280c8abe600d9c2daad60c5bd1a"
       },
       {
-        "bytes": 282570,
+        "bytes": 287516,
         "mode": 420,
         "path": "book/legible-swarm.tex",
-        "sha256": "b8f8e3f5b241f23f8d4375f50ae2900cf6e181665bc2c09d7df0edda36e73aad"
+        "sha256": "91d81b5f47bed4edeefe45d7f6266ce82a9c88bc5a1813340b26aefe92b7ef97"
       },
       {
         "bytes": 1076,
@@ -3022,10 +3166,10 @@
         "sha256": "c247729812923c2e0043a0698ddbb063d95262febf439340e60232680636cab5"
       },
       {
-        "bytes": 115520,
+        "bytes": 121301,
         "mode": 420,
         "path": "book/sealed-harbor.tex",
-        "sha256": "43a374c426ae868c5a02a1b0f955c0c557e917228a11e5fc215cd5766adf0d50"
+        "sha256": "95b1f92e999cc726e3ceeb3b34e9b0b050e6a68c724ed90200979506ba92729b"
       },
       {
         "bytes": 4064,
@@ -3034,16 +3178,16 @@
         "sha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6"
       },
       {
-        "bytes": 238293,
+        "bytes": 240341,
         "mode": 420,
         "path": "book/single-writer-kernel.tex",
-        "sha256": "d2d2a1714143d2fe8fea5b640eb326d657410dc41e41841e3258d3cbe6716ae5"
+        "sha256": "7440a42d9c289b4d369d2f78e7f7ce76e39188932eef3a9652e30a6bd81353af"
       },
       {
-        "bytes": 222265,
+        "bytes": 230418,
         "mode": 420,
         "path": "book/spawn-to-person.tex",
-        "sha256": "5bb3607eca97563de7f89dc8aa0b07e0eddc6b45d3375c971b96e45c4c094001"
+        "sha256": "943a9276364118376c4ec96c172898bc6bac5771e25908d80c6202e701c33835"
       },
       {
         "bytes": 10210,
@@ -3088,6 +3232,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "a360b8949c75e59ad480df13e4a900677b3b638ef80d99b4ef598140a51d78e7"
+    "sha256": "f898d5dc1f903c2af42da2b9e0bbbe2fbfb29d4a5847af084b2a442b31bca28c"
   }
 }
