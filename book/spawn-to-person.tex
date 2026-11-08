@@ -1051,10 +1051,9 @@ $\mathbb E[\mathbf1_{\{\mathrm{detected}\}}\delta^\tau W_\delta]$.
 
 
 
-% The open-font proof needs an empty margin queue here; Suisse keeps its layout.
-\ifdefined\pdbookfontprofile
-  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
-\fi
+% Both profiles need an empty margin queue here: the table's caption, the key
+% idea and the analogy otherwise compete for one margin.
+\pdmarginpagebreak
 
 \begin{table}[H]
 \centering\small\renewcommand{\arraystretch}{1.25}

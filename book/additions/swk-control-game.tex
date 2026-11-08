@@ -117,10 +117,7 @@ Bob's original test must remain. A capability card that makes the test
 directory read-only turns every test write into a refused controllable event:
 ``no test edits'' is controllable and observable, and part~(a) applies. If no
 refused cheat switched strategy, the residual rate would be at most
-\[
-(1-0.79)\times 0.50 = 0.21\times 0.50 = 0.105 .
-\]
-That figure is optimistic, not a prediction. The paper reports that read-only
+$(1-0.79)\times 0.50 = 0.105$. That figure is optimistic, not a prediction. The paper reports that read-only
 tests did not eliminate special-casing or operator overloading. Those patches
 pass every write rule and still violate the specification: ``this diff
 special-cases the tests'' is not a function of the observed write, so no gate
@@ -128,11 +125,7 @@ over this alphabet regiments it.
 
 The paper's other lever is an escalation channel. Letting the agent stop and
 flag the task for a person cut GPT-5's cheating on the same variant from $54\%$
-to $9\%$, a relative fall of
-\[
-\frac{54-9}{54}=\frac{45}{54}\approx 0.83,
-\]
-and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$.
+to $9\%$, a relative fall of $45/54\approx 0.83$, and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$.
 \end{pdexample}
 
 \paragraph{A three-configuration harbor protocol (\Vision{}).}
