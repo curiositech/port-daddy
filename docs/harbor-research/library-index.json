@@ -1965,6 +1965,96 @@
       "id": "def:0040b",
       "file": "book/spawn-to-person.tex",
       "reason": "ADR-0040b alias for def:cross-operator-attestation."
+    },
+    {
+      "id": "prop:he-meter-steering",
+      "file": "book/additions/he-licence-split.tex",
+      "reason": "Research-agenda addition (November 2026): Property 'Meter steering', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:he-licence-split",
+      "file": "book/additions/he-licence-split.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Licence-Split Impossibility', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:he-loo-royalty",
+      "file": "book/additions/he-licence-split.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Leave-One-Out Royalties', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "def:he-effect-royalty",
+      "file": "book/additions/he-licence-split.tex",
+      "reason": "Research-agenda addition (November 2026): Definition 'Effect-gated royalty', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:he-tagged-blame",
+      "file": "book/additions/he-principal-commitments.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Principal-Tagged Detection and Minimal Blame', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:he-joint-frontier",
+      "file": "book/additions/he-principal-commitments.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Individually Consistent, Jointly NP-Complete', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:he-prohibitions-compose",
+      "file": "book/additions/he-principal-commitments.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Prohibitions Compose', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:ls-fit-uplift",
+      "file": "book/additions/ls-fit-uplift.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Fit Is Not Uplift', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "def:ls-many-authors",
+      "file": "book/additions/ls-many-authors.tex",
+      "reason": "Research-agenda addition (November 2026): Design invariant 'Many-Author Authority', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:ls-unity-of-command",
+      "file": "book/additions/ls-many-authors.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Unity of Command Is Exactly Well-Defined Escalation', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:sealed-canary-falsify",
+      "file": "book/additions/sealed-canary-audit.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Canaries Falsify a Declared epsilon', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:sealed-person-ledger",
+      "file": "book/additions/sealed-person-ledger.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Person-Keyed Conservation', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:sealed-no-scrubber",
+      "file": "book/additions/sealed-tenants.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'No Scrubber Guarantee Without a Mechanism', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "def:stp-memory-view",
+      "file": "book/additions/stp-consolidation.tex",
+      "reason": "Research-agenda addition (November 2026): Definition 'Memory as a view', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:stp-consolidation-separation",
+      "file": "book/additions/stp-consolidation.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Consolidation Separation', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:stp-coverage-ledger",
+      "file": "book/additions/stp-consolidation.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Coverage Needs the Ledger', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:stp-honeypot-recognition",
+      "file": "book/additions/stp-transmission.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'Recognizable Honeypots Raise the Critical Rate', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:swk-control-game",
+      "file": "book/additions/swk-control-game.tex",
+      "reason": "Research-agenda addition (November 2026): Theorem 'What a Control Evaluation Can Measure', proposed material not yet folded into a research-program entry."
     }
   ]
 }
