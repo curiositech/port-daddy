@@ -427,7 +427,14 @@ But Locke's raw version has a bug that matters for us. Direct memory
 brave officer who remembered being a boy, yet the general does not remember being
 the boy (Reid's objection). If identity \emph{were} direct memory connectedness,
 the general would be the officer and the officer the boy, but the general would
-\emph{not} be the boy --- a contradiction.
+\emph{not} be the boy --- a contradiction. Reid draws the moral himself: ``What
+makes it the case that I was the person who did such-and-such is not my
+remembering doing it''~\pdcite{reid1785memory}. Locke, who calls ``person'' a
+``Forensick Term'', also holds that ``Socrates waking and sleeping is not the
+same Person''~\pdcite{gordonroth2019locke}; read as a rule for agents, that
+criterion would let an agent that forgot a debt stop owing it, so the ledger
+keeps Locke's forensic purpose and rejects his criterion
+(\S\ref{sec:stp-consolidation}).
 
 \subsection{Parfit's repair: continuity, not connectedness}
 
@@ -532,7 +539,8 @@ implementation: each organ stores less than the live body had.
 
 The third gap is a witness to \emph{what the successor loaded} --- notes,
 checkpoint and ledger positions --- not just authority to load them.
-This chapter specifies no such witness.
+This chapter specifies no such witness for checkpoints or ledger positions; for
+notes, \S\ref{sec:stp-consolidation} proposes one, the consolidation receipt.
 \end{pdboundary}
 
 \pdexercisepointer*{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
@@ -817,6 +825,7 @@ reader should consult first.
 % --- FIGURE 5: honest-state table-as-figure ---
 
 \pdexercisepointer{\ref{ex:stp-weak-organ}}{\ref{ex:stp-death-taxonomy}}{\pageref{ex:stp-weak-organ}}
+\input{additions/stp-consolidation}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Identity: the root the whole chain hangs from}\label{sec:identity}
@@ -958,6 +967,7 @@ authenticity by itself supplies neither policy.
   witnessed history. This can make re-entry costly, but whether that cost deters a deviation depends on attainable surplus, detection and the gain at stake.
   \item \textbf{The Sybil attack}~\pdcite{douceur2002}: unrestricted identities can multiply influence when a
   reputation or quorum mechanism counts each as an independent participant. Rate-limited issuance and bonded admission are candidate safeguards. Their effect depends on enforceable principal linkage and issuance limits; naming a daemon as issuer does not itself prevent one principal from collecting aliases.
+  \item \textbf{Forgetting is not resetting.} An agent that consolidates a debt out of its notes has not shed it: under the premises of Theorem~\ref{thm:stp-consolidation-separation} the debt is a function of the ledger, and it stays open against the same principal until a ledger operation closes it (\S\ref{sec:stp-consolidation}).
 \end{itemize}
 
 Cheap-pseudonym analysis~\pdcite{friedmanresnick2001} and Sybil-proof reputation mechanisms~\pdcite{chengfriedman2005} study related escape and replication problems. Their assumptions differ from the score-floor example, so the example is not a substitute for those general results. Here the next design question is quantitative: what does re-entering under a restricted newcomer schedule cost?
@@ -2060,6 +2070,7 @@ of value}, and gate licensing clawbacks on the witnessed green/red settlement, n
 on the helpfulness estimate alone.}
 
 \pdexercisepointer{\ref{ex:stp-judge-competence}}{\ref{ex:stp-vector-disclosure}}{\pageref{ex:stp-judge-competence}}
+\input{additions/stp-skill-attribution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The grading oracle's incentive-compatibility}\label{sec:oracle}
@@ -2936,6 +2947,7 @@ KV cache, or ``intent'' dies, fundamentally unrecoverable from an arbitrary
 provider. Checkpoint guarantees should state which tier they provide.
 \end{pdsolution}
 
+\input{additions/stp-exercises-memory}
 \pdexercisesfor{\S\ref{sec:identity}}{Identity: the root the whole chain hangs from}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:stp-property-reality}
@@ -3211,6 +3223,7 @@ regressions. Plural preference does not eliminate Goodhart, but it prevents
 one universal target from becoming the asset itself.
 \end{pdsolution}
 
+\input{additions/stp-exercises-attribution}
 \pdexercisesfor{\S\ref{sec:oracle}}{The grading oracle's incentive-compatibility}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:stp-grading-oracle-hole}
@@ -3748,6 +3761,149 @@ Philip A.\ Bernstein, Sergey Bykov, Alan Geller, Gabriel Kliot, and Jorgen Theli
 \newblock Orleans: Distributed Virtual Actors for Programmability and Scalability.
 \newblock Microsoft Research Technical Report MSR-TR-2014-41, 2014.
 
+\bibitem{lin2025sleeptime}
+Kevin Lin, Charlie Snell, Yu Wang, Charles Packer, Sarah Wooders, Ion Stoica, and Joseph E.\ Gonzalez.
+\newblock Sleep-time Compute: Beyond Inference Scaling at Test-time.
+\newblock arXiv:2504.13171, 2025.
+\newblock \url{https://arxiv.org/abs/2504.13171}
+
+\bibitem{hafner2023dreamerv3}
+Danijar Hafner, Jurgis Pasukonis, Jimmy Ba, and Timothy Lillicrap.
+\newblock Mastering Diverse Domains through World Models.
+\newblock arXiv:2301.04104, 2023.
+\newblock \url{https://arxiv.org/abs/2301.04104}
+
+\bibitem{behrouz2026sleep}
+Ali Behrouz, Farnoosh Hashemi, Adel Javanmard, and Vahab Mirrokni.
+\newblock Language Models Need Sleep: Learning to Self-Modify and Consolidate Memories.
+\newblock arXiv:2606.03979, 2026.
+\newblock \url{https://arxiv.org/abs/2606.03979}
+
+\bibitem{packer2023memgpt}
+Charles Packer, Sarah Wooders, Kevin Lin, Vivian Fang, Shishir G.\ Patil, Ion Stoica, and Joseph E.\ Gonzalez.
+\newblock MemGPT: Towards LLMs as Operating Systems.
+\newblock arXiv:2310.08560, 2023.
+\newblock \url{https://arxiv.org/abs/2310.08560}
+
+\bibitem{xu2025amem}
+Wujiang Xu, Zujie Liang, Kai Mei, Hang Gao, Juntao Tan, and Yongfeng Zhang.
+\newblock A-Mem: Agentic Memory for LLM Agents.
+\newblock arXiv:2502.12110, 2025.
+\newblock \url{https://arxiv.org/abs/2502.12110}
+
+\bibitem{chhikara2025mem0}
+Prateek Chhikara, Dev Khant, Saket Aryan, Taranjeet Singh, and Deshraj Yadav.
+\newblock Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory.
+\newblock arXiv:2504.19413, 2025.
+\newblock \url{https://arxiv.org/abs/2504.19413}
+
+\bibitem{rasmussen2025zep}
+Preston Rasmussen, Pavlo Paliychuk, Travis Beauvais, Jack Ryan, and Daniel Chalef.
+\newblock Zep: A Temporal Knowledge Graph Architecture for Agent Memory.
+\newblock arXiv:2501.13956, 2025.
+\newblock \url{https://arxiv.org/abs/2501.13956}
+
+\bibitem{anthropic2026memory}
+Anthropic.
+\newblock How Claude Remembers Your Project.
+\newblock Claude Code documentation, accessed 7 November 2026.
+\newblock \url{https://code.claude.com/docs/en/memory}
+
+\bibitem{zhang2026faultymemory}
+Dylan Zhang, Yanshan Lin, Zhengkun Wu, Yihang Sun, Bingxuan Li, Dianqi Li, and Hao Peng.
+\newblock Useful Memories Become Faulty When Continuously Updated by LLMs.
+\newblock arXiv:2605.12978, 2026.
+\newblock \url{https://arxiv.org/abs/2605.12978}
+
+\bibitem{cerruti2026eal}
+Tommaso Cerruti, Mika Okamoto, and Ansel Kaplan Erol.
+\newblock Agent Memory Is a Surface for Endogenous Authorization Laundering.
+\newblock arXiv:2609.01836v1, 2026.
+\newblock \url{https://arxiv.org/abs/2609.01836v1}
+
+\bibitem{zhan2026authmem}
+Qiuyang Zhan, Rui Zhang, Sheng Guo, Lepeng Zhao, and Zhuotao Liu.
+\newblock When Memory Becomes Authority: Benchmarking Authority Collapse at the Memory Consolidation Boundary.
+\newblock arXiv:2608.01679, 2026.
+\newblock \url{https://arxiv.org/abs/2608.01679}
+
+\bibitem{chen2024agentpoison}
+Zhaorun Chen, Zhen Xiang, Chaowei Xiao, Dawn Song, and Bo Li.
+\newblock AgentPoison: Red-teaming LLM Agents via Poisoning Memory or Knowledge Bases.
+\newblock arXiv:2407.12784, 2024.
+\newblock \url{https://arxiv.org/abs/2407.12784}
+
+\bibitem{das2026selfpropagation}
+Debeshee Das, Jacqueline Tay, Bruce Tsai, David Huang, and Javier Rando.
+\newblock Self-Propagating Misalignment in LLM Agents, and Why Auditing or Disabling Memory Is Not Enough.
+\newblock arXiv:2610.04083, 2026.
+\newblock \url{https://arxiv.org/abs/2610.04083}
+
+\bibitem{reid1785memory}
+Thomas Reid.
+\newblock Essays on the Intellectual Powers of Man, Essay III: Memory. 1785.
+\newblock Version prepared by Jonathan Bennett, 2017.
+\newblock \url{https://earlymoderntexts.com/assets/pdfs/reid1785essay3.pdf}
+
+\bibitem{gordonroth2019locke}
+Jessica Gordon-Roth.
+\newblock Locke on Personal Identity.
+\newblock \textit{Stanford Encyclopedia of Philosophy}, 2019; substantive revision 29 September 2025.
+\newblock \url{https://plato.stanford.edu/entries/locke-personal-identity/}
+% Bibliography entries for stp-skill-attribution.tex (attribution strand).
+\bibitem{anthropic2026skills}
+Anthropic.
+\newblock Agent Skills: overview. Claude Developer Platform documentation.
+\newblock Accessed November 2026.
+\newblock \url{https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview}
+
+\bibitem{zhang2026estimands}
+Shuyang Zhang.
+\newblock What Does a Skill Actually Do? Estimands and Evaluation Validity for Tool and Skill Use in LLM Agents: A Critical Review.
+\newblock arXiv:2609.33153, 2026.
+\newblock \url{https://arxiv.org/abs/2609.33153}
+
+\bibitem{dong2026harmful}
+Gen Dong, Yanjie Gao, Liqun Li, Tianyin Xu, Yu Hua, and Fan Yang.
+\newblock Agent Skills Can Be Harmful: An Empirical Study of Skill-Induced Failures in LLM Agents.
+\newblock arXiv:2608.11888, 2026.
+\newblock \url{https://arxiv.org/abs/2608.11888}
+
+\bibitem{dudik2011dr}
+Miroslav Dud\'{\i}k, John Langford, and Lihong Li.
+\newblock Doubly Robust Policy Evaluation and Learning.
+\newblock In \textit{Proc.\ 28th International Conference on Machine Learning (ICML)}, 2011. arXiv:1103.4601.
+\newblock \url{https://arxiv.org/abs/1103.4601}
+
+\bibitem{lewontin1974}
+Richard C. Lewontin.
+\newblock The Analysis of Variance and the Analysis of Causes.
+\newblock \textit{American Journal of Human Genetics}, 1974. Reprinted in \textit{International Journal of Epidemiology}, 35(3):520--525, 2006.
+\newblock \url{https://mail.joelvelasco.net/teaching/3334/lewontin-anova.pdf}
+
+\bibitem{sclar2024}
+Melanie Sclar, Yejin Choi, Yulia Tsvetkov, and Alane Suhr.
+\newblock Quantifying Language Models' Sensitivity to Spurious Features in Prompt Design, or: How I Learned to Start Worrying about Prompt Formatting.
+\newblock In \textit{International Conference on Learning Representations (ICLR)}, 2024. arXiv:2310.11324.
+\newblock \url{https://arxiv.org/abs/2310.11324}
+
+\bibitem{mizrahi2024}
+Moran Mizrahi, Guy Kaplan, Dan Malkin, Rotem Dror, Dafna Shahaf, and Gabriel Stanovsky.
+\newblock State of What Art? A Call for Multi-Prompt LLM Evaluation.
+\newblock arXiv:2401.00595, 2024.
+\newblock \url{https://arxiv.org/abs/2401.00595}
+
+\bibitem{srinivasan2026ddr}
+Vasundra Srinivasan.
+\newblock Deployment Decision Reliability: A Generalizability-Theory Framework for Sizing Long-Horizon Agent Evaluations.
+\newblock arXiv:2608.11323, 2026.
+\newblock \url{https://arxiv.org/abs/2608.11323}
+
+\bibitem{bordt2023shapley}
+Sebastian Bordt and Ulrike von Luxburg.
+\newblock From Shapley Values to Generalized Additive Models and Back.
+\newblock In \textit{Proc.\ 26th International Conference on Artificial Intelligence and Statistics (AISTATS)}, PMLR 206, 2023. arXiv:2209.04012.
+\newblock \url{https://arxiv.org/abs/2209.04012}
 \end{thebibliography}
 
 \end{document}

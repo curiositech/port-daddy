@@ -1,0 +1,40 @@
+\pdexercisesfor{\S\ref{sec:stp-skill-attribution}}{Which part of a skill helped}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-opened-not-treatment}
+A dashboard reports that tasks in which the agent opened
+\texttt{references/troubleshooting.md} passed less often than tasks in which
+it did not, and proposes deleting the file. Give two reasons this comparison
+cannot show that the file hurts, and the design in
+Protocol~\ref{proto:stp-masked-asset} that answers both.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-opened-not-treatment}
+First, opening is chosen after the run begins: an agent may open a
+troubleshooting file because it is already failing, so the opened group is
+harder, not worse served. Second, the file can act without being opened,
+through its mention in \texttt{SKILL.md}, and an opened file need not be
+followed. The masked-asset protocol hides the file and its mention at random,
+before the run, on an audit share of runs. The difference in outcomes between
+masked and shown runs estimates the file's effect, and dividing by the
+difference in read rates estimates the effect of reading it, provided the
+mask acts only through reading.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-prompt-contrast}
+A harbor runs two system prompts on two models with equal numbers of tasks.
+Pass rates: model $M_1$ scores $0.60$ with $P$ and $0.50$ with $P'$; model
+$M_2$ scores $0.40$ with $P$ and $0.55$ with $P'$. Compute the effect of
+switching from $P'$ to $P$ on each model, the average effect in this design,
+and the effect if $80\%$ of production tasks go to $M_1$. What should the
+report state, following the rule in the box above?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-prompt-contrast}
+On $M_1$ the switch gives $0.60-0.50=+0.10$; on $M_2$ it gives
+$0.40-0.55=-0.15$. With equal weights the average is
+$\tfrac12(0.10)+\tfrac12(-0.15)=-0.025$. With $80\%$ of tasks on $M_1$ it is
+$0.8\times0.10+0.2\times(-0.15)=0.08-0.03=+0.05$. The sign depends on the
+model mix, as Lewontin's argument predicts: there is no fixed ``share due to
+the prompt''. The interaction contrast is
+$\tfrac12\bigl(0.10-(-0.15)\bigr)=0.125$, larger than either average. Report
+the per-model contrasts with their intervals, the production mix they were
+weighted by, the spread across meaning-preserving variants of each prompt,
+and the interaction share; record the prompt hash with every run.
+\end{pdsolution}

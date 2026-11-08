@@ -1,0 +1,44 @@
+% Research-agenda addition (attribution strand): fit is not uplift.
+% Inserted in \S\ref{sec:relevance}, after the comonotone discussion.
+\paragraph{Ranking skills: fit is not uplift.}
+The same split applies when the items ranked are skills rather than agents.
+A skill router scores a skill against a task by a fit of the form of
+Eq.~\ref{eq:fit}: text and declared capability matched to the query. A
+settlement reader needs something else, the skill's \emph{uplift}: the
+change in expected settled outcome when the skill is made available to the
+task, against the same task without it.
+
+\begin{pdclaim}{Theorem}{Fit Is Not Uplift}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:ls-fit-uplift}
+Suppose each reader's optimal selections at every budget are the top sets
+of its own priority order, as in Theorem~\ref{thm:comonotone}. On any skill
+catalog that contains a high-fit skill with zero uplift and a lower-fit
+skill with positive uplift, no single scalar head serves both the router,
+which reads fit, and the settlement reader, which reads uplift.
+\end{pdclaim}
+\begin{proof}
+\setlength{\parskip}{4pt plus 1pt}
+Let $A$ be the high-fit skill with zero uplift, such as a procedure the
+agent already performs without help, and $B$ the lower-fit skill with
+uplift $u(B)>0$. Then
+$\bigl(\mathrm{fit}(A)-\mathrm{fit}(B)\bigr)\bigl(u(A)-u(B)\bigr)<0$, a
+strict reversal. By Theorem~\ref{thm:comonotone}, no shared head serves
+both orders. The construction is the one in the proof of
+Theorem~\ref{thm:split-ranker}, with uplift in place of regret.
+\end{proof}
+
+\noindent The hypothesis is plausible, not proved, for real catalogs.
+SkillsBench reports that curated skills raise the average pass rate from
+$33.9\%$ to $50.5\%$, with gains ranging from $+4.1$ to $+25.7$ points by
+model--harness configuration~\pdcite{li2026skillsbench}. Fit is computed
+from the skill's text and the task. Uplift belongs to the skill together
+with the agent that uses it. The same study finds that focused skills of
+at most three modules beat larger bundles~\pdcite{li2026skillsbench}, so
+adding matching material can raise fit and lower value. Routing may use
+fit. Royalties and deranking should read uplift
+(\pdchapref{he}{The Harbor Economy}%
+\ifpdbook
+, \S\ref{he:sec:he-licence-split}%
+\fi
+).

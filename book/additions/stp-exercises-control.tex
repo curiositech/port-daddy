@@ -1,0 +1,14 @@
+\pdexercisesfor{\S\ref{sec:stp-transmission}}{Do the incentives reach the agent?}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-honeypot-odds}
+At the chapter's running parameters ($\rho^\star=0.25$), a judge's honeypot classifier operates at $\alpha=0.7$, $\beta=0.3$. Using Theorem~\ref{thm:stp-honeypot-recognition}, find the smallest honeypot rate that deters every label-dependent strategy and check it by computing $\rho_{\mathrm{eff}}$ at that rate. What does a corrupt grade earn, net, at the chapter's $\rho=0.25$?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-honeypot-odds}
+The factor is $(1-\beta)/(1-\alpha)=0.7/0.3=7/3$ and the odds of $\rho^\star$ are $1/3$, so the odds must reach $7/9$, giving $\rho\ge(7/9)/(1+7/9)=7/16=0.4375$. Check: $\rho_{\mathrm{eff}}=\tfrac{7}{16}\cdot0.3\big/\bigl(\tfrac{7}{16}\cdot0.3+\tfrac{9}{16}\cdot0.7\bigr)=2.1/(2.1+6.3)=0.25$. At $\rho=0.25$, $\rho_{\mathrm{eff}}=0.075/(0.075+0.525)=0.125$, the expected forfeiture is $0.125\times0.8\times50=5$, and a corrupt grade nets $10-5=5$.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-dose-response}
+Design a test of part~(b) of Hypothesis~\ref{hyp:stp-transmission} for a grading agent. Say what you vary, what you record, which controls make a null result informative, and what each outcome implies for this chapter.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-dose-response}
+Use tasks whose corrupt grade is unambiguous, for instance tests mutated to contradict the specification so that any pass is a violation. Seal the seeds and the item sets before the run, and make at least a fifth of the items adversarial. Vary the stated honeypot rate, detection probability and bond so that $\rho dB-G$ runs from negative to positive, and record the corruption rate in each cell with the pinned model version. Run two controls: a scripted risk-neutral agent, which must show a step at $\rho dB=G$, and a random agent, which must not; a direct effort instruction checks that the scoring can see behavior change at all. A falling rate across the step supports (b). A flat rate, with the controls behaving, falsifies (b) for that model: the chapter's conditions then bind the principal only, and the model's behavior needs a gate. A non-monotone rate is a warning that stated incentives can be gamed and must not be published as deterrence.
+\end{pdsolution}

@@ -1,0 +1,187 @@
+% Research-agenda addition (attribution strand): what the licence meter counts.
+% Inserted after the closing pointer of \S\ref{sec:one-settlement}.
+\subsection{What the licence meter counts}\label{sec:he-licence-split}
+
+The settlement above billed Carol for the $16$ files her skill touched. That
+count stays in the example as a cap and as an illustration of a usage meter.
+This subsection replaces it as the basis for settlement. A licence can pay
+for four different observables. Each one can be moved by the licensor, and
+each moves in a different way.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Four billing rules for a skill licence. Each pays for an observable
+that the licensor can change without changing the outcome.}
+\label{tab:he-billing-rules}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Rule} & \textbf{What it pays for} & \textbf{How the licensor moves it} \\
+\midrule
+Per load & the skill's instructions entering the agent's context & a broader description, so the skill triggers on more tasks \\
+Per file & reference files opened, or buyer files touched & a line telling the agent to read every reference first; more, smaller files \\
+Shapley share & the average marginal contribution of each component & split one needed component into several needed pieces; duplicate a substitute \\
+Leave-one-out & $v(N)-v(N\setminus\{i\})$ for each component $i$ & split a needed component; each piece is paid the whole marginal value \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The first two rules read the run's trace. The trace is not independent of
+the payee. A skill's text sits in the agent's context as instruction, so the
+licensor partly writes the behaviour the meter records.
+
+\begin{property}[Meter steering]\label{prop:he-meter-steering}
+\setlength{\parskip}{4pt plus 1pt}
+Let a licence pay $m(\tau)$, where $\tau$ is the trace of a run. The skill's
+text changes the distribution of $\tau$. Suppose two versions of a skill have
+the same distribution of settled outcomes but different expected meter
+values. Then a licensor who maximizes payment prefers the version with the
+higher meter, and the buyer pays the difference for no outcome.
+
+A payment computed only from settled outcomes, under an assignment of skills
+to tasks that the licensor cannot see or set, is unchanged by such edits.
+\textbf{Status:} \Designed{} boundary on the licence contract. It is the payee's
+case of Theorem~\ref{thm:folk}: here the party being paid also writes the
+input to the signal.
+\end{property}
+
+The last two rules read outcomes, not traces, so they survive
+Property~\ref{prop:he-meter-steering}. They fail differently. Fix a set $N$
+of licensed components that may be made available to a task, each owned by
+one licensor. Let $v(S)$ be the expected settled value when exactly the
+components in $S$ are available, so $v(\emptyset)$ is the value with none
+of them. A \emph{royalty rule} $\phi$ assigns each component a share of
+$v(N)-v(\emptyset)$. The first two properties below are among the Shapley
+fairness conditions used for data marketplaces; the third is the condition
+under which their replication result holds~\pdcite{agarwal2019market}:
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+  \item \textbf{Balance:} the shares sum to $v(N)-v(\emptyset)$.
+  \item \textbf{Symmetry:} two components that add the same value to every
+  coalition receive equal shares.
+  \item \textbf{Anonymity:} the rule reads $v$ and the component names only,
+  not which licensor owns which component.
+\end{itemize}
+A rule is \textbf{split-proof} if no licensor can raise its total share by
+re-packaging its own components into a game with the same outcomes: one
+component cut into pieces that act only together, or one component copied.
+
+\begin{pdclaim}{Theorem}{Licence-Split Impossibility}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:he-licence-split}
+No royalty rule that satisfies Balance, Symmetry and Anonymity is
+split-proof on every game.
+\end{pdclaim}
+\begin{proof}
+\setlength{\parskip}{4pt plus 1pt}
+\emph{Complements.} Let a task succeed only when every component in $N$ is
+available, with $v(N)=1$ and $v(S)=0$ otherwise. Every component is then
+symmetric to every other, so Balance and Symmetry force a share of $1/n$
+each. A licensor owning $k<n$ of them receives $k/n$. If it cuts one of its
+components into two pieces that work only together, the game has $n+1$
+symmetric components and the same outcomes. Its share becomes
+$(k+1)/(n+1)$, and
+\[
+\frac{k+1}{n+1}-\frac{k}{n}=\frac{n-k}{n(n+1)}>0 .
+\]
+Anonymity is used here: the rule cannot see that two components share an
+owner. With $n=2$ and $k=1$ the share rises from $1/2$ to $2/3$.
+
+\emph{Substitutes.} Agarwal, Dahleh and Sarkar prove that when seller
+identities are anonymized, balance and robustness to replication cannot hold
+together~\pdcite{agarwal2019market}. In their example two sellers offer
+identical features and receive $1/2$ each. One seller lists a copy. Three
+identical components share the same total, $1/3$ each, so the copier now
+holds $2/3$.
+\end{proof}
+
+\begin{pdclaim}{Theorem}{Leave-One-Out Royalties}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:he-loo-royalty}
+The leave-one-out rule $\phi_i=v(N)-v(N\setminus\{i\})$ is not balanced. A
+licensor can multiply its leave-one-out royalty by cutting a needed
+component into needed pieces, and a component with an identical substitute
+is paid nothing.
+\end{pdclaim}
+\begin{proof}
+\setlength{\parskip}{4pt plus 1pt}
+In the complements game every component's leave-one-out value is $v(N)-0=1$,
+so $n$ components are paid $n$ against a total of $1$. Cutting one component
+into $j$ needed pieces gives each piece the value $1$, so its owner's royalty
+rises from $1$ to $j$. If two components are identical, removing either
+leaves the other, so each has leave-one-out value $0$.
+\end{proof}
+
+\begin{pdexample}{Carol Splits Her Skill}
+\setlength{\parskip}{4pt plus 1pt}
+A constructed task needs two licensed skills: Carol's lint skill $C$ and
+Eve's type-stub skill $E$. The task settles green only when both are
+available. The royalty pool is $12$\,\textsc{cr} per green task.
+
+\emph{Shapley, before the split.} There are two orders of arrival. Each skill
+completes the pair in one of them, so each share is $1/2$:
+$12\times\tfrac12=6$\,\textsc{cr} each.
+
+\emph{Shapley, after the split.} Carol publishes $C$ as two skills, $C_1$
+(rules) and $C_2$ (fixer), which work only together. There are $3!=6$ orders.
+Each of the three skills arrives last, and completes the set, in $2$ of
+them, so each share is $2/6=1/3$. Carol holds $C_1$ and $C_2$:
+$12\times\tfrac23=8$\,\textsc{cr}. Eve receives
+$12\times\tfrac13=4$\,\textsc{cr}. The outcome is unchanged.
+
+\emph{Leave-one-out.} Before the split each skill's marginal value is the
+whole $12$\,\textsc{cr}, so the rule owes $24$\,\textsc{cr} against a pool
+of $12$. After the split Carol is owed $12+12=24$ and Eve $12$, a total of
+$36$.
+
+\emph{Pooled by licensor.} The rule sees two players, Carol and Eve, before
+and after the split. Each receives $6$\,\textsc{cr} both times.
+\end{pdexample}
+
+\paragraph{The escape: pool by licensor.}
+The impossibility depends on Anonymity. Drop it: merge each licensor's
+components into one player before applying any rule. A re-packaging inside
+one licensor then leaves the game the rule sees unchanged, so no share can
+move. The remaining attack is a false name: register a second licensor key
+and move a component to it. Pooling therefore turns the split attack into a
+Sybil attack on the licensor key (\S\ref{sec:keystone}). Whether it is
+deterred is the question that \pdchapref{stp}{From Spawn to Person} prices
+for reset identities%
+\ifpdbook
+\ (Theorem~\ref{stp:thm:whitewash-cost})%
+\fi
+. A fresh key enters under the newcomer ceilings, and the attack pays only
+if its discounted gain exceeds the listing fee plus the earnings those
+ceilings hold back. Computing that holdback for licence keys, whose earnings
+are royalties rather than task income, is open. A licence with one licensor
+needs no allocation at all: the split question arises only when several
+licensors' components share one context.
+
+\begin{definition}[Effect-gated royalty]\label{def:he-effect-royalty}
+\setlength{\parskip}{4pt plus 1pt}
+For each task that settles green and in which the harbor assigned the
+licensor's components to be available, release
+\[
+  r \;=\; p\cdot\max\bigl(0,\;L\bigr),
+\]
+where $p$ is the agreed price per point of effect and $L$ is the lower
+confidence bound, at a level fixed in the licence, on the licensor's pooled
+availability effect. That effect is estimated from availability that the
+harbor randomizes on comparable tasks, as \pdchapref{stp}{From Spawn to Person}
+specifies%
+\ifpdbook
+\ (\S\ref{stp:sec:stp-skill-attribution})%
+\fi
+. The release stays in escrow through the dispute window and is clawed back
+if a re-audit lowers $L$ or reverses the settlement. Loads, opens and
+touched files are recorded as telemetry and may cap $r$. They never set it.
+\textbf{Status:} \Designed{}; not implemented in the reference system.
+\end{definition}
+
+\noindent Take an illustrative price of $p=0.5$\,\textsc{cr} per point and a
+lower bound of $L=12$ points. Carol's release is $0.5\times12=6$\,\textsc{cr}.
+Kept as a cap, the per-file count allows $16\times0.5=8$, so the release is
+$\min(8,6)=6$\,\textsc{cr}, and $10-6=4$\,\textsc{cr} returns to Bob. The
+one-line check becomes $-456+400+50+6+0=0$. If $L\le0$, Carol receives
+nothing however many files the skill opened.
+
+\pdexercisepointer{\ref{ex:he-meter-steering-edit}}{\ref{ex:he-sybil-licensor}}{\pageref{ex:he-meter-steering-edit}}

@@ -1,0 +1,109 @@
+% Research-agenda addition (control strand): do the incentives reach the agent?
+% Inserted at the end of \S\ref{sec:oracle}, after its Recall block and
+% before the landmark plate.
+\subsection{Do the incentives reach the agent?}\label{sec:stp-transmission}
+
+The deterrence conditions of this section, like
+Theorem~\ref{thm:whitewash-cost}, are stated for a risk-neutral actor with a
+stated gain, bond, detection probability and discount factor. In a harbor the
+actor that grades or repairs is often a language model that a principal runs.
+The bond binds the principal. Whether it moves the model is a separate
+premise.
+
+\begin{pdclaim}{Empirical hypothesis}{Incentive Transmission}
+\setlength{\parskip}{4pt plus 1pt}
+\label{hyp:stp-transmission}
+For each deterrence condition in this chapter, the agent that takes the
+action either (a) runs a strategy its principal fixes and the harbor can
+verify, or (b) responds to the stated parameters as the condition assumes:
+its deviation rate falls as $\rho dB-G$ rises, its cooperation responds to the
+probability of continued play, and its stated probabilities are coherent.
+
+\emph{Kind:} Empirical hypothesis, untested here; the tests are \Vision{}.
+\end{pdclaim}
+
+The published evidence bears on (b) and does not settle it. In budget
+experiments GPT's choices satisfied the generalized axiom of revealed
+preference almost perfectly: its mean critical cost efficiency index was
+$0.997$ to $0.999$ across risk, time, social and food choices, above the human
+subjects'. An alternative price framing lowered the means to between $0.698$
+(social) and $0.901$ (risk)~\pdcite{chen2023gptrationality}. In repeated games
+GPT-4 never cooperated again with a partner that defected once and then
+cooperated, and it did not adjust its play in the final round or to varying
+probabilities of continuation~\pdcite{akata2023repeated}. Outcomes that models
+ranked highly in elicited utilities, offered as rewards for quality, did not
+raise quality: the high-utility side won $51.2\%$ of blind comparisons
+($95\%$ interval $48.7$ to $53.6$), while direct effort instructions shifted
+quality in $25$ of $28$ model--task cells~\pdcite{zhou2026utilitybehavior}.
+Their probability judgments violate identities that coherent probabilities
+satisfy, in the same direction as human judgments~\pdcite{zhu2024incoherent}.
+And frontier models tell evaluation transcripts from deployment ones with an
+area under the ROC curve up to $0.95$ on agentic
+transcripts~\pdcite{needham2025evalaware}.
+
+That last result meets the honeypot requirement above: the protocol must test
+whether honeypots are recognizable. Recognition changes the critical rate.
+
+\begin{pdclaim}{Theorem}{Recognizable Honeypots Raise the Critical Rate}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:stp-honeypot-recognition}
+Keep the local deterrence model above, with the keep-gain convention: each
+grade is a honeypot independently with probability $\rho\in(0,1)$, a corrupt
+grade yields gain $G_k$, and a corrupt honeypot grade is detected with
+probability $d$ and forfeits $B$. Suppose the judge sees, for each item, a
+label that reads ``honeypot'' with probability $\alpha$ on honeypots and $\beta$
+on ordinary items, $0\le\beta<\alpha<1$, and corrupts according to the label
+alone. A corrupt grade on an item labeled ordinary falls on a honeypot with
+probability
+\[
+\rho_{\mathrm{eff}}=\frac{\rho(1-\alpha)}{\rho(1-\alpha)+(1-\rho)(1-\beta)}<\rho ,
+\]
+and every label-dependent strategy is weakly deterred iff
+$\rho_{\mathrm{eff}}\,dB\ge G_k$. With $\rho^\star=G_k/(dB)<1$ this reads
+\[
+\frac{\rho}{1-\rho}\;\ge\;\frac{\rho^\star}{1-\rho^\star}\cdot\frac{1-\beta}{1-\alpha}.
+\]
+At $\alpha=\beta$ it is the chapter's condition $\rho\ge\rho^\star$.
+\end{pdclaim}
+
+\begin{proof}
+Bayes' rule gives $\rho_{\mathrm{eff}}$ for the label ``ordinary'' and
+$\rho_{\mathrm{hp}}=\rho\alpha/(\rho\alpha+(1-\rho)\beta)$ for ``honeypot''.
+Clearing denominators, $\rho_{\mathrm{eff}}<\rho$ iff
+$(1-\rho)(1-\alpha)<(1-\rho)(1-\beta)$, that is iff $\alpha>\beta$, and
+likewise $\rho_{\mathrm{hp}}>\rho$. A corrupt grade on an item with label
+$\ell$ has expected payoff $G_k-p_\ell dB$, where $p_\ell$ is that label's
+honeypot probability. A strategy corrupts each label with some probability,
+so its payoff is linear in those probabilities and is nonpositive for every
+choice iff $G_k\le p_\ell dB$ for both labels. The smaller probability is
+$\rho_{\mathrm{eff}}$, which gives the condition. The odds map
+$x\mapsto x/(1-x)$ is increasing on $[0,1)$, and
+$\rho_{\mathrm{eff}}/(1-\rho_{\mathrm{eff}})
+=\tfrac{\rho}{1-\rho}\cdot\tfrac{1-\alpha}{1-\beta}$, which gives the odds form.
+\end{proof}
+
+\begin{pdexample}{The Running Parameters, Recognized}
+\setlength{\parskip}{4pt plus 1pt}
+The chapter's $\rho^\star=10/(0.8\cdot50)=0.25$ has odds $0.25/0.75=1/3$. At
+$(\alpha,\beta)=(0.8,0.2)$ the factor is $0.8/0.2=4$, so the odds must reach
+$4/3$:
+\[
+\rho\ge\frac{4/3}{1+4/3}=\frac47\approx0.571 .
+\]
+Check: $\rho_{\mathrm{eff}}=\tfrac47\cdot0.2\big/\bigl(\tfrac47\cdot0.2+\tfrac37\cdot0.8\bigr)
+=0.8/(0.8+2.4)=0.25$. At $(0.9,0.1)$ the factor is $0.9/0.1=9$, the odds must
+reach $3$, and $\rho\ge3/4$. At the chapter's own $\rho=0.25$ and $(0.8,0.2)$,
+$\rho_{\mathrm{eff}}=0.05/(0.05+0.6)\approx0.077$, so the expected forfeiture is
+$0.077\times0.8\times50\approx3.1$, below the gain of $10$: corruption pays.
+These operating points are illustrative; an area under the curve does not fix
+one. Measure $\alpha$ and $\beta$ on the deployed honeypot pool.
+\end{pdexample}
+
+If part~(b) of the hypothesis fails, the conditions of this chapter bind the
+principal and not the model. The model's own behavior then needs the gates of
+\pdchapref{swk}{The Single-Writer Kernel}%
+\ifpdbook\ (\S\ref{swk:sec:swk-control-game})\fi,
+and the honeypot rate must be set from measured recognition, not from
+$\rho^\star$ alone.
+
+\pdexercisepointer{\ref{ex:stp-honeypot-odds}}{\ref{ex:stp-dose-response}}{\pageref{ex:stp-honeypot-odds}}

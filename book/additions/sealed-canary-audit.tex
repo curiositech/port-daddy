@@ -1,0 +1,83 @@
+% ---------------------------------------------------------------------------
+% Research-agenda addition (tenants). Inserted by the lead at the end of the
+% canaries section, immediately before the leakage-budget section.
+% ---------------------------------------------------------------------------
+\subsection{Canaries that audit a declaration}\label{sec:sealed-canary-audit}
+
+\noindent Theorem~\ref{thm:sealed-power} treats a canary as an alarm on a
+release channel. Planted in training data, a canary can audit the ledger.
+Section~\ref{sec:sealed-conservation} observed that a malicious worker's
+recorded $\varepsilon_i$ is a number it declared about itself. A randomized
+canary audit can refute such a declaration from the released artifact alone.
+Carlini et al.'s exposure metric already measures, in bits, how strongly a
+trained model's likelihood ranking favors a planted canary over its
+alternatives \pdcite{carlini2019secret}; the result below turns a count of
+correct guesses into a test of $\varepsilon$.
+
+\begin{pdclaim}{Theorem}{Canaries Falsify a Declared $\varepsilon$}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:sealed-canary-falsify}
+Plant $m$ canaries, each the only record of a fresh synthetic person, and
+include each independently with probability $\tfrac12$, the coins kept secret
+by the auditor. Suppose the pipeline from logs to released artifact is
+$(\varepsilon,\delta)$-private under the person-level neighboring relation.
+
+(i) For any detector and any single canary,
+$\Pr[\text{flag}\mid\text{included}]\le
+e^{\varepsilon}\Pr[\text{flag}\mid\text{excluded}]+\delta$.
+
+(ii) If an auditor makes $r$ include-or-exclude guesses from the artifact and
+gets $W$ of them right, then for every $v$,
+$\Pr[W\ge v]$ is at most
+$\Pr\bigl[\mathrm{Bin}(r,\tfrac{e^\varepsilon}{1+e^\varepsilon})\ge v\bigr]$
+plus a term in $\delta$ that is at most $2m\delta$ \pdcite{steinke2023onerun}.
+An observed $W$ whose bound falls below $\beta$ refutes the declaration at
+level $\beta$.
+\end{pdclaim}
+
+\paragraph{Proof sketch.}
+Part (i) is the definition of privacy applied to the event ``the detector
+flags this canary'' on the two neighbors that differ by the canary's synthetic
+person. For part (ii) with $\delta=0$, condition on the artifact and on every
+other coin. The two values of coin $i$ give neighboring inputs, so the
+posterior odds that canary $i$ was included are at most $e^\varepsilon$ times
+the prior odds of one, and any guess about coin $i$ is right with probability
+at most $e^\varepsilon/(1+e^\varepsilon)$. Steinke, Nasr and Jagielski turn
+this into the binomial bound (their Proposition~5.1), and prove the
+$\delta>0$ case through the connection between privacy and generalization
+(their Theorem~5.2). \qed
+
+Part (i) changes how Theorem~\ref{thm:sealed-power} reads for training. At
+$\varepsilon=1$ with a false-flag rate of $1\%$, no detector flags an included
+canary more often than $e\times0.01\approx2.7\%$, plus $\delta$. In private
+training a canary is a weak alarm and a strong auditor: a flag rate above the
+bound proves the declared cost false.
+
+\paragraph{Design dominates power.}
+The per-canary miss rate $\beta$ is a property of the canary as much as of the
+model. In non-private fine-tuning, canaries built from new tokens added to the
+vocabulary reached a 49.6\% true-positive rate at a 1\% false-positive rate,
+where random canaries reached 4.2\% \pdcite{panda2025audit}. Under private
+fine-tuning at an analytic $\varepsilon=4$ the same study reports an empirical
+lower bound of about 1, and it found that a LoRA adapter that leaves the
+embeddings frozen defeats new-token canaries. A canary scheme must match the
+parameters the pipeline trains.
+
+\paragraph{A protocol for the reference system.}
+\Vision{}; nothing below has been run. Plant 1{,}000 canaries as synthetic
+persons in synthetic tenant logs, with independent inclusion coins, repetition
+counts from 1 to 33, and formats that a detector can and cannot recognize.
+Route the same logs through eight pipelines: (1) a shared retrieval index; (2)
+per-tenant indexes; (3) a shared adapter; (4) a shared adapter after
+scrubbing; (5) a ledger-charged private adapter at $\varepsilon\in\{1,4,8\}$;
+(6) per-tenant adapters; (7) a reward-model route against direct preference
+learning on the same pairs; (8) a shared prefix cache against a label-keyed
+one. Attack each pipeline with retrieval prompts, likelihood ranking,
+sampling, a timing audit and query-only memory injection, and pair each attack
+with a deliberately broken build that it must catch. Record, per pipeline, the
+lower bound of Theorem~\ref{thm:sealed-canary-falsify}, the measured $\beta$
+for each canary design, the stopping counts of
+Theorem~\ref{thm:sealed-latency}, and a check that every $\sigma(u)$ equals
+its journal sum (Theorem~\ref{thm:sealed-person-ledger}).
+
+\pdexercisepointerone{\ref{ex:sealed-canary-refute}}{\pageref{ex:sealed-canary-refute}}

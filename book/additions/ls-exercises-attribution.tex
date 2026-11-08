@@ -1,0 +1,15 @@
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-fit-uplift-pair}
+A router scores two skills for one task: $\mathrm{fit}(A)=0.9$ and
+$\mathrm{fit}(B)=0.6$. Randomized availability estimates their uplift as
+$0$ points for $A$ and $15$ points for $B$. Show that the two orders are not
+comonotone, and say which head should set royalties.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-fit-uplift-pair}
+The comonotonicity product is
+$(0.9-0.6)(0-15)=0.3\times(-15)=-4.5<0$, a strict reversal, so by
+Theorem~\ref{thm:comonotone} no single head serves both readers at a
+one-skill budget. The router may still load $A$ first: fit predicts which
+skill matches the task. Royalties and deranking should read uplift, because
+a skill that matches the task but does not change its outcome has earned
+nothing for the buyer (Theorem~\ref{thm:ls-fit-uplift}).
+\end{pdsolution}

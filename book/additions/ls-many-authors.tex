@@ -1,0 +1,430 @@
+% ls-many-authors.tex -- Chapter 4 addition (writer: authors).
+% Inserted after the section labelled sec:consent-canon, before the
+% unnumbered "Review of the key ideas". Everything below is unbuilt.
+
+\section{Many authors, one sovereign}\label{sec:ls-many-authors}
+
+Until now one person has authorized the swarm. Section~\ref{sec:roles} read
+that requirement off the grant lifecycle: the four steps need ``exactly one
+participant who originates authority and can withdraw it.'' Bob's repository
+already breaks the premise in a small way. Bob owns the code and its
+acceptance test; Alice runs the team. Nothing stops Bob from directing an
+agent himself, and nothing stops a third person from joining. This section
+asks what survives when $M$ people direct $N$ agents through one daemon,
+what the single-operator design must add, and which conflicts between their
+directions can be found before any agent acts.
+
+The answer reuses the kernel, the grant, the commitment checker and the claim.
+What it adds is an owner table, a precedence rule, and a routing rule for
+escalations. Nothing in this section exists in the reference implementation.
+Each rule below states its maturity; experiments are protocols, not results.
+
+\subsection{Three direct answers}\label{sec:ls-many-authors-answers}
+
+\paragraph{Does only one person have administrative access?} No, but there is
+one charter. The single-writer guarantees concern the daemon, not the people
+who address it. Every mutation still passes through one writer
+(\pdchapref{swk}{The Single-Writer Kernel}%
+\ifpdbook
+, Definition~\ref{swk:def:single-writer}%
+\fi
+), so the exclusion and fencing results and the synchronous-guard result hold
+for any number of requesters%
+\ifpdbook
+\ (Theorems~\ref{swk:thm:exclusion} and~\ref{swk:thm:decidability})%
+\fi
+. Their requests serialize like anyone else's. What changes is the author
+slot. Several people now originate authority, so the quoted premise is
+false, and the escalation lane of \S\ref{sec:escalation} no longer knows whom
+to interrupt. The smallest repair is not one administrator. It is one
+\emph{charter}: a root object that records who delegated what to whom, which
+rule settles a clash, and how the charter itself may change.
+
+\paragraph{Can one person control all the agents?} In authority, yes. Whoever
+holds the charter can revoke every grant through the override
+(Invariant~\ref{prop:override}). In attention, not in general.
+Theorem~\ref{thm:escalation-threshold} shows that the feasible debit band can
+be empty at a given attention budget. Every principal whose conflicts route to
+one person adds to that person's queue. The incident command system faces the
+same limit with people. Its doctrine sets an optimal span of control of one
+supervisor to five subordinates~\pdcite{dhs2017nims}. That figure is a
+guideline for people supervising people; nothing here transfers it to agents.
+
+\paragraph{What happens when directions conflict?} Detection and resolution
+separate. Detection is mechanical wherever directions fit the commitment
+fragment of \pdchapref{he}{The Harbor Economy}: polynomial, with a witness,
+and NP-complete once a direction may offer a choice. For program behavior in
+general it is undecidable. Resolution is normative. That chapter already says
+so: ``no consistency checker chooses their normative content.'' A recent
+benchmark shows why the distinction matters. On tasks whose two
+specifications edit the same code incompatibly, one agent given both
+specifications solved $62\%$, while two agents given one specification each
+solved $16\%$ (Claude Code with Claude Opus~4.8). The merged code typically
+satisfied only one specification, and a communication channel between the
+agents recovered only a small part of the gap~\pdcite{mediratta2026parallact}.
+The two requests were jointly satisfiable. What was missing was a party
+entitled to decide how they fit together.
+
+\subsection{Nine rules for many authors}\label{sec:ls-many-authors-rules}
+
+The rules below are the smallest set we found that keeps one sovereign while
+admitting several authors. A rule marked \Designed{} is specified completely
+here and reuses a check the book already specifies. A rule marked \Vision{}
+needs policy content or mechanisms not yet written down.
+
+\begin{pdclaim}{Design invariant}{Many-Author Authority}
+\setlength{\parskip}{4pt plus 1pt}
+\label{def:ls-many-authors}
+A harbor directed by principals $1,\dots,M$ satisfies:
+\begin{enumerate}[leftmargin=2.2em,itemsep=2pt,label=R\arabic*.]
+\item \textbf{One charter root} (\Vision). One charter is the root of every
+delegation and holds the precedence table. An amendment may require $k$ of $M$
+signatures; each amendment is one proposal, accepted or rejected.
+\item \textbf{A delegation tree} (\Designed). After transitive reduction, every
+scope, invariant and agent grant has exactly one delegating parent. The
+daemon refuses a grant that would give a node a second parent.
+\item \textbf{Attenuation per person} (\Vision). The charter's allocation to
+principal $i$ bounds every grant $i$ issues, and each agent card attenuates the
+grant of the principal it acts for%
+\ifpdbook
+\ (Invariant~\ref{anchor:def:offline-attn})%
+\fi
+.
+\item \textbf{One principal per action} (\Designed). Every admitted action
+names exactly one grant. The witness of the consent-grant lifecycle
+(\S\ref{sec:consent}) becomes $(p, g, x, \text{reason}, \text{artifact})$,
+with $p$ the issuing principal. An agent may hold grants from two people; the
+guard checks each action against the one grant it names, never their union.
+\item \textbf{One owner per scope and per joint invariant} (\Vision). This
+includes an \emph{integration owner} for ``the combined head builds and the
+preserved tests pass.'' Owner precedence is a default the owner may waive.
+\item \textbf{Directions become tagged commitments} (\Designed). Each
+direction compiles to commitment sentences tagged with their issuer, stored
+beside the verbatim words. Admission runs the tagged checker over the union of
+accepted commitments%
+\ifpdbook
+\ (Theorem~\ref{he:thm:he-tagged-blame})%
+\fi
+\ and against the declared reachable futures.
+\item \textbf{Precedence} (\Vision). Between principals, the higher delegator
+prevails, then the owner of the clashing scope. Within one principal, a later
+direction supersedes an earlier one. Time alone never decides between two
+principals.
+\item \textbf{Escalation routing} (\Vision). A conflict that precedence does
+not settle goes, with its witness, to the least common authority of the scopes
+it touches (Theorem~\ref{thm:ls-unity-of-command}), as one proposal to accept
+or reject.
+\item \textbf{Exit per principal} (\Vision). Each principal's override is
+unconditional over that principal's own grants. Revoking another principal's
+grant needs authority above it. A principal who does not own a shared scope
+may pause only its safety-class actions, for a declared time-to-live, and the
+pause escalates to the scope's owner.
+\end{enumerate}
+\end{pdclaim}
+
+\noindent Three of these rules answer objections the single-operator design
+never met.
+
+Rule R1 is not ``one administrator'' under another name. The incident command
+system's \emph{unified command} lets several agencies set ``a common set of
+incident objectives, strategies, and a single'' incident action plan, and the
+arrangement ``does not affect individual agency authority, responsibility, or
+accountability''~\pdcite{dhs2017nims}. The charter plays that part: one plan,
+several retained authorities. Ostrom's polycentric governance, ``many centers
+of decision making that are formally independent of each
+other''~\pdcite{ostrom2010polycentric}, describes the relation between harbors,
+which \pdchapref{fh}{The Federated Harbor} develops. Inside one harbor the
+centers are not independent. They share a writer.
+
+Rule R4 is the capability answer to an old failure. Hardy's compiler wrote its
+billing file on a user's behalf because, in his words, ``the compiler runs with
+authority stemming from two sources''~\pdcite{hardy1988confused}. An agent that
+works for Alice and Bob is in the compiler's position. Naming one grant per
+action is the fix capabilities supplied: the action states which authority it
+exercises, so it cannot spend Bob's authority on Alice's request. Grants
+themselves are already capabilities with caveats~\pdcite{macaroons2014}.
+
+Rule R7 deliberately refuses ``last direction wins'' between people. The norm
+literature's three heuristics are lex specialis (the more specific norm), lex
+posterior (the later norm) and lex superior (the higher
+authority)~\pdcite{olson2024defeasible}. Olson and colleagues derive lex
+posterior inside a single normative theory and leave merging across
+individuals to future work. Between two people, lateness measures only who
+spoke second.
+
+Rule R8 has a price. Routing every escalation in a scope to its one owner is
+the sole-owner arm of the queueing boundary (Theorem~\ref{thm:specialization});
+letting any of several owners answer is the pooled arm. GitHub's code-owner
+review takes the pooled arm: ``an approval from any of the owners is
+sufficient''~\pdcite{githubcodeowners}. Theorem~\ref{thm:specialization} prices
+that choice. It is not free in either direction.
+
+Rule R9 bounds the override. An unconditional global stop held by each of $M$
+people gives the swarm $M$ independent ways to halt. Exit stays inalienable
+over one's own grants. Over the shared work it becomes a bounded pause with an
+owner who must answer it.
+
+\subsection{Which conflicts can be found before an agent acts}\label{sec:ls-many-authors-conflicts}
+
+Directions can be compared at three moments. At \emph{instruction time} the
+daemon holds only commitments: what each person obliged, forbade, claimed and
+scheduled. At \emph{claim time} it also holds what each agent plans to touch.
+At \emph{admission time} it holds the actual combined state that a commit would
+produce. Each moment sees more and comes later.
+Table~\ref{tab:ls-conflict-classes} sorts conflicts by the earliest moment that
+can see them. ``Detectable'' means a stated procedure decides the question; it
+does not mean the procedure has been run on this system.
+
+\begin{table}[tp]
+\centering
+\caption{Conflict classes between directions from several principals, the
+earliest moment each can be found, and what happens when it is. Rows 2--5 use
+the commitment checker of \pdchapref{he}{The Harbor Economy}; rows 6--8 concern
+program behavior, where detection weakens and then fails.}
+\label{tab:ls-conflict-classes}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.22\linewidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Class (example)} & \textbf{Found before execution?} & \textbf{Mechanism} & \textbf{When found} \\
+\midrule
+1.\ Claim overlap (two agents claim one file) & Yes, at claim time; complete for the overlap relation & Overlap scan; fenced lease & Release, expiry, bonded preemption, then a human ruling routed by R8 \\
+2.\ Opposed directions, including derived ones (migrate vs.\ freeze) & Yes, at instruction time; polynomial, with a witness & Tagged commitment checker & Precedence (R7); otherwise escalate (R8) \\
+3.\ Choices that cannot all be met (``use A or B'') & Decidable but NP-complete, even when each person alone is consistent & Bounded search for a checkable selection & A timeout refuses admission; escalate with the partial witness \\
+4.\ Infeasible schedule (deadline vs.\ review window) & Yes; a negative cycle in the deadline graph & Shortest-path feasibility test & Owner of the deadline \\
+5.\ A later direction fires a dormant rule & Only against a declared family of reachable futures & Recheck at every admission & Later issuer informed; owner resolves \\
+6.\ Clean textual merge, broken build (signature change vs.\ caller) & Partly at claim time, by symbol claims and a dependency graph; certainly only by building the combined state & Speculative merge and build~\pdcite{brun2011proactive}; build-graph conflict analysis~\pdcite{ananthanarayanan2019keeping}; combined-head guard & Integration owner issues a narrow joint grant \\
+7.\ Merged code meets one specification only & No: undecidable in general~\pdcite{horwitz1989integrating} & Safe approximation; tests as a partial oracle & Both specification owners; dissent recorded \\
+8.\ Two people editing one text live & Convergence is guaranteed; intent is not~\pdcite{shapiro2011crdt,kleppmann2019interleaving} & CRDT or operational transform, for text & Result treated as a proposal for admission \\
+9.\ Disagreement about values, with no fact to find & Detectable as a clash; not decidable by computation & None; the charter decides & One binary proposal to the scope owner \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Three rows deserve a sentence. Row~1's completeness is real but narrow. The
+advisory-claim theorem of \pdchapref{bonded}{The Bonded Commons} reports every
+overlap%
+\ifpdbook
+\ (Theorem~\ref{bonded:thm:advisory})%
+\fi
+, and its overlap relation is about files. A signature change in one file and a
+call in another overlap nowhere, so row~6 lies outside that guarantee
+entirely. Horwitz, Prins and Reps state row~7's limit precisely: ``it is
+undecidable whether a program modification actually leads to'' a change in
+behavior, so their integration algorithm computes ``a safe
+approximation''~\pdcite{horwitz1989integrating}. Row~8 is the collaborative
+editor's version of the same gap. Strong eventual consistency guarantees that
+replicas which have delivered the same updates have equivalent
+state~\pdcite{shapiro2011crdt}, and Kleppmann and colleagues show that this
+property ``is necessary but it is not sufficient'' for a usable
+editor~\pdcite{kleppmann2019interleaving}. Convergence is a property of the
+text, not of what either person meant by it.
+
+\subsection{Unity of command and the escalation path}\label{sec:ls-many-authors-escalation}
+
+Rule R8 needs a target. The incident command system's answer is \emph{unity of
+command}: ``each individual only reports to one person''~\pdcite{dhs2017nims}.
+The theorem below states exactly when that answer is needed for escalation to
+be well defined.
+
+Model delegation as a finite directed acyclic graph $G$. Its nodes are
+principals and \emph{objects} (scopes, invariants and agent grants). An edge
+$u\to v$ means principal $u$ delegated authority to $v$. Objects have no
+outgoing edges, the charter root $r$ has no incoming edge, and every node is
+reachable from $r$. A principal $p$ \emph{holds authority over} object $s$ when
+$G$ has a path from $p$ to $s$. A conflict witness touches a nonempty set $S$
+of objects. Its \emph{common authorities} are
+\[
+C(S)=\{\,p : p \text{ holds authority over every } s\in S\,\},
+\]
+which contains $r$. Escalation for $S$ is \emph{well defined} when $C(S)$ is
+totally ordered by reachability. Its lowest element is then the first hop, and
+each further hop is the next element up to $r$.
+
+\begin{pdclaim}{Theorem}{Unity of Command Is Exactly Well-Defined Escalation}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:ls-unity-of-command}
+Escalation is well defined for every nonempty set of objects if and only if,
+in the transitive reduction of $G$, every node from which some object is
+reachable has at most one parent.
+\end{pdclaim}
+\begin{proof}
+\setlength{\parskip}{4pt plus 1pt}
+Write $A(v)$ for the set of principals with a path to $v$.
+
+If every such node has at most one parent, the nodes above any object $s$ form
+one upward path to $r$, so $A(s)$ is a chain. For a set $S$, $C(S)$ is the
+intersection of the chains $A(s)$, $s\in S$. It is a subset of one chain, hence
+a chain, and it contains $r$.
+
+Conversely, let a node $v$ from which object $s$ is reachable have two parents
+$p\ne q$ in the transitive reduction. Neither reaches the other: if $p$
+reached $q$, the edge $p\to v$ would be implied by $p\leadsto q\to v$ and
+removed by the reduction, and symmetrically for $q$. Both reach $s$, so both
+lie in $C(\{s\})$, which is therefore not a chain.
+\end{proof}
+
+The theorem is elementary; its use is to name the design rule. A tie-break
+order on parents restores a unique path, but choosing one parent per node is
+choosing a spanning tree, so every well-defined rule on a non-tree graph is
+some tree in disguise. GitHub's code-owner file shows the tree-making move in
+practice: when several patterns match a file, ``the last matching pattern
+takes the most precedence''~\pdcite{githubcodeowners}. Order turns overlapping
+patterns into one owning line per file.
+
+\subsection{Aggregation: where Arrow applies}\label{sec:ls-many-authors-aggregation}
+
+Chapter~0 applied Arrow's theorem to agents voting on proposals. In a
+many-author harbor the aggregation problem belongs to the people.
+
+The admission rule above aggregates by conjunction: a plan is admissible when
+it satisfies every accepted commitment of every principal. That rule is not a
+dictatorship, but it is partial. When the commitments cannot all hold, it
+refuses to choose, and something else must. Suppose that something must rank
+at least three joint plans completely, for every profile of the principals'
+rankings, while respecting unanimous preferences and independence of
+irrelevant alternatives. Arrow's theorem, as stated in Chapter~0, says it is
+then a dictatorship. Gibbard and Satterthwaite add that a deterministic
+single-winner rule over at least three outcomes is dictatorial or open to
+manipulation at some profile. Fickinger and colleagues carry the point to
+assistants serving several humans. When the humans' own demonstrations count
+for little against what the assistant then does, the only straightforward
+deterministic mechanisms are those restricted to two outcomes and
+dictatorships~\pdcite{fickinger2020multi}.
+
+The design consequence is the shape of rules R1, R5 and R8. Escalations are put
+as one proposal to accept or reject, which keeps every decision to two
+outcomes. Each scope has one decider, the local dictator these theorems make
+unavoidable for complete ranked choice. Neither theorem requires a vote, so
+none is held.
+
+Owner decisiveness has its own limit. Giving each owner decisive authority
+over its scope, together with the Pareto requirement, is the conflict
+\pdchapref{bonded}{The Bonded Commons} draws from Sen's theorem for agents'
+locks%
+\ifpdbook
+\ (Theorem~\ref{bonded:prop:sen})%
+\fi
+~\pdcite{sen1970impossibility}. With people in place of agents the warning
+reads the same way: an owner who cannot be asked to yield can block an outcome
+everyone prefers. That is why R5 makes precedence waivable, and why the
+direct-release step of that chapter's dispute ladder comes first. Money does
+not dissolve the problem either. When several principals pay one agent,
+Bernheim and Whinston find the aggregate incentive scheme cost-minimizing, but
+noncooperative principals induce an efficient action only if collusion among
+them would implement the first-best action at first-best
+cost~\pdcite{bernheim1986common}. ``Account, don't auction''
+(\S\ref{sec:account}) was a single-operator rule. With several operators it
+becomes an open question.
+
+\begin{pdexample}{Two Authors, Three Agents, One Afternoon}
+\setlength{\parskip}{4pt plus 1pt}
+Bob holds the charter. His grant to Alice covers writes in \texttt{payments/},
+reads in \texttt{tests/checkout/}, and preservation of the original checkout
+test, for four hours. Bob keeps \texttt{db:checkout}, writes in
+\texttt{tests/}, and the integration invariant. Heron and Wren act under
+Alice's grants; Pike acts under Bob's. Times are minutes from now. This is a
+constructed run, not a measurement.
+
+\textbf{Instruction time: an opposed direction.} Alice tells Wren to store
+amounts as integer cents. It compiles to the fact \texttt{cents\_requested},
+the Horn rule \texttt{cents\_requested}~$\to$~\texttt{schema\_change}, and
+Alice's rule $\texttt{schema\_change}\to
+\mathsf O(\texttt{migrate},\{\texttt{db:checkout}\},[0,120])$. Bob's standing
+release freeze is $\mathsf F(\texttt{migrate},\{\texttt{db:checkout}\},
+[0,4320])$, three days being $3\times24\times60=4320$ minutes. One Horn step
+fires the obligation, and the intervals overlap on
+$[\max(0,0),\min(120,4320)]=[0,120]$: a conflict. The deletion filter makes two
+checker calls. Without Alice the set holds no obligation, so no conflict, and
+Alice stays. Without Bob it holds no prohibition, and Bob stays. The blame set
+is $\{\text{Alice},\text{Bob}\}$. The scope \texttt{db:checkout} is Bob's, so
+precedence (R7) keeps the freeze. The daemon refuses Wren's plan before Wren
+starts, and Alice receives the witness. Nobody had to decide anything.
+
+\textbf{Instruction time: an infeasible schedule.} Alice asks Bob for one
+exception. Bob will allow the migration if he reviews it. Let $s$ be the
+migration's start, $m$ its end and $\rho$ the end of Bob's review. Wren
+estimates thirty minutes, so $m-s\ge30$, that is $s-m\le-30$. Bob's rule needs
+sixty minutes of review, so $\rho-m\ge60$, that is $m-\rho\le-60$. Alice's demo
+needs it done within eighty minutes: $\rho-s\le80$. Summing the three
+inequalities, the left side cancels to $0$ and the right side is
+\[
+-30-60+80=-10,
+\]
+so $0\le-10$ is required. The cycle $s\to\rho\to m\to s$ has weight $-10$, and
+the schedule is infeasible. Each constraint is needed, so the blame set is
+again both people. The witness touches Alice's demo and Bob's review rule; the
+only common authority is Bob. He receives one proposal: shorten the review to
+fifty minutes? The cycle weight becomes $-30-50+80=0$, which is feasible, with
+no slack. Bob accepts.
+
+\textbf{Claim time: a warning.} Heron plans to change \texttt{charge(amount)}
+to \texttt{charge(amount\_cents)} in \texttt{payments/}. Pike plans a refund
+test in \texttt{tests/checkout/} that calls \texttt{charge}. The two file
+claims do not overlap, so the advisory-claim theorem correctly reports
+nothing. A symbol-level read claim by Pike against Heron's modify claim on the
+same function would raise a warning (\Vision).
+
+\textbf{Admission time: a refusal.} Pike's test lands first, under Bob's grant.
+Heron's patch reaches the guard, which builds the combined head. The refund
+test calls the old signature, the build fails, and admission is refused with
+both commits as the witness. Neither owner can repair it alone: the call is in
+Bob's \texttt{tests/}, the signature in Alice's \texttt{payments/}. As
+integration owner, Bob issues Alice a narrow grant: \texttt{tests/checkout/},
+symbol \texttt{charge}, thirty minutes. Alice attenuates it onto Heron's card,
+and Heron's fix names that grant (R4).
+
+\textbf{Tally.} Two conflicts were refused before any agent worked, one was
+flagged at claim time, and one was refused at admission. No broken commit
+landed. Bob decided twice and Alice never did. The load fell on the root,
+which is the queueing concern of \S\ref{sec:sole-roles}.
+
+\emph{Now you try:} find the longest review that fits Alice's demo, and redo it
+for a seventy-minute demo, in Exercise~\ref{ex:ls-many-authors-cycle}.
+\end{pdexample}
+
+\subsection{Disagreements about facts are bets}\label{sec:ls-many-authors-bets}
+
+Not every conflict is about values. Alice may believe the migration is safe
+while Bob believes it will break staging. Critch and Russell show that an
+agent serving principals with different beliefs cannot, in general, be
+Pareto-optimal by maximizing a fixed weighted sum of their utilities. A
+Pareto-optimal policy must shift weight toward the principal whose prior better
+predicts what the agent observes~\pdcite{critch2017servant}. Their example is a
+cake. Alice is $90\%$ sure it is red, Bob $90\%$ sure it is green, and each
+values half a cake at $20$ and a whole cake at $30$. The policy ``all to Alice
+if red, all to Bob if green'' gives each an expected $0.9\times30+0.1\times0
+=27$ by their own beliefs, against $20$ for an even split, and no fixed
+weighting implements it. The result assumes the principals know each other's
+priors.
+
+The harbor should not let an agent learn such shifting weights silently.
+Authority that drifts toward whoever predicted better is a change of authority
+nobody consented to. The proposal (\Vision) is to make the bet explicit, as a
+float plan of \pdchapref{he}{The Harbor Economy}%
+\ifpdbook
+\ (\S\ref{he:sec:float-plan})%
+\fi
+: each person posts a bond against the observable outcome, the terms appear in
+the digest, and settlement follows the outcome, not the agent's inference.
+Exercise~\ref{ex:ls-many-authors-bets} works the cake by hand.
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+Compiling a natural-language direction into commitments is itself an
+interpretive step, and nothing here verifies it. Storing the verbatim words
+beside the compiled sentences preserves what was said; it does not prove the
+compilation faithful.
+
+Theorem~\ref{thm:ls-unity-of-command} is elementary graph structure, and the
+aggregation argument applies theorems proved elsewhere. Neither shows that a
+tree of owners is the right organization for a given team, only that a
+well-defined escalation path requires one.
+
+The benchmark figures come from a diagnostic set built to require
+coordination; they say how often agents fail when such conflicts arise, not how
+often the conflicts arise. Who ought to hold the charter, and whether an
+owner's decision is legitimate, are questions for the people involved.
+\end{pdboundary}
+
+\pdexercisepointer{\ref{ex:ls-many-authors-tree}}{\ref{ex:ls-many-authors-pause}}{\pageref{ex:ls-many-authors-tree}}

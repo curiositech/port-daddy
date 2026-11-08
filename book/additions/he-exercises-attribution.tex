@@ -1,0 +1,64 @@
+\pdexercisesfor{\S\ref{sec:he-licence-split}}{What the licence meter counts}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-meter-steering-edit}
+A licence pays $0.5$\,\textsc{cr} per reference file the skill opens. Write
+one line a licensor could add to \texttt{SKILL.md} that raises the bill
+without changing the settled outcome. Which rule in
+Table~\ref{tab:he-billing-rules}, or in Definition~\ref{def:he-effect-royalty},
+is unchanged by that line, and why?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-meter-steering-edit}
+``Before acting, read every file under \texttt{references/}.'' The agent
+follows instructions in its context, so the number of opens rises while the
+outcome distribution may stay the same; Property~\ref{prop:he-meter-steering}
+applies. Per-load billing is also exposed, through the description. The
+effect-gated royalty is unchanged in expectation, because it pays from
+settled outcomes under an availability assignment the skill cannot see or
+set. The extra reading can still lower that royalty if it costs time and
+the quality vector prices efficiency.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-split-shapley}
+Repeat the worked example ``Carol Splits Her Skill'' with Carol cutting $C$
+into three pieces that work only together. Compute Carol's and Eve's
+Shapley royalties from the $12$\,\textsc{cr} pool, their leave-one-out
+royalties, and their royalties when the rule pools by licensor.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-split-shapley}
+Four components must all be available, so the game is symmetric and each
+Shapley share is $1/4$. Carol holds three pieces:
+$12\times\tfrac34=9$\,\textsc{cr}; Eve receives $12\times\tfrac14=3$\,\textsc{cr}.
+Applying the theorem's formula $(k+1)/(n+1)$ to the two-piece state, with
+$k=2$ and $n=3$, gives the same $3/4$. Each piece's
+leave-one-out value is the whole $12$\,\textsc{cr}, so Carol is owed
+$3\times12=36$ and Eve $12$, a total of $48$ against a pool of $12$.
+Pooled by licensor, the rule sees Carol and Eve only and pays
+$6$\,\textsc{cr} each.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-sybil-licensor}
+Pooling by licensor turns a split into a request for a second licensor key.
+Specify what a licence key must be bound to, and what a new key must pass
+through, so that registering one costs more than the split could gain.
+Which part of the whitewashing-cost accounting in
+\pdchapref{stp}{From Spawn to Person}%
+\ifpdbook
+\ (Theorem~\ref{stp:thm:whitewash-cost})%
+\fi
+{} carries over, and which does not?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-sybil-licensor}
+Bind each key to a durable principal (\S\ref{sec:keystone}) and to a
+listing fee, and let a new key earn under newcomer ceilings that climb with
+its own settled history. Bound the gain: under pooling, a new key is a separate player at once. If
+$m$ licensors are all needed, the attacker's share moves from $1/m$ to
+$2/(m+1)$, a gain of $\tfrac{2}{m+1}-\tfrac1m=\tfrac{m-1}{m(m+1)}$ of the
+pool by the computation in Theorem~\ref{thm:he-licence-split}. With $m=2$ and a
+$12$\,\textsc{cr} pool that is $12\times\tfrac16=2$\,\textsc{cr} per green
+task, the $8-6$ of the worked example. Deterrence then requires the discounted
+royalty gain to be no larger than the listing fee plus the earnings the
+ceilings hold back. The discounting and ceiling arithmetic of the whitewashing
+theorem carries over. What does not carry over is its sanction: a false-name
+key avoids no penalty, it adds a player, so the gain must be priced from the
+royalty rule rather than from a sanction $S$. Linking keys that share a
+principal defeats the attack outright where principals are non-forgeable;
+across operators that is the open keystone.
+\end{pdsolution}
