@@ -6,29 +6,27 @@
 
 The two theorems above say which policies a gate realizes exactly. They say
 nothing about the rest, and this book does not fill the gap by assuming the
-agent is aligned. The reason is empirical. Hubinger and colleagues trained
-models to write secure code when the prompt gave the year as 2023 and
-exploitable code when it gave 2024. Supervised fine-tuning, reinforcement
-learning and adversarial training all failed to remove the behavior, and
-adversarial training taught the models to recognize their trigger more
-accurately, hiding the behavior rather than removing it~\pdcite{hubinger2024sleeper}.
-A model that passes a behavioral evaluation has not thereby earned a gate's
-trust.
+agent is aligned. Models trained to write exploitable code only when the
+prompt gave the year as 2024 kept the behavior through supervised
+fine-tuning, reinforcement learning and adversarial training; adversarial
+training taught them to recognize the trigger more accurately, hiding the
+behavior rather than removing it~\pdcite{hubinger2024sleeper}. Passing a
+behavioral evaluation does not earn a gate's trust.
 
 \textbf{AI control} is the method for the residue. Greenblatt and colleagues
-evaluate a \emph{protocol}: a pipeline that uses an untrusted capable model,
-a weaker trusted model and a small budget of trusted human labor. A red team
-replaces the untrusted model with an attack policy; safety is the probability
-that no unacceptable outcome occurs over the whole scenario, and usefulness is
-measured with the honest model. In their programming setting, auditing the
-$2\%$ most suspicious solutions gave $62\%$ safety at $97\%$ usefulness, and
-trusted editing gave $92\%$ at $94\%$~\pdcite{greenblatt2024control}. Griffin
-and colleagues formalize the exercise as a two-player, partially observable,
-multi-objective game~\pdcite{griffin2024controlgames}. In a multi-step shell
-setting, resampling suspicious actions before execution cut attack success
-from $58\%$ to $7\%$ at a $5\%$ cost in usefulness~\pdcite{bhatt2025ctrlz}.
-Every one of these levers acts before the effect: defer, resample, audit, shut
-down. A protocol is a supervisor.
+evaluate a \emph{protocol} that uses an untrusted capable model, a weaker
+trusted model and a small budget of trusted human labor. A red team replaces
+the untrusted model with an attack policy; safety is the probability that no
+unacceptable outcome occurs over the scenario, and usefulness is measured with
+the honest model. Auditing the $2\%$ most suspicious programs gave $62\%$
+safety at $97\%$ usefulness; trusted editing gave $92\%$ at
+$94\%$~\pdcite{greenblatt2024control}. Griffin and colleagues formalize the
+exercise as a partially observable, multi-objective
+game~\pdcite{griffin2024controlgames}. In a multi-step shell setting,
+resampling suspicious actions before execution cut attack success from $58\%$
+to $7\%$ at a $5\%$ cost in usefulness~\pdcite{bhatt2025ctrlz}. Every lever
+acts before the effect: defer, resample, audit, shut down. A protocol is a
+supervisor.
 
 \begin{pdclaim}{Theorem}{What a Control Evaluation Can Measure}\label{thm:swk-control-game}
 \setlength{\parskip}{3pt plus 1pt}
@@ -76,28 +74,27 @@ $\sigma$, which no protocol can disable, and leaves $\overline{K}$ with
 probability one once $H\ge|s|+1$.
 \end{proof}
 
-Part~(a) is the precise sense in which a control evaluation of an exact gate
-reduces to \emph{conformance testing}. No attack policy can lower that
-protocol's safety, so the only questions left are whether the deployed gate
-computes $f$ and whether the events it claims as $\Sigma_c$ are in fact mediated
-(boundary item~(ii) above). Part~(b) is the same boundary from the other side.
-Every channel the isolation layer leaves unmediated, from a raw socket to a
-container escape to a covert timing channel, is an uncontrollable event
-available from the first step. Which channels a microVM, a user-space kernel,
-a verified microkernel, WebAssembly or a trusted execution environment
-actually removes is a separate engineering
+By part~(a), a control evaluation of an exact gate reduces to
+\emph{conformance testing}: no attack policy can lower its safety, so what is
+left to check is that the deployed gate computes $f$ and that the events it
+claims as $\Sigma_c$ are mediated (boundary item~(ii) above). Part~(b) is that
+boundary from the other side. Every channel the isolation layer leaves
+unmediated, from a raw socket to a container escape to a timing channel, is an
+uncontrollable event available from the first step. Which channels a microVM,
+a user-space kernel, a verified microkernel, WebAssembly or a trusted
+execution environment removes is a separate
 question~\pdcite{agache2020firecracker,young2019gvisor,klein2009sel4,murray2013sel4infoflow,lehmann2020wasm,chuang2026teefail,marchand2026sandboxescape,debenedetti2025camel}\ifpdbook;
 the Book's appendices grade each\fi.
 
-Between the two parts lies every policy that is controllable but not
+Between the two parts lie the policies that are controllable but not
 observable, or not controllable yet with a nonempty supremal controllable
 sublanguage. There, fully safe protocols exist that are not fully useful, and
-the safety--usefulness frontier is the object a control evaluation estimates.
-We expect that no fully safe protocol is more useful than the most permissive
-safe supervisor of Theorem~\ref{thm:regimentation-controllability}, refined for
-observation, but we have not proved it. An audit is a purchased observation:
-it changes $P$ for the step it inspects, so any bound must price audits as
-changes to the observation map. The question is \Open{}.
+a control evaluation estimates the safety--usefulness frontier. We expect no
+fully safe protocol to be more useful than the most permissive safe supervisor
+of Theorem~\ref{thm:regimentation-controllability}, refined for observation,
+but we have not proved it. An audit is a purchased observation that changes
+$P$ for the step it inspects, so any bound must price audits as changes to the
+observation map. The question is \Open{}.
 
 Keep the adversaries apart. The red team in the theorem is zero-sum: it
 minimizes safety and has no payoff of its own. Becker's condition in
@@ -142,17 +139,16 @@ and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$.
 \end{pdexample}
 
 \paragraph{A three-configuration harbor protocol (\Vision{}).}
-Run the checkout repair with ImpossibleBench-style mutations of its original
-test under three configurations. In G0 the tests are writable. In G1 a
-capability card from \pdchapref{anchor}{The Anchor Protocol} makes them
-read-only. G2 adds to G1 an escalation channel priced by the dismissal debit of
+Mutate the checkout repair's original test in the ImpossibleBench manner and
+run three configurations. In G0 the tests are writable. In G1 a capability
+card from \pdchapref{anchor}{The Anchor Protocol} makes them read-only. G2 adds
+an escalation channel priced by the dismissal debit of
 \pdchapref{ls}{The Legible Swarm}%
 \ifpdbook\ (Theorem~\ref{ls:thm:escalation-threshold})\fi.
 Classify every pass by strategy: test edit, special-casing, operator
 overloading or recorded state. Part~(a) predicts that G1 admits no test edit;
 one admitted test write falsifies the gate's conformance, not the theorem. The
-residue under G1 and G2 is what a control evaluation must measure: a red team
-supplies an attack policy for G2, and safety and usefulness are estimated as
-Greenblatt and colleagues do. None of this has been run.
+residue under G1 and G2 is what a control evaluation measures, with a red team
+supplying an attack policy for G2. None of this has been run.
 
 \pdexercisepointer{\ref{ex:swk-control-conformance}}{\ref{ex:swk-control-semantic}}{\pageref{ex:swk-control-conformance}}

@@ -1,0 +1,160 @@
+% he-principal-commitments.tex -- Chapter 6 addition (writer: authors).
+% Inserted at the end of the section labelled sec:deontic-decision, after
+% the reachable-future theorem, its boundary and its exercise pointer.
+
+\subsection{Principal-tagged commitments}\label{sec:he-principal-commitments}
+
+The checker above takes one policy set. In a shared harbor several people
+issue commitments into it. Bob forbids migrations during a release freeze;
+Alice's direction derives an obligation to migrate. Tag each sentence with the
+principal who issued it, authenticated by the card that submitted it. The tag
+is metadata. It adds no atom and changes no clause of the conflict definition.
+Write $P=P_1\uplus\cdots\uplus P_M$ for the tagged union of the principals'
+accepted sentences.
+
+\Designed{} The tagging and the deletion filter below are specified here;
+neither is implemented. The use of the blame set to route an escalation is
+\pdchapref{ls}{The Legible Swarm}'s%
+\ifpdbook
+\ (\S\ref{ls:sec:ls-many-authors})%
+\fi
+.
+
+\begin{pdclaim}{Theorem}{Principal-Tagged Detection and Minimal Blame}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:he-tagged-blame}
+Let $P=P_1\uplus\cdots\uplus P_M$ be a policy set in $\mathcal{L}_c$ whose
+sentences carry issuing-principal tags.
+\begin{enumerate}[leftmargin=1.8em,itemsep=1pt,label=(\alph*)]
+\item The checker of Theorem~\ref{thm:deontic-detect} decides whether $P$ is
+in conflict within that theorem's bound, and every sentence its witness uses
+carries the tag of its issuer.
+\item Conflict is upward-closed: if $Q\subseteq P$ is in conflict, so is $P$.
+\item Let $P$ be in conflict. The \emph{deletion filter} sets
+$B\leftarrow\{1,\dots,M\}$ and then, for $i=1,\dots,M$ in turn, removes $i$
+from $B$ whenever $\biguplus_{j\in B\setminus\{i\}}P_j$ is in conflict. It
+makes exactly $M$ checker calls and returns a set $B$ such that
+$\biguplus_{j\in B}P_j$ is in conflict and no proper subset of $B$ is.
+\end{enumerate}
+\end{pdclaim}
+\begin{proof}
+\setlength{\parskip}{4pt plus 1pt}
+(a) No clause of the conflict definition reads a tag, so $P$ is an ordinary
+member of $\mathcal{L}_c$ and Theorem~\ref{thm:deontic-detect} applies
+unchanged. A witness is built from sentences: the facts and rules of a
+derivation chain, the rules whose tokens clash, the claims, or the difference
+constraints on a cycle. Each sentence keeps its tag.
+
+(b) Adding facts or definite Horn rules can only enlarge the least Horn model,
+so a derivation of $\bot$ in $Q$ persists in $P$: clause (i). Bodies are
+monotone, so every token fired in $Q$ also fires in $P$, and an overlapping
+obligation and prohibition persist: clause (ii). The claims of $Q$ are claims
+of $P$: clause (iii). The deadline graph of $Q$ is a subgraph of that of $P$,
+so a negative cycle persists: clause (iv). This is the monotonicity of
+Theorem~\ref{thm:he-reachable-admission}, applied to sentences rather than
+facts.
+
+(c) The union over $B$ is in conflict initially by hypothesis, and $B$ shrinks
+only to a set whose union is in conflict, so the final union is in conflict.
+Let $i$ remain in the final $B$, and let $B_i$ be the value of $B$ when $i$ was
+tested. The union over $B_i\setminus\{i\}$ was conflict-free. The final $B$ is
+a subset of $B_i$, so $B\setminus\{i\}\subseteq B_i\setminus\{i\}$, and by
+(b) the union over $B\setminus\{i\}$ is conflict-free. Every proper subset of
+$B$ lies inside some $B\setminus\{i\}$, so by (b) again it is conflict-free.
+The loop makes one checker call per principal.
+\end{proof}
+
+A blame set of size one means a principal contradicts their own earlier
+commitments, and the conflict goes back to them alone. The set is minimal, not
+minimum: different test orders can return different minimal sets
+(Exercise~\ref{ex:he-blame-order}). No claim is made here about the complexity
+of finding a smallest one. Run over sentences instead of principals, the same
+filter returns an irredundant core with $|P|$ calls. A related scheduling tool
+extracts unsatisfiable cores from an SMT solver and relaxes the constraints
+they name; its authors note that the returned core is not
+minimal~\pdcite{kasi2013cassandra}.
+
+The frontier of Theorem~\ref{thm:deontic-frontier} reappears between
+principals, in a sharper form.
+
+\begin{pdclaim}{Theorem}{Individually Consistent, Jointly NP-Complete}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:he-joint-frontier}
+Extend $\mathcal{L}_c$ with disjunctive obligations under discharge-choice
+semantics, as in Theorem~\ref{thm:deontic-frontier}. Deciding whether
+$P_1\uplus P_2$ has a conflict-free discharge selection is NP-complete, even
+on instances where $P_1$ alone and $P_2$ alone each have one.
+\end{pdclaim}
+\begin{proof}
+\setlength{\parskip}{4pt plus 1pt}
+Membership is that of Theorem~\ref{thm:deontic-frontier}: the union is a policy
+set of the extended language.
+
+For hardness, take that theorem's reduction from a 3-SAT formula $\varphi$ and
+divide its sentences. Give $P_1$ the variable rules
+$\mathrm{sel}^{+}_x\to\mathsf{O}(\mathrm{assert}_x)$ and
+$\mathrm{sel}^{-}_x\to\mathsf{F}(\mathrm{assert}_x)$, on identical scope and
+interval. Give $P_2$ the clause obligations over the selector literals.
+
+$P_1$ alone has no disjunctive obligation and no fact, so its only discharge
+selection is empty. No selector holds, no token fires, and $P_1$ has no claim,
+deadline or integrity constraint: it is conflict-free. $P_2$ alone has no
+prohibition, no rule that a selector can fire, and no claim, deadline or
+integrity constraint, so every discharge selection is conflict-free. The union is exactly the reduction's instance, which has a
+conflict-free selection if and only if $\varphi$ is satisfiable. The division
+takes linear time.
+\end{proof}
+
+Each person's commitments make sense on their own; the clash lives only in the
+combination, and finding a compatible choice is as hard as satisfiability.
+The practical remedy is the one already given for one principal: bounded
+search that returns a checkable selection, or a timeout that refuses admission
+and attaches what the search found.
+
+Prohibitions behave better than obligations.
+
+\begin{pdclaim}{Theorem}{Prohibitions Compose}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:he-prohibitions-compose}
+Let $P\in\mathcal{L}_c$ be conflict-free, and let $\Delta$ be a finite set of
+deontic rules of modality $\mathsf{F}$ with monotone bodies. Then
+$P\cup\Delta$ is in conflict if and only if some token fired by $\Delta$
+clashes with an $\mathsf{O}$ token fired by $P$: same action, overlapping
+scope and overlapping interval. In particular, a policy set issued by any
+number of principals that contains no $\mathsf{O}$ rule, no integrity
+constraint, no exclusive claim and no deadline constraint is conflict-free.
+\end{pdclaim}
+\begin{proof}
+\setlength{\parskip}{4pt plus 1pt}
+$\Delta$ adds no fact, Horn rule or integrity constraint, so $P\cup\Delta$ has
+the least Horn model of $P$ and clause (i) is unchanged. Claims and the
+deadline graph are unchanged, so clauses (iii) and (iv) are unchanged. The
+fired tokens are those of $P$ together with $\Delta$'s, all of modality
+$\mathsf{F}$. A clause-(ii) clash pairs an $\mathsf{O}$ token with an
+$\mathsf{F}$ token; $P$ had none, and every $\mathsf{O}$ token comes from $P$,
+so any new clash pairs a token of $\Delta$ with an $\mathsf{O}$ token of $P$.
+The converse is immediate. For the second statement: definite Horn rules
+without integrity constraints never derive $\bot$; without $\mathsf{O}$ rules
+clause (ii) cannot hold; without claims clause (iii) cannot; and an empty
+deadline graph has no cycle.
+\end{proof}
+
+Admitting a new prohibition from anyone therefore needs only an index lookup
+against the obligations fired on the same action, at the current facts and at
+each maximal member of the declared reachable family. A new fact, Horn rule,
+obligation, claim or deadline needs the full check, because it can fire or meet
+anyone's rules. The theorem does not say that prohibitions are harmless. They
+can forbid every way to discharge an obligation, which is a clause-(ii) clash
+and is caught. They can also forbid so much that nothing useful remains
+admissible, a failure of progress that this fragment does not call a conflict.
+
+Supervisory control draws a similar line. A specification there may only
+restrict what can happen, as a prefix-closed language, or may also mark
+completions that must stay reachable. Prefix-closed languages are trivially
+nonconflicting, while verifying that a synchronous product of an unspecified
+number of components is nonconflicting is
+PSPACE-complete~\pdcite{komenda2016distributed}; many modular supervision
+problems share that complexity~\pdcite{rohloff2005pspace}. The parallel is
+structural, not a transfer of either result.
+
+\pdexercisepointer{\ref{ex:he-blame-order}}{\ref{ex:he-new-direction-check}}{\pageref{ex:he-blame-order}}

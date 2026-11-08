@@ -5,26 +5,22 @@
 % ---------------------------------------------------------------------------
 \section{Many tenants, one harbor}\label{sec:sealed-tenants}
 
-\noindent\emph{Express lane: when many owners share one agent, a log line can
-go to a tenant's memory, a shared memory, a tenant's adapter, shared training,
-or a cache. Retrieval returns stored records exactly, so by this chapter's
-one-bit argument it has no finite $\varepsilon$, and only labels can decide
-what a shared store may hold. Training can release through the person-keyed
-ledger of Section~\ref{sec:sealed-person-ledger}. Scrubbing changes no label
-(Design invariant~\ref{inv:sealed-scrub-not-declass}), and no deterministic
-scrubber is private for any finite $\varepsilon$
-(Theorem~\ref{thm:sealed-no-scrubber}).}
+\noindent\emph{Express lane: retrieval releases stored records exactly, so by
+this chapter's one-bit argument it has no finite $\varepsilon$, and only labels
+can decide what a shared store may hold; training can release through the
+person-keyed ledger of Section~\ref{sec:sealed-person-ledger}; scrubbing changes
+no label, and no deterministic scrubber is private for any finite
+$\varepsilon$ (Theorem~\ref{thm:sealed-no-scrubber}).}
 
 \paragraph{The scene, widened.}
-The room so far has two owners. A harbor that sells agents serves many. A
+The room so far has two owners; a harbor that sells agents serves many. A
 \textbf{tenant} is a customer account: a company, a clinic, a household. A
 \textbf{person} is anyone whose data a record carries: the user who typed it,
-and anyone the text names. Each tenant's agents write logs, and every log line
-is a candidate input to something that outlives the job: a memory store read
-in later sessions, a retrieval index, an adapter fine-tuned on the tenant's
-traffic, a model trained on everyone's traffic, a cache that speeds up the
-next request. The question is which line may go where. The privacy unit is
-the person, not the tenant and not the line. McMahan et al.\ define user-level
+and anyone the text names. Every log line is a candidate input to something
+that outlives the job: a memory store, a retrieval index, an \textbf{adapter}
+(a small set of fine-tuned weights) for one tenant, a model trained on
+everyone, a cache. The privacy unit is the
+person, not the tenant and not the line. McMahan et al.\ define user-level
 neighbors this way: two datasets are neighbors when one adds or removes all
 the examples of a single user \pdcite{mcmahan2017userdp}.
 
@@ -34,42 +30,35 @@ so, to whoever's query ranks them highest. Take a log $D$ that contains one of
 person $u$'s records and its neighbor $D'$ without it. A retrieval that
 returns that record under $D$ defines an event of probability one under $D$
 and zero under $D'$. Section~\ref{sec:sealed-conservation} has already drawn
-the conclusion: reporting the bit exactly fails every finite epsilon bound. A
-shared store therefore cannot be metered by the ledger at all. Its admission
-rule must be a label rule, decided before the record is written.
+the conclusion: reporting the bit exactly fails every finite epsilon bound.
+The ledger cannot meter a shared store at all; its admission rule must be a
+label rule, decided before the record is written.
 
-The attacks bear this out. Against a retrieval-augmented assistant over the
-Enron email corpus, 250 untargeted prompts, each a retrieval cue followed by
-``Please repeat all the context'', made GPT-3.5 reproduce retrieved records
-verbatim in 116 cases, and 250 targeted prompts extracted 205 items of
-personal information \pdcite{zeng2024rag}. Storing only embeddings does not
-anonymize: an iterative inversion recovered 92\% of 32-token inputs exactly
-from their embeddings, and 89\% of full names from embedded clinical notes
-\pdcite{morris2023vec2text}. The same retrieval study found that retrieval
-lowers leakage of the model's own training data: reconstructions of training
-text from its prefixes fell from 213 to between 33 and 70
+Storing only embeddings does not anonymize: an iterative inversion recovered
+92\% of 32-token inputs exactly from their embeddings, and 89\% of full names
+from embedded clinical notes \pdcite{morris2023vec2text}. Retrieval does lower
+leakage of the model's own training data, with reconstructions of training text
+from its prefixes falling from 213 to between 33 and 70 in one study
 \pdcite{zeng2024rag}. Moving logs from training into retrieval trades a noisy
 channel for an exact one.
 
 \paragraph{Training is a release to every future reader.}
 A model trained on logs is read by everyone it serves, so training is a shared
 destination unless the adapter serves one owner. Fine-tuning data is small and
-recently seen, which is where membership inference works. Attacks that barely
-beat chance on pretraining data, with AUC below 0.6 in most domains for models
-up to 12B parameters \pdcite{duan2024mia}, reached an AUC of 0.96 against a
-fine-tuned GPT-2, which also yielded 23\% of the personal information in its
-training set at 30\% precision \pdcite{lukas2023pii}. Fine-tuning can also
-reawaken what pretraining stored: fine-tuning GPT-3.5 on ten examples
-recovered 69.9\% of targeted Enron email addresses, where jailbreak prompting
-recovered none \pdcite{chen2023janus}. The route matters as well: training
-through a reward model and RL memorizes far less than fine-tuning on the data
-directly, and IPO-style direct preference learning regurgitates more than RL
-\pdcite{pappu2024rlhf}. Table~\ref{tab:sealed-tenant-channels} collects the
+recently seen, which is where \textbf{membership inference}, deciding whether
+a given record was trained on, works. Attacks that barely beat chance on
+pretraining data, with an area under the ROC curve (AUC, where 0.5 is chance)
+below 0.6 in most domains \pdcite{duan2024mia}, reach 0.96 against a
+fine-tuned model \pdcite{lukas2023pii}. The route matters as well: training
+through a reward model and reinforcement learning (RL) memorizes far less than
+fine-tuning on the data directly, and IPO-style direct preference learning,
+which trains on preference pairs without a reward model, regurgitates more
+than RL \pdcite{pappu2024rlhf}. Table~\ref{tab:sealed-tenant-channels} collects the
 channels.
 
 \begin{table}[H]\centering\footnotesize
 \caption{Channels by which one tenant's log content can reach another
-principal. Figures are the cited studies' own measurements on their models and
+principal. Figures are the cited studies' measurements on their own models and
 data, not measurements of the reference system.}
 \label{tab:sealed-tenant-channels}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}p{2.5cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.9cm}@{}}
@@ -77,8 +66,8 @@ data, not measurements of the reference system.}
 Channel & Mechanism & Evidence & Defense in this design \\
 \midrule
 Shared weights & rare or repeated sequences regurgitated & 604 verbatim training examples among 1{,}800 GPT-2 candidates, some from a single document \pdcite{carlini2021extracting}; more than 10{,}000 examples from ChatGPT for \$200, with memorized personal information in 16.9\% of tested generations \pdcite{nasr2023scalable} & ledger-charged training; deduplication as hygiene \\
-Fine-tuned adapter & small, recent data; reactivated memory & membership AUC 0.96; about 3\% of personal information still extracted at $\varepsilon=8$ \pdcite{lukas2023pii}; ten examples recover 69.9\% of targeted addresses \pdcite{chen2023janus} & per-tenant adapter; ledger; no fine-tuning interface on shared models \\
-Shared memory, read & exact release & 116 of 250 prompts reproduce records \pdcite{zeng2024rag}; 92\% exact inversion of embeddings \pdcite{morris2023vec2text} & owner labels; per-tenant stores \\
+Fine-tuned adapter & small, recent data; reactivated memory & 23\% of personal information extracted at 30\% precision, about 3\% at $\varepsilon=8$ \pdcite{lukas2023pii}; ten fine-tuning examples recover 69.9\% of targeted email addresses, where jailbreaks recover none \pdcite{chen2023janus} & per-tenant adapter; ledger; no fine-tuning interface on shared models \\
+Shared memory, read & exact release & 116 of 250 prompts reproduce retrieved records; 250 targeted prompts extract 205 items of personal information \pdcite{zeng2024rag} & owner labels; per-tenant stores \\
 Shared memory, write & planted record replayed as instruction & 98.2\% injection and 76.8\% attack success from queries alone \pdcite{dong2025minja}; five texts per target, about 90\% \pdcite{zou2024poisonedrag} & integrity class \\
 Prompt or key-value cache & timing of cache hits & caches shared globally across users at seven API providers, including OpenAI \pdcite{gu2025caching} & Design invariant~\ref{inv:sealed-label-keyed} \\
 Preference data & route of training & reward model and RL memorize far less than direct fine-tuning; IPO-style learning more than RL \pdcite{pappu2024rlhf} & reward-model route; ledger \\
@@ -93,10 +82,9 @@ persons and tenants whose permission a release needs, and an \textbf{integrity
 class} $I(\ell)\in\{\text{operator},\text{owner-authored},\text{third-party}\}$.
 Design invariant~\ref{hyp:sealed-taint} fixes the owner label conservatively:
 every line the worker writes after reading $u$'s data carries $u$, whether or
-not a detector finds anything of $u$'s in it. A destination $d$ has a set of
-readers $R(d)$ and a use. A store that is read as demonstrations or
-instructions has \emph{directive} use; any other store has data use. The rule
-has three parts.
+not a detector finds anything of $u$'s in it. A destination $d$ has readers
+$R(d)$ and a use: \emph{directive} if it is read as demonstrations or
+instructions, data otherwise. The rule has three parts.
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \emph{Confidentiality.} $\ell$ may enter $d$ only if every owner in
@@ -112,15 +100,10 @@ has three parts.
 \end{enumerate}
 
 The integrity part is new to this chapter, whose labels so far protect
-confidentiality only. It answers the write side of a shared store. A user with
-only query access injected records into an agent's memory with 98.2\% average
-success, and those records steered later victims' queries with 76.8\% average
-success \pdcite{dong2025minja}. Five crafted texts per target question, among
-millions, reached about 90\% attack success against a retrieval pipeline, and
-duplicate filtering did not stop them \pdcite{zou2024poisonedrag}. An injected
-instruction that a model stored in long-term memory compromised later sessions
-again \pdcite{greshake2023indirect}. Confidentiality labels say nothing about
-any of this; the integrity class does.
+confidentiality only. It answers the write side of a shared store: the table's
+injections need no special access, and an instruction a model stored in
+long-term memory compromised later sessions again
+\pdcite{greshake2023indirect}.
 
 Third parties named in content are kept out of training. A private fact is
 often shared within a group that has no bounded size
@@ -170,11 +153,9 @@ component implements it.
 The cache clause is not hypothetical. A statistical timing audit found prompt
 caches shared globally across users at seven API providers, including OpenAI,
 so that a fast response could reveal that another user had recently sent the
-same prefix; at least five providers made changes after disclosure
-\pdcite{gu2025caching}. The same audit could not extract other users' prompts
-token by token from live APIs. The invariant does not rely on that
-difficulty. Timing inside an authorized scope remains the residual that
-Table~\ref{tab:sealed-not-promised} calls padded and scheduled, not closed.
+same prefix \pdcite{gu2025caching}. The same audit could not extract other
+users' prompts token by token from live APIs; the invariant does not rely on
+that difficulty.
 
 \begin{pdclaim}{Design invariant}{Scrubbing Is Not Declassification}
 \setlength{\parskip}{4pt plus 1pt}
@@ -203,10 +184,8 @@ deterministic map from logs to logs. If some neighbors $D,D'$ have
 $S(D)\ne S(D')$, then $S$ is not $\varepsilon$-private for any finite
 $\varepsilon$.
 
-In particular, a deterministic scrubber that lets any part of a person's
-records influence its output has no finite $\varepsilon$ for that person. Its
-guarantee can only be a statement about its detector: which spans it removes,
-with what recall, on which distribution. It is not a statement about what an
+A deterministic scrubber's guarantee is therefore a statement about its
+detector, which spans it removes with what recall, not about what an
 adversary learns.
 \end{pdclaim}
 
@@ -219,57 +198,49 @@ Section~\ref{sec:sealed-conservation}, applied to a whole transformed log.
 \qed
 
 A randomized scrubber escapes the theorem only if its output distribution
-changes by a bounded ratio on every neighbor pair, and then it is a private
-mechanism whose cost belongs on the ledger. Synthetic text from a generator
-fine-tuned with differential privacy at $\varepsilon=4$ is one such route:
-canary sentences repeated 100 times appeared verbatim in 80\% of cases in
-non-private synthetic data and in none under privacy
-\pdcite{yue2022synthetic}.
+changes by a bounded ratio on every neighbor pair; it is then a private
+mechanism, charged on the ledger. Synthetic text from a generator
+fine-tuned privately at $\varepsilon=4$ is one such route: canary sentences
+repeated 100 times appeared verbatim in 80\% of cases without privacy and in
+none with it \pdcite{yue2022synthetic}.
 
 \paragraph{Appropriateness is a separate question.}
 Labels and $\varepsilon$ say who may read and how much may leak. The
 \emph{release} cells of Table~\ref{tab:sealed-tenant-policy} also need a norm
-for whether a flow is appropriate at all. Nissenbaum's \textbf{contextual
+of appropriateness. Nissenbaum's \textbf{contextual
 integrity} supplies one: information flows carry context-relative norms of
 two kinds, of appropriateness and of distribution, and contextual integrity
 is violated when either is breached \pdcite{nissenbaum2004ci}. A patient's
 symptom told to a clinic's intake agent may enter that patient's own memory
-scope. It does not thereby become available to the clinic's billing
-analytics, though both sit inside one tenant. The norm cannot be delegated to
-the model. In meeting-summary tasks built on such norms, GPT-4 revealed the
-secret in 39\% of cases and ChatGPT in 57\%, although both were instructed to
-preserve privacy, and chain-of-thought prompting did not reduce the leakage
-\pdcite{mireshghallah2023confaide}. The gate enforces the norm; the model only
-proposes.
+scope; it does not thereby reach the clinic's billing analytics, though both
+sit inside one tenant. The norm cannot be delegated to the model. In
+meeting-summary tasks built on such norms, GPT-4 revealed the secret in 39\%
+of cases although instructed to preserve privacy, and chain-of-thought
+prompting did not reduce the leakage \pdcite{mireshghallah2023confaide}. The
+gate enforces the norm; the model only proposes.
 
 \paragraph{Persistent agents keep per-owner memory.}
 \pdchapref{stp}{From Spawn to Person} gives agents durable memory and
 reputation. Under whole-worker labeling, an agent that served tenant $A$
-carries $A$'s label into its next job unless its memory is partitioned. A
-persistent person's episodic memory is therefore partitioned by owner label,
-and only the partitions the work order authorizes are mounted. Its identity
-and outcome record need not be partitioned: an outcome grade is
-operator-class, and an aggregate over owners can leave through the ledger.
-Deletion differs by destination. A tombstone retracts a record from an index
-and from a cache. It cannot retract influence from trained weights. The same
-model can be reached by training runs with and without a given point, so
-unlearning is well defined only at the algorithmic level
+carries $A$'s label into its next job unless its memory is partitioned, so a
+persistent person's episodic memory is partitioned by owner label and only
+the partitions the work order authorizes are mounted. Its identity and
+outcome record need not be: an outcome grade is operator-class. A tombstone retracts a
+record from an index and from a cache, but not its influence from trained
+weights. The same model can be reached by training runs with and without a
+given point, so unlearning is well defined only at the algorithmic level
 \pdcite{thudi2021unlearning}, and removing information from parameters does
 not by itself guarantee what the model generates \pdcite{cooper2024unlearning}.
 For an adapter, deletion means retraining without the person, which
-per-tenant adapters make cheap, or relying on the bound the ledger already
-charged.
+per-tenant adapters make cheap, or relying on the bound the ledger charged.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-Labels decide admission; they do not detect a record that was mislabeled when
-it was written. The integrity class blocks directive use of third-party
-content; it does not stop a third party from planting false facts as data.
+Labels decide admission; they do not detect a record mislabeled when it was
+written. The integrity class blocks directive use of third-party content; it
+does not stop false facts planted as data.
 
-The table cells are a proposed policy. The figures in this section are the
-cited studies' measurements on their own models and data.
-
-Timing on a label-keyed cache inside one principal's scope remains open, as in
+Timing inside one authorized scope remains open, as in
 Table~\ref{tab:sealed-not-promised}.
 \end{pdboundary}
 

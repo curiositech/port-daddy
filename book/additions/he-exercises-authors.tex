@@ -1,0 +1,49 @@
+\pdexercisesfor{\S\ref{sec:he-principal-commitments}}{Principal-tagged commitments}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-blame-order}
+Three principals issue unconditional rules on one action $w$ and scope $s$:
+Alice $\mathsf{O}(w,s,[0,5])$, Bob $\mathsf{F}(w,s,[0,5])$ and Carol
+$\mathsf{F}(w,s,[3,8])$. Run the deletion filter of
+Theorem~\ref{thm:he-tagged-blame} in the order Alice, Bob, Carol and again in
+the order Carol, Bob, Alice. Are both results minimal? What should an
+escalation router do with this order dependence?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-blame-order}
+The full set conflicts: Alice's obligation overlaps Bob's prohibition on
+$[0,5]$ and Carol's on $[\max(0,3),\min(5,8)]=[3,5]$.
+
+Order Alice, Bob, Carol. Without Alice, only prohibitions remain: no conflict,
+so Alice stays. Without Bob, Alice and Carol still overlap on $[3,5]$, so Bob
+is removed. Without Carol, Alice is alone: no conflict, so Carol stays. Result
+$\{\text{Alice},\text{Carol}\}$.
+
+Order Carol, Bob, Alice. Without Carol, Alice and Bob overlap on $[0,5]$, so
+Carol is removed. Without Bob, Alice is alone, so Bob stays. Without Alice,
+Bob is alone, so Alice stays. Result $\{\text{Alice},\text{Bob}\}$.
+
+Both are minimal: removing either member of either set leaves no conflict. The
+filter finds a minimal set, not the set. A router should run the filter in one
+declared order, so the same input always gives the same route, and should
+remove the found conflict and rerun to discover others. Enumerating every
+minimal set at once can produce exponentially many in general.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-new-direction-check}
+An accepted, conflict-free policy set receives one new sentence. For each of
+(a) $\mathsf{F}(\texttt{deploy},\{\texttt{prod}\},[0,60])$,
+(b) $\mathrm{excl}(\texttt{runner},[0,30])$,
+(c) $\mathsf{O}(\texttt{test},\{\texttt{ci}\},[0,10])$,
+(d) the fact \texttt{release\_frozen}, and
+(e) the deadline constraint $t_{\mathrm{merge}}-t_{\mathrm{start}}\le30$,
+say whether Theorem~\ref{thm:he-prohibitions-compose} lets the daemon check it
+by an index lookup against accepted obligations alone.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-new-direction-check}
+Only (a). A prohibition can clash only with an obligation fired on
+\texttt{deploy} with overlapping scope and interval. (b) is an exclusive claim
+and must be checked against other claims on \texttt{runner}, clause (iii).
+(c) is an obligation and must be checked against fired prohibitions on
+\texttt{test}. (d) is a fact: it can fire anyone's Horn and deontic rules, so
+the full check runs, at the current facts and at each maximal reachable fact
+set. (e) adds an edge to the deadline graph and needs the negative-cycle test,
+clause (iv).
+\end{pdsolution}

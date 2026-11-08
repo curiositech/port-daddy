@@ -1,0 +1,98 @@
+% Research-agenda addition (control strand): what isolation supplies.
+% Inserted in Appendix A after "What exists now", before the mechanized claims.
+% The appendices are not passed through the Book generator's citation
+% rewriting, so sources are named in prose; their entries are cited from
+% The Single-Writer Kernel (section "The control game") and appear in the
+% collected references.
+\subsection{What isolation supplies, and what it leaves}\label{app:isolation}
+
+The book's guarantees hold on mediated events. In
+\pdchapref{swk}{The Single-Writer Kernel},
+Theorem~\ref{swk:thm:regimentation-controllability} takes $\Sigma_c$ to be the
+set of events \emph{actually} mediated, and
+Theorem~\ref{swk:thm:swk-control-game} shows that one unmediated exit makes
+every protocol unsafe against a worst-case agent. Which events are mediated is
+decided below the gate, by the isolation layer. That layer sorts an agent's
+possible effects into three classes. An effect is \textbf{absent} when no
+device, path or credential for it exists. It is \textbf{gated} when the path
+exists and passes a gate the harbor owns. It is \textbf{residual} when the
+path exists and bypasses the gate. Guarantees attach to the gated class. A
+residual channel needs a capacity bound or an explicit exclusion; an absent
+one costs nothing to govern.
+
+Table~\ref{tab:app-isolation-primitives} grades six primitives against that
+sorting. The sources are Agache and colleagues on Firecracker, Young and
+colleagues on gVisor, Klein and colleagues and Murray and colleagues on seL4,
+Lehmann, Kinder and Pradel on WebAssembly, Chuang and colleagues on TEE.fail,
+Marchand and colleagues on container escape, and Debenedetti and colleagues
+on CaMeL; their entries are cited from the control-game section of
+\pdchapref{swk}{The Single-Writer Kernel}.
+
+\begin{table}[H]
+\centering
+\caption{What each isolation primitive makes absent or gated, and what it
+leaves residual. Figures are the cited authors' reported values, not
+measurements of this book's reference system.}
+\label{tab:app-isolation-primitives}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.15\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Primitive} & \textbf{Absent or gated} & \textbf{Residual} \\
+\midrule
+Containers (namespaces, seccomp) & Paths outside the namespaces; system calls the filter refuses. & The shared host kernel, runtime bugs and misconfiguration. SandboxEscapeBench finds that models identify and exploit escape routes whenever misconfigurations or privilege mistakes are present. \\
+gVisor & The guest's system calls, answered by a user-space kernel: $211$ of $319$ Linux calls implemented, $55$ host calls used, \texttt{open} and \texttt{socket} excluded. & Flaws in that kernel, and timing. Cost: the fastest system-call path is $2.8\times$ slower than a native process, and opening and closing a file on an external tmpfs is $216\times$ slower than from a plain container. \\
+Firecracker microVM & Every device outside a four-device model (virtio network and block, serial, part of a keyboard controller); a jailer admitting $24$ system calls; about $50{,}000$ lines of Rust against over $1.4$ million for QEMU. & Whatever crosses the virtio network device; the host kernel; microarchitectural channels unless the host disables SMT and enables mitigations; power and thermal channels. \\
+seL4 & Storage channels of the abstract specification, by a machine-checked intransitive noninterference proof carried to the C code by refinement. & Covert timing channels, of which the proof ``says little''. It assumes disabled DMA, a static partition schedule, and a correct compiler and hardware. \\
+WebAssembly & Host memory and code outside the module; typed, structured control flow. & Memory safety inside linear memory: no stack canaries, no guard pages, writable constants. Demonstrated attacks include cross-site scripting in a browser, remote code execution in Node.js and an arbitrary file write in wasmtime. \\
+Trusted execution (TDX, SEV-SNP, GPU) & Plaintext from host software; a measurement that can condition key release. & Physical access. TEE.fail extracts attestation keys with a DDR5 bus interposer costing under $\$1{,}000$; a forged TDX quote passed Intel's verification at its ``UpToDate'' level; GPU attestation not bound to the confidential VM can be relayed. Intel and AMD treat interposition as out of scope. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Three consequences follow for the book's grades.
+
+\paragraph{Confinement for hostile code needs a VM or microVM.}
+The Confined mode above says the process cannot reach the protected effect
+through an ambient path. A namespace sandbox shares the host kernel with
+everything it protects, and the SandboxEscapeBench authors recommend treating
+plain Docker isolation as insufficient by default. The hardening specified for
+OP-9 in \pdchapref{swk}{The Single-Writer Kernel}
+(\S\ref{swk:sec:merkle}), \texttt{bwrap} or \texttt{unshare} sandboxes under
+ephemeral user identities, moves the adversary to the different-user row of
+the threat table. For an agent that runs arbitrary code and may exploit kernel
+or runtime flaws, a Confined claim needs a hypervisor boundary, with
+namespaces and system-call filters as defense in depth inside it. Even a
+microVM keeps its network device: confinement removes ambient paths; it does
+not decide what crosses the gated ones.
+
+\paragraph{Exfiltration over allowed tools is semantic.}
+Once isolation has fixed the alphabet, an allowed channel carries whatever
+data flow the policy admits. CaMeL separates a task's control flow from its
+data flow, tags values with capabilities, and checks a policy at every tool
+call. It solves $77\%$ of the AgentDojo tasks with provable security, against
+$84\%$ for an undefended agent. It lists text-to-text attacks as a non-goal and
+acknowledges side channels. That is the structure of the attenuation of
+\pdchapref{anchor}{The Anchor Protocol} and of the labels and release gate of
+\pdchapref{sealed}{The Sealed Harbor}. No hypervisor supplies it.
+
+\paragraph{The model provider is a named principal.}
+\pdchapref{sealed}{The Sealed Harbor} notes that a remote model interface is a
+trusted reader of plaintext, and places the model inside the confidential
+domain (\S\ref{sealed:sec:sealed-design}). When the parties cannot hold the
+weights, the provider is a third principal and the work order must name it.
+Confidential-computing inference moves that trust to the vendor's attestation
+keys and to whoever has physical custody of the host. After TEE.fail, an
+Attested claim must state physical custody as an assumption, because the
+vendors exclude interposition from their threat models.
+
+\paragraph{An enumeration protocol (\Vision{}).}
+Run the reference worker under a namespace sandbox, under gVisor and under
+Firecracker. For each, attack the channel list of the kernel chapter's
+boundary item~(ii): raw sockets, DNS, inherited file descriptors,
+\texttt{/proc}, credential helpers, package managers and provider callbacks.
+Add escape tasks of the SandboxEscapeBench kind. Record from outside the guest
+whether each channel is absent, gated or residual, and measure the capacity of
+timing channels over the permitted output in bits per second. Logs written
+inside the guest may corroborate; they cannot decide. The result is the
+$\Sigma_c$/$\Sigma_u$ inventory that the kernel chapter says a red team, not a
+proof, must supply. Nothing here has been run.
