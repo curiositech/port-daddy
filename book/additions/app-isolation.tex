@@ -34,17 +34,17 @@ on CaMeL; their entries are cited from the control-game section of
 leaves residual. Figures are the cited authors' reported values, not
 measurements of this book's reference system.}
 \label{tab:app-isolation-primitives}
-\small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.15\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Primitive} & \textbf{Absent or gated} & \textbf{Residual} \\
 \midrule
-Containers (namespaces, seccomp) & Paths outside the namespaces; system calls the filter refuses. & The shared host kernel, runtime bugs and misconfiguration. SandboxEscapeBench finds that models identify and exploit escape routes whenever misconfigurations or privilege mistakes are present. \\
-gVisor & The guest's system calls, answered by a user-space kernel: $211$ of $319$ Linux calls implemented, $55$ host calls used, \texttt{open} and \texttt{socket} excluded. & Flaws in that kernel, and timing. Cost: the fastest system-call path is $2.8\times$ slower than a native process, and opening and closing a file on an external tmpfs is $216\times$ slower than from a plain container. \\
-Firecracker microVM & Every device outside a four-device model (virtio network and block, serial, part of a keyboard controller); a jailer admitting $24$ system calls; about $50{,}000$ lines of Rust against over $1.4$ million for QEMU. & Whatever crosses the virtio network device; the host kernel; microarchitectural channels unless the host disables SMT and enables mitigations; power and thermal channels. \\
-seL4 & Storage channels of the abstract specification, by a machine-checked intransitive noninterference proof carried to the C code by refinement. & Covert timing channels, of which the proof ``says little''. It assumes disabled DMA, a static partition schedule, and a correct compiler and hardware. \\
-WebAssembly & Host memory and code outside the module; typed, structured control flow. & Memory safety inside linear memory: no stack canaries, no guard pages, writable constants. Demonstrated attacks include cross-site scripting in a browser, remote code execution in Node.js and an arbitrary file write in wasmtime. \\
-Trusted execution (TDX, SEV-SNP, GPU) & Plaintext from host software; a measurement that can condition key release. & Physical access. TEE.fail extracts attestation keys with a DDR5 bus interposer costing under $\$1{,}000$; a forged TDX quote passed Intel's verification at its ``UpToDate'' level; GPU attestation not bound to the confidential VM can be relayed. Intel and AMD treat interposition as out of scope. \\
+Containers & Paths outside the namespaces; refused system calls. & The shared host kernel and misconfiguration; models find and exploit escape routes when misconfigurations or privilege mistakes are present. \\
+gVisor & Guest system calls, answered by a user-space kernel ($211$ of $319$ implemented with $55$ host calls). & Flaws in that kernel; timing. System calls run $2.8\times$ slower or worse. \\
+Firecracker & Every device outside a four-device model; a jailer admitting $24$ system calls; about $50{,}000$ lines of Rust against $1.4$ million for QEMU. & Traffic over the virtio network device; the host kernel; microarchitectural channels unless the host disables SMT. \\
+seL4 & Storage channels, by a machine-checked noninterference proof carried to the C code. & Covert timing channels; it assumes no DMA, a static schedule, and a correct compiler and hardware. \\
+WebAssembly & Host memory and code outside the module; typed control flow. & Memory safety inside linear memory: no canaries, no guard pages, writable constants. \\
+Trusted execution & Plaintext from host software; an attestation that can condition key release. & Physical access: TEE.fail forged a TDX quote that verified as ``UpToDate'' with an interposer under $\$1{,}000$; vendors treat interposition as out of scope. \\
 \bottomrule
 \end{tabularx}
 \end{table}
