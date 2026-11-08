@@ -34,6 +34,11 @@ parametric sleep is evidence about a different engine.
 Only the first rewrites what a successor reads as its history, and the rest of
 this subsection is about it.
 
+% Give the open-font proof a fresh margin for this table and its citations.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
+
 \begin{table}[H]
 \centering
 \caption{Seven agent-memory designs. Two keep a pointer from derived text to its evidence; three overwrite or delete entries in place.}
@@ -58,6 +63,12 @@ Claude Code~\pdcite{anthropic2026memory} & user-written \texttt{CLAUDE.md}; note
 This chapter's memory subsystem stores notes ``with their ledger addresses''
 (Table~\ref{tab:stp-organs}); most designs in Table~\ref{tab:stp-memory-survey}
 would lose that property.
+
+% The table's seven citations fill the open-font margin; start the evidence on
+% a fresh margin there.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
 
 \paragraph{The evidence.} None of the following measures the reference system.
 Zhang et al.\ report that, consolidating even from ground-truth solutions,
@@ -86,33 +97,34 @@ $n=(\mathsf{text},\mathsf{ptr},\mathsf{kind},\mathsf{src})$, where
 $\mathsf{ptr}\subseteq\mathrm{ids}(L)$ names the events the note rests on
 (empty for episodic texture) and $\mathsf{src}$ is a source class the platform
 assigns from the arrival channel. A \textbf{consolidation} is any procedure
-$\kappa$ mapping $(M,L)$ to a memory $M'$ that writes only to the memory store.
+$\Gamma$ mapping $(M,L)$ to a memory $M'$ that writes only to the memory store.
 \emph{Kind:} \Designed{} definition.
 \end{definition}
 
-Two premises are mediation claims about a deployment. \textbf{P1} (no
-memory-to-ledger write path): every append to $L$ is a ledger operation ---
+Two premises describe how a deployment is wired. \textbf{P1} (memory cannot
+write to the ledger): every entry added to $L$ is a ledger operation ---
 commitment enrollment, oracle-bound closure (Def.~\ref{def:oracle}), grant or
-revocation by its issuer, tombstone, succession record --- and none is
-available to $\kappa$ or accepts memory content as evidence. \textbf{P2}
-(admission reads authority only from the ledger): an effect is admitted iff a
-predicate of the request and $\mathrm{Auth}(L)$ holds; $M$ is not an argument.
+revocation by its issuer, tombstone, succession record --- and $\Gamma$ can
+perform none of them, nor can memory content serve as their evidence.
+\textbf{P2} (permission is read only from the ledger): the guard decides
+whether to allow a request by evaluating a rule on the request and
+$\mathrm{Auth}(L)$ alone; the memory $M$ is not an input to that rule.
 
 \begin{pdclaim}{Theorem}{Consolidation Separation}
 \label{thm:stp-consolidation-separation}
-Assume P1. For every consolidation $\kappa$, the values of $\mathrm{Owed}$,
+Assume P1. For every consolidation $\Gamma$, the values of $\mathrm{Owed}$,
 $\mathrm{Auth}$, $\mathrm{Rep}$ and $\mathrm{Lin}$, and the principal binding of
-Definition~\ref{def:principal}, are the same after $\kappa$ as before, and an
+Definition~\ref{def:principal}, are the same after $\Gamma$ as before, and an
 obligation can leave $\mathrm{Owed}(L)$ only through a ledger operation. If P2
-also holds, $\kappa$ cannot change whether a given request is admitted; it can
+also holds, $\Gamma$ cannot change whether a given request is allowed; it can
 change only which requests the agent makes.
 \end{pdclaim}
 \begin{proof}
-By P1, $\kappa$ appends nothing to the append-only $L$, so $L$ is unchanged, and
+By P1, $\Gamma$ appends nothing to the append-only $L$, so $L$ is unchanged, and
 so are the listed functions of $L$. Membership in $\mathrm{Owed}(L)$ changes
-only when $L$ does, which by P1 takes a ledger operation. Under P2, admission is
-a predicate of the request and $\mathrm{Auth}(L)$, and $\kappa$ changes neither
-for a fixed request.
+only when $L$ does, which by P1 takes a ledger operation. Under P2, the guard's
+decision depends only on the request and $\mathrm{Auth}(L)$, and $\Gamma$
+changes neither for a fixed request.
 \end{proof}
 
 Forgetting is therefore not resetting: an agent that consolidates a debt out of
@@ -125,7 +137,7 @@ inventory must list files and compaction summaries as well as the memory tool.
 
 \begin{pdclaim}{Design invariant}{Ledger-Faithful Consolidation}
 \label{inv:stp-ledger-faithful}
-A consolidation $\kappa:(M,L)\mapsto M'$ is \textbf{ledger-faithful} when:
+A consolidation $\Gamma:(M,L)\mapsto M'$ is \textbf{ledger-faithful} when:
 \begin{enumerate}[label=F\arabic*,leftmargin=2.2em,itemsep=2pt]
 \item \emph{No mint.} Every note asserting a commitment, closure, grant,
 revocation, outcome or debt has a nonempty $\mathsf{ptr}$ into $L$ and states
@@ -251,7 +263,7 @@ hook~\pdcite{anthropic2026memory}.
 \paragraph{The consolidation receipt.} Each consolidation the checker decides
 appends one record to the succession log: digests of $M$ before and after, the
 consolidator's identity and engine, the consolidation-policy version, the
-verdict, and the pointer-bearing notes superseded. The checker, not $\kappa$,
+verdict, and the pointer-bearing notes superseded. The checker, not $\Gamma$,
 writes it, so P1 is untouched. The receipt does not make memory authoritative;
 it records \emph{what the successor loaded}, the witness
 \S\ref{sec:parfit-lineage-map} found missing, for the notes at least.
