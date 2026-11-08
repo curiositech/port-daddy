@@ -1360,11 +1360,11 @@ instead characterizes exact realization of a specified prefix-closed language
 under full observation. It distinguishes owning the credential channel for a
 push from observing an internal model event after it has happened. Neither
 statement makes local database computability necessary for every safe protocol.
-Dastani, Sardina and Yazdanpanah model three norm-enforcement mechanisms of
-normative multi-agent systems as supervisory control of discrete-event systems,
-which gives those mechanisms a formal-language semantics and lets enforcers be
-synthesized automatically for some classes of systems and
-properties~\pdcite{dastani2017normenforcement}.
+Dastani, Sardina and Yazdanpanah~\pdcite{dastani2017normenforcement} model three
+norm-enforcement mechanisms of normative multi-agent systems as supervisory
+control of discrete-event systems, which gives those mechanisms a
+formal-language semantics and lets enforcers be synthesized automatically for
+some classes of systems and properties.
 
 
 
@@ -1928,14 +1928,6 @@ itself building on Merkle's hash trees~\pdcite{merkle1987} --- exists but is
 re-scoped (see \S\ref{sec:merkle}).
 
 % The nearby first-use bibliography occupies the lower outside margin.
-% Let this small illustration take the next page's top rather than detach
-% its caption from the pictured instrument.
-\begin{figure}[!t]
-\centering
-\includegraphics[width=0.40\textwidth]{plates/margin-evidence/ch01-water-meter-dial.pdf}
-\caption{\textbf{Monotonic Operation Log.} The dials advance as an append-only record grows.}
-\label{fig:swk-water-meter-dial}
-\end{figure}
 
 \pdexercisepointer{\ref{ex:swk-notes-vs-work}}{\ref{ex:swk-op4-capsule}}{\pageref{ex:swk-notes-vs-work}}
 
@@ -1949,6 +1941,16 @@ database configuration passed; sole-writer check passed; external effect
 broker unknown. The two passes justify neither a third pass nor a statement
 that the whole machine is secure. The unchecked broker remains an explicit
 limit on the stale-write argument above.
+
+% Placed after the first paragraph of the next section so that it takes the
+% following page's top, clear of Figure~\ref{fig:swk-unknown-effect} and the
+% first-use sources beside the operation-log subsection.
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.40\textwidth]{plates/margin-evidence/ch01-water-meter-dial.pdf}
+\caption{\textbf{Monotonic Operation Log.} The dials advance as an append-only record grows.}
+\label{fig:swk-water-meter-dial}
+\end{figure}
 
 The attestation routine evaluates a registry whose entries return
 \emph{pass}, \emph{fail}, \emph{skipped-with-reason}, or \emph{unknown}.
