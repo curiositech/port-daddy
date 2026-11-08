@@ -1,0 +1,112 @@
+\pdexercisesfor{\S\ref{sec:sealed-person-ledger}}{The ledger keyed by person}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:sealed-person-budget}
+Each person has a lifetime zero-concentrated budget $\rho_{\max}=0.25$, and
+training runs in rounds of cost $0.04$. How many rounds can a person join, and
+what $\varepsilon$ does the amount spent give at $\delta=10^{-6}$ by the
+conversion $\varepsilon=\rho+2\sqrt{\rho\ln(1/\delta)}$? What is the worst case
+if the same person appears unresolved in three tenants?
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-person-budget}
+Six rounds: $6\times0.04=0.24\le0.25$, and a seventh would reach $0.28$. With
+$\rho=0.24$: $\ln10^6=13.816$, $0.24\times13.816=3.316$, $\sqrt{3.316}=1.821$,
+so $\varepsilon=0.24+3.642=3.88$. Three unresolved keys can each be charged
+$0.24$, and zero-concentrated costs add, so the person carries $0.72$:
+$0.72\times13.816=9.947$, $\sqrt{9.947}=3.154$, and
+$\varepsilon=0.72+6.308=7.03$. Resolving one person to one key is part of the
+ledger's correctness, not an optimization.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:sealed-canary-audit}}{Canaries that audit a declaration}
+
+\begin{pdexercise}[kind=Check,rating=2]{ex:sealed-canary-refute}
+A pipeline declares pure $\varepsilon=1$ ($\delta=0$). An auditor plants
+canaries as in Theorem~\ref{thm:sealed-canary-falsify}, makes 200 guesses, and
+gets 160 right. Is the declaration refuted at the 5\% level? What if 155 are
+right? What does a failure to refute establish?
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-canary-refute}
+Each guess is right with probability at most $e/(1+e)=0.7311$. The binomial
+$\mathrm{Bin}(200,0.7311)$ has mean $146.21$ and standard deviation
+$\sqrt{200\times0.7311\times0.2689}=6.271$. For 160 right, the continuity-corrected
+normal approximation gives $z=(159.5-146.21)/6.271=2.12$ and a tail of about
+$0.017$; the exact binomial tail is $0.015$. Both are below $0.05$, so the
+declaration is refuted. For 155 right, $z=(154.5-146.21)/6.271=1.32$, a tail
+of about $0.093$ (exact $0.091$), so it is not refuted. A failure to refute is
+a lower bound that did not reach the declaration; it does not certify that the
+pipeline is $1$-private.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:sealed-tenants}}{Many tenants, one harbor}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:sealed-tenant-route}
+A support agent for tenant $T$ reads customer Ana's account and logs ``Ana's
+card ending 4417 was declined; she will retry Friday.'' Using
+Table~\ref{tab:sealed-tenant-policy}, where may the line go? Does masking the
+four digits change the answer?
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-tenant-route}
+The owner label includes Ana and $T$, and the line carries payment data, so it
+is in the special-category row: tenant memory only with Ana's release, in her
+scope and retention-limited; not shared memory, not the tenant adapter, not
+shared training; a cache entry keyed to Ana's scope. Masking the digits
+changes nothing (Design invariant~\ref{inv:sealed-scrub-not-declass}): the
+line keeps Ana's label, and ``her card was declined'' is still financial data
+about her.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Check,rating=2]{ex:sealed-tenant-random-scrub}
+A scrubber keeps each token independently with probability $\tfrac12$ and
+deletes the rest. Is it $\varepsilon$-private for some finite $\varepsilon$
+under the person-level neighboring relation?
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-tenant-random-scrub}
+No. Suppose one of person $u$'s records contains a token $w$ that appears
+nowhere else in the log. With $u$'s records present, the output contains $w$
+with probability at least $\tfrac12$; with them removed, with probability
+$0$. The ratio of the two probabilities is unbounded, so no finite
+$\varepsilon$ holds. Randomization is necessary for a finite $\varepsilon$
+(Theorem~\ref{thm:sealed-no-scrubber}) but not sufficient: the output
+distribution must change by a bounded ratio on every neighbor pair.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-tenant-cache}
+A clinic tenant shares one prefix cache among its staff, keyed by tenant.
+Nurse $A$ sends a prompt that begins with a fixed intake template followed by
+a patient's name and symptoms. Trace what nurse $B$ can learn by timing, say
+which invariant fails, and give a key that fixes it and its cost.
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-tenant-cache}
+$B$ sends the template followed by a candidate patient's name. A fast first
+token signals a cache hit, which means someone in the tenant recently sent
+that prefix, so $B$ learns that the named patient was recently seen. A tenant
+key isolates tenants but violates Design invariant~\ref{inv:sealed-label-keyed}:
+the entry extending past the template carries the patient's label and $A$'s
+scope, and $B$ is not authorized. Key entries by owner label instead. The
+operator-class template can still be cached across the tenant, or globally,
+so only the patient-specific suffix loses its hits. Timing inside an
+authorized scope remains a residual (Table~\ref{tab:sealed-not-promised}).
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=3]{ex:sealed-tenant-persistent}
+A persistent agent in the sense of \pdchapref{stp}{From Spawn to Person}
+serves tenants $A$ and $B$ on alternating days with one memory store and one
+reputation score. Propose a partitioning, say which parts of its record may
+be shared across tenants and through which channel, and say what a tombstone
+on one of $A$'s records can and cannot retract.
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-tenant-persistent}
+Partition episodic memory by owner label and mount only the partitions the
+work order authorizes. Anything written while $A$'s partition is mounted
+carries $A$'s label, including summaries and embeddings derived from $A$'s
+records, so none of it enters $B$'s jobs. Identity and outcome grades are
+operator-class and may be shared; statistics aggregated over owners may leave
+through the ledger; a learned skill may be shared only as operator-reviewed
+text of operator integrity. A tombstone on one of $A$'s records removes it
+from $A$'s partition, its index and every cache entry carrying its label. It
+cannot retract the record's influence from trained weights
+\pdcite{thudi2021unlearning}: a per-tenant adapter must be retrained without
+it, and shared training relies on the bound the ledger charged. If the
+tombstone retracts an outcome itself, the reputation is recomputed under the
+retraction protocol of \pdchapref{stp}{From Spawn to Person}.
+\end{pdsolution}

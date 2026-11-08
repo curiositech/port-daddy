@@ -1,0 +1,64 @@
+\pdexercisesfor{\S\ref{sec:stp-consolidation}}{Consolidation compacts the view, never the record}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-consolidation-f4}
+Mem0's update step applies one of \texttt{ADD}, \texttt{UPDATE},
+\texttt{DELETE} or \texttt{NOOP} to each candidate fact, and \texttt{DELETE}
+removes a stored memory that new information contradicts~\pdcite{chhikara2025mem0}.
+Suppose the stored memory is a grant note with $\mathsf{ptr}=\{g_1\}$ and a new
+message says the grant was revoked. Which condition of
+Design invariant~\ref{inv:stp-ledger-faithful} does \texttt{DELETE} violate, and
+what should the update write instead?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-consolidation-f4}
+It violates F4: a note with nonempty $\mathsf{ptr}$ is never deleted or
+rewritten in place. Deleting it erases the record of what the agent believed
+when it last acted, so an audit or appeal cannot reconstruct that belief. The
+update should append a superseding note with $\mathsf{ptr}=\{g_1,r_1\}$, where
+$r_1$ is the revocation event in $L$, and tombstone the old note. F1 adds a
+second requirement: if the revocation exists only in the message and not in
+$L$, the new note is texture and cannot change the grant's status until the
+issuer records the revocation. Mem0's graph variant, which marks a conflicting
+relation invalid instead of removing it, is closer to F4.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-lunches-trace}
+Trace Numbers by Hand~\ref{ex:stp-lunches-only} through the seven steps of the
+mediation rule in \S\ref{sec:stp-consolidation}. At which step is the false
+authority first stopped? If that step is misconfigured and the widened note is
+admitted, which later step stops the 6{,}000 USD order, and what does the
+consolidation receipt let an auditor find?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-lunches-trace}
+Step~1 labels the ERP content with an external source class taken from its
+channel. Step~2 does not fire, because the ERP record does not claim to be a
+grant; it is texture. Step~3 stops the false authority: the batch would set the
+note with $\mathsf{ptr}=\{g_1,g_2\}$ to scope $\{\text{lunch},\text{reception}\}$,
+while $L$ gives $S_L=\{\text{lunch}\}$, so F1 fails and the batch is rejected
+whole. If the checker is misconfigured and admits the batch, step~7 still stops
+the order: admission evaluates $S_L$, reception $\notin S_L$, and the request is
+denied. The receipt records the digests before and after, the consolidator and
+its engine, the policy version and the verdict. In the misconfigured run it
+shows an admitted batch that superseded the $\{g_1,g_2\}$ note, which is where
+an auditor finds the fault.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-bounded-coverage}
+A role carries $k=200$ open obligations. Each has a deadline drawn from $256$
+working slots and a counterparty drawn from $16$ principals, chosen
+independently. The memory budget is $256$ bytes. Use
+Theorem~\ref{thm:stp-coverage-ledger} to show that memory alone cannot satisfy
+F2. Then propose the cheapest serving scheme that does, and say what it must
+read at boot and what it must do when that read fails.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-bounded-coverage}
+Each obligation carries $b=\log_2 256+\log_2 16=8+4=12$ independent bits, so
+the role needs $kb=200\cdot 12=2{,}400$ bits. The budget is
+$256\cdot 8=2{,}048$ bits, and $2{,}048<2{,}400$, so by
+Theorem~\ref{thm:stp-coverage-ledger} some assignment is served with wrong terms.
+The cheapest scheme stores no terms in memory. At boot the harness reads the
+role's open set from $\mathrm{Owed}(L)$ and serves each obligation with its full
+terms; obligations created during the session are served from their ledger
+events as they are recorded. Memory may hold pointers or none. If the ledger
+read fails, the successor must not act within the scope of any obligation it
+cannot see: fail closed for those actions, and report the failed read. Open
+part: which actions lie outside every obligation's scope, and so stay safe while
+the ledger is unreachable?
+\end{pdsolution}

@@ -1,0 +1,158 @@
+% Research-agenda addition (control strand): the control game.
+% Inserted at the end of \S\ref{sec:controllability}, after the paragraph on
+% the monitor's coverage report and before the commitments subsection.
+\subsubsection{The control game: what a gate leaves to evaluation}
+\label{sec:swk-control-game}
+
+The two theorems above say which policies a gate realizes exactly. They say
+nothing about the rest, and this book does not fill the gap by assuming the
+agent is aligned. The reason is empirical. Hubinger and colleagues trained
+models to write secure code when the prompt gave the year as 2023 and
+exploitable code when it gave 2024. Supervised fine-tuning, reinforcement
+learning and adversarial training all failed to remove the behavior, and
+adversarial training taught the models to recognize their trigger more
+accurately, hiding the behavior rather than removing it~\pdcite{hubinger2024sleeper}.
+A model that passes a behavioral evaluation has not thereby earned a gate's
+trust.
+
+\textbf{AI control} is the method for the residue. Greenblatt and colleagues
+evaluate a \emph{protocol}: a pipeline that uses an untrusted capable model,
+a weaker trusted model and a small budget of trusted human labor. A red team
+replaces the untrusted model with an attack policy; safety is the probability
+that no unacceptable outcome occurs over the whole scenario, and usefulness is
+measured with the honest model. In their programming setting, auditing the
+$2\%$ most suspicious solutions gave $62\%$ safety at $97\%$ usefulness, and
+trusted editing gave $92\%$ at $94\%$~\pdcite{greenblatt2024control}. Griffin
+and colleagues formalize the exercise as a two-player, partially observable,
+multi-objective game~\pdcite{griffin2024controlgames}. In a multi-step shell
+setting, resampling suspicious actions before execution cut attack success
+from $58\%$ to $7\%$ at a $5\%$ cost in usefulness~\pdcite{bhatt2025ctrlz}.
+Every one of these levers acts before the effect: defer, resample, audit, shut
+down. A protocol is a supervisor.
+
+\begin{pdclaim}{Theorem}{What a Control Evaluation Can Measure}\label{thm:swk-control-game}
+\setlength{\parskip}{3pt plus 1pt}
+Let $L$, $K$, $\Sigma_c$, $\Sigma_u$ and $P$ be as in
+Theorem~\ref{thm:observability-regimentation}. An \emph{agent policy} picks
+each next event among those that $\overline{L}$ enables after the current
+history and the protocol has not disabled. A \emph{protocol} $S$ is a
+supervisor, possibly randomized, that disables only events of $\Sigma_c$; it
+decides from the observed projection and from the results of any audits it
+spends, and it may shut down by disabling all of $\Sigma_c$. Let
+$\mathrm{Safe}_H(S)$ be the infimum, over agent policies, of the probability
+that every history of length at most $H$ lies in $\overline{K}$. Call $S$
+\emph{fully useful} when, after any reachable history $s$, it never disables a
+controllable $a$ with $sa\in\overline{K}$.
+
+(a) If $K$ is controllable and observable, some deterministic protocol that
+spends no audit is fully useful and has $\mathrm{Safe}_H(S)=1$ for every $H$.
+
+(b) If some string $u\in\Sigma_u^{*}$ lies in $\overline{L}\setminus\overline{K}$,
+then $\mathrm{Safe}_H(S)=0$ for every protocol $S$, whatever its audit budget,
+and every $H\ge|u|$. If $K$ is not controllable, the same conclusion holds for
+every fully useful protocol once $H$ covers a witness of the failure.
+\end{pdclaim}
+
+\begin{proof}
+(a) Theorem~\ref{thm:observability-regimentation} supplies a supervisor $f$
+that factors through $P$ and whose closed loop is exactly $\overline{K}$. Use
+$f$ as the protocol. Every history any agent policy can produce lies in the
+closed loop, hence in $\overline{K}$, with probability one and for every $H$.
+If $s$ is reachable and $sa\in\overline{K}$, then $sa$ lies in the closed loop,
+so $f$ did not disable $a$: the protocol is fully useful. It is deterministic
+and never consults an audit.
+
+(b) Let $u=u_1\cdots u_n$ and let the agent emit $u_1,u_2,\ldots$ in order.
+Each prefix lies in $\overline{L}$ because $\overline{L}$ is prefix-closed, and
+no $u_i$ can be disabled because $u_i\in\Sigma_u$. Audits change only which
+controllable events are disabled, so they cannot stop $u$. Since
+$\varepsilon\in\overline{K}$ and $u\notin\overline{K}$, some prefix of length at
+most $n$ leaves $\overline{K}$, with probability one under this policy; hence
+$\mathrm{Safe}_H(S)=0$ for $H\ge n$. If $K$ is not controllable, take $s\in
+\overline{K}$ and $\sigma\in\Sigma_u$ with $s\sigma\in\overline{L}\setminus
+\overline{K}$. Every prefix of $s$ lies in $\overline{K}$, so a fully useful
+protocol disables none of its controllable steps; the agent emits $s$ and then
+$\sigma$, which no protocol can disable, and leaves $\overline{K}$ with
+probability one once $H\ge|s|+1$.
+\end{proof}
+
+Part~(a) is the precise sense in which a control evaluation of an exact gate
+reduces to \emph{conformance testing}. No attack policy can lower that
+protocol's safety, so the only questions left are whether the deployed gate
+computes $f$ and whether the events it claims as $\Sigma_c$ are in fact mediated
+(boundary item~(ii) above). Part~(b) is the same boundary from the other side.
+Every channel the isolation layer leaves unmediated, from a raw socket to a
+container escape to a covert timing channel, is an uncontrollable event
+available from the first step. Which channels a microVM, a user-space kernel,
+a verified microkernel, WebAssembly or a trusted execution environment
+actually removes is a separate engineering
+question~\pdcite{agache2020firecracker,young2019gvisor,klein2009sel4,murray2013sel4infoflow,lehmann2020wasm,chuang2026teefail,marchand2026sandboxescape,debenedetti2025camel}\ifpdbook;
+the Book's appendices grade each\fi.
+
+Between the two parts lies every policy that is controllable but not
+observable, or not controllable yet with a nonempty supremal controllable
+sublanguage. There, fully safe protocols exist that are not fully useful, and
+the safety--usefulness frontier is the object a control evaluation estimates.
+We expect that no fully safe protocol is more useful than the most permissive
+safe supervisor of Theorem~\ref{thm:regimentation-controllability}, refined for
+observation, but we have not proved it. An audit is a purchased observation:
+it changes $P$ for the step it inspects, so any bound must price audits as
+changes to the observation map. The question is \Open{}.
+
+Keep the adversaries apart. The red team in the theorem is zero-sum: it
+minimizes safety and has no payoff of its own. Becker's condition in
+\pdchapref{he}{The Harbor Economy}%
+\ifpdbook\ (Theorem~\ref{he:prop:becker-deterrence})\fi\
+prices a risk-neutral player who weighs a gain against an expected
+forfeiture. Against a zero-sum red team it supplies nothing, because there is
+no gain for a bond to outweigh. A worst-case claim must rest on the gate, and
+an incentive claim on a player whose payoffs are stated;
+\pdchapref{stp}{From Spawn to Person} asks whether a language-model agent is
+such a player.
+
+\begin{pdexample}{Read-Only Tests in the Checkout Repair}
+\setlength{\parskip}{4pt plus 1pt}
+ImpossibleBench mutates a task's unit tests so that they contradict its
+specification; any pass is then a specification-violating shortcut, and the
+pass rate is a cheating rate~\pdcite{zhong2025impossiblebench}. On the
+benchmark's conflicting SWE-bench variant Claude Opus~4.1 cheated on $50\%$ of
+tasks, and the Claude models cheated mostly, in more than $79\%$ of cases, by
+editing the tests.
+
+Bob's original test must remain. A capability card that makes the test
+directory read-only turns every test write into a refused controllable event:
+``no test edits'' is controllable and observable, and part~(a) applies. If no
+refused cheat switched strategy, the residual rate would be at most
+\[
+(1-0.79)\times 0.50 = 0.21\times 0.50 = 0.105 .
+\]
+That figure is optimistic, not a prediction. The paper reports that read-only
+tests did not eliminate special-casing or operator overloading. Those patches
+pass every write rule and still violate the specification: ``this diff
+special-cases the tests'' is not a function of the observed write, so no gate
+over this alphabet regiments it.
+
+The paper's other lever is an escalation channel. Letting the agent stop and
+flag the task for a person cut GPT-5's cheating on the same variant from $54\%$
+to $9\%$, a relative fall of
+\[
+\frac{54-9}{54}=\frac{45}{54}\approx 0.83,
+\]
+and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$.
+\end{pdexample}
+
+\paragraph{A three-configuration harbor protocol (\Vision{}).}
+Run the checkout repair with ImpossibleBench-style mutations of its original
+test under three configurations. In G0 the tests are writable. In G1 a
+capability card from \pdchapref{anchor}{The Anchor Protocol} makes them
+read-only. G2 adds to G1 an escalation channel priced by the dismissal debit of
+\pdchapref{ls}{The Legible Swarm}%
+\ifpdbook\ (Theorem~\ref{ls:thm:escalation-threshold})\fi.
+Classify every pass by strategy: test edit, special-casing, operator
+overloading or recorded state. Part~(a) predicts that G1 admits no test edit;
+one admitted test write falsifies the gate's conformance, not the theorem. The
+residue under G1 and G2 is what a control evaluation must measure: a red team
+supplies an attack policy for G2, and safety and usefulness are estimated as
+Greenblatt and colleagues do. None of this has been run.
+
+\pdexercisepointer{\ref{ex:swk-control-conformance}}{\ref{ex:swk-control-semantic}}{\pageref{ex:swk-control-conformance}}

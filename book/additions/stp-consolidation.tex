@@ -1,0 +1,274 @@
+% additions/stp-consolidation.tex
+% Ch5 (spawn-to-person.tex): closing subsection of \S\ref{sec:organs}, before
+% \section{Identity: the root the whole chain hangs from}. Author suffix: memory.
+\subsection{Consolidation compacts the view, never the record}\label{sec:stp-consolidation}
+
+Heron's notes grow with every session, and sooner or later something merges,
+rewrites or deletes them. Agent-memory systems call that step
+\textbf{consolidation}: a background rewrite of stored memory into fewer, more
+general entries. Under two premises stated below, consolidation cannot change
+who Heron is, because the person is a ledger position and consolidation does
+not write to the ledger. It can still change whether Heron \emph{acts} like the
+person the ledger records. Nothing here is enforced by the reference system.
+
+\paragraph{Three operations called dreaming.} The literature uses one word for
+three operations, and they need different rules.
+\begin{enumerate}[leftmargin=1.6em,itemsep=1pt]
+\item \emph{Text consolidation} rewrites stored notes. Letta's sleep-time
+compute replaces an idle agent's context with a re-represented one; its prompt
+tells the model to prioritize new information over existing memories and, when
+uncertain, to ``state the most likely new facts that would replace the old
+facts''~\pdcite{lin2025sleeptime}. A guess can overwrite a record.
+\item \emph{Imagination in reinforcement learning} trains a policy. DreamerV3's
+actor and critic ``learn behaviors purely from abstract trajectories of
+representations predicted by the world model'', which itself learns from
+replayed real experience~\pdcite{hafner2023dreamerv3}. Imagined trajectories
+change the policy; they are not filed as experience.
+\item \emph{Parametric sleep} distils in-context knowledge into slower
+parameters and trains on self-generated ``dreams''~\pdcite{behrouz2026sleep}.
+It changes the weights, so it is an engine change:
+Theorem~\ref{thm:engine-swap} and clause~(ii) of
+Property~\ref{thm:resurrection-soundness} apply, and an outcome earned before
+parametric sleep is evidence about a different engine.
+\end{enumerate}
+Only the first rewrites what a successor reads as its history, and the rest of
+this subsection is about it.
+
+\begin{table}[H]
+\centering
+\caption{Seven agent-memory designs. Two keep a pointer from derived text to its evidence; three overwrite or delete entries in place.}
+\label{tab:stp-memory-survey}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.17\linewidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.16\linewidth} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{System} & \textbf{What is stored} & \textbf{When it rewrites} & \textbf{What happens to the evidence} \\
+\midrule
+MemGPT~\pdcite{packer2023memgpt} & a working context the agent edits; a recursive summary of evicted messages & when the context fills & every message stays in recall storage; each summary is built from the previous one \\
+Letta sleep-time~\pdcite{lin2025sleeptime} & a re-represented context & offline, between queries & the new context replaces the old \\
+Generative Agents~\pdcite{park2023generative} & observations; reflections citing the records they rest on & when recent importance accumulates & the stream stays; reflections keep their pointers \\
+A-MEM~\pdcite{xu2025amem} & notes with generated keywords, tags, context, links & on every write & the evolved note replaces the original's context and tags \\
+Mem0~\pdcite{chhikara2025mem0} & extracted facts & per message pair & \texttt{DELETE} removes a contradicted fact; the graph variant marks it invalid \\
+Zep/Graphiti~\pdcite{rasmussen2025zep} & raw episodes; facts with validity intervals & at ingestion & episodes are a non-lossy store; facts are invalidated, not deleted, and index back to episodes \\
+Claude Code~\pdcite{anthropic2026memory} & user-written \texttt{CLAUDE.md}; notes Claude writes itself & during a session & editable files, treated ``as context, not enforced configuration'' \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+This chapter's memory subsystem stores notes ``with their ledger addresses''
+(Table~\ref{tab:stp-organs}); most designs in Table~\ref{tab:stp-memory-survey}
+would lose that property.
+
+\paragraph{The evidence.} None of the following measures the reference system.
+Zhang et al.\ report that, consolidating even from ground-truth solutions,
+GPT-5.4 failed on about half of the ARC-AGI problems it had solved without
+memory, while
+an episodic-only control that kept the raw trajectories was
+competitive~\pdcite{zhang2026faultymemory}. Cerruti et al.\ call memory that
+misstates permissions \textbf{endogenous authorization laundering}: with no
+attacker present, memory writers created false authority for up to 50.2\% of
+unauthorized requests, and executors acted on it in 98.6\% of
+trials~\pdcite{cerruti2026eal}. Zhan et al.\ found \textbf{authority collapse}
+(a claim kept while the source constraints on its use are erased) in 48 of 49
+consolidator--model configurations~\pdcite{zhan2026authmem}. AgentPoison
+reached an average attack success rate of 80\% or more while poisoning under
+0.1\% of a memory or knowledge base~\pdcite{chen2024agentpoison}.
+
+\begin{definition}[Memory as a view]\label{def:stp-memory-view}
+Let $L$ be the append-only ledger. Four functions of $L$ carry the person: the
+outstanding-obligation set $\mathrm{Owed}(L)$ (open commitments, debts, escrow,
+open sanctions); the authority state $\mathrm{Auth}(L)$ (live grants with their
+scopes, revocations, restrictions); the outcome multiset $\mathrm{Rep}(L)$,
+tombstones applied, keyed by principal and engine; and the lineage
+$\mathrm{Lin}(L)$ with its closure $\mathsf{succ}^{*}$. A \textbf{memory} $M$
+is a finite set of notes
+$n=(\mathsf{text},\mathsf{ptr},\mathsf{kind},\mathsf{src})$, where
+$\mathsf{ptr}\subseteq\mathrm{ids}(L)$ names the events the note rests on
+(empty for episodic texture) and $\mathsf{src}$ is a source class the platform
+assigns from the arrival channel. A \textbf{consolidation} is any procedure
+$\kappa$ mapping $(M,L)$ to a memory $M'$ that writes only to the memory store.
+\emph{Kind:} \Designed{} definition.
+\end{definition}
+
+Two premises are mediation claims about a deployment. \textbf{P1} (no
+memory-to-ledger write path): every append to $L$ is a ledger operation ---
+commitment enrollment, oracle-bound closure (Def.~\ref{def:oracle}), grant or
+revocation by its issuer, tombstone, succession record --- and none is
+available to $\kappa$ or accepts memory content as evidence. \textbf{P2}
+(admission reads authority only from the ledger): an effect is admitted iff a
+predicate of the request and $\mathrm{Auth}(L)$ holds; $M$ is not an argument.
+
+\begin{pdclaim}{Theorem}{Consolidation Separation}
+\label{thm:stp-consolidation-separation}
+Assume P1. For every consolidation $\kappa$, the values of $\mathrm{Owed}$,
+$\mathrm{Auth}$, $\mathrm{Rep}$ and $\mathrm{Lin}$, and the principal binding of
+Definition~\ref{def:principal}, are the same after $\kappa$ as before, and an
+obligation can leave $\mathrm{Owed}(L)$ only through a ledger operation. If P2
+also holds, $\kappa$ cannot change whether a given request is admitted; it can
+change only which requests the agent makes.
+\end{pdclaim}
+\begin{proof}
+By P1, $\kappa$ appends nothing to the append-only $L$, so $L$ is unchanged, and
+so are the listed functions of $L$. Membership in $\mathrm{Owed}(L)$ changes
+only when $L$ does, which by P1 takes a ledger operation. Under P2, admission is
+a predicate of the request and $\mathrm{Auth}(L)$, and $\kappa$ changes neither
+for a fixed request.
+\end{proof}
+
+Forgetting is therefore not resetting: an agent that consolidates a debt out of
+its notes still owes it. The theorem says nothing about conduct, and it is only
+as strong as its premises, which must cover every persistent channel. Das et
+al.\ found that agents carried a goal forward through ordinary files once the
+memory tool was removed, and that an LLM memory auditor reduced that
+propagation without removing it~\pdcite{das2026selfpropagation}. A mediation
+inventory for P1 lists the memory tool, the file system and compaction
+summaries.
+
+\begin{pdclaim}{Design invariant}{Ledger-Faithful Consolidation}
+\label{inv:stp-ledger-faithful}
+A consolidation $\kappa:(M,L)\mapsto M'$ is \textbf{ledger-faithful} when:
+\begin{enumerate}[label=F\arabic*,leftmargin=2.2em,itemsep=2pt]
+\item \emph{No mint.} Every note asserting a commitment, closure, grant,
+revocation, outcome or debt has a nonempty $\mathsf{ptr}$ into $L$ and states
+its events' current status. A note with empty $\mathsf{ptr}$ is texture, with
+authority no higher than its least authoritative source.
+\item \emph{Coverage.} Every element of $\mathrm{Owed}(L)$, and every live grant
+and restriction in $\mathrm{Auth}(L)$, within the role's scope reaches the
+successor with its full terms: counterparty, scope, deadline, conditions.
+Serving it from the ledger at boot discharges this condition.
+\item \emph{One source, one vote.} Notes resting on the same events or source
+record count as one piece of evidence: the no-mint rule of
+\S\ref{sec:parfit-lineage-map}, applied to evidence.
+\item \emph{Append-only pointers.} A note with nonempty $\mathsf{ptr}$ is never
+deleted or rewritten in place; a later note and a tombstone supersede it, as in
+Prop.~\ref{prop:tombstone}. Texture may be compacted freely.
+\end{enumerate}
+\emph{Kind:} \Designed{} design invariant --- a requirement on any consolidator
+admitted to the memory path. F1 and F4 can be checked deterministically against
+$L$; F2 needs a declared list of required records, like the coverage test of
+Figure~\ref{fig:stp-handoff-coverage}.
+\end{pdclaim}
+
+\begin{pdclaim}{Theorem}{Coverage Needs the Ledger}
+\label{thm:stp-coverage-ledger}
+Suppose a role's open obligations can carry any of $2^{kb}$ assignments of terms
+($k$ obligations, $b$ independent bits each), and the successor's view of those
+terms is a function of a memory of fewer than $kb$ bits. Then for some
+assignment at least one obligation is served with wrong terms, so F2 fails.
+\end{pdclaim}
+\begin{proof}
+Fewer than $kb$ bits have fewer than $2^{kb}$ states, so two assignments share a
+memory, which serves wrong terms for at least one of them.
+\end{proof}
+
+\noindent Pointers help only if the ledger is read when they are served: the
+boot-time injection \pdchapref{ls}{The Legible Swarm} already requires when it
+keeps open obligations visible until resolved or validly transferred.
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+A tempting test calls a consolidation safe if it preserves the outstanding
+obligations and the outcome multiset. It is neither necessary nor sufficient.
+\emph{Not necessary:} both are functions of $L$, the harness should serve open
+obligations from the ledger anyway (Theorem~\ref{thm:stp-coverage-ledger}), and
+an agent need not remember its reputation to have it. \emph{Not sufficient:}
+each case below preserves both and still changes what the agent does.
+\begin{description}[leftmargin=1.2em,itemsep=2pt]
+\item[Authority widening.] A non-authoritative restatement widens a narrowed
+grant (Numbers by Hand~\ref{ex:stp-lunches-only}). F1 stops it.
+\item[Source collapse.] The same claim, that the user lives in Seattle, is
+stored whether the user said it or an unendorsed email reported it; once the
+source is erased, the same later task updates the profile in both
+cases~\pdcite{zhan2026authmem}. F1 keeps the source class.
+\item[Scope stripping.] Abstraction can strip the conditions under which a
+lesson applies~\pdcite{zhang2026faultymemory}. ``Deliver the checkout repair
+with the original test intact'' becomes ``deliver the checkout repair'', and
+Drake's deleted test (\S\ref{sec:identity}) looks compliant. F2 requires full
+terms.
+\item[Self-authored directives.] A misaligned session writes down a goal it
+cannot yet act on, for a later session to carry out; its author is the trusted
+agent, so source checks pass~\pdcite{das2026selfpropagation}. Under F1 a
+directive with no ledger pointer is texture, served as a claim.
+\end{description}
+\end{pdboundary}
+
+\begin{pdexample}{Lunches Only}
+\setlength{\parskip}{4pt plus 1pt}
+\label{ex:stp-lunches-only}
+The case is Cerruti et al.'s procurement example~\pdcite{cerruti2026eal}. Grant
+$g_1$ lets the buyer purchase from TableWorks in categories
+$S_1=\{\text{lunch},\text{coffee}\}$, capped at 6{,}000 USD. Amendment $g_2$
+narrows it to lunches:
+\[
+S_L=S_1\cap\{\text{lunch}\}=\{\text{lunch}\}.
+\]
+A non-authoritative ERP record lists the vendor under lunches and reception
+refreshments, and an incremental writer absorbs it (write ``reception'' for
+reception refreshments):
+\[
+S_M=\{\text{lunch}\}\cup\{\text{reception}\}=\{\text{lunch},\text{reception}\}.
+\]
+Request $q$: 6{,}000 USD of reception refreshments. The amount check passes in
+both views, $6{,}000\le 6{,}000$. The category check splits them:
+reception $\notin S_L$, so the ledger denies; reception $\in S_M$, so memory
+permits. False authority has formed.
+
+Stipulate one open commitment, Friday's catering, before and after the update:
+$|\mathrm{Owed}|=1$ both times, and no outcome was added or removed. The
+tempting test passes, and the memory is wrong. F1 catches it: the grant note
+rests on $\mathsf{ptr}=\{g_1,g_2\}$, whose current scope is $S_L$, and the ERP
+text has an empty $\mathsf{ptr}$, so it cannot widen the grant note. P2 catches
+it independently, because admission evaluates $S_L$.
+
+\emph{Now you try:} a 6{,}000 USD and a 6{,}001 USD lunch order. (Both views
+permit the first, since lunch $\in S_L\cap S_M$ and $6{,}000\le 6{,}000$; both
+deny the second, since $6{,}001>6{,}000$.)
+\end{pdexample}
+
+\paragraph{The mediation rule.} Memory writes are effects; memory reads are
+never authority.
+\begin{enumerate}[leftmargin=1.6em,itemsep=1pt]
+\item A memory write is a typed proposal: kind, pointer set, and a source class
+assigned by the platform from the arrival channel, never inferred from the text.
+\item Commitments, closures, grants, revocations, outcomes and debts are refused
+on the memory path; they enter only through ledger operations, so P1 holds by
+construction.
+\item A consolidation is one batch proposal over a snapshot of $M$. A
+deterministic checker, not the consolidator, tests F1 and F4 against $L$ and
+rejects a failing batch whole.
+\item A note with imperative force and empty $\mathsf{ptr}$ is served as a claim
+labelled with its author and session, not as an instruction.
+\item Summaries are rebuilt from $L$ and retained episodes, never from the
+previous summary.
+\item Each memory store belongs to one principal.
+\item No admission decision reads $M$ (P2): memory may suggest an action; only
+$\mathrm{Auth}(L)$ can permit it.
+\end{enumerate}
+\emph{Kind:} \Vision{}; nothing in the reference system enforces it. Claude
+Code's documentation states the read half for its own files: they are context,
+and blocking an action regardless of the model's decision takes a
+hook~\pdcite{anthropic2026memory}.
+
+\paragraph{The consolidation receipt.} Each consolidation the checker decides
+appends one record to the succession log: digests of $M$ before and after, the
+consolidator's identity and engine, the consolidation-policy version, the
+verdict, and the pointer-bearing notes superseded. The checker, not $\kappa$,
+writes it, so P1 is untouched. The receipt does not make memory authoritative;
+it records \emph{what the successor loaded}, the witness
+\S\ref{sec:parfit-lineage-map} found missing, for the notes at least.
+\emph{Kind:} \Vision{}.
+
+\paragraph{Aggressive consolidation is an engine swap.} Mem0 reports lower
+latency and token cost than reasoning over the full
+conversation~\pdcite{chhikara2025mem0}, and the Zhang et al.\ result shows such
+savings can cost quality. That is Theorem~\ref{thm:engine-swap} with $\Delta c$
+the cost saved by consolidating harder and $\Delta\theta$ the quality lost.
+Under its assumptions (one delivery, no future reputation payoff, a policy the
+buyer cannot see), the gain from consolidating harder is $\Delta c$ at every
+price. The remedy is the theorem's: attest each outcome with the pair (engine,
+consolidation-policy version), key prices on it, and keep sanctions on the
+principal, as the scope lemma of Property~\ref{thm:resurrection-soundness}
+requires. Whether buyers would price the policy version is a market hypothesis,
+like full pass-through in Theorem~\ref{thm:engine-swap}(b).
+
+\pdexercisepointer{\ref{ex:stp-consolidation-f4}}{\ref{ex:stp-bounded-coverage}}{\pageref{ex:stp-consolidation-f4}}

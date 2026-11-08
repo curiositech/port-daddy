@@ -1,0 +1,14 @@
+\pdexercisesfor{\S\ref{sec:swk-control-game}}{The control game: what a gate leaves to evaluation}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-control-conformance}
+A red team is hired to run a control evaluation against the sandboxed review job's supervisor (Table~\ref{tab:swk-review-disablement}). Using Theorem~\ref{thm:swk-control-game}, say what its attack policy can change about the protocol's safety, and what the evaluation must measure instead.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-control-conformance}
+Rules $P_1$--$P_3$ are controllable, and every event is observed, so part~(a) applies: the two-row disablement map is a fully useful protocol with $\mathrm{Safe}_H=1$ for every $H$. No attack policy can lower that number. The evaluation therefore measures two things. Conformance: does the deployed engine compute the map, checked by mutating each of the eight (state, event) pairs. Mediation: does every \texttt{net\_egress}, \texttt{git\_push} and \texttt{fs\_write} actually pass the gate, checked by probing raw sockets, inherited descriptors and credential helpers. A red-team success is evidence of nonconformance or of an unmediated channel, an event in $\Sigma_u$ in the sense of part~(b); it is not evidence that the rules are unenforceable.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-control-semantic}
+In the read-only checkout example, classify (i) ``no write to the test directory'' and (ii) ``no patch that special-cases the tests'' with Theorems~\ref{thm:observability-regimentation} and~\ref{thm:swk-control-game}. For (ii), exhibit two histories with the same projection that demand opposite decisions, and say what an audit changes.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-control-semantic}
+(i) The prohibited event is \texttt{fs\_write} to a test path. It is controllable and its path is observed, so the policy is controllable and observable and part~(a) applies. (ii) Over the alphabet \texttt{fs\_write(path)}, an honest patch to the payment module and a patch to the same file that returns the expected value only on the test's input have the same projection. The policy admits the first and refuses the second, so observability fails and no gate over this alphabet realizes the policy exactly. The gate can refuse every source write, which is fully safe and useless, or admit them and leave a residue whose rate a control evaluation estimates. An audit, such as hidden tests or a person reading the patch, refines the projection for the step it inspects. That is why an audit budget moves the safety--usefulness frontier, and why bounding the middle case is still open.
+\end{pdsolution}

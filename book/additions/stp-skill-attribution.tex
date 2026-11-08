@@ -1,0 +1,103 @@
+% Research-agenda addition (attribution strand): which part of a skill helped.
+% Inserted after the closing pointer of the skill-helpfulness subsection.
+\subsection{Which part of a skill helped}\label{sec:stp-skill-attribution}
+
+Protocol~\ref{proto:skill} records that a skill entered the context. A skill
+is a bundle: instructions in a file called \texttt{SKILL.md}, reference
+files, scripts and examples. The agent reads some of them and not others. In
+one documented loader, a skill's name and description sit in the system
+prompt from the start; the instructions enter the context when the skill
+triggers; other files enter only when read; and a script's code never enters
+the context, only its output~\pdcite{anthropic2026skills}. A run therefore
+shows an \textbf{exposure ladder}: listed, loaded, file read, script run.
+
+Never use ``opened'' as the treatment. The agent decides to open a file
+after seeing the task and its own progress, so a comparison of opened with
+unopened runs mixes the file's effect with whatever made the agent open it.
+Not opening is not the absence of an effect either: a skill's listed name
+and description can change behaviour when the skill is never
+invoked~\pdcite{zhang2026estimands}.
+
+A trace cannot settle the question. A study that paired each skill run with
+a no-skill or matched-skill reference run on the same task confirmed $307$
+skill-induced failures. Of these, $182$ were efficiency regressions: both
+runs passed, but the skill run used more tokens and more time, at least
+twice as much on one of the two. The largest sources of procedure the skill
+imposed were excessive verification ($67$ cases) and heavy implementation
+pipelines ($30$)~\pdcite{dong2026harmful}.
+In such a run the skill's files were opened and its procedure followed; the
+trace looks like diligent use. Only the reference run shows that the skill
+induced the cost.
+
+\begin{protocol}[Masked-asset extension of the skill event]\label{proto:stp-masked-asset}
+Extend each event of Protocol~\ref{proto:skill} as follows.
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+  \item \textbf{Exposure ladder.} Record listed, loaded, each file read
+  (path and byte range), each script run (exit status and an output hash),
+  and the tokens of skill content in the context.
+  \item \textbf{Harbor-drawn assignment.} The harbor, not the skill, draws
+  whether the skill is available, unavailable, or listed only. It logs the
+  probability of each arm, and every eligible arm keeps a probability of at
+  least $\varepsilon>0$, so that logged runs support doubly robust off-policy
+  estimates~\pdcite{dudik2011dr}.
+  \item \textbf{Asset mask.} On an audit share of runs, each asset is hidden
+  independently with probability $\tfrac12$. Hiding removes the file
+  \emph{and} its mention in \texttt{SKILL.md}, so a dangling reference does
+  not itself change behaviour.
+  \item \textbf{Commitment.} The draws are committed to the evidence trail
+  before the run starts.
+\end{enumerate}
+\emph{Kind:} \Designed{} protocol. It is not implemented in the reference
+system, and no result from it is reported here.
+\end{protocol}
+
+\begin{table}[H]
+\centering\small
+\caption{What the masked-asset protocol can estimate, and what each estimate supports.}
+\label{tab:stp-skill-estimands}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Estimand} & \textbf{Contrast} & \textbf{Supports} \\
+\midrule
+Availability effect & skill available vs.\ unavailable, all tasks & deranking and settlement \\
+Asset main effects & each asset shown vs.\ masked, audit share & naming a helpful asset, if interactions are small \\
+Effect of reading & the mask as an instrument for reading: its effect on outcome divided by its effect on the read rate & a claim about reading itself; it needs the mask to act only through reading, which is why the mention is masked too \\
+Edit effect & two content hashes, randomized & ``this edit improved the skill'' \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\keyidea[What the system prompt is responsible for]{The same question arises
+one level up: how much of an outcome is due to the system prompt, rather
+than the model, the task or the skills? A crossed design with variance
+components answers a narrower question, namely how much variance each factor
+carries in the levels sampled. Lewontin showed that such an analysis is ``a
+unique function of the present distribution'' of causes, and that when
+causes interact ``it becomes conceptually impossible to assign quantitative
+values to the causes of that individual event''~\pdcite{lewontin1974}.
+
+Interaction is the rule here. Meaning-preserving format changes moved
+few-shot accuracy by up to $76$ points for LLaMA-2-13B, and format
+performance correlated only weakly between models~\pdcite{sclar2024}. Paraphrased instructions changed
+both absolute scores and model rankings~\pdcite{mizrahi2024}. In a variance decomposition
+of open agent benchmarks, the agent main effect was below $3\%$ of total variance in every
+cell, while the agent-by-task interaction was $7.5$ to
+$12.5\%$~\pdcite{srinivasan2026ddr}. A Shapley split over factors does not
+resolve this: it divides each interaction effect evenly among the factors
+involved~\pdcite{bordt2023shapley}. That is a convention, not a measurement.
+
+Report the prompt's effect as a contrast: under a stated model, harness and
+task distribution, changing $P$ to $P'$ moves the outcome by $\Delta$, with
+its interval. Add the spread across meaning-preserving variants of $P$ and
+the share of variance in prompt-by-model and prompt-by-task interaction.
+Hash the system prompt with every run, beside the model and skill versions
+of Table~\ref{tab:stp-not-bandit}.}
+
+\noindent Settlement on these estimates is the subject of
+\pdchapref{he}{The Harbor Economy}%
+\ifpdbook
+\ (\S\ref{he:sec:he-licence-split})%
+\fi
+.
+
+\pdexercisepointer{\ref{ex:stp-opened-not-treatment}}{\ref{ex:stp-prompt-contrast}}{\pageref{ex:stp-opened-not-treatment}}
