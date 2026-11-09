@@ -322,7 +322,7 @@ additional problem taken up in \pdchapref{fh}{The Federated Harbor}.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Consent to the Leviathan (the normative claim)}\label{sec:authority}
-\pdmarginfigure{hobbes}{Thomas Hobbes. This chapter borrows the question of authorized power, but makes the operator's consent scoped and revocable.}
+\pdmarginfigure{hobbes}{Thomas Hobbes. This chapter borrows his question of authorized power; its scoped, revocable consent comes from Locke.}
 % ═════════════════════════════════════════════════════════════════════════════
 Why should the operator give a daemon the authority to block an agent's
 claim, reorder a merge, refuse a \texttt{done}, or raise an
@@ -334,7 +334,8 @@ subjects} (``a real unity of them all\ldots by covenant of every man with every
 man''~\pdcite{hobbes1651,sep-hobbes}), not a bargain struck \emph{with} the
 sovereign. In the software version, the operator does not bargain with each
 agent. Instead the operator sets one rule of the road that binds every agent,
-and the daemon enforces it. The rule is a \textbf{coordination protocol}, a
+and the daemon enforces it. The agents themselves make no covenant at all;
+\S\ref{sec:roles} says what that does to the analogy. The rule is a \textbf{coordination protocol}, a
 message protocol in which each message states its type. A typed message of
 this kind is a \pdterm{performative}, a term from speech-act theory: a
 request, a \textbf{commitment} (a promise tied to a named agent, which a
@@ -351,10 +352,15 @@ prevented from what can only be detected afterward.
 
 \subsection{The legible-sovereign amendment}\label{sec:legible-sovereign}
 Hobbes' absolutism needs one modern amendment, and it is the crux of this chapter.
-Hobbes argued the sovereign, being the \emph{product} of the covenant rather than a
-\emph{party} to it, can never breach it and need not be
-inspectable~\pdcite{hobbes1651,sep-hobbes}. For a software authority this is exactly
-wrong. An \emph{illegible authority} is the fifth state-of-nature failure mode
+Hobbes did not want a secret sovereign. He required the sovereign's laws to be made
+known: a command ``is Law onely to those, that have means to take notice of it''
+(\emph{Leviathan} ch.~26~\pdcite{hobbes1651}). What he denied was accountability.
+The sovereign, being the \emph{product} of the covenant rather than a
+\emph{party} to it, can never breach it, and no subject may accuse him of
+injustice or punish him (ch.~18~\pdcite{hobbes1651,sep-hobbes}). Publishing the
+rules is therefore not the amendment. The amendment is that every act of
+authority carries its reasons and stays open to audit. For a software
+authority, Hobbes' denial of accountability is exactly wrong. An \emph{illegible authority} is the fifth state-of-nature failure mode
 of Table~\ref{tab:taxonomy} wearing a crown, committed by the coordinator itself: if the daemon blocks an agent and the
 operator cannot see why, the operator's trust erodes, and with it the consent that
 legitimizes the authority.
@@ -371,7 +377,7 @@ sovereign is inspectable.
 \end{pdclaim}
 This is the inversion that rescues the design from despotism, and it is the move a
 political theorist would press hardest (\S\ref{sec:consent-canon}). In Hobbes the
-sovereign is opaque \emph{by structure}; here the sovereign is the one actor whose
+sovereign is unaccountable \emph{by structure}; here the sovereign is the one actor whose
 every exercise of power is an audit record. It is realized as a discipline of
 \pdterm{honest attestation}: a single self-report that runs every invariant check,
 distinguishes \emph{verified-good} from \emph{no-evidence-of-bad}, regiments what it
@@ -465,8 +471,32 @@ The authority's legitimate action set at any moment is exactly the union of
 its active grants.
 \end{pdclaim}
 
+The grant compares two functions of a proposed action $x$ with its limits, and
+Invariant~\ref{prop:verifiable-zoom} rules out taking either from the agent's
+own account of $x$. In the design, the daemon computes both from the effect
+itself as it reaches the mediation boundary. It assigns $x$ an effect class from
+a fixed, typed list the operator maintains, keyed on the operation and its
+target rather than on any label the agent supplies: an edit inside the worktree,
+a commit, a push, a force-push, a branch deletion, a migration, a deploy. Each
+class carries two numbers the operator sets. $\mathrm{stakes}(x)\ge0$ is the
+class's worst-case loss in the chapter's normalized cost units, set higher for
+named targets such as the main branch or a production database.
+$\mathrm{reversibility}(x)\in[0,1]$ is the share of that loss a declared recovery
+path can restore: near $1$ for an edit under version control, $0$ for a
+force-push that discards unmerged commits. Later sections use
+$\mathrm{irreversibility}(x)=1-\mathrm{reversibility}(x)$, the share that cannot
+be restored. The daemon classes Finch's proposal as a force-push because it
+reads the command and its target, whatever Finch calls it.
+
 Consent so defined gives the design something Hume's critique cannot reach: a
-discrete authorization event, a bounded scope, and an exit. It is also an object
+discrete authorization event, a bounded scope, and an exit. The exit is not
+Hobbes'. His subjects cannot take back what they authorized; they ``cannot
+without his leave cast off Monarchy'' (\emph{Leviathan} ch.~18~\pdcite{hobbes1651}).
+Revocable authority is Locke's: power given in trust for an end is limited by
+that end, and when the end is neglected ``the trust must necessarily be
+forfeited, and the power devolve into the hands of those that gave it''
+(\emph{Second Treatise} \S149~\pdcite{locke1689}). A consent grant is a trust in
+that sense, with its end written into its scope. It is also an object
 supervisory-control research named long before this chapter did: a
 \pdterm{level of automation}, meaning how much of a task the machine may do
 without asking, in Sheridan's ten-point sense and in the
@@ -475,13 +505,18 @@ Sheridan and Wickens later gave it~\pdcite{sheridan1992,parasuraman2000}. Read
 that way, a grant's $\langle\textsc{scope}, s_{\max}, v_{\min},
 \textsc{ttl}\rangle$ is a level-of-automation setting chosen per action class
 rather than once for the whole system, which is roughly what that literature
-has been recommending since 1978. This section built the same selector from a
-Hobbesian covenant, and that two routes so far apart arrive at a compatible
+has been recommending since 1978. This section built the same selector from the
+social-contract tradition, and that two routes so far apart arrive at a compatible
 object is some evidence the object is the right one. It also hands the
 accompanying chapters a concrete object. A \emph{hosted-trust} offering
 transfers a grant: its promise, ``we make this fleet legible to you, under this
-scope'', sells a consent grant to a third party, and
-\pdchapref{he}{The Harbor Economy} sets the price of that sale. For that reason
+scope'', hands a consent grant to a third party. Paying for such a service is
+taken up in \pdchapref{he}{The Harbor Economy}%
+\ifpdbook
+\ (\S\ref{he:sec:hosted-trust})%
+\fi
+, which keeps its evidence, adjudication and payment costs separate and does not
+price the grant itself. For that reason
 \S\ref{sec:bridge} lists consent among the things this layer provides upward.
 
 \begin{protocol}{Consent-grant lifecycle}
@@ -512,11 +547,13 @@ decision renews $g$; only expiry or revocation removes it from the active set.
 \begin{pdclaim}{Design invariant}{The Inalienable Operator-Override}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:override}
-Hobbes grants the subject exactly one inalienable right, self-preservation: you
-cannot covenant away the right to resist when your \emph{life} is at
-stake~\pdcite{hobbes1651}.
+Hobbes leaves the subject several liberties that no covenant can transfer
+(\emph{Leviathan} ch.~21~\pdcite{hobbes1651}), among them to resist those who
+assault him, to disobey an order to kill, wound or maim himself or to go without
+food, air or medicine, and to refuse to accuse himself. Each protects the
+subject's own life and body.
 
-The computational analog is an always-available,
+The computational analog of that protection is an always-available,
 unconditional operator-override: a \emph{stop now / I withdraw authority} channel
 that \emph{no autonomy level can suppress}.
 
@@ -1226,25 +1263,35 @@ gate that refuses to run against the wrong target.
 A monitor that \emph{subscribes to
 the log of actions already taken} is something weaker and must be named formally:
 \mbox{\textbf{detect-and-compensate}}. It observes a violation \emph{after} the fact and
-can halt or repair within a bounded window only if observation delay, response authority, and repair completion have explicit bounds. By the reference-monitor result below,
-such a downstream monitor cannot prevent the violation it has already observed.
-It can still mediate later actions; that is a separate enforcement boundary.
+can halt or repair within a bounded window only if observation delay, response authority, and repair completion have explicit bounds. Such a downstream monitor
+cannot prevent a violation it has already observed, because the violating act is
+already in the record. It can still mediate later actions; that is a separate enforcement boundary.
 
 The phrase ``physically
 unreachable'' is therefore reserved for the constraint-enforced set and used nowhere else.
 
 This is an invariant on the chapter's \emph{vocabulary} and on which name each
-mechanism class may carry; the teeth behind the classification are Schneider's theorem, cited
-in the paragraph that follows, and are his rather than ours.
+mechanism class may carry. The result it leans on, which says what an inline
+monitor can prevent at all, is Schneider's, cited in the paragraph that follows,
+and is his rather than ours.
 \end{pdclaim}
 
 \textbf{Fred B.\ Schneider} (\emph{Enforceable Security Policies},
-2000~\pdcite{schneider2000}: \emph{an execution monitor that observes a system can
-enforce exactly the safety properties; a monitor placed downstream of the act it
-would forbid can detect a violation but cannot prevent it}) is decisive: a monitor
-downstream of a forbidden commit cannot make that committed violation
-unhappen. Detection and compensation need their own stated response-time
-assumptions. A post-commit anomaly detector, however useful, is
+2000~\pdcite{schneider2000}: \emph{an execution monitor sees each step of a run
+before it takes effect and may halt the run; every policy such a monitor can
+enforce is a safety property}) proved the result this invariant needs. A safety
+property says that some bad thing never happens, so any violation shows up in a
+finite prefix of the run, and an inline monitor enforces it by halting before the
+bad step executes. A liveness property, such as ``every repair eventually
+completes'', has no such prefix, and no execution monitor can enforce it. The
+converse fails: not every safety property can be enforced by a monitor.
+\textbf{Hamlen, Morrisett and Schneider} (\emph{Computability Classes for
+Enforcement Mechanisms}, 2006~\pdcite{hamlen2006}) showed that Schneider's
+original conditions give only an upper bound on what execution monitors enforce,
+and characterized the smaller class they actually do. Neither theorem concerns a
+monitor placed after a commit. That such a monitor cannot undo the committed
+violation follows from the definitions. Detection and compensation need their
+own stated response-time assumptions. A post-commit anomaly detector, however useful, is
 therefore detect-and-compensate, not prevention. Honesty about this distinction is
 essential: a system that advertises detection as prevention has lied about its own
 safety envelope, which is the very failure (the confident-wrong report) this chapter is
@@ -1289,7 +1336,7 @@ u^\star=\theta w/(1+\theta w)=0.05/1.05=0.0476
 \]
 [verified, closed form]. This is the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\theta,w)$ points the script confirms against bisection to machine precision.
 
-Now let a missed bad item cost $C_{\mathrm{miss}}=100$, an inspection $c_{\mathrm{att}}=1$, and a needless interruption $C_{\mathrm{fa}}=5$. The operator wants an escalation once its probability of being genuine exceeds $u_{\mathrm{crit}}=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(C_{\mathrm{miss}}+C_{\mathrm{fa}})=6/105\approx0.057$. Assume signals $u$ are spread uniformly on $[0,1]$ and $V(u)=u$ is that probability. With $x_{\mathrm{esc}}=1-u^\star$ the escalated share, each item's expected alarm cost is $c_{\mathrm{att}}x_{\mathrm{esc}}+C_{\mathrm{fa}}x_{\mathrm{esc}}^2/2$, which must not exceed the attention budget $A_{\mathrm{att}}$. Silenced genuine warnings cost $C_{\mathrm{miss}}(u^\star-u_{\mathrm{crit}})$ when $u^\star>u_{\mathrm{crit}}$, and the miss budget allows $1$. At $w=1$, $\theta=u^\star/(1-u^\star)$. At $A_{\mathrm{att}}=3.3$, $2.5x_{\mathrm{esc}}^2+x_{\mathrm{esc}}=3.3$ gives $x_{\mathrm{esc}}=0.9662$, so $\theta_{\min}=0.0338/0.9662=0.035$; the miss limit $100(u^\star-0.0571)\le1$ gives $u^\star\le0.0671$ and $\theta_{\max}=0.0671/0.9329=0.072$:
+Now let a missed bad item cost $C_{\mathrm{miss}}=100$, an inspection $c_{\mathrm{att}}=1$, and a needless interruption $C_{\mathrm{fa}}=5$. The operator wants an escalation once its probability of being genuine reaches the inspection threshold for these costs, $u_{\mathrm{crit}}\approx0.057$, which Example~\ref{ex:inspection-bar} works out and Theorem~\ref{thm:regret-head} derives. Assume signals $u$ are spread uniformly on $[0,1]$ and $V(u)=u$ is that probability. In the theorem below, an escalation at $u$ costs $c_{\mathrm{esc}}(u)=c_{\mathrm{att}}+C_{\mathrm{fa}}(1-u)$, attention plus the chance of a needless interruption, and a silence costs $c_{\mathrm{sil}}(u)=C_{\mathrm{miss}}$ when $u\ge u_{\mathrm{crit}}$ and nothing below it. With $x_{\mathrm{esc}}=1-u^\star$ the escalated share, the alarm load is $c_{\mathrm{att}}x_{\mathrm{esc}}+C_{\mathrm{fa}}x_{\mathrm{esc}}^2/2$, which must not exceed the attention budget $A_{\mathrm{att}}$. The miss loss is $C_{\mathrm{miss}}(u^\star-u_{\mathrm{crit}})$ when $u^\star>u_{\mathrm{crit}}$, and the miss budget is $A_{\mathrm{miss}}=1$. At $w=1$, $\theta=u^\star/(1-u^\star)$. At $A_{\mathrm{att}}=3.3$, $2.5x_{\mathrm{esc}}^2+x_{\mathrm{esc}}=3.3$ gives $x_{\mathrm{esc}}=0.9662$, so $\theta_{\min}=0.0338/0.9662=0.035$; the miss limit $100(u^\star-0.0571)\le1$ gives $u^\star\le0.0671$ and $\theta_{\max}=0.0671/0.9329=0.072$:
 \[
 [\theta_{\min},\theta_{\max}]=[0.0350,0.0720].
 \]
@@ -1314,10 +1361,18 @@ $\Pi_\theta(u)=U(u)-\theta w\,(1-V(u))$ is strictly increasing. If
 $\Pi_\theta(0)<0<\Pi_\theta(1)$, there is a unique interior zero $u^\star$.
 Choosing escalation at indifference gives the rule $u\ge u^\star$.
 
-Increasing $\theta$ can only shrink the escalation set. If alarm load is
-nonincreasing and miss loss nondecreasing in $\theta$, the debits meeting both
-limits form an interval, possibly empty or unbounded. If both aggregate
-functions are continuous, that \mbox{interval} is closed; a finite
+Increasing $\theta$ can only shrink the escalation set
+$\mathrm{Esc}_\theta=\{u:\Pi_\theta(u)\ge0\}$. Draw the signal $u$ from a fixed
+distribution on $[0,1]$. Let $c_{\mathrm{esc}}(u)\ge0$ be the operator's expected
+cost of handling an escalation at signal $u$, and $c_{\mathrm{sil}}(u)\ge0$ the
+expected cost of a silence there. The two aggregates are the \emph{alarm load}
+$L_{\mathrm{A}}(\theta)=\mathbb E\bigl[c_{\mathrm{esc}}(u)\,\mathbf 1\{u\in\mathrm{Esc}_\theta\}\bigr]$
+and the \emph{miss loss}
+$L_{\mathrm{M}}(\theta)=\mathbb E\bigl[c_{\mathrm{sil}}(u)\,\mathbf 1\{u\notin\mathrm{Esc}_\theta\}\bigr]$,
+and the two limits are an attention budget, $L_{\mathrm{A}}(\theta)\le A_{\mathrm{att}}$,
+and a miss budget, $L_{\mathrm{M}}(\theta)\le A_{\mathrm{miss}}$. The debits meeting
+both limits form an interval, possibly empty or unbounded. If both aggregates
+are continuous in $\theta$, that \mbox{interval} is closed; a finite
 $[\theta_{\min},\theta_{\max}]$ also requires a finite upper boundary.
 \end{pdclaim}
 \begin{proof}
@@ -1329,10 +1384,13 @@ the intermediate value theorem.
 For each fixed $u$, increasing $\theta$
 cannot increase payoff, so the escalation sets are nested.
 
-The two aggregate
-constraints therefore intersect as an interval; continuity makes their
-sublevel sets closed. A point mass at the threshold can break aggregate
-continuity, so closed endpoints do not follow from monotonicity alone.
+Because the sets are nested and both cost functions are nonnegative, alarm
+load is nonincreasing and miss loss nondecreasing in $\theta$. The debits within
+the attention budget therefore form an interval unbounded above, those within the
+miss budget an interval starting at $0$, and their intersection is an interval;
+continuity makes both sublevel sets closed. A point mass of the signal
+distribution at the threshold can break that continuity, so closed endpoints
+do not follow from monotonicity alone.
 \end{proof}
 \pdscope{The validation rule is held fixed; an operator who also changes it in response to the agents' behavior needs a joint equilibrium analysis.}
 
@@ -1437,7 +1495,10 @@ distributions fixed, moving the threshold changes misses and false alarms;
 it does not change $d'$.
 
 The second question is answered by the \pdterm{decision criterion} $\beta$, a threshold
-on the evidence score: inspect above it, otherwise permit the action. A \emph{miss} permits a dangerous action; a \emph{false alarm}
+on the evidence score: inspect above it, otherwise permit the action. Green and
+Swets state the criterion as the likelihood ratio at that threshold; for
+equal-variance Gaussian evidence the ratio rises with the score, so both
+descriptions pick the same rule. A \emph{miss} permits a dangerous action; a \emph{false alarm}
 inspects a safe one. The preferred threshold depends on prevalence and the costs
 of those outcomes. A destructive migration and an unnecessary inspection need
 not carry the same cost. The next example begins with just two available
@@ -1493,7 +1554,7 @@ $\mathbb{E}[\text{zooms}(\beta)]$ is the inspection probability. The objective i
 
 The forced-zoom policy $p_{\mathrm{zoom}}(r,s,v)$, the probability that the daemon makes the
 operator open an action before it proceeds, given the agent's reputation $r$, the
-action's stakes $s$ and its reversibility $v$, is calibrated against this loss after specifying
+action's stakes $s=\mathrm{stakes}(x)$ and its reversibility $v=\mathrm{reversibility}(x)$, is calibrated against this loss after specifying
 the score distributions that determine $P_{\text{miss}}$ and $P_{\text{fa}}$.
 An imperfect inspection requires an additional residual-harm term; the displayed
 loss does not include that error.
@@ -1504,6 +1565,27 @@ and \emph{whether} an operator calibrated toward it outperforms one who is not i
 separate, empirical question this chapter does not settle (the paragraph below names
 the live rival account).
 \end{pdclaim}
+
+\paragraph{The optimal criterion, and what each mechanism moves.} Minimizing
+Eq.~\ref{eq:sdt} score by score gives the likelihood-ratio rule: inspect an
+action whose evidence score is $e$ when
+\[
+\mathrm{LR}(e)\;\ge\;\frac{1-\pi}{\pi}\cdot
+\frac{c_{\mathrm{att}}+C_{\text{fa}}}{C_{\text{miss}}-c_{\mathrm{att}}},
+\]
+where $\mathrm{LR}(e)$ is the density of score $e$ among dangerous actions
+divided by its density among safe ones, and $C_{\text{miss}}>c_{\mathrm{att}}$.
+For the equal-variance Gaussian evidence above, $\mathrm{LR}$ rises with the
+score, so the rule is a threshold $\beta$ on the score. It is the posterior
+threshold of Theorem~\ref{thm:regret-head} rewritten with Bayes' rule; that
+theorem carries the derivation, and Example~\ref{ex:inspection-bar} works the
+numbers. The chapter's mechanisms then divide the work. The legibility
+mechanisms of \S\ref{sec:zoom} raise $d'$: a digest whose claims open to
+checkable artifacts separates dangerous actions from safe ones. Consent grants
+(\S\ref{sec:consent}) set the criterion for each action class: an action inside
+a grant proceeds without inspection, and one outside it is escalated. The
+attention costs of this section and \S\ref{sec:discovery} decide where the
+criterion sits, since they fix the right-hand side above.
 
 \input{figures/legible-swarm-sdt}
 
@@ -1818,8 +1900,24 @@ selects what crosses that boundary, and its adequacy depends on the decision
 to be made. The finite counting arguments below state their own source,
 encoding and error assumptions; the update-count example describes a workload,
 not a Shannon channel capacity or a human throughput in bits. A larger
-inspection budget changes the model's parameters, and a summary must still say
-which distinctions it preserves.
+inspection budget changes the model's parameters; it does not tell a summary
+which distinctions to keep.
+
+What a summary must preserve depends on the task. A task fixes the actions
+open to the operator, a loss for each action in each state of the work, and a
+prior over those states. A digest is \pdterm{decision-sufficient} for a task when
+the operator's best decision from the digest has the same expected loss as her
+best decision from the full record. The definition is restricted to one task on
+purpose. Blackwell's comparison of experiments asks the same of every task at
+once~\pdcite{blackwell1953}, and a digest can be decision-sufficient for one task
+while failing another. Take four artifacts, one of them critical. For the task of
+choosing two artifacts to open, a one-bit digest that names the pair holding the
+critical artifact loses nothing. For the task of naming the critical artifact
+without opening anything, the same bit leaves the operator wrong half the time.
+The lower bound in \S\ref{sec:lowerbound} concerns the first kind of task:
+choose at most $m$ artifacts to open, and lose if any critical one is left out.
+Under any prior that gives every possible critical set positive probability, a
+digest is decision-sufficient for that task exactly when it never misses.
 
 \begin{pdclaim}{Empirical hypothesis}{Reading Runs Out Before Writing}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1948,11 +2046,22 @@ a digest needs $B^\star$ bits to be useful. It counts only what the zero-miss
 guarantee needs; cheaper digests are fine the moment misses are tolerated, and
 the two-constraint rate below measures exactly that saving.
 
-Figure~\ref{fig:readpoverty} distinguishes a single-reader lower bound, the sum
-of two such bounds, and a joint lower bound for disjoint critical sets. The formal
-comparison follows in Theorem~\ref{thm:split-penalty}.
+\paragraph{When the bound is reached.} A fixed-length zero-miss digest is a
+family of review sets of size $m$, one per message, such that every possible
+critical $k$-set lies inside at least one of them. Write $\mathrm{Cov}(N,m,k)$
+for the size of the smallest such family, the covering number of design theory. The counting
+argument gives $\mathrm{Cov}(N,m,k)\ge\binom Nk/\binom mk$, and at small $N$ the
+gap is real: four artifacts with two critical and three opens need three review
+sets, not two, because any two triples drawn from four items share a pair. For
+fixed $k$ and $m$, Rödl~\pdcite{rodl1985} proved that
+$\mathrm{Cov}(N,m,k)\binom mk/\binom Nk\to1$ as $N\to\infty$. The best codebook
+then needs $\log_2\binom Nk-\log_2\binom mk+o(1)$ bits before rounding up, so in
+that regime the theorem's bound is asymptotically exact. Rödl's theorem says
+nothing when $k$ or $m$ grows with $N$.
 
-\input{figures/legible-swarm-readpoverty}
+When two readers need disjoint critical sets, one joint digest given both
+readers' opens has a lower bound below the sum of two separate digests'
+bounds; Theorem~\ref{thm:pooling-gain} states the comparison.
 
 \paragraph{The falsification experiment.} For uniformly distributed critical
 $k$-sets, a $B$-bit digest's zero-miss probability is at most
@@ -2080,13 +2189,23 @@ flagger already meets the miss budget on its own and the true rate is exactly $0
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-$I(X;\hat X)$ is convex in $P_{\hat X\mid X}$ and decreases along the feasible ray
-toward the independent coupling, where it is $0$. An independent flagger
+Parametrize the joint by its miss mass $q_{10}$ and its false-flag mass
+$q_{01}$; the source margin fixes $q_{11}=p-q_{10}$ and $q_{00}=1-p-q_{01}$.
+The partial derivatives of $I(X;\hat X)$ are log-likelihood ratios,
+\[
+\frac{\partial I}{\partial q_{10}}=\log_2\frac{\Pr(X{=}1\mid\hat X{=}0)}{\Pr(X{=}1\mid\hat X{=}1)},
+\qquad
+\frac{\partial I}{\partial q_{01}}=\log_2\frac{\Pr(X{=}0\mid\hat X{=}1)}{\Pr(X{=}0\mid\hat X{=}0)},
+\]
+and both are negative wherever the flag is positively informative, that is,
+wherever $q_{11}q_{00}>q_{10}q_{01}$. An independent flagger
 $\hat X\sim\mathrm{Bern}(\phi)$ has miss mass $p(1-\phi)$, so it meets the miss
-constraint only when $\phi\ge 1-\delta/p$; when $f<1-\delta/p$ that coupling lies
-outside the flag budget, so the minimum sits on the boundary where any remaining
-slack in either constraint could otherwise be used to move further along the ray,
-and both constraints bind.
+constraint only when $\phi\ge 1-\delta/p$; when $f<1-\delta/p$ the feasible set
+contains no independent coupling. The feasible set is convex, so it then cannot
+hold couplings of both signs, and at the corner $(q_{10},q_{01})=(\delta,f-p+\delta)$
+the difference $q_{11}q_{00}-q_{10}q_{01}$ equals $p(1-f)-\delta>0$. Every
+feasible coupling is therefore positively informative, $I$ falls as either mass
+grows, and at the minimum both constraints bind.
 Binding constraints fix $q_{10}=\delta$ and
 $q_{11}+q_{01}=f$; with the source margin $q_{10}+q_{11}=p$ this pins all four
 cells.
@@ -2132,7 +2251,8 @@ a sixteen-item set: each negative answer removes a whole branch.
 Let a flagged set of $F$ items contain an unknown set $P$ of $1\le k\le F$
 positives. Assume a noiseless group oracle of unit query cost reports exactly
 whether $J\cap P=\emptyset$ for a queried group $J$.
-Adaptive halving (query
+
+\emph{(a) Plain halving.} Adaptive halving (query
 the flagged set; discard any group that tests negative; report any positive
 singleton; otherwise split the group into halves of sizes
 $\lfloor|J|/2\rfloor,\lceil|J|/2\rceil$ and recurse on both) identifies $P$
@@ -2142,6 +2262,7 @@ Q \;\le\; 2k\left\lceil\log_2(F/k)\right\rceil + 4k
 \qquad\text{(and always } Q\le 2F-1\text{)},
 \]
 for every placement of the $k$ positives, against $F$ opens for flat inspection.
+Halving needs no knowledge of $k$.
 
 The leading constant is tight: for $F$ and $k$ powers of two, evenly spread
 positives force $Q=2k\log_2(F/k)+2k-1$. Written in the flagged-set density $d=k/F$
@@ -2151,10 +2272,21 @@ the guaranteed advantage is
 \;=\;\frac{1}{d\bigl(2\lceil\log_2(1/d)\rceil+4\bigr)},
 \]
 which exceeds $1$ exactly on $0<d<1/12$ and equals $1$ at $d=1/12$.
+
+\emph{(b) Hwang's generalized binary splitting.} If the tester knows $k$,
+Hwang's generalized binary splitting~\pdcite{hwang} identifies $P$ exactly with
+at most
+\[
+Q_{\mathrm{H}}\;\le\;\log_2\binom Fk+k
+\]
+group queries for every placement. This certifies a strict saving over flat
+inspection whenever $H(d)+d<1$, that is, for $0<d<d_{\mathrm{H}}$, where
+$d_{\mathrm{H}}\approx0.2271$ is the root of $H(d)+d=1$ and $H$ is the binary
+entropy.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-Every group the algorithm queries is a node of the halving tree $T$ of $[F]$: the
+Part (a). Every group the algorithm queries is a node of the halving tree $T$ of $[F]$: the
 root is the full flagged set, each internal node's children are its two halves,
 leaves are singletons. A node of size $s$ has children of size at most
 $\lceil s/2\rceil$, so every node at depth $\ell$ has size at most
@@ -2195,13 +2327,21 @@ for $j=4$ it equals $12d$, crossing $1$ at $d=1/12$;
 for $j\le3$ it exceeds $1$ throughout the interval. The endpoint $d=1$
 also has denominator $4$. Thus the certificate exceeds $1$ exactly when
 $d<1/12$.
+
+Part (b). The query bound is Hwang's~\pdcite{hwang,duhwang}. The entropy bound
+$\log_2\binom Fk\le F\,H(k/F)$ gives $Q_{\mathrm{H}}\le F\bigl(H(d)+d\bigr)$,
+which is below $F$ when $H(d)+d<1$. The sum rises from $0$ as $d$ grows to
+$2/3$, where it is about $1.585$, so it crosses $1$ once on that range, at
+$d_{\mathrm{H}}$; for $d\ge2/3$ the single term $(1-d)\log_2\frac1{1-d}\ge(1-d)\log_2 3$
+already keeps it above $1$.
 \end{proof}
 
 \input{figures/legible-swarm-zoom-advantage}
-Figure~\ref{fig:zoom-advantage} plots the guaranteed advantage
-$\mathrm{adv}(d)$ itself against flagged-set density, marking the crossing
-at $d=1/12$ alongside the chapter's own $F{=}2500,k{=}10$ and
-$F{=}4096,k{=}32$ configurations.
+Figure~\ref{fig:zoom-advantage} plots both guaranteed advantages against
+flagged-set density: halving's $\mathrm{adv}(d)$, which crosses $1$ at $d=1/12$,
+and Hwang's certificate $1/\bigl(H(d)+d\bigr)$, which crosses at
+$d_{\mathrm{H}}\approx0.227$, with the chapter's own $F{=}2500,k{=}10$ and
+$F{=}4096,k{=}32$ configurations marked on each.
 
 \noindent\textbf{Positioning.} None of the group-testing machinery is new
 mathematics: Dorfman introduced pooled testing in 1943~\pdcite{dorfman}, and Hwang's
@@ -2210,11 +2350,13 @@ $\log_2\binom{F}{k}+O(k)$ tests, essentially matching the counting lower bound
 $\lceil\log_2\binom{F}{k}\rceil\ge k\log_2(F/k)$ that any adaptive strategy with
 binary outcomes must meet; the full theory is Du and Hwang~\pdcite{duhwang}. Plain
 halving needs a factor $2+o(1)$ more queries than Hwang because it re-queries both children of
-every split rather than inferring one subgroup and searching within the other. The
-theorem's contribution is the explicit worst-case constant for the exact procedure
-the digest architecture runs, proved tight, which turns the harness's observed
-$\approx 2\times$ gap over the ideal $k\log_2(F/k)$ from an empirical curiosity into
-the algorithm's provable constant. A dedicated check re-runs the exact procedure:
+every split rather than inferring one subgroup and searching within the other.
+Part (a) gives the explicit worst-case constant for plain halving, the procedure
+the chapter's harness scripts run, proved tight; no part of the reference
+implementation runs either procedure (Appendix~\ref{app:honest}). It turns the
+harness's observed $\approx 2\times$ gap over the ideal $k\log_2(F/k)$ from an
+empirical curiosity into the algorithm's provable constant. Part (b) is Hwang's
+result, and it is the bound to plan with whenever $k$ is known. A dedicated check re-runs the halving procedure:
 at $F{=}2500$, $k{=}10$, mean $162.6$ opens over $150$ random placements, maximum
 $183$, all under the bound of $200$; random sweeps over $F\in[16,5000]$,
 $k\in[1,50]$ and adversarial evenly-spread and clustered placements never exceed
@@ -2225,21 +2367,27 @@ $2k\log_2(F/k)+2k-1=511$ [internal, \texttt{zoom\_bound\_check.py}].
 they compose only inside a window that can be stated exactly. Stage one sets stage
 two's density: by Theorem~\ref{thm:pinned-joint} both constraints bind, so the
 flagged set holds $(p-\delta)N$ real criticals among $fN$ flags and
-$d=k/F=(p-\delta)/f$. This worst-case bound certifies a strict query saving
-when $d<1/12$, equivalently $f>12(p-\delta)$; at equality it certifies a tie.
-When this sufficient certificate fails, adaptive inspection can still be faster
-on a particular placement of positives;
-for example, $F=128$ and $k=16$ evenly spread positives have $d=1/8$
-yet require only $Q=127<128$ queries, by the tightness formula above. At $p{=}0.05$, $\delta{=}0$ the window
-certifies a strict saving only at $f>0.60$: the digest must flag over $60\%$ of the night's artifacts
-before the second stage is guaranteed to beat reading the flags. Inside the window
-the flags stage one adds are cheap in the second stage, because $k$ is fixed by the
-source and doubling $F$ costs only the logarithmic term, $2k$ further opens.
+$d=k/F=(p-\delta)/f$. Halving's worst-case bound certifies a strict query
+saving when $d<1/12$, equivalently $f>12(p-\delta)$; at equality it certifies a
+tie. Hwang's bound, for a tester that knows $k$, certifies one whenever
+$d<d_{\mathrm{H}}$, equivalently $f>4.40\,(p-\delta)$. At $p{=}0.05$, $\delta{=}0$
+halving needs $f>0.60$, a digest that flags over $60\%$ of the night's artifacts,
+while Hwang's procedure needs only $f>0.22$. The $60\%$ figure belongs to plain
+halving, not to adaptive inspection. When a certificate fails, adaptive
+inspection can still be faster on a particular placement of positives: $F=128$
+and $k=16$ evenly spread positives have $d=1/8$, outside halving's window, yet
+halving needs only $Q=127<128$ queries there, by the tightness formula above.
+Inside the window the flags stage one adds are cheap in the second stage,
+because $k$ is fixed by the source and doubling $F$ adds only the logarithmic
+term: $2k$ further opens for halving, about $k$ for Hwang's procedure.
 Outside it flat inspection gives the simpler $F$-query guarantee, although
-adaptive inspection can still win on some inputs. At the dense end it can lose: at
-$F{=}100$, $k{=}90$ the run costs $199$ opens against $100$ flat [internal], which
-is the unconditional $2F-1$, reached because at that density essentially every
-node of the halving tree is positive. The design consequence for this chapter is
+adaptive inspection can still win on some inputs. At the dense end halving can
+lose: at $F{=}100$, $k{=}90$ the run costs $199$ opens against $100$ flat
+[internal], which is the unconditional $2F-1$, reached because at that density
+essentially every node of the halving tree is positive. Hwang's procedure stops
+grouping and tests items one at a time once the items left number at most twice
+the positives still unfound, less two; here that holds from the start, so it
+costs exactly the $100$ flat opens. The design consequence for this chapter is
 therefore conditional, and the condition is now a number: ``summarize the state,
 link to the work'' is cheap when the digest over-flags generously and the zoom is
 adaptive, and the operator's dial, which trades bits on the digest for opens on
@@ -2277,6 +2425,12 @@ $150$ placements measure a mean of $163.7$ queries at that same point, comfortab
 2500/163.7\approx15.3\times
 \]
 reduction [internal, \texttt{b1\_frontier.py}], better than the guarantee's own $12.5\times$, exactly as a worst-case bound should allow on a typical run.
+That harness runs plain halving. Hwang's bound at the same point is
+\[
+\log_2\binom{2500}{10}+10\approx101.1
+\]
+queries, a guaranteed $24.7\times$ reduction, so even Hwang's worst placement
+costs less than halving's measured average.
 
 \emph{Now you try:} run the script and read the $F{=}1000,k{=}20$ row (Exercise~\ref{ex:ls-b1-frontier-run}).
 \end{pdexample}
@@ -2301,13 +2455,14 @@ $\delta/p\to1$, a domain-of-validity error and not a feature of the frontier.
 
 Theorem~\ref{thm:zoom-advantage} assumes a reliable group query at unit cost;
 correlated or noisy group checks, and group costs growing with $|J|$, change the
-accounting. Plain halving is a factor of about two from Hwang's optimum by design:
-the theorem bounds the deployed algorithm, not the best one.
+accounting. Plain halving is a factor of about two from Hwang's optimum; part
+(a) bounds the simplest procedure, which needs no knowledge of $k$, and part (b)
+bounds Hwang's, which does.
 
-The sufficient certificate for a strict saving from the stated halving
-bound uses $f>12(p-\delta)$. The condition is sufficient, not necessary: zoom
-can help outside that range, and actual counts of flags and critical items
-govern each run.
+The sufficient certificates for a strict saving are $f>12(p-\delta)$ for halving
+and $f>4.40\,(p-\delta)$ for Hwang's procedure. Both are sufficient, not
+necessary: zoom can help outside those ranges, and actual counts of flags and
+critical items govern each run.
 \end{pdboundary}
 
 \pdexercisepointer*{\ref{ex:ls-readpoverty-binding}}{\ref{ex:ls-b1-frontier-run}}{\pageref{ex:ls-readpoverty-binding}}
@@ -2361,7 +2516,7 @@ candidate ranked below an incapable one
 Human oversight regret \newline (\S\ref{sec:sdt}, \S\ref{sec:tokens-digest})
 & a compaction $D$ of a trace $E$; optimized over what to surface under budget
 & \emph{Minimize} $L_{\mathrm{op}}(D)=\sum_{e\in E\setminus D}\mathrm{regret}(e)$
-with $\mathrm{regret}=\mathrm{stakes}\times\mathrm{irrev}\times\mathrm{anomaly}$
+with regret the product of stakes, irreversibility and anomaly
 (Eq.~\ref{eq:regret}). Wrongness is measured in \emph{unreviewed
 irreversible loss}
 & the human operator, deciding whether to intervene \\
@@ -2399,7 +2554,7 @@ platform, alongside the \textbf{Agent Management System} (AMS, the ``white pages
 \emph{identity} lookup). Two FIPA choices matter: the DF is \emph{push-based} (agents
 self-advertise), and DFs may \emph{federate} (the seed of cross-operator discovery).
 The DF has been re-invented almost beat-for-beat for LLM agents
-(\textbf{Ren et al.\ 2025}, \emph{Agent Name Service}~\pdcite{ren2025}: \emph{a
+(\textbf{Huang et al.\ 2025}, \emph{Agent Name Service}~\pdcite{huang2025ans}: \emph{a
 DNS-inspired naming and capability-resolution layer with public-key-backed identity},
 which is FIPA's DF with a 2025 threat model).
 
@@ -2529,7 +2684,7 @@ but apply distinct scoring heads. Discovery uses capability fit
 (Eq.~\ref{eq:fit}); the attention queue uses regret-if-ignored:
 \begin{equation}\label{eq:regret}
 \mathrm{regret}(x) \;=\; \underbrace{\mathrm{stakes}(x)}_{\text{magnitude}}
-   \times \underbrace{\mathrm{irreversibility}(x)}_{v^{-1}}
+   \times \underbrace{\mathrm{irreversibility}(x)}_{1-v}
    \times \underbrace{\mathrm{anomaly}(x)}_{\text{surprise}}.
 \end{equation}
 
@@ -2667,6 +2822,7 @@ with the harm inspection would avert.
 
 \begin{pdexample}{The Inspection Bar, at the Chapter's Running Costs}
 \setlength{\parskip}{4pt plus 1pt}
+\label{ex:inspection-bar}
 For a constructed review class, let missing a bad proposal cost $100$,
 inspection cost $1$, and interrupting a good proposal cost an additional $5$.
 Assume inspection averts the bad outcome completely. At danger probability $a$,
@@ -2701,7 +2857,7 @@ choice more often.)
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:regret-head}
 For an unreviewed item $x$ let $C_{\mathrm{miss}}(x)=\mathrm{stakes}(x)\cdot
-\mathrm{irrev}(x)$ be the unrecoverable loss of passing a bad $x$, let
+\mathrm{irreversibility}(x)$ be the unrecoverable loss of passing a bad $x$, let
 $a(x)=\Pr(\mathsf{bad}\mid\text{evidence}(x))$ be a \emph{calibrated} posterior,
 $c_{\mathrm{att}}$ the marginal attention cost, and $C_{\mathrm{fa}}$ the
 non-attention cost of inspecting a good item, with all costs nonnegative.
@@ -2996,86 +3152,62 @@ List the three feasible choices. Their losses $(L_{\mathrm{succ}},L_{\mathrm{op}
 
 \emph{Pause and check:} if the audit weight becomes zero, the work-only summary minimizes both objectives. Disagreement requires a real oversight obligation; two named readers are not enough. The next result studies a different question: the counting lower bounds when two readers need disjoint critical sets.
 
-\begin{pdclaim}{Theorem}{Joint-Digest Lower Bound under a Shared Opening Budget}
+\begin{pdclaim}{Theorem}{The Pooling Gain}
 \setlength{\parskip}{4pt plus 1pt}
-\label{thm:split-penalty}
-For integers $N,m,k$ with $k\ge1$ and $2k\le m<N$, let
-\[
-\Lambda(n)=\mathrm{LB}(N,n,m)
- =\log_2\!\frac{\binom Nn}{\binom mn}
- =\sum_{j=0}^{n-1}\log_2\!\frac{N-j}{m-j}.
-\]
-A joint zero-miss digest that must cover every possible union of two disjoint
-critical $k$-sets, using at most $m$ opens in total, has the worst-case bit
-lower bound $\Lambda(2k)$ from Theorem~\ref{thm:lowerbound}.
+\label{thm:pooling-gain}
+Write $\mathrm{LB}(N,n,m)=\log_2\binom Nn-\log_2\binom mn$ for the zero-miss
+lower bound of Theorem~\ref{thm:lowerbound} with $n$ critical items and $m$
+opens. Two readers each need their own critical $k$-set, and the two sets are
+disjoint. Compare two arrangements with the same total of $m$ opens: two
+separate digests, each serving one reader with $m/2$ opens, and one joint
+digest that must cover the union of both sets with all $m$ opens.
 
-This bound satisfies
+For integers $k\ge1$ and even $m$ with $2k\le m\le N$,
 \[
-\Gamma(N,k,m)=\frac{\Lambda(2k)}{2\Lambda(k)}>1.
+\mathrm{LB}(N,2k,m)\;<\;2\,\mathrm{LB}(N,k,m/2).
 \]
-Indeed, $a_j=\log_2((N-j)/(m-j))$ is positive and strictly increasing in $j$
-because $N>m$. Thus $a_{j+k}>a_j$ for $0\le j<k$, so the last $k$ summands
-of $\Lambda(2k)$ exceed the first $k$: $\Lambda(2k)>2\Lambda(k)>0$.
-
-The ratio is unbounded across valid instances, not along a fixed finite
-$(N,m)$ slice. For $N=2k+1$ and $m=2k$, binomial cancellation gives
-\[
-\Lambda(2k)=\log_2(2k+1),\qquad
-\Lambda(k)=\log_2\!\frac{2k+1}{k+1}\longrightarrow1.
-\]
-Consequently $\Gamma(2k+1,k,2k)\to\infty$ as $k\to\infty$.
+At an equal opening budget, the joint digest's lower bound is below the sum of
+the two separate ones.
 \end{pdclaim}
 
-Read the ratio $\Gamma(N,k,m)$ with care. Each of the two separate readers may open $m$
-items, $2m$ in all; the joint digest may open only $m$. What the theorem
-shows: one digest that must serve two readers with disjoint critical sets
-inside one reader's opening budget needs more bits than the two
-single-reader lower bounds together. The extra bits come from sharing that budget,
-not from serving two readers with one digest. At an equal total budget the
-order reverses. A joint review set of $2m$ items made of two disjoint
-$m$-item halves contains at least $\binom mk^2$ of the possible $2k$-sets,
-strictly more when $k\ge1$, and $\binom N{2k}\le\binom Nk^2$. So whenever
-$2m\le N$, the joint lower bound with $2m$ opens, $\mathrm{LB}(N,2k,2m)$, is
-strictly below $2\Lambda(k)$; when $2m>N$ the joint reader can open everything and
-needs no bits at all.
-\pdscope{These are lower bounds on message length; nothing here says a real encoder reaches them.}
-
-\begin{pdexample}{The Joint-Bound Arithmetic, at the Sweep's Own Instance}
+\begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-At $N=60$, $k=2$, $m=8$, one reader's lower bound is
-\[
-\Lambda(2)=\log_2\!\frac{\binom{60}{2}}{\binom82}
-\approx5.9822\text{ bits}.
-\]
+Choosing $k$ items from each half of an $m$-item review set gives distinct
+$2k$-subsets of it, so $\binom m{2k}\ge\binom{m/2}k^2$. Every $2k$-subset of
+the $N$ artifacts splits into an ordered pair of disjoint $k$-subsets in
+$\binom{2k}k\ge2$ ways, and there are at most $\binom Nk^2$ such pairs, so
+$\binom N{2k}\binom{2k}k\le\binom Nk^2$ and hence $\binom N{2k}<\binom Nk^2$.
+Taking base-two logarithms of both inequalities and subtracting gives
+$\mathrm{LB}(N,2k,m)<2\log_2\binom Nk-2\log_2\binom{m/2}k=2\,\mathrm{LB}(N,k,m/2)$.
+\end{proof}
 
-For a joint digest covering both disjoint critical sets with eight opens in
-total, the lower bound is
-\[
-\Lambda(4)=\log_2\!\frac{\binom{60}{4}}{\binom84}
-\approx12.7662\text{ bits}.
-\]
+\noindent The budgets must match before the comparison means anything. Hold
+the joint digest to one reader's $m$ opens while each separate reader also
+gets $m$, and the joint bound exceeds the sum: at $N=60$, $k=2$, $m=8$ it is
+$12.77$ bits against $2\times5.98=11.96$. That comparison gives the joint
+digest half the opens of the pair, so it measures a shortage of opens, not a
+cost of serving two readers from one store.
+\pdscope{Both sides are lower bounds on message length. The inequality compares the bounds, not encoders; the paragraph on when the bound is reached, after Theorem~\ref{thm:lowerbound}, says when codebooks reach them.}
 
-The sum of the two single-reader lower bounds is
+\begin{pdexample}{The Pooling Gain, at the Sweep's Own Instance}
+\setlength{\parskip}{4pt plus 1pt}
+\label{ex:pooling-gain}
+Take $N=60$ and $k=2$, with $m=8$ opens in total. Two separate digests get
+four opens each, and each one's lower bound is
 \[
-2\Lambda(2)\approx11.9644 \text{ bits},
+\mathrm{LB}(60,2,4)=\log_2\!\frac{\binom{60}{2}}{\binom42}
+=\log_2\frac{1770}{6}\approx8.2045\text{ bits},
 \]
-with eight opens allowed per reader. Hence the ratio plotted in Figure~\ref{fig:split-penalty} is
+so the pair needs at least $16.4091$ bits. One joint digest with all eight
+opens must cover both critical pairs:
 \[
-\Gamma(60,2,8)\approx1.0670:
+\mathrm{LB}(60,4,8)=\log_2\!\frac{\binom{60}{4}}{\binom84}
+=\log_2\frac{487635}{70}\approx12.7662\text{ bits}.
 \]
-the joint lower bound is about $6.70\%$ above that sum.
-
-The ratio to just one reader's lower bound is instead
-\[
-\Lambda(4)/\Lambda(2)\approx2.1340.
-\]
-
-Give the joint digest the same sixteen opens the two separate readers have
-between them, and its lower bound drops below their sum:
-\[
-\mathrm{LB}(60,4,16)=\log_2\!\frac{\binom{60}{4}}{\binom{16}{4}}
-=\log_2\frac{487635}{1820}\approx8.0657\text{ bits}<11.9644.
-\]
+Pooling the store and the budget lowers the bound by about $3.64$ bits. The
+proof's two inequalities hold here as
+$\binom84=70\ge\binom42^2=36$ and
+$\binom{60}4\binom42=2{,}925{,}810\le\binom{60}2^2=3{,}132{,}900$.
 
 These are closed-form lower bounds, not measured token costs or achieved
 compression ratios.
@@ -3085,17 +3217,14 @@ the finite falsification sweep in Exercise~\ref{ex:ls-a7-split-floor-run};
 the sweep checks finitely many cases, and the proof covers the rest.
 \end{pdexample}
 
-Figure~\ref{fig:split-penalty} shows every valid integer $k$ for the
-two $N=60$ slices. Each stops at $2k=m$; the unbounded family is proved above,
-and no finite curve can show it.
-
-\input{figures/legible-swarm-split-penalty}
-
 \paragraph{Architectural corollary: the SLM sidecar.}
 Theorem~\ref{thm:split-digest} motivates separate reader-specific decisions;
 the trust boundary independently motivates an oversight summary sourced from
 kernel evidence rather than worker self-report (\S\ref{sec:verifiable}).
-The design uses two reader-facing heads over evidence that may share a store:
+The design uses two reader-facing heads over evidence that may share a store,
+and Theorem~\ref{thm:pooling-gain} says that it should: one shared evidence
+store with a pooled opening budget has a lower zero-miss bound than two stores
+that split the budget. The heads stay separate and the store stays single:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item \textbf{Task-Continuation Head ($R_1$):}
 \pdstatus{\Designed}{}
@@ -3299,11 +3428,16 @@ We assign roles explicitly, using Hobbes' own
 author/actor distinction (\emph{Leviathan} ch.~16~\pdcite{hobbes1651}):
 
 \begin{itemize}[leftmargin=1.2em]
-\item \textbf{The agents are the multitude.} They covenant, through the rule of the
-road (the coordination protocol), to be bound, each to all, enforced by the daemon.
-This is an engineering analogy to a covenant among subjects, not an assertion that software can give human consent.
+\item \textbf{The agents are the multitude, but they never covenant.} They are
+started inside a rule of the road (the coordination protocol) that is already in
+force, and the daemon binds each of them to it without any act of agreement.
+Hobbes' other route to sovereignty, by acquisition (ch.~20~\pdcite{hobbes1651}),
+fits better than his covenant among equals: there authority rests on the power
+that holds the subjects' lives and liberty, not on an agreement among them. Even
+that route has the subjects submit, and agents do not submit either. The consent
+that legitimates the daemon is the operator's alone.
 \item \textbf{The daemon is the sovereign-as-actor.} It holds the authority the
-multitude instituted; it blocks, lands, escalates. But, per the legible-sovereign
+operator granted; it blocks, lands, escalates. But, per the legible-sovereign
 amendment (Invariant~\ref{prop:legible-sovereign}), it is the \emph{most} legible actor,
 not (as in Hobbes) the least.
 \item \textbf{The operator is the author.} In Hobbes' author/actor split, the
@@ -3315,7 +3449,7 @@ but does not personally act.
 \end{itemize}
 
 This assignment is what makes the consent grant (Invariant~\ref{def:consent}) coherent:
-the author issues a scoped grant to the actor, over a multitude bound by covenant.
+the author issues a scoped grant to the actor, over a multitude bound by rules it did not agree to.
 
 \input{figures/legible-swarm-roles}
 
@@ -3352,7 +3486,7 @@ design proposal without treating the arrows as a deduction.
 
 \input{figures/legible-swarm-hayek-scott}
 
-\pdexercisepointer{\ref{ex:ls-hobbes-mapping}}{\ref{ex:ls-ranker-political-organ}}{\pageref{ex:ls-hobbes-mapping}}
+\pdexercisepointer{\ref{ex:ls-hobbes-mapping}}{\ref{ex:ls-express-consent-properties}}{\pageref{ex:ls-hobbes-mapping}}
 \input{additions/ls-many-authors}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -3379,7 +3513,8 @@ budget; compatible priorities can share an ordering. Inspection still needs
 calibrated error probabilities and costs.
 \item \textbf{Compaction serves distinct readers.} The extractive
 counterexample shows why a one-record budget can force conflicting choices.
-The counting comparison sets different coverage budgets side by side. The classical
+At an equal opening budget, one shared digest for two readers has a lower
+zero-miss bound than two separate digests (Theorem~\ref{thm:pooling-gain}). The classical
 cache bound controls retrieval cost for its specified algorithm and comparator,
 not comprehension or arbitrary pinning policies.
 \item \textbf{Several authors, one sovereign.} Many principals keep the single
@@ -3401,7 +3536,10 @@ Table~\ref{tab:taxonomy} and name the class of primitive that addresses each.
 Resource conflict (two agents touch the same resource and clobber one another) is answered by conflict-aware claims plus actual exclusion at the effect boundary. Illegibility (work cannot be understood in bounded time) is answered by a digest whose every material claim zooms to independent evidence. Confident wrongness (an agent asserts completion without checking) is answered by typed attestation and oracle-bound completion. Footguns (a stale premise drives an irreversible act) are answered by reversibility/stakes gates, scoped authority, and pre-effect mediation. Illegible authority (the coordinator rules without an inspectable reason) is answered by an append-only, named, zoomable decision record, including denials and omissions.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-cooperative-clobber}
-Hobbes says the actors ``need not be malicious.'' Give a concrete two-agent
+Hobbes traces war in the state of nature partly to \emph{diffidence}, mutual
+distrust, under which striking first is ``no more than his own conservation
+requireth'' (\emph{Leviathan} ch.~13~\pdcite{hobbes1651}). That conflict needs
+no malice. Give a concrete two-agent
 scenario in which both agents are perfectly cooperative and the swarm still
 deadlocks or clobbers state.
 \end{pdexercise}
@@ -3460,7 +3598,7 @@ own staleness/decay discipline (forward-reference \S\ref{sec:staleness}), and do
 \emph{it} need a counter-surface, ad infinitum?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-ranker-counter-surface}
-Use one complete append-only decision ledger, not a second ranked dashboard. For every candidate item, store candidate ID, source/evidence pointers, policy and model version, input features, score components, threshold/lane, surfaced-or-suppressed verdict, reason codes, expiry, and a counterfactual such as ``would surface if anomaly were 0.08 higher.'' The operator can query suppressed items since a cursor, sort by any raw field, and sample items uniformly rather than through the production ranker. Decisions are immutable; their current relevance expires by signal-specific TTL (\S\ref{sec:staleness}) and is recomputed from raw state. Run independent random omission audits and expose raw event-log access. The regress terminates at completeness plus direct sampling: the base ledger records every candidate and every ranking decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to rank the ranker's omissions. The remaining trust assumption is the complete event-capture boundary; that assumption should be tested and externally anchored, not hidden behind another summary. (Same construction answers Exercise~\ref{ex:ls-ranker-political-organ}.)
+Use one complete append-only decision ledger, not a second ranked dashboard. For every candidate item, store candidate ID, source/evidence pointers, policy and model version, input features, score components, threshold/lane, surfaced-or-suppressed verdict, reason codes, expiry, and a counterfactual such as ``would surface if anomaly were 0.08 higher.'' The operator can query suppressed items since a cursor, sort by any raw field, and sample items uniformly rather than through the production ranker. Decisions are immutable; their current relevance expires by signal-specific TTL (\S\ref{sec:staleness}) and is recomputed from raw state. Run independent random omission audits and expose raw event-log access. The regress terminates at completeness plus direct sampling: the base ledger records every candidate and every ranking decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to rank the ranker's omissions. The remaining trust assumption is the complete event-capture boundary; that assumption should be tested and externally anchored, not hidden behind another summary.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:zoom}}{The mechanism: legibility-with-zoom}
@@ -3700,11 +3838,11 @@ zoom-advantage row at $F{=}1000,k{=}20$. Compute $k\log_2(F/k)$ by hand first an
 compare it to the row's flat-opens count.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b1-frontier-run}
-By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is denser ($k/F=0.02$ here versus $0.004$ there). It is still inside the theorem's window $d<1/12$, where the guarantee is $1000/(2\cdot20\cdot6+80)=3.1\times$, and the run's $4.3\times$ exceeds it: the advantage shrinks with density but does not disappear.
+By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is denser ($k/F=0.02$ here versus $0.004$ there). It is still inside halving's window $d<1/12$ (part (a)), where the guarantee is $1000/(2\cdot20\cdot6+80)=3.1\times$, and the run's $4.3\times$ exceeds it: the advantage shrinks with density but does not disappear. Hwang's procedure (part (b)) guarantees $1000/(\log_2\binom{1000}{20}+20)\approx1000/158.0\approx6.3\times$ at the same point.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-noisy-zoom-oracle}
-Theorem~\ref{thm:zoom-advantage}'s group query is exact: it reports whether
-$J\cap P=\emptyset$ and is never wrong. A real group query is a linter, a batched
+Take the halving procedure of Theorem~\ref{thm:zoom-advantage}(a). Its group
+query is exact: it reports whether $J\cap P=\emptyset$ and is never wrong. A real group query is a linter, a batched
 test run or a diff scan, and those have false negatives: a group that does
 contain a critical item can come back clean. This is the worst direction for the
 algorithm to fail in, because a negative group is \emph{discarded}: one false
@@ -3725,7 +3863,7 @@ $\varepsilon_{\mathrm{grp}}$; at $\alpha=0.1$, three calls give $10^{-3}$. A dir
 no confirmation because false positives are excluded by hypothesis.
 The noisy recursion visits a subset of the groups visited by the noiseless
 algorithm: an erroneous clean verdict can prune that tree but cannot add nodes.
-Writing the theorem's full bound as
+Writing part (a)'s full bound as
 \[
 Q_0=2k\lceil\log_2(F/k)\rceil+4k,
 \]
@@ -3743,7 +3881,7 @@ Thus, for $0<\varepsilon_{\mathrm{run}}<1$, choosing
 $n_{\mathrm{rep}}=\lceil\log(Q_0/\varepsilon_{\mathrm{run}})/\log(1/\alpha)\rceil$ suffices for a whole-run
 failure bound of $\varepsilon_{\mathrm{run}}$, and hence for each individual positive as well.
 The $4k$ term must be retained when $k$ is near $F$. If $k$ is unknown, use
-the theorem's $k$-free bound $2F-1$ in place of $Q_0$ for this choice.
+part (a)'s $k$-free bound $2F-1$ in place of $Q_0$ for this choice.
 At $\alpha=0$, one call per group is exact; at $\alpha=1$, the assumed error
 bound supplies no finite repetition guarantee. Second, the
 independence assumption is doing heavy work. Repeating a deterministic linter
@@ -3908,8 +4046,9 @@ The single-reader lower bound is $5.9822$ bits and the joint lower bound is $12.
 The script's reported $2.13\times$ compares the joint bound with only one
 single-reader bound. Dividing instead by $2(5.9822)=11.9644$ gives $1.0670$.
 The joint digest permits eight opens total; each separate reader may open
-eight. Neither ratio measures an equal-total-budget implementation saving;
-with sixteen opens in total the joint lower bound falls to $8.0657$ bits, below $11.9644$.
+eight, so neither ratio is an equal-budget comparison. Split the eight opens
+four and four instead and the two separate bounds total $16.4091$ bits, above the
+joint $12.7662$, as Theorem~\ref{thm:pooling-gain} requires.
 The recorded sweep reports \texttt{violations: 0/16 -> floor HOLDS} and
 \texttt{ratio:\ \ 2.13x} [internal, \texttt{a7\_experiment.py}]. Its zero
 violations concern the finite tested configurations and the script's
@@ -3932,7 +4071,7 @@ Map each of {agents, daemon, operator} onto Hobbes' {multitude, sovereign-actor,
 author}. Why does the metaphor break if the operator is called the sovereign?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-hobbes-mapping}
-Agents are the multitude bound by the common coordination protocol; the daemon is the sovereign-as-actor that applies the rules; the operator is the author/principal who originates and can withdraw authority. Calling the operator the sovereign collapses author and executing authority and makes the supposed covenant among agents incoherent: there would be no distinct actor left to hold accountable to the author's terms.
+Agents are the multitude, bound by the common coordination protocol without having agreed to it; the daemon is the sovereign-as-actor that applies the rules; the operator is the author/principal who originates and can withdraw authority. Calling the operator the sovereign collapses author and executing authority: there would be no distinct actor left to hold accountable to the author's terms.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-exit-makes-voice-honest}
 Why does Hirschman's \emph{exit} (Invariant~\ref{prop:override}) make \emph{voice}
@@ -3948,16 +4087,6 @@ just started using the tool.''
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-express-consent-properties}
 The grant is discrete, explicitly issued, scoped, time-bounded, and revocable and audited. ``Started using the tool'' has none of these properties: it is continuous rather than discrete, inferred rather than issued, unscoped, open-ended, and carries no explicit revocation act.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-ranker-political-organ}
-\emph{The ranker as a political authority.} Specify the ``what did the
-queue suppress, and why'' counter-surface (Table~\ref{tab:counter-surface})
-so that ranking-as-governing is itself legible.
-Does the counter-surface need its own counter-surface? Where does the regress
-terminate, and on what principle?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-ranker-political-organ}
-Same construction as Exercise~\ref{ex:ls-ranker-counter-surface}: one complete, append-only decision ledger recording every candidate, its ranking decision, reason codes, and a counterfactual, queryable directly and sampled independently of the production ranker rather than re-ranked by a second dashboard. The regress terminates at completeness plus direct sampling. The base ledger already records every candidate and decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to audit the ranker's omissions. The remaining trust assumption is the completeness of the event-capture boundary itself; that assumption should be tested and externally anchored, not hidden behind another summary.
 \end{pdsolution}
 \input{additions/ls-exercises-authors}
 
@@ -3982,16 +4111,18 @@ flatten reality to a single purpose. Our contribution is to make Scott's warning
 information-theoretic lower bound (Thm.~\ref{thm:lowerbound}).
 
 \paragraph{Authority, consent, and the social contract.}
-The authority argument is Hobbesian~\pdcite{hobbes1651,sep-hobbes}, amended by the
-liberal consent tradition (\textbf{Locke}~\pdcite{locke1689},
-\textbf{Hume}~\pdcite{hume1748}, \textbf{Pateman}~\pdcite{pateman1979}) and by
-\textbf{Hirschman}'s exit/voice framework~\pdcite{hirschman1970}. The
+The authority argument starts from Hobbes~\pdcite{hobbes1651,sep-hobbes}. Its
+revocable consent is not an amendment to him: it is \textbf{Locke}'s trust, power
+that returns to those who gave it when its end is neglected~\pdcite{locke1689}.
+\textbf{Hume}~\pdcite{hume1748} and \textbf{Pateman}~\pdcite{pateman1979} bear on
+what makes consent express, and \textbf{Hirschman}'s exit/voice
+framework~\pdcite{hirschman1970} on why exit keeps voice honest. The
 state-of-nature-to-sovereign arc has also been observed as an \emph{emergent} dynamic of
 LLM populations (\textbf{Dai et al.}~\pdcite{dai2024}, building on \textbf{Park et
 al.}~\pdcite{park2023}). We turn the metaphor into a mechanism: an express, scoped,
 revocable consent grant (Invariant~\ref{def:consent}) with an inalienable override
 (Invariant~\ref{prop:override}), and a legible-sovereign rule
-(Invariant~\ref{prop:legible-sovereign}) that inverts Hobbes' opaque sovereign.
+(Invariant~\ref{prop:legible-sovereign}) that inverts Hobbes' unaccountable sovereign.
 
 % This paragraph's citations need a fresh margin in both profiles: with the
 % many-authors section, the history's citations overflow one page otherwise.
@@ -4032,7 +4163,7 @@ classical database remedy, an index, recast as a directory over agents.
 \paragraph{Agent discovery, naming, and trust.}
 The directory has deep prior art in \textbf{FIPA}'s Directory Facilitator
 and Agent Management System~\pdcite{fipa00023}, re-invented for LLM agents as the Agent
-Name Service (\textbf{Ren et al.}~\pdcite{ren2025}). For the trust layer that sits above
+Name Service (\textbf{Huang et al.}~\pdcite{huang2025ans}). For the trust layer that sits above
 discovery, \textbf{EigenTrust}~\pdcite{kamvar2003} supplies a trust-propagation
 model whose modified algorithm relies on pretrusted peers. \textbf{Douceur}'s
 Sybil analysis~\pdcite{douceur2002} makes identity assumptions a separate issue;
@@ -4049,14 +4180,14 @@ Each result above carries its own proof or proof sketch: the legibility lower
 bound (Thm.~\ref{thm:lowerbound}), the comonotone characterization
 (Thm.~\ref{thm:comonotone}) behind the rank-order conflict in
 Thm.~\ref{thm:split-ranker}, the regret head (Thm.~\ref{thm:regret-head}), the
-zoom bound of $2k\lceil\log_2(F/k)\rceil+4k$ adaptive opens
+zoom bounds for plain halving and for Hwang's splitting
 (Thm.~\ref{thm:zoom-advantage}) and the Erlang-C boundary
 (Thm.~\ref{thm:specialization}, derived in Example~\ref{ex:queue-boundary}). The
 sweeps reported beside them are finite checks, not further proofs. Two results
 need careful reading. The extractive counterexample in
 Thm.~\ref{thm:split-digest} states a feasible summary class and budget; it does
-not forbid shared storage. The comparison in Thm.~\ref{thm:split-penalty} uses
-different total opening budgets and must be read that way.
+not forbid shared storage. The pooling gain (Thm.~\ref{thm:pooling-gain})
+compares lower bounds at an equal opening budget; it says nothing about encoders.
 
 \paragraph{Where this chapter is positioned.}
 Table~\ref{tab:related} places the contribution against the nearest neighbors in each
@@ -4128,9 +4259,14 @@ reputation layer is the \emph{scorer}. The split ranker
 (Thm.~\ref{thm:split-ranker}) and the costly-escalation signal (\S\ref{sec:gates})
 supply the candidate generation and trust signals the reputation head consumes.
 \pdstatus{\BuiltWeak}{durable commitments, oracle-bound closure and overdue detection ship; neutral grading and reputation updates do not}
-\item \textbf{The consent grant as a priceable object.} A hosted-trust offering is
-the transfer of a consent grant (Invariant~\ref{def:consent}) to a third party, which the
-pricing model in \pdchapref{he}{The Harbor Economy} must specify.
+\item \textbf{The consent grant as a transferable object.} A hosted-trust offering is
+the transfer of a consent grant (Invariant~\ref{def:consent}) to a third party.
+\pdchapref{he}{The Harbor Economy}%
+\ifpdbook
+\ (\S\ref{he:sec:hosted-trust})%
+\fi
+{} separates the evidence, adjudication and payment costs of such a service; no
+chapter yet prices the grant.
 \item \textbf{Operator-attention economics.} The loss in
 \S\ref{sec:operator} offers a model for costing inspection and errors when
 supervising a rented fleet. Estimating those costs and checking the inspection
@@ -4172,7 +4308,7 @@ Abdication-resistance: does skill-retention practice preserve situation awarenes
 Calibrating discovery-ranker weights with no ground truth (Ex.~\ref{ex:ls-implicit-feedback-goodhart}) & $\star\star$ & implicit relevance feedback \\
 Decay-vs-summary boundary (Ex.~\ref{ex:ls-decay-vs-summary}) & $\star$ & Invariant~\ref{prop:decay} \\
 Legibility's information-theoretic lower bound (Ex.~\ref{ex:ls-adversarial-critical-set}) & $\star\star\star$ & Thm.~\ref{thm:lowerbound} \\
-The ranker-as-political-authority regress (Ex.~\ref{ex:ls-ranker-political-organ}) & $\star\star$ & Invariant~\ref{prop:legible-sovereign} \\
+The ranker-as-political-authority regress (Ex.~\ref{ex:ls-ranker-counter-surface}) & $\star\star$ & Invariant~\ref{prop:legible-sovereign} \\
 The succession corner \emph{beyond the mean}: tail response, and consistency of
 judgment, neither of which the succession threshold covers
 (Ex.~\ref{ex:ls-succession-corner}) & $\star\star$ & \S\ref{sec:succession-corner} \\
@@ -4229,7 +4365,7 @@ David Hume.
 
 \bibitem{locke1689}
 John Locke.
-\newblock \textit{Second Treatise of Government}, \S\S95--122. 1689.
+\newblock \textit{Second Treatise of Government}, \S\S95--122 and \S149. 1689.
 
 \bibitem{pateman1979}
 Carole Pateman.
@@ -4248,6 +4384,11 @@ Fred B.\ Schneider.
 \newblock Enforceable Security Policies.
 \newblock \textit{ACM Transactions on Information and System Security}, 3(1):30--50, 2000.
 
+\bibitem{hamlen2006}
+Kevin W.\ Hamlen, Greg Morrisett, and Fred B.\ Schneider.
+\newblock Computability Classes for Enforcement Mechanisms.
+\newblock \textit{ACM Transactions on Programming Languages and Systems}, 28(1):175--205, 2006.
+
 \bibitem{turpin2023}
 Miles Turpin, Julian Michael, Ethan Perez, and Samuel R.\ Bowman.
 \newblock Language Models Don't Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting.
@@ -4257,6 +4398,11 @@ Miles Turpin, Julian Michael, Ethan Perez, and Samuel R.\ Bowman.
 Bertrand Meyer.
 \newblock Applying ``Design by Contract''.
 \newblock \textit{IEEE Computer}, 25(10):40--51, 1992.
+
+\bibitem{blackwell1953}
+David Blackwell.
+\newblock Equivalent Comparisons of Experiments.
+\newblock \textit{Annals of Mathematical Statistics}, 24(2):265--272, 1953.
 
 \bibitem{greenswets1966}
 David M.\ Green and John A.\ Swets.
@@ -4361,8 +4507,8 @@ Foundation for Intelligent Physical Agents.
 \newblock \textit{FIPA Agent Management Specification} (SC00023). 2002.
 \newblock \url{http://www.fipa.org/specs/fipa00023/}
 
-\bibitem{ren2025}
-V.\ Ren et al.
+\bibitem{huang2025ans}
+Ken Huang, Vineeth Sai Narajala, Idan Habler, and Akram Sheriff.
 \newblock Agent Name Service (ANS): A Universal Directory for Secure AI Agent Discovery and Interoperability.
 \newblock arXiv:2505.10609, 2025.
 
@@ -4448,6 +4594,11 @@ Frank K. Hwang.
 Ding-Zhu Du and Frank K. Hwang.
 \newblock \textit{Combinatorial Group Testing and Its Applications}, 2nd ed.
 \newblock World Scientific, 2000.
+
+\bibitem{rodl1985}
+Vojtěch Rödl.
+\newblock On a Packing and Covering Problem.
+\newblock \textit{European Journal of Combinatorics}, 6(1):69--78, 1985.
 
 \bibitem{expansion}
 H. Si, O. O. Koyluoglu, and S. Vishwanath.

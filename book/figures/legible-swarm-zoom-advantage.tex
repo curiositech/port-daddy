@@ -1,25 +1,38 @@
-% Reader question: what does the worst-case query certificate guarantee?
-% Claim: F/[2k ceil(log2(F/k))+4k] exceeds one iff d=k/F<1/12.
-% Evidence: thm:zoom-advantage; exact formula below, separate m intervals.
-% The curve is piecewise hyperbolic, not a step function. The threshold is
-% not an observed crossover. No measured point is mixed into this bound.
-% Grammar: log-density plot with exact dyadic segments and two worked bounds.
+% Reader question: what does each worst-case query certificate guarantee?
+% Claim (thm:zoom-advantage): (a) plain halving's ratio
+%   F/[2k ceil(log2(F/k))+4k] exceeds one iff d=k/F<1/12; (b) Hwang's
+%   generalized binary splitting, with k known, uses at most log2 C(F,k)+k
+%   queries, so its ratio is at least 1/(H(d)+d), which exceeds one iff
+%   d < d_H = 0.2271 (root of H(d)+d=1).
+% Evidence: thm:zoom-advantage; exact halving formula on separate dyadic
+%   intervals; Hwang curve is the closed form 1/(H(d)+d), a lower bound on
+%   F/[log2 C(F,k)+k]. Worked points: F=2500,k=10 (halving 200 queries,
+%   ratio 12.5; Hwang 101.1, ratio 24.7) and F=4096,k=32 (halving 576, 7.1;
+%   Hwang 298.2, 13.7) [checked: closed form, math-ls/hwang_gbs.py].
+% The halving curve is piecewise hyperbolic, not a step function. Neither
+% threshold is an observed crossover. No measured point is mixed in.
+% Grammar: log-density plot, two certificate curves, two worked bounds each.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdteal}%
-\begin{tikzpicture}[pd figure]
+\begin{tikzpicture}[pd figure,
+  declare function={hb(\d) = -\d*ln(\d)/ln(2) - (1-\d)*ln(1-\d)/ln(2);}]
 \begin{axis}[pd axis,
   width=9.3cm,height=6.3cm,
-  xmode=log,xmin=0.002,xmax=0.4,ymin=0,ymax=23,
-  xtick={0.002,0.004,0.015625,0.0833333333,0.4},
-  xticklabels={0.002,0.004,1/64,1/12,0.4},
-  ytick={1,5,10,15,20},
+  xmode=log,xmin=0.002,xmax=0.4,ymin=0,ymax=30,
+  xtick={0.002,0.004,0.015625,0.0833333333,0.2271,0.4},
+  xticklabels={0.002,0.004,1/64,1/12,0.227,0.4},
+  ytick={1,5,10,15,20,25,30},
   xlabel={positive density $d=k/F$ (log scale)},
   ylabel={guaranteed query ratio $F/Q$},
   clip=false,axis on top]
   \addplot[pd guide,domain=0.002:0.4,samples=2] {1};
-  % On [2^-m,2^-(m-1)), ceil(log2(1/d)) = m. Draw independent
-  % analytic segments; never join the jumps with interpolation.
+  % (b) Hwang's certificate 1/(H(d)+d); drawn from d=0.0034, where it is
+  % about 28, so it stays inside the plotted range.
+  \addplot[pd rule,line width=1.05pt,domain=0.0034:0.4,samples=120,smooth]
+    {1/(hb(x)+x)};
+  % (a) Plain halving. On [2^-m,2^-(m-1)), ceil(log2(1/d)) = m. Draw
+  % independent analytic segments; never join the jumps with interpolation.
   \addplot[pd focus rule,domain=0.002:0.00390624,samples=35] {1/(22*x)};
   \addplot[pd focus rule,domain=0.00390625:0.00781249,samples=35] {1/(20*x)};
   \addplot[pd focus rule,domain=0.0078125:0.01562499,samples=35] {1/(18*x)};
@@ -28,22 +41,32 @@
   \addplot[pd focus rule,domain=0.0625:0.12499999,samples=35] {1/(12*x)};
   \addplot[pd focus rule,domain=0.125:0.24999999,samples=35] {1/(10*x)};
   \addplot[pd focus rule,domain=0.25:0.4,samples=35] {1/(8*x)};
+  % the two crossings of ratio 1
   \draw[pd guide] (axis cs:0.0833333333,0) -- (axis cs:0.0833333333,1);
   \node[pd focus datum] at (axis cs:0.0833333333,1) {};
-  \node[pd label,anchor=south,text width=3.4cm] at (axis cs:0.12,3)
-    {certificate equals $1$\\at $d=1/12$};
-  \node[pd datum] at (axis cs:0.004,12.5) {};
-  \node[pd label,anchor=south west,text width=3.9cm,align=left]
-    at (axis cs:0.005,14.0) {$F=2500,\ k=10$\\bound: $200$ queries; ratio $12.5$};
-  \node[pd datum] at (axis cs:0.0078125,7.111111) {};
-  \node[pd label,anchor=south west,text width=3.9cm,align=left]
-    at (axis cs:0.014,8.4) {$F=4096,\ k=32$\\bound: $576$ queries; ratio $7.1$};
+  \draw[pd guide] (axis cs:0.2271,0) -- (axis cs:0.2271,1);
+  \node[pd datum] at (axis cs:0.2271,1) {};
+  % curve names, placed in open ground to the right
+  \node[pd focus label,anchor=west] at (axis cs:0.05,6.2) {(a) plain halving};
+  \node[pd label,anchor=west] at (axis cs:0.05,9.6) {(b) Hwang, $k$ known};
+  % worked points
+  \node[pd focus datum] at (axis cs:0.004,12.5) {};
+  \node[pd datum] at (axis cs:0.004,24.74) {};
+  \node[pd label,anchor=west,text width=4.2cm,align=left]
+    at (axis cs:0.0047,26.6) {$F=2500$, $k=10$: halving $200$ queries,
+    ratio $12.5$; Hwang $101$, ratio $24.7$};
+  \node[pd focus datum] at (axis cs:0.0078125,7.111111) {};
+  \node[pd datum] at (axis cs:0.0078125,13.74) {};
+  \node[pd label,anchor=west,text width=4.2cm,align=left]
+    at (axis cs:0.0095,17.2) {$F=4096$, $k=32$: halving $576$, ratio $7.1$;
+    Hwang $298$, ratio $13.7$};
 \end{axis}
 \end{tikzpicture}
-\caption{A sufficient certificate, not a measured performance curve.
-The theorem's ratio is piecewise hyperbolic, with jumps at inverse powers of
-two. Below $d=1/12$ this bound guarantees fewer queries than flat inspection;
-above it, failure of this certificate does not establish a loss. For example,
-$16$ evenly spread positives among $128$ items require $127$ queries.}
+\caption{Two sufficient certificates, not measured performance curves.
+Plain halving's ratio is piecewise hyperbolic, with jumps at inverse powers of
+two, and guarantees fewer queries than flat inspection below $d=1/12$. Hwang's
+splitting, for a tester who knows $k$, guarantees it below $d\approx0.227$.
+Failure of a certificate does not establish a loss: $16$ evenly spread
+positives among $128$ items require $127$ halving queries.}
 \label{fig:zoom-advantage}
 \end{figure}
