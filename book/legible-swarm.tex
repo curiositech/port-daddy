@@ -301,7 +301,7 @@ agents. \textbf{Dai et al.\ 2024}, \emph{Artificial Leviathan}
 psychological drives that, starting from unrestrained conflict resembling the state
 of nature, were observed to establish social contracts, authorize a sovereign, and
 form ``a peaceful commonwealth founded on mutual cooperation.''} The arc this
-series posits as its organizing metaphor is, in at least one controlled study, an
+Book takes as its organizing metaphor is, in at least one controlled study, an
 \emph{emergent dynamic} of LLM populations (the methodological ancestor is
 \textbf{Park et al.\ 2023}, \emph{Generative Agents}~\pdcite{park2023}, where LLM
 agents form emergent social behavior in a sandbox town). This motivates a
@@ -567,7 +567,7 @@ Count what each row gives Alice. Both compress $600$ lines of work into one line
 
 The difference is that Row~A's single line has a route back to $600$ lines Alice owns and Row~B's has a route back to nothing, so Row~A's compression is recoverable and Row~B's is an assertion nobody can check, a claim about a forest nobody has walked into.
 
-Row~A supplies a route to evidence; Row~B supplies only an assertion. A dishonest agent could still fabricate or reuse Row~A's log, so a link alone does not certify execution. Alice must be able to check the tested tree, command, result, and independently controlled runner that binds them together. The definition in this section names the navigable route $\zeta$; the verifiable-zoom rule then specifies what must be at its end.
+A dishonest agent could still fabricate or reuse Row~A's log, so a link alone does not certify execution. Alice must be able to check the tested tree, command, result, and independently controlled runner that binds them together. The definition in this section names the navigable route $\zeta$; the verifiable-zoom rule then specifies what must be at its end.
 
 \emph{Now you try:} run the four questions of \S\ref{sec:four-questions} against a read-surface you actually use (Exercise~\ref{ex:ls-four-questions-dashboard}).
 \end{pdexample}
@@ -656,7 +656,7 @@ m\^etis atrophies}. What organizational-knowledge theory calls the problem of
 converting \pdterm{tacit knowledge} into explicit, transferable form (``we know
 more than we can tell''~\pdcite{polanyi1966}) remains an open problem for
 artifact-based oversight. Required skill-retention practice (\S\ref{sec:abdication}) is the design's
-only defense, and it is frankly the hardest part of the design to engineer.}
+only defense, and it is the hardest part of the design to engineer.}
 
 \subsection{The zoom target must be verifiable, not self-reported}\label{sec:verifiable}
 
@@ -763,11 +763,11 @@ proved that any proposal is correct.}
 \pdexercisepointer{\ref{ex:ls-flatten-or-preserve}}{\ref{ex:ls-adversarial-legibility}}{\pageref{ex:ls-flatten-or-preserve}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The Leviathan rules, it does not just watch (the authority half)}\label{sec:authority-rules}
+\section{The Leviathan rules as well as watches (the authority half)}\label{sec:authority-rules}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The chapter's subject is legibility and authority. A read-only legibility layer is a
-glorified dashboard; the point of Hobbes is that the sovereign rules as well as
+The chapter's subject is legibility and authority. A read-only legibility layer is only a
+dashboard; the point of Hobbes is that the sovereign rules as well as
 sees. This section specifies the authority half: the
 mechanisms by which the consented daemon actually decides, blocks, lands, and
 gates. Table~\ref{tab:ls-authority-organs} lists six of them. The first is the
@@ -1198,9 +1198,9 @@ system can do with the \emph{unverifiable}; \S\ref{sec:operator} supplies the co
 
 \subsection{Thoughtful landing and the regimentation/enforcement split}\label{sec:landing}
 
-The authority decides \emph{what lands and in what order}, conflict-aware. And it has
-teeth: the footgun guards. Here we must be precise about what a guard can and cannot
-do, because the difference is the difference between a safety claim that holds and one
+The authority decides \emph{what lands and in what order}, conflict-aware, and it
+enforces those decisions through the footgun guards. What a guard can and cannot do has to be stated
+exactly, because that is what separates a safety claim that holds from one
 that is wishful.
 
 % SUBMISSION-SKILL: naming conflict --- "regimentation" (used in this section's
@@ -1938,12 +1938,12 @@ zero-miss digest with review budget $m$.
 \end{proof}
 
 \noindent\Verified.\footnote{The sweeps cited in this subsection were regenerated at seed
-20260816.} The analogy that carries the proof: a digest is not a description of the
-night's work but a \emph{message} that selects, from a codebook shared with the
-overseer, which $m$ items to open. A $B$-bit message distinguishes at most $2^B$
+20260816.} For the proof, treat a digest as a \emph{message} that selects, from a
+codebook shared with the overseer, which $m$ items to open, rather than as a
+description of the night's work. A $B$-bit message distinguishes at most $2^B$
 codewords, and each codeword covers only $\binom{m}{k}$ of the $\binom{N}{k}$ ways
 the critical items could be placed. The bound gives the fewest bits
-any zero-miss digest can use. The misread to preempt: the bound does not say
+any zero-miss digest can use. The bound does not say
 a digest needs $B^\star$ bits to be useful. It counts only what the zero-miss
 guarantee needs; cheaper digests are fine the moment misses are tolerated, and
 the two-constraint rate below measures exactly that saving.
@@ -1972,9 +1972,9 @@ perfect per-item score vector and charged $B$ bits only for resolving rank ties:
 $8/14$ apparent violations. They came from a side channel: the identity of the
 critical set leaked outside the metered message. Rebuilding
 the model so that $B$ is a literal message length gating an encoder and decoder pair
-restored agreement. The transferable rule: a simulation that appears to beat an
-information bound is leaking through an unmetered channel; audit the meter before
-doubting the theorem, and before trusting the refutation.
+restored agreement. In general, a simulation that appears to beat an
+information bound is leaking through an unmetered channel, so audit the meter before
+doubting the theorem or trusting the refutation.
 
 % Preserve the former run-in paragraph's hyperlink slot while replacing its style.
 \phantomsection
@@ -2118,8 +2118,8 @@ $F$. The adaptive second stage plays twenty questions with group queries: open a
 combined diff scan or a batched test run), learn whether the group contains any
 critical, and split only the groups that do. The analogy transfers because its
 defining relation transfers: halving a set costs one question and eliminates
-half the candidates only when positives are rare in the set. The misread to
-preempt: twenty questions finds \emph{one} answer in $\log_2 F$ queries; with $k$
+half the candidates only when positives are rare in the set. Twenty
+questions finds \emph{one} answer in $\log_2 F$ queries; with $k$
 answers the tree forks, and the accounting below counts the cost of the
 forking. Figure~\ref{fig:legible-halving-tree} follows one positive through
 a sixteen-item set: each negative answer removes a whole branch.
@@ -2406,8 +2406,8 @@ which is FIPA's DF with a 2025 threat model).
 The existence layer is the easy part: a coordination database that records the live
 population, their stated purpose, and their file claims is a white-pages directory,
 and a vector index that embeds each agent's declared capabilities and answers
-nearest-neighbor queries is a yellow-pages directory over skills. Existence is not the
-gap; the layers above it are.
+nearest-neighbor queries is a yellow-pages directory over skills. The gap lies in
+the layers above existence.
 
 \subsection{Relevance: the split ranker (the headline result)}\label{sec:relevance}
 
@@ -3496,7 +3496,7 @@ divergence it cannot catch.
 The legibility layer can compare structured narration claims against independently derived artifacts: claimed changed files versus the tree diff, ``tests passed'' versus a protected runner receipt, ``no deletion'' versus Git objects, and claimed command results versus brokered tool logs. Emit a contradiction event on mismatch. This catches deterministic report/artifact divergence, deleted tests, fabricated execution, and omitted changed paths. It cannot establish semantic correctness, detect a poisoned acceptance suite, observe effects that bypass logging, or distinguish two artifacts that are syntactically consistent but jointly wrong. Those require effect confinement, independent evaluation, or later outcome evidence.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:authority-rules}}{The Leviathan rules, it does not just watch (the authority half)}
+\pdexercisesfor{\S\ref{sec:authority-rules}}{The Leviathan rules as well as watches (the authority half)}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-adversarial-review-corollary}
 How can adversarial review (\S\ref{sec:review}) discharge
@@ -3580,7 +3580,7 @@ off the feasible debit band $[\theta_{\min},\theta_{\max}]$ at $A_{\mathrm{att}}
 $A_{\mathrm{att}}=2.0$. Confirm $u^\star(0.05)$ by hand first.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b7-escalation-run}
-By hand, at $\theta=0.05,w=1$: $u^\star=\theta w/(1+\theta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\theta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w\allowbreak/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = \mbox{0.071975} -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = \mbox{0.071975} -> band EMPTY} [internal, \texttt{b7\allowbreak\_escalation\allowbreak\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A_{\mathrm{att}}=3.3$ against an empty feasible set at $A_{\mathrm{att}}=2.0$ because $\theta_{\min}>\theta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A_{\mathrm{att}}$ or lower $C_{\mathrm{miss}}$), never forcing a $\theta$ that does not exist.
+By hand, at $\theta=0.05,w=1$: $u^\star=\theta w/(1+\theta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\theta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w\allowbreak/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = \mbox{0.071975} -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = \mbox{0.071975} -> band EMPTY} [internal, \texttt{b7\allowbreak\_escalation\allowbreak\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A_{\mathrm{att}}=3.3$ against an empty feasible set at $A_{\mathrm{att}}=2.0$ because $\theta_{\min}>\theta_{\max}$ there. When the band is empty, the fix is capacity or evidence quality (raise $A_{\mathrm{att}}$ or lower $C_{\mathrm{miss}}$), never forcing a $\theta$ that does not exist.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:operator}}{The operator as a modeled entity}
@@ -3982,8 +3982,8 @@ information-theoretic lower bound (Thm.~\ref{thm:lowerbound}).
 The authority argument is Hobbesian~\pdcite{hobbes1651,sep-hobbes}, amended by the
 liberal consent tradition (\textbf{Locke}~\pdcite{locke1689},
 \textbf{Hume}~\pdcite{hume1748}, \textbf{Pateman}~\pdcite{pateman1979}) and by
-\textbf{Hirschman}'s exit/voice framework~\pdcite{hirschman1970}. Strikingly, the
-state-of-nature-to-sovereign arc has been observed as an \emph{emergent} dynamic of
+\textbf{Hirschman}'s exit/voice framework~\pdcite{hirschman1970}. The
+state-of-nature-to-sovereign arc has also been observed as an \emph{emergent} dynamic of
 LLM populations (\textbf{Dai et al.}~\pdcite{dai2024}, building on \textbf{Park et
 al.}~\pdcite{park2023}). We turn the metaphor into a mechanism: an express, scoped,
 revocable consent grant (Invariant~\ref{def:consent}) with an inalienable override
