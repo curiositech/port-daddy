@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40241662,
+    "bytes": 40242968,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/e8f3afe437b2bd4cc0aab0f484d795462123269f39f8cf341441a698b780f34c.tar.gz",
-    "sha256": "e8f3afe437b2bd4cc0aab0f484d795462123269f39f8cf341441a698b780f34c",
-    "url": "https://media.portdaddy.dev/book/source/sha256/e8f3afe437b2bd4cc0aab0f484d795462123269f39f8cf341441a698b780f34c.tar.gz"
+    "key": "book/source/sha256/55ca158e44d374f0e93539f61c75ec2e480343cb089ca1ab7277102ecee50cc8.tar.gz",
+    "sha256": "55ca158e44d374f0e93539f61c75ec2e480343cb089ca1ab7277102ecee50cc8",
+    "url": "https://media.portdaddy.dev/book/source/sha256/55ca158e44d374f0e93539f61c75ec2e480343cb089ca1ab7277102ecee50cc8.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "cf0ce8e958abeb016fcc167331bfe231631db5d17b89596d2ed1555acef07b7a",
+  "manifestSha256": "82531e3469fba31df4bcae016a1dcbb5c69e3aa22a8ba2e84866d17d2d8ebcf2",
   "schemaVersion": 1,
   "source": {
     "fileCount": 535,
@@ -3208,10 +3208,10 @@
         "sha256": "3df6a53db6fc31eaac75d9b6418e9f2f7a8ab66d8a55f267e1f38bf766aa243b"
       },
       {
-        "bytes": 14131,
+        "bytes": 17535,
         "mode": 420,
         "path": "scripts/build-book-source.py",
-        "sha256": "e4baaab6f004ea6cfa79b43b12f5918cc340c07d5833d4cf678c2aa351b33717"
+        "sha256": "41c9a17ca91ba30d9f2ad0e35970d0e2350859673918222963ca594a26446eae"
       },
       {
         "bytes": 18441,
@@ -3232,6 +3232,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "d4cddb7c2b0c09bea3f390cec791ede13e0c63b87b435694ece9acb75f77d831"
+    "sha256": "2265cca553d18713beb0b1b7c99b9d694217a26f3c0aad9f3fc0e02124e7e89f"
   }
 }
