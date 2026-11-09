@@ -10,8 +10,10 @@ once the build dependencies are installed.
 ## Build the complete book
 
 Install **Node.js 22 or newer**, **Python 3.10 or newer**, Bash and a complete
-**TeX Live with XeLaTeX**. `latexmk` is optional: the shared builder otherwise
-runs XeLaTeX repeatedly, up to eight passes, until references and margins settle.
+**TeX Live with XeLaTeX** and `makeindex` (part of every TeX Live; it sorts the
+index of defined terms). `latexmk` is optional: the shared builder otherwise
+runs XeLaTeX repeatedly, up to eight passes, with `makeindex` between passes,
+until references, margins and the index settle.
 A minimal BasicTeX installation may lack required packages; missing packages
 fail the build instead of being downloaded automatically.
 
@@ -23,8 +25,8 @@ bash book/BUILDING.sh
 
 The resulting PDF is
 `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf`.
-Generated chapter assembly, logs, solution streams and input recorder files are
-in `.cache/whitepaper-build/coordination-papers-mega-volume/`.
+Generated chapter assembly, the index, logs, solution streams and input
+recorder files are in `.cache/whitepaper-build/coordination-papers-mega-volume/`.
 
 The launcher verifies every distributed source against `SOURCE-MANIFEST.json`
 before building. To edit your own copy, first verify the received files with
