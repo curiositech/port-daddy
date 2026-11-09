@@ -132,13 +132,24 @@ that does not depend on one model provider.
 
 \paragraph{Authentication and attenuation.}
 \pdstatus{\BuiltWeak}{protocol model proved; code checked on bounded inputs}
-ProVerif, an automatic protocol verifier, proves the recorded
-proof-of-possession and every-hop attenuation queries for the protocol model.
-The Kani checks of the deployed Rust crate are bounded: the parser does not
-panic on 32-byte inputs with the cryptography stubbed out, the comparator does
-not panic, and two concrete vectors pass the subset check. The code that calls
-the primitive must still be shown to conform, which means showing that every
-protected effect is actually checked by the verified primitive.
+ProVerif, an automatic protocol verifier, proves the recorded authentication
+queries for the protocol model: every accepted card was issued by the daemon or
+delegated from a card that was (Property~\ref{anchor:thm:injective}), and a
+verifier that pins its signature algorithm cannot be tricked into accepting a
+forged card. Attenuation is proved for one hop
+(Property~\ref{anchor:thm:attn-sound}) and for one fixed chain of two
+delegations. Longer chains rest on the per-hop subset argument, not on a
+machine check. No proof of possession is built. Cards are bearer credentials,
+so whoever presents a card's bytes holds its authority until it expires or is
+revoked. Six Kani harnesses check the deployed Rust crate on bounded inputs.
+Four range over decoded inputs: the flat-string subset check, compared with a
+bitset reference; the version and lifetime guards; the channel authority of
+one grant; and a structured subset across two hops. The other two show that
+the comparator cannot panic on 16-byte inputs and that the parser cannot panic
+on 32-byte inputs with the cryptography stubbed out. The parser harness runs
+only when someone starts it by hand. The code that calls the primitive must
+still be shown to conform, which means showing that every protected effect is
+actually checked by the verified primitive.
 
 \paragraph{Sealed execution.}
 \pdstatus{\Designed}{properties model-checked}
@@ -160,7 +171,13 @@ each depends on a custody interface that no party can bypass.
 \paragraph{Relay federation.}
 \pdstatus{\BuiltWeak}{}
 The current Relay carries authenticated events between harbors over outbound
-HTTPS and server-sent events.
+HTTPS and server-sent events. The ProVerif model of the Relay's end-to-end
+path, \path{analyses/relay_e2e_secrecy.pv}, treats the Relay as the attacker.
+It proves that the Relay cannot learn a payload and cannot forge an event
+under a publisher's key. Its replay query fails: the Relay can deliver one
+signed envelope twice, and the subscriber accepts both copies. Only the weaker
+agreement holds, that every accepted event was published at least once, so the
+model does not rule out replay.
 \pdscope{The Relay does not copy daemon databases, put events in one global
 order, authorize local effects, keep messages secret end to end on its own, or
 provide the witness logs and settlement rules of \pdchapref{fh}{The Federated
@@ -187,106 +204,274 @@ Harbor}.}
 \pdgeneratedinput{../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-mechanized.tex}{mechanized claims}
 \par}
 
+% Hand-written close to the generated Appendix B: the facts the manifest's
+% fields cannot carry (tool pins for research rows, a manual-only CI job).
+\paragraph{Pinned tools.} The proofs workflow installs fixed versions:
+ProVerif~2.05 from opam, Kani~0.67.0, TLC from the \texttt{tla2tools.jar} of
+release~1.8.0 under Java~17, Apalache~0.57.0, and Z3~4.8.12 from the Ubuntu
+package \texttt{4.8.12-3.1build1}. The result scripts run under Python~3.12
+with the numeric packages pinned in
+\path{skills/harbor-results/scripts/requirements.txt}. The three property-test
+suites run in the \texttt{unit-tests} job under Node~22, with fast-check~4.7.0
+as locked in \path{package-lock.json}. Wired research-program rows carry no
+evidence policy of their own, so their evidence column shows only a dash.
+
+\paragraph{A wired row that no pull request runs.} The count of wired artifacts
+above includes the Kani parser harness \texttt{proof\_verify\_logic\_only}. Its
+job, \texttt{kani-harbor-card-parser}, runs only when someone dispatches it by
+hand, and no recurring run is set up, so no pull request runs it. The other
+five Kani harnesses run whenever the proofs workflow runs on a pull request.
+
 \section{Result atlas}\label{app:result-atlas}\label{app:one-spine}
 
 The book's results include derivations, experiments, comparisons with the
-literature and counterexamples, and each is tracked on its own. Every result
-below has a stable identifier, stated assumptions, a stated limit, a home
-chapter, and a named artifact that checks it, listed in the book's
-machine-readable manifest.
+literature and counterexamples. This appendix is a concordance. Each of the
+eight propositions below is one chapter's main claim, stated in a few
+sentences, and four entries follow it. \emph{Result} names the labelled
+theorems, properties and sections of this book that state the claim with its
+assumptions. \emph{Artifact} names what checks or recomputes it; script names
+refer to \path{skills/harbor-results/scripts/}, and the Mechanized claims
+appendix gives every artifact's CI job. \emph{Mode} says
+which assurance mode of Appendix~\ref{app:volume-status} the guarantee needs,
+and what the reference system supplies today. \emph{Falsifier} names an
+observation that would refute the claim.
 
 \subsection{The eight propositions and their evidence}
 
-\paragraph{1. Prevention begins at the effect boundary (\pdchapref{swk}{The Single-Writer Kernel}; R5, R8).}
+\paragraph{1. Prevention begins at the effect boundary (\pdchapref{swk}{The Single-Writer Kernel}).}
 A rule can be enforced before its effect happens only when the supervisor can
 block the effect and can see enough of the history to know when to block it.
 Rules that fail either test need other controls, or remedies after the effect.
-The airlock experiments show why the deciding assumption is that every channel
-passes through the gate. A token, label or policy document does not control an
-effect channel by itself.
+One exit that the gate does not mediate, reachable without any step the gate
+can refuse, makes every protocol unsafe against a worst-case agent. The
+deciding assumption is therefore that every channel passes through the gate. A
+token, label or policy document does not control an effect channel by itself.
+\begin{description}[leftmargin=1.4em,itemsep=1pt]
+  \item[Result] Theorem~\ref{swk:thm:regimentation-controllability} (full
+  observation), Theorem~\ref{swk:thm:observability-regimentation} (partial
+  observation) and Theorem~\ref{swk:thm:swk-control-game} (one unmediated
+  exit).
+  \item[Artifact] \texttt{b3\_controllability.py}.
+  \item[Mode] Needs \pdassurance{Brokered}, \pdassurance{Confined} or
+  \pdassurance{Attested} on every channel the rule names. A hook that an agent
+  can decline gives only \pdassurance{Coordinated}
+  (\S\ref{swk:sec:enforcement-gap}), which is what cooperating clients get
+  today; no caller has \pdassurance{Confined} yet.
+  \item[Falsifier] A policy that the script reports as uncontrollable but that
+  some supervisor still enforces exactly, or an effect channel that the
+  enumeration protocol of \S\ref{app:isolation} finds outside the gate.
+\end{description}
 
-\paragraph{2. Delegation only narrows (\pdchapref{anchor}{The Anchor Protocol}; ANCHOR-ATTENUATION, R5).}
-Every hop must authenticate the issuer and refuse a capability that widens its
-scope or extends its lifetime. The cryptographic models prove this narrowing
-property as stated. What remains is engineering work, making every protected
-channel use the check.
+\paragraph{2. Delegation only narrows (\pdchapref{anchor}{The Anchor Protocol}).}
+Every hop must authenticate its issuer and refuse a capability that widens its
+parent's scope or extends its lifetime. The protocol models check this for one
+hop and for one fixed chain of two delegations. Longer chains rest on the
+per-hop subset argument of \S\ref{anchor:sec:delegation}, not on a machine
+check. Cards are bearer credentials, so narrowing limits what a delegate may
+hold, not who may present it. What remains is engineering work, making every
+protected channel use the check.
+\begin{description}[leftmargin=1.4em,itemsep=1pt]
+  \item[Result] Property~\ref{anchor:thm:attn-sound} (one hop) and the
+  multi-hop scope paragraph after it in \S\ref{anchor:sec:attn-soundness};
+  Property~\ref{anchor:thm:injective} (every accepted card traces back to an
+  issued one).
+  \item[Artifact] \path{analyses/harbor_card_v5_attenuation.pv};
+  \path{analyses/harbor_card_v7_multihop_fixed.pv}, which repairs the attack
+  recorded in \path{analyses/harbor_card_v6_multihop_attack.pv}; the Kani
+  harness \texttt{proof\_decoded\_delegation\_two\_hops}.
+  \item[Mode] Needs \pdassurance{Brokered}: the daemon's verifier must sit on
+  every route to the protected effect. The verifier runs in the daemon today,
+  but Appendix~\ref{app:volume-status} records that the calling code has not
+  been shown to send every protected effect through it.
+  \item[Falsifier] A chain that the per-hop verifier accepts although some
+  child's capability or expiry exceeds its parent's. The root-only verifier of
+  the v6 model accepts such a chain; that is the attack the per-hop check
+  removes.
+\end{description}
 
-\paragraph{3. The room confines its tenant, the code inside it, whatever that code intends (\pdchapref{sealed}{The Sealed Harbor}; R9, R10, R11).}
+\paragraph{3. The room confines its tenant, the code inside it, whatever that code intends (\pdchapref{sealed}{The Sealed Harbor}).}
 Two owners who distrust each other compute one answer inside two fences (two
-layers of isolation) with one metered output slot that counts every release. Noninterference
-modulo declassification holds on the finite model of the room. The release
-ledger conserves its $\varepsilon$ leakage budget and refuses a half-finished
-(torn) write. Planted canary records detect exfiltration with a stated detection
-power and a stated time to detection from a Wald sequential test. For $q$
-fixed-length $b$-bit releases, at most $q\cdot b$ bits of payload can leave,
-not counting timing. Timing, cache and physical channels lie outside the model
-and remain open.
+layers of isolation) with one metered output slot that counts every release.
+Noninterference modulo declassification holds on the finite model of the
+room. The release ledger conserves its $\varepsilon$ leakage budget and
+refuses a half-finished (torn) write. Planted canary records detect
+exfiltration with a stated detection power and a stated time to detection from
+a Wald sequential test. For $q$ fixed-length $b$-bit releases, at most
+$q\cdot b$ bits of payload can leave, not counting timing. Timing, cache and
+physical channels lie outside the model and remain open.
+\begin{description}[leftmargin=1.4em,itemsep=1pt]
+  \item[Result] Property~\ref{sealed:thm:sealed-noninterference};
+  Theorem~\ref{sealed:thm:sealed-conservation} with
+  Property~\ref{sealed:prop:sealed-ledger-checked};
+  Theorems~\ref{sealed:thm:sealed-power} and~\ref{sealed:thm:sealed-latency};
+  the $q\cdot b$ account of \S\ref{sealed:sec:sealed-budget}.
+  \item[Artifact] \texttt{c1\_noninterference.py}, \texttt{a3\_epsilon\_ledger.py}
+  and \texttt{a4\_canary\_sprt.py}.
+  \item[Mode] Needs \pdassurance{Brokered}, \pdassurance{Confined} or
+  \pdassurance{Attested} at every exit, never \pdassurance{Coordinated},
+  because a worker that can skip a hook can also skip the ledger the hook
+  updates. The room is designed, not built, so no caller has any of these
+  modes for it today.
+  \item[Falsifier] Two runs of the finite model with different secrets and the
+  same declassified value whose observations differ; a release that the ledger
+  accepts after its budget is spent or after a torn write; a detection rate
+  measurably below the stated power when the theorem's hypotheses hold; more
+  than $q\cdot b$ bits of payload leaving through fixed-length releases.
+\end{description}
 
-\paragraph{4. Supervision has an information cost (\pdchapref{ls}{The Legible Swarm}; R1--R4, R14, R16).}
+\paragraph{4. Supervision has an information cost (\pdchapref{ls}{The Legible Swarm}).}
 The legibility lower bound gives the fewest bits a summary needs to guarantee
-that the operator misses no critical item. The two-reader result shows why one
-ordering of items cannot in general serve both a successor agent choosing what
-to resume and an operator choosing what to look at. The regret rule decides
-when to intervene from the unequal costs of the two kinds of error. Adaptive
-zoom and context paging say when attention can be spent later instead of being
-summarized away now. These bounds hold under their stated event and flag
-models; they do not certify an arbitrary dashboard.
+that the operator misses no critical item. Two results show that one ranking or
+one record cannot serve two readers at once. No increasing transform of a
+single score ranks items both by how well they fit the work and by how much
+the operator would regret ignoring them. And when a summary can keep only one
+record, no choice serves both a successor's next action and the operator's
+audit. The regret head decides when to inspect from the unequal costs of the
+two kinds of error. Adaptive zoom and context paging say when attention can be
+spent later instead of being summarized away now. These bounds hold under their
+stated event and flag models; they do not certify an arbitrary dashboard.
+\begin{description}[leftmargin=1.4em,itemsep=1pt]
+  \item[Result] Theorem~\ref{ls:thm:lowerbound};
+  Theorems~\ref{ls:thm:split-ranker} and~\ref{ls:thm:split-digest};
+  Theorem~\ref{ls:thm:regret-head}; Theorems~\ref{ls:thm:zoom-advantage}
+  and~\ref{ls:thm:paging}.
+  \item[Artifact] \texttt{a7\_experiment.py} for the lower bound;
+  \texttt{zoom\_bound\_check.py} and \texttt{b1\_frontier.py} for adaptive
+  zoom.
+  \item[Mode] The bounds limit every summary, whatever its mode. The operator
+  console that would carry them is an authority surface in the
+  \pdassurance{Coordinated} mode (\S\ref{ls:sec:operator-instrument}).
+  \item[Falsifier] A statistically reliable miss rate below the lower bound in
+  the encoder sweep, the test the chapter itself names for its model; a
+  halving run that uses more group queries than the zoom bound allows.
+\end{description}
 
-\paragraph{5. An agent's record follows its owner and outlives its process (\pdchapref{stp}{From Spawn to Person}; R7, R12, R13, B6).}
+\paragraph{5. An agent's record follows its owner and outlives its process (\pdchapref{stp}{From Spawn to Person}).}
 Reputation is worth something because checking an agent's history once
-replaces re-checking every job it does. Under the no-mint rule a replacement
-inherits no more than its predecessor had, so swapping an agent's skills or
-identity cannot create new permissions. Because budgets and exposure are tracked on the responsible
-principal's case file rather than on the process name, an owner cannot shed
-debts or launder a bad record by restarting the agent under a new name. This depends
-on the rules for registering principals and tracking exposure: a valid key
-alone does not stop its holder from walking away from liabilities under a new
-key.
+replaces re-checking every job it does. The no-mint rule conserves credit when
+a record forks: each successor receives a discounted share and the source is
+debited the full share, so splitting a record never creates credit. Replacing
+an agent is a different escape, with different rules. When fresh identities
+are free, a penalty kept on one identity cannot persist. Binding agents to a
+durable principal with pooled exposure limits is one remedy, and it still needs
+a payoff analysis before it deters. Within one principal, prices are set per
+pair of principal and engine and sanctions per principal, so swapping the
+engine or the skill version sheds no sanction. All of this depends on the rules
+for registering principals and tracking exposure: a valid key alone does not
+stop its holder from walking away from liabilities under a new key.
+\begin{description}[leftmargin=1.4em,itemsep=1pt]
+  \item[Result] The no-mint rule in \S\ref{stp:sec:parfit-lineage-map} and the
+  worked example that follows it; Theorem~\ref{stp:thm:necessity} and
+  Property~\ref{stp:prop:reality}; the scope rule inside
+  Property~\ref{stp:thm:resurrection-soundness}, with
+  Theorem~\ref{stp:thm:engine-swap}.
+  \item[Artifact] \texttt{a6\_no\_mint.py}, a sweep of $4{,}000$ fork graphs;
+  \texttt{b5\_engine\_substitution.py}, the bounded migration model and its
+  mutants.
+  \item[Mode] \pdassurance{Coordinated} today: the daemon mints an opaque
+  actor id, but legacy and bypass paths still accept asserted identifiers
+  (\S\ref{stp:sec:identity}). The claim needs that credential checked at every
+  write boundary that matters for security.
+  \item[Falsifier] A fork graph whose live descendants can spend more credit
+  than was checked (the sweep found none); a migration trace that ends with a
+  sanctioned principal at a clean score while all three migration clauses hold.
+\end{description}
 
-\paragraph{6. Exchange separates payment, collateral, evidence, and closure
-(\pdchapref{he}{The Harbor Economy}; R15, R17).}
-Conservation gives the accounting invariant: no transfer creates or destroys
-money. For a restricted rule language, the commitment fragment, a
-polynomial-time procedure decides which rule sets can conflict, and the
-chapter names the extension of that language at which the question becomes
-NP-complete. The succession rule has a cost. Under the stated queue model, a
-sole specialist who can go offline
-leaves a minimum waiting time that no amount of skill removes, and comparing
-it with a stable pooled queue gives the condition under which pooling wins.
-These are conditional economic statements. Detection probability, one-shot
-gain, collateral, judge independence and custody must be measured or written
-into a contract; none of them can be assumed.
+\paragraph{6. Exchange separates payment, collateral, evidence and completion (\pdchapref{he}{The Harbor Economy}).}
+The bond ledger keeps wallet, escrow and commons summing to the supply after
+every operation, so no transfer creates or destroys money. This chapter builds
+that ledger and states the invariant; \pdchapref{bonded}{The Bonded Commons}
+proves it on a model. For a restricted rule language, the commitment fragment,
+a polynomial-time procedure decides which rule sets can conflict, and one step
+outside the fragment the question becomes NP-complete. The succession rule has
+a cost. Under the stated queue model, a sole specialist who can go offline
+leaves a minimum waiting time that no amount of skill removes, and comparing it
+with a stable pooled queue gives the condition under which pooling wins. These
+are conditional economic statements. Detection probability, one-shot gain,
+collateral, judge independence and custody must be measured or written into a
+contract; none of them can be assumed.
+\begin{description}[leftmargin=1.4em,itemsep=1pt]
+  \item[Result] Design invariant~\ref{he:prop:conservation};
+  Theorems~\ref{he:thm:deontic-detect} and~\ref{he:thm:deontic-frontier};
+  Theorem~\ref{he:thm:succession-price}.
+  \item[Artifact] The bond-ledger property tests,
+  \path{tests/unit/bonds.test.js} and
+  \path{tests/unit/bonds-conservation-property.test.js};
+  \texttt{b4\_deontic\_fragment.py}; \texttt{b8\_specialization.py}.
+  \item[Mode] Conservation holds for transfers that pass through the ledger.
+  The rule that a process runs only with a bond in escrow is enforced by
+  callers, not by the runtime (Design invariant~\ref{he:prop:nospawn}), so it
+  is \pdassurance{Coordinated} today.
+  \item[Falsifier] A sequence of ledger operations after which wallet, escrow
+  and commons no longer sum to the supply; a rule set in the fragment on which
+  the checker and the reference oracle disagree (the sweep of $3{,}000$ found
+  none).
+\end{description}
 
-\paragraph{7. Uncertainty needs an institution (\pdchapref{bonded}{The Bonded Commons};
-the $\delta^{\star}$ claim-signaling game, the conservation model; R11 as instrument).}
-Atomic ledgers keep conservation. Truthful claim signaling is
-incentive-compatible when the discount factor, how much players weigh future
-rounds, is above the mechanized threshold $\delta^{\star}$. If the other player
-signals truthfully and punishes a lie for three rounds, signaling truthfully
-is each player's best response (a Nash equilibrium).
-Audit sampling and canaries borrow the detection-power curve of the sealed
-room's detector. Any claimed benefit of
-randomized adjudication depends on how judges are selected, how independent
-they are and how their rulings are enforced. Evidence can justify a remedy
-without being proof.
+\paragraph{7. Uncertainty needs an institution (\pdchapref{bonded}{The Bonded Commons}).}
+Atomic ledgers keep conservation. The supply changes only when money is added,
+and two concurrent escrow requests cannot together overdraw a wallet when
+balance checks and debits commit atomically. Truthful claim signaling is an
+equilibrium of the repeated claim game when the discount factor, how much
+players weigh future rounds, is above the mechanized threshold
+$\delta^{\star}$. The theorem states the strategy, identities, payoffs and
+monitoring it assumes. Evidence can justify a remedy without being proof.
+\begin{description}[leftmargin=1.4em,itemsep=1pt]
+  \item[Result] Theorem~\ref{bonded:thm:conservation};
+  Theorem~\ref{bonded:lem:no-overdraft};
+  Theorem~\ref{bonded:prop:claim-signaling-ic}.
+  \item[Artifact] \path{proofs/bonded/conservation/Conservation.tla}; the
+  bond-ledger property tests; \path{proofs/economics/claim_signaling.tla} with
+  its $\delta=0.30$ negative control, and
+  \path{proofs/economics/delta-threshold.z3}.
+  \item[Mode] An incentive result changes what a rational player prefers; it
+  blocks nothing. A lie is found in the record after the act and the stake
+  prices it, so the deterrent works at \pdassurance{Observed}. The ledger it
+  draws on is partly built (Appendix~\ref{app:volume-status}).
+  \item[Falsifier] A profitable unilateral deviation that TLC finds above
+  $\delta^{\star}$, or none at $\delta=0.30$ below it, which would mean the
+  negative control had gone vacuous; a second root of the threshold cubic in
+  $[0,1]$; a state of \texttt{Conservation.tla} in which the free, escrowed and
+  burned balances do not add up to what was minted.
+\end{description}
 
-\paragraph{8. Federation relays evidence; each harbor keeps its sovereign authority
-(\pdchapref{fh}{The Federated Harbor}; R6, R6-CR, RELAY-V0).}
+\paragraph{8. Federation relays evidence; each harbor keeps its sovereign authority (\pdchapref{fh}{The Federated Harbor}).}
 When harbors sign summaries (roots) of their logs and compare them along more
 than one path, a harbor that tells different peers different things can be
-caught, for a stated network layout. The counterexample R6-CR refutes the
-tempting claim that a zero local residual (every pair of neighbors agreeing)
-proves that the whole federation is consistent. The current Relay
-transports and authenticates events. Witness logs, secrecy, liveness, custody
-and local authorization still need their own mechanisms.
+caught, for a stated network layout. With a single equivocator, a lie on one
+edge is detected exactly when that edge lies on a cycle the auditor can see. On
+a tree every set of reports can be explained, so a zero residual there does not
+show that the federation is consistent. The current Relay transports and
+authenticates events. Witness logs, secrecy, liveness, custody and local
+authorization still need their own mechanisms.
+\begin{description}[leftmargin=1.4em,itemsep=1pt]
+  \item[Result] Theorem~\ref{fh:thm:sheaf-equivocation};
+  Theorem~\ref{fh:thm:radius-soundness}; Design
+  invariant~\ref{fh:def:fh-sovereignty}; Theorem~\ref{fh:thm:fh-conv} for
+  revocation.
+  \item[Artifact] \texttt{sheaf\_consistency\_radius.py}; for the Relay,
+  \path{proofs/relay/CardRevocation.tla}, \path{proofs/relay/WebhookDelivery.tla}
+  and \path{analyses/relay_e2e_secrecy.pv}, whose replay query fails
+  (Appendix~\ref{app:volume-status}).
+  \item[Mode] Detection comes after the act: a lie is found once two
+  differently signed roots reach one auditor, which is \pdassurance{Observed}.
+  Each harbor's own authority stays local, at whatever mode its own gate has.
+  \item[Falsifier] An honest execution with a positive residual, or a nonzero
+  lie on one edge of a visible cycle whose residual is zero; a rollback configuration of
+  the revocation model that stops producing its counterexample.
+\end{description}
 
 \subsection{A result is included only with its limit}
 In this volume a claim is incomplete unless it states five things: what it is
 about, the assumptions under which it holds, the kind of evidence offered, a
 limit or a test that could refute it, and the artifact a reader can use to
-recompute or inspect it. The machine-readable manifest records those five
-things for every result. A new mechanism enters the book only once it can name
-the result it implements and the obligation it leaves open.
+recompute or inspect it. The concordance above records them for each
+proposition. The labelled result states the subject and the assumptions, the
+artifact and mode entries give the evidence and what it rests on, and the
+falsifier names the test. The Mechanized claims appendix lists every
+artifact with its CI job or the reason it was retired. A new mechanism enters the book
+only once it can name the result it implements and the obligation it leaves
+open.
 
 \section{Notation and cross-chapter concordance}\label{app:concordance}
 % Recut from leftmargin=2.4cm,style=nextline for the same reason as the
@@ -304,49 +489,54 @@ the result it implements and the obligation it leaves open.
   roles may change without creating a new accountable principal. Its
   protection against resets depends on the rules for registering principals
   and assigning liability.
-  \item[Oracle] An external or independently checkable reference used to close
-  a commitment or adjudicate an outcome. Its trust model must be named.
+  \item[Oracle] An external or independently checkable reference used to decide
+  whether a commitment is met or to adjudicate an outcome. Its trust model must
+  be named.
   \item[Epoch] A version or freshness counter, with chapter-specific meaning.
   Chapter 2 uses revocation epochs; Chapter 3 uses attestation freshness to
   detect rollback. A credential's time-to-live is a validity duration, not
   another epoch counter. None substitutes for the others.
   \item[Round] A model step in a dissemination or protocol analysis, not
   automatically a wall-clock deadline.
-  \item[Closed] A machine has checked a proof of exactly the recorded
-  property. Nothing follows for the whole system without an argument that the
-  system conforms to the model.
+  \item[Closed] The marker used in verification tables: the model is verified
+  and its runtime conformance test passes. The appendices use the word in no
+  other sense. A passing conformance test samples the runtime; it does not show
+  that every path through the system conforms to the model.
 \end{description}
 
 \subsection*{Which chapter owns which primitive}
 \label{app:ownership}
 
-Each shared primitive is defined once, in the chapter that owns it. Later
-chapters restate the part they need and apply it to a new example, so a
-reader need not look up a distant definition to follow a paragraph. A
+Each shared primitive has one owner, the chapter that proves what the book
+proves about it. Its term is defined where a reader first meets it, which can
+be an earlier chapter. Later chapters restate the part they need
+and apply it to a new example, so a reader need not look up a distant
+definition to follow a paragraph. A
 restatement keeps the original's meaning, and an extension states its added
 assumptions. The table says which chapter settles a conflict between
 versions; it does not forbid useful repetition.
 
 \begin{table}[H]
 \centering
-\caption{Primitive ownership. ``Owner'' defines it and proves what is proved
-about it; ``cites'' names the chapters that use it without redefining it.}
+\caption{Primitive ownership. ``Owner'' proves what is proved about the
+primitive; ``Cites it'' names the chapters that use it, including those that
+restate or extend it without replacing the owner's version.}
 \label{tab:primitive-ownership}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.26\textwidth} >{\raggedright\arraybackslash}p{0.15\textwidth}@{}}
 \toprule
 \textbf{Primitive} & \textbf{Owner} & \textbf{Cites it} \\
 \midrule
-Authorization chain (attenuation, hop-binding, replay) & ch.~2, Anchor Protocol & ch.~1, 5, 7, 8 \\
+Authorization chain (attenuation, hop binding, replay) & ch.~2, Anchor Protocol & ch.~1, 4, 6, 7, 8 \\
 Coordination lineage (task graph, loop detection) & ch.~1, Single-Writer Kernel & ch.~4 \\
-Leakage budget and the release slot & ch.~3, Sealed Harbor & ch.~4, 6 \\
-Float plan & ch.~6, Harbor Economy & ch.~7, 8 \\
-Bond, escrow, and the commons pool & ch.~7, Bonded Commons & ch.~6, 8 \\
+Leakage budget and the release slot & ch.~3, Sealed Harbor & ch.~1 \\
+Float plan & ch.~6, Harbor Economy & ch.~2, 4, 7 \\
+Bond ledger and its conservation (escrow, commons pool) & ch.~7, Bonded Commons & ch.~6, 8 \\
 Cross-harbor transfer ceremony & ch.~8, Federated Harbor & ch.~6 \\
-Witness log, epoch root, equivocation residual & ch.~8, Federated Harbor & ch.~2, 7 \\
-Threat bands and the visibility tiers & ch.~8, Federated Harbor & ch.~3 \\
-Non-forgeable principal identity & ch.~5, From Spawn to Person & ch.~6, 7 \\
-Audit tower and grader escalation & ch.~5, From Spawn to Person & ch.~1, 6 \\
+Witness log, epoch root, completion residual & ch.~8, Federated Harbor & ch.~5, 6, 7 \\
+Threat bands and the visibility tiers & ch.~8, Federated Harbor & ch.~6, 7 \\
+Non-forgeable principal identity & ch.~5, From Spawn to Person & ch.~1, 4, 6 \\
+Audit tower and the grading oracle & ch.~5, From Spawn to Person & ch.~1, 4, 6 \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -366,7 +556,7 @@ observations are complete.
 \begin{table}[H]
 \centering
 \caption{Where the unresolved questions live. Related results can narrow a
-question without closing it.}
+question without answering it.}
 \label{tab:op-concordance}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}X@{}}
