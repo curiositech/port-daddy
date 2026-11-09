@@ -70,7 +70,7 @@ has found the database password in an environment variable. Run that one
 attempt through each mode and ask whether the claim ``every write to staging
 was checked'' survives.
 
-\emph{Observed.} The write succeeds. The operator sees it later, in the
+\emph{Observed.} The write succeeds. Alice, the operator, sees it later in the
 database's own log.
 
 \emph{Coordinated.} The write succeeds. Heron never registers it, and nothing
@@ -93,7 +93,7 @@ leaked password would have made the Brokered claim hold. It would change
 nothing at Confined, which never depended on Heron lacking a password.
 \end{pdexample}
 
-The modes describe one claim at run time by what it rests on. Automation
+Each mode classifies one claim, at run time, by what the claim rests on. Automation
 levels describe how work is divided between a person and a machine, and
 evaluation assurance levels describe how closely a security claim was
 examined. Chapter~1 compares the three. A system can be more automated without
@@ -108,8 +108,7 @@ The daemon writes sessions, claims, messages, commitments and some other
 coordination state through one SQLite writer in write-ahead-log mode, and
 regression tests exercise those paths. Durability guarantees still depend on
 the kind of failure; a process crash and a power loss are covered differently.
-Schema
-changes do not yet follow the strongest design in \pdchapref{swk}{The
+Schema changes do not yet follow the strongest design in \pdchapref{swk}{The
 Single-Writer Kernel}, and file or network effects that bypass the daemon's
 checked paths are outside the transaction.
 
@@ -188,82 +187,101 @@ Harbor}.}
 
 \section{Result atlas}\label{app:result-atlas}\label{app:one-spine}
 
-The research program contains derivations, experiments, literature comparisons
-and counterexamples. Its claims are tracked individually. Each
-result below has a stable identifier, assumptions, a boundary, a chapter home,
-and a named verification artifact in the companion manifest.
+The research program's results include derivations, experiments, comparisons
+with the literature and counterexamples, and each is tracked on its own. Every
+result below has a stable identifier, stated assumptions, a stated limit, a
+home chapter, and a named artifact in the companion manifest that checks it.
 
 \subsection{The eight propositions and their evidence}
 
 \paragraph{1. Prevention begins at the effect boundary (R5, R8) --- \pdchapref{swk}{The Single-Writer Kernel}.}
-Controllability and sufficient observation together distinguish enforceable
-pre-effect rules from properties requiring other controls or post-effect remedies. The airlock experiments show why complete
-channel mediation is the decisive assumption. A token, label, or policy document
-does not control an effect channel by itself.
+A rule can be enforced before its effect happens only when the supervisor can
+block the effect and can see enough of the history to know when to block it.
+Rules that fail either test need other controls, or remedies after the effect.
+The airlock experiments show why the deciding assumption is that every channel
+passes through the gate. A token, label or policy document does not control an
+effect channel by itself.
 
 \paragraph{2. Delegation only narrows (ANCHOR-ATTENUATION, R5) --- \pdchapref{anchor}{The Anchor Protocol}.}
-Every hop must authenticate the issuer and reject a capability that expands
-scope or lifetime. The cryptographic models close the stated monotonicity
-property; the engineering obligation is universal use at protected channels.
+Every hop must authenticate the issuer and refuse a capability that widens its
+scope or extends its lifetime. The cryptographic models prove this narrowing
+property as stated. What remains is engineering work, making every protected
+channel use the check.
 
-\paragraph{3. Confinement is a property of the room, not of the tenant (R9, R10, R11) --- \pdchapref{sealed}{The Sealed Harbor}.}
-Two owners who distrust each other compute one answer inside two fences with a
-single metered slot. Noninterference modulo declassification holds on the
-finite room model; the release ledger conserves its $\varepsilon$ budget and
-refuses the torn write; canaries detect exfiltration with a stated power curve
-and a Wald clock. For $q$ fixed-length $b$-bit releases, $q\cdot b$ bounds payload capacity before
-timing, and timing, cache, and physical channels are declared out of model
-rather than closed.
+\paragraph{3. The room confines its tenants, whatever they intend (R9, R10, R11) --- \pdchapref{sealed}{The Sealed Harbor}.}
+Two owners who distrust each other compute one answer inside two layers of
+isolation, with one output slot whose releases are counted. Noninterference
+modulo declassification holds on the finite model of the room. The release
+ledger conserves its $\varepsilon$ leakage budget and refuses a half-finished
+(torn) write. Planted canary records detect exfiltration with a stated detection
+power and a stated time to detection from a Wald sequential test. For $q$
+fixed-length $b$-bit releases, at most $q\cdot b$ bits of payload can leave,
+not counting timing. Timing, cache and physical channels lie outside the model
+and remain open.
 
 \paragraph{4. Supervision has an information cost (R1--R4, R14, R16) --- \pdchapref{ls}{The Legible Swarm}.}
-The information floor prices guaranteed recall; the dual-reader result shows why
-one ordering cannot generally serve both successor selection and operator
-attention; the regret rule derives intervention from asymmetric error cost;
-adaptive zoom and context paging describe when attention can be spent later
-rather than summarized away now. The bounds price guarantees under their stated
-event and flag models. They do not certify an arbitrary dashboard.
+The legibility lower bound gives the fewest bits a summary needs to guarantee
+that the operator misses no critical item. The two-reader result shows why one
+ordering of items cannot in general serve both a successor agent choosing what
+to resume and an operator choosing what to look at. The regret rule decides
+when to intervene from the unequal costs of the two kinds of error. Adaptive
+zoom and context paging say when attention can be spent later instead of being
+summarized away now. These bounds hold under their stated event and flag
+models; they do not certify an arbitrary dashboard.
 
-\paragraph{5. Accountability outlives the process (R7, R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
-The inspection tower prices reputation as amortized verification. No-mint transfer semantics prevent skill or identity replacement from creating
-new authority. Budget-pooling and exposure arguments make reset laundering a
-property of the principal's case file, not the process name. The admission and exposure assumptions are essential: an authentic key alone
-does not prevent its holder from abandoning liabilities under a new key.
+\paragraph{5. An agent's record follows its owner, not its process (R7, R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
+Reputation is worth something because checking an agent's history once
+replaces re-checking every job it does. Swapping an agent's skills or identity
+cannot create new permissions: the replacement inherits exactly what its
+predecessor had. Because budgets and exposure are tracked on the responsible
+principal's case file rather than on the process name, an owner cannot shed
+debts or a bad record by restarting the agent under a new name. This depends
+on the rules for registering principals and tracking exposure: a valid key
+alone does not stop its holder from walking away from liabilities under a new
+key.
 
 \paragraph{6. Exchange separates payment, collateral, evidence, and closure
 (R15, R17) --- \pdchapref{he}{The Harbor Economy}.}
-Conservation supplies the accounting invariant; the tractable deontic fragment
-decides which rule sets can conflict and names the frontier past which that
-decision turns NP-complete; the succession rule has a price, because under the stated queue model a sole
-owner has a residual-downtime floor; comparison with a stable pooled queue
-gives a conditional pooling threshold. These are conditional economic
-statements. Detection probability, one-shot gain, collateral, judge
-independence, and custody must be measured or contracted rather than implied.
+Conservation gives the accounting invariant: no transfer creates or destroys
+money. For a restricted rule language, the commitment fragment, a
+polynomial-time procedure decides which rule sets can conflict, and the
+chapter names the extension of that language at which the question becomes
+NP-complete. The succession rule has a cost. Under the stated queue model, a
+sole specialist who can go offline
+leaves a minimum waiting time that no amount of skill removes, and comparing
+it with a stable pooled queue gives the condition under which pooling wins.
+These are conditional economic statements. Detection probability, one-shot
+gain, collateral, judge independence and custody must be measured or written
+into a contract; none of them can be assumed.
 
 \paragraph{7. Uncertainty needs an institution (the $\delta^{*}$ claim-signaling
 game, the conservation model; R11 as instrument) --- \pdchapref{bonded}{The Bonded Commons}.}
-Atomic ledgers preserve conservation; truthful claim signaling is
-incentive-compatible above the mechanized discount threshold $\delta^{*}$;
-audit sampling and canaries borrow their power curve from the sealed room's
-detector; any claimed benefit of randomized adjudication depends on its
-selection, independence and enforcement assumptions. Evidence may support a remedy without
-becoming mechanical truth.
+Atomic ledgers keep conservation. Truthful claim signaling is each player's
+best strategy (incentive-compatible) when the discount factor, how much
+players weigh future rounds, is above the mechanized threshold $\delta^{*}$.
+Audit sampling and canaries use the detection-power curve of the sealed room's
+detector. Any claimed benefit of
+randomized adjudication depends on how judges are selected, how independent
+they are and how their rulings are enforced. Evidence can justify a remedy
+without being proof.
 
-\paragraph{8. Federation relays evidence, not sovereignty (R6, R6-CR,
+\paragraph{8. Federation carries evidence; each harbor keeps its own authority (R6, R6-CR,
 RELAY-V0) --- \pdchapref{fh}{The Federated Harbor}.}
-Signed roots and redundant comparison paths can expose equivocation across a
-specified topology. The counterexample R6-CR rejects the tempting claim that a
-zero local residual proves global consistency. Current Relay establishes event
-transport and authentication; it does not close witness, secrecy, liveness,
-custody, or local authorization obligations.
+When harbors sign summaries (roots) of their logs and compare them along more
+than one path, a harbor that tells different peers different things can be
+caught, for a stated network layout. The counterexample R6-CR refutes the
+tempting claim that a zero local residual (every pair of neighbors agreeing)
+proves that the whole federation is consistent. The current Relay
+transports and authenticates events. Witness logs, secrecy, liveness, custody
+and local authorization still need their own mechanisms.
 
-\subsection{A result is admitted only with its limit}
-For this volume, a claim is incomplete unless it states all five of the
-following: the object it concerns, the assumptions under which it holds, the
-kind of evidence offered, a boundary or falsifier, and the artifact by which a
-reader can recompute or inspect it. The machine-readable manifest is the
-publication ledger for that discipline. New mechanisms belong in the book only
-after they can name the result they instantiate and the obligation they leave
-unresolved.
+\subsection{A result is included only with its limit}
+In this volume a claim is incomplete unless it states five things: what it is
+about, the assumptions under which it holds, the kind of evidence offered, a
+limit or a test that could refute it, and the artifact a reader can use to
+recompute or inspect it. The machine-readable manifest records those five
+things for every result. A new mechanism enters the book only once it can name
+the result it implements and the obligation it leaves open.
 
 \section{Notation and cross-chapter concordance}\label{app:concordance}
 % Recut from leftmargin=2.4cm,style=nextline for the same reason as the
@@ -271,15 +289,16 @@ unresolved.
 \begin{description}[leftmargin=1.4em,itemsep=4pt]
   \item[Work unit] The durable case file joining authorization, capability
   history, evidence, obligations, outcomes, and settlement.
-  \item[Harbor] One local administrative and transactional authority, normally
-  one daemon and its durable database.
+  \item[Harbor] One local authority that governs and records agents' work,
+  normally one daemon and its durable database.
   \item[Principal] The human or organization whose policy and resources an
   agent ultimately exercises; not interchangeable with a process identity.
   \item[Role] A bundle of obligations, capabilities, and authority that a spawn
   may fill.
   \item[Person] An accountable identity with continuity and a witnessed outcome history;
-  roles may change without creating a new accountable principal. Its anti-reset
-  properties depend on admission and liability rules.
+  roles may change without creating a new accountable principal. Its
+  protection against resets depends on the rules for registering principals
+  and assigning liability.
   \item[Oracle] An external or independently checkable reference used to close
   a commitment or adjudicate an outcome. Its trust model must be named.
   \item[Epoch] A version or freshness counter, with chapter-specific meaning.
@@ -288,19 +307,20 @@ unresolved.
   another epoch counter. None substitutes for the others.
   \item[Round] A model step in a dissemination or protocol analysis, not
   automatically a wall-clock deadline.
-  \item[Closed] The exact recorded property has been mechanically discharged.
-  No whole-system implication follows without a conformance argument.
+  \item[Closed] A machine has checked a proof of exactly the recorded
+  property. Nothing follows for the whole system without an argument that the
+  system conforms to the model.
 \end{description}
 
 \subsection*{Which chapter owns which primitive}
 \label{app:ownership}
 
-Each shared primitive has a canonical definition in its owning chapter.
-Later chapters recall the relevant part in context and apply it to a new
-example; readers should not have to retrieve a distant definition merely to
-follow a paragraph. Those reminders must preserve the same contract. A genuine
-extension states the added assumptions explicitly. The table identifies where
-to resolve a conflict, not a prohibition on useful repetition.
+Each shared primitive is defined once, in the chapter that owns it. Later
+chapters restate the part they need and apply it to a new example, so a
+reader need not look up a distant definition to follow a paragraph. A
+restatement keeps the original's meaning, and an extension states its added
+assumptions. The table says which chapter settles a conflict between
+versions; it does not forbid useful repetition.
 
 \begin{table}[H]
 \centering
@@ -314,13 +334,13 @@ about it; ``cites'' names the chapters that use it without redefining it.}
 \midrule
 Authorization chain (attenuation, hop-binding, replay) & ch.~2, Anchor Protocol & ch.~1, 5, 7, 8 \\
 Coordination lineage (task graph, loop detection) & ch.~1, Single-Writer Kernel & ch.~4 \\
-Leakage budget and the priced exit & ch.~3, Sealed Harbor & ch.~4, 6 \\
+Leakage budget and the release slot & ch.~3, Sealed Harbor & ch.~4, 6 \\
 Float plan & ch.~6, Harbor Economy & ch.~7, 8 \\
 Bond, escrow, and the commons pool & ch.~7, Bonded Commons & ch.~6, 8 \\
 Cross-harbor transfer ceremony & ch.~8, Federated Harbor & ch.~6 \\
 Witness log, epoch root, equivocation residual & ch.~8, Federated Harbor & ch.~2, 7 \\
 Threat bands and the visibility tiers & ch.~8, Federated Harbor & ch.~3 \\
-Keystone identity (non-forgeable principal) & ch.~5, From Spawn to Person & ch.~6, 7 \\
+Non-forgeable principal identity & ch.~5, From Spawn to Person & ch.~6, 7 \\
 Inspection tower and grader escalation & ch.~5, From Spawn to Person & ch.~1, 6 \\
 \bottomrule
 \end{tabularx}
@@ -329,13 +349,14 @@ Inspection tower and grader escalation & ch.~5, From Spawn to Person & ch.~1, 6 
 \subsection*{Routes to the open problems}
 \label{app:open-concordance}
 
-Open problems are numbered in three separate namespaces on purpose --- chapter
-1's \textsf{OP-$n$} is the kernel's, chapter 5 declines to extend it because its
-questions are not kernel questions, and chapter 8 states its own in prose --- and
-this table gives a thematic route to the owning lists, not an exhaustive
-enumeration or a new numbering. The owning chapter's statement remains the
-source for assumptions and status. An incentive result about graders does not
-close a question about whether their observations are complete.
+Open problems are numbered separately on purpose. Chapter~1's
+\textsf{OP-$n$} list belongs to the kernel. Chapter~5 keeps its own list,
+because its questions are not about the kernel, and Chapter~8 states its open
+problems in prose. The table groups them by theme and points to the list that
+owns each one; it is not a complete list and adds no numbers. The owning
+chapter's statement remains the source for assumptions and status. For
+example, an incentive result about graders does not settle whether their
+observations are complete.
 
 \begin{table}[H]
 \centering
@@ -347,7 +368,7 @@ question without closing it.}
 \toprule
 \textbf{Where} & \textbf{Problem} & \textbf{What bears on it elsewhere} \\
 \midrule
-ch.~1, \textsf{OP-1}--\textsf{OP-11} & The kernel's eleven, stated once in its own status table; \textsf{OP-4} splits into \textsf{OP-4a} (durable lineage replay) and \textsf{OP-4b} (inference-state recovery). & \textsf{OP-4b} is graded on ch.~5's agent-death ladder, rung 5; \textsf{OP-5} (oracle \emph{completeness}) is untouched by ch.~5's tower, which is about oracle \emph{incentives}. \\
+ch.~1, \textsf{OP-1}--\textsf{OP-11} & The kernel's eleven, stated once in its own status table; \textsf{OP-4} splits into \textsf{OP-4a} (durable lineage replay) and \textsf{OP-4b} (inference-state recovery). & \textsf{OP-4b} is graded on ch.~5's scale of what survives an agent's death, at level 5; \textsf{OP-5} (oracle \emph{completeness}) is not addressed by ch.~5's inspection tower, which concerns oracle \emph{incentives}. \\
 ch.~5 & Its own list, deliberately outside the kernel's numbering: death taxonomy, neutral graded outcomes, judge conflict of interest, correlated auditors. & The correlated-auditor question shares ch.~6's mixing model and its unmeasured $\theta$. \\
 ch.~8 & Deployment-specific propagation tails; the relationship between sheaf diffusion and anti-entropy gossip. & No spectral alarm-time law is established. A tree can have a positive diffusion gap and no detectable cycle residual. Visibility and a noise threshold must enter any proposed law. \\
 Cross-chapter & Claim signalling under \emph{private} monitoring: ch.~7 assumes both players see the same action history before the next round. & One ledger does not ensure timely shared observation. Gossip, hidden actions, resettable identities, and delayed views need their own incentive analysis. \\
