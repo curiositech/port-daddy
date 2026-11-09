@@ -112,6 +112,12 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
     updateStatus: db.prepare('UPDATE services SET status = ?, last_seen = ? WHERE id = ?'),
     deleteById: db.prepare('DELETE FROM services WHERE id = ?'),
     deleteByPattern: db.prepare('DELETE FROM services WHERE id LIKE ?'),
+    getExpiredIds: db.prepare('SELECT id FROM services WHERE expires_at IS NOT NULL AND expires_at < ?'),
+    deleteExpiredEndpoints: db.prepare(`
+      DELETE FROM endpoints WHERE service_id IN (
+        SELECT id FROM services WHERE expires_at IS NOT NULL AND expires_at < ?
+      )
+    `),
     deleteExpired: db.prepare('DELETE FROM services WHERE expires_at IS NOT NULL AND expires_at < ?'),
 
     countByPrefix: db.prepare("SELECT COUNT(*) as count FROM services WHERE id LIKE ? ESCAPE '\\'"),
@@ -228,7 +234,8 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
    * Design intent: a service is gone only when all three are gone. `cleanup()`
    * uses this for dead-PID rows and `claim()` uses it for an expired row it is
    * about to replace, so a reclaimed identity never inherits a stale tunnel or
-   * custom endpoint from the claim that lapsed.
+   * custom endpoint from the claim that lapsed. `sweepExpired()` is the bulk
+   * form of the same removal.
    *
    * @param id - The normalized service identity.
    * @returns Nothing; a missing row is a no-op.
@@ -237,6 +244,28 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
     stmts.deleteAllEndpoints.run(id);
     stmts.deleteById.run(id);
     semanticIndex?.unindex(id);
+  }
+
+  /**
+   * Delete every service whose deadline has passed, with its endpoints and
+   * semantic-index entries.
+   *
+   * Why: the endpoints table has no foreign key to services, so deleting only
+   * the service rows left their endpoints behind, and the next claim of the
+   * same identity inherited them (a `tunnel` URL from a claim that had lapsed).
+   * `cleanup()` and `release({ expired: true })` both sweep through here so the
+   * two cannot drift, and both use one `now` for the select and the deletes.
+   *
+   * @param now - The sweep instant; rows with `expires_at < now` are removed,
+   *   the same predicate `claim()` uses to treat a row as free.
+   * @returns The number of service rows deleted.
+   */
+  function sweepExpired(now: number): number {
+    if (semanticIndex) {
+      for (const s of stmts.getExpiredIds.all(now) as { id: string }[]) semanticIndex.unindex(s.id);
+    }
+    stmts.deleteExpiredEndpoints.run(now);
+    return stmts.deleteExpired.run(now).changes;
   }
 
   /**
@@ -400,7 +429,17 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
   }
 
   /**
-   * Release service(s) by ID or pattern
+   * Release service(s) by ID or pattern.
+   *
+   * Purpose: the explicit counterpart to TTL expiry. Every branch removes the
+   * service rows together with their endpoints and semantic-index entries, so
+   * a released identity can be claimed again from a clean slate.
+   *
+   * @param idOrPattern - An exact identity, or a wildcard pattern such as `myapp:*`.
+   * @param options - `expired: true` ignores the identity and sweeps every
+   *   service whose deadline has passed, as `cleanup()` does.
+   * @returns `{ success, released, message }` (plus `port` for a single
+   *   release), or `{ success: false, error }` for an invalid identity.
    */
   function release(idOrPattern: string, options: ReleaseOptions = {}) {
     const parsed = parseIdentity(idOrPattern);
@@ -411,18 +450,11 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
     const { expired = false } = options;
 
     if (expired) {
-      // Pre-query expired IDs for trie cleanup
-      if (semanticIndex) {
-        const expiredRows = db.prepare(
-          'SELECT id FROM services WHERE expires_at IS NOT NULL AND expires_at < ?'
-        ).all(Date.now()) as { id: string }[];
-        for (const s of expiredRows) semanticIndex.unindex(s.id);
-      }
-      const result = stmts.deleteExpired.run(Date.now());
+      const released = sweepExpired(Date.now());
       return {
         success: true,
-        released: result.changes,
-        message: `released ${result.changes} expired service(s)`
+        released,
+        message: `released ${released} expired service(s)`
       };
     }
 
@@ -640,20 +672,20 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
   }
 
   /**
-   * Cleanup expired services and services with dead PIDs
+   * Cleanup expired services and services with dead PIDs.
+   *
+   * Design: the daemon's periodic reclamation tick. Expired rows go through
+   * `sweepExpired()`; `running` rows whose PID no longer answers signal 0 go
+   * through `dropService()`. `claim()` applies the same expiry predicate on
+   * its own, so correctness does not depend on how recently this ran.
+   *
+   * @returns `{ cleaned }`, the number of service rows removed.
    */
   function cleanup() {
     const now = Date.now();
 
-    // 1. Remove expired services (pre-query for trie cleanup)
-    if (semanticIndex) {
-      const expiredRows = db.prepare(
-        'SELECT id FROM services WHERE expires_at IS NOT NULL AND expires_at < ?'
-      ).all(now) as { id: string }[];
-      for (const s of expiredRows) semanticIndex.unindex(s.id);
-    }
-    const expiredResult = stmts.deleteExpired.run(now);
-    let cleaned = expiredResult.changes;
+    // 1. Remove expired services, their endpoints and trie entries
+    let cleaned = sweepExpired(now);
 
     // 2. Remove services whose PID is no longer alive (zombie cleanup).
     // Only check services that have a PID and are in 'running' status

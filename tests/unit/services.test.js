@@ -301,6 +301,21 @@ describe('Services Module - Re-claim against expiry (I3, I4)', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM services').get().n).toBe(1);
   });
 
+  it.each([
+    ['cleanup()', (s) => s.cleanup()],
+    ['release({ expired: true })', (s) => s.release('*', { expired: true })],
+  ])('%s sweeps an expired row with its endpoints, so a later claim inherits none', (_label, sweep) => {
+    services.claim(ID, { expires: '1m' });
+    services.setEndpoint(ID, 'tunnel', 'https://stale.example');
+    now += 2 * 60_000;
+
+    sweep(services);
+
+    expect(row(ID)).toBeUndefined();
+    expect(envs(ID)).toEqual([]);
+    services.claim(ID);
+    expect(services.get(ID).service.urls).toEqual({ local: expect.stringMatching(/^http:\/\/localhost:\d+$/) });
+  });
 });
 
 describe('Services Module - Release Operations (10 tests)', () => {
