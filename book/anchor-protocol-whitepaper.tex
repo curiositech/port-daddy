@@ -353,7 +353,6 @@ This describes how the deployed daemon holds keys. The implementation backs it, 
 \end{pdclaim}
 \pdscope{The protocol models of \S\ref{sec:correct} assume this key hierarchy; none of their queries establishes it.}
 
-% SUBMISSION-SKILL: naming conflict — "Biscuit" is the name of an existing, well-known capability-security authorization-token format (Eclipse Biscuit / biscuitsec.org, Couprie et al., presented at Pass the SALT 2021): public-key-signed tokens with offline attenuation, directly descended from Macaroons, structurally very close to what Phase 3 describes. This subsection uses "Biscuit" only as an informal nickname and cites neither the project nor a disambiguation. Recommend either citing the Biscuit project and stating how this protocol differs (datalog policies vs. flat capability sets; JWT envelope vs. Biscuit's own block format), or dropping the nickname in favor of the already-used "Macaroon"/"offline attenuation" vocabulary, which is unambiguous and already cited. Left as-is per submission-readiness scope (flag, not silent rename).
 \subsection{Phase 3: Offline Delegation}
 
 Delegation can pass authority through more than one agent, one hop at a time. When Agent A starts Agent B, A does not ask the daemon for a new card. It narrows its own card itself, offline, meaning without contacting the daemon. The method is modeled on macaroons~\pdcite{birgisson2014macaroons}, credentials to which any holder can add restrictions, called caveats, but from which no holder can remove one.
@@ -402,7 +401,7 @@ on \texttt{a*} covers \texttt{pub} on \texttt{ab} as well. [internal]
 
 For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature must cover a fresh nonce and the identities of the previous and next holders, so that an attacker who intercepts one hop cannot splice it into a different chain.
 
-Two older bodies of work study the property checked here more directly than macaroons do. SPKI/SDSI, a public-key certificate system from the late 1990s, asks whether a chain of certificates only ever narrows as it lengthens, and answers by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the harbor's per-hop subset check is that reduction done one link at a time. Miller's object-capability discipline, in which a capability is the only route to any authority and nothing is allowed merely because a process is present, was worked out for concurrent components that do not trust each other~\pdcite{miller2006robustcomposition}. That rule fits this protocol more closely than Dennis and Van Horn's founding 1966 statement. The design rule that follows is to restrict a capability when it is issued and also check the chain when it is verified, so that the chain check is a second defense rather than the only one. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} shows why: checking each card against the root instead of its immediate parent accepts a card that re-grants a right a middle hop had removed.
+Two older bodies of work study the property checked here more directly than macaroons do. SPKI/SDSI, a public-key certificate system from the late 1990s, asks whether a chain of certificates only ever narrows as it lengthens, and answers by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the harbor's per-hop subset check is that reduction done one link at a time. Miller's object-capability discipline, in which a capability is the only route to any authority and nothing is allowed merely because a process is present, was worked out for concurrent components that do not trust each other~\pdcite{miller2006robustcomposition}. That rule fits this protocol more closely than Dennis and Van Horn's founding 1966 statement, and Hardy's confused deputy is the classic case for it: a compiler overwrote its system's billing file on a user's behalf because, in Hardy's words, it ``runs with authority stemming from two sources''~\pdcite{hardy1988confused}. The design rule that follows is to restrict a capability when it is issued and also check the chain when it is verified, so that the chain check is a second defense rather than the only one. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} shows why: checking each card against the root instead of its immediate parent accepts a card that re-grants a right a middle hop had removed. Macaroons, and Biscuit, a public-key token format descended from them~\pdcite{biscuit2026}, cannot fall into that trap, because a holder can only append restrictions and the verifier checks every one. A Harbor Card child instead restates its rights in full, which is why the verifier must compare each child with its parent.
 
 \input{figures/fig-anchor-delegation-inline}
 
@@ -1560,6 +1559,12 @@ Carl M. Ellison, Bill Frantz, Butler Lampson, Ron Rivest, Brian M. Thomas, and T
 Ronald L. Rivest and Butler Lampson.
 \newblock SDSI --- A Simple Distributed Security Infrastructure.
 \newblock Technical report, 1996.
+
+\bibitem{hardy1988confused}
+Norm Hardy.
+\newblock The Confused Deputy (or why capabilities might have been invented).
+\newblock \textit{ACM SIGOPS Operating Systems Review}, 22(4):36--38, 1988.
+\newblock \url{https://css.csail.mit.edu/6.566/2011/readings/confused-deputy.html}
 
 \bibitem{miller2006robustcomposition}
 Mark S. Miller.
