@@ -280,6 +280,30 @@ Every later protocol is checked against Design Invariant~\ref{def:fh-sovereignty
 on its own whether $A$'s signed offer satisfies $B$'s policy, and checking
 $A$'s signature gives $A$ no authority at $B$. The new card has a local issuer
 but still depends on $A$'s original card staying valid.
+Table~\ref{tab:fh-authorities} makes the same check for all four protocols.
+Each cell says which authority the protocol reads or exercises, and whose; no
+cell lets one harbor exercise another's, which is what it means for a protocol
+not to transfer sovereignty.
+
+\begin{table}[H]
+\centering
+\caption{The four protocols against the five authorities of Design
+Invariant~\ref{def:fh-sovereignty}. Each harbor exercises only its own
+authority; another harbor's is read, never written. [internal]}
+\label{tab:fh-authorities}
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries\raggedright\arraybackslash}p{1.95cm} *{5}{>{\raggedright\arraybackslash}X}@{}}
+\toprule
+ & \textbf{Issuance} & \textbf{Attenuation} & \textbf{Revocation} & \textbf{Acceptance} & \textbf{Evidence binding} \\
+\midrule
+Transfer & $B$ issues its own card; $C_A$ stays at $A$ & each narrows; neither widens the other & $B$ records $A$'s, never writes it & $B$ alone decides & $B$ reads $A$'s root, signs only its own \\
+Revocation & untouched & untouched & issuer writes; others read & each receiver enforces when it learns & recorded in the issuer's next root \\
+Settlement & untouched & untouched & untouched & bond terms apply, not a harbor's policy & custodian reads roots, signs only its receipt \\
+Joining & newcomer issues its own & receivers may narrow during probation & untouched & each member still decides & sponsor co-signs the enrollment record \\
+\bottomrule
+\end{tabularx}
+\end{table}
 \subsection{Operations that cross harbors}\label{sec:fh-scope-property}
 The second notion concerns where an operation's effects land. An operation has \pdterm{inter-harbor scope} when its effects cross from one owner's harbor into another's.
 \begin{pdclaim}{Design invariant}{Inter-Harbor Scope}
