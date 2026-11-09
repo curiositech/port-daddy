@@ -1040,12 +1040,24 @@ To act safely on the host, a harness must control which tools are called, load t
 
 \subsection{The Model Context Protocol (MCP)}
 
-The \href{https://modelcontextprotocol.io/specification/2025-11-25/server/tools}{Model Context Protocol (MCP), specification 2025-11-25}, standardizes how a harness connects to servers that offer tools and context. It does not itself limit what those tools can change. It defines three kinds of offering:
+The \href{https://modelcontextprotocol.io/specification/2026-07-28}{Model Context Protocol (MCP), specification revision 2026-07-28}, standardizes how a harness connects to servers that offer tools and context. It does not itself limit what those tools can change. It defines three kinds of offering:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Tools:} Server-exposed procedures invoked through the harness ($\mathtt{tools/call}$), with JSON-Schema inputs and results that can contain content blocks or structured data.
   \item \textbf{Resources:} Passive data endpoints ($\mathtt{resources/read}$) exposing context such as local file contents, system logs, or git diffs.
   \item \textbf{Prompts:} Reusable prompt templates parameterizing multi-step workflows.
 \end{enumerate}
+This revision made the protocol stateless. Each request is self-contained and
+carries its own protocol version and client details, and no session
+links one call to the next. A server that needs state across calls returns a
+handle from one tool, and the model passes it back as an argument to the next.
+For an authenticated server the specification calls such a handle ``a name,
+not a capability'' and asks the server to check the caller's authorization
+against it on every call
+(\href{https://modelcontextprotocol.io/specification/2026-07-28/server/tools}{Stateful
+Tools}). The protocol therefore keeps no coordination state between calls.
+Design invariant~\ref{req:external-state} already puts that state in the
+kernel's durable store, and a handle the model passes back is part of a
+proposal, to be checked like any other argument.
 
 \subsection{Context Use and Progressive Skill Disclosure}
 
