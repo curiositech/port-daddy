@@ -132,13 +132,24 @@ that does not depend on one model provider.
 
 \paragraph{Authentication and attenuation.}
 \pdstatus{\BuiltWeak}{protocol model proved; code checked on bounded inputs}
-ProVerif, an automatic protocol verifier, proves the recorded
-proof-of-possession and every-hop attenuation queries for the protocol model.
-The Kani checks of the deployed Rust crate are bounded: the parser does not
-panic on 32-byte inputs with the cryptography stubbed out, the comparator does
-not panic, and two concrete vectors pass the subset check. The code that calls
-the primitive must still be shown to conform, which means showing that every
-protected effect is actually checked by the verified primitive.
+ProVerif, an automatic protocol verifier, proves the recorded authentication
+queries for the protocol model: every accepted card was issued by the daemon or
+delegated from a card that was (Property~\ref{anchor:thm:injective}), and a
+verifier that pins its signature algorithm cannot be tricked into accepting a
+forged card. Attenuation is proved for one hop
+(Property~\ref{anchor:thm:attn-sound}) and for one fixed chain of two
+delegations. Longer chains rest on the per-hop subset argument, not on a
+machine check. No proof of possession is built. Cards are bearer credentials,
+so whoever presents a card's bytes holds its authority until it expires or is
+revoked. Six Kani harnesses check the deployed Rust crate on bounded inputs.
+Four range over decoded inputs: the flat-string subset check, compared with a
+bitset reference; the version and lifetime guards; the channel authority of
+one grant; and a structured subset across two hops. The other two show that
+the comparator cannot panic on 16-byte inputs and that the parser cannot panic
+on 32-byte inputs with the cryptography stubbed out. The parser harness runs
+only when someone starts it by hand. The code that calls the primitive must
+still be shown to conform, which means showing that every protected effect is
+actually checked by the verified primitive.
 
 \paragraph{Sealed execution.}
 \pdstatus{\Designed}{properties model-checked}
