@@ -185,9 +185,10 @@ secret's two bits.
 Now count. An honest gate
 hands Erin $1$ of those $2$ bits: the bit Derek sold her, and no more.
 
-A leaky gate that forwards $s$ itself hands over $2$ bits, the whole secret.
+A leaky gate that forwards $s$ itself hands over $2$ bits, the whole secret,
+which is why the checker catches it four steps in.
 Section~\ref{sec:sealed-noninterference} plants exactly this gate as a
-deliberate bug, and the checker catches it four steps in.
+deliberate bug.
 
 A taint tracker of the kind pitched above, run \emph{soundly} on every token,
 must mark the parity bit as tainted, because it was computed from the secret,
@@ -196,8 +197,8 @@ and drop it. Erin gets $0$ bits.
 So a sound taint tracker gives Erin nothing, not even the bit she paid for. A
 tracker loosened to let the parity bit through has the opposite flaw. It
 cannot tell whether the released bit is the parity of committed $s$, Derek's
-actual record, or the parity of some other value the worker computed from
-that record in order to smuggle out a different bit.
+actual record, or the parity of some other value $f(s)$ the worker computed
+from that record in order to smuggle out a different bit.
 
 Every workable design therefore releases something between nothing and
 everything, and the rest of the chapter measures how much it may release.
@@ -443,7 +444,7 @@ delegated declassification authority, and the two that drop $E$, namely
 only with Erin's.
 
 Two owners hold the keys to four locks, two each. That is why the room has
-two gates, and why the aggregate feedback to Erin passes through
+exactly two gates rather than one, and why the aggregate feedback to Erin passes through
 \emph{Derek's} gate. What she receives has had Derek's clause removed, and
 only Derek can remove it.
 \end{pdexample}
@@ -826,12 +827,12 @@ Now the ninth policy, the one the room is built around: \emph{no
 \texttt{net\_egress} after \texttt{in\_context\_read} of a secret}. It
 \emph{mentions} an event from the second pile, so it looks like an
 exception. The only event it must disable is \texttt{net\_egress}; the read
-is permitted and recorded as taint. The checker also assumes the read is
-observed, so the supervisor knows when to disable egress and enforces the rule
-exactly. With an invisible read, the same visible history can require both
-allowing and refusing egress. Refusing every egress is then safe but is no
-longer exact realization of the requested policy; the next example traces the
-two histories.
+is permitted and recorded as taint. The checker also assumes
+the read is observed, so the supervisor knows when to disable egress and
+enforces the rule exactly. With an invisible read, the same visible history
+can require both allowing and refusing egress. Refusing every egress is then
+safe but is no longer exact realization of the requested policy; the next
+example traces the two histories.
 
 \emph{Now you try:} classify \emph{no
 \texttt{in\_context\_read} of a secret} the same way, in two sentences.
@@ -1442,8 +1443,8 @@ Second, and less comfortably,
 Property~\ref{thm:sealed-noninterference} does not narrow those $12{,}800$ bits
 by a single one. It describes a different interface, whose gate computes on committed input.
 It cannot be transferred to an arbitrary worker-selected payload interface. The
-room offers a bounded account of what may leak, and no promise that nothing
-does.
+room offers a bounded account of what may leak, and no promise that the
+worker chose those bits innocently.
 
 \emph{Now you try:}
 the same work order lets each job return at one of three scheduled times.
