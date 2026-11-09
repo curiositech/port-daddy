@@ -39,20 +39,20 @@
   % ---- lower panel: policy schedule, not another state curve ----------------
   \draw[pd rule,->] (-0.30,-1.35) -- (8.30,-1.35);
   \draw[pd rule,->] (-0.30,-1.35) -- (-0.30,1.55);
-  \node[pd label,rotate=90,anchor=south] at (-0.65,0.10) {supplier price};
+  \node[pd label,rotate=90,anchor=south] at (-0.65,0.10) {platform price};
   \draw[pd rule,line width=1.45pt]
     (-0.30,-0.90) -- (1.15,-0.90) -- (1.15,-0.20) -- (\trig,-0.20)
     -- (\trig,0.65) -- (8.00,0.65);
   \node[pd label,anchor=south] at (0.40,-0.90) {Seed $<0$};
   \node[pd label,anchor=south] at (2.40,-0.20) {Import $=0$};
-  \node[pd label,anchor=south] at (6.10,0.65) {Charge $>0$};
+  \node[pd label,anchor=south] at (6.10,0.65) {Buyers pay $>0$};
   \node[pd label,anchor=west,text width=1.6cm] at (8.15,-1.35) {settled outcomes};
   \node[pd note,anchor=north west,text width=9.3cm] at (-0.30,-2.25)
     {if liquidity never crosses the threshold, the subsidized state remains
      active and recoverable};
 \end{tikzpicture}
-\caption{Supplier pricing follows realized liquidity, not calendar time.
-Charging begins only above $\lambda^\star$; a market that never crosses the
-threshold never enters that regime. [internal]}
+\caption{Pricing follows realized liquidity, not calendar time. Suppliers
+are paid to join, then work is free, and buyers are charged only above
+$\lambda^\star$; a market that never crosses the threshold never charges. [internal]}
 \label{fig:he-cold-start}
 \end{figure}
