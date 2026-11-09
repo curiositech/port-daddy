@@ -489,17 +489,19 @@ open.
   roles may change without creating a new accountable principal. Its
   protection against resets depends on the rules for registering principals
   and assigning liability.
-  \item[Oracle] An external or independently checkable reference used to close
-  a commitment or adjudicate an outcome. Its trust model must be named.
+  \item[Oracle] An external or independently checkable reference used to decide
+  whether a commitment is met or to adjudicate an outcome. Its trust model must
+  be named.
   \item[Epoch] A version or freshness counter, with chapter-specific meaning.
   Chapter 2 uses revocation epochs; Chapter 3 uses attestation freshness to
   detect rollback. A credential's time-to-live is a validity duration, not
   another epoch counter. None substitutes for the others.
   \item[Round] A model step in a dissemination or protocol analysis, not
   automatically a wall-clock deadline.
-  \item[Closed] A machine has checked a proof of exactly the recorded
-  property. Nothing follows for the whole system without an argument that the
-  system conforms to the model.
+  \item[Closed] The marker used in verification tables: the model is verified
+  and its runtime conformance test passes. The appendices use the word in no
+  other sense. A passing conformance test samples the runtime; it does not show
+  that every path through the system conforms to the model.
 \end{description}
 
 \subsection*{Which chapter owns which primitive}
@@ -554,7 +556,7 @@ observations are complete.
 \begin{table}[H]
 \centering
 \caption{Where the unresolved questions live. Related results can narrow a
-question without closing it.}
+question without answering it.}
 \label{tab:op-concordance}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}X@{}}
