@@ -175,7 +175,7 @@
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[
+  {\Large\textsc{Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}}\\[
 0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{From Spawn to Person:}}\\[0.2cm]
@@ -229,7 +229,7 @@ must remain attached to the party responsible for it.
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Introduction: the spawn that cannot be paid}\label{sec:intro}
 % ═════════════════════════════════════════════════════════════════════════════
-\subsection{S1 --- the spawn that cannot be paid}
+\subsection{S1: the spawn that cannot be paid}
 Bob's checkout repair has produced three different kinds of result. Drake
 made the suite green by deleting the original failing test. Wren supplied a
 genuine session-token repair inside a patch that also reverted an unrelated
@@ -522,7 +522,7 @@ criterion is chosen for an engineering reason: reputation has to accumulate on
 something transitive. It is not a metaphysical claim, which is why the chapter
 takes Parfit's move (dissolve the question) and not his thesis.
 
-\subsubsection{The correspondence, written out --- and where it
+\subsubsection{The correspondence written out, and where it
 fails}\label{sec:parfit-lineage-map}
 
 This chapter uses two chains. One is Parfit's Relation~R (the psychological
@@ -712,7 +712,7 @@ component.
 % --- FIGURE 4: the three continuity subsystems ---
 \begin{table}[H]
 \centering
-\caption{A restart preserves recorded notes, summaries, and witnessed outcomes---not the predecessor's execution state. The three subsystems retain different parts of its history.}
+\caption{A restart preserves recorded notes, summaries, and witnessed outcomes, but not the predecessor's execution state. The three subsystems retain different parts of its history.}
 \label{tab:stp-organs}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -1007,7 +1007,7 @@ The result is a real but partial local identity root, with the asserted string
 demoted toward a display alias; it is not yet the complete identity contract this
 chapter requires.
 
-\subsection{S2 --- whitewashing in action}
+\subsection{S2: whitewashing in action}
 
 Return to Alice's swarm. Tonight's \emph{Drake} deleted the failing test instead
 of fixing it; the daemon's outcome log records the deletion and a later re-audit
@@ -1178,7 +1178,7 @@ $\sum_{t=0}^T \delta_f^t g_t \ge G_{\max}$, the schedule minimizing honest
 newcomers' lifetime friction $H(g)=\sum_{t=0}^T \delta_h^t g_t$, when feasible
 and $G_{\max}>0$, is uniquely
 \textbf{bang-bang, filled from $t=0$}: there is an index $k$ with $g_t=L$ for
-$t<k$, $g_k\in(0,L]$, and $g_t=0$ for $t>k$ --- a cliff of positive \emph{width},
+$t<k$, $g_k\in(0,L]$, and $g_t=0$ for $t>k$, a cliff of positive \emph{width},
 collapsing to the pure spike $g^\star=(G_{\max},0,\dots,0)$ with
 $H(g^\star)=G_{\max}$ exactly when the cap does not bind ($G_{\max}\le L$). Any
 gradual ramp that defers mass to later periods is strictly dominated.
@@ -1628,7 +1628,7 @@ on one engine key, then act at full score on its sibling. The scope rule
 blocks this escape by pricing per (principal, engine) and sanctioning per
 principal. The same rule closes
 skill-versioning's escape (a sanctioned \texttt{v1} must not act clean through
-\texttt{v2}), so one rule closes both escapes (one rule, two doors). Resuming a process and migrating to another provider
+\texttt{v2}), so one rule closes both escapes. Resuming a process and migrating to another provider
 therefore require the stated security property and its three migration
 safeguards. Migration and the no-mint law of
 \S\ref{sec:continuity} fit together on paper: migration moves a score whole, with its
@@ -1954,7 +1954,7 @@ TrueSkill's uncertainty and a UCB bonus both recognize incomplete evidence, but 
 \pdstatus{\Designed}{specified to proposed; the reference system has no reputation component yet, only the witnessed outcomes it would score}
 % ═════════════════════════════════════════════════════════════════════════════
 
-We now define the central protocol contribution of this chapter: a
+We now define this chapter's central protocol: a
 \pdterm{multi-dimensional reputation}, a set of separate scores, one per quality
 axis, computed from witnessed outcomes. It has three parts: a
 multi-dimensional quality vector; a market of neutral, conflict-free,
@@ -1962,9 +1962,9 @@ influence-free evaluators; and a skill$\to$agent helpfulness attribution. We
 state it formally as a design.
 
 \noindent The evidence behind it is weaker than behind the earlier results. The
-identity theorems of \S\ref{sec:identity}, the no-mint result of
-\S\ref{sec:continuity}, and the audit-tower theorem of \S\ref{sec:oracle} come
-with proofs, proof sketches, or a hand calculation and a scripted sweep. The quality
+identity theorems of \S\ref{sec:identity} and the audit-tower theorem of
+\S\ref{sec:oracle} come with proofs or proof sketches, and the no-mint result of
+\S\ref{sec:continuity} with a hand calculation and a scripted sweep. The quality
 vector, the neutral-judge ceremony, and the bandit-versus-reputation argument
 of \S\ref{sec:not-bandit} are design arguments, drawn from the prior art cited
 here and consistent with the proven parts. Read the claims in
@@ -1972,7 +1972,7 @@ here and consistent with the proven parts. Read the claims in
 theorem-grade register turned down one notch.
 \pdscope{Nothing in this chapter proves that the three-axis decomposition is the right one or that the judge ceremony is incentive-compatible.}
 
-\subsection{S3 --- a graded job, end to end}
+\subsection{S3: a graded job, end to end}
 
 \begin{pdexample}{A Graded Job, End to End}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2094,7 +2094,7 @@ checklist:
   family-exclude scoring. Never let a backend judge its own family unblinded.
 \end{itemize}
 
-\noindent Crucially, an expert third-party judge is \emph{hired through the same
+\noindent An expert third-party judge is \emph{hired through the same
 bonded ceremony the market uses for any other task}: judging is itself a planned,
 bonded job, so the harbor that runs the market also runs the hiring of the judges
 who keep it honest. We state the hiring as a numbered protocol.
@@ -2135,7 +2135,7 @@ procedure. A reversed grade alone need not justify a penalty.
 
 \subsection{Skill $\to$ agent helpfulness attribution}
 
-A distinctive, tractable, and \emph{shippable-soon} signal: track whether a
+One signal is tractable and could ship soon: track whether a
 skill, a reusable unit of agent know-how (a structured instruction document,
 its referenced material, and any scripts it carries), actually \emph{helped} an
 agent, \emph{especially when that skill's content was loaded into the agent's
@@ -2154,16 +2154,16 @@ No bandit is required. We pin the event down as a schema.
 Each graft of a skill into an agent's context emits an append-only event with
 fields:
 \begin{itemize}[leftmargin=1.5em,itemsep=1pt]
-  \item \texttt{skill\_id}, \texttt{skill\_version} --- the tool and its exact
+  \item \texttt{skill\_id}, \texttt{skill\_version}: the tool and its exact
   version (a portfolio for v1 says nothing about v2).
-  \item \texttt{agent\_id} --- the \emph{non-forgeable} identity that received the
+  \item \texttt{agent\_id}: the \emph{non-forgeable} identity that received the
   graft, so the event cannot be re-attributed by respawn.
-  \item \texttt{task\_id}, \texttt{task\_descriptor} --- a content hash and a
+  \item \texttt{task\_id}, \texttt{task\_descriptor}: a content hash and a
   feature vector of the task, used to assemble a comparison set of similar tasks
   \emph{without} $s$.
-  \item \texttt{grafted\_at}, \texttt{context\_window\_ref} --- evidence that $s$'s
+  \item \texttt{grafted\_at}, \texttt{context\_window\_ref}: evidence that $s$'s
   content actually entered the context (not merely that $s$ was available).
-  \item \texttt{outcome\_ref}, \texttt{quality\_vector} --- the witnessed
+  \item \texttt{outcome\_ref}, \texttt{quality\_vector}: the witnessed
   settlement and its multi-dimensional grade, written only after the task closes
   against an oracle.
 \end{itemize}
@@ -2217,7 +2217,7 @@ The design obligation is to identify how that grade is checked, contested, or ba
 list or an unconditional solution. The audit tower then bounds one particular
 recursion.
 
-\paragraph{Option A --- bond-and-slash the judges.}
+\paragraph{Option A: bond-and-slash the judges.}
 Make judging a bonded role (\S\ref{sec:adr0049}): $J$ posts a bond before grading;
 a sampled, conflict-free re-audit supplies evidence to the predeclared
 adjudication rule. A proved sanctionable violation forfeits the bond. Now lying has an expected cost, and a judge's own
@@ -2225,7 +2225,7 @@ reputation is the asset they protect. This converts ``trust the oracle'' into
 ``the oracle has skin in the game,'' which is the same move slashing makes for
 agents.
 
-\paragraph{Option B --- 2-of-3 multi-oracle.}
+\paragraph{Option B: 2-of-3 multi-oracle.}
 Settle disputes against a quorum of independent oracles (automated test / evidence
 review / human), so capturing the grade requires capturing a majority. Under separately capturable evaluators this can raise the cost of capture;
 shared blind spots or control can remove that advantage, and the \emph{human} oracle is a
@@ -2252,7 +2252,7 @@ errors and a bonded challenge game~\pdcite{truebit2017}, and Arbitrum's dispute
 protocol bisects a disagreement level by level until a single checkable step
 remains~\pdcite{arbitrum-fraud-proofs}. Both are bonded, recursive answers to
 the incentive problem the tower model studies under sealed sampling from
-separate groups. Three different tools reached one problem.
+separate groups.
 
 First, the proposed protocol diversifies judge principals and model families. This may reduce shared incentives and shared blind spots. It does not prove the theorem's \emph{separately bribable groups}: buying one group's cooperation must not buy another's, and conditional detection must remain credible after earlier misses. Below, a \pdterm{clique} is such a group: a set of auditors that one bribe can buy together. It is not a graph-theoretic complete subgraph.
 
@@ -2322,7 +2322,7 @@ conditional recurrence pushes expected surviving value strictly below $u$ after
   \left\lfloor \frac{\log(G_0/u)}{\log\tfrac{1}{1-\rho d}}\right\rfloor+1
 \]
 levels for target
-$0<u\le G_0$ --- a depth
+$0<u\le G_0$, a depth
 \emph{logarithmic} in $G_0/u$. Counting one selected bond per level gives
 $B$ times this depth; total capital reserved by all eligible judges depends
 on whether their bonds can be reused and is not determined by that count.
@@ -2550,7 +2550,7 @@ Figure~\ref{fig:tombstone} draws the append-only compensation: the original entr
 stays, and a later tombstone nullifies it without mutating the ledger.
 \input{figures/fig-stp-tombstone}
 
-\subsection{S4 --- the fraudulent outcome retracted}
+\subsection{S4: the fraudulent outcome retracted}
 
 \begin{pdexample}{A Fraudulent Outcome, Retracted}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2684,11 +2684,11 @@ trade, such as a prepaid purchase of known content.}
 \section{History and prior art: the sources of the design}\label{sec:priorart}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This chapter sits at the confluence of four literatures that rarely cite each other: the
+This chapter draws on four literatures: the
 philosophy of \emph{personal identity}, the statistics of \emph{reputation and
 skill rating}, the economics of \emph{reputation in markets}, and the practice
 of \emph{LLM-as-judge} evaluation. The argument is that an agent economy must
-\emph{import} the hard-won results of these fields rather than re-derive a
+\emph{import} the results of these fields rather than re-derive a
 weaker version of each, so the prior art is named precisely. We organize the
 review around the four and state, for each, the one result we lean on and the one
 place we depart.
@@ -2771,8 +2771,8 @@ interaction model. It does not establish a generally optimal memory horizon.
 Section~\ref{sec:revoke} therefore treats the horizon as a design parameter.
 The broader mechanism falls under mechanism design~\pdcite{nisan2007agt,myerson1981}.
 Our proposed ceremony makes the grader's incentives an explicit design obligation
-(\S\ref{sec:oracle}); the cited comparisons do not establish that this concern is
-absent from the wider reputation literature.
+(\S\ref{sec:oracle}); we do not claim that the wider reputation literature
+ignores them.
 
 \ifdefined\pdswisslandmarkplate
 \begin{figure}[p]
@@ -3505,7 +3505,7 @@ throughout, 20260816).
 \section{Open problems (the starred items, collected)}\label{sec:open}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The genuinely unsolved problems this chapter surfaces, gathered for the reader who
+This list gathers the unsolved problems this chapter raises, for the reader who
 wants the research frontier rather than the pedagogy. Every starred exercise in the
 body cross-references this list \emph{by name}, not by a hand-typed numeral, so the
 two cannot drift apart. Note that the ``OP-$n$'' identifiers used in the body for
