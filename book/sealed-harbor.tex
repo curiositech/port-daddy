@@ -955,7 +955,9 @@ reference unmediated \emph{state} need that extension, which the kernel chapter
 states.
 
 When an otherwise unpreventable violation is observable, detection can
-support post-hoc audit and remedies, which \pdchapref{bonded}{The Bonded Commons} treats.
+support post-hoc audit and remedies. \pdchapref{bonded}{The Bonded Commons}
+treats remedies backed by bonds and decides by threat class whether any bond
+applies to a leak.
 
 Complete mediation, that every effect passes through the layer, is the
 deployment assumption the two remaining links inherit. It needs evidence
@@ -1463,10 +1465,14 @@ runs terminated [internal, \texttt{a4\_canary\_sprt.py}].
 \paragraph{What it shows.}
 Once the model is validated and the errors calibrated, a contract could
 quote detection power and stopping latency under stated conditions. Against
-a deliberate exfiltrator the power to quote is $1-\beta$, not $1-\beta^j$. The
-exfiltration bond of \pdchapref{bonded}{The Bonded Commons} is scoped to
-funding detection and response, and does not claim to cover unbounded breach
-damage.
+a deliberate exfiltrator the power to quote is $1-\beta$, not $1-\beta^j$.
+This chapter does not size a bond against a leak; the work order's liability
+field only records one the owners agree on. Whether the harbor backs a leak
+with a bond at all is a pricing question for \pdchapref{bonded}{The Bonded Commons}, which sizes bonds by
+threat class\ifpdbook\ (\S\ref{bonded:sec:pricing:threats})\fi. Any bond
+of that kind could fund detection and response at most. It cannot retract
+information already disclosed, so it does not cover the damage a breach
+does.
 
 % Keep this short caveat whole; a deferred operating-curve float must not
 % separate the single-shot qualification from its statistical-test premise.
@@ -1898,8 +1904,8 @@ uncompromised list, power remains $1-\beta^j$ with independent misses, and
 $1-\beta$ if they move together. What no redesign
 restores is power against an adversary who holds \emph{this} job's list: with
 the canaries stripped the leak carries none and Theorem~\ref{thm:sealed-power}
-gives $1-\beta^0=0$, which is why detection is backed by a bounded bond and is
-not offered as a guarantee.
+gives $1-\beta^0=0$, which is why detection is not offered as a guarantee,
+and why any bond posted against a leak can only be bounded.
 \end{pdsolution}
 
 \input{additions/sealed-exercises-canary-audit}
