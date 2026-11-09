@@ -1624,7 +1624,7 @@ incentive and solvency analysis remains open.
 
 \subsubsection{A6: Cartel sustainability under the folk theorem}\label{sec:youle:a6}
 
-A5 considers a single-round attack: a Sybil identity bids low, wins, defaults. A6 studies a \emph{repeated game}: a coalition of insurers holds an agreed minimum price $q_{\mathrm{floor}} > q^*$ above the competitive equilibrium, splits the surplus, and uses grim-trigger punishment to deter unilateral deviation. Folk theorems say that, under their monitoring and regularity assumptions, sufficiently patient players can sustain any feasible payoffs that beat what each could guarantee alone; they do not make every outcome sustainable in every repeated game. Here the narrower question is how the supplied payoff model changes as the daemon's per-round cartel-detection probability varies.
+A5 considers a single-round attack: a Sybil identity bids low, wins, defaults. A6 studies a \emph{repeated game}: a coalition of insurers holds an agreed minimum price $q_{\min} > q^*$ above the competitive equilibrium, splits the surplus, and uses grim-trigger punishment to deter unilateral deviation. Folk theorems say that, under their monitoring and regularity assumptions, sufficiently patient players can sustain any feasible payoffs that beat what each could guarantee alone; they do not make every outcome sustainable in every repeated game. Here the narrower question is how the supplied payoff model changes as the daemon's per-round cartel-detection probability varies.
 
 Grim trigger is used in the analysis below because it gives the cleanest recurrence and the closed-form $p_d^\star$ threshold of Figure~\ref{fig:cartel-folk}. A production detector should use a graduated response because crashes (\S\ref{sec:crash-recovery}) can be observationally similar to deliberate defection; permanent punishment for a transient infrastructure event would destroy cooperation. The claim-signaling and cartel layers therefore share an analysis template, not one interchangeable equilibrium result.
 
@@ -1633,13 +1633,13 @@ loss jointly cross the closed-form sustainability boundary.
 
 \input{figures/fig-cartel-game-inline}
 
-A Monte Carlo sweep over the $(p_d, \delta)$ grid checks the closed-form threshold against the supplied timing and payoff model (Figure~\ref{fig:cartel-folk}). Let $L=5(q_{\mathrm{floor}}-\mu)$ be the one-time detection penalty, $\pi_C=(q_{\mathrm{floor}}-\mu)/3$ the per-member cartel payoff, and $\pi_D=q_{\mathrm{floor}}-\varepsilon-\mu$ the one-shot deviation payoff. Every active cartel round credits $\pi_C$; if detection occurs in that round, the simulation then subtracts $L$ and terminates future cartel payoffs. Hence
+A Monte Carlo sweep over the $(p_d, \delta)$ grid checks the closed-form threshold against the supplied timing and payoff model (Figure~\ref{fig:cartel-folk}). Let $L=5(q_{\min}-\mu)$ be the one-time detection penalty, $\pi_C=(q_{\min}-\mu)/3$ the per-member cartel payoff, and $\pi_D=q_{\min}-\varepsilon-\mu$ the one-shot deviation payoff. Every active cartel round credits $\pi_C$; if detection occurs in that round, the simulation then subtracts $L$ and terminates future cartel payoffs. Hence
 \[
 V_C=\pi_C-p_dL+\delta(1-p_d)V_C,
 \qquad
 p_d^\star=\frac{\pi_C-(1-\delta)\pi_D}{L+\delta\pi_D}.
 \]
-At $\delta=0.95$, with the simulation's undercut $\varepsilon=0.01(q_{\mathrm{floor}}-\mu)$, this gives $p_d^\star\approx0.0478$ ($0.0476$ as $\varepsilon\to0$), and the tested grid first classifies the cartel as fragile at $p_d=0.05$. This is a falsifiable, model-conditional calibration target for bid-pattern detection; this chapter does not claim the deployed detector already attains it.
+At $\delta=0.95$, with the simulation's undercut $\varepsilon=0.01(q_{\min}-\mu)$, this gives $p_d^\star\approx0.0478$ ($0.0476$ as $\varepsilon\to0$), and the tested grid first classifies the cartel as fragile at $p_d=0.05$. This is a falsifiable, model-conditional calibration target for bid-pattern detection; this chapter does not claim the deployed detector already attains it.
 
 \input{figures/fig-bonded-cartel-folk-theorem-tikz}
 
@@ -2412,7 +2412,7 @@ that it closes those attacks.
 Using the A6 grid (\S\ref{sec:youle:a6}, Figure~\ref{fig:cartel-folk}), compute the minimum per-round detection probability $p_d^\star$ at $\delta = 0.99$ in the negligible-undercut limit $\varepsilon/x \to 0$. Then argue, qualitatively, what would change if cartel members can re-enter under fresh identities. Does the bond mechanism prevent re-entry, deter it, or merely price it?
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-cartel-detection}
-With $x = q_{\mathrm{floor}} - \mu$, the chapter's own closed form gives $\pi_C = x/3$, $\pi_D \to x$ as $\varepsilon/x\to0$, and $L=5x$, so
+With $x = q_{\min} - \mu$, the chapter's own closed form gives $\pi_C = x/3$, $\pi_D \to x$ as $\varepsilon/x\to0$, and $L=5x$, so
 \[
 p_d^\star=\frac{\pi_C-(1-\delta)\pi_D}{L+\delta\pi_D} = \frac{x/3-(1-\delta)x}{5x+\delta x} = \frac{1/3-(1-\delta)}{5+\delta}
 \]
@@ -2766,7 +2766,7 @@ No-overdraft lemma (\S\ref{sec:conservation}) & fast-check property test & \Clos
 Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\
 Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE & \texttt{chain-replay.pv} \\
 Magic-link single-use (\S\ref{sec:federated-sovereign}) & ProVerif (private-channel cap) & \Closed\ injective-event TRUE; 7/7 runtime conformance & \texttt{magic-link.pv} \\
-Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate within $2B_{\mathrm{bkt}}/2^{f_{\mathrm{fp}}}$ at load $0.95$ & cuckoo property tests \\
+Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate within Chapter~2's bound at load $0.95$ & cuckoo property tests \\
 \midrule
 Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal version not in scope & \texttt{binding.ec} \\
 Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\

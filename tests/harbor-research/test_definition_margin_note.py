@@ -20,9 +20,9 @@ def source_check(source):
     text = ' '.join(body.split())
     for phrase in (r'\label{def:sanction-respecting}',
                    'Fix a score-based access mechanism and a sanction window',
-                   r'some $\Delta>0$',
+                   r'some $\sigma>0$',
                    'every actor producing a specified dishonest outcome',
-                   r'by at least $\Delta$',
+                   r'by at least $\sigma$',
                    "that same actor's clean continuation over the same window",
                    'Include every identity through which the actor can route work',
                    r'\pdstatus{\Designed}{for the stated access model and clean continuation}'):
@@ -65,7 +65,7 @@ class DefinitionMarginNoteTests(unittest.TestCase):
 
     def test_changed_math_scope_and_duplicate_are_rejected(self):
         source = CHAPTER.read_text()
-        for before, after in [(r'\Delta>0', r'\Delta>1'),
+        for before, after in [(r'\sigma>0', r'\sigma>1'),
                               ('every actor producing', 'some actor producing'),
                               ("same actor's clean continuation", "another actor's clean continuation"),
                               ('every identity through which', 'one identity through which'),

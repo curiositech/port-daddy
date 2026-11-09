@@ -59,10 +59,10 @@ def check_trade(text):
                          "Take Bob's value", "Integrating over the whole square",
                          "Efficient trade is possible", "Counting opportunities",
                          "These are properties"])
-    require_displays(text, [r"\beta(v)&=\tfrac{2}{3}v+\tfrac{M}{12}",
-                           r"\sigma(c)&=\tfrac{2}{3}c+\tfrac{M}{4}",
-                           r"\beta(v)\ge\sigma(c) \iff v-c\ge M/4",
-                           "v-c=10<22.5", r"\dfrac{a(2M-a)}{2M^2}",
+    require_displays(text, [r"\mathrm{bid}(v)&=\tfrac{2}{3}v+\tfrac{M}{12}",
+                           r"\mathrm{ask}(c_{\mathrm s})&=\tfrac{2}{3}c_{\mathrm s}+\tfrac{M}{4}",
+                           r"\mathrm{bid}(v)\ge\mathrm{ask}(c_{\mathrm s}) \iff v-c_{\mathrm s}\ge M/4",
+                           r"v-c_{\mathrm s}=10<22.5", r"\dfrac{a(2M-a)}{2M^2}",
                            r"7/32\approx21.9\%", r"7/16=43.75\%",
                            r"M^{-2}\int_0^{M/4}x(M-x)\,dx=5M/192",
                            r"5/32=15.625\%"])
@@ -145,9 +145,9 @@ class DecompressedBlocks(unittest.TestCase):
 
     def test_tower_assumptions_threshold_recurrence_and_depth_are_separate(self):
         source = SPAWN.read_text()
-        start = source.index(r"\begin{pdclaim}{Theorem}{Tower Contraction;")
+        start = source.index(r"\begin{pdclaim}{Theorem}{Tower Contraction}")
         text = source[start:source.index(r"\end{pdclaim}", start)]
-        require_groups(text, ["proof and verification artifacts", "Let level", "Below that threshold", "If $G_0\\le CB$"])
+        require_groups(text, ["Let level", "Below that threshold", "If $G_0\\le CB$"])
         require_displays(text, [r"G_k \;>\; C\,B", r"G_{k+1} \;=\; (1-\rho d)\,G_k",
                                r"\left\lfloor \frac{\log(G_0/u)}{\log\tfrac{1}{1-\rho d}}\right\rfloor+1"])
         self.assertIn("conditional on every preceding", " ".join(text.split()))
@@ -166,9 +166,9 @@ class DecompressedBlocks(unittest.TestCase):
         require_groups(text, ["Let periods be", "In Model~A", "Model~B", r"\emph{Now you try:}"])
         require_displays(text, [r"\rho_t=\frac{G}{d(B+vt)}",
                                r"\int_0^T\frac{aG}{d(B+vt)}\,dt",
-                               r"\rho_t=\max\{0,(G-rvt)/(dB)\}"])
+                               r"\rho_t=\max\{0,(G-\zeta vt)/(dB)\}"])
         for phrase in ["$t=0,\\ldots,T-1$", "additive payoff model",
-                       r"$\lceil G/(rv)\rceil=334$", "$35.075",
+                       r"$\lceil G/(\zeta v)\rceil=334$", "$35.075",
                        "$41.79175$", "not its exact value",
                        "does not converge to that integral",
                        "its own evidence and enforcement mechanism"]:
