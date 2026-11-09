@@ -76,10 +76,24 @@ for C in [1, 2, 4, 8]:
     print(f"  C={C}: " + "  ".join(f"{v:7.1f}" for v in curves[C]))
 print(f"  reading: with C=1 (homogeneous judges) bribery persists while G_k > C*B={B:.0f};")
 print(f"  with C=8, bribery is uneconomical from level 1 and decay is geometric (1-rho*d)={1-rho_star*d:.2f}/level.")
-lam = 1 - rho_star*d
-lvl_needed = int(np.ceil(np.log(1.0/G0)/np.log(lam)))
-print(f"  levels to drive corrupt value below 1 unit (geometric regime): {lvl_needed};")
-print(f"  total bond capital = B per level * levels = {B*lvl_needed:.0f}  (FINITE certifies the tower)")
+beta = rho_star*d*B
+
+
+def depth(G0, C, u):
+    """Levels until the corrupt value falls below u (Chapter 5 uses u = beta,
+    the bribe price): linear while bribery pays (G_k > C*B), then geometric."""
+    g, k = G0, 0
+    while not g < u:
+        g = g - C*beta if g > C*B else g*(1 - rho_star*d)
+        k += 1
+    return k
+
+
+print(f"  depth to the bribe price beta = rho*dB = {beta:.0f} (Chapter 5's audit-depth example):")
+for C in (8, 2, 1):
+    k = depth(G0, C, beta)
+    print(f"    C={C}: {k} levels, selected bonds B*levels = {B*k:.0f}")
+print("  (FINITE bond capital certifies the tower)")
 
 # ---------- (3) amortization ----------
 T = 200
