@@ -2163,7 +2163,8 @@ a sixteen-item set: each negative answer removes a whole branch.
 Let a flagged set of $F$ items contain an unknown set $P$ of $1\le k\le F$
 positives. Assume a noiseless group oracle of unit query cost reports exactly
 whether $J\cap P=\emptyset$ for a queried group $J$.
-Adaptive halving (query
+
+\emph{(a) Plain halving.} Adaptive halving (query
 the flagged set; discard any group that tests negative; report any positive
 singleton; otherwise split the group into halves of sizes
 $\lfloor|J|/2\rfloor,\lceil|J|/2\rceil$ and recurse on both) identifies $P$
@@ -2173,6 +2174,7 @@ Q \;\le\; 2k\left\lceil\log_2(F/k)\right\rceil + 4k
 \qquad\text{(and always } Q\le 2F-1\text{)},
 \]
 for every placement of the $k$ positives, against $F$ opens for flat inspection.
+Halving needs no knowledge of $k$.
 
 The leading constant is tight: for $F$ and $k$ powers of two, evenly spread
 positives force $Q=2k\log_2(F/k)+2k-1$. Written in the flagged-set density $d=k/F$
@@ -2182,10 +2184,21 @@ the guaranteed advantage is
 \;=\;\frac{1}{d\bigl(2\lceil\log_2(1/d)\rceil+4\bigr)},
 \]
 which exceeds $1$ exactly on $0<d<1/12$ and equals $1$ at $d=1/12$.
+
+\emph{(b) Hwang's generalized binary splitting.} If the tester knows $k$,
+Hwang's generalized binary splitting~\pdcite{hwang} identifies $P$ exactly with
+at most
+\[
+Q_{\mathrm{H}}\;\le\;\log_2\binom Fk+k
+\]
+group queries for every placement. This certifies a strict saving over flat
+inspection whenever $H(d)+d<1$, that is, for $0<d<d_{\mathrm{H}}$, where
+$d_{\mathrm{H}}\approx0.2271$ is the root of $H(d)+d=1$ and $H$ is the binary
+entropy.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-Every group the algorithm queries is a node of the halving tree $T$ of $[F]$: the
+Part (a). Every group the algorithm queries is a node of the halving tree $T$ of $[F]$: the
 root is the full flagged set, each internal node's children are its two halves,
 leaves are singletons. A node of size $s$ has children of size at most
 $\lceil s/2\rceil$, so every node at depth $\ell$ has size at most
@@ -2226,13 +2239,21 @@ for $j=4$ it equals $12d$, crossing $1$ at $d=1/12$;
 for $j\le3$ it exceeds $1$ throughout the interval. The endpoint $d=1$
 also has denominator $4$. Thus the certificate exceeds $1$ exactly when
 $d<1/12$.
+
+Part (b). The query bound is Hwang's~\pdcite{hwang,duhwang}. The entropy bound
+$\log_2\binom Fk\le F\,H(k/F)$ gives $Q_{\mathrm{H}}\le F\bigl(H(d)+d\bigr)$,
+which is below $F$ when $H(d)+d<1$. The sum rises from $0$ as $d$ grows to
+$2/3$, where it is about $1.585$, so it crosses $1$ once on that range, at
+$d_{\mathrm{H}}$; for $d\ge2/3$ the single term $(1-d)\log_2\frac1{1-d}\ge(1-d)\log_2 3$
+already keeps it above $1$.
 \end{proof}
 
 \input{figures/legible-swarm-zoom-advantage}
-Figure~\ref{fig:zoom-advantage} plots the guaranteed advantage
-$\mathrm{adv}(d)$ itself against flagged-set density, marking the crossing
-at $d=1/12$ alongside the chapter's own $F{=}2500,k{=}10$ and
-$F{=}4096,k{=}32$ configurations.
+Figure~\ref{fig:zoom-advantage} plots both guaranteed advantages against
+flagged-set density: halving's $\mathrm{adv}(d)$, which crosses $1$ at $d=1/12$,
+and Hwang's certificate $1/\bigl(H(d)+d\bigr)$, which crosses at
+$d_{\mathrm{H}}\approx0.227$, with the chapter's own $F{=}2500,k{=}10$ and
+$F{=}4096,k{=}32$ configurations marked on each.
 
 \noindent\textbf{Positioning.} None of the group-testing machinery is new
 mathematics: Dorfman introduced pooled testing in 1943~\pdcite{dorfman}, and Hwang's
@@ -2241,11 +2262,13 @@ $\log_2\binom{F}{k}+O(k)$ tests, essentially matching the counting lower bound
 $\lceil\log_2\binom{F}{k}\rceil\ge k\log_2(F/k)$ that any adaptive strategy with
 binary outcomes must meet; the full theory is Du and Hwang~\pdcite{duhwang}. Plain
 halving needs a factor $2+o(1)$ more queries than Hwang because it re-queries both children of
-every split rather than inferring one subgroup and searching within the other. The
-theorem's contribution is the explicit worst-case constant for the exact procedure
-the digest architecture runs, proved tight, which turns the harness's observed
-$\approx 2\times$ gap over the ideal $k\log_2(F/k)$ from an empirical curiosity into
-the algorithm's provable constant. A dedicated check re-runs the exact procedure:
+every split rather than inferring one subgroup and searching within the other.
+Part (a) gives the explicit worst-case constant for plain halving, the procedure
+the chapter's harness scripts run, proved tight; no part of the reference
+implementation runs either procedure (Appendix~\ref{app:honest}). It turns the
+harness's observed $\approx 2\times$ gap over the ideal $k\log_2(F/k)$ from an
+empirical curiosity into the algorithm's provable constant. Part (b) is Hwang's
+result, and it is the bound to plan with whenever $k$ is known. A dedicated check re-runs the halving procedure:
 at $F{=}2500$, $k{=}10$, mean $162.6$ opens over $150$ random placements, maximum
 $183$, all under the bound of $200$; random sweeps over $F\in[16,5000]$,
 $k\in[1,50]$ and adversarial evenly-spread and clustered placements never exceed
@@ -2256,21 +2279,26 @@ $2k\log_2(F/k)+2k-1=511$ [internal, \texttt{zoom\_bound\_check.py}].
 they compose only inside a window that can be stated exactly. Stage one sets stage
 two's density: by Theorem~\ref{thm:pinned-joint} both constraints bind, so the
 flagged set holds $(p-\delta)N$ real criticals among $fN$ flags and
-$d=k/F=(p-\delta)/f$. This worst-case bound certifies a strict query saving
-when $d<1/12$, equivalently $f>12(p-\delta)$; at equality it certifies a tie.
-When this sufficient certificate fails, adaptive inspection can still be faster
-on a particular placement of positives;
-for example, $F=128$ and $k=16$ evenly spread positives have $d=1/8$
-yet require only $Q=127<128$ queries, by the tightness formula above. At $p{=}0.05$, $\delta{=}0$ the window
-certifies a strict saving only at $f>0.60$: the digest must flag over $60\%$ of the night's artifacts
-before the second stage is guaranteed to beat reading the flags. Inside the window
-the flags stage one adds are cheap in the second stage, because $k$ is fixed by the
-source and doubling $F$ costs only the logarithmic term, $2k$ further opens.
+$d=k/F=(p-\delta)/f$. Halving's worst-case bound certifies a strict query
+saving when $d<1/12$, equivalently $f>12(p-\delta)$; at equality it certifies a
+tie. Hwang's bound, for a tester that knows $k$, certifies one whenever
+$d<d_{\mathrm{H}}$, equivalently $f>4.40\,(p-\delta)$. At $p{=}0.05$, $\delta{=}0$
+halving needs $f>0.60$, a digest that flags over $60\%$ of the night's artifacts,
+while Hwang's procedure needs only $f>0.22$. The $60\%$ figure belongs to plain
+halving, not to adaptive inspection. When a certificate fails, adaptive
+inspection can still be faster on a particular placement of positives: $F=128$
+and $k=16$ evenly spread positives have $d=1/8$, outside halving's window, yet
+halving needs only $Q=127<128$ queries there, by the tightness formula above.
+Inside the window the flags stage one adds are cheap in the second stage,
+because $k$ is fixed by the source and doubling $F$ adds only the logarithmic
+term: $2k$ further opens for halving, about $k$ for Hwang's procedure.
 Outside it flat inspection gives the simpler $F$-query guarantee, although
-adaptive inspection can still win on some inputs. At the dense end it can lose: at
-$F{=}100$, $k{=}90$ the run costs $199$ opens against $100$ flat [internal], which
-is the unconditional $2F-1$, reached because at that density essentially every
-node of the halving tree is positive. The design consequence for this chapter is
+adaptive inspection can still win on some inputs. At the dense end halving can
+lose: at $F{=}100$, $k{=}90$ the run costs $199$ opens against $100$ flat
+[internal], which is the unconditional $2F-1$, reached because at that density
+essentially every node of the halving tree is positive. Hwang's procedure tests
+items one at a time once the remaining items number at most $2k-2$, with $k$
+counting the positives not yet found; here that holds from the start, so it costs exactly the $100$ flat opens. The design consequence for this chapter is
 therefore conditional, and the condition is now a number: ``summarize the state,
 link to the work'' is cheap when the digest over-flags generously and the zoom is
 adaptive, and the operator's dial, which trades bits on the digest for opens on
@@ -2308,6 +2336,12 @@ $150$ placements measure a mean of $163.7$ queries at that same point, comfortab
 2500/163.7\approx15.3\times
 \]
 reduction [internal, \texttt{b1\_frontier.py}], better than the guarantee's own $12.5\times$, exactly as a worst-case bound should allow on a typical run.
+That harness runs plain halving. Hwang's worst case at the same point is
+\[
+\log_2\binom{2500}{10}+10\approx101.1
+\]
+queries, a guaranteed $24.7\times$ reduction, so Hwang's procedure on its worst
+placement beats halving's measured average.
 
 \emph{Now you try:} run the script and read the $F{=}1000,k{=}20$ row (Exercise~\ref{ex:ls-b1-frontier-run}).
 \end{pdexample}
@@ -2332,13 +2366,14 @@ $\delta/p\to1$, a domain-of-validity error and not a feature of the frontier.
 
 Theorem~\ref{thm:zoom-advantage} assumes a reliable group query at unit cost;
 correlated or noisy group checks, and group costs growing with $|J|$, change the
-accounting. Plain halving is a factor of about two from Hwang's optimum by design:
-the theorem bounds the deployed algorithm, not the best one.
+accounting. Plain halving is a factor of about two from Hwang's optimum; part
+(a) bounds the simplest procedure, which needs no knowledge of $k$, and part (b)
+bounds Hwang's, which does.
 
-The sufficient certificate for a strict saving from the stated halving
-bound uses $f>12(p-\delta)$. The condition is sufficient, not necessary: zoom
-can help outside that range, and actual counts of flags and critical items
-govern each run.
+The sufficient certificates for a strict saving are $f>12(p-\delta)$ for halving
+and $f>4.40\,(p-\delta)$ for Hwang's procedure. Both are sufficient, not
+necessary: zoom can help outside those ranges, and actual counts of flags and
+critical items govern each run.
 \end{pdboundary}
 
 \pdexercisepointer*{\ref{ex:ls-readpoverty-binding}}{\ref{ex:ls-b1-frontier-run}}{\pageref{ex:ls-readpoverty-binding}}
@@ -3705,11 +3740,11 @@ zoom-advantage row at $F{=}1000,k{=}20$. Compute $k\log_2(F/k)$ by hand first an
 compare it to the row's flat-opens count.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b1-frontier-run}
-By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is denser ($k/F=0.02$ here versus $0.004$ there). It is still inside the theorem's window $d<1/12$, where the guarantee is $1000/(2\cdot20\cdot6+80)=3.1\times$, and the run's $4.3\times$ exceeds it: the advantage shrinks with density but does not disappear.
+By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is denser ($k/F=0.02$ here versus $0.004$ there). It is still inside halving's window $d<1/12$ (part (a)), where the guarantee is $1000/(2\cdot20\cdot6+80)=3.1\times$, and the run's $4.3\times$ exceeds it: the advantage shrinks with density but does not disappear. Hwang's procedure (part (b)) guarantees $1000/(\log_2\binom{1000}{20}+20)\approx1000/158.0\approx6.3\times$ at the same point.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-noisy-zoom-oracle}
-Theorem~\ref{thm:zoom-advantage}'s group query is exact: it reports whether
-$J\cap P=\emptyset$ and is never wrong. A real group query is a linter, a batched
+Take the halving procedure of Theorem~\ref{thm:zoom-advantage}(a). Its group
+query is exact: it reports whether $J\cap P=\emptyset$ and is never wrong. A real group query is a linter, a batched
 test run or a diff scan, and those have false negatives: a group that does
 contain a critical item can come back clean. This is the worst direction for the
 algorithm to fail in, because a negative group is \emph{discarded}: one false
@@ -3730,7 +3765,7 @@ $\varepsilon_{\mathrm{grp}}$; at $\alpha=0.1$, three calls give $10^{-3}$. A dir
 no confirmation because false positives are excluded by hypothesis.
 The noisy recursion visits a subset of the groups visited by the noiseless
 algorithm: an erroneous clean verdict can prune that tree but cannot add nodes.
-Writing the theorem's full bound as
+Writing part (a)'s full bound as
 \[
 Q_0=2k\lceil\log_2(F/k)\rceil+4k,
 \]
@@ -3748,7 +3783,7 @@ Thus, for $0<\varepsilon_{\mathrm{run}}<1$, choosing
 $n_{\mathrm{rep}}=\lceil\log(Q_0/\varepsilon_{\mathrm{run}})/\log(1/\alpha)\rceil$ suffices for a whole-run
 failure bound of $\varepsilon_{\mathrm{run}}$, and hence for each individual positive as well.
 The $4k$ term must be retained when $k$ is near $F$. If $k$ is unknown, use
-the theorem's $k$-free bound $2F-1$ in place of $Q_0$ for this choice.
+part (a)'s $k$-free bound $2F-1$ in place of $Q_0$ for this choice.
 At $\alpha=0$, one call per group is exact; at $\alpha=1$, the assumed error
 bound supplies no finite repetition guarantee. Second, the
 independence assumption is doing heavy work. Repeating a deterministic linter
@@ -4055,7 +4090,7 @@ Each result above carries its own proof or proof sketch: the legibility lower
 bound (Thm.~\ref{thm:lowerbound}), the comonotone characterization
 (Thm.~\ref{thm:comonotone}) behind the rank-order conflict in
 Thm.~\ref{thm:split-ranker}, the regret head (Thm.~\ref{thm:regret-head}), the
-zoom bound of $2k\lceil\log_2(F/k)\rceil+4k$ adaptive opens
+zoom bounds for plain halving and for Hwang's splitting
 (Thm.~\ref{thm:zoom-advantage}) and the Erlang-C boundary
 (Thm.~\ref{thm:specialization}, derived in Example~\ref{ex:queue-boundary}). The
 sweeps reported beside them are finite checks, not further proofs. Two results
