@@ -17,7 +17,7 @@
   \foreach \i/\t/\n in {3.5/{select event}/1,2.5/{select plan}/2,1.5/{select intention}/3}{
     \node[pd label,anchor=east] at ({\gx-.32},{\i*\dy}) {\t};
     \node[pd badge] at (\gx,{\i*\dy}) {\n};}
-  \node[pd artifact,text width=2.4cm] (BS) at (\ax,{3*\dy}) {belief base $bs$};
+  \node[pd artifact,text width=2.4cm] (BS) at (\ax,{3*\dy}) {belief base $\mathit{bs}$};
   \draw[pd thin arrow] (BS.west)--(AP.east);
   \draw[pd breach arrow,rounded corners=3pt]
     (XA.east)--(\rx,\dy)--(\rx,{4*\dy})--(E.east);
@@ -33,9 +33,9 @@
 {\pdfiglabel\setlength{\tabcolsep}{3pt}%
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule\textbf{Selection} & \textbf{What it does} \\\midrule
-1 $S_E(\mathcal E)$ & Choose an event: perception or an added goal. \\
-2 $S_O(\mathrm{App})$ & Choose an applicable plan; push it on the intention stack. \\
-3 $S_I(is)$ & Choose the intention that advances by one action. \\
+1 $\mathit{sel}_E(\mathcal E)$ & Choose an event: perception or an added goal. \\
+2 $\mathit{sel}_O(\mathrm{App})$ & Choose an applicable plan; push it on the intention stack. \\
+3 $\mathit{sel}_I(\mathit{is})$ & Choose the intention that advances by one action. \\
 4 $-!g$ & A goal-context failure may raise a matching handler event; recovery needs a currently applicable plan and later selection. \\\bottomrule
 \end{tabularx}}
 \end{minipage}
