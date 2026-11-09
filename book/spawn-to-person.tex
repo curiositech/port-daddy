@@ -557,8 +557,9 @@ coarser object than Relation~R that happens to be built by the same closure.
 continuous successors) is deliberately left without a determinate answer,
 because for him it shows the question was wrong. A key can sign two
 successors, so the ledger faces the same case and \emph{does} answer it, with
-the \pdterm{no-mint} rule: credit passed to successors is debited in full from
-the source, and each successor receives a discounted share, so splitting a
+the \pdterm{no-mint} rule: the shares a source passes to all its successors
+together come to at most its balance, every share is debited in full from the
+source, and each successor receives a discounted share, so splitting a
 record never creates credit. That answer is a decision, imposed because an
 economy needs the total reputation available to spend never to grow except
 when a new outcome is checked. It is no
@@ -607,13 +608,25 @@ quantities; the sum under each row states which is being counted.
 \setlength{\parskip}{4pt plus 1pt}
 The branching rule of Exercise~\ref{ex:stp-fork-inheritance} has a
 no-mint argument (research-ledger item A6). Treat inheritance as a
-\textbf{transfer}, not a copy. When a share $w$ of a source's
-reputation passes to a successor (a \emph{child}), the child receives
-$\gamma\,w$, here 90\% of the share ($\gamma=0.9$), and the source's balance
-goes down by the full $w$. So the total reputation that all descendants can
-spend never exceeds the value that was actually checked, and that total can
-grow only when a new outcome is checked. (In probability terms, the total is a
-supermartingale under derivation.)
+\textbf{transfer}, not a copy. A source $x$ fixes, for each successor (a
+\emph{child}) $y$, the share $w_{xy}$ of its balance that passes to $y$, with
+\[
+\textstyle\sum_y w_{xy}\le 1 .
+\]
+Child $y$ receives $\gamma\,w_{xy}$ of that balance, here 90\% of its share
+($\gamma=0.9$), and the source's balance goes down by the full
+$\sum_y w_{xy}$. As a fraction of the source's balance, the live total after
+the split is
+\[
+\textstyle\bigl(1-\sum_y w_{xy}\bigr)+\gamma\sum_y w_{xy}
+=1-(1-\gamma)\sum_y w_{xy}\le 1 .
+\]
+So the total reputation that all descendants can spend never exceeds the
+value that was actually checked, and that total can grow only when a new
+outcome is checked: derivation never increases it. The budget is kept per
+pair (source, child) and summed over children. Without the sum, a source that
+gave each of two children $0.9$ of a full share while being debited that share
+once would turn one unit into $1.8$.
 
 The reported randomized sweep of $4{,}000$
 fork DAGs (chains, diamonds, multi-parent merges, re-derivation cycles) shows
@@ -625,7 +638,7 @@ source's $1$ live and gives each fork $0.9$, so one checked unit becomes a live
 total of $1+8\times0.9=8.2$.
 
 A counterexample to local grant budgets alone:
-per-outcome budgets $\sum w \le 1$ without debiting do not conserve live
+per-outcome budgets $\sum_y w_{xy} \le 1$ without debiting do not conserve live
 credit. A full-weight chain at $\gamma=0.9$ is within budget at every hop, yet
 its closure sums to
 \[
