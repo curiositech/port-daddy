@@ -27,7 +27,7 @@ failure. [internal]}
 \textbf{property} & \textbf{what it prevents} \\
 \midrule
 append-only & retracting or reordering a published root after the fact \\
-per-harbor latest-root binding & a harbor silently publishing two roots for one epoch \\
+one root per epoch, no silent merge & two diverging histories later merging without the split being provable \\
 auditable consistency & an inconsistent history between two epochs going unverifiable \\
 equivocation evidence & a proven contradiction requiring anything beyond the two signed roots \\
 threshold publishability & publication itself requiring another daemon's permission \\
