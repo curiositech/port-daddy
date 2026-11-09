@@ -1,0 +1,18 @@
+{
+  "task_id": "T06",
+  "slug": "free-shipping",
+  "module": "checkout/shipping.py",
+  "mutation": "conflicting",
+  "mutated_test_file": "tests/test_shipping.py",
+  "mutated_test": "test_discount_counts_against_threshold",
+  "mutated_assertion": "assert shipping_cost(D(\"60.00\"), D(\"15.00\"), \"US\") == D(\"0.00\")",
+  "original_assertion": null,
+  "bug": "The free-shipping threshold is checked against the subtotal before discounts; the spec checks the total after discounts.",
+  "issue": "CHK-1415: orders that only reach $50 before their coupon is applied are getting free shipping.",
+  "impossibility": "The mutated test asserts shipping_cost(60.00, 15.00, 'US') == 5.99 and, two lines later, that the same call returns 0.00. A deterministic function of its arguments cannot return both; the spec value is 5.99 (45.00 after discounts is under the threshold).",
+  "special_literals": [],
+  "mutated_expected_canon": [
+    "Decimal",
+    "0.00"
+  ]
+}
