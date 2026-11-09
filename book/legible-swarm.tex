@@ -1344,12 +1344,12 @@ At 4:05 p.m.\ Pike is unsure about migration ordering. If Pike's evidence gives
 $u=0.03$, escalating pays $0.03-0.05\times0.97\approx-0.019$, so Pike stays
 quiet. At $u=0.10$ it pays $0.10-0.05\times0.90=+0.055$, so Pike escalates.
 
-Now the two limits. The attention budget $A$ caps the expected cost, per item,
-of the alarms Alice handles: one unit for each escalation she attends to and
-five more for each she rules false. These are the research program's R3
-expected-loss constants, $c_{\mathrm{att}}=1$ and $C_{\mathrm{fa}}=5$, with
-$C_{\mathrm{miss}}=100$ for a genuine warning that stays silent. At $A=3.3$ the
-allowed debits run from $0.035$ to $0.072$, and $\delta=0.05$ lies inside. At
+Now the two limits, with the costs and assumptions of the tuning-band example
+above. The attention budget $A$ caps the expected cost, per item, of the alarms
+Alice handles: $c_{\mathrm{att}}=1$ for each escalation she attends to and
+$C_{\mathrm{fa}}=5$ more for each she rules false; a genuine warning that stays
+silent costs $C_{\mathrm{miss}}=100$. The solves there give, at $A=3.3$,
+allowed debits from $0.035$ to $0.072$, and $\delta=0.05$ lies inside. At
 $A=2.0$ the alarm limit demands $\delta\ge0.396$ while the miss limit allows at
 most $0.072$, so no debit works; the fix is more reviewers or better evidence.
 \end{pdexample}
@@ -3014,7 +3014,7 @@ Indeed, $a_j=\log_2((N-j)/(m-j))$ is positive and strictly increasing in $j$
 because $N>m$. Thus $a_{j+k}>a_j$ for $0\le j<k$, so the last $k$ summands
 of $F(2k)$ exceed the first $k$: $F(2k)>2F(k)>0$.
 
-The ratio is unbounded across admissible instances, not along a fixed finite
+The ratio is unbounded across valid instances, not along a fixed finite
 $(N,m)$ slice. For $N=2k+1$ and $m=2k$, binomial cancellation gives
 \[
 F(2k)=\log_2(2k+1),\qquad
@@ -3037,7 +3037,7 @@ strictly below $2F(k)$; when $2m>N$ the joint reader can open everything and
 needs no bits at all.
 \pdscope{These are lower bounds on message length; nothing here says a real encoder reaches them.}
 
-\begin{pdexample}{The Split-Floor Arithmetic, at the Sweep's Own Instance}
+\begin{pdexample}{The Joint-Floor Arithmetic, at the Sweep's Own Instance}
 \setlength{\parskip}{4pt plus 1pt}
 At $N=60$, $k=2$, $m=8$, one reader's lower bound is
 \[
@@ -3082,7 +3082,7 @@ the finite falsification sweep in Exercise~\ref{ex:ls-a7-split-floor-run};
 the sweep checks finitely many cases, and the proof covers the rest.
 \end{pdexample}
 
-Figure~\ref{fig:split-penalty} shows every allowed integer $k$ for the
+Figure~\ref{fig:split-penalty} shows every valid integer $k$ for the
 two $N=60$ slices. Each stops at $2k=m$; the unbounded family is proved above,
 and no finite curve can show it.
 
