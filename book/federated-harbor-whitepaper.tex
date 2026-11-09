@@ -1091,7 +1091,7 @@ entry is one, and let each edge record head minus tail. An agreement receipt is
 the zero difference, which forces a whole connected component to share one
 value without saying which. A disagreement receipt
 $e_{\mathsf{del}}-e_{\mathsf{ret}}=(-1,1)$ fixes its tail to $\mathsf{ret}$ and
-its head to $\mathsf{del}$; we call such forced endpoint values \pdterm{pins}.
+its head to $\mathsf{del}$; we call such forced endpoint values \pdterm[pin]{pins}.
 
 \begin{pdexample}{A contradiction with zero cycle residual}
 The path $0\to1\to2$ reports $e_{\mathsf{del}}-e_{\mathsf{ret}}$ on each edge. Vertex $1$ must then be
@@ -1283,7 +1283,7 @@ The status partition and the recipient sum each need checking
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:fh-cross-cons}
 For each funded bond $b$ of amount $a_b>0$, let $P_b,E_b,C_b,R_b\in\{0,a_b\}$
-be whole-bond \pdterm{lifecycle accounts}: posted, in escrow, resolved by clearance,
+be whole-bond \pdterm[lifecycle account]{lifecycle accounts}: posted, in escrow, resolved by clearance,
 and resolved by refusal/full refund.
 
 They record the status of the entire bond,
@@ -1681,7 +1681,7 @@ HTLC-style atomic swaps~\pdcite{herlihy2018atomic} achieve trustless settlement 
 
 \subsection{Cartel formation across federations}\label{sec:fh-lim-cartel}
 
-Bonded's folk-theorem cartel-resistance argument applies inside a single machine. Between machines the observation and communication model changes: colluders can coordinate offline and present a unified front to the witness log, which records that all harbors agreed --- a behavior consistent with both honest agreement and collusion. We owe either a strengthening of the bonded mechanism that resists cross-harbor cartels, or a precise statement of the weakening. We have neither.
+Bonded's folk-theorem cartel-resistance argument applies inside a single machine. Between machines the observation and communication model changes: colluders can coordinate offline and present a unified front to the witness log, which records that all harbors agreed, a record consistent with both honest agreement and collusion. We owe either a strengthening of the bonded mechanism that resists cross-harbor cartels, or a precise statement of the weakening. We have neither.
 
 \subsection{Cold-start joining and the invitation-only failure mode}\label{sec:fh-lim-cold-start}
 
@@ -1788,7 +1788,7 @@ The script's own printed lines (\path{skills/harbor-results/scripts/sheaf_consis
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-two-liar-boundary}
-Theorem~\ref{thm:sheaf-equivocation} assumes a \emph{single} equivocator and says outright that this is not decoration. Two colluding reporters sit on the same visible cycle $K_c$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over global sections and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence --- if any --- could still catch the coalition.
+Theorem~\ref{thm:sheaf-equivocation} assumes a \emph{single} equivocator and says outright that this is not decoration. Two colluding reporters sit on the same visible cycle $K_c$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over global sections and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence, if any, could still catch the coalition.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-two-liar-boundary}
 $r$ is defined as the \emph{best-fit} residual: the smallest disagreement left over after choosing the global section $x$ and the free severed blocks $g_{\mathrm{sev}}$ that explain as much of the observed data as any choice can. It is not a per-liar quantity; it is a property of the whole observed cochain $g_K$. If two equivocators on a common cycle choose offsets $o_1$ and $o_2$ such that $o_1+o_2$ happens to be a coboundary (the \emph{sum} of their two lies looks exactly like one consistent change of state), then the best-fit global section can absorb $o_1+o_2$ entirely, leaving a near-zero residual, exactly the way a lone liar's offset is absorbed when it lies off a visible cycle (the bridge case of the six-path example). Nothing in the definition of $r$ requires the offsets to be individually small for their \emph{sum} to be small or zero; it requires only that the sum land in the image of $\delta$, the space the completion can always explain away. This is why a one-edge example cannot establish completeness for arbitrary multiple offsets: the one-edge detection guarantee cannot be applied separately and then
@@ -1796,7 +1796,7 @@ added. Soundness remains: $r>0$ still certifies incompatibility of the encoded
 data. Completeness for arbitrary coordinated errors was never supplied; even
 one sender can choose several offsets that cancel in projection.
 
-The compendium's own sweep states the shape of this exactly: a solo equivocator on an 8-cycle is bounded below at $r\ge|s|/\sqrt8$, while a coordinating coalition of two on the same cycle drives the same statistic to $r\approx6\times10^{-15}$, numerically the silence of a true coboundary rather than a small but detectable residual [internal, \texttt{sheaf\_consistency\_radius.py}]. What could still catch the coalition is exactly what $r$ is not: per-report attribution rather than a single scalar. Signature-level forensics can ask whether the \emph{same} reporter's two prefixes are individually self-consistent (an equivocator still signs two incompatible things even if the aggregate looks clean); cross-checking against a third, independent visible cycle through only one of the two colluders can isolate that one's contribution if such a cycle exists; and widening $K$ --- comparing more edges directly rather than relying on relayed reports --- shrinks the coalition's room to choose a cancelling pair in the first place. None of this is a proof that coalitions are caught in general; \S\ref{sec:fh-lim-cartel} names the cross-harbor cartel question as open for exactly this reason, and this exercise is that same boundary stated at the level of one theorem rather than the whole federation.
+The compendium's own sweep states the shape of this exactly: a solo equivocator on an 8-cycle is bounded below at $r\ge|s|/\sqrt8$, while a coordinating coalition of two on the same cycle drives the same statistic to $r\approx6\times10^{-15}$, numerically the silence of a true coboundary rather than a small but detectable residual [internal, \texttt{sheaf\_consistency\_radius.py}]. What could still catch the coalition is exactly what $r$ is not: per-report attribution rather than a single scalar. Signature-level forensics can ask whether the \emph{same} reporter's two prefixes are individually self-consistent (an equivocator still signs two incompatible things even if the aggregate looks clean); cross-checking against a third, independent visible cycle through only one of the two colluders can isolate that one's contribution if such a cycle exists; and widening $K$ (comparing more edges directly rather than relying on relayed reports) shrinks the coalition's room to choose a cancelling pair in the first place. None of this is a proof that coalitions are caught in general; \S\ref{sec:fh-lim-cartel} names the cross-harbor cartel question as open for exactly this reason, and this exercise is that same boundary stated at the level of one theorem rather than the whole federation.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-categorical-versus-linear}
