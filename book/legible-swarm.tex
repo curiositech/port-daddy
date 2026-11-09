@@ -1958,11 +1958,9 @@ a digest needs $B^\star$ bits to be useful. It counts only what the zero-miss
 guarantee needs; cheaper digests are fine the moment misses are tolerated, and
 the two-constraint rate below measures exactly that saving.
 
-Figure~\ref{fig:readpoverty} distinguishes a single-reader lower bound, the sum
-of two such bounds, and a joint lower bound for disjoint critical sets. The formal
-comparison follows in Theorem~\ref{thm:split-penalty}.
-
-\input{figures/legible-swarm-readpoverty}
+When two readers need disjoint critical sets, one joint digest given both
+readers' opens has a lower bound below the sum of two separate digests'
+bounds; Theorem~\ref{thm:pooling-gain} states the comparison.
 
 \paragraph{The falsification experiment.} For uniformly distributed critical
 $k$-sets, a $B$-bit digest's zero-miss probability is at most
@@ -3006,86 +3004,62 @@ List the three feasible choices. Their losses $(L_{\mathrm{succ}},L_{\mathrm{op}
 
 \emph{Pause and check:} if the audit weight becomes zero, the work-only summary minimizes both objectives. Disagreement requires a real oversight obligation; two named readers are not enough. The next result studies a different question: the counting lower bounds when two readers need disjoint critical sets.
 
-\begin{pdclaim}{Theorem}{Joint-Digest Lower Bound under a Shared Opening Budget}
+\begin{pdclaim}{Theorem}{The Pooling Gain}
 \setlength{\parskip}{4pt plus 1pt}
-\label{thm:split-penalty}
-For integers $N,m,k$ with $k\ge1$ and $2k\le m<N$, let
-\[
-\Lambda(n)=\mathrm{LB}(N,n,m)
- =\log_2\!\frac{\binom Nn}{\binom mn}
- =\sum_{j=0}^{n-1}\log_2\!\frac{N-j}{m-j}.
-\]
-A joint zero-miss digest that must cover every possible union of two disjoint
-critical $k$-sets, using at most $m$ opens in total, has the worst-case bit
-lower bound $\Lambda(2k)$ from Theorem~\ref{thm:lowerbound}.
+\label{thm:pooling-gain}
+Write $\mathrm{LB}(N,n,m)=\log_2\binom Nn-\log_2\binom mn$ for the zero-miss
+lower bound of Theorem~\ref{thm:lowerbound} with $n$ critical items and $m$
+opens. Two readers each need their own critical $k$-set, and the two sets are
+disjoint. Compare two arrangements with the same total of $m$ opens: two
+separate digests, each serving one reader with $m/2$ opens, and one joint
+digest that must cover the union of both sets with all $m$ opens.
 
-This bound satisfies
+For integers $k\ge1$ and even $m$ with $2k\le m\le N$,
 \[
-\Gamma(N,k,m)=\frac{\Lambda(2k)}{2\Lambda(k)}>1.
+\mathrm{LB}(N,2k,m)\;<\;2\,\mathrm{LB}(N,k,m/2).
 \]
-Indeed, $a_j=\log_2((N-j)/(m-j))$ is positive and strictly increasing in $j$
-because $N>m$. Thus $a_{j+k}>a_j$ for $0\le j<k$, so the last $k$ summands
-of $\Lambda(2k)$ exceed the first $k$: $\Lambda(2k)>2\Lambda(k)>0$.
-
-The ratio is unbounded across valid instances, not along a fixed finite
-$(N,m)$ slice. For $N=2k+1$ and $m=2k$, binomial cancellation gives
-\[
-\Lambda(2k)=\log_2(2k+1),\qquad
-\Lambda(k)=\log_2\!\frac{2k+1}{k+1}\longrightarrow1.
-\]
-Consequently $\Gamma(2k+1,k,2k)\to\infty$ as $k\to\infty$.
+At an equal opening budget, the joint digest's lower bound is below the sum of
+the two separate ones.
 \end{pdclaim}
 
-Read the ratio $\Gamma(N,k,m)$ with care. Each of the two separate readers may open $m$
-items, $2m$ in all; the joint digest may open only $m$. What the theorem
-shows: one digest that must serve two readers with disjoint critical sets
-inside one reader's opening budget needs more bits than the two
-single-reader lower bounds together. The extra bits come from sharing that budget,
-not from serving two readers with one digest. At an equal total budget the
-order reverses. A joint review set of $2m$ items made of two disjoint
-$m$-item halves contains at least $\binom mk^2$ of the possible $2k$-sets,
-strictly more when $k\ge1$, and $\binom N{2k}\le\binom Nk^2$. So whenever
-$2m\le N$, the joint lower bound with $2m$ opens, $\mathrm{LB}(N,2k,2m)$, is
-strictly below $2\Lambda(k)$; when $2m>N$ the joint reader can open everything and
-needs no bits at all.
-\pdscope{These are lower bounds on message length; nothing here says a real encoder reaches them.}
-
-\begin{pdexample}{The Joint-Bound Arithmetic, at the Sweep's Own Instance}
+\begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-At $N=60$, $k=2$, $m=8$, one reader's lower bound is
-\[
-\Lambda(2)=\log_2\!\frac{\binom{60}{2}}{\binom82}
-\approx5.9822\text{ bits}.
-\]
+Choosing $k$ items from each half of an $m$-item review set gives distinct
+$2k$-subsets of it, so $\binom m{2k}\ge\binom{m/2}k^2$. Every $2k$-subset of
+the $N$ artifacts splits into an ordered pair of disjoint $k$-subsets in
+$\binom{2k}k\ge2$ ways, and there are at most $\binom Nk^2$ such pairs, so
+$\binom N{2k}\binom{2k}k\le\binom Nk^2$ and hence $\binom N{2k}<\binom Nk^2$.
+Taking base-two logarithms of both inequalities and subtracting gives
+$\mathrm{LB}(N,2k,m)<2\log_2\binom Nk-2\log_2\binom{m/2}k=2\,\mathrm{LB}(N,k,m/2)$.
+\end{proof}
 
-For a joint digest covering both disjoint critical sets with eight opens in
-total, the lower bound is
-\[
-\Lambda(4)=\log_2\!\frac{\binom{60}{4}}{\binom84}
-\approx12.7662\text{ bits}.
-\]
+\noindent The budgets must match before the comparison means anything. Hold
+the joint digest to one reader's $m$ opens while each separate reader also
+gets $m$, and the joint bound exceeds the sum: at $N=60$, $k=2$, $m=8$ it is
+$12.77$ bits against $2\times5.98=11.96$. That comparison gives the joint
+digest half the opens of the pair, so it measures a shortage of opens, not a
+cost of serving two readers from one store.
+\pdscope{Both sides are lower bounds on message length. The inequality compares the bounds, not encoders; the remark after Theorem~\ref{thm:lowerbound} says when codebooks reach them.}
 
-The sum of the two single-reader lower bounds is
+\begin{pdexample}{The Pooling Gain, at the Sweep's Own Instance}
+\setlength{\parskip}{4pt plus 1pt}
+\label{ex:pooling-gain}
+Take $N=60$ and $k=2$, with $m=8$ opens in total. Two separate digests get
+four opens each, and each one's lower bound is
 \[
-2\Lambda(2)\approx11.9644 \text{ bits},
+\mathrm{LB}(60,2,4)=\log_2\!\frac{\binom{60}{2}}{\binom42}
+=\log_2\frac{1770}{6}\approx8.2045\text{ bits},
 \]
-with eight opens allowed per reader. Hence the ratio plotted in Figure~\ref{fig:split-penalty} is
+so the pair needs at least $16.4091$ bits. One joint digest with all eight
+opens must cover both critical pairs:
 \[
-\Gamma(60,2,8)\approx1.0670:
+\mathrm{LB}(60,4,8)=\log_2\!\frac{\binom{60}{4}}{\binom84}
+=\log_2\frac{487635}{70}\approx12.7662\text{ bits}.
 \]
-the joint lower bound is about $6.70\%$ above that sum.
-
-The ratio to just one reader's lower bound is instead
-\[
-\Lambda(4)/\Lambda(2)\approx2.1340.
-\]
-
-Give the joint digest the same sixteen opens the two separate readers have
-between them, and its lower bound drops below their sum:
-\[
-\mathrm{LB}(60,4,16)=\log_2\!\frac{\binom{60}{4}}{\binom{16}{4}}
-=\log_2\frac{487635}{1820}\approx8.0657\text{ bits}<11.9644.
-\]
+Pooling the store and the budget lowers the bound by about $3.64$ bits. The
+proof's two inequalities hold here as
+$\binom84=70\ge\binom42^2=36$ and
+$\binom{60}4\binom42=2{,}925{,}810\le\binom{60}2^2=3{,}132{,}900$.
 
 These are closed-form lower bounds, not measured token costs or achieved
 compression ratios.
@@ -3095,17 +3069,14 @@ the finite falsification sweep in Exercise~\ref{ex:ls-a7-split-floor-run};
 the sweep checks finitely many cases, and the proof covers the rest.
 \end{pdexample}
 
-Figure~\ref{fig:split-penalty} shows every valid integer $k$ for the
-two $N=60$ slices. Each stops at $2k=m$; the unbounded family is proved above,
-and no finite curve can show it.
-
-\input{figures/legible-swarm-split-penalty}
-
 \paragraph{Architectural corollary: the SLM sidecar.}
 Theorem~\ref{thm:split-digest} motivates separate reader-specific decisions;
 the trust boundary independently motivates an oversight summary sourced from
 kernel evidence rather than worker self-report (\S\ref{sec:verifiable}).
-The design uses two reader-facing heads over evidence that may share a store:
+The design uses two reader-facing heads over evidence that may share a store,
+and Theorem~\ref{thm:pooling-gain} says that it should: one shared evidence
+store with a pooled opening budget has a lower zero-miss bound than two stores
+that split the budget. The heads stay separate and the store stays single:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item \textbf{Task-Continuation Head ($R_1$):}
 \pdstatus{\Designed}{}
@@ -3389,7 +3360,8 @@ budget; compatible priorities can share an ordering. Inspection still needs
 calibrated error probabilities and costs.
 \item \textbf{Compaction serves distinct readers.} The extractive
 counterexample shows why a one-record budget can force conflicting choices.
-The counting comparison sets different coverage budgets side by side. The classical
+At an equal opening budget, one shared digest for two readers has a lower
+zero-miss bound than two separate digests (Theorem~\ref{thm:pooling-gain}). The classical
 cache bound controls retrieval cost for its specified algorithm and comparator,
 not comprehension or arbitrary pinning policies.
 \item \textbf{Several authors, one sovereign.} Many principals keep the single
@@ -3918,8 +3890,9 @@ The single-reader lower bound is $5.9822$ bits and the joint lower bound is $12.
 The script's reported $2.13\times$ compares the joint bound with only one
 single-reader bound. Dividing instead by $2(5.9822)=11.9644$ gives $1.0670$.
 The joint digest permits eight opens total; each separate reader may open
-eight. Neither ratio measures an equal-total-budget implementation saving;
-with sixteen opens in total the joint lower bound falls to $8.0657$ bits, below $11.9644$.
+eight, so neither ratio is an equal-budget comparison. Split the eight opens
+four and four instead and the two separate bounds total $16.4091$ bits, above the
+joint $12.7662$, as Theorem~\ref{thm:pooling-gain} requires.
 The recorded sweep reports \texttt{violations: 0/16 -> floor HOLDS} and
 \texttt{ratio:\ \ 2.13x} [internal, \texttt{a7\_experiment.py}]. Its zero
 violations concern the finite tested configurations and the script's
@@ -4065,8 +4038,8 @@ zoom bound of $2k\lceil\log_2(F/k)\rceil+4k$ adaptive opens
 sweeps reported beside them are finite checks, not further proofs. Two results
 need careful reading. The extractive counterexample in
 Thm.~\ref{thm:split-digest} states a feasible summary class and budget; it does
-not forbid shared storage. The comparison in Thm.~\ref{thm:split-penalty} uses
-different total opening budgets and must be read that way.
+not forbid shared storage. The pooling gain (Thm.~\ref{thm:pooling-gain})
+compares lower bounds at an equal opening budget; it says nothing about encoders.
 
 \paragraph{Where this chapter is positioned.}
 Table~\ref{tab:related} places the contribution against the nearest neighbors in each
