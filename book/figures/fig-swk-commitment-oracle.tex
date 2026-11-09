@@ -11,7 +11,7 @@
 %   staying open.
 % Evidence: book/single-writer-kernel.tex sec:commitments, prop:law1,
 %   prop:law2, alg:close.
-% Must distinguish: the four admissible references from the one inadmissible
+% Must distinguish: the four accepted references from the one refused
 %   one; that refusal returns the commitment to open, not to a new state;
 %   that the deadline is the daemon's, never the agent's.
 % Grammar: a heavy wall with one aperture, tributaries joining just before
@@ -48,7 +48,7 @@
   \node[pd tag,anchor=south] at (7.80,{\ax+.20}) {closes as done};
 
   % ---- the vocabulary: four references, joining the attempt before the slot
-  \node[pd title,anchor=west] at (1.35,6.55) {the four admissible references};
+  \node[pd title,anchor=west] at (1.35,6.55) {the four accepted references};
   \foreach \i/\t/\jx in {1/{policy sub-check}/4.95, 2/{passing test id}/5.22,
                          3/{merged commit}/5.49, 4/{released claim}/5.76}{
     \node[pd state,minimum width=3.4cm] (r\i) at (3.05,{2.10+\i*0.95}) {\t};

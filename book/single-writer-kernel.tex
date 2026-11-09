@@ -1183,7 +1183,7 @@ already breaks the rule, whatever happens next.
 A monitor invoked only after a transition commits cannot prevent a safety violation
 whose bad prefix ends at that transition. It can detect the prefix, halt later
 actions, and enforce a separate recovery or bounded-response property. Therefore a
-post-commit subscription must not be credited with making the triggering state
+post-commit subscription must not be described as making the triggering state
 unreachable.
 \end{theorem}
 
@@ -1206,16 +1206,16 @@ fails). The states they refuse are \emph{truly} unreachable. The policy monitor
 notices everything else \emph{afterward} and compensates. ``Physically
 unreachable'' therefore applies only to the regimented set; the rest gets
 detection and possible remedy. A bounded response window needs a separate
-argument about observation and scheduling. Crediting double-claim prevention to
+argument about observation and scheduling. Attributing double-claim prevention to
 the monitor counts it twice: the uniqueness constraint already prevented it,
 and the monitor only logs it.}
 
 \begin{theorem}[Synchronous guard sufficiency]\label{thm:decidability}
-Let $I(S)$ be an invariant of the committed database state, initially true.
-Assume every relevant transition $S\mapsto T(S,\Delta)$ passes through a
+Let $I(D)$ be an invariant of the committed database state, initially true.
+Assume every relevant transition $D\mapsto T(D,\Delta)$ passes through a
 serialized transaction that evaluates a terminating deterministic guard on
 that transaction's state and payload. If the guard admits $\Delta$ only when
-$I(T(S,\Delta))$ holds, and rejection has no relevant external effect, then
+$I(T(D,\Delta))$ holds, and rejection has no relevant external effect, then
 $I$ holds after every committed transition.
 \end{theorem}
 
@@ -1259,7 +1259,7 @@ can be regimented exactly if and only if no
 \pdmarginfigure{wonham}{Wonham's supervisory-control theory, built for factory floors, is why a software policy can be proved enforceable rather than hoped.}%
 unblockable step can, by itself, turn an allowed history into a forbidden one.
 Six of the nine rules in Table~\ref{tab:policy-classification} pass this
-test.}\footnote{A standalone, submission-form version of this section is \emph{Regimented or Enforced: The Controllability Boundary for Agent Governance} (research paper 2), whose policy table and verdicts regenerate from \texttt{skills/harbor-results/scripts/b3\_controllability.py}.}
+test.}
 
 \paragraph{The scene.}
 The operations lead reads the governance document aloud. \emph{No force-push to main. No
@@ -1449,7 +1449,7 @@ The proof is structured; each numbered step can be checked on its own.
 
 Two remarks on what the proof used. The forward direction is constructive and \emph{maximally
 permissive}: the supervisor disables nothing except the controllable exits, so regimentation
-costs no legal behavior. The governance rule and the agent's freedom are not in tension when
+loses no legal behavior. The governance rule and the agent's freedom are not in tension when
 the rule is controllable at all. The reverse direction used nothing about the mechanism
 except its type. No cleverness inside the runtime, no better prompt, faster monitor, or
 smarter policy engine, escapes the theorem, because the obstruction is that $\sigma$ finishes
@@ -1531,8 +1531,9 @@ Three consequences follow, from least to most important.
   the job) and impossible to prevent it from \emph{incorporating} the secret into tokens and
   plans (uncontrollable again). What is possible, exactly and only, is to gate every
   controllable egress channel out of the room, with taint recorded from the moment of
-  exposure. Gate the channel, never the token. The companion noninterference result for the
-  sealed room proves from the other direction that the gate suffices; controllability says the
+  exposure. Gate the channel, never the token. The sealed room's noninterference result in
+  \pdchapref{sealed}{The Sealed Harbor}, model-checked on a finite model, shows from the
+  other direction that the gate suffices; controllability says the
   gate is the only place a guarantee \emph{can} live. This is why ``all spend is recorded'' in
   the economy chapters is precisely complete mediation of $\Sigma_c$.
 \item \textbf{Two dials a designer can turn.} With plant, observation, and policy fixed, widening $\Sigma_c$
@@ -1551,10 +1552,10 @@ Three consequences follow, from least to most important.
 \setlength{\parskip}{4pt plus 1pt}
 The theorem's constructive direction is the synthesis algorithm the Supremica and TCT tool
 families implement, and it is small enough to run on paper. A sandboxed code-review job
-carries three rules: $P_1$, no \texttt{net\_egress}, ever; $P_2$, no \texttt{git\_push},
-ever; $P_3$, after any \texttt{in\_context\_read} of customer material, no \texttt{fs\_write}.
+carries three rules: $R_1$, no \texttt{net\_egress}, ever; $R_2$, no \texttt{git\_push},
+ever; $R_3$, after any \texttt{in\_context\_read} of customer material, no \texttt{fs\_write}.
 
-$P_1$ and $P_2$ are one-state automata and $P_3$ is the two-state taint automaton, so the
+$R_1$ and $R_2$ are one-state automata and $R_3$ is the two-state taint automaton, so the
 product specification has
 \[
 1 \times 1 \times 2 = 2 \text{ states},
@@ -1591,7 +1592,7 @@ nontrivial preventable weakening of a thought ban, and a governance document tha
 ``partially enforce'' such a rule by prevention is describing detection with optimistic
 vocabulary.
 
-\emph{Now you try:} add $P_4$, ``no \texttt{spawn\_child} after
+\emph{Now you try:} add $R_4$, ``no \texttt{spawn\_child} after
 \texttt{git\_push},'' to the review job and write the new disablement map
 (Exercise~\ref{ex:swk-synthesis}).
 \end{pdexample}
@@ -1602,7 +1603,7 @@ produces, as a two-row disablement map.
 \begin{table}[H]
 \centering
 \caption{The sandboxed review job's maximally permissive supervisor: a
-two-row disablement map, checkable by eye against the three rules $P_1$--$P_3$.
+two-row disablement map, checkable by eye against the three rules $R_1$--$R_3$.
 [verified: eight cases]}
 \label{tab:swk-review-disablement}
 \small
@@ -1924,7 +1925,7 @@ Listing~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against 
 machine-checkable before/after measurement (a named benchmark improving past a
 declared threshold), and \emph{AST assertions}, which use a parser such as
 \texttt{tree-sitter} to state a structural property of the resulting code (``no call
-site of $f$ remains'') that the daemon can re-evaluate at closure time.
+site of the removed function remains'') that the daemon can re-evaluate at closure time.
 
 Both kinds have the property that matters: the daemon can re-check them itself,
 so they are oracles, not testimony. Neither is in the shipped set:
@@ -2382,7 +2383,7 @@ theorem's six hypotheses are the assumptions both guarantees need.
 \setlength{\parskip}{4pt plus 1pt}
 Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), transactions never enable \texttt{read\_uncommitted}, each successful response is sent only after commit, no out-of-band writer mutates the tables, and the observed execution is crash-free. Each claim/lock operation's state checks and mutation belong to that same transaction.
 
-Then committed transactions admit a serial order, and the externally observed
+Then committed transactions have an equivalent serial order, and the externally observed
 claim/lock operations are linearizable with commit as the linearization point.
 \end{theorem}
 
@@ -2564,8 +2565,8 @@ and holds its own host credentials.}
 
 \begin{pdexample}{A macaroon by hand, and the door it does not guard}
 This is a constructed example, with labels in place of real hashes. The daemon
-holds root key $K$ and issues grant 42 with signature
-$\mathit{sig}_0 = \mathrm{HMAC}(K, \texttt{push-grant-42})$. Adding the caveat
+holds root key $\kappa$ and issues grant 42 with signature
+$\mathit{sig}_0 = \mathrm{HMAC}(\kappa, \texttt{push-grant-42})$. Adding the caveat
 ``branch = \texttt{fix-checkout}'' gives
 $\mathit{sig}_1 = \mathrm{HMAC}(\mathit{sig}_0, \text{caveat}_1)$, and adding
 ``before 17:00'' gives
@@ -2575,7 +2576,7 @@ $\mathit{sig}_1$, which she never received. To add ``only
 \texttt{lib/payments}'' she can compute
 $\mathrm{HMAC}(\mathit{sig}_2, \text{caveat}_3)$ herself, so narrowing needs no
 help from the daemon. When a push arrives, the daemon recomputes the chain from
-$K$ and compares.
+$\kappa$ and compares.
 
 Now the bypass. Wren runs \texttt{/usr/bin/git push} with her own SSH key, and
 no macaroon is ever presented. The five escapes listed in the next paragraph
@@ -2858,7 +2859,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
   checking the active lease and epoch. An exact-key claim alone does not supply
   those extra guarantees.
 \item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
-  idempotency key the coordination layer still owes; only protocol violations raise alarms.
+  idempotency key the coordination layer has yet to supply; only protocol violations raise alarms.
 \item Two chains, never one name. The authorization chain proves who authorized whom;
   the coordination lineage says what work is in flight. The second is carried inside
   the first.
@@ -2893,10 +2894,10 @@ Which of the seven subsystems would still be meaningful if the daemon ran over a
 In memory the storage layer still serializes, so resource exclusion, identity and presence, communication, obligation checks, policy checks, and self-attestation keep their transient meaning while the process lives. Everything the subsystems promise across a crash becomes vacuous: durable continuity, crash recovery, historical audit, and outcome evidence; durable identity collapses to an ephemeral handle. The decomposition survives; the cross-crash guarantees do not.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-organs-home-table}
-Pick any one subsystem and name the single SQLite table that is its ``home'' table. Then name one invariant that subsystem owes the layer above it.
+Pick any one subsystem and name the single SQLite table that is its ``home'' table. Then name one invariant that subsystem guarantees to the layer above it.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-organs-home-table}
-The communication subsystem's home table is \texttt{messages}; it owes the layer above an ordered, cursor-addressable, durable envelope with explicit at-least-once semantics. Equally valid: \texttt{claims} for the resource subsystem (one compatible holder per conflict domain), or \texttt{commitments} for the obligation subsystem (no \emph{done} without a current structured oracle receipt).
+The communication subsystem's home table is \texttt{messages}; it guarantees the layer above an ordered, cursor-addressable, durable envelope with explicit at-least-once semantics. Equally valid: \texttt{claims} for the resource subsystem (one compatible holder per conflict domain), or \texttt{commitments} for the obligation subsystem (no \emph{done} without a current structured oracle receipt).
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-organs-cut}
 The seven-subsystem decomposition is a \emph{choice}. Is there a more natural cut, five subsystems, or nine? Argue for an alternative and show what it makes easier to reason about and what it hides.
@@ -2966,7 +2967,7 @@ A claim commits at $t_0$; the next auto-checkpoint fires at $t_0+\delta$. Draw t
 \end{tikzpicture}
 \end{center}
 \par\smallskip
-The commit is power-loss exposed from $t_0$ until the WAL frames that contain it are synced. A page-count threshold bounds accumulated WAL frames, not elapsed time: at a low or zero write rate it may not fire for arbitrarily long, so it gives no wall-clock bound. Only with an independently guaranteed minimum write rate $w_{\min}$ pages per second and threshold $P$ does $\delta \lesssim P/w_{\min}$ follow, and this chapter assumes no such minimum.
+The commit is power-loss exposed from $t_0$ until the WAL frames that contain it are synced. A page-count threshold bounds accumulated WAL frames, not elapsed time: at a low or zero write rate it may not fire for arbitrarily long, so it gives no wall-clock bound. Only with an independently guaranteed minimum write rate $\lambda_{\min}$ pages per second and threshold $\theta$ pages does $\delta \lesssim \theta/\lambda_{\min}$ follow, and this chapter assumes no such minimum.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op10-interface}
 Section~\ref{sec:durability} sketches typed durability selection (OP-10), but nothing in the kernel opts into it. What is the cleanest interface that lets a settlement-ledger write demand I1b while keeping claim writes fast, and, harder, what stops a \emph{future} write path from silently defaulting into the fast lane when it should have opted in?
@@ -3041,7 +3042,7 @@ The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key
 The Stigmergic Ticket-Lock gives bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a background scheduler, or argue that no reactive-only design can, and say what the minimum scheduler would be.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-op1-ticket}
-Add a durable FIFO ticket queue per conflict domain, a maximum lease $L$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No background scheduler is required for safety, but liveness requires some live caller or tick to trigger the transitions. Eventual requests alone give no finite wait bound. If leases cannot renew past $L$, a live trigger arrives within $D$ of each expiry, and each handoff completes within $P$, then a requester with $q$ predecessors waits at most $(q+1)(L+D+P)$, a conservative bound allowing a current holder as well. Without finite trigger and processing bounds, reactive safety can hold while waiting is unbounded. Every external effect must validate the fencing epoch, or an expired holder can still act.
+Add a durable FIFO ticket queue per conflict domain, a maximum lease $\ell$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No background scheduler is required for safety, but liveness requires some live caller or tick to trigger the transitions. Eventual requests alone give no finite wait bound. If leases cannot renew past $\ell$, a live trigger arrives within $d$ of each expiry, and each handoff completes within $h$, then a requester with $q$ predecessors waits at most $(q+1)(\ell+d+h)$, a conservative bound allowing a current holder as well. Without finite trigger and processing bounds, reactive safety can hold while waiting is unbounded. Every external effect must validate the fencing epoch, or an expired holder can still act.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:comm}}{The communication subsystem: the bus, stigmergy, and two delegation chains}
@@ -3094,10 +3095,10 @@ safety by forbidding the earlier \texttt{fs\_write}; that restriction sacrifices
 legal histories rather than realizing the entire specified language.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-synthesis}
-Add $P_4$, ``no \texttt{spawn\_child} after \texttt{git\_push},'' to the sandboxed review job and write the new disablement map by hand.
+Add $R_4$, ``no \texttt{spawn\_child} after \texttt{git\_push},'' to the sandboxed review job and write the new disablement map by hand.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-synthesis}
-$P_4$ is a two-state taint automaton whose trigger is \texttt{git\_push}. In the product with $P_2$ (no \texttt{git\_push}, ever) the trigger is disabled in every reachable state, so $P_4$'s tainted state is unreachable in the closed loop and the disablement map is unchanged: \texttt{ok} disables $\{\texttt{net\_egress}, \texttt{git\_push}\}$ and \texttt{tainted} disables $\{\texttt{net\_egress}, \texttt{git\_push}, \texttt{fs\_write}\}$. Controllability still holds, since no reachable state disables an uncontrollable event. The lesson is the one synthesis is for: $P_4$ is vacuous under $P_2$, and a hand-written engine would have carried the dead rule forever.
+$R_4$ is a two-state taint automaton whose trigger is \texttt{git\_push}. In the product with $R_2$ (no \texttt{git\_push}, ever) the trigger is disabled in every reachable state, so $R_4$'s tainted state is unreachable in the closed loop and the disablement map is unchanged: \texttt{ok} disables $\{\texttt{net\_egress}, \texttt{git\_push}\}$ and \texttt{tainted} disables $\{\texttt{net\_egress}, \texttt{git\_push}, \texttt{fs\_write}\}$. Controllability still holds, since no reachable state disables an uncontrollable event. The lesson is the one synthesis is for: $R_4$ is vacuous under $R_2$, and a hand-written engine would have carried the dead rule forever.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op5-oracle}
 Extend the Law-2 oracle vocabulary to capture a ``done'' condition it currently misses (OP-5), without letting free text close a commitment again. State your new oracle and argue that it resists gaming (Goodhart's law), for one of the two specified kinds (delta oracle, AST assertion) before inventing a third, since neither has yet been shown to resist it.
@@ -3134,7 +3135,7 @@ A content-addressed task capsule sealed at a safe tool or message boundary: base
 The escalated delegation takes one step (Table~\ref{tab:workunit-crimes}). Which transition is it, and which invariant does it break?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-crimes}
-\texttt{delegate} from the initial state with a child scope not contained in the root grant's scope $\{a,b\}$, for instance $\{a,b,c\}$: with the attenuation guard off the grant is created and I4 fails immediately. No other guard can be broken in one step, because effects need the executing phase, settlement needs the verified phase, and a double settlement needs two operations.
+\texttt{delegate} from the initial state with a child scope not contained in the root grant's scope $\{\texttt{a},\texttt{b}\}$, for instance $\{\texttt{a},\texttt{b},\texttt{c}\}$: with the attenuation guard off the grant is created and I4 fails immediately. No other guard can be broken in one step, because effects need the executing phase, settlement needs the verified phase, and a double settlement needs two operations.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-seventh-invariant}
 Propose a seventh invariant that the six of Theorem~\ref{thm:workunit} do not imply, add the guard that enforces it to \texttt{c0\_workunit.py}, and report the shortest crime the checker finds with your guard disabled.
@@ -3407,7 +3408,7 @@ A model's inference state is bound to a particular model, sampler and session an
 not a portable artifact; replaying the inputs reconstructs what was fed to that
 state, never the state. Whether the reconstruction is close enough to count as
 restoring work, and against what test, is the question, and no formal result in
-this series establishes it. Closing 4a would not close 4b, and a reader who sees
+this book establishes it. Closing 4a would not close 4b, and a reader who sees
 event-sourced rehydration ship should not read it as OP-4 discharged.
 \item[$\bigstar$ OP-5 --- Oracle completeness.] Status: \Open. State-machine assertions
 (\S\ref{sec:enforcement}, \Designed) would add delta oracles and AST assertions to
@@ -3468,7 +3469,7 @@ one file, one decider, no consensus.
 Where it stops, it stops formally. Durability is split: process-crash durable
 (I1a), \emph{not} guaranteed against power loss (I1b). The policy monitor detects
 and compensates; it does not regiment, and among the states its rules cover we
-credit pre-commit regimentation only to the uniqueness constraint and the boot gate. Cross-subsystem
+attribute pre-commit regimentation only to the uniqueness constraint and the boot gate. Cross-subsystem
 atomicity is a defect that can be fixed now. Hash-chain tamper-evidence is
 narrowed to cross-machine provisioning, where it actually protects someone. The two
 genuine soft spots, partial local identity enforcement (I12) and the lack of a
@@ -3612,12 +3613,12 @@ alike.
 \subsection{Nomenclature}
 
 For the reader cross-referencing the accompanying chapters, the body's neutral names map
-to the series' internal terms as follows: the \emph{storage / coordination /
-legibility / economy} layers are the series' L0--L3; the \emph{policy monitor} is
+to the book's internal terms as follows: the \emph{storage / coordination /
+legibility / economy} layers are the book's L0--L3; the \emph{policy monitor} is
 the Arbiter; \emph{stigmergic markers} are pheromones; the \emph{bus} is tube; the
 \emph{authorization chain} and \emph{coordination lineage} are the two objects the
-series keeps distinct under the single phrase ``delegation chain.'' The maturity
-grades (implemented, partial, specified, proposed) are the series' own labels.
+book keeps distinct under the single phrase ``delegation chain.'' The maturity
+grades (implemented, partial, specified, proposed) are the book's own labels.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
