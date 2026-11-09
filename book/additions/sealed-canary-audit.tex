@@ -16,10 +16,10 @@ $\varepsilon$.
 \begin{pdclaim}{Theorem}{Canaries Falsify a Declared $\varepsilon$}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sealed-canary-falsify}
-Plant $m$ canaries, each the only record of a fresh synthetic person, and
+Plant $m$ canaries, each the only record of a fresh synthetic data subject, and
 include each independently with probability $\tfrac12$, the coins kept secret
 by the auditor. Suppose the pipeline from logs to released artifact is
-$(\varepsilon,\delta)$-private under the person-level neighboring relation.
+$(\varepsilon,\delta)$-private under the subject-level neighboring relation.
 
 (i) For any detector and any single canary,
 $\Pr[\text{flag}\mid\text{included}]\le
@@ -37,9 +37,30 @@ matter: twenty guesses about one canary are one coin, not twenty, and would
 refute a pipeline that releases nothing.
 \end{pdclaim}
 
+\begin{pdexample}{One Audit, One Hundred Coins}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. Erin's support adapter declares
+$\varepsilon=0.5$ with $\delta=0$. Wren plants $m=100$ synthetic customers
+and flips a secret coin for each that decides whether the customer's record
+goes into the training data. After training she ranks the 100 by the model's
+likelihood and guesses, once per customer, which were included, so $r=100$.
+
+If the declaration is true, each guess is right with probability at most
+$e^{0.5}/(1+e^{0.5})=0.622$, so an honest $\varepsilon$ allows about 62 right
+guesses on average. Suppose Wren gets 74 right. Then
+$\Pr[\mathrm{Bin}(100,0.622)\ge74]\approx0.009$, below 5\% and even below
+1\%, so the declaration is refuted at either level. Suppose instead she gets
+68 right. The tail is about $0.14$, and the declaration is not refuted. At the
+5\% level the dividing line is 71 right guesses, with a tail of about
+$0.042$; 70 right gives $0.066$.
+
+A count below the line proves nothing about privacy, because the guesser may
+simply be weak.
+\end{pdexample}
+
 \paragraph{Proof sketch.}
 Part (i) is the privacy definition applied to the event ``the detector flags
-this canary'' on the two neighbors that differ by its synthetic person. For part (ii) with $\delta=0$, condition on the artifact and on every
+this canary'' on the two neighbors that differ by its synthetic data subject. For part (ii) with $\delta=0$, condition on the artifact and on every
 other coin. The two values of coin $i$ give neighboring inputs, so the
 posterior odds that canary $i$ was included are at most $e^\varepsilon$ times
 the prior odds of one, and any guess about coin $i$ is right with probability
@@ -63,8 +84,9 @@ empirical lower bound of only about 1, and a low-rank (LoRA) adapter with
 frozen embeddings defeats new-token canaries. Canaries must match the parameters the pipeline trains.
 
 \paragraph{A protocol for the reference system.}
-\Vision{}; nothing below has been run. Plant 1{,}000 canaries as synthetic
-persons in synthetic tenant logs, with independent inclusion coins, repetition
+\pdstatus{\Vision}{nothing below has been run}
+Plant 1{,}000 canaries as synthetic
+data subjects in synthetic tenant logs, with independent inclusion coins, repetition
 counts from 1 to 33, and formats a detector can and cannot recognize. Route the
 logs through eight pipelines: (1) a shared retrieval index; (2)
 per-tenant indexes; (3) a shared adapter; (4) a shared adapter after

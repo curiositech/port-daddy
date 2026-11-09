@@ -2,34 +2,34 @@
 % Research-agenda addition (tenants). Inserted by the lead at the end of the
 % conservation section, immediately before the canaries section.
 % ---------------------------------------------------------------------------
-\subsection{The ledger keyed by person}\label{sec:sealed-person-ledger}
+\subsection{The ledger keyed by data subject}\label{sec:sealed-person-ledger}
 \pdstatus{\Designed}{specified here; the reference system's A3 ledger keeps one balance}
 
 \noindent The ledger above keeps one balance. A harbor (the book's name for
 the governed environment in which agents work) that trains on many people's
-logs needs one balance per person, because the guarantee a person cares about
-is their own. A \pdterm{person-keyed ledger} keeps one meter per person and
-charges each meter only for the training rounds that used that person's
-records. Such a harbor usually serves several customer organizations, each a
+logs needs one balance per data subject, because the guarantee each of them
+cares about is their own. A \pdterm{subject-keyed ledger} keeps one meter per
+data subject and charges each meter only for the training rounds that used
+that subject's records. Such a harbor usually serves several customer organizations, each a
 \pdterm{tenant} with its own agents, data and users. Two logs are
-\pdterm{person-level neighbors} when one is the other with every record of a
-single person removed. Each record carries an owner label, here the set of
-persons whose data it carries (Section~\ref{sec:sealed-tenants} gives the
+\pdterm{subject-level neighbors} when one is the other with every record of a
+single data subject removed. Each record carries an owner label, here the set
+of data subjects whose data it carries (Section~\ref{sec:sealed-tenants} gives the
 full rule). The state is the chapter's, with one index added. Let $U$ be the
-set of persons, and fix an order $\alpha>1$ of \pdterm[Renyi differential
-privacy]{R\'enyi differential privacy} (RDP): a mechanism
+set of data subjects, and fix an order $\alpha>1$ of
+\pdterm[Renyi differential privacy]{R\'enyi differential privacy} (RDP): a mechanism
 is $(\alpha,\rho)$-RDP if the R\'enyi divergence of order $\alpha$ between its
 output distributions on any two neighbors, in either direction, is at most
 $\rho$ \pdcite{feldman2020renyi}. Each training round $t$ declares a
-per-person cost $\rho_t\ge0$, chosen from public information and previous
+per-subject cost $\rho_t\ge0$, chosen from public information and previous
 outputs.
 
-\begin{pdclaim}{Theorem}{Person-Keyed Conservation}
+\begin{pdclaim}{Theorem}{Subject-Keyed Conservation}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sealed-person-ledger}
 Initially $\sigma(u)=0$ for every $u\in U$ and $\Lambda=()$, with budget
 $B\ge0$. The only spending transition is $\mathrm{train}(t,\rho_t)$. Let
-$O_t$ be the persons named in the owner labels of the round's candidate
+$O_t$ be the data subjects named in the owner labels of the round's candidate
 records. The round computes the participating set
 \[
 P_t=\{u\in O_t:\sigma(u)+\rho_t\le B\},
@@ -38,7 +38,7 @@ uses only records whose owner labels lie inside $P_t$, and \emph{atomically}
 appends $(t,P_t,\rho_t,\text{artifact hash},\text{policy hash})$ to $\Lambda$
 and sets $\sigma(u)\mathrel{+}=\rho_t$ for every $u\in P_t$.
 
-Then every reachable state satisfies, for every person $u$,
+Then every reachable state satisfies, for every data subject $u$,
 \[
 \sigma(u)=\sum_{e\in\Lambda,\;u\in P_e}\rho_e
 \quad\text{and}\quad
@@ -47,13 +47,13 @@ Then every reachable state satisfies, for every person $u$,
 including under concurrent invocation, by the same single-writer
 serialization as Theorem~\ref{thm:sealed-conservation}.
 
-\textbf{Conditional privacy corollary.} Fix the person-level neighboring
+\textbf{Conditional privacy corollary.} Fix the subject-level neighboring
 relation. Suppose every round is
-$(\alpha,\rho_t)$-RDP for each person in $P_t$, conditional on the prior
+$(\alpha,\rho_t)$-RDP for each data subject in $P_t$, conditional on the prior
 transcript, with mechanisms and costs selected from public information and
 previous outputs. Suppose also that the complete observer-visible interaction
 is covered, including metadata, refusals and timing. The individual privacy
-filter of Feldman and Zrnic \pdcite{feldman2020renyi} then gives every person
+filter of Feldman and Zrnic \pdcite{feldman2020renyi} then gives every data subject
 $(\alpha,B)$-RDP for the whole sequence of released artifacts, hence
 $\bigl(B+\ln(1/\delta)/(\alpha-1),\,\delta\bigr)$-privacy for every
 $\delta\in(0,1)$.
@@ -80,7 +80,7 @@ at $0.20$.
 
 The journal holds three entries: round~1 for Alice, Bob and Wren at $0.15$;
 round~2 for all four at $0.10$; round~3 for Pike alone at $0.10$. Each meter
-equals the sum of the entries that name that person: Alice
+equals the sum of the entries that name that subject: Alice
 $0.15+0.10=0.25$, Pike $0.10+0.10=0.20$.
 
 Now suppose Bob appears unresolved as two identities in two tenants. He then
@@ -88,25 +88,25 @@ has two meters, each capped at $0.25$, and can be charged $0.50$ in total.
 \end{pdexample}
 
 \paragraph{Proof.}
-Induction over the sequential interleaving, one coordinate per person. Base:
+Induction over the sequential interleaving, one coordinate per data subject. Base:
 $\sigma\equiv0$ and $\Lambda=()$, so every sum is empty and every bound holds.
 Step: a round appends one entry with set $P_t$ and cost $\rho_t$.
 For $u\in P_t$ both sides of the equality grow by $\rho_t$, and the guard
 $\sigma(u)+\rho_t\le B$ preserves the bound. For $u\notin P_t$ neither side
 changes. Non-spending transitions touch neither component. Concurrency reduces
 to the sequential case as in Theorem~\ref{thm:sealed-conservation}. With a
-single person, the theorem is that theorem with $\rho$ in place of
+single data subject, the theorem is that theorem with $\rho$ in place of
 $\varepsilon$. \qed
 
-A round charges only the people whose records it could read. Removing a person
+A round charges only the people whose records it could read. Removing a data subject
 with no candidate record leaves the round's input unchanged, so the round costs
-that person nothing, and their meter does not move. This is what makes the
+that subject nothing, and their meter does not move. This is what makes the
 meters differ: Alice, whose logs feed every round, reaches $B$ while Bob, who
 appears in one round in five, has spent a fifth as much. A ledger that charged
 everyone with budget left would be sound but would move every meter in
 lockstep.
 
-The journal records $P_t$, and whether a person's records were used is itself
+The journal records $P_t$, and whether a data subject's records were used is itself
 personal data. The journal therefore stays inside the confidential domain;
 observers see its hash.
 
@@ -125,17 +125,17 @@ differential privacy. A3's ledger keeps its structure and needs only to
 count in $\rho$ instead of $\varepsilon$.
 
 \paragraph{Whose key.}
-The guarantee holds for the key the ledger indexes. A person who appears
-unresolved in $k$ tenants holds $k$ keys and can be charged $kB$. A person
-named only inside other people's records holds no key at all, which is why
+The guarantee holds for the key the ledger indexes. A data subject who appears
+unresolved in $k$ tenants holds $k$ keys and can be charged $kB$. A data
+subject named only inside other people's records holds no key at all, which is why
 Table~\ref{tab:sealed-tenant-policy} keeps third parties out of training.
 
 \begin{pdexample}{A Lifetime Budget of One Quarter}
 \setlength{\parskip}{4pt plus 1pt}
-\pdterm{Zero-concentrated privacy} with parameter $\rho$ means $(\alpha,\alpha\rho)$-RDP
+\pdterm[zero-concentrated privacy]{Zero-concentrated privacy} with parameter $\rho$ means $(\alpha,\alpha\rho)$-RDP
 for every $\alpha>1$, and for it the filter's rule is $\sum_t\rho_t\le\rho_{\max}$,
-whatever the order \pdcite{feldman2020renyi}. Give each person
-$\rho_{\max}=0.25$ and train in rounds of $\rho_t=0.025$: a person joins
+whatever the order \pdcite{feldman2020renyi}. Give each data subject
+$\rho_{\max}=0.25$ and train in rounds of $\rho_t=0.025$: a subject joins
 \[
 0.25/0.025=10
 \]
