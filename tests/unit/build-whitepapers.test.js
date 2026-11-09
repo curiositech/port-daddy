@@ -50,7 +50,20 @@ describe('reproducible whitepaper source scoping', () => {
     // and pd-discharges.tex -- which arrived with the margin citations and the
     // discharge pointers. The chapter did not grow a figure; its apparatus grew
     // a dependency, and paper_sources is right to follow it transitively.
-    expect(sources).toHaveLength(27);
+    // 33 since the research-agenda additions: the chapter now inputs six
+    // book/additions/stp-*.tex files (memory consolidation, skill attribution,
+    // incentive transmission, and their three exercise sets).
+    expect(sources).toHaveLength(33);
+    for (const addition of [
+      'book/additions/stp-consolidation.tex',
+      'book/additions/stp-skill-attribution.tex',
+      'book/additions/stp-transmission.tex',
+      'book/additions/stp-exercises-memory.tex',
+      'book/additions/stp-exercises-attribution.tex',
+      'book/additions/stp-exercises-control.tex',
+    ]) {
+      expect(sources).toContain(addition);
+    }
     for (const generated of [
       'book/figures/pd-cite-shortforms.tex',
       'book/figures/pd-discharges.tex',
@@ -68,13 +81,14 @@ describe('reproducible whitepaper source scoping', () => {
     expect(sources).toContain(
       'book/figures/fig-stp-rate-the-raters.tex',
     );
-    // Every non-root input is either an stp figure, one of the shared
+    // Every non-root input is either an stp figure, an stp addition, one of the shared
     // figures/pd-*.tex files (palette, textbook map, hyperlinks, figure
     // language), or a shared table fragment figures/tab-*.tex that more than
     // one chapter inputs (the keystone split is drawn once for chapters 5 and 6).
     expect(sources.slice(1).every((source) =>
       source.includes('/figures/fig-stp-')
         || source.includes('/figures/spark-stp-')
+        || /\/additions\/stp-[a-z-]+\.tex$/.test(source)
         || /\/figures\/pd-[a-z-]+\.tex$/.test(source)
         || /\/figures\/tab-[a-z-]+\.tex$/.test(source)))
       .toBe(true);
