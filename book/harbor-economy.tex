@@ -2044,13 +2044,53 @@ defenses above are trying to do.
 \end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{A gluing analogy for the open federation problem}\label{sec:sheaf}
+\section{Which federated records need no coordination}\label{sec:he-calm}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Three open problems (cross-harbor settlement, equivocation under partitions,
-and cross-currency valuation) share a local-to-global shape: each harbor's view
-is fine on its own, and each pair of harbors can agree, yet no single story
-need fit all of them at once. Exchange rates show the shape most simply.
+Federation runs on gossip and declines consensus (\S\ref{sec:federation}).
+Which of its records can gossip alone bring into agreement? The
+\pdterm{CALM theorem} answers: a distributed program has a consistent
+implementation that needs no coordination exactly when it is monotone, so
+that new input can add to its output but never retract any of
+it~\pdcite{hellerstein2010,ameloot2013,hellerstein2020}. The name stands for
+consistency as logical monotonicity.
+
+\paragraph{Revocation is monotone.} The set of cards a harbor refuses only
+grows. A revocation is never withdrawn, and an entry is dropped from the log
+only after its card has expired, when the card is refused anyway
+(\pdchapref{anchor}{The Anchor Protocol}). Merging two revocation logs is set
+union, which is commutative, associative and idempotent. The log is therefore
+a grow-only set, the simplest \pdterm{conflict-free replicated data type}
+(CRDT): copies updated independently and merged in any order reach the same
+state once they hold the same events~\pdcite{shapiro2011crdt}. Every harbor
+that eventually receives every event ends with the same log, in whatever
+order and however often the exchanges of Protocol~\ref{prot:gossip} happen,
+and that is why the protocol needs no consensus. The cuckoo filter is not part
+of the replicated state; it is the index each harbor rebuilds from its own
+log. The theorem says nothing about speed: the time before every harbor holds
+an event is still the window Conjecture~\ref{conj:he-revocation-bond} must
+cover.
+
+Detecting equivocation is monotone as well. Once a log holds two signed roots
+for one harbor and epoch, no later record can undo that proof, so any harbor
+that holds both can conclude it without asking anyone. The opposite claim,
+that a harbor has \emph{not} equivocated, is not monotone, because one later
+record can refute it. No harbor can conclude it from gossip alone, and under
+a partition none can tell an honest harbor from an equivocator whose second
+root has not yet arrived.
+
+\paragraph{Settlement is not.} A balance can fall as well as rise. Settling a
+bond moves its credits out of escrow, and a harbor that has applied one
+terminal transition for a bond must refuse a conflicting one it hears of
+later; two harbors that applied different transitions cannot be reconciled by
+merging. By the CALM theorem, settlement therefore needs coordination
+somewhere. The design puts it in one place, the custody ledger with one atomic
+terminal transition per bond (\S\ref{sec:fh-settlement}). ``No consensus, by
+design'' holds for revocation and cannot hold for settlement.
+
+\paragraph{Valuation can fail even when every pair agrees.} Cross-currency
+quotes raise a different question: whether the quotes are consistent with one
+another.
 
 \begin{pdexample}{Three Rates That Agree in Pairs but Not Around the Loop}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2061,46 +2101,30 @@ becomes $2\,U_B$, then $6\,U_C$, then $6\times0.2=1.2\,U_A$.
 
 Try to write one price list in units of $U_A$. Fix $U_A=1$; then $U_B=0.5$
 and $U_C=0.5/3=1/6\approx0.167$, but the C-to-A quote says $U_C=0.2$. No
-single price list matches every pair, and that mismatch is the obstruction.
-In trader's terms it is a $20\%$ arbitrage loop. In the language of sheaf
-theory, with the three harbors overlapping only in pairs, the logarithms of
-the rates form a $1$-cocycle that is not a \pdterm{coboundary}, the list of
-link differences that one assignment of values to the vertices (here the
-harbors) would produce. They cannot be written as differences of one
-log-price per harbor, because they sum to $\log 1.2\ne0$ around the loop. This illustrates the shape; the chapter proves nothing about it.
-Settlement and equivocation may fail the same way, with views that each check
-out but cannot be stitched into one.
+single price list matches every pair. In trader's terms it is a $20\%$
+arbitrage loop. Taking logarithms turns the rates into differences along the
+links, and a price list exists exactly when those differences form a
+\pdterm{coboundary}, the list of link differences that one assignment of
+values to the vertices (here the harbors) would produce. These sum to
+$\log 1.2\ne0$ around the loop, so they do not.
 \end{pdexample}
 
-Figure~\ref{fig:audit-loop} draws the loop. A sheaf model would attach data
-to each harbor and to each overlap of two harbors. Its
-\pdterm[restriction map]{restriction maps} take a harbor's data to the part
-that an overlap compares, and a \pdterm{global section} is one assignment of
-data to every harbor that agrees on every overlap at once, like the single
-price list the example could not find.
+Figure~\ref{fig:audit-loop} draws the loop. \pdchapref{fh}{The Federated
+Harbor} measures disagreements of this kind among witnesses, and two more of
+its words fit this example. A \pdterm{restriction map} takes
+a harbor's data to the part that an overlap compares, and a
+\pdterm{global section} is one assignment of data to every harbor that agrees
+on every overlap at once, like the single price list the example could not
+find.
 
 \input{figures/fig-audit-loop}
 
-\begin{conjecture}[Formalization target, not established result]\label{conj:sheaf}
-A future treatment may define a site of overlapping administrative domains and a
-presheaf of signed ledger views, then ask when compatible local sections glue to a
-unique global section. This chapter has not specified the site, restriction maps,
-coefficient object, or cocycles; therefore it makes no claim that a particular
-$H^1$ is defined or non-zero. The immediate engineering obligations remain the
-concrete ones: matched custody transitions, freshness policy under partitions, and
-time-indexed valuation.
-\end{conjecture}
-
-Fong and Spivak's compositionality program~\pdcite{fong2019} suggests vocabulary for
-a future formalization. Until the site and coefficient data are defined, the chapter
-uses the word gluing only to organize engineering questions.
-
-\pdexercisepointer*{\ref{ex:he-sheaf-site-cover}}{\ref{ex:he-gluing-model-build}}{\pageref{ex:he-sheaf-site-cover}}
+\pdexercisepointer*{\ref{ex:he-calm-union}}{\ref{ex:he-calm-gset-model}}{\pageref{ex:he-calm-union}}
 
 \begin{pdrecitation}
-\item Name three missing definitions in Conjecture~\ref{conj:sheaf}.
-\item Why do conflicting signed roots show equivocation, but not a cohomology class?
-\item Which engineering obligations remain without the formalization?
+\item State the CALM theorem in one sentence.
+\item Why does the revocation log converge without coordination, when escrow balances cannot?
+\item Is ``harbor $X$ equivocated in epoch $e$'' a monotone claim? Is ``harbor $X$ did not''?
 \end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -3005,52 +3029,52 @@ None is sufficient by name alone, and no universal pooling or separating
 result follows without those assumptions.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:sheaf}}{A gluing analogy for the open federation problem}
+\pdexercisesfor{\S\ref{sec:he-calm}}{Which federated records need no coordination}
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:he-sheaf-site-cover}
-Name the site, cover, restriction maps, and coefficient object a genuine
-  sheaf model of federated ledger views would require.
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-calm-union}
+Show that merging revocation logs by set union is commutative, associative
+  and idempotent. Explain why that lets every harbor reach the same log
+  whatever the order, grouping or repetition of the gossip exchanges.
 \end{pdexercise}
-\begin{pdsolution}{ex:he-sheaf-site-cover}
-A candidate site takes administrative domains (harbors) as objects and
-their signed overlap views as the data over each; morphisms are restrictions to
-shared accounts, events, or epochs; covers are families of domains whose union
-spans the bounded federation under study. A section assigns an event or balance
-view to a domain, and restriction projects that view onto an overlap. Set-valued
-gluing needs no coefficient object at all; a cohomological treatment needs one
-explicitly chosen, such as account-balance deltas valued in the abelian group
-$\mathbb{Z}^{\text{Accounts}}$, with cocycles defined on that group rather than
-merely asserted.
+\begin{pdsolution}{ex:he-calm-union}
+For sets, $L\cup M=M\cup L$, $(L\cup M)\cup N=L\cup(M\cup N)$ and $L\cup L=L$.
+A harbor's log after any run of exchanges is the union of the events it has
+received, written in some order and grouping, with some events received more
+than once. By the three identities that union depends only on which events
+arrived, so two harbors that have received the same events hold the same log.
+The argument needs every event to arrive eventually; it gives no bound on when.
 \end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:he-roots-not-cohomology}
-Explain why two incompatible signed roots are evidence of equivocation but
-  are not, without further definitions, a cohomology class.
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-calm-equivocation-query}
+A witness log only grows. Is the claim ``harbor $X$ signed two different roots
+  for epoch $e$'' monotone over it? Is ``harbor $X$ signed only one root for
+  epoch $e$''? Say what the CALM theorem implies for a harbor that wants to
+  conclude each from gossip alone.
 \end{pdexercise}
-\begin{pdsolution}{ex:he-roots-not-cohomology}
-Two different signed roots for the same $(\text{harbor},\text{epoch})$ are
-direct evidence that one key signed two inconsistent commitments; that much
-is just hash inequality. A cohomology class is a much heavier object: it needs a
-defined cover, a coefficient sheaf, the overlap differences assembled into an
-actual cocycle, and a quotient by coboundaries. Observing that two hashes
-disagree supplies none of that algebra; it is evidence of equivocation, not
-evidence of a nonzero $H^1$.
+\begin{pdsolution}{ex:he-calm-equivocation-query}
+The first is monotone: once two signed roots for $(X,e)$ are in a log, adding
+records cannot remove them, so any harbor holding both may conclude it at once
+and the conclusion is final. The second is not: one later record can refute
+it. Concluding it requires knowing that no conflicting root exists anywhere,
+which takes coordination or a known bound on delivery. Under a partition an
+isolated auditor cannot tell an honest $X$ from an equivocator whose second
+root has not arrived, which is why the chapter treats equivocation as detected
+after the fact, never ruled out.
 \end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:he-gluing-model-build}
-Build a small formal gluing model for a bounded gossip topology and
-  state exactly what consistency result it proves.
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-calm-gset-model}
+Build a small model of three harbors whose revocation logs are grow-only sets
+  merged by union over a fixed gossip topology, and state exactly what
+  convergence result it proves.
 \end{pdexercise}
-\begin{pdsolution}{ex:he-gluing-model-build}
-Fix the three-harbor cover $A$--$B$--$C$. Let each local section be a
-finite map from globally unique event IDs to signed events, with restriction as
-projection onto the shared IDs of an overlap. If every pairwise restriction
-agrees, the sections glue to a unique global map on the union. That is an ordinary,
-checkable fact about finite maps agreeing on their overlaps, nothing more. What
-this proves: deterministic gluing of already-delivered, identically-keyed events
-at that one fixed finite topology. What it does not prove: that any event is
-true, that the event set is complete, anything about delivery time, what happens
-to a fork with conflicting IDs, or settlement finality. The gluing lemma is a
-statement about consistent bookkeeping, not about the world the bookkeeping
-describes.
+\begin{pdsolution}{ex:he-calm-gset-model}
+Fix harbors $A$, $B$ and $C$ joined in a path $A$--$B$--$C$. Each log is a
+finite set of signed events with globally unique IDs, and an exchange replaces
+both logs by their union. If every event issued is eventually carried across
+every link, all three logs end equal to the set of all issued events. What
+this proves: convergence of identically keyed, already signed events on that
+one fixed finite topology. What it does not prove: that any event is true,
+that the event set is complete, anything about delivery time or partitions,
+what happens when two events conflict, or settlement finality. The result is
+about consistent bookkeeping, not about the world the bookkeeping describes.
 \end{pdsolution}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -3179,7 +3203,10 @@ consensus as an engineering choice. Partial-synchrony results~\pdcite{dls1988}
 show why timing assumptions change that boundary. This federation instead
 chooses propagation by epidemic gossip~\pdcite{demers1987} and takes
 a Certificate-Transparency detect-don't-prevent posture~\pdcite{laurie2014,laurie2013ct},
-mindful of eclipse attacks~\pdcite{heilman2015}. The settlement design is located
+mindful of eclipse attacks~\pdcite{heilman2015}. Which of its records gossip
+can reconcile without coordination is the question of the CALM
+theorem~\pdcite{hellerstein2010,ameloot2013,hellerstein2020}; the revocation
+log is a grow-only conflict-free replicated data type~\pdcite{shapiro2011crdt}. The settlement design is located
 explicitly against atomic cross-chain swaps~\pdcite{herlihy2018} and the
 adversarial-commerce model of Herlihy, Liskov \& Shrira~\pdcite{hls2022}; reputation
 revocation is contrasted with Sagas-style compensation~\pdcite{sagas1987}.
@@ -3190,15 +3217,14 @@ failure posture and stale windows, but do not turn a partitioned federation
 into consensus or make a non-fungible bond atomic. Sagas contrasts with
 tombstones because the harbor removes an authorization rather than compensates.
 
-\paragraph{Applied category theory.} The trace-composition notation and proposed
-gluing formalization draw vocabulary from ologs~\pdcite{spivak2012} and Fong \&
+\paragraph{Applied category theory.} The trace-composition notation draws
+vocabulary from ologs~\pdcite{spivak2012} and Fong \&
 Spivak~\pdcite{fong2019}; no cohomology claim is made. The commons-governance reading draws on
 Ostrom~\pdcite{ostrom1990}, and the auction machinery on standard algorithmic game
 theory~\pdcite{nrtv2007}.
 The category-theory sources ask when local descriptions and their overlaps
-determine a coherent global description. They supply vocabulary for trace and
-gluing, not a new cohomological theorem: the chapter's finite-map lemma remains
-a bookkeeping result. Ostrom supplies governance questions and algorithmic
+determine a coherent global description. They supply vocabulary for traces,
+not a new theorem. Ostrom supplies governance questions and algorithmic
 game theory auction tools; neither proves that this market is strategy-proof or
 governable in deployment.
 
@@ -3597,6 +3623,22 @@ Software Engineering} 15(12):1596--1614, 1989.
 \bibitem{knight1986} J. C. Knight \& N. G. Leveson. ``An Experimental Evaluation
 of the Assumption of Independence in Multiversion Programming.'' \emph{IEEE
 Transactions on Software Engineering} SE-12(1):96--109, 1986.
+
+\bibitem{hellerstein2010} J. M. Hellerstein. ``The Declarative Imperative:
+Experiences and Conjectures in Distributed Logic.'' \emph{SIGMOD Record}
+39(1):5--19, 2010.
+
+\bibitem{ameloot2013} T. J. Ameloot, F. Neven \& J. Van den Bussche.
+``Relational Transducers for Declarative Networking.'' \emph{Journal of the
+ACM} 60(2):15, 2013.
+
+\bibitem{hellerstein2020} J. M. Hellerstein \& P. Alvaro. ``Keeping CALM: When
+Distributed Consistency Is Easy.'' \emph{Communications of the ACM}
+63(9):72--81, 2020.
+
+\bibitem{shapiro2011crdt} M. Shapiro, N. Pregui\c{c}a, C. Baquero \& M. Zawirski.
+``Conflict-Free Replicated Data Types.'' In \emph{Stabilization, Safety, and
+Security of Distributed Systems (SSS)}, LNCS 6976, pp.~386--400, 2011.
 
 \bibitem{dg84} W. F. Dowling \& J. H. Gallier. ``Linear-Time Algorithms for Testing
 the Satisfiability of Propositional Horn Formulae.'' \emph{Journal of Logic
