@@ -311,7 +311,7 @@
       ],
       "method": "ProVerif",
       "owner": "apps/relay",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; the injective (replay-free) SubAccepts<=PubSent correspondence is reported false with the weaker non-injective correspondence proved true instead. This is the committed, expected shape of this model's evidence, not new drift",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte. Adverse finding: the injective (replay-free) query SubAccepted<=PubSent is false, because a relay can deliver one signed envelope twice and the subscriber accepts both. Only the non-injective correspondence holds, so the model does not exclude replay. Payload secrecy holds.",
       "ci": {
         "status": "wired",
         "job": [
@@ -329,7 +329,7 @@
       ],
       "method": "ProVerif",
       "owner": "lib/agent-harbor",
-      "evidencePolicy": "Recorded verification: the checked-in transcript was regenerated on 2026-09-06 with ProVerif 2.05, and its RESULT lines matched byte-for-byte. The model is included in the proverif-estate check. The guidance-acceptance authority reads this transcript; a mismatch restricts that authority to C0. This is model and transcript evidence, not proof of a deployed enforcement path.",
+      "evidencePolicy": "Models a signed guidance envelope: the daemon MACs each piece of operator guidance, bound to the session, agent, turn, content hash and a nonce, and the agent harness checks it before the model reads it. No chapter of the Book describes or relies on this mechanism. ProVerif 2.05, transcript regenerated 2026-09-06, RESULT lines matched byte-for-byte: injection resistance, no-replay and key secrecy hold. Model and transcript evidence only, not a deployed enforcement path.",
       "ci": {
         "status": "wired",
         "job": [
@@ -347,7 +347,7 @@
       ],
       "method": "ProVerif",
       "owner": "lib/agent-harbor",
-      "evidencePolicy": "Recorded verification: the checked-in transcript was regenerated on 2026-09-06 with ProVerif 2.05, and its RESULT lines matched byte-for-byte. This unsigned-envelope negative control must fail both agreement queries. A result claiming agreement would invalidate the control, not establish protocol security.",
+      "evidencePolicy": "Negative control for guidance-envelope-v0-proverif, a mechanism no chapter of the Book describes or relies on. ProVerif 2.05, transcript regenerated 2026-09-06, RESULT lines matched byte-for-byte. With the signature check removed, both agreement queries must fail; a result claiming agreement would invalidate the control, not establish protocol security.",
       "ci": {
         "status": "wired",
         "job": [
@@ -401,7 +401,7 @@
       ],
       "method": "ProVerif",
       "owner": "core/kernel",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte. Vacuous as a secrecy claim: the queried account_root is a free private constant, unrelated to the vault term the honest parties compute from the four shares, so the true result does not establish that the reconstructed root stays secret.",
       "ci": {
         "status": "wired",
         "job": [
@@ -474,7 +474,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "CI artifact per run, plus a checked-in Conservation.run.log snapshot from a prior local run",
+      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17; CI artifact per run, plus a checked-in Conservation.run.log snapshot from a prior local run",
       "ci": {
         "status": "wired",
         "job": [
@@ -493,7 +493,7 @@
       ],
       "method": "TLA+/TLC + Apalache",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "CI artifacts per run (TLC log and Apalache log, plus delta sweeps)",
+      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17 and Apalache v0.57.0; CI artifacts per run (TLC log and Apalache log, plus delta sweeps)",
       "ci": {
         "status": "wired",
         "job": [
@@ -512,7 +512,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "negative control: CI asserts the invariant NoUnilateralDeviationPositive is violated at delta=0.30 and that the printed counterexample's trace-state count matches the committed proofs/economics/claim_signaling_delta30.run.log snapshot (6 states); the solution to the Chapter 7 exercise that checks delta=0.30 and delta=0.35 cites this trace",
+      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17. Negative control: CI asserts the invariant NoUnilateralDeviationPositive is violated at delta=0.30 and that the printed counterexample's trace-state count matches the committed proofs/economics/claim_signaling_delta30.run.log snapshot (6 states); the solution to the Chapter 7 exercise that checks delta=0.30 and delta=0.35 cites this trace",
       "ci": {
         "status": "wired",
         "job": [
@@ -534,7 +534,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "Evidence is recorded in four .tlc.log artifacts per CI run, not a checked-in transcript. Two negative controls: restoring an older database must violate RevocationFinal (rollback.cfg), and the card-epoch rule must violate Availability while RevocationFinal holds on every state (epoch.cfg, run with -continue). Baseline and dbepoch must hold both. These bounded models do not establish that every deployment survives rollback.",
+      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17. Evidence is recorded in three .tlc.log artifacts per CI run, not a checked-in transcript. CardRevocation_rollback.cfg is the negative control: restoring an older database must produce a counterexample to RevocationFinal. The baseline and epoch configurations are checked separately; these bounded models do not establish that every deployment survives rollback.",
       "ci": {
         "status": "wired",
         "job": [
@@ -554,7 +554,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "CI artifact per run (two .tlc.log files); no prior checked-in snapshot, because this model never ran before wave-p1/proof-estate. WebhookDelivery_vuln.cfg (Dedup=FALSE) is a negative control asserted to violate AtMostOnce",
+      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17; CI artifact per run (two .tlc.log files); no prior checked-in snapshot, because this model never ran before wave-p1/proof-estate. WebhookDelivery_vuln.cfg (Dedup=FALSE) is a negative control asserted to violate AtMostOnce",
       "ci": {
         "status": "wired",
         "job": [
@@ -572,7 +572,7 @@
       ],
       "method": "Z3",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "expected sat/sat/unsat triple plus CI artifact; delta* interval independently cross-checked in proofs/economics/README.md and proofs/economics/delta-threshold.expected.txt",
+      "evidencePolicy": "Z3 4.8.12 (pinned Ubuntu package z3=4.8.12-3.1build1); expected sat/sat/unsat triple plus CI artifact; delta* interval independently cross-checked in proofs/economics/README.md and proofs/economics/delta-threshold.expected.txt",
       "ci": {
         "status": "wired",
         "job": [
@@ -606,7 +606,7 @@
       ],
       "method": "Kani",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "Parser robustness only: 32-byte valid UTF-8 input containing a dot, unwind 128, with public-key construction, signature verification and base64 decoding stubbed. The zero-filled decoded header is invalid JSON, so this harness cannot witness successful acceptance. Manual/on-demand job; neither real cryptography nor parser refinement is established.",
+      "evidencePolicy": "Parser robustness only: 32-byte valid UTF-8 input containing a dot, unwind 128, with public-key construction, signature verification and base64 decoding stubbed. The zero-filled decoded header is invalid JSON, so this harness cannot witness successful acceptance. Kani 0.67.0. Its job runs only when dispatched by hand, never on a pull request, and has no schedule; neither real cryptography nor parser refinement is established.",
       "ci": {
         "status": "wired",
         "job": [
@@ -625,7 +625,7 @@
       ],
       "method": "Kani",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "Checks absence of panic on arbitrary pairs of 16-byte inputs to constant_time_compare. This is not a relational timing proof and says nothing about compiler, cache, or hardware timing. Source-level branch behavior is a separate inspection claim.",
+      "evidencePolicy": "Kani 0.67.0. Checks absence of panic on arbitrary pairs of 16-byte inputs to constant_time_compare. This is not a relational timing proof and says nothing about compiler, cache, or hardware timing. Source-level branch behavior is a separate inspection claim.",
       "ci": {
         "status": "wired",
         "job": [
@@ -740,7 +740,7 @@
       ],
       "method": "TLA+",
       "owner": "docs/harbor-research/campaigns/2026-11-06",
-      "evidencePolicy": "CI checks positive reachability and seeded failure controls. Finite/symbolic model scope only; no deployed-system claim.",
+      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17. CI checks positive reachability and seeded failure controls. Finite/symbolic model scope only; no deployed-system claim.",
       "ci": {
         "status": "wired",
         "job": [
@@ -758,7 +758,7 @@
       ],
       "method": "TLA+",
       "owner": "docs/harbor-research/campaigns/2026-11-06/round-two",
-      "evidencePolicy": "Finite receipt-binding model: complete defended exploration plus exact acceptance, rejection and mutant witnesses. Conditional implementation refinement is separate; no arbitrary SQL or external-effect mediation claim.",
+      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17. Finite receipt-binding model: complete defended exploration plus exact acceptance, rejection and mutant witnesses. Conditional implementation refinement is separate; no arbitrary SQL or external-effect mediation claim.",
       "ci": {
         "status": "wired",
         "job": [
@@ -1144,6 +1144,52 @@
         "status": "wired",
         "job": [
           "harbor-results-estate"
+        ]
+      }
+    },
+    {
+      "id": "bonds-ledger-property-tests",
+      "kind": "property-test-suite",
+      "status": "current",
+      "paths": [
+        "tests/unit/bonds.test.js",
+        "tests/unit/bonds-conservation-property.test.js"
+      ],
+      "owner": "lib/bonds.ts",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "unit-tests"
+        ]
+      }
+    },
+    {
+      "id": "cuckoo-filter-pollution-property-tests",
+      "kind": "property-test-suite",
+      "status": "current",
+      "paths": [
+        "tests/unit/cuckoo-pollution-property.test.js"
+      ],
+      "owner": "lib/cuckoo-filter.ts",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "unit-tests"
+        ]
+      }
+    },
+    {
+      "id": "merkle-binding-property-tests",
+      "kind": "property-test-suite",
+      "status": "current",
+      "paths": [
+        "tests/unit/merkle-binding-property.test.js"
+      ],
+      "owner": "lib/merkle-tree.ts",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "unit-tests"
         ]
       }
     }
