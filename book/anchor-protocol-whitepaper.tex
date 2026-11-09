@@ -183,7 +183,7 @@ The operating system gives each running program a number, its process ID (PID), 
 \pdstatus{\Designed}{the daemon's current connection code makes neither comparison, since it reports PID~0 (unknown) and checks an agent identifier the caller reports about itself; \S\ref{sec:limitations} tracks the gap}
 Agent~A holds a valid card and runs as PID~4021. It crashes at time $t$.
 Three seconds later the operating system gives 4021 to an unrelated Agent~B,
-which presents A's card. B found the card in a shared temporary file: the bytes
+which presents A's card. B scavenged the card from a shared temporary file: the bytes
 are identical, the signature is still good and the expiry is still in the future.
 Now compare two daemons. One checks only the process number: it computes
 $4021 = 4021$ and accepts B. The other compares the caller with the connection
@@ -368,7 +368,7 @@ The harbor checks the daemon's root signature and Agent A's delegation signature
 The deployed verifier must run the subset check at every hop of a chain; that is a requirement on the code, not something a model proves. The models in \S\ref{sec:attn-soundness}, written for \pdterm{ProVerif}, a tool that checks a protocol's messages against an attacker who controls the network, prove a narrower fact. At a single hop the check is necessary (remove it and an escalating card is accepted) and sufficient (keep it and none is). Safety for longer chains follows from running the check at every hop, because subset is transitive: if $C \subseteq B$ and $B \subseteq A$, then $C \subseteq A$. The invariant as stated above covers one hop only.
 \end{pdclaim}
 
-Figure~\ref{fig:anchor-handshake-ladder} shows the exchange in time order: who signs what, in what order, and which participant, the daemon, is no longer contacted after the first message. That is what \emph{offline} means here.
+Figure~\ref{fig:anchor-handshake-ladder} puts that ceremony on a clock, showing the exchange in time order: who signs what, in what order, and which participant, the daemon, is no longer contacted after the first message. That is what \emph{offline} means here.
 
 \input{figures/fig-anchor-handshake-ladder}
 
@@ -393,7 +393,7 @@ store its denials correctly, and the denials must reach the other verifiers.
 
 Cards expire on their own, but sometimes that is too late. Two events force earlier withdrawal: (i) \emph{compromise}, when a Harbor Card leaks from its agent's process and the attacker holds real authority until the card expires; and (ii) \emph{policy reversal}, when the person who granted a right decides an agent should no longer hold \texttt{db:write} and waiting for expiry is unacceptable. Checking a card against a plain list of $n$ revoked IDs takes time proportional to $n$. A hash set of the IDs answers in constant expected time but stores every ID in full. The design instead keeps a smaller, approximate index called a \pdterm{cuckoo filter}~\pdcite{fan2014cuckoo}, explained below. As long as every insertion succeeded and deletions are handled correctly, the filter never misses a revoked ID, but it occasionally reports a card as revoked when it is not, a \pdterm{false positive}; the daemon settles each such hit by looking the ID up in its authoritative revocation table. Daemons gossip the log of revoked IDs, which is append-only while its cards are live (an entry is dropped only once its card has expired; see the truncation rule below) and ordered with \pdterm[vector clock]{vector clocks}. A vector clock is a list of counters, one per daemon, recording how many of that daemon's updates a copy of the log has seen. Daemons do not gossip their filters, because two filters cannot be merged by OR-ing their bits. Each daemon rebuilds its own filter from the log.
 
-\paragraph{How a cuckoo filter works.} A cuckoo filter is a compact, approximate set that, unlike older designs, supports deletion. Each inserted key is reduced to a \emph{fingerprint}, a few bits of its hash, and stored in one of two candidate \emph{buckets}, small groups of slots chosen by hashing the key. If both buckets are full, a stored fingerprint is moved to its other bucket, as a cuckoo chick pushes an egg out of the nest, until a slot opens or the insertion fails. A lookup inspects both buckets, so its expected cost is constant. With buckets of $B$ slots and $f$-bit fingerprints, the chance of a false positive is at most about $2B/2^f$ when collisions are rare. The fuller the filter, the more insertions fail; the daemon then rejects the insertion or rebuilds the filter, and never silently drops a revocation. Two keys can share a fingerprint, so deletion must be counted or checked against the authoritative table; otherwise removing one key could remove the other's entry and make a revoked card look valid again.
+\paragraph{How a cuckoo filter works.} A cuckoo filter is a compact, approximate set that, unlike older designs, supports deletion. Each inserted key is reduced to a \emph{fingerprint}, a few bits of its hash, and stored in one of two candidate \emph{buckets}, small groups of slots chosen by hashing the key. If both buckets are full, a stored fingerprint is moved to its other bucket, as a cuckoo chick pushes an egg out of the nest, until a slot opens or the insertion fails. A lookup inspects both buckets, so its expected cost is constant. With buckets of $B$ slots and $f$-bit fingerprints, the chance of a false positive is at most about $2B/2^f$ when collisions are rare. The fuller the filter, the more insertions fail; the daemon then rejects the insertion or rebuilds the filter, and never silently drops a revocation. Two keys can share a fingerprint, so deletion must be counted or checked against the authoritative table; otherwise removing one key could remove the other's entry and reanimate a revoked card, making it look valid again.
 
 \paragraph{Why filters cannot be merged bitwise.} A cuckoo-filter slot holds
 a fingerprint, not a single yes-or-no bit. Consider two one-slot
@@ -465,14 +465,15 @@ The design keeps the filter as an index only, never as the authority, and that i
 \end{pdclaim}
 \pdscope{A passing check means only that this daemon has no record of the revocation; no check can use a revocation that has not yet reached the daemon.}
 
-\paragraph{Spreading revocations by gossip.} Daemons exchange new revocations by \pdterm{anti-entropy} gossip~\pdcite{demers1987epidemic}: in each round a daemon compares its log with that of a randomly chosen peer, and each copies what the other lacks. Suppose every daemon can reach every other (a complete overlay), picks its partner uniformly at random (uniform peers), and every round's messages arrive (reliable rounds). Then a revocation reaches all $m$ daemons in an expected number of rounds that grows in proportion to $\log m$, written $\Theta(\log m)$. That is an average, not a deadline. Lost messages, the network's shape and scheduling change the constant, and a \emph{partition}, a split that cuts some daemons off from the rest, stops the spread until it heals. Security-critical revocations can also be pushed at once, on a best-effort basis. Figure~\ref{fig:anchor-revocation-gossip} contrasts a local revocation with a remote verifier that has not received it.
+\paragraph{Spreading revocations by gossip.} Daemons exchange new revocations by \pdterm{anti-entropy} gossip~\pdcite{demers1987epidemic}: in each round a daemon compares its log with that of a randomly chosen peer, and each copies what the other lacks. Suppose every daemon can reach every other (a complete overlay), picks its partner uniformly at random (uniform peers), and every round's messages arrive (reliable rounds). Then a revocation spreads like an epidemic, reaching all $m$ daemons in an expected number of rounds that grows in proportion to $\log m$, written $\Theta(\log m)$. That is an average, not a deadline. Lost messages, the network's shape and scheduling change the constant, and a \emph{partition}, a split that cuts some daemons off from the rest, stops the spread until it heals. Security-critical revocations can also be pushed at once, on a best-effort basis. Figure~\ref{fig:anchor-revocation-gossip} contrasts a local revocation with a remote verifier that has not received it.
 
 \input{figures/fig-anchor-revocation-gossip}
 
 \paragraph{What retires an entry.} \pdmarginanalogy{anchor-parking-meter}{}{ch02-finite-grant-parking-meter}{Like a mechanical parking meter whose red flag drops when time expires, capability grants expire automatically when their lease lifetime elapses.}%
 An append-only log that never drops anything grows with the fleet's whole
 history rather than with the number of live cards, and on a small machine it
-will eventually fill the disk. It need not grow that way. A revocation entry
+will eventually fill the disk, a storage bug waiting for a slow month to expose
+it. It need not grow that way. A revocation entry
 exists to stop a card being honoured, and an expired card is already refused
 by the expiry check before the filter is consulted, so once the card has
 expired the entry has nothing left to do.
@@ -587,7 +588,7 @@ No finite worst-case freshness bound holds under an unbounded partition.
 \section{How we know it is correct}\label{sec:correct}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Following the practice of AWS (s2n-tls~\pdcite{aws2022s2n}) and Microsoft (Project Everest~\pdcite{bhargavan2017everest}), we verify the \textit{protocol design} separately from the \textit{implementation}. There are three layers (Table~\ref{tab:anchor-verification-stack}). At the top, ProVerif analyses the protocol's messages \emph{symbolically}, treating the cryptography as perfect. In the middle, \pdterm{Kani}, a verification tool for Rust, checks the source by \pdterm{bounded model checking}: instead of running a function on a few test inputs, it considers every input within stated limits and reports any input that breaks an assertion. At the bottom, conformance tests run known attacks against the deployed binary. Each layer proves part of a claim and hands the rest down as a requirement on the layer below; each layer's evidence comes back up. The whole is sound only if the model matches the source and the source matches the running binary.
+Following the practice of AWS (s2n-tls~\pdcite{aws2022s2n}) and Microsoft (Project Everest~\pdcite{bhargavan2017everest}), we verify the \textit{protocol design} separately from the \textit{implementation}. There are three layers (Table~\ref{tab:anchor-verification-stack}). At the top, ProVerif analyses the protocol's messages \emph{symbolically}, treating the cryptography as perfect. In the middle, \pdterm{Kani}, a verification tool for Rust, checks the source by \pdterm{bounded model checking}: instead of running a function on a few test inputs, it considers every input within stated limits and reports any input that breaks an assertion. At the bottom, conformance tests run known attacks against the deployed binary. Each layer proves part of a claim and hands the rest down as a requirement on the layer below; each layer's evidence comes back up. The whole is sound only if the model matches the source and the source matches the running binary; those two matches are bridges, and the stack holds only if both do.
 
 \begin{pdexample}{One Obligation through Three Layers}
 \setlength{\parskip}{4pt plus 1pt}
@@ -642,7 +643,7 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 \end{tabularx}
 \end{table}
 
-\paragraph{Reading Table~\ref{tab:anchor-verification-stack}.} Each row is one layer. Its \emph{What it shows} entry is what that layer's tool has checked, and its \emph{What it cannot show} entry is what it leaves to the next layer down. Two of those entries are gaps that no tool closes: whether the modeled protocol is this source code (the specification gap), and whether the inspected source is this running binary (the deployment gap). A person asserts each one. Figure~\ref{fig:anchor-verification-stack} draws the same table with requirements passing down from model to source to binary, evidence passing back up, and the two gaps marked where a person must vouch.
+\paragraph{Reading Table~\ref{tab:anchor-verification-stack}.} Each row is one layer. Its \emph{What it shows} entry is what that layer's tool has checked, and its \emph{What it cannot show} entry is what it leaves to the next layer down. Two of those entries are gaps that no tool closes: whether the modeled protocol is this source code (the specification gap), and whether the inspected source is this running binary (the deployment gap). A person asserts each one. Figure~\ref{fig:anchor-verification-stack} draws the same table as one directed bridge, with requirements descending the left side from model to source to binary, evidence climbing the right, and the two gaps marked where a person must vouch.
 
 \input{figures/fig-anchor-verification-stack}
 % Keep the verification-stack exhibit before the claim it introduces.
@@ -1081,7 +1082,7 @@ maximum message rate per minute and a maximum payload size, each either absent
 or any unsigned 64-bit value. It asks whether two accepted
 immediate-parent checks imply that the root covers the grandchild directly and
 that both ceilings are preserved. Five covers require accepted chains, a
-rejected second hop, the case a root-only check wrongly accepts, and accepted
+rejected second hop, the root-only check's blind spot (a chain it wrongly accepts), and accepted
 chains with each kind of ceiling. These are checks on decoded grants; the
 crate has no verifier for signed authorization chains.
 
@@ -1968,7 +1969,7 @@ These limits come with building zero-trust coordination on ordinary operating-sy
 \section{Further reading and prior art}\label{app:related}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This appendix traces the history the main text points to in \S\ref{sec:problem}. It sits here, not between the protocol description and the verification argument, so that a literature review does not interrupt the chapter's argument; nothing in \S\S\ref{sec:architecture}--\ref{sec:conclusion} depends on reading it. The subsection with the most immediate consequences, on the credential-format change now under way, comes first.
+This appendix traces the history the main text points to in \S\ref{sec:problem}. It sits here, not between the protocol description and the verification argument, so that a literature review does not cut the chapter's argument in half; nothing in \S\S\ref{sec:architecture}--\ref{sec:conclusion} depends on reading it. The subsection with the most immediate consequences, on the credential-format change now under way, comes first.
 
 \subsection{Credential Formats in Agentic Commerce}\label{app:credential-formats}
 \pdstatus{\Designed}{a proposed \texttt{hv:~3} envelope; the deployed Rust verifier in \texttt{core/harbor-card-rs/src/lib.rs} accepts \texttt{hv:~2}}
