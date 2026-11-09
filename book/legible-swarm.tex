@@ -355,7 +355,7 @@ Hobbes argued the sovereign, being the \emph{product} of the covenant rather tha
 \emph{party} to it, can never breach it and need not be
 inspectable~\pdcite{hobbes1651,sep-hobbes}. For a software authority this is exactly
 wrong. An \emph{illegible authority} is the fifth state-of-nature failure mode
-of Table~\ref{tab:taxonomy}, committed by the coordinator itself: if the daemon blocks an agent and the
+of Table~\ref{tab:taxonomy} wearing a crown, committed by the coordinator itself: if the daemon blocks an agent and the
 operator cannot see why, the operator's trust --- and therefore the consent that
 legitimizes the authority --- erodes.
 \begin{pdclaim}{Design invariant}{The Legible-Sovereign Rule}
@@ -565,7 +565,7 @@ Row~B reads \emph{Wren $\cdot$ checkout repair $\cdot$ all green}, and nothing i
 
 Count what each row gives Alice. Both compress $600$ lines of work into one line, a ratio of $600{:}1$, and that ratio is not the difference between them; a digest that refused to compress would just be the diff again.
 
-The difference is that Row~A's single line has a route back to $600$ lines Alice owns and Row~B's has a route back to nothing, so Row~A's compression is recoverable and Row~B's is an assertion nobody can check.
+The difference is that Row~A's single line has a route back to $600$ lines Alice owns and Row~B's has a route back to nothing, so Row~A's compression is recoverable and Row~B's is an assertion nobody can check, a claim about a forest nobody has walked into.
 
 Row~A supplies a route to evidence; Row~B supplies only an assertion. A dishonest agent could still fabricate or reuse Row~A's log, so a link alone does not certify execution. Alice must be able to check the tested tree, command, result, and independently controlled runner that binds them together. The definition in this section names the navigable route $\zeta$; the verifiable-zoom rule then specifies what must be at its end.
 
@@ -1963,7 +1963,7 @@ shared randomized-cover codebook: an \emph{oracle} that sees the true set and
 addresses the best codeword its $B$ bits can reach, a \emph{noisy} encoder (feature
 signal-to-noise ratio near $1$), and a \emph{random} one, with $4{,}000$ placements
 per budget point, sweeping $B$ through the floor at $N{=}60$, $k{=}2$, $m{=}8$.
-Result: $0/16$ violations; the oracle comes closest to the floor from above and
+Result: $0/16$ violations; the oracle hugs the floor, staying just above it, and
 the other two need more bits [internal, \texttt{a7\_experiment.py}].
 
 \paragraph{A wrong turn, reported.} A first implementation handed the oracle a
@@ -2241,8 +2241,8 @@ is the unconditional $2F-1$, reached because at that density essentially every
 node of the halving tree is positive. The design consequence for this chapter is
 therefore conditional, and the condition is now a number: ``summarize the state,
 link to the work'' is cheap when the digest over-flags generously and the zoom is
-adaptive, and the trade between bits on the digest and opens on the zoom favors
-the operator exactly in the sparse-flag corner.
+adaptive, and the operator's dial, which trades bits on the digest for opens on
+the zoom, offers a favorable trade exactly in the sparse-flag corner.
 
 \pdmarginanalogy{ls-telegraph-sounder}{}{ch04-telegraph-sounder-key}{Like a Morse telegraph sounder clicking out discrete impulses across a narrow wire, discrete signals must encode information efficiently across the human attention bottleneck.}%
 \begin{pdexample}{The Bernoulli View of the Floor, and the Zoom-Advantage Numbers}
