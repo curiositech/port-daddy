@@ -30,7 +30,8 @@
   \pdbookreference{becker1968}{287}{G.~S. Becker. \newblock Crime and punishment: An economic approach. \newblock \emph{Journal of Political Economy}, 76(2):169--217, 1968.}{Becker 1968}
   \pdbookreference{bordini2007agentspeak}{289}{R.~H. Bordini, J.~F. H{\"u}bner, and M.~Wooldridge. \newblock \emph{Programming Multi-Agent Systems in AgentSpeak using Jason}. \newblock John Wiley \& Sons, 2007.}{Bordini et al. 2007}
   \pdbookreference{bratman1987intention}{290}{M.~E. Bratman. \newblock \emph{Intention, Plans, and Practical Reason}. \newblock Harvard University Press, Cambridge, MA, 1987.}{Bratman 1987}
-  \pdbookreference{charrier2014bigbrother}{292}{T.~Charrier, F.~Ouchet, and F.~Schwarzentruber. \newblock \emph{Big Brother Logic: Reasoning about Agents Equipped with Surveillance Cameras in the Plane (Demonstration)}. \newblock In \emph{Proc. AAMAS}, pages 1633--1634, 2014. \newblock \href{https://aamas.csc.liv.ac.uk/Proceedings/aamas2014/aamas/p1633.pdf}{Primary record}.}{Charrier et al. 2014}
+  \pdbookreference{gasquet2014bigbrother}{292}{O.~Gasquet, V.~Goranko, and F.~Schwarzentruber. \newblock \emph{Big Brother Logic: Logical Modeling and Reasoning about Agents Equipped with Surveillance Cameras in the Plane}. \newblock In \emph{Proc. 13th International Conference on Autonomous Agents and Multiagent Systems (AAMAS)}, pages 325--332, 2014. \newblock \href{https://aamas.csc.liv.ac.uk/AAMAS/aamas2014/proceedings/aamas/p325.pdf}{Primary record}.}{Gasquet et al. 2014}
+  \pdbookreference{baltag1998logic}{333}{A.~Baltag, L.~S. Moss, and S.~Solecki. \newblock \emph{The Logic of Public Announcements, Common Knowledge, and Private Suspicions}. \newblock In I.~Gilboa, editor, \emph{Proc. 7th Conference on Theoretical Aspects of Rationality and Knowledge (TARK)}, pages 43--56. Morgan Kaufmann, 1998.}{Baltag et al. 1998}
   \pdbookreference{clarke1971multipart}{293}{E.~H. Clarke. \newblock \emph{Multipart pricing of public goods}. \newblock \emph{Public Choice}, 11(1):17--33, 1971.}{Clarke 1971}
   \pdbookreference{fipa2002acl}{294}{FIPA. \newblock \emph{FIPA ACL Communicative Act Library Specification}. \newblock Technical Report SC00037J, Foundation for Intelligent Physical Agents, 2002.}{FIPA 2002}
   \pdbookreference{gibbard1973manipulation}{295}{A.~Gibbard. \newblock \emph{Manipulation of voting schemes: A general result}. \newblock \emph{Econometrica}, 41(4):587--601, 1973.}{Gibbard 1973}
@@ -576,8 +577,24 @@ after it, only the matching state remains. Unlike the belief example with
 revisions 7 and 8, a knowledge model includes the actual state among its
 possibilities.
 
-Charrier et al.~\pdcite{charrier2014bigbrother} study an observation model
-called Big Brother Logic, using cameras and fields of view. Its geometrical
+Dynamic epistemic logic studies that step: the change an observation makes to
+what each agent knows. Baltag, Moss and Solecki~\pdcite{baltag1998logic}
+describe an observation by an \pdterm{action model}, a set of events, each with
+a precondition, together with the events each agent cannot tell apart. The
+updated model keeps every pair of a state and an event whose precondition
+holds in that state, and an agent confuses two pairs only if it confuses both
+their states and their events. Here the events are ``exit code 0'' and ``exit
+code 1'', whose preconditions are that the bit is 0 and that it is 1. The
+worker sees the code, tells the events apart and learns the bit. Another agent
+that sees only ``ready'' cannot tell them apart and learns nothing about the
+bit, though if it knows the worker sees the code, it learns that the worker
+now knows the bit. A public announcement is the simplest action model: one
+event that every agent sees.
+
+Gasquet, Goranko and Schwarzentruber~\pdcite{gasquet2014bigbrother} define
+Big Brother Logic (BBL), a logic of agents whose cameras sit at fixed points
+in the plane with a fixed angle of view. A camera can turn, and the logic's
+dynamic operators say what becomes true when it does. Its geometrical
 restrictions make one-way visibility concrete. The engineering lesson is to
 specify the observations before claiming knowledge or secrecy.
 Seeing another agent is not the same as seeing all that agent's evidence.
