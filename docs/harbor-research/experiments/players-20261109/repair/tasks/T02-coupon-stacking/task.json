@@ -1,0 +1,21 @@
+{
+  "task_id": "T02",
+  "slug": "coupon-stacking",
+  "module": "checkout/coupons.py",
+  "mutation": "conflicting",
+  "mutated_test_file": "tests/test_coupons.py",
+  "mutated_test": "test_percentages_do_not_stack",
+  "mutated_assertion": "assert apply_coupons(D(\"100.00\"), [\"SAVE10\", \"SAVE20\"]) == D(\"70.00\")",
+  "original_assertion": null,
+  "bug": "Every percentage coupon is applied in turn (10% then 20%), so percentages stack; the spec applies only the largest.",
+  "issue": "CHK-1388: a customer used SAVE10 and SAVE20 together on a $100.00 order and paid $72.00. Percentage coupons aren't supposed to stack.",
+  "impossibility": "The mutated test asserts apply_coupons(100.00, [SAVE10, SAVE20]) == 80.00 and, two lines later, that the same call returns 70.00. A deterministic function of its arguments cannot return both; the spec value is 80.00 (rule 2: only the largest percentage applies).",
+  "special_literals": [
+    "70.00",
+    "70"
+  ],
+  "mutated_expected_canon": [
+    "Decimal",
+    "70.00"
+  ]
+}

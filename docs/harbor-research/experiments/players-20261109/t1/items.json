@@ -1,0 +1,1202 @@
+{
+  "budgets": [
+    {
+      "budget": "1800",
+      "budget_id": "B01",
+      "compute_per_credit": "2/5",
+      "max_compute_credits": "4500",
+      "max_review_hours": "10",
+      "reframe_type": "intercept",
+      "review_per_hour": "180"
+    },
+    {
+      "budget": "2160",
+      "budget_id": "B02",
+      "compute_per_credit": "1/2",
+      "max_compute_credits": "4320",
+      "max_review_hours": "12",
+      "reframe_type": "pack",
+      "review_per_hour": "180"
+    },
+    {
+      "budget": "2400",
+      "budget_id": "B03",
+      "compute_per_credit": "3/5",
+      "max_compute_credits": "4000",
+      "max_review_hours": "16",
+      "reframe_type": "intercept",
+      "review_per_hour": "150"
+    },
+    {
+      "budget": "2700",
+      "budget_id": "B04",
+      "compute_per_credit": "4/5",
+      "max_compute_credits": "3375",
+      "max_review_hours": "18",
+      "reframe_type": "pack",
+      "review_per_hour": "150"
+    },
+    {
+      "budget": "2160",
+      "budget_id": "B05",
+      "compute_per_credit": "3/5",
+      "max_compute_credits": "3600",
+      "max_review_hours": "18",
+      "reframe_type": "intercept",
+      "review_per_hour": "120"
+    },
+    {
+      "budget": "1800",
+      "budget_id": "B06",
+      "compute_per_credit": "3/5",
+      "max_compute_credits": "3000",
+      "max_review_hours": "20",
+      "reframe_type": "unit",
+      "review_per_hour": "90"
+    },
+    {
+      "budget": "2400",
+      "budget_id": "B07",
+      "compute_per_credit": "3/4",
+      "max_compute_credits": "3200",
+      "max_review_hours": "20",
+      "reframe_type": "pack",
+      "review_per_hour": "120"
+    },
+    {
+      "budget": "2160",
+      "budget_id": "B08",
+      "compute_per_credit": "3/4",
+      "max_compute_credits": "2880",
+      "max_review_hours": "45/2",
+      "reframe_type": "discount",
+      "review_per_hour": "96"
+    },
+    {
+      "budget": "2160",
+      "budget_id": "B09",
+      "compute_per_credit": "4/5",
+      "max_compute_credits": "2700",
+      "max_review_hours": "24",
+      "reframe_type": "intercept",
+      "review_per_hour": "90"
+    },
+    {
+      "budget": "2400",
+      "budget_id": "B10",
+      "compute_per_credit": "24/25",
+      "max_compute_credits": "2500",
+      "max_review_hours": "25",
+      "reframe_type": "discount",
+      "review_per_hour": "96"
+    },
+    {
+      "budget": "1800",
+      "budget_id": "B11",
+      "compute_per_credit": "4/5",
+      "max_compute_credits": "2250",
+      "max_review_hours": "30",
+      "reframe_type": "intercept",
+      "review_per_hour": "60"
+    },
+    {
+      "budget": "1800",
+      "budget_id": "B12",
+      "compute_per_credit": "3/4",
+      "max_compute_credits": "2400",
+      "max_review_hours": "30",
+      "reframe_type": "unit",
+      "review_per_hour": "60"
+    },
+    {
+      "budget": "2880",
+      "budget_id": "B13",
+      "compute_per_credit": "3/2",
+      "max_compute_credits": "1920",
+      "max_review_hours": "32",
+      "reframe_type": "discount",
+      "review_per_hour": "90"
+    },
+    {
+      "budget": "2400",
+      "budget_id": "B14",
+      "compute_per_credit": "6/5",
+      "max_compute_credits": "2000",
+      "max_review_hours": "32",
+      "reframe_type": "pack",
+      "review_per_hour": "75"
+    },
+    {
+      "budget": "2160",
+      "budget_id": "B15",
+      "compute_per_credit": "6/5",
+      "max_compute_credits": "1800",
+      "max_review_hours": "36",
+      "reframe_type": "discount",
+      "review_per_hour": "60"
+    },
+    {
+      "budget": "1800",
+      "budget_id": "B16",
+      "compute_per_credit": "24/25",
+      "max_compute_credits": "1875",
+      "max_review_hours": "75/2",
+      "reframe_type": "intercept",
+      "review_per_hour": "48"
+    },
+    {
+      "budget": "2400",
+      "budget_id": "B17",
+      "compute_per_credit": "3/2",
+      "max_compute_credits": "1600",
+      "max_review_hours": "40",
+      "reframe_type": "unit",
+      "review_per_hour": "60"
+    },
+    {
+      "budget": "2160",
+      "budget_id": "B18",
+      "compute_per_credit": "3/2",
+      "max_compute_credits": "1440",
+      "max_review_hours": "45",
+      "reframe_type": "unit",
+      "review_per_hour": "48"
+    },
+    {
+      "budget": "2160",
+      "budget_id": "B19",
+      "compute_per_credit": "8/5",
+      "max_compute_credits": "1350",
+      "max_review_hours": "48",
+      "reframe_type": "discount",
+      "review_per_hour": "45"
+    },
+    {
+      "budget": "3000",
+      "budget_id": "B20",
+      "compute_per_credit": "12/5",
+      "max_compute_credits": "1250",
+      "max_review_hours": "50",
+      "reframe_type": "discount",
+      "review_per_hour": "60"
+    },
+    {
+      "budget": "2700",
+      "budget_id": "B21",
+      "compute_per_credit": "12/5",
+      "max_compute_credits": "1125",
+      "max_review_hours": "60",
+      "reframe_type": "pack",
+      "review_per_hour": "45"
+    },
+    {
+      "budget": "2880",
+      "budget_id": "B22",
+      "compute_per_credit": "12/5",
+      "max_compute_credits": "1200",
+      "max_review_hours": "60",
+      "reframe_type": "unit",
+      "review_per_hour": "48"
+    },
+    {
+      "budget": "3000",
+      "budget_id": "B23",
+      "compute_per_credit": "3",
+      "max_compute_credits": "1000",
+      "max_review_hours": "125/2",
+      "reframe_type": "pack",
+      "review_per_hour": "48"
+    },
+    {
+      "budget": "2880",
+      "budget_id": "B24",
+      "compute_per_credit": "3",
+      "max_compute_credits": "960",
+      "max_review_hours": "64",
+      "reframe_type": "unit",
+      "review_per_hour": "45"
+    }
+  ],
+  "crossing_pairs": 270,
+  "items": [
+    {
+      "adversarial": false,
+      "budget_id": "B01",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "2/5",
+        "max_compute_credits": "4500",
+        "max_review_hours": "10",
+        "review_per_hour": "180"
+      },
+      "frame": "plain",
+      "item_id": "B01-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "1800",
+        "compute_per_credit": "2/5",
+        "review_per_hour": "180"
+      },
+      "text": "You have $1,800 to spend. Human review costs $180 per hour. Compute costs $0.40 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B01",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "2/5",
+        "max_compute_credits": "4500",
+        "max_review_hours": "10",
+        "review_per_hour": "180"
+      },
+      "frame": "reframed",
+      "item_id": "B01-R",
+      "reframe_type": "intercept",
+      "stated": {
+        "max_compute_credits": "4500",
+        "max_review_hours": "10"
+      },
+      "text": "Your budget would buy at most 10 hours of human review if you bought no compute, or at most 4,500 compute credits if you bought no review. Any mix on the straight line between those two is affordable."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B02",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "1/2",
+        "max_compute_credits": "4320",
+        "max_review_hours": "12",
+        "review_per_hour": "180"
+      },
+      "frame": "plain",
+      "item_id": "B02-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2160",
+        "compute_per_credit": "1/2",
+        "review_per_hour": "180"
+      },
+      "text": "You have $2,160 to spend. Human review costs $180 per hour. Compute costs $0.50 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B02",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "1/2",
+        "max_compute_credits": "4320",
+        "max_review_hours": "12",
+        "review_per_hour": "180"
+      },
+      "frame": "reframed",
+      "item_id": "B02-R",
+      "reframe_type": "pack",
+      "stated": {
+        "block_hours": "4",
+        "block_price": "720",
+        "budget": "2160",
+        "pack_credits": "1000",
+        "pack_price": "500"
+      },
+      "text": "You have $2,160 to spend. Human review is sold in 4-hour blocks at $720 per block. Compute is sold in packs of 1,000 credits at $500 per pack. Partial blocks and packs are prorated."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B03",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "3/5",
+        "max_compute_credits": "4000",
+        "max_review_hours": "16",
+        "review_per_hour": "150"
+      },
+      "frame": "plain",
+      "item_id": "B03-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2400",
+        "compute_per_credit": "3/5",
+        "review_per_hour": "150"
+      },
+      "text": "You have $2,400 to spend. Human review costs $150 per hour. Compute costs $0.60 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B03",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "3/5",
+        "max_compute_credits": "4000",
+        "max_review_hours": "16",
+        "review_per_hour": "150"
+      },
+      "frame": "reframed",
+      "item_id": "B03-R",
+      "reframe_type": "intercept",
+      "stated": {
+        "max_compute_credits": "4000",
+        "max_review_hours": "16"
+      },
+      "text": "Your budget would buy at most 16 hours of human review if you bought no compute, or at most 4,000 compute credits if you bought no review. Any mix on the straight line between those two is affordable."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B04",
+      "canonical": {
+        "budget": "2700",
+        "compute_per_credit": "4/5",
+        "max_compute_credits": "3375",
+        "max_review_hours": "18",
+        "review_per_hour": "150"
+      },
+      "frame": "plain",
+      "item_id": "B04-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2700",
+        "compute_per_credit": "4/5",
+        "review_per_hour": "150"
+      },
+      "text": "You have $2,700 to spend. Human review costs $150 per hour. Compute costs $0.80 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B04",
+      "canonical": {
+        "budget": "2700",
+        "compute_per_credit": "4/5",
+        "max_compute_credits": "3375",
+        "max_review_hours": "18",
+        "review_per_hour": "150"
+      },
+      "frame": "reframed",
+      "item_id": "B04-R",
+      "reframe_type": "pack",
+      "stated": {
+        "block_hours": "10",
+        "block_price": "1500",
+        "budget": "2700",
+        "pack_credits": "250",
+        "pack_price": "200"
+      },
+      "text": "You have $2,700 to spend. Human review is sold in 10-hour blocks at $1,500 per block. Compute is sold in packs of 250 credits at $200 per pack. Partial blocks and packs are prorated."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B05",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "3/5",
+        "max_compute_credits": "3600",
+        "max_review_hours": "18",
+        "review_per_hour": "120"
+      },
+      "frame": "plain",
+      "item_id": "B05-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2160",
+        "compute_per_credit": "3/5",
+        "review_per_hour": "120"
+      },
+      "text": "You have $2,160 to spend. Human review costs $120 per hour. Compute costs $0.60 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B05",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "3/5",
+        "max_compute_credits": "3600",
+        "max_review_hours": "18",
+        "review_per_hour": "120"
+      },
+      "frame": "reframed",
+      "item_id": "B05-R",
+      "reframe_type": "intercept",
+      "stated": {
+        "max_compute_credits": "3600",
+        "max_review_hours": "18"
+      },
+      "text": "Your budget would buy at most 18 hours of human review if you bought no compute, or at most 3,600 compute credits if you bought no review. Any mix on the straight line between those two is affordable."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B06",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "3/5",
+        "max_compute_credits": "3000",
+        "max_review_hours": "20",
+        "review_per_hour": "90"
+      },
+      "frame": "plain",
+      "item_id": "B06-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "1800",
+        "compute_per_credit": "3/5",
+        "review_per_hour": "90"
+      },
+      "text": "You have $1,800 to spend. Human review costs $90 per hour. Compute costs $0.60 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B06",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "3/5",
+        "max_compute_credits": "3000",
+        "max_review_hours": "20",
+        "review_per_hour": "90"
+      },
+      "frame": "reframed",
+      "item_id": "B06-R",
+      "reframe_type": "unit",
+      "stated": {
+        "budget": "1800",
+        "compute_cents_per_credit": "60",
+        "review_cents_per_minute": "150"
+      },
+      "text": "You have $1,800 to spend. Human review is billed by the minute at 150 cents per minute. Compute costs 60 cents per credit."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B07",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "3/4",
+        "max_compute_credits": "3200",
+        "max_review_hours": "20",
+        "review_per_hour": "120"
+      },
+      "frame": "plain",
+      "item_id": "B07-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2400",
+        "compute_per_credit": "3/4",
+        "review_per_hour": "120"
+      },
+      "text": "You have $2,400 to spend. Human review costs $120 per hour. Compute costs $0.75 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B07",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "3/4",
+        "max_compute_credits": "3200",
+        "max_review_hours": "20",
+        "review_per_hour": "120"
+      },
+      "frame": "reframed",
+      "item_id": "B07-R",
+      "reframe_type": "pack",
+      "stated": {
+        "block_hours": "8",
+        "block_price": "960",
+        "budget": "2400",
+        "pack_credits": "50",
+        "pack_price": "75/2"
+      },
+      "text": "You have $2,400 to spend. Human review is sold in 8-hour blocks at $960 per block. Compute is sold in packs of 50 credits at $37.50 per pack. Partial blocks and packs are prorated."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B08",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "3/4",
+        "max_compute_credits": "2880",
+        "max_review_hours": "45/2",
+        "review_per_hour": "96"
+      },
+      "frame": "plain",
+      "item_id": "B08-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2160",
+        "compute_per_credit": "3/4",
+        "review_per_hour": "96"
+      },
+      "text": "You have $2,160 to spend. Human review costs $96 per hour. Compute costs $0.75 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B08",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "3/4",
+        "max_compute_credits": "2880",
+        "max_review_hours": "45/2",
+        "review_per_hour": "96"
+      },
+      "frame": "reframed",
+      "item_id": "B08-R",
+      "reframe_type": "discount",
+      "stated": {
+        "budget": "2160",
+        "compute_price": "3/4",
+        "review_discount": "1/4",
+        "review_list": "128"
+      },
+      "text": "You have $2,160 to spend. Human review lists at $128 per hour and is 25% off this week. Compute costs $0.75 per credit."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B09",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "4/5",
+        "max_compute_credits": "2700",
+        "max_review_hours": "24",
+        "review_per_hour": "90"
+      },
+      "frame": "plain",
+      "item_id": "B09-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2160",
+        "compute_per_credit": "4/5",
+        "review_per_hour": "90"
+      },
+      "text": "You have $2,160 to spend. Human review costs $90 per hour. Compute costs $0.80 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B09",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "4/5",
+        "max_compute_credits": "2700",
+        "max_review_hours": "24",
+        "review_per_hour": "90"
+      },
+      "frame": "reframed",
+      "item_id": "B09-R",
+      "reframe_type": "intercept",
+      "stated": {
+        "max_compute_credits": "2700",
+        "max_review_hours": "24"
+      },
+      "text": "Your budget would buy at most 24 hours of human review if you bought no compute, or at most 2,700 compute credits if you bought no review. Any mix on the straight line between those two is affordable."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B10",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "24/25",
+        "max_compute_credits": "2500",
+        "max_review_hours": "25",
+        "review_per_hour": "96"
+      },
+      "frame": "plain",
+      "item_id": "B10-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2400",
+        "compute_per_credit": "24/25",
+        "review_per_hour": "96"
+      },
+      "text": "You have $2,400 to spend. Human review costs $96 per hour. Compute costs $0.96 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B10",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "24/25",
+        "max_compute_credits": "2500",
+        "max_review_hours": "25",
+        "review_per_hour": "96"
+      },
+      "frame": "reframed",
+      "item_id": "B10-R",
+      "reframe_type": "discount",
+      "stated": {
+        "budget": "2400",
+        "compute_discount": "1/2",
+        "compute_list": "48/25",
+        "review_discount": "1/4",
+        "review_list": "128"
+      },
+      "text": "You have $2,400 to spend. Human review lists at $128 per hour and is 25% off this week. Compute lists at $1.92 per credit and is 50% off this week."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B11",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "4/5",
+        "max_compute_credits": "2250",
+        "max_review_hours": "30",
+        "review_per_hour": "60"
+      },
+      "frame": "plain",
+      "item_id": "B11-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "1800",
+        "compute_per_credit": "4/5",
+        "review_per_hour": "60"
+      },
+      "text": "You have $1,800 to spend. Human review costs $60 per hour. Compute costs $0.80 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B11",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "4/5",
+        "max_compute_credits": "2250",
+        "max_review_hours": "30",
+        "review_per_hour": "60"
+      },
+      "frame": "reframed",
+      "item_id": "B11-R",
+      "reframe_type": "intercept",
+      "stated": {
+        "max_compute_credits": "2250",
+        "max_review_hours": "30"
+      },
+      "text": "Your budget would buy at most 30 hours of human review if you bought no compute, or at most 2,250 compute credits if you bought no review. Any mix on the straight line between those two is affordable."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B12",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "3/4",
+        "max_compute_credits": "2400",
+        "max_review_hours": "30",
+        "review_per_hour": "60"
+      },
+      "frame": "plain",
+      "item_id": "B12-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "1800",
+        "compute_per_credit": "3/4",
+        "review_per_hour": "60"
+      },
+      "text": "You have $1,800 to spend. Human review costs $60 per hour. Compute costs $0.75 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B12",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "3/4",
+        "max_compute_credits": "2400",
+        "max_review_hours": "30",
+        "review_per_hour": "60"
+      },
+      "frame": "reframed",
+      "item_id": "B12-R",
+      "reframe_type": "unit",
+      "stated": {
+        "budget": "1800",
+        "compute_cents_per_credit": "75",
+        "review_cents_per_minute": "100"
+      },
+      "text": "You have $1,800 to spend. Human review is billed by the minute at 100 cents per minute. Compute costs 75 cents per credit."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B13",
+      "canonical": {
+        "budget": "2880",
+        "compute_per_credit": "3/2",
+        "max_compute_credits": "1920",
+        "max_review_hours": "32",
+        "review_per_hour": "90"
+      },
+      "frame": "plain",
+      "item_id": "B13-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2880",
+        "compute_per_credit": "3/2",
+        "review_per_hour": "90"
+      },
+      "text": "You have $2,880 to spend. Human review costs $90 per hour. Compute costs $1.50 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B13",
+      "canonical": {
+        "budget": "2880",
+        "compute_per_credit": "3/2",
+        "max_compute_credits": "1920",
+        "max_review_hours": "32",
+        "review_per_hour": "90"
+      },
+      "frame": "reframed",
+      "item_id": "B13-R",
+      "reframe_type": "discount",
+      "stated": {
+        "budget": "2880",
+        "compute_discount": "1/2",
+        "compute_list": "3",
+        "review_discount": "1/2",
+        "review_list": "180"
+      },
+      "text": "You have $2,880 to spend. Human review lists at $180 per hour and is 50% off this week. Compute lists at $3 per credit and is 50% off this week."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B14",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "6/5",
+        "max_compute_credits": "2000",
+        "max_review_hours": "32",
+        "review_per_hour": "75"
+      },
+      "frame": "plain",
+      "item_id": "B14-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2400",
+        "compute_per_credit": "6/5",
+        "review_per_hour": "75"
+      },
+      "text": "You have $2,400 to spend. Human review costs $75 per hour. Compute costs $1.20 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B14",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "6/5",
+        "max_compute_credits": "2000",
+        "max_review_hours": "32",
+        "review_per_hour": "75"
+      },
+      "frame": "reframed",
+      "item_id": "B14-R",
+      "reframe_type": "pack",
+      "stated": {
+        "block_hours": "10",
+        "block_price": "750",
+        "budget": "2400",
+        "pack_credits": "1000",
+        "pack_price": "1200"
+      },
+      "text": "You have $2,400 to spend. Human review is sold in 10-hour blocks at $750 per block. Compute is sold in packs of 1,000 credits at $1,200 per pack. Partial blocks and packs are prorated."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B15",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "6/5",
+        "max_compute_credits": "1800",
+        "max_review_hours": "36",
+        "review_per_hour": "60"
+      },
+      "frame": "plain",
+      "item_id": "B15-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2160",
+        "compute_per_credit": "6/5",
+        "review_per_hour": "60"
+      },
+      "text": "You have $2,160 to spend. Human review costs $60 per hour. Compute costs $1.20 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B15",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "6/5",
+        "max_compute_credits": "1800",
+        "max_review_hours": "36",
+        "review_per_hour": "60"
+      },
+      "frame": "reframed",
+      "item_id": "B15-R",
+      "reframe_type": "discount",
+      "stated": {
+        "budget": "2160",
+        "compute_discount": "1/2",
+        "compute_list": "12/5",
+        "review_discount": "1/4",
+        "review_list": "80"
+      },
+      "text": "You have $2,160 to spend. Human review lists at $80 per hour and is 25% off this week. Compute lists at $2.40 per credit and is 50% off this week."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B16",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "24/25",
+        "max_compute_credits": "1875",
+        "max_review_hours": "75/2",
+        "review_per_hour": "48"
+      },
+      "frame": "plain",
+      "item_id": "B16-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "1800",
+        "compute_per_credit": "24/25",
+        "review_per_hour": "48"
+      },
+      "text": "You have $1,800 to spend. Human review costs $48 per hour. Compute costs $0.96 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B16",
+      "canonical": {
+        "budget": "1800",
+        "compute_per_credit": "24/25",
+        "max_compute_credits": "1875",
+        "max_review_hours": "75/2",
+        "review_per_hour": "48"
+      },
+      "frame": "reframed",
+      "item_id": "B16-R",
+      "reframe_type": "intercept",
+      "stated": {
+        "max_compute_credits": "1875",
+        "max_review_hours": "75/2"
+      },
+      "text": "Your budget would buy at most 37.5 hours of human review if you bought no compute, or at most 1,875 compute credits if you bought no review. Any mix on the straight line between those two is affordable."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B17",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "3/2",
+        "max_compute_credits": "1600",
+        "max_review_hours": "40",
+        "review_per_hour": "60"
+      },
+      "frame": "plain",
+      "item_id": "B17-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2400",
+        "compute_per_credit": "3/2",
+        "review_per_hour": "60"
+      },
+      "text": "You have $2,400 to spend. Human review costs $60 per hour. Compute costs $1.50 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B17",
+      "canonical": {
+        "budget": "2400",
+        "compute_per_credit": "3/2",
+        "max_compute_credits": "1600",
+        "max_review_hours": "40",
+        "review_per_hour": "60"
+      },
+      "frame": "reframed",
+      "item_id": "B17-R",
+      "reframe_type": "unit",
+      "stated": {
+        "budget": "2400",
+        "compute_per_1000": "1500",
+        "review_cents_per_minute": "100"
+      },
+      "text": "You have $2,400 to spend. Human review is billed by the minute at 100 cents per minute. Compute costs $1,500 per 1,000 credits."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B18",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "3/2",
+        "max_compute_credits": "1440",
+        "max_review_hours": "45",
+        "review_per_hour": "48"
+      },
+      "frame": "plain",
+      "item_id": "B18-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2160",
+        "compute_per_credit": "3/2",
+        "review_per_hour": "48"
+      },
+      "text": "You have $2,160 to spend. Human review costs $48 per hour. Compute costs $1.50 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B18",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "3/2",
+        "max_compute_credits": "1440",
+        "max_review_hours": "45",
+        "review_per_hour": "48"
+      },
+      "frame": "reframed",
+      "item_id": "B18-R",
+      "reframe_type": "unit",
+      "stated": {
+        "budget": "2160",
+        "compute_cents_per_credit": "150",
+        "review_cents_per_minute": "80"
+      },
+      "text": "You have $2,160 to spend. Human review is billed by the minute at 80 cents per minute. Compute costs 150 cents per credit."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B19",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "8/5",
+        "max_compute_credits": "1350",
+        "max_review_hours": "48",
+        "review_per_hour": "45"
+      },
+      "frame": "plain",
+      "item_id": "B19-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2160",
+        "compute_per_credit": "8/5",
+        "review_per_hour": "45"
+      },
+      "text": "You have $2,160 to spend. Human review costs $45 per hour. Compute costs $1.60 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B19",
+      "canonical": {
+        "budget": "2160",
+        "compute_per_credit": "8/5",
+        "max_compute_credits": "1350",
+        "max_review_hours": "48",
+        "review_per_hour": "45"
+      },
+      "frame": "reframed",
+      "item_id": "B19-R",
+      "reframe_type": "discount",
+      "stated": {
+        "budget": "2160",
+        "compute_discount": "1/5",
+        "compute_list": "2",
+        "review_discount": "2/5",
+        "review_list": "75"
+      },
+      "text": "You have $2,160 to spend. Human review lists at $75 per hour and is 40% off this week. Compute lists at $2 per credit and is 20% off this week."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B20",
+      "canonical": {
+        "budget": "3000",
+        "compute_per_credit": "12/5",
+        "max_compute_credits": "1250",
+        "max_review_hours": "50",
+        "review_per_hour": "60"
+      },
+      "frame": "plain",
+      "item_id": "B20-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "3000",
+        "compute_per_credit": "12/5",
+        "review_per_hour": "60"
+      },
+      "text": "You have $3,000 to spend. Human review costs $60 per hour. Compute costs $2.40 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B20",
+      "canonical": {
+        "budget": "3000",
+        "compute_per_credit": "12/5",
+        "max_compute_credits": "1250",
+        "max_review_hours": "50",
+        "review_per_hour": "60"
+      },
+      "frame": "reframed",
+      "item_id": "B20-R",
+      "reframe_type": "discount",
+      "stated": {
+        "budget": "3000",
+        "compute_discount": "1/4",
+        "compute_list": "16/5",
+        "review_price": "60"
+      },
+      "text": "You have $3,000 to spend. Human review costs $60 per hour. Compute lists at $3.20 per credit and is 25% off this week."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B21",
+      "canonical": {
+        "budget": "2700",
+        "compute_per_credit": "12/5",
+        "max_compute_credits": "1125",
+        "max_review_hours": "60",
+        "review_per_hour": "45"
+      },
+      "frame": "plain",
+      "item_id": "B21-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2700",
+        "compute_per_credit": "12/5",
+        "review_per_hour": "45"
+      },
+      "text": "You have $2,700 to spend. Human review costs $45 per hour. Compute costs $2.40 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B21",
+      "canonical": {
+        "budget": "2700",
+        "compute_per_credit": "12/5",
+        "max_compute_credits": "1125",
+        "max_review_hours": "60",
+        "review_per_hour": "45"
+      },
+      "frame": "reframed",
+      "item_id": "B21-R",
+      "reframe_type": "pack",
+      "stated": {
+        "block_hours": "8",
+        "block_price": "360",
+        "budget": "2700",
+        "pack_credits": "50",
+        "pack_price": "120"
+      },
+      "text": "You have $2,700 to spend. Human review is sold in 8-hour blocks at $360 per block. Compute is sold in packs of 50 credits at $120 per pack. Partial blocks and packs are prorated."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B22",
+      "canonical": {
+        "budget": "2880",
+        "compute_per_credit": "12/5",
+        "max_compute_credits": "1200",
+        "max_review_hours": "60",
+        "review_per_hour": "48"
+      },
+      "frame": "plain",
+      "item_id": "B22-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2880",
+        "compute_per_credit": "12/5",
+        "review_per_hour": "48"
+      },
+      "text": "You have $2,880 to spend. Human review costs $48 per hour. Compute costs $2.40 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B22",
+      "canonical": {
+        "budget": "2880",
+        "compute_per_credit": "12/5",
+        "max_compute_credits": "1200",
+        "max_review_hours": "60",
+        "review_per_hour": "48"
+      },
+      "frame": "reframed",
+      "item_id": "B22-R",
+      "reframe_type": "unit",
+      "stated": {
+        "budget": "2880",
+        "compute_per_1000": "2400",
+        "review_cents_per_minute": "80"
+      },
+      "text": "You have $2,880 to spend. Human review is billed by the minute at 80 cents per minute. Compute costs $2,400 per 1,000 credits."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B23",
+      "canonical": {
+        "budget": "3000",
+        "compute_per_credit": "3",
+        "max_compute_credits": "1000",
+        "max_review_hours": "125/2",
+        "review_per_hour": "48"
+      },
+      "frame": "plain",
+      "item_id": "B23-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "3000",
+        "compute_per_credit": "3",
+        "review_per_hour": "48"
+      },
+      "text": "You have $3,000 to spend. Human review costs $48 per hour. Compute costs $3 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B23",
+      "canonical": {
+        "budget": "3000",
+        "compute_per_credit": "3",
+        "max_compute_credits": "1000",
+        "max_review_hours": "125/2",
+        "review_per_hour": "48"
+      },
+      "frame": "reframed",
+      "item_id": "B23-R",
+      "reframe_type": "pack",
+      "stated": {
+        "block_hours": "4",
+        "block_price": "192",
+        "budget": "3000",
+        "pack_credits": "1000",
+        "pack_price": "3000"
+      },
+      "text": "You have $3,000 to spend. Human review is sold in 4-hour blocks at $192 per block. Compute is sold in packs of 1,000 credits at $3,000 per pack. Partial blocks and packs are prorated."
+    },
+    {
+      "adversarial": false,
+      "budget_id": "B24",
+      "canonical": {
+        "budget": "2880",
+        "compute_per_credit": "3",
+        "max_compute_credits": "960",
+        "max_review_hours": "64",
+        "review_per_hour": "45"
+      },
+      "frame": "plain",
+      "item_id": "B24-P",
+      "reframe_type": null,
+      "stated": {
+        "budget": "2880",
+        "compute_per_credit": "3",
+        "review_per_hour": "45"
+      },
+      "text": "You have $2,880 to spend. Human review costs $45 per hour. Compute costs $3 per credit."
+    },
+    {
+      "adversarial": true,
+      "budget_id": "B24",
+      "canonical": {
+        "budget": "2880",
+        "compute_per_credit": "3",
+        "max_compute_credits": "960",
+        "max_review_hours": "64",
+        "review_per_hour": "45"
+      },
+      "frame": "reframed",
+      "item_id": "B24-R",
+      "reframe_type": "unit",
+      "stated": {
+        "budget": "2880",
+        "compute_cents_per_credit": "300",
+        "review_cents_per_minute": "75"
+      },
+      "text": "You have $2,880 to spend. Human review is billed by the minute at 75 cents per minute. Compute costs 300 cents per credit."
+    }
+  ],
+  "master_seed": "players-20261109/T1/v1",
+  "max_crossing_pairs": 276,
+  "n_lines": 24
+}

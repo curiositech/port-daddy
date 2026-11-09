@@ -1,0 +1,194 @@
+{
+  "controls_behave_as_declared": true,
+  "random_benchmark": {
+    "description": "Uniform random chooser (budget share ~ U[0,1] per offer, independently) on the sealed 24 lines, both frames, 1,000 simulated sessions. Power benchmark for T1.",
+    "n_sessions": 1000,
+    "p_ccei_plain_ge_0.90": 0.005,
+    "p_ccei_plain_ge_0.95": 0.0,
+    "p_ccei_pooled_ge_0.95": 0.0,
+    "p_garp_holds_plain": 0.0,
+    "p_median_share_diff_le_0.05": 0.0,
+    "p_t1_verdict_pass": 0.0,
+    "summary": {
+      "ccei_plain": {
+        "max": 0.944856,
+        "q00": 0.222871,
+        "q05": 0.411289,
+        "q25": 0.53723,
+        "q50": 0.62609,
+        "q75": 0.709229,
+        "q95": 0.823465,
+        "q99": 0.889206
+      },
+      "ccei_pooled": {
+        "max": 0.854349,
+        "q00": 0.222871,
+        "q05": 0.347697,
+        "q25": 0.442924,
+        "q50": 0.505672,
+        "q75": 0.588139,
+        "q95": 0.698107,
+        "q99": 0.768627
+      },
+      "ccei_reframed": {
+        "max": 0.961685,
+        "q00": 0.246159,
+        "q05": 0.401497,
+        "q25": 0.533187,
+        "q50": 0.623257,
+        "q75": 0.715203,
+        "q95": 0.827194,
+        "q99": 0.897527
+      },
+      "frame_gap": {
+        "max": 0.403443,
+        "q00": 0.0,
+        "q05": 0.0,
+        "q25": 0.0,
+        "q50": 0.0,
+        "q75": 0.049714,
+        "q95": 0.175923,
+        "q99": 0.270342
+      },
+      "median_abs_share_diff": {
+        "max": 0.560828,
+        "q00": 0.124722,
+        "q05": 0.189089,
+        "q25": 0.247665,
+        "q50": 0.294263,
+        "q75": 0.346034,
+        "q95": 0.425253,
+        "q99": 0.486419
+      }
+    }
+  },
+  "root": "/tmp/claude-0/-home-claude/0d58d67c-91fe-5e53-93f2-1e6f62cdac74/scratchpad/exp-runs-dryrun/20261109T072531",
+  "sessions": [
+    {
+      "agent": "scripted",
+      "answered": 48,
+      "ccei_plain": 1.0,
+      "ccei_pooled": 1.0,
+      "ccei_reframed": 1.0,
+      "criteria": {
+        "ccei_plain_ge_tau": true,
+        "ccei_pooled_ge_tau": true,
+        "ccei_reframed_ge_tau": true,
+        "median_share_diff_le_tol": true
+      },
+      "frame_gap": 0.0,
+      "median_abs_share_diff": 0.0,
+      "off_line_rate": {
+        "plain": 0.0,
+        "reframed": 0.0
+      },
+      "session_id": "dry-scripted-1",
+      "verdict": "pass"
+    },
+    {
+      "agent": "scripted",
+      "answered": 48,
+      "ccei_plain": 1.0,
+      "ccei_pooled": 1.0,
+      "ccei_reframed": 1.0,
+      "criteria": {
+        "ccei_plain_ge_tau": true,
+        "ccei_pooled_ge_tau": true,
+        "ccei_reframed_ge_tau": true,
+        "median_share_diff_le_tol": true
+      },
+      "frame_gap": 0.0,
+      "median_abs_share_diff": 0.0,
+      "off_line_rate": {
+        "plain": 0.0,
+        "reframed": 0.0
+      },
+      "session_id": "dry-scripted-2",
+      "verdict": "pass"
+    },
+    {
+      "agent": "scripted-linear",
+      "answered": 48,
+      "ccei_plain": 1.0,
+      "ccei_pooled": 1.0,
+      "ccei_reframed": 1.0,
+      "criteria": {
+        "ccei_plain_ge_tau": true,
+        "ccei_pooled_ge_tau": true,
+        "ccei_reframed_ge_tau": true,
+        "median_share_diff_le_tol": true
+      },
+      "frame_gap": 0.0,
+      "median_abs_share_diff": 0.0,
+      "off_line_rate": {
+        "plain": 0.0,
+        "reframed": 0.0
+      },
+      "session_id": "dry-scripted-linear-1",
+      "verdict": "pass"
+    },
+    {
+      "agent": "random",
+      "answered": 48,
+      "ccei_plain": 0.712323,
+      "ccei_pooled": 0.370932,
+      "ccei_reframed": 0.441108,
+      "criteria": {
+        "ccei_plain_ge_tau": false,
+        "ccei_pooled_ge_tau": false,
+        "ccei_reframed_ge_tau": false,
+        "median_share_diff_le_tol": false
+      },
+      "frame_gap": 0.070176,
+      "median_abs_share_diff": 0.2851,
+      "off_line_rate": {
+        "plain": 0.0,
+        "reframed": 0.0
+      },
+      "session_id": "dry-random-1",
+      "verdict": "fail"
+    },
+    {
+      "agent": "random",
+      "answered": 48,
+      "ccei_plain": 0.589202,
+      "ccei_pooled": 0.35191,
+      "ccei_reframed": 0.35191,
+      "criteria": {
+        "ccei_plain_ge_tau": false,
+        "ccei_pooled_ge_tau": false,
+        "ccei_reframed_ge_tau": false,
+        "median_share_diff_le_tol": false
+      },
+      "frame_gap": 0.0,
+      "median_abs_share_diff": 0.2599,
+      "off_line_rate": {
+        "plain": 0.0,
+        "reframed": 0.0
+      },
+      "session_id": "dry-random-2",
+      "verdict": "fail"
+    },
+    {
+      "agent": "random",
+      "answered": 48,
+      "ccei_plain": 0.768049,
+      "ccei_pooled": 0.502366,
+      "ccei_reframed": 0.502366,
+      "criteria": {
+        "ccei_plain_ge_tau": false,
+        "ccei_pooled_ge_tau": false,
+        "ccei_reframed_ge_tau": false,
+        "median_share_diff_le_tol": false
+      },
+      "frame_gap": 0.0,
+      "median_abs_share_diff": 0.2213,
+      "off_line_rate": {
+        "plain": 0.0,
+        "reframed": 0.0
+      },
+      "session_id": "dry-random-3",
+      "verdict": "fail"
+    }
+  ]
+}
