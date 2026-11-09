@@ -11,8 +11,8 @@
   \coordinate (a1) at (0.75,2.00);
   \coordinate (a2) at (4.45,2.90);
   \coordinate (phi) at (8.05,3.80);
-  \def\angA{13.2}  \def\spreadA{16}  \def\radA{6.60}   % V(a1): wide, long
-  \def\angB{12.7}  \def\spreadB{17}  \def\radB{4.60}  % V(a2): narrower
+  \def\angA{13.2}  \def\spreadA{16}  \def\radA{6.60}   % Vis(i): wide, long
+  \def\angB{12.7}  \def\spreadB{17}  \def\radB{4.60}  % Vis(j): narrower
   \def\trim{0.52}  % clears the 8.5mm agent node, so no edition's pattern
                     % fill ever needs to occlude a stroke under its own text
   % ---- the field: unobserved by default, named once -----------------------
@@ -27,19 +27,19 @@
     ($(a1)+({\angA+\spreadA}:\trim)$) -- ($(a1)+({\angA+\spreadA}:\radA)$)
       arc[start angle={\angA+\spreadA},end angle={\angA-\spreadA},radius=\radA]
       -- ($(a1)+({\angA-\spreadA}:\trim)$) -- cycle;
-  \node[pd focus label,anchor=south west] at ($(a1)+(1.2,1.55)$) {$V(a_1)$};
+  \node[pd focus label,anchor=south west] at ($(a1)+(1.2,1.55)$) {$\mathrm{Vis}(i)$};
   % ---- V(a2): narrower, reaches far enough to hold phi ---------------------
   \fill[pd legible fill]
     ($(a2)+({\angB+\spreadB}:\trim)$) -- ($(a2)+({\angB+\spreadB}:\radB)$)
       arc[start angle={\angB+\spreadB},end angle={\angB-\spreadB},radius=\radB]
       -- ($(a2)+({\angB-\spreadB}:\trim)$) -- cycle;
-  \node[pd legible label,anchor=south west] at ($(a2)+(0.55,1.35)$) {$V(a_2)$};
+  \node[pd legible label,anchor=south west] at ($(a2)+(0.55,1.35)$) {$\mathrm{Vis}(j)$};
   % ---- the two agents and the objective, named nodes so every incident
   % line clips to the node's own boundary -- never through its text, in any
   % edition's fill treatment (hatched editions do not occlude an overlaid
   % line the way a solid tint does).
-  \node[pd automaton focus,minimum size=8.5mm] (node-a1) at (a1) {$a_1$};
-  \node[pd automaton state,minimum size=8.5mm] (node-a2) at (a2) {$a_2$};
+  \node[pd automaton focus,minimum size=8.5mm] (node-a1) at (a1) {$i$};
+  \node[pd automaton state,minimum size=8.5mm] (node-a2) at (a2) {$j$};
   \node[pd datum] (node-phi) at (phi) {};
   \node[pd label,anchor=west] at ($(phi)+(0.28,0)$) {$\phi$};
   % ---- the two observation relations, each an arrow with a badge ----------
@@ -57,9 +57,9 @@
       \toprule
       & \textbf{condition} & \textbf{reading} \\
       \midrule
-      \textbf{1} & $a_2 \in V(a_1)$ & $a_1$ observes $a_2$ \\
-      \textbf{2} & $\phi \in V(a_2)$ & $a_2$ observes $\phi$ \\
-      $1 \wedge 2$ & known $V(a_2)$ and observation semantics & may yield $K_{a_1}K_{a_2}\phi$; no direct visibility or covert-channel guarantee \\
+      \textbf{1} & $j \in \mathrm{Vis}(i)$ & $i$ observes $j$ \\
+      \textbf{2} & $\phi \in \mathrm{Vis}(j)$ & $j$ observes $\phi$ \\
+      $1 \wedge 2$ & known $\mathrm{Vis}(j)$ and observation semantics & may yield $\mathsf{K}_i\mathsf{K}_j\phi$; no direct visibility or covert-channel guarantee \\
       \bottomrule
     \end{tabular}};
 \end{tikzpicture}

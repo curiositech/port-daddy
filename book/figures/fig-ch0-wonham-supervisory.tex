@@ -1,28 +1,28 @@
 % Reader question: which unsafe events can a supervisor disable?
 % Claim: controllable events can be disabled; uncontrollable continuations remain.
 % Evidence: upstream language containment and event-class automaton.
-% Distinguish: safe target K, achievable controlled language and observation limits.
+% Distinguish: safe target E, achievable controlled language and observation limits.
 % Grammar: nested languages and named transitions, not a universal safety gate.
-% Acceptance: state the controllability and observation conditions on K.
+% Acceptance: state the controllability and observation conditions on E.
 \noindent\begin{minipage}{11.1cm}\centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % Nested languages and a separate controllable-event boundary.
   \draw[pd neutral fill] (.10,1.00) rectangle (4.80,5.20);
-  \node[pd label,anchor=north west] at (.25,5.05) {$L(G)$};
+  \node[pd label,anchor=north west] at (.25,5.05) {$\mathrm{Lang}(\mathcal G)$};
   \draw[pd focus fill] (1.05,1.60) rectangle (3.85,3.95);
-  \node[pd label,anchor=north] at (2.45,3.78) {safe target $K$};
+  \node[pd label,anchor=north] at (2.45,3.78) {safe target $E$};
   \node[pd focus datum] at (2.35,2.55) {};
   \node[pd badge] at (2.70,2.90) {1};
   \node[pd breach datum] at (4.25,2.20) {};
   \node[pd badge] at (4.25,2.65) {2};
-  \node[pd label] at (2.45,.55) {$L(S/G)\subseteq K\subseteq L(G)$};
+  \node[pd label] at (2.45,.55) {$\mathrm{Lang}(\Gamma/\mathcal G)\subseteq E\subseteq\mathrm{Lang}(\mathcal G)$};
   \draw[pd trust boundary] (6.30,4.00) rectangle (10.80,5.85);
-  \node[pd kind] at (8.55,5.55) {$S$ disables $\Sigma_c$};
-  \node[pd automaton state] (X0) at (7.20,2.65) {$x_0$};
-  \node[pd automaton state] (X1) at (7.20,4.70) {$x_1$};
-  \node[pd automaton state,draw=pderror,dash pattern=on 3.2pt off 2.2pt] (X3) at (9.80,4.70) {$x_3$};
-  \node[pd automaton state] (X2) at (7.20,.65) {$x_2$};
+  \node[pd kind] at (8.55,5.55) {$\Gamma$ disables $\Sigma_c$};
+  \node[pd automaton state] (X0) at (7.20,2.65) {$q_0$};
+  \node[pd automaton state] (X1) at (7.20,4.70) {$q_1$};
+  \node[pd automaton state,draw=pderror,dash pattern=on 3.2pt off 2.2pt] (X3) at (9.80,4.70) {$q_3$};
+  \node[pd automaton state] (X2) at (7.20,.65) {$q_2$};
   \draw[pd initial] (5.80,2.00) -- (X0);
   \draw[pd arrow] (X0) -- (X1);
   \node[pd badge] at (6.65,3.65) {1};
@@ -37,8 +37,8 @@
 \toprule
  & \textbf{Event} & \textbf{Class} & \textbf{Supervisor}\\
 \midrule
-1 & file write & $\Sigma_c$ & Admitted: the trace stays inside $K$.\\
-2 & process spawn & $\Sigma_c$ & Disabled: would leave $K$.\\
+1 & file write & $\Sigma_c$ & Enabled: the trace stays inside $E$.\\
+2 & process spawn & $\Sigma_c$ & Disabled: would leave $E$.\\
 -- & tokens, signals, exit & $\Sigma_u$ & Cannot disable this continuation.\\
 \bottomrule
 \end{tabularx}}

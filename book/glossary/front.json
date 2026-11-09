@@ -4,7 +4,7 @@
   {"term": "agent", "sort": "agent", "definition": "A program, usually built around a language model, that observes its task and proposes actions such as edits, test runs or payments."},
   {"term": "harbor", "sort": "harbor", "definition": "The governed environment agents work in, run by a daemon that holds the shared record and decides, for each change an agent proposes, whether that change takes effect."},
   {"term": "daemon", "sort": "daemon", "definition": "A background service; in this book, the trusted program that holds a harbor's shared record and makes the admission check."},
-  {"term": "admission", "sort": "admission", "definition": "The single check in the write path that decides whether a proposed change takes effect; to admit a change means only to let it pass this check and happen."},
+  {"term": "admission", "sort": "admission", "definition": "The single check in the write path that decides whether a proposed change takes effect; to admit a change is to let it pass this check and go ahead, and the book uses the word in no other sense."},
   {"term": "ledger", "sort": "ledger", "definition": "The daemon's authoritative account of who holds which resources, who owes what and what has been paid."},
   {"term": "grant", "sort": "grant", "definition": "A recorded permission stating what its holder may do, to which resources and until when."},
   {"term": "capability card", "sort": "capability card", "definition": "A grant signed by the daemon, which the daemon checks before it admits a change the holder proposes."},
