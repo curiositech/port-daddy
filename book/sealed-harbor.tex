@@ -325,6 +325,11 @@ record changes the probability of each set of outputs by at most a factor
 $e^{\varepsilon}$, plus a small additive slack $\delta$. The human a record is
 about is its \pdterm{data subject}. The number $\varepsilon$, read
 \pdterm{epsilon}, is the release's privacy loss: smaller is more private.
+The budgets row uses two more symbols. For a release channel whose content
+the worker chooses, $b$ is the channel's width, the number of bits one
+release on it may carry, and $q$ is the number of releases on it that the
+work order allows over its whole term. In this chapter's examples each job
+makes one release to Erin, so $q$ also counts jobs.
 
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -366,7 +371,7 @@ $\text{recipients}$ & Recipients & Authorized recipient identities and public ke
 \addlinespace[2pt]
 $\text{schemas}$ & Recipients & Strongly-typed schema definition (Cap'n Proto / JSON Schema) for declassified outputs. Forbids free-form payloads. & RiskReportV1 \{ \newline \enspace risk: uint63, flag: bool \} \\
 \midrule
-$\text{budgets}$ & Bounds & Hard resource and leakage ceilings: maximum declassification bits ($q \cdot b$), CPU time, memory, and timeout. & b=64 bits, q=1 exit, \newline max\_cpu=300s, 32GB \\
+$\text{budgets}$ & Bounds & Hard resource and leakage ceilings: maximum declassification bits ($q \cdot b$), CPU time, memory, and timeout. & b=64 bits, q=200, \newline max\_cpu=300s, 32GB \\
 \addlinespace[2pt]
 $\text{retention}$ & Bounds & Ephemeral session lifetime and zeroization policy. Specify key destruction, memory clearing, and prohibited persistence; their effectiveness requires platform evidence. & zeroize\_on\_exit; \newline no\_swap; max\_ttl=900s \\
 \midrule
@@ -787,8 +792,8 @@ supply that enforcement. A trusted gate could instead compute a restricted
 release directly from committed input, as the finite model does; accepting
 unconstrained worker-computed candidates gives up that guarantee.
 Section~\ref{sec:sealed-budget} therefore measures this residual, and that
-measurement is the reason the $q\cdot b$ account exists. Over $q$ jobs, each
-returning $b$ freely chosen bits, a worker can carry at most $q\cdot b$ bits,
+measurement is the reason the $q\cdot b$ account exists. Over $q$ releases of
+$b$ freely chosen bits each, a worker can carry at most $q\cdot b$ bits,
 before timing. The present
 mutations cannot exhibit the attack, because the model's \texttt{submit}
 carries no payload. They test that the gate releases $g$ and nothing else;
@@ -1484,15 +1489,15 @@ Figure~\ref{fig:sealed-residuals-converge} shows.
 \FloatBarrier
 
 If an Erin-visible channel permits $b$
-freely chosen bits per job, a malicious worker, one that launders by computing
+freely chosen bits per release, a malicious worker, one that launders by computing
 $t=f(s)$ and submitting $t$ so that the gate honestly releases $g(t)$, can use that freedom to encode secret bits. The alphabet has at most $2^b$
 values, giving a $b$-bit upper bound per fixed-length output. This is a bound
 on permitted distinguishability, not a claim that every workload leaks that
 much, and it is a different result from the committed-input noninterference
-property. Across $q$ jobs the raw capacity is $q\cdot b$ bits; choosing among
-$w$ timing slots adds up to $\log_2 w$ bits per event, which is why timing sits
+property. Across $q$ releases the raw capacity is $q\cdot b$ bits; choosing among
+$w$ timing slots adds up to $\log_2 w$ bits per release, which is why timing sits
 outside the possibilistic model. The $\log_2 w$ expression is a finite-alphabet
-upper bound: across at most $q$ events, at most $w^q$ slot sequences are
+upper bound: across $q$ releases, at most $w^q$ slot sequences are
 distinguishable. Predictive mitigation \pdcite{azm10} provides a framework for
 controlling timing observations; the slot count here is not a proof for an
 arbitrary scheduler.
@@ -1609,7 +1614,7 @@ The chapter's main ideas, in the order the rest of the book relies on them:
 \item \textbf{Enforcement is relative to a plant and observations}: this gate can refuse egress, and an observed read can tell it when to do so. Internal events declared uncontrollable cannot be disabled at that boundary; their detection needs separate evidence.
 \item \textbf{The privacy budget is a ledger that conserves}: every release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance.
 \item \textbf{Canaries have conditional power}: a leak carrying $j$ canaries escapes all their independent detections with probability $\beta^{j}$ ($0.008$ at $\beta=0.2$, $j=3$). The sequential model estimates outputs until either decision, not a guaranteed alarm deadline.
-\item The whole channel is bounded before timing: \textbf{$q \cdot b$ bits} may leave through $q$ queries of $b$ bits each, and the room's guarantee is that budget, not silence.
+\item Erin's payload channel is bounded before timing: \textbf{$q \cdot b$ bits} may leave through $q$ releases of $b$ bits each, and the room's guarantee for that channel is that budget, not silence. The receipt and the other fields Erin can observe are separate channels with their own count.
 \item \textbf{A shared store needs labels, not a budget}: retrieval releases records exactly, so it has no finite $\varepsilon$; training can release through a ledger keyed by data subject, and scrubbing removes no owner's label.
 \end{enumerate}
 
