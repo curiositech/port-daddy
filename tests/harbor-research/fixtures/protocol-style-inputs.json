@@ -3,11 +3,11 @@
   "scope": "Current protocol fixture inputs; exact hashes are not a rendered acceptance receipt. The September checkpoint remains historical.",
   "reviewed_source_head": "856b3ccb156ae243e9e438cb1f8787a6d087f953",
   "changes_reviewed": {
-    "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged.",
+    "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged. Loads makeidx and opens the index of defined terms (printed as the Book's last leaf); protocol environments unchanged.",
     "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence. Chapter 1 landmark title now reads 'Proposals, Effects and Recovery' (plain-language rewrite drops the bedrock metaphor); protocol environments unchanged.",
     "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance.",
-    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged.",
-    "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter one-line summaries regenerated from book/textbook.json after the plain-language rewrite; chapter structure and protocol environments unchanged.",
+    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged. \\pdterm now labels each definition and enters it in the index; \\pdstatus prints its grade and note as a margin tag beside the heading or claim; the glossary appendix's entry layout is defined here; protocol environments unchanged.",
+    "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter one-line summaries regenerated from book/textbook.json after the plain-language rewrite; chapter structure and protocol environments unchanged. Regenerated again after the define-before-use pass rephrased chapter blurbs; chapter structure and protocol environments unchanged.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
     "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required."
   },
@@ -24,8 +24,8 @@
     },
     {
       "path": "book/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "ecb675750b99b30e591f5b50859f5410b562dcf90039a398078aa0318ac175c0",
-      "bytes": 65001
+      "sha256": "99f1e2205397ec124a17a080d7e642d27a531923d6c799e8d83975ec6228edad",
+      "bytes": 66171
     },
     {
       "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
@@ -69,8 +69,8 @@
     },
     {
       "path": "book/figures/pd-pedagogy.tex",
-      "sha256": "d42ef01c8a32aa5e223956d12841ae8b0e022bee8e38cfe3dc7a1160a62d9406",
-      "bytes": 81905
+      "sha256": "c8a8ec107ec244e4facab7d62f2d577dfc62bacbcddb7f1527d1d63000688eec",
+      "bytes": 90793
     },
     {
       "path": "book/figures/pd-semantic-blocks.tex",
@@ -79,8 +79,8 @@
     },
     {
       "path": "book/figures/pd-textbook-map.tex",
-      "sha256": "c85adae043273c9aeb569dd5069d98e73accc3a4af4cadfdbfd3d92eea57a7aa",
-      "bytes": 14772
+      "sha256": "f281d9d8df78b060842cb2114aa357ffb8211bd9141dc3dd13e1a4c4f8fabfd7",
+      "bytes": 14742
     }
   ],
   "source_relocation": "Canonical book/ relocation: source-path comments, generated locator header, and fixture import roots updated; no new rendered acceptance claimed. Historical checkpoint hashes remain unchanged."
