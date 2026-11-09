@@ -375,7 +375,7 @@ A commons authority $\mathcal{D}$ for a multi-agent system is a persistent servi
 The commons authority is not a central planner. It does not decide which agent should work on which task, which file conflicts should be resolved in whose favor, or which agents deserve trust. It provides the shared services within which agents make those decisions for themselves, using the shared knowledge and economic incentives the authority maintains.
 \end{definition}
 \begin{remark}
-The commons authority plays the part Hobbes gave his sovereign, and no more. In \emph{Leviathan} the sovereign does not direct citizens' daily choices; it sets up laws, enforcement and courts so that citizens can trust each other enough to trade. The commons authority likewise sets up identity, capability bounds, shared knowledge and settlement, and leaves the work itself to the agents.
+The commons authority plays the part Hobbes gave his sovereign, and no more. In \emph{Leviathan} the sovereign does not direct citizens' daily choices; it sets up laws, enforcement and courts so that citizens can trust each other enough to trade. The commons authority likewise sets up identity, capability bounds, shared knowledge and settlement, and then gets out of the way, leaving the work itself to the agents.
 \end{remark}
 In Port Daddy, the commons authority is a daemon on \texttt{localhost:9876} backed by SQLite. The environment it governs, meaning its agents, sessions, claims and records, is called a harbor. The local daemon supplies parts of this contract; each claim below names
 the attribution and incentive conditions it still needs.
@@ -467,7 +467,7 @@ The daemon does not need to threaten agents; it offers services that make coordi
 \section{Layer 1: Structural Prevention}\label{sec:structural}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The first layer of trust does not depend on agent reputation or economic incentives. It depends on authorization checks that refuse an out-of-scope operation before it takes effect, at every point where the runtime actually places such a check.
+The first layer of trust does not depend on agent reputation or economic incentives. It depends on walls, meaning authorization checks that refuse an out-of-scope operation before it takes effect, at every point where the runtime actually places such a check.
 
 \subsection{Capability Attenuation}
 
@@ -517,7 +517,7 @@ The Anchor model establishes a non-injective authentication correspondence for a
 \end{proof}
 
 \begin{remark}
-A rule saying ``do not write to the production database'' works only if the agent obeys it. A token that is not valid for production writes, checked on every write path, works whatever the agent intends: the write is refused. The protection comes from the verifier and the component that performs the write, correctly placed, and not from the token
+This is the layer of walls, not laws. A law saying ``do not write to the production database'' works only if the agent obeys it. A wall is a token that is not valid for production writes, checked on every write path; it works whatever the agent intends, and the write is refused. The wall is the verifier and the component that performs the write, correctly placed, and not the token
 alone. Building that check and keeping it on every path are security obligations.
 \end{remark}
 
@@ -901,7 +901,7 @@ Since the query evaluates this predicate exhaustively over all active claims wit
 \end{proof}
 
 \begin{remark}
-Under advisory claims the commons authority announces conflicts and does not resolve them. Resolution requires local knowledge that only the agents possess (``I claimed \texttt{auth.ts} but probably won't need it''; ``I absolutely must modify \texttt{auth.ts} for my task to succeed''). The authority lacks this knowledge. Informed agents may negotiate a release the allocator could not choose from
+Under advisory claims the commons authority is a town crier, not Solomon. It announces conflicts and does not resolve them. Resolution requires local knowledge that only the agents possess (``I claimed \texttt{auth.ts} but probably won't need it''; ``I absolutely must modify \texttt{auth.ts} for my task to succeed''). The authority lacks this knowledge. Informed agents may negotiate a release the allocator could not choose from
 its current information. Agents can also disagree, or ignore the report,
 so the opportunity may go unused.
 \end{remark}
@@ -909,7 +909,7 @@ so the opportunity may go unused.
 \subsection{Governance, Disputes, and Appeals}\label{sec:governance}
 
 Advisory coordination gives agents the chance to negotiate, but shared
-information does not guarantee agreement. Disputes still arise. Two agents may legitimately need overlapping files; a precautionary claim may now block real work; a third agent may see evidence that a claimed task has been abandoned. Such disputes leave attribution, capability bounds and settlement records intact, but they need a resolution path. Without one, whoever claimed first holds the file indefinitely, and the benefit described in \S\ref{sec:sen} is lost.
+information does not guarantee agreement. Disputes still arise. Two agents may legitimately need overlapping files; a precautionary claim may now block real work; a third agent may see evidence that a claimed task has been abandoned. Such disputes leave attribution, capability bounds and settlement records intact, but they need a resolution path. Without one, advisory claims slide into squatter rule, where whoever claimed first holds the file indefinitely, and the benefit described in \S\ref{sec:sen} evaporates.
 
 \paragraph{Resolution path.} The commons authority provides four mechanisms, in order of increasing escalation (Figure~\ref{fig:governance-flow}):
 \begin{enumerate}[nosep]
@@ -1013,13 +1013,13 @@ failing test.
 \subsection{What Morality Means When Death Is Cheap}\label{sec:morality}
 
 \pdmarginfigure{hickman}{In \emph{House of X}, a backup restores a person. Agent notes preserve much less.}
-In this system an agent's death costs time; the recorded work survives. The process is lost, and its retained trail can outlive it. The trail is a
-partial record: it holds what the agent wrote down, not its hidden model state or everything it observed. A successor reads the trail and continues. Hickman's \emph{House of X}~\pdcite{hickman2019krakoa} imagines mutant minds backed up to a database and restored into new bodies after death. An agent's notes preserve far less than that, but what they do preserve outlives the process.
+In this system an agent's death is a temporary inconvenience. It costs time, and the recorded work survives. The process is lost, and its retained trail can outlive it. The trail is a
+partial record: it holds what the agent wrote down, not its hidden model state or everything it observed. A successor reads the trail and continues. Hickman's \emph{House of X}~\pdcite{hickman2019krakoa} imagines mutant minds backed up to a database and restored into new bodies after death. An agent's notes preserve far less than that, but in both cases the information survives the vessel.
 
-Hobbes's sovereign keeps agreements in force by the threat of punishment, and
-for people the gravest punishment is death. If a crashed agent can simply be
-replaced, the threat of death deters nothing. What can the commons use as a
-penalty instead?
+Hobbes's Leviathan keeps agreements in force with a sword, the threat of
+punishment, and for people the gravest punishment is death. If a crashed agent
+can simply be replaced, the threat of death deters nothing. What, then, is the
+Leviathan's sword? What can the commons use as a penalty instead?
 
 Start with a ranking of failures for this recovery design. Losing the only
 copy of a session's record is worse than losing the process, because a
@@ -1056,7 +1056,7 @@ Durable records can survive restart; destruction of their only copy is a separat
 
 \subsection{The Limits of Reputation}
 
-Reputation, the persistent record of an agent's behavior across lifetimes, is a necessary penalty but not a sufficient one. It fails against three kinds of adversary:
+Reputation, the persistent record of an agent's behavior across lifetimes, is a necessary penalty but not a sufficient one. As a sword it fails against three kinds of adversary:
 
 \begin{enumerate}
   \item \textbf{One-shot defectors}: Agents spawned for a single task, with no future interactions in which reputation matters. Such an agent can create an identity, sabotage, and discard the identity. This is a Sybil attack, in which one party runs many disposable identities.
@@ -1121,7 +1121,7 @@ This is how performance bonds work in construction. This is how futures markets 
 \pdthesis{Each of 100 disposable identities needs its own bond.}
 
 \begin{enumerate}
-  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. The bond attaches to the work, so a cheap identity does not make a lie cheap. The cost of defection scales linearly with the number of attack identities, and \S\ref{sec:youle:a5} shows exactly where that linearity stops deterring.
+  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. The bond attaches to the work, so a cheap identity still means an expensive lie. The cost of defection scales linearly with the number of attack identities, and \S\ref{sec:youle:a5} shows exactly where that linearity stops deterring.
 
   \item \textbf{Misaligned principals} are exposed by the attribution chain. The agent may be ephemeral, but the principal who funded the Float Plan is permanently recorded. Liquidating the bond hurts the principal, not just the agent.
 
@@ -1260,7 +1260,7 @@ Removing an assumption invalidates this strategy's guarantee, not every possible
   \item \emph{Drop $\delta$ below $1/3$.} Even perpetual mutual-$F$ punishment cannot deter a deviation from $(T,T)$ with these payoffs. No finite window of that punishment can do better. This is a limit of the analyzed strategy family; collateral or a different payoff structure requires a new calculation.
 \end{itemize}
 
-Section~\ref{sec:youle:a6} reuses the same pattern at the insurer pricing layer: a stage game, a repeated game made possible by observable history, a deviation calculation, and a $\delta$ threshold. No result carries over, because the payoff functions, monitoring signal, detection timing and punishment rules differ and must each be derived.
+Section~\ref{sec:youle:a6} reuses the same pattern at the insurer pricing layer: a stage game, a repeated game made possible by observable history, a deviation calculation, and a $\delta$ threshold. The analogy is one of structure only. No result carries over, because the payoff functions, monitoring signal, detection timing and punishment rules differ and must each be derived.
 
 \paragraph{Mechanized claim-signaling.} The argument above is also checked by machine. Standard one-shot-deviation analysis yields the discount-factor threshold $\delta^\star$ as the unique real root in $(0,1)$ of $2\delta^3 + 2\delta^2 + 2\delta - 1 = 0$, numerically $\delta^\star \approx 0.3425$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.34,\,0.35]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.35$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
 
@@ -1482,7 +1482,7 @@ protocol proposal; sampling does not give every case a majority review or
 make any evaluator infallible.
 
 \paragraph{Composition with cartel resistance.}
-Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, their 2-of-3 majority can carry a sabotaged settlement past the human audit unless the audit happens to sample it. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma d_{\mathrm h}$, where $d_{\mathrm h}$ is the conditional probability that a sampled audit detects misconduct for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
+Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, their 2-of-3 majority can launder a sabotaged settlement past the human audit unless the audit happens to sample it. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma d_{\mathrm h}$, where $d_{\mathrm h}$ is the conditional probability that a sampled audit detects misconduct for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
 
 \subsubsection{The Bonded Advisor}\label{sec:bonded-advisor}
 
@@ -1494,9 +1494,9 @@ One direction for solving $\pi$ is to delegate its computation to a specialized 
 \end{itemize}
 
 \pdmarginanalogy{bonded-shear-pin}{}{ch07-shear-pin-fuse}{Like a drive shaft shear pin designed to snap under catastrophic overload to protect the engine, slashing liquidates posted collateral to protect the commons when a contract is breached.}%
-The advisor that sets bond sizes posts a bond on its own accuracy. Whether this converges depends on (i) whether the advisor has access to sufficient prior-fleet audit data to pattern-match new projects, (ii) whether reputation history is long enough for discounting to be meaningful, and (iii) whether the population of advisors is large enough for competition to discipline outliers.
+The pricer is itself priced. The advisor that sets bond sizes posts a bond on its own accuracy. Whether this converges depends on (i) whether the advisor has access to sufficient prior-fleet audit data to pattern-match new projects, (ii) whether reputation history is long enough for discounting to be meaningful, and (iii) whether the population of advisors is large enough for competition to discipline outliers.
 
-\paragraph{$c$ as a project health metric.} A rising $c$ means breaches cost more to recover from, which suggests coordination in the project is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. This is a feedback loop: risky spawns cost more exactly when the project can least afford them.
+\paragraph{$c$ as a project health metric.} A project whose $c$ is rising is fraying. Breaches cost more to recover from, which suggests coordination in the project is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. This is homeostatic feedback, like a body correcting its own temperature: risky spawns cost more exactly when the project can least afford them.
 
 \paragraph{Threat-class bond bands and their defensibility.}\label{sec:pricing:defensibility}
 The pricing function $\pi$ resolves to one of three nominal bands, each a share of the claim ceiling and calibrated to the threat class the bond is defending against:
@@ -2086,7 +2086,7 @@ The architecture combines ideas from the following bodies of prior work. The com
 \paragraph{Bonded participation in distributed systems.} Casper~\pdcite{buterin2017casper}, Tendermint~\pdcite{buchman2016tendermint}, and the Ethereum consensus specification~\pdcite{ethereum2spec} connect validator participation to collateral and penalties. Their evidence rules and liveness assumptions differ. Casper's accountable-safety result identifies slashable behavior after conflicting finalization; it does not by itself prove that every rational validator prefers honesty. In the risk-neutral, single-deviation comparison used here, deterrence requires expected collectible loss to exceed the deviation's gain. This design also assumes a trusted local ledger writer, not Byzantine consensus among independent writers. Its bonded act is work with filesystem side effects, rather than block validation, and its application must distinguish error from deliberate damage when estimating losses even where remedies are outcome-based.
 \paragraph{Capability-based security.} Dennis and Van Horn~\pdcite{dennis1966programming}, Miller's object-capability work~\pdcite{miller2006robust}, and the SPKI/SDSI line~\pdcite{ellison1999spki} supply the lineage of bounded, delegable authority. Macaroons~\pdcite{birgisson2014macaroons} use chained HMACs for decentralized delegation; the Anchor Protocol~\pdcite{owens2026anchor} uses signed attenuation for agent coordination. This chapter adds a proposed economic settlement layer. Authorized actions can still cause damage, and a bond alone does not restrict the actions available before adjudication. The architecture combines bounded authority with agreed remedies; other coordination systems may need neither.
 \paragraph{Commons governance.} \pdmarginfigure{ostrom}{Ostrom documented institutions that sustained shared resources without assuming inevitable collapse.} Ostrom's eight design principles~\pdcite{ostrom1990governing} are guides to institutional design drawn from field evidence. This design draws on four of them: boundaries, monitoring, graduated sanctions and accessible dispute resolution (\S\ref{sec:governance}). Software that performs those functions does not thereby give participants collective-choice rights or legitimate rule-making; those need institutional evidence of their own.
-\paragraph{Cryptoeconomic mechanism design.} Werbach~\pdcite{werbach2018blockchain}, Buterin~\pdcite{buterin2014ethereum}, and the broader DAO literature describe ``code is law'' as a stance on enforcement. This design takes a narrower stance on purpose: the code keeps the \emph{record}, and the rules come from the parties' agreement. Allocation decisions remain with the agents (Sen, \S\ref{sec:sen}); the daemon supplies the evidence and the settlement. Dividing authority this way does not by itself make participation voluntary, adjudication fair or remedies effective.
+\paragraph{Cryptoeconomic mechanism design.} Werbach~\pdcite{werbach2018blockchain}, Buterin~\pdcite{buterin2014ethereum}, and the broader DAO literature describe ``code is law'' as a stance on enforcement. This design takes a narrower stance on purpose. Here code is the \emph{record}, and the law comes from the parties' agreement. Allocation decisions remain with the agents (Sen, \S\ref{sec:sen}); the daemon supplies the evidence and the settlement. Dividing authority this way does not by itself make participation voluntary, adjudication fair or remedies effective.
 
 \paragraph{Social contract theory.} Hobbes~\pdcite{hobbes1651leviathan} argued that cooperation requires a sovereign whose authority is accepted before interactions begin. Locke~\pdcite{locke1689two} proposed a more limited authority protecting natural rights. Our commons authority is Hobbesian in structure (centralized, pre-transactional) but Lockean in scope (provides infrastructure, not dictates).
 
@@ -2232,7 +2232,7 @@ What we deliberately do \emph{not} do: require passwords, use TOTP as a primary 
 \section{Discussion and Limitations}\label{sec:discussion-limitations}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-\paragraph{The commons authority is a single point of failure.} If the daemon crashes, no new trust is established, no conflicts are detected and no salvage occurs. Agents with cached Harbor Cards keep working, but nothing coordinates them until the daemon restarts; in Hobbes's terms the commons is back in the state of nature. This is mitigated by automatic restart (launchd on macOS) but not formally bounded.
+\paragraph{The commons authority is a single point of failure.} If the daemon crashes, the Leviathan falls. No new trust is established, no conflicts are detected and no salvage occurs. Agents with cached Harbor Cards keep working, but nothing coordinates them until the daemon restarts; in Hobbes's terms the commons is back in the state of nature. This is mitigated by automatic restart (launchd on macOS) but not formally bounded.
 
 \paragraph{Collateral makes harm cost money; it does not prevent it.} A principal willing to burn money to sabotage a competitor will post a bond, cause damage, and accept the loss. The bond makes sabotage expensive, not impossible. The defense against threats to the commons' existence is control over entry, deciding who may take part at all. That decision is political and lies outside the formal model.
 
