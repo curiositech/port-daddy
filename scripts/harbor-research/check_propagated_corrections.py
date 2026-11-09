@@ -254,6 +254,31 @@ ITEMS: list[Item] = [
         ],
     ),
     Item(
+        id="paper4-noninterference-property",
+        doc="paper4.tex",
+        description=(
+            "Pillar I's noninterference result is an exhaustive check of a "
+            "finite model, so it is a model-checked property, not a theorem. "
+            "The Book's Chapter 3 was corrected in the 2026-11 audit "
+            "(Property~\\ref{thm:sealed-noninterference}); paper4 had the same "
+            "label while stating it never lets one kind impersonate another."
+        ),
+        checks=[
+            Check(
+                "docs/harbor-research/tex/paper4.tex",
+                "the Pillar I result is labelled Property 1, never Theorem 1",
+                absent=r"Theorem(?:~|\s)1\b|noninterference theorem",
+                present=r"\\textbf\{Property 1 \(model-checked;",
+            ),
+            Check(
+                "book/sealed-harbor.tex",
+                "the Book never calls the noninterference model check a theorem",
+                absent=r"Theorems?~\\ref\{thm:sealed-noninterference\}",
+                present=r"Property~\\ref\{thm:sealed-noninterference\}",
+            ),
+        ],
+    ),
+    Item(
         id="paper4-b-collision",
         doc="paper4.tex",
         description=(

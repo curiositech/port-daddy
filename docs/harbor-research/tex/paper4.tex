@@ -158,7 +158,7 @@ IV (\S\ref{sec:p4}) & Detection & power curve $+$ alarm clock & analytic vs.\ si
 
 The four rows are not four independent guarantees stacked for redundancy; they are four links in one pipeline, each closing a gap
 the others leave open, in exactly the order Figure~\ref{fig:pillars} draws it. Enforceability (II) fixes \emph{where} a boundary
-can exist at all --- gate the channel, or nothing about the design is provably enforceable. Noninterference (I) then proves that
+can exist at all --- gate the channel, or nothing about the design is provably enforceable. Noninterference (I) then checks, exhaustively on the finite model, that the
 boundary, once installed, is silent except through its declared release. Conservation (III) meters the cumulative cost of
 everything that legitimately crosses it, because a gate honest on every single release can still bankrupt the contract over many
 releases --- an individually-sound decision rule is not a portfolio-sound one. And Detection (IV) polices for what tries to cross
@@ -192,7 +192,7 @@ where the analogy's fence runs, and it is why Pillars III and IV exist: they pri
 \input{fig-r9-relation.tex}
 
 \begin{thebox}
-\textbf{Theorem 1 (noninterference modulo declassification; finite model, exhaustive).} Fix the clean-room transition system with
+\textbf{Property 1 (model-checked; noninterference modulo declassification; finite model, exhaustive).} Fix the clean-room transition system with
 secrets $s\in\{0,1,2,3\}$, Erin-observable state $\mathrm{Obs}_E$, and declared release function $g(s)=s\bmod 2$, \emph{where the
 gate applies $g$ to committed input state rather than to worker-computed state.} For secrets $s,s'$ and \emph{every} action
 sequence: if $g(s)=g(s')$ then Erin's observation sequences are identical; if $g(s)\neq g(s')$ they may differ only at explicit
@@ -286,7 +286,7 @@ over-approximation is to taint \emph{everything} after the
 first secret read and spend all enforcement budget on the one boundary where enforcement is possible. This is why the honest claim
 --- every release explicit, gated, bounded --- \emph{replaces} ``mathematically cannot phone home'': the latter quantifies over
 uncontrollable events and is therefore not a theorem about any implementable supervisor; the former quantifies over the mediated
-channel and is Theorem 1.
+channel and is Property 1.
 
 \textbf{What it buys.} Pillars I and II are the same boundary proved from two independent directions: controllability says the
 clean room \emph{must} gate the channel and not the token (no alternative design is enforceable); two-run equivalence says gating
@@ -446,12 +446,12 @@ exfiltration is Theorem 4a's job, not 4b's.
 
 The four pillars compose into one information-theoretic account, and the account is deliberately unromantic. It is also where the
 paper pays the three debts it took on earlier, and it is worth naming them rather than discharging them silently: the laundering
-residual left open by Theorem~1's committed-input hypothesis (\S\ref{sec:p1}), the malicious worker against whom
+residual left open by Property~1's committed-input hypothesis (\S\ref{sec:p1}), the malicious worker against whom
 $\sigma\le\varepsilon_{\max}$ certifies nothing (\S\ref{sec:p3}), and the arbitrary-telemetry channel disclaimed in
 \S\ref{sec:cannot}. All three are the same debt seen from three sides, and it has one price. If an Erin-visible
 channel permits $b$ freely chosen bits per job, a malicious worker --- one that launders, computing $t=f(s)$ and submitting $t$ so
 the gate honestly releases $g(t)$ --- can exfiltrate up to $b$ bits through it: the
-noninterference theorem guarantees only that those bits pass through the declared gate, not that they are innocent. Across $q$
+noninterference property guarantees only that those bits pass through the declared gate, not that they are innocent. Across $q$
 jobs the raw capacity is $q\cdot b$ bits; choosing among $s$ timing slots adds up to $\log_2 s$ bits per event, which is why
 timing sits outside the possibilistic model and inside \S\ref{sec:cannot}. In Geoffrey Smith's vocabulary \cite{smith-qif}, the
 design does not drive min-entropy leakage to zero; it makes leakage a \emph{declared, metered} quantity: fixed schemas, padding,
@@ -493,7 +493,7 @@ bounds channels.
 
 \section{The lift: from exhaustive model to Isabelle unwinding}\label{sec:lift}
 
-Theorem 1 is exhaustive on a finite model; the general claim over unbounded state is a proof obligation with a known shape.
+Property 1 is exhaustive on a finite model; the general claim over unbounded state is a proof obligation with a known shape.
 Rushby's channel-control formulation \cite{rushby} reduces noninterference for a transition system to three local \emph{unwinding
 conditions} --- output consistency, step consistency, and local respect --- each a per-transition lemma amenable to mechanization;
 the Isabelle Archive of Formal Proofs already carries stateful intransitive-noninterference and noninfluence developments in
@@ -521,7 +521,7 @@ principals are the Myers--Liskov decentralized label model \cite{myers-liskov}. 
 framework \cite{smith-qif}; the sequential test is Wald \cite{wald,wald-wolfowitz}; attestation vocabulary is IETF RATS
 \cite{rats}.
 
-Pillar~I's property has a name in the language-based literature and we adopt it rather than reinvent it: Theorem~1's first
+Pillar~I's property has a name in the language-based literature and we adopt it rather than reinvent it: Property~1's first
 clause is \emph{delimited release} \cite{sm03}, whose own running example is the release of a secret's parity, and its second
 clause is the possibilistic shadow of \emph{gradual release} \cite{as07}. On the Sabelfeld--Sands taxonomy \cite{ss09} the
 $\varepsilon$-release ledger is a \emph{what} policy ($g$) with a \emph{when} policy (the budget gate) and a partial \emph{who}
