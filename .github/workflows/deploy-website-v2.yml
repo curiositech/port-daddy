@@ -19,6 +19,17 @@ name: Deploy website-v2 (snap + wrangler)
 #     project. Create in CF dashboard → My Profile → API Tokens →
 #     "Create Custom Token" → permission "Account > Cloudflare Pages > Edit".
 #   - CLOUDFLARE_ACCOUNT_ID — visible in the Pages dashboard URL.
+#
+# The Book. The `book` job (book-publication.yml) sets the Book in Suisse from
+# the merged source, checks every page, and lays out the facing copy. When it
+# hands back an edition, the deploy serves those two PDFs in place of the
+# committed ones and records their page count, size and digest in the site's
+# metadata before building, so the site always carries the Book as merged.
+# When the fonts are not configured it hands back nothing and the committed
+# Book ships as before. When it fails, nothing deploys: a Book that failed its
+# page checks is not published, and the previous deployment stays live.
+#   - BOOK_SUISSE_00..11 — the licensed fonts, set once with
+#     `python3 scripts/book-fonts/ci_fonts.py upload`. Optional.
 
 on:
   push:
@@ -29,6 +40,16 @@ on:
       - 'scripts/build-book-source.py'
       - 'scripts/stage-book-public-assets.mjs'
       - 'scripts/verify-book-source-download.mjs'
+      - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-book-glossary.mjs'
+      - 'scripts/lint/check-welds.mjs'
+      - 'scripts/harbor-research/render_status_tables.py'
+      - 'scripts/prepare-book-fonts.py'
+      - 'scripts/build_facing_pdf.py'
+      - 'scripts/build-spreads.sh'
+      - 'scripts/book-fonts/**'
+      - '.github/workflows/book-publication.yml'
       - '.github/workflows/deploy-website-v2.yml'
   workflow_dispatch:
 
@@ -43,7 +64,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  book:
+    uses: ./.github/workflows/book-publication.yml
+    # The called workflow reads only BOOK_SUISSE_00..11.
+    secrets: inherit
+
   build-and-deploy:
+    needs: book
     # Playwright 1.58.2 cannot install Chromium dependencies on Ubuntu 26.04.
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -60,6 +87,46 @@ jobs:
       - name: Install website-v2 dependencies
         working-directory: website-v2
         run: npm ci
+
+      - name: Fetch the Suisse Book this run set and checked
+        if: needs.book.outputs.edition == 'suisse'
+        uses: actions/download-artifact@v4
+        with:
+          name: book-publication
+          path: ${{ runner.temp }}/book-publication
+
+      # The PDF, the facing copy and the copy's receipt replace the committed
+      # three, and the metadata that describes them (page count, size, digest)
+      # is recomputed from the bytes before the site is built from it. The
+      # prebuild's check-book-spreads.mjs then binds the copy to this Book.
+      - name: Serve the Suisse Book in place of the committed one
+        if: needs.book.outputs.edition == 'suisse'
+        env:
+          FETCHED: ${{ runner.temp }}/book-publication
+        run: |
+          set -euo pipefail
+          pub=website-v2/public/whitepaper
+          for f in coordination-papers-mega-volume.pdf \
+                   coordination-papers-mega-volume-spreads.pdf \
+                   coordination-papers-mega-volume-spreads.json; do
+            test -s "$FETCHED/$f"
+            cp "$FETCHED/$f" "$pub/$f"
+          done
+          command -v pdfinfo >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y poppler-utils)
+          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts --fix ) || true
+          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts )
+          node website-v2/scripts/check-book-spreads.mjs
+          {
+            echo "### Book served by this deploy"
+            echo
+            echo '```json'
+            cat "$FETCHED/book-publication.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Say that the committed Book is served
+        if: needs.book.outputs.edition != 'suisse'
+        run: echo "::notice::The Suisse fonts are not configured, so this deploy serves the committed Book."
 
       - name: Install Playwright chromium
         working-directory: website-v2

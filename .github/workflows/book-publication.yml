@@ -1,0 +1,250 @@
+name: Book publication edition
+
+# Sets the Book in Suisse, the licensed face it is published in, and judges
+# every page of THAT edition. whitepaper-build.yml proves the open-proof
+# edition, which is set in Source Sans and paginates differently, so a page
+# that overflows only in Suisse used to surface only on a local build.
+#
+# Two callers:
+#   * pull requests that touch a Book input run it directly, so the edition a
+#     reader will download is checked before merge (advisory: it is not a
+#     required check);
+#   * deploy-website-v2.yml calls it on every deploy and serves the PDF and
+#     facing copy it hands back, so the site carries the Book as merged
+#     instead of the last hand-accepted upload.
+#
+# THE FONTS. They are licensed, never committed, never uploaded as artifacts.
+# scripts/book-fonts/ci_fonts.py carries them in the BOOK_SUISSE_00..11
+# repository secrets as base64 slices of one xz archive, restores them to
+# $RUNNER_TEMP outside the checkout, checks each file against the SHA-256 pins
+# in scripts/book-fonts/suisse-sha256.json, and the files are deleted when the
+# job ends whatever happened. Fork pull requests receive no secrets; for them,
+# and until the licence holder runs `python3 scripts/book-fonts/ci_fonts.py
+# upload` once, the job says so and hands back nothing (edition=committed).
+#
+# THE CACHE holds only what is published: the Book PDF, its facing copy and the
+# copy's receipt. Its key is the source receipt's digest of all 559 Book inputs
+# (checked against the tree first, so it cannot be stale) plus this workflow,
+# the font pins, the facing-copy builder and the page checkers. A deploy whose
+# Book inputs did not move reuses the checked PDF and never touches the fonts.
+
+on:
+  pull_request:
+    paths:
+      - 'book/**'
+      - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-book-glossary.mjs'
+      - 'scripts/lint/check-welds.mjs'
+      - 'scripts/harbor-research/render_status_tables.py'
+      - 'scripts/prepare-book-fonts.py'
+      - 'scripts/build-book-source.py'
+      - 'scripts/build_facing_pdf.py'
+      - 'scripts/build-spreads.sh'
+      - 'scripts/book-fonts/**'
+      - 'scripts/harbor-research/run_pdf_checks.py'
+      - 'scripts/harbor-research/check_book_caption_margins.py'
+      - 'scripts/harbor-research/export_book_visual_review.py'
+      - 'scripts/harbor-research/check_book_exercise_navigation.py'
+      - 'scripts/harbor-research/audit_book_layout.py'
+      - 'scripts/harbor-research/page_overflow.py'
+      - 'scripts/harbor-research/page_spills.py'
+      - 'scripts/harbor-research/check_corrections.py'
+      - 'scripts/harbor-research/requirements-pdf.txt'
+      - 'scripts/whitepaper-plates/check_cover_title_band.py'
+      - 'website-v2/public/whitepaper/coordination-papers-mega-volume-source.json'
+      - 'website-v2/scripts/check-book-spreads.mjs'
+      - '.github/workflows/book-publication.yml'
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      edition:
+        description: "'suisse' when the book-publication artifact holds a checked Suisse Book; 'committed' when the fonts are not configured"
+        value: ${{ jobs.publication.outputs.edition }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: book-publication-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  publication:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    container:
+      # The same TeX Live whitepaper-build.yml and book-source-bundle.yml pin.
+      image: texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      edition: ${{ steps.result.outputs.edition }}
+    steps:
+      - name: Ensure git present
+        run: command -v git >/dev/null 2>&1 || (apt-get update && apt-get install -y git)
+
+      - uses: actions/checkout@v4
+        with:
+          # Full history: build-whitepapers.sh dates the Book by the newest
+          # commit that touched one of its inputs.
+          fetch-depth: 0
+          filter: blob:none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Trust the checkout dir (container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Test the font courier
+        run: python3 scripts/book-fonts/test_ci_fonts.py -v
+
+      - name: Key the edition by its exact inputs
+        id: key
+        run: |
+          set -euo pipefail
+          # The receipt names a digest of every Book input; `check` fails if
+          # the tree has moved under it, so the key cannot describe old source.
+          python3 scripts/build-book-source.py check
+          inputs=$(python3 -c 'import json; print(json.load(open("website-v2/public/whitepaper/coordination-papers-mega-volume-source.json"))["source"]["sha256"])')
+          echo "key=book-publication-v1-${inputs}-${{ hashFiles('.github/workflows/book-publication.yml', 'scripts/book-fonts/suisse-sha256.json', 'scripts/build_facing_pdf.py', 'scripts/build-spreads.sh', 'scripts/harbor-research/run_pdf_checks.py', 'scripts/harbor-research/check_book_caption_margins.py', 'scripts/harbor-research/export_book_visual_review.py', 'scripts/harbor-research/check_book_exercise_navigation.py', 'scripts/harbor-research/audit_book_layout.py', 'scripts/harbor-research/page_overflow.py', 'scripts/harbor-research/page_spills.py', 'scripts/harbor-research/check_corrections.py', 'scripts/harbor-research/requirements-pdf.txt', 'scripts/whitepaper-plates/check_cover_title_band.py', 'website-v2/scripts/check-book-spreads.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Reuse a checked edition of the same inputs
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/book-publication
+          key: ${{ steps.key.outputs.key }}
+
+      - name: Restore the licensed fonts outside the checkout
+        id: fonts
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          BOOK_SUISSE_00: ${{ secrets.BOOK_SUISSE_00 }}
+          BOOK_SUISSE_01: ${{ secrets.BOOK_SUISSE_01 }}
+          BOOK_SUISSE_02: ${{ secrets.BOOK_SUISSE_02 }}
+          BOOK_SUISSE_03: ${{ secrets.BOOK_SUISSE_03 }}
+          BOOK_SUISSE_04: ${{ secrets.BOOK_SUISSE_04 }}
+          BOOK_SUISSE_05: ${{ secrets.BOOK_SUISSE_05 }}
+          BOOK_SUISSE_06: ${{ secrets.BOOK_SUISSE_06 }}
+          BOOK_SUISSE_07: ${{ secrets.BOOK_SUISSE_07 }}
+          BOOK_SUISSE_08: ${{ secrets.BOOK_SUISSE_08 }}
+          BOOK_SUISSE_09: ${{ secrets.BOOK_SUISSE_09 }}
+          BOOK_SUISSE_10: ${{ secrets.BOOK_SUISSE_10 }}
+          BOOK_SUISSE_11: ${{ secrets.BOOK_SUISSE_11 }}
+        run: |
+          set -uo pipefail
+          # The runner starts bash with -e; capture the exit code instead of dying on 3.
+          rc=0
+          python3 scripts/book-fonts/ci_fonts.py restore "$RUNNER_TEMP/suisse" || rc=$?
+          case "$rc" in
+            0) echo "configured=true" >> "$GITHUB_OUTPUT" ;;
+            3) echo "configured=false" >> "$GITHUB_OUTPUT"
+               echo "::warning title=Suisse not configured::No BOOK_SUISSE_* secrets reach this run, so no publication edition was built. Fork pull requests never receive them; otherwise run 'python3 scripts/book-fonts/ci_fonts.py upload' once." ;;
+            *) exit "$rc" ;;
+          esac
+
+      - name: Set the Book in Suisse
+        if: steps.fonts.outputs.configured == 'true'
+        run: PD_BOOK_FONT_DIR="$RUNNER_TEMP/suisse" bash book/BUILDING.sh --publication
+
+      # Before anything else can run, and whatever happened above.
+      - name: Delete the fonts
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/suisse"
+
+      - name: Install the readers every page measurement is taken with
+        if: steps.fonts.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          apt-get update && apt-get install -y python3-venv
+          python3 -m venv "$RUNNER_TEMP/book-env"
+          "$RUNNER_TEMP/book-env/bin/python" -m pip install --quiet -r scripts/harbor-research/requirements-pdf.txt
+
+      - name: Nothing on any page of the Suisse Book is where a reader cannot read it
+        if: steps.fonts.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          pages="$RUNNER_TEMP/book-pages"
+          mkdir -p "$pages"
+          built=.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume
+          cp "$built.pdf" "$built.aux" "$built.log" "$pages/"
+          "$RUNNER_TEMP/book-env/bin/python" scripts/harbor-research/run_pdf_checks.py --pdf-dir "$pages" --expect 1
+
+      - name: Lay out the facing-page copy and bind it to the Book
+        if: steps.fonts.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          BOOK_PYTHON="$RUNNER_TEMP/book-env/bin/python" bash scripts/build-spreads.sh
+          node website-v2/scripts/check-book-spreads.mjs
+
+      - name: Stage exactly what is published, with a provenance receipt
+        if: steps.fonts.outputs.configured == 'true'
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          out=.cache/book-publication
+          pub=website-v2/public/whitepaper
+          rm -rf "$out"
+          mkdir -p "$out"
+          cp "$pub/coordination-papers-mega-volume.pdf" \
+             "$pub/coordination-papers-mega-volume-spreads.pdf" \
+             "$pub/coordination-papers-mega-volume-spreads.json" "$out/"
+          "$RUNNER_TEMP/book-env/bin/python" - "$out" <<'PY'
+          import hashlib, json, os, sys, pymupdf
+          out = sys.argv[1]
+          pdf = os.path.join(out, "coordination-papers-mega-volume.pdf")
+          data = open(pdf, "rb").read()
+          profile = json.load(open(".cache/whitepaper-build/coordination-papers-mega-volume/book-font-profile.json"))
+          source = json.load(open("website-v2/public/whitepaper/coordination-papers-mega-volume-source.json"))
+          if profile.get("profile") != "suisse":
+              sys.exit("the staged Book was not set in Suisse")
+          receipt = {
+              "schema": "port-daddy.book-publication.v1",
+              "sourceCommit": os.environ["SOURCE_COMMIT"],
+              "sourceInputsSha256": source["source"]["sha256"],
+              "fontProfile": profile,
+              "pdf": {"sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data),
+                      "pages": pymupdf.open(pdf).page_count},
+              "checks": "run_pdf_checks.py --expect 1 and check-book-spreads.mjs passed",
+              "run": os.environ["RUN_URL"],
+          }
+          json.dump(receipt, open(os.path.join(out, "book-publication.json"), "w"), indent=2)
+          print(json.dumps(receipt, indent=2))
+          PY
+          # The fonts must never ride along: refuse to stage anything but PDFs and JSON.
+          if find "$out" -type f ! -name '*.pdf' ! -name '*.json' | grep -q .; then
+            echo "::error::unexpected file staged for publication"; exit 1
+          fi
+
+      - name: Keep the checked edition for the next run of the same inputs
+        if: steps.fonts.outputs.configured == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/book-publication
+          key: ${{ steps.key.outputs.key }}
+
+      - name: Say which edition this run hands back
+        id: result
+        run: |
+          if [ -f .cache/book-publication/coordination-papers-mega-volume.pdf ]; then
+            echo "edition=suisse" >> "$GITHUB_OUTPUT"
+            cat .cache/book-publication/book-publication.json
+          else
+            echo "edition=committed" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Hand the Suisse edition to the deploy
+        if: steps.result.outputs.edition == 'suisse'
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-publication
+          path: .cache/book-publication/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
