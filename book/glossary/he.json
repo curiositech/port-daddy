@@ -17,5 +17,7 @@
   {"term": "Becker deterrence condition", "sort": "Becker deterrence condition", "definition": "The condition that cheating does not pay when the expected punishment (chance of being caught times the penalty) is at least the gain from cheating."},
   {"term": "Shapley value", "sort": "Shapley value", "definition": "A component's marginal contribution averaged over every order in which the components could have been added."},
   {"term": "royalty", "sort": "royalty", "definition": "What a licensor is paid for the use of its licensed components."},
-  {"term": "split-proof", "sort": "split-proof", "definition": "Said of a royalty rule under which no licensor can raise its total share by cutting one component into pieces or copying it."}
+  {"term": "split-proof", "sort": "split-proof", "definition": "Said of a royalty rule under which no licensor can raise its total share by cutting one component into pieces or copying it."},
+  {"term": "CALM theorem", "sort": "CALM theorem", "definition": "The result that a distributed program has a consistent implementation needing no coordination exactly when it is monotone: new input can add to its output but never retract any of it (consistency as logical monotonicity)."},
+  {"term": "conflict-free replicated data type", "sort": "conflict-free replicated data type", "definition": "A replicated data type (CRDT) whose copies can be updated independently and merged in any order, reaching the same state once they hold the same updates; a set that only grows, merged by union, is the simplest one."}
 ]

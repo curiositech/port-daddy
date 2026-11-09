@@ -1,8 +1,8 @@
 % Reader question: how can every pair of harbors agree and the whole still
 % fail to fit together? Claim: three pairwise exchange rates, each one agreed
 % and balanced by its own pair, multiply to 1.2 around the loop A -> B -> C ->
-% A, so no single price list is consistent with all three; this is the
-% local-to-global shape the gluing analogy points at. Evidence: rates A->B 2,
+% A, so no single price list is consistent with all three; the quotes agree
+% in pairs but not around the loop. Evidence: rates A->B 2,
 % B->C 3, C->A 0.2; 2 x 3 x 0.2 = 1.2 (exactly 6/5), not 1. Must distinguish:
 % each edge (locally fine) from the cycle (globally inconsistent). Grammar: a
 % three-node directed cycle with the rate on each edge and the product in the
@@ -31,10 +31,9 @@
   \node[side,anchor=west] at (0,1.60)
     {Each pair of harbors agrees on a rate, and each pair's books balance.};
   \node[side,anchor=west] at (8.25,1.60)
-    {No single price list matches all three pairs. That is ``local-to-global''.};
+    {No single price list matches all three pairs.};
 \end{tikzpicture}
 \caption{Every pair agrees, yet the whole does not: the loop returns 1.2, not
-1. Settlement and equivocation across harbors can fail the same way, which is
-all the chapter's sheaf vocabulary is pointing at. [constructed example]}
+1, so no single price list fits all three quotes. [constructed example]}
 \label{fig:audit-loop}
 \end{figure}

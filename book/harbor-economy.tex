@@ -253,11 +253,11 @@ different ways to fail. This is a constructed example; no deployment ran it.
 
 \begin{pdexample}{One repair, two sources of funds}
 Bob reserves $400$ credits (\textsc{cr}) for Alice's labor, $50$ for Dana's lease,
-and at most $10$ for Carol's skill: $460$ in payment funds. Alice separately
+and $10$ for Carol's skill licence: $460$ in payment funds. Alice separately
 posts $100$ in performance collateral. The contract therefore holds $560$,
 not $460$ and not a $560$ bounty.
-On a successful repair using $16$ metered files at $0.5$\,\textsc{cr} each,
-Carol earns $8$. Bob receives the unused $2$ reserve; Alice receives her
+On a successful repair Carol earns her flat $10$ licence fee, however much
+of the repository her skill touched. Alice receives her
 $400$ payment and her $100$ collateral back. Returning collateral is not
 income.
 \end{pdexample}
@@ -312,10 +312,19 @@ runtime control of $a_2$ while it runs on his repository. Under this rental vari
 reputational: if $a_2$ underperforms, $a_2$'s public score falls, and Alice's
 asset loses value.
 \emph{Side~3 (IP).} Carol never touches Bob's repository at all; she licenses her
-lint-and-type skill into Bob's float plan at $0.5$\,\textsc{cr} per file, metered,
+lint-and-type skill into Bob's float plan for a flat $10$\,\textsc{cr} fee,
 released to Carol \emph{only on green settlement}. Carol is privately informed about
 her skill's quality; Bob cannot inspect it before he runs it. One refactor has
 three sides, and in each a different party knows something the others do not.
+Each of these information problems has a standard name. Labor carries
+\emph{moral hazard}, a hidden action: once Alice accepts the bounty, Bob
+cannot watch how her fleet works, so the sub-bonds tie her pay to the result.
+The rental carries \emph{adverse selection}, a hidden type: Alice knows
+$a_2$'s quality before the lease and Bob does not, so $a_2$'s public score is
+what Bob can price. The licence sells an \emph{experience good}, whose quality
+the buyer learns only by using it. Before use it faces Akerlof's lemons
+problem~\pdcite{akerlof1970}, which is why Carol is paid only after the run
+settles green.
 As the next section shows, all three settle through one escrow.
 
 A \pdterm{two-sided market} (\textbf{Rochet \& Tirole}~\pdcite{rochet2003}, the
@@ -781,11 +790,12 @@ deontic layer separately governs \emph{permission} (what it \emph{may} do).
 Section~\ref{sec:deontic-decision} checks whether the agreed norms conflict.}
 
 \paragraph{Skill licensing (IP).} This contract releases the per-use fee
-\emph{only on green settlement} (metered $+$ clawback). The motivation is
+\emph{only on green settlement}, and claws it back if a later audit reverses
+that settlement. The motivation is
 adverse selection: when buyers cannot distinguish quality, a pooled price can
 make high-quality sellers withdraw, as in \textbf{Akerlof}'s model
 \pdcite{akerlof1970}. That model does not uniquely require contingent payment.
-Here, metering, clawback, and a Merkle \emph{portfolio proof} (a short
+Here, release on green, clawback, and a Merkle \emph{portfolio proof} (a short
 cryptographic proof that given settled outcomes are in the ledger's record)
 are proposed responses. Their effect depends on reliable grading and
 attributable records; a Merkle proof authenticates those records, not their
@@ -802,17 +812,18 @@ Bob posts one float plan for
 the $1{,}200$-line refactor, with three line items. \emph{Labor:} a $400$\,\textsc{cr}
 bounty to Alice's firm. \emph{Capital:} a $50$\,\textsc{cr} lease for Dana's
 profiling specialist, which Alice's crew needs for one module. \emph{IP:} Carol's
-lint-and-type skill, metered at $0.5$\,\textsc{cr} per file against a $20$-file cap,
-so $10$\,\textsc{cr} is reserved. Bob's wallet is debited
+lint-and-type skill, licensed for a flat $10$\,\textsc{cr} fee payable only on
+green settlement, so $10$\,\textsc{cr} is reserved. Bob's wallet is debited
 $400+50+10 = 460$\,\textsc{cr} into escrow. Alice separately posts a
 $100$\,\textsc{cr} performance bond, also into escrow. Before any agent spawns, the
 escrow row holds $560$\,\textsc{cr}.
 
 The job settles \textbf{Success}: the original checkout regression is retained
 and passes, and the authorized repair merges without unrelated migrations. The
-metered licence bills only the $16$ files the skill actually touched, so
-$16 \times 0.5 = 8$\,\textsc{cr} releases to Carol and the unused $2$\,\textsc{cr}
-returns to Bob. Alice's bond is refunded as collateral, not income.
+licence fee of $10$\,\textsc{cr} releases to Carol. It does not depend on how
+many files the skill opened or touched, because Carol's own instructions to
+the agent can raise that count (\S\ref{sec:he-licence-split}). Alice's bond is
+refunded as collateral, not income.
 \end{pdexample}
 
 Figure~\ref{fig:he-two-bucket-settlement} keeps the two funding sources separate
@@ -820,7 +831,7 @@ and gives both contractual outcomes.
 
 \input{figures/fig-he-two-bucket-settlement}
 
-\noindent Check it on one line: $-458 + 400 + 50 + 8 + 0 = 0$. Three sides have
+\noindent Check it on one line: $-460 + 400 + 50 + 10 + 0 = 0$. Three sides have
 three privately informed counterparties and three different reputation keys,
 and they share one escrow row that opens at $560$\,\textsc{cr} and closes at zero.
 Design Invariant~\ref{prop:conservation} is not re-proved per side; it is the \emph{same}
@@ -963,20 +974,25 @@ the deontic-rule bodies, $I$ the number of (fired token, scope atom it names)
 pairs, $X$ the number of exclusive claims, and $(V,E)$ the deadline graph.
 Deciding with indexes whether any conflict exists takes
 $O(H+I\log(I+1)+X\log(X+1)+V\cdot E)$ and returns one witness. To list every
-distinct interval clash, let $Q$ be the number of obligation-prohibition
+interval clash, let $Q$ be the number of obligation-prohibition
 pairs that share an action and a scope atom and overlap in time, counted once
 per shared scope atom, plus the number of overlapping claim pairs on one
-resource. A deterministic enumerator that sorts and removes duplicates adds
-$O(Q\log(Q+1))$; $n$ obligations and $n$ prohibitions on one scope and
-interval give $Q=n^2$. Unit propagation computes in $O(H)$ the least Horn
+resource. A sweep line visits each key's interval endpoints in sorted order,
+keeps the intervals still open, and reports a newly opened interval against
+each open one it clashes with. It reports each of the $Q$ clashes exactly
+once, so listing them all takes $O(H+(I+X)\log(I+X+1)+Q+V\cdot E)$. The bound
+grows with the output: $n$ obligations and $n$ prohibitions on one scope and
+interval give $Q=n^2$, and no enumerator can list those in fewer steps.
+Unit propagation computes in $O(H)$ the least Horn
 model, the smallest set of facts closed under the Horn rules, whose facts
-hold in every model~\pdcite{dg84}; keyed interval indexes find one overlap, while
-listing them all must visit every overlapping pair. Bellman--Ford returns a
-negative cycle iff the deadline system is infeasible in $O(V\cdot E)$.
+hold in every model~\pdcite{dg84}. The deadline system is a simple temporal
+problem, which is consistent iff the deadline graph has no negative
+cycle~\pdcite{dmp91}; Bellman--Ford finds such a cycle, or shows there is none,
+in $O(V\cdot E)$.
 The witnesses are a derivation chain, the fired rules and overlap interval,
 the claims, or a negative cycle. The reference
 \texttt{b4\_deontic\_fragment.py} scans active pairs, including nonclashes;
-it does not implement the indexed bound and can be quadratic with $Q=0$.
+it does not implement the sweep and can be quadratic with $Q=0$.
 \end{pdclaim}
 
 \begin{pdclaim}{Theorem}{One Step Outside the Fragment Is NP-Complete}
@@ -1373,7 +1389,11 @@ expected gains, lost gains, and the lost share of first-best gains are
 \text{Lost / first-best:}\quad &5/32=15.625\%.
 \end{aligned}
 \]
-[internal; algebra shown].
+[internal; algebra shown]. For these uniform priors Myerson and Satterthwaite
+show that this equilibrium gives the highest expected gains from trade of any
+mechanism that is incentive compatible, individually rational and budget
+balanced~\pdcite{myerson1983}, so $5/32$ is the smallest loss such a mechanism
+can have here.
 
 \pdscope{These are properties of this uniform-prior equilibrium, not a universal
 inefficiency percentage supplied by Theorem~\ref{thm:ms},
@@ -1401,10 +1421,31 @@ holds $7/32$ of all draws, so the lost trades are no rare corner of the square.
 
 \input{figures/fig-he-ms-wedge}
 
-An AGV-style mechanism (the expected-externality
-mechanism of Arrow and of d'Aspremont and G\'erard-Varet) changes the incentive and participation
-notions and generally offers expected rather than ex-post balance. Comparing those
-alternatives requires a fully specified type and transfer model, which remains open.
+\paragraph{Which property the harbor's prices give up.} The chapter's
+contracts trade at posted prices. Bob's $400$\,\textsc{cr} bounty, the
+$90$\,\textsc{cr} rent and Carol's flat licence fee are each written into the
+float plan before the other side reports anything, and that side takes the
+price or leaves it. A posted price keeps three of the four properties. Bob
+accepts exactly when his value is at least the price and Alice exactly when
+her cost is at most it; each is a best response whatever the other does, so
+the price is incentive compatible. Nobody trades at a loss,
+so it is individually rational, and the buyer pays exactly what the seller
+receives, so its budget balances on every trade. By Theorem~\ref{thm:ms} it
+must give up efficiency, and it does: a trade with $c_{\mathrm s}<v$ is lost
+whenever the price lies outside $[c_{\mathrm s},v]$. On the uniform square of
+the example, a price $p_{\mathrm{post}}$ yields expected gains $p_{\mathrm{post}}(M-p_{\mathrm{post}})/(2M)$.
+They are largest at $p_{\mathrm{post}}=M/2$, where they equal $M/8$, which is $75\%$ of the first-best
+$M/6$; the double auction's linear equilibrium reaches
+$27/32\approx84.4\%$. At $M=90$ the three amounts are $11.25$, $12.66$ and
+$15$\,\textsc{cr} [verified, closed form].
+
+The expected-externality mechanism of Arrow and of d'Aspremont and
+G\'erard-Varet (AGV)~\pdcite{dagv1979} keeps efficiency instead. It is
+Bayesian incentive compatible and ex-post efficient, and its transfers sum
+to zero on every profile of reports, so its budget balances exactly, not
+only in expectation. On a slice that meets Theorem~\ref{thm:ms}'s
+hypotheses it must therefore give up interim individual rationality: some
+types expect to lose by taking part.
 
 \pdexercisepointer*{\ref{ex:he-ms-assumptions}}{\ref{ex:he-phi-exposure-bound}}{\pageref{ex:he-ms-assumptions}}
 
@@ -1621,6 +1662,11 @@ Federated revocation uses anti-entropy gossip, in which peers repeatedly
 compare and exchange what they know
 (\textbf{Demers et al.}~1987~\pdcite{demers1987}), and a cuckoo filter: a compact
 probabilistic revocation index with no false negatives and tunable false positives.
+The filter is only a local index. What gossip carries is the append-only log
+of signed revocation events, and each harbor rebuilds its own filter from the
+events it holds: two cuckoo filters cannot be merged, because a fingerprint
+taken from one may find no free slot in the other
+(\pdchapref{anchor}{The Anchor Protocol}).
 A harbor that signs two contradictory epoch roots for the same epoch commits
 \pdterm{equivocation}: it shows different peers different histories.
 Expected dissemination takes $\Theta(\log m)$ rounds, where $m$ is the number
@@ -1629,13 +1675,17 @@ reliable-round overlay under the stated randomized peer-selection model.
 This is an asymptotic expectation, not an exact constant or a partition-tolerant deadline.
 
 \begin{protocol}[Federated revocation gossip]\label{prot:gossip}
-\textbf{State:} each harbor $X$ keeps a revocation filter $F_X$ and a current epoch
+\textbf{State:} each harbor $X$ keeps an append-only log of signed revocation
+events, a cuckoo filter $F_X$ built from that log, and a current epoch
 root $R_X^{(e)}$ published to a shared witness log.
 \begin{enumerate}[leftmargin=2.0em,itemsep=1pt,topsep=2pt]
   \item \emph{Revoke.} An operator revokes card $\kappa$ at its home harbor $A$:
-    $F_A \leftarrow F_A \cup \{\kappa\}$; $A$ advances to $R_A^{(e+1)}$ and publishes it.
-  \item \emph{Gossip.} Every $\Delta$, each harbor picks a peer and exchanges filter
-    deltas (anti-entropy). A card present in either filter becomes present in both.
+    $A$ appends the signed event to its log and inserts $\kappa$ into $F_A$; $A$
+    advances to $R_A^{(e+1)}$ and publishes it.
+  \item \emph{Gossip.} Every $\Delta$, each harbor picks a peer, and the two
+    exchange the log events that one holds and the other lacks (anti-entropy).
+    Each checks the signatures on what it receives, appends the events to its own
+    log and inserts their cards into its own filter. Filters are never sent.
   \item \emph{Audit.} Any third party compares each harbor's published roots in the
     witness log; a harbor that publishes two contradictory roots for one epoch is
     \emph{equivocating}. Verification is constant work once both signed roots are
@@ -1653,17 +1703,17 @@ unbounded partition there is no finite global-learning bound.
 \setlength{\parskip}{4pt plus 1pt}
 Alice revokes $a_2$'s card $\kappa$ at
 $t=0$ (say she discovers it was misbehaving). Harbor~$B$, which rented $a_2$, has not
-yet heard: for the interval $[0,\Delta]$, $B$'s filter is stale and $\kappa$ is still
+yet heard: for the interval $[0,\Delta]$, $B$'s log and filter are stale and $\kappa$ is still
 spendable there.
 
-At $t=\Delta$ gossip reaches $B$, which adds $\kappa$ to $F_B$ and
-refuses further use. Harbor~$C$, two hops away, learns at $t=2\Delta$.
+At $t=\Delta$ gossip delivers the revocation event to $B$, which appends it,
+inserts $\kappa$ into $F_B$ and refuses further use. Harbor~$C$, two hops away, learns at $t=2\Delta$.
 
 This is one
 illustrated execution; a different schedule or partition produces a different
 window.
 
-Conjecture~\ref{conj:eq-bound} says
+Conjecture~\ref{conj:he-revocation-bond} says
 the bond Alice posted on $\kappa$ must exceed whatever $a_2$ could spend at $B$ inside
 that window, or a well-capitalized Bob could rationally race the gossip.
 
@@ -1682,22 +1732,39 @@ supplies an expectation within that model, not an adversarial deadline.}
 Detection-after-the-fact deters only if the slashed bond exceeds the value
 extractable during the detection window. This is the analogue of the
 Cleanup Lower Bound of \pdchapref{bonded}{The Bonded Commons} (a cleanup bond must cover the
-worst-case cost of the damage it underwrites), and we state it as a target:
+worst-case cost of the damage it underwrites). Federation has two such
+windows, with different bonds posted by different parties, so we state two
+targets. The first concerns a revoked card and the bond its principal posts.
 
-\begin{conjecture}[Equivocation Lower Bound]\label{conj:eq-bound}
-For a deployment that advertises a finite freshness window $T$, the witness bond
-must dominate the maximum value spendable against a revoked-but-not-yet-observed
-capability over $T$. If partitions are unbounded, no finite bond covers the worst
-case; the system must instead fail closed on stale roots or cap spend independently.
+\begin{conjecture}[Revocation-Window Bond]\label{conj:he-revocation-bond}
+For a deployment that advertises a finite freshness window $T$, running from a
+card's revocation at its home harbor to enforcement at every harbor that
+accepts it, the bond the card's principal posts must be at least the most that
+can be spent against the revoked card within $T$.
+\end{conjecture}
+
+\noindent If partitions are unbounded, there is no finite $T$ and no finite
+bond covers the worst case; the system must instead fail closed on stale roots
+or cap spend independently.
+
+The second concerns a harbor that equivocates. Its contradictory roots
+become evidence only when both reach one honest auditor, and that delay, not
+the gossip delay for a revocation, is the window its witness bond must cover.
+
+\begin{conjecture}[Equivocation Bond]\label{conj:he-equivocation-bond}
+For a deployment in which both of an equivocating harbor's contradictory roots
+reach an honest auditor within a known delay, the witness bond that harbor
+posts must be at least the most it can gain, before that delay ends, by showing
+different peers different histories.
 \end{conjecture}
 
 \ifpdbook
 The threat bands in \pdchapref{fh}{The Federated Harbor} show how the window
-that Conjecture~\ref{conj:eq-bound} must cover depends on the connectivity each
+that Conjecture~\ref{conj:he-revocation-bond} must cover depends on the connectivity each
 band assumes.
 \else
 Figure~\ref{fig:fh-threat-bands} shows how the window that
-Conjecture~\ref{conj:eq-bound} must cover depends on the connectivity each band
+Conjecture~\ref{conj:he-revocation-bond} must cover depends on the connectivity each band
 assumes.
 
 \input{figures/fig-fh-threat-bands}
@@ -1800,7 +1867,9 @@ does not make the task metric universally strategy-proof.
 
 \noindent\emph{Fix~B, accountable contractual adjudication:} for subjective
 criteria, parties name the judges, appeal procedure, terminal authority, and
-sanctionable misconduct in advance. Judges may post bonds, but disagreement
+sanctionable misconduct in advance. Judges may post bonds, as Becker and
+Stigler proposed for law enforcers, who would forfeit a bond equal to the
+temptation if caught in malfeasance~\pdcite{beckerstigler1974}. Disagreement
 alone is not proof of dishonesty. An appeal has a finite rank and can move
 only to a lower rank, terminating either at a protected objective predicate
 or at a designated final decision-maker. The latter supplies contractual
@@ -1852,7 +1921,9 @@ Bob choose a provider, but its economic value needs measurement.
 
 For illustration, consider charging $2$--$5\%$ of a successful labor payment.
 This is a candidate fee band, not an estimated optimum. A fee on forfeitures
-would also give the platform an interest in slashing.
+would also give the platform an interest in slashing. Dickens, Katz, Lang and
+Summers raise the same objection to bonding workers: once a bond is posted,
+the party holding it gains by declaring it forfeit~\pdcite{dickens1989}.
 
 \begin{pdexample}{A proposed fee on the labor payment}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1973,13 +2044,54 @@ defenses above are trying to do.
 \end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{A gluing analogy for the open federation problem}\label{sec:sheaf}
+\section{Which federated records need no coordination}\label{sec:he-calm}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Three open problems (cross-harbor settlement, equivocation under partitions,
-and cross-currency valuation) share a local-to-global shape: each harbor's view
-is fine on its own, and each pair of harbors can agree, yet no single story
-need fit all of them at once. Exchange rates show the shape most simply.
+Federation runs on gossip and declines consensus (\S\ref{sec:federation}).
+Which of its records can gossip alone bring into agreement? The
+\pdterm{CALM theorem} answers: a distributed program has a consistent
+implementation that needs no coordination exactly when it is monotone, so
+that new input can add to its output but never retract any of
+it~\pdcite{hellerstein2010,ameloot2013,hellerstein2020}. The name stands for
+consistency as logical monotonicity.
+
+\paragraph{Revocation is monotone.} The set of cards a harbor refuses only
+grows. A revocation is never withdrawn; an entry leaves the log only after its
+card has expired, when the card is refused anyway
+(\pdchapref{anchor}{The Anchor Protocol}). Leaving those expired entries
+aside, the log only grows, and merging two logs is set union, which is
+commutative, associative and idempotent. The log is therefore a grow-only set,
+the simplest \pdterm{conflict-free replicated data type}
+(CRDT): copies updated independently and merged in any order reach the same
+state once they hold the same events~\pdcite{shapiro2011crdt}. Every harbor
+that eventually receives every event ends with the same log, in whatever
+order and however often the exchanges of Protocol~\ref{prot:gossip} happen,
+and that is why the protocol needs no consensus. The cuckoo filter is not part
+of the replicated state; it is the index each harbor rebuilds from its own
+log. The theorem says nothing about speed: the time before every harbor holds
+an event is still the window Conjecture~\ref{conj:he-revocation-bond} must
+cover.
+
+Detecting equivocation is monotone as well. Once a log holds two signed roots
+for one harbor and epoch, no later record can undo that proof, so any harbor
+that holds both can conclude it without asking anyone. The opposite claim,
+that a harbor has \emph{not} equivocated, is not monotone, because one later
+record can refute it. No harbor can conclude it from gossip alone, and under
+a partition none can tell an honest harbor from an equivocator whose second
+root has not yet arrived.
+
+\paragraph{Settlement is not.} A balance can fall as well as rise. Settling a
+bond moves its credits out of escrow, and a harbor that has applied one
+terminal transition for a bond must refuse a conflicting one it hears of
+later; two harbors that applied different transitions cannot be reconciled by
+merging. By the CALM theorem, settlement therefore needs coordination
+somewhere. The design puts it in one place, the custody ledger with one atomic
+terminal transition per bond (\S\ref{sec:fh-settlement}). ``No consensus, by
+design'' holds for revocation and cannot hold for settlement.
+
+\paragraph{Valuation can fail even when every pair agrees.} Cross-currency
+quotes raise a different question: whether the quotes are consistent with one
+another.
 
 \begin{pdexample}{Three Rates That Agree in Pairs but Not Around the Loop}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1990,46 +2102,30 @@ becomes $2\,U_B$, then $6\,U_C$, then $6\times0.2=1.2\,U_A$.
 
 Try to write one price list in units of $U_A$. Fix $U_A=1$; then $U_B=0.5$
 and $U_C=0.5/3=1/6\approx0.167$, but the C-to-A quote says $U_C=0.2$. No
-single price list matches every pair, and that mismatch is the obstruction.
-In trader's terms it is a $20\%$ arbitrage loop. In the language of sheaf
-theory, with the three harbors overlapping only in pairs, the logarithms of
-the rates form a $1$-cocycle that is not a \pdterm{coboundary}, the list of
-link differences that one assignment of values to the vertices (here the
-harbors) would produce. They cannot be written as differences of one
-log-price per harbor, because they sum to $\log 1.2\ne0$ around the loop. This illustrates the shape; the chapter proves nothing about it.
-Settlement and equivocation may fail the same way, with views that each check
-out but cannot be stitched into one.
+single price list matches every pair. In trader's terms it is a $20\%$
+arbitrage loop. Taking logarithms turns the rates into differences along the
+links, and a price list exists exactly when those differences form a
+\pdterm{coboundary}, the list of link differences that one assignment of
+values to the vertices (here the harbors) would produce. These sum to
+$\log 1.2\ne0$ around the loop, so they do not.
 \end{pdexample}
 
-Figure~\ref{fig:audit-loop} draws the loop. A sheaf model would attach data
-to each harbor and to each overlap of two harbors. Its
-\pdterm[restriction map]{restriction maps} take a harbor's data to the part
-that an overlap compares, and a \pdterm{global section} is one assignment of
-data to every harbor that agrees on every overlap at once, like the single
-price list the example could not find.
+Figure~\ref{fig:audit-loop} draws the loop. \pdchapref{fh}{The Federated
+Harbor} measures disagreements of this kind among witnesses, and two more of
+its words fit this example. A \pdterm{restriction map} takes
+a harbor's data to the part that an overlap compares, and a
+\pdterm{global section} is one assignment of data to every harbor that agrees
+on every overlap at once, like the single price list the example could not
+find.
 
 \input{figures/fig-audit-loop}
 
-\begin{conjecture}[Formalization target, not established result]\label{conj:sheaf}
-A future treatment may define a site of overlapping administrative domains and a
-presheaf of signed ledger views, then ask when compatible local sections glue to a
-unique global section. This chapter has not specified the site, restriction maps,
-coefficient object, or cocycles; therefore it makes no claim that a particular
-$H^1$ is defined or non-zero. The immediate engineering obligations remain the
-concrete ones: matched custody transitions, freshness policy under partitions, and
-time-indexed valuation.
-\end{conjecture}
-
-Fong and Spivak's compositionality program~\pdcite{fong2019} suggests vocabulary for
-a future formalization. Until the site and coefficient data are defined, the chapter
-uses the word gluing only to organize engineering questions.
-
-\pdexercisepointer*{\ref{ex:he-sheaf-site-cover}}{\ref{ex:he-gluing-model-build}}{\pageref{ex:he-sheaf-site-cover}}
+\pdexercisepointer*{\ref{ex:he-calm-union}}{\ref{ex:he-calm-gset-model}}{\pageref{ex:he-calm-union}}
 
 \begin{pdrecitation}
-\item Name three missing definitions in Conjecture~\ref{conj:sheaf}.
-\item Why do conflicting signed roots show equivocation, but not a cohomology class?
-\item Which engineering obligations remain without the formalization?
+\item State the CALM theorem in one sentence.
+\item Why does the revocation log converge without coordination, when escrow balances cannot?
+\item Is ``harbor $X$ equivocated in epoch $e$'' a monotone claim? Is ``harbor $X$ did not''?
 \end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -2265,6 +2361,18 @@ by Jensen, since $x \mapsto (1-x)^k$ is convex. The independent bound is
 therefore \emph{optimistic} for every mixing distribution with the same mean in
 this common-rate mixture model; the inequality says nothing about other
 dependence structures.
+
+The model comes from software reliability. Eckhardt and Lee gave it for
+programs written several times by separate teams: there the shared draw is
+the input, whose difficulty sets every version's chance of failing on it, and
+the same convexity makes simultaneous failure likelier than independence
+predicts~\pdcite{eckhardt1985}. Littlewood and Miller extended it to versions
+built by different methods and showed that forcing such diversity can, in
+principle, do better than independence~\pdcite{littlewood1989}. Knight and
+Leveson tested independence directly: in $27$ versions written to one
+specification and run on a million test inputs, more than one version failed
+on the same input far more often than independence predicts, and the
+independence hypothesis was rejected~\pdcite{knight1986}.
 
 To get a closed form take $\tilde d \sim \mathrm{Beta}(a,b)$, whose intra-panel
 correlation is $\theta = 1/(a+b+1)$ and whose mean is $d = a/(a+b)$, so a target
@@ -2535,11 +2643,11 @@ these as two universal roles or prove this allocation optimal. That requires
 specifying investments, bargaining, outside options, and feasible alternatives.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-conservation-lineitems}
-Show that adding a lease line item and a metered-license line item to a float
+Show that adding a lease line item and a licence line item to a float
   plan cannot violate Design Invariant~\ref{prop:conservation}, no matter the amounts.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-conservation-lineitems}
-Adding a lease line item of amount $\ell$ or a metered-license line item of
+Adding a lease line item of amount $\ell$ or a licence line item of
 amount $\ell'$ leaves conservation intact for any $\ell,\ell'\ge0$, because each is still
 just a balanced transfer: it debits a pre-funded escrow bucket and credits an
 explicit recipient or refund bucket within the same atomic transaction. The
@@ -2791,25 +2899,26 @@ infinite rather than merely large.
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-revocation-window-trace}
 Trace a revoked capability through \ifpdbook the revocation-gossip figure in \pdchapref{fh}{The Federated Harbor}\else Figure~\ref{fig:fh-revocation}\fi: at which
   harbor, and at what time, can it still be spent? That window is what
-  Conjecture~\ref{conj:eq-bound} must cover.
+  Conjecture~\ref{conj:he-revocation-bond} must cover.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-revocation-window-trace}
 Alice revokes at her home harbor at $t=0$; Harbor~$B$, which rented the
 affected agent, has not yet heard, so for $[0,\Delta]$ its filter is stale and
 the card is still spendable there. At $t=\Delta$ gossip reaches $B$ and it stops
 accepting the card; Harbor~$C$, two hops out, remains exposed until $t=2\Delta$.
-The window Conjecture~\ref{conj:eq-bound} must cover is per-harbor, running from
+The window Conjecture~\ref{conj:he-revocation-bond} must cover is per-harbor, running from
 $t_0$ to that harbor's own \emph{enforcement}, not merely to its first gossip
-receipt, since receiving a filter update and actually enforcing it are two
+receipt, since receiving the revocation event and actually enforcing it are two
 different events with their own local latency.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:he-equivocation-lower-bound}
-State and (attempt to) prove the Equivocation Lower Bound for a
-  three-harbor mesh under a fixed gossip period $\Delta$ and a single equivocating
-  witness.
+For a three-harbor mesh with a fixed gossip period $\Delta$ and a single
+  equivocating harbor, give a lower bound on the time before any honest party
+  holds both contradictory roots. That delay is the window
+  Conjecture~\ref{conj:he-equivocation-bond} asks the witness bond to cover.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-equivocation-lower-bound}
-A witness that equivocates sends root $X$ to $B$ and root $Y$ to $C$ for the
+A harbor that equivocates sends root $X$ to $B$ and root $Y$ to $C$ for the
 same epoch; nobody can detect this until evidence from both views reaches one
 honest process, and until then each view is individually consistent with
 ordinary delay. On the three-node complete mesh with exchanges every $\Delta$,
@@ -2921,52 +3030,55 @@ None is sufficient by name alone, and no universal pooling or separating
 result follows without those assumptions.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:sheaf}}{A gluing analogy for the open federation problem}
+\pdexercisesfor{\S\ref{sec:he-calm}}{Which federated records need no coordination}
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:he-sheaf-site-cover}
-Name the site, cover, restriction maps, and coefficient object a genuine
-  sheaf model of federated ledger views would require.
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-calm-union}
+Show that merging revocation logs by set union is commutative, associative
+  and idempotent. Explain why that lets every harbor reach the same log
+  whatever the order, grouping or repetition of the gossip exchanges.
 \end{pdexercise}
-\begin{pdsolution}{ex:he-sheaf-site-cover}
-A candidate site takes administrative domains (harbors) as objects and
-their signed overlap views as the data over each; morphisms are restrictions to
-shared accounts, events, or epochs; covers are families of domains whose union
-spans the bounded federation under study. A section assigns an event or balance
-view to a domain, and restriction projects that view onto an overlap. Set-valued
-gluing needs no coefficient object at all; a cohomological treatment needs one
-explicitly chosen, such as account-balance deltas valued in the abelian group
-$\mathbb{Z}^{\text{Accounts}}$, with cocycles defined on that group rather than
-merely asserted.
+\begin{pdsolution}{ex:he-calm-union}
+For any three logs $\Lambda_1$, $\Lambda_2$ and $\Lambda_3$,
+$\Lambda_1\cup\Lambda_2=\Lambda_2\cup\Lambda_1$,
+$(\Lambda_1\cup\Lambda_2)\cup\Lambda_3=\Lambda_1\cup(\Lambda_2\cup\Lambda_3)$ and
+$\Lambda_1\cup\Lambda_1=\Lambda_1$.
+A harbor's log after any run of exchanges is the union of the events it has
+received, written in some order and grouping, with some events received more
+than once. By the three identities that union depends only on which events
+arrived, so two harbors that have received the same events hold the same log.
+The argument needs every event to arrive eventually; it gives no bound on when.
 \end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:he-roots-not-cohomology}
-Explain why two incompatible signed roots are evidence of equivocation but
-  are not, without further definitions, a cohomology class.
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-calm-equivocation-query}
+A witness log only grows. Is the claim ``harbor $X$ signed two different roots
+  for epoch $e$'' monotone over it? Is ``harbor $X$ signed only one root for
+  epoch $e$''? Say what the CALM theorem implies for a harbor that wants to
+  conclude each from gossip alone.
 \end{pdexercise}
-\begin{pdsolution}{ex:he-roots-not-cohomology}
-Two different signed roots for the same $(\text{harbor},\text{epoch})$ are
-direct evidence that one key signed two inconsistent commitments; that much
-is just hash inequality. A cohomology class is a much heavier object: it needs a
-defined cover, a coefficient sheaf, the overlap differences assembled into an
-actual cocycle, and a quotient by coboundaries. Observing that two hashes
-disagree supplies none of that algebra; it is evidence of equivocation, not
-evidence of a nonzero $H^1$.
+\begin{pdsolution}{ex:he-calm-equivocation-query}
+The first is monotone: once two signed roots for $(X,e)$ are in a log, adding
+records cannot remove them, so any harbor holding both may conclude it at once
+and the conclusion is final. The second is not: one later record can refute
+it. Concluding it requires knowing that no conflicting root exists anywhere,
+which takes coordination or a known bound on delivery. Under a partition an
+isolated auditor cannot tell an honest $X$ from an equivocator whose second
+root has not arrived, which is why the chapter treats equivocation as detected
+after the fact, never ruled out.
 \end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:he-gluing-model-build}
-Build a small formal gluing model for a bounded gossip topology and
-  state exactly what consistency result it proves.
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-calm-gset-model}
+Build a small model of three harbors whose revocation logs are grow-only sets
+  merged by union over a fixed gossip topology, and state exactly what
+  convergence result it proves.
 \end{pdexercise}
-\begin{pdsolution}{ex:he-gluing-model-build}
-Fix the three-harbor cover $A$--$B$--$C$. Let each local section be a
-finite map from globally unique event IDs to signed events, with restriction as
-projection onto the shared IDs of an overlap. If every pairwise restriction
-agrees, the sections glue to a unique global map on the union. That is an ordinary,
-checkable fact about finite maps agreeing on their overlaps, nothing more. What
-this proves: deterministic gluing of already-delivered, identically-keyed events
-at that one fixed finite topology. What it does not prove: that any event is
-true, that the event set is complete, anything about delivery time, what happens
-to a fork with conflicting IDs, or settlement finality. The gluing lemma is a
-statement about consistent bookkeeping, not about the world the bookkeeping
-describes.
+\begin{pdsolution}{ex:he-calm-gset-model}
+Fix harbors $A$, $B$ and $C$ on a path, with $B$ linked to both others. Each log is a
+finite set of signed events with globally unique IDs, and an exchange replaces
+both logs by their union. If every event issued is eventually carried across
+every link, all three logs end equal to the set of all issued events. What
+this proves: convergence of identically keyed, already signed events on that
+one fixed finite topology. What it does not prove: that any event is true,
+that the event set is complete, anything about delivery time or partitions,
+what happens when two events conflict, or settlement finality. The result is
+about consistent bookkeeping, not about the world the bookkeeping describes.
 \end{pdsolution}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -3095,7 +3207,10 @@ consensus as an engineering choice. Partial-synchrony results~\pdcite{dls1988}
 show why timing assumptions change that boundary. This federation instead
 chooses propagation by epidemic gossip~\pdcite{demers1987} and takes
 a Certificate-Transparency detect-don't-prevent posture~\pdcite{laurie2014,laurie2013ct},
-mindful of eclipse attacks~\pdcite{heilman2015}. The settlement design is located
+mindful of eclipse attacks~\pdcite{heilman2015}. Which of its records gossip
+can reconcile without coordination is the question of the CALM
+theorem~\pdcite{hellerstein2010,ameloot2013,hellerstein2020}; the revocation
+log is a grow-only conflict-free replicated data type~\pdcite{shapiro2011crdt}. The settlement design is located
 explicitly against atomic cross-chain swaps~\pdcite{herlihy2018} and the
 adversarial-commerce model of Herlihy, Liskov \& Shrira~\pdcite{hls2022}; reputation
 revocation is contrasted with Sagas-style compensation~\pdcite{sagas1987}.
@@ -3106,15 +3221,14 @@ failure posture and stale windows, but do not turn a partitioned federation
 into consensus or make a non-fungible bond atomic. Sagas contrasts with
 tombstones because the harbor removes an authorization rather than compensates.
 
-\paragraph{Applied category theory.} The trace-composition notation and proposed
-gluing formalization draw vocabulary from ologs~\pdcite{spivak2012} and Fong \&
+\paragraph{Applied category theory.} The trace-composition notation draws
+vocabulary from ologs~\pdcite{spivak2012} and Fong \&
 Spivak~\pdcite{fong2019}; no cohomology claim is made. The commons-governance reading draws on
 Ostrom~\pdcite{ostrom1990}, and the auction machinery on standard algorithmic game
 theory~\pdcite{nrtv2007}.
 The category-theory sources ask when local descriptions and their overlaps
-determine a coherent global description. They supply vocabulary for trace and
-gluing, not a new cohomological theorem: the chapter's finite-map lemma remains
-a bookkeeping result. Ostrom supplies governance questions and algorithmic
+determine a coherent global description. They supply vocabulary for traces,
+not a new theorem. Ostrom supplies governance questions and algorithmic
 game theory auction tools; neither proves that this market is strategy-proof or
 governable in deployment.
 
@@ -3135,6 +3249,10 @@ prover's work) crossed with multi-agent debate~\pdcite{irving2018}, where two
 adversarial reasoners are more legible to a judge than one cooperative one. Becker's
 deterrence condition~\pdcite{becker1968} supplies the enforcement half: a test-writer's
 expected forfeiture must match its gain from misreporting.
+The correlated-reviewer model of \S\ref{sec:assurance-correlation} has a
+different lineage: it is the coincident-failure model of software
+reliability~\pdcite{eckhardt1985,littlewood1989}, whose independence
+assumption Knight and Leveson rejected by experiment~\pdcite{knight1986}.
 These sources address two questions: how a verifier gains assurance without
 redoing all the prover's work, and how adversarial reports expose errors. The chapter
 adds a market and bond, not a cryptographic proof of the whole artifact.
@@ -3156,7 +3274,7 @@ Settlement across distrust & Atomic swaps~\pdcite{herlihy2018};
   cross-chain deals~\pdcite{hls2022} &
   Bounded (not trustless) escrow for \emph{non-fungible} bonds sized by reputation \\
 Revocation & PKI revocation lists; Certificate Transparency~\pdcite{laurie2014} &
-  Gossip-converged filters with a named attacker window the bond must cover \\
+  Gossip-converged revocation logs, filters rebuilt locally, with a named attacker window the bond must cover \\
 Reputation revocation & Sagas compensation~\pdcite{sagas1987} &
   Tombstone propagation; no conserved quantity to compensate \\
 Grading / IC signal & Folk theorems~\pdcite{aps1990} &
@@ -3189,9 +3307,11 @@ cross-currency totals require time-indexed valuation and an explicit exposure mo
 computed from retained outcomes and their tombstones; compensation cannot erase past reliance. Every
 folk-theorem result rests on a grading process included in the monitoring model.
 Myerson and Satterthwaite showed that a two-party trading mechanism cannot
-have all four of its desirable properties at once. That applies here only
-where their assumptions hold, and this chapter has not shown which property
-the full market gives up. Today the bond ledger is built and never creates or
+have all four of its desirable properties at once. Where their assumptions
+hold, the chapter's posted prices keep incentive compatibility, individual
+rationality and budget balance, and give up efficiency: on uniform values a
+posted price captures at most $75\%$ of the possible gains, against $84.4\%$
+for the best mechanism with the same three properties. Today the bond ledger is built and never creates or
 loses value. Two pieces are partly built: identities that agents cannot forge
 inside one harbor, and the record of each job's outcome. Two are not built: a
 reputation score, and a way for one harbor to verify identities issued by
@@ -3210,7 +3330,8 @@ which mechanisms are shipped in the reference implementation, which are specifie
 with a proof or a written protocol, and which are still proposed. The single-line
 summary: the conserving bond ledger and the continuity subsystem (episodic
 memory) are \Built{}, the checkpoint is \BuiltWeak{}, and much of the protocol
-stack is \Designed{} and model-verified. The chain that market prices depend
+stack is \Designed{}; no cross-harbor part of it has been run as an
+executable model. The chain that market prices depend
 on (cross-operator identity, then the outcome ledger, then reputation) ranges
 from \BuiltWeak{} to \Vision{}. Today the harbor economy has local labor
 settlement and proposed rental and licensing contracts.
@@ -3264,13 +3385,14 @@ Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls
   credentials, and a bounded newcomer pool ship; full write gating does not ship \\
 Cross-operator attestation & \Vision{} & no spec for the critical part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
-Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
+Cross-harbor capability transfer (attenuation) & \Designed{} & modelled only:
+  no executable cross-harbor model, never run;
   \ifpdbook \pdchapref{fh}{The Federated Harbor}, \S\ref{fh:sec:fh-xfer-ceremony}\else Protocol~\ref{prot:xfer}\fi \\
 Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Vision{} &
   no estimator specified or shipped \\
 Multi-dimensional reputation, neutral judges & \Vision{} & no axis-aggregation spec \\
 Labor / rental / licensing contracts & \Designed{} & rental and licensing unshipped \\
-Skill licensing (metered $+$ clawback $+$ Merkle proof) & \Designed{} &
+Skill licensing (release on green $+$ clawback $+$ Merkle proof) & \Designed{} &
   cross-harbor verifiability undeployed \\
 Adversarial test market (Purchased Assurance Bound, Thm.~\ref{thm:assurance}) &
   \Vision{} & no mutation-testing oracle and no bounty-per-killed-mutant contract
@@ -3343,18 +3465,22 @@ rate movement, oracle delay, fees, and slippage; those assumptions are not suppl
 here.
 \end{proof}
 
-\begin{proof}[Proof of Theorem~\ref{thm:ms} (which property is given up)]
+\begin{proof}[Note on Theorem~\ref{thm:ms} (which property is given up)]
 \setlength{\parskip}{4pt plus 1pt}
-Restrict attention to a bilateral slice satisfying the assumptions stated in
-Theorem~\ref{thm:ms}.
+The theorem is Myerson and Satterthwaite's~\pdcite{myerson1983}; it is cited,
+not proved, here. What the chapter adds is the posted-price case. Fix a price
+$p_{\mathrm{post}}$ before either side reports. Accepting iff $v\ge p_{\mathrm{post}}$ is a dominant
+strategy for the buyer and accepting iff $c_{\mathrm s}\le p_{\mathrm{post}}$ is one for the
+seller; every trade has $c_{\mathrm s}\le p_{\mathrm{post}}\le v$; and the buyer's payment is the
+seller's receipt. So the posted price is incentive compatible, individually
+rational ex post and exactly budget balanced, and the theorem leaves
+efficiency as the property it gives up.
 
-The Myerson--Satterthwaite impossibility then rules out the
-simultaneous achievement of all four desiderata.
-
-The implication is conditional:
-before declaring which property the harbor gives up, a mechanism must specify its
-types and transfers and prove its incentive and participation properties. This
-chapter has not done so, hence makes no stronger allocation claim.
+With $v$ and $c_{\mathrm s}$ independent and uniform on $[0,M]$, trade
+occurs with probability $\tfrac{M-p_{\mathrm{post}}}{M}\cdot\tfrac{p_{\mathrm{post}}}{M}$ and its
+expected gain given trade is $\tfrac{M+p_{\mathrm{post}}}{2}-\tfrac{p_{\mathrm{post}}}{2}=\tfrac M2$.
+The expected gains are therefore $p_{\mathrm{post}}(M-p_{\mathrm{post}})/(2M)$, maximized at
+$p_{\mathrm{post}}=M/2$ with value $M/8$.
 \end{proof}
 % ═══════════════════════════════════════════════════════════════════════════════
 \pdprintsolutions
@@ -3382,6 +3508,9 @@ Operations Research} 6(1):58--73, 1981.
 
 \bibitem{myerson1983} R. Myerson \& M. Satterthwaite. ``Efficient Mechanisms for
 Bilateral Trading.'' \emph{Journal of Economic Theory} 29(2):265--281, 1983.
+
+\bibitem{dagv1979} C. d'Aspremont \& L.-A. G\'erard-Varet. ``Incentives and
+Incomplete Information.'' \emph{Journal of Public Economics} 11(1):25--45, 1979.
 
 \bibitem{chatterjee1983} K. Chatterjee \& W. Samuelson. ``Bargaining under
 Incomplete Information.'' \emph{Operations Research} 31(5):835--851, 1983. (The
@@ -3479,6 +3608,42 @@ Debate.'' arXiv:1805.00899, 2018.
 
 \bibitem{becker1968} G. Becker. ``Crime and Punishment: An Economic Approach.''
 \emph{Journal of Political Economy} 76(2):169--217, 1968.
+
+\bibitem{beckerstigler1974} G. S. Becker \& G. J. Stigler. ``Law Enforcement,
+Malfeasance, and Compensation of Enforcers.'' \emph{Journal of Legal Studies}
+3(1):1--18, 1974.
+
+\bibitem{dickens1989} W. T. Dickens, L. F. Katz, K. Lang \& L. H. Summers.
+``Employee Crime and the Monitoring Puzzle.'' \emph{Journal of Labor Economics}
+7(3):331--347, 1989.
+
+\bibitem{eckhardt1985} D. E. Eckhardt \& L. D. Lee. ``A Theoretical Basis for the
+Analysis of Multiversion Software Subject to Coincident Errors.'' \emph{IEEE
+Transactions on Software Engineering} SE-11(12):1511--1517, 1985.
+
+\bibitem{littlewood1989} B. Littlewood \& D. R. Miller. ``Conceptual Modeling of
+Coincident Failures in Multiversion Software.'' \emph{IEEE Transactions on
+Software Engineering} 15(12):1596--1614, 1989.
+
+\bibitem{knight1986} J. C. Knight \& N. G. Leveson. ``An Experimental Evaluation
+of the Assumption of Independence in Multiversion Programming.'' \emph{IEEE
+Transactions on Software Engineering} SE-12(1):96--109, 1986.
+
+\bibitem{hellerstein2010} J. M. Hellerstein. ``The Declarative Imperative:
+Experiences and Conjectures in Distributed Logic.'' \emph{SIGMOD Record}
+39(1):5--19, 2010.
+
+\bibitem{ameloot2013} T. Ameloot, F. Neven \& J. Van den Bussche.
+``Relational Transducers for Declarative Networking.'' \emph{Journal of the
+ACM} 60(2):15, 2013.
+
+\bibitem{hellerstein2020} J. M. Hellerstein \& P. Alvaro. ``Keeping CALM: When
+Distributed Consistency Is Easy.'' \emph{Communications of the ACM}
+63(9):72--81, 2020.
+
+\bibitem{shapiro2011crdt} M. Shapiro, N. Pregui\c{c}a, C. Baquero \& M. Zawirski.
+``Conflict-Free Replicated Data Types.'' In \emph{Stabilization, Safety, and
+Security of Distributed Systems (SSS)}, LNCS 6976, pp.~386--400, 2011.
 
 \bibitem{dg84} W. F. Dowling \& J. H. Gallier. ``Linear-Time Algorithms for Testing
 the Satisfiability of Propositional Horn Formulae.'' \emph{Journal of Logic
