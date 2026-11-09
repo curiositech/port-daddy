@@ -161,7 +161,7 @@ its obligations remain. This book studies the mechanisms needed to distinguish
 these cases and make coordinated work inspectable.
 
 The argument starts on one machine, where a single program checks and
-records every change, and follows authority as it is delegated, confined in a
+records every change to a local database, and follows authority as it is delegated, confined in a
 sealed environment, supervised by people, handed to replacement processes,
 traded between organizations and shared across machines. Worked examples come
 before the formal statements. Theorems name their assumptions, finite checks
@@ -171,7 +171,7 @@ The book's main construction is a coordinating service, the \pdterm{kernel},
 that keeps durable records and checks each change it governs before that
 change takes effect. It is one way to keep the stated safety rules true, not a
 proof that every system needs this design. Three limits run through the book.
-A digital signature proves who signed a record, not that the record is
+A digital signature shows which key signed a record, not that the record is
 accurate. A penalty deters cheating only if cheating is likely to be detected
 and the penalty is actually enforced. A summary can point a reader to the
 stored evidence, but it cannot restore details it left out. Later mechanisms
@@ -221,11 +221,13 @@ pass this check and take effect. The shared record includes a
 \pdterm{ledger}, the authoritative account of who holds which resources, who
 owes what and what has been paid. A \pdterm{grant} states what its holder may
 do, to which resources and until when; the daemon signs each grant as a
-\pdterm{capability card} and checks the card before it admits a change.
+\pdterm{capability card} and checks the card before it admits a change. The
+daemon and its database are this book's implementation of the kernel.
 
 \newcommand{\pdreaderleftprose}{%
-On a first reading, follow the chapter sequence and the recurring checkout
-repair. Each stage adds one contract the next stage needs. For a selective
+On a first reading, follow the chapter sequence and the running example, a
+constructed checkout repair that Chapter~0 introduces and later chapters
+revisit. Each stage adds one contract the next stage needs. For a selective
 reading, use the route tables here, then read a claim's assumptions and evidence label. If the notation is unfamiliar, start with the worked
 example and return to the formal statement. When resuming after a break,
 the chapter question and the last example provide a useful starting point.

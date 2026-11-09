@@ -123,7 +123,8 @@ recovery.
 \noindent\textbf{The route.}
 The chapter keeps three things apart: a \pdterm{proposal}, which describes a
 change; an \pdterm{effect}, a change that has actually happened to a file, a
-record or a payment; and the records that outlive both. For an
+record or a payment; and the records that remain after the workers that made
+them have exited. For an
 implementation-oriented first pass, read these opening definitions, then the
 tool checks in Section~\ref{sec:prereq-hypervisors} and the recovery
 argument in Section~\ref{pre:sec:kernel-gap}. Return to the intervening examples
@@ -144,13 +145,14 @@ before the job may be called complete. Alice's repair remains the same job
 when a worker exits. Chapters 1 and 5 develop its record and how a
 replacement worker takes it over.
 
-In this book a person is a continuing account in the ledger. Signed
-succession records link each new worker process to that account, so its
-authority, its obligations and the results others have checked stay attached
-when one process replaces another. The word is an engineering convention and
-makes no claim about consciousness, moral status or legal personhood.
-\pdchapref{stp}{From Spawn to Person} defines the term and the rules a
-replacement must follow to inherit the account.
+In this book a person is a role held by a series of worker processes, with a
+record that links them into one accountable thread. In the book's design,
+signed succession records make that link, so authority, obligations and
+checked results can stay attached when one process replaces another. The
+word is an engineering convention and makes no claim about consciousness,
+moral status or legal personhood. \pdchapref{stp}{From Spawn to Person}
+defines the term and the rules a replacement must follow to inherit the
+record.
 
 \subsection{Defining the Agent and the Kernel}
 The counter example needs something that proposes, something that changes the
@@ -240,7 +242,7 @@ names the \pdterm{evidence channel} that produced the observation. Each channel
 has a blind spot that more of the same evidence does not remove.
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
   \item A \pdterm{deterministic check} shows the property it checks and nothing more: a test covers the inputs it runs and the assertions it makes; a sound type checker or model checker proves its stated property under its formal assumptions.
-  \item A \pdterm{provenance witness} (a signature, a hash, an inclusion proof in a hash tree, an append-only log) shows who produced a record and whether it was altered since, never that every event was logged or that a description is true.
+  \item A \pdterm{provenance witness} (a signature, a hash, an inclusion proof in a hash tree, an append-only log) shows which key signed a record, or that a log committed to it, and whether it was altered since, never that every event was logged or that a description is true.
   \item A \pdterm{protected meter} (a counter its subject cannot rewrite) shows a quantity, not its cause.
   \item \pdterm[expert judgment]{Expert judgment} shows an assessment under a named rubric and carries the assessor's error rate.
   \item \pdterm[buyer preference]{Buyer preference} shows what was chosen, not that the choice was right.
@@ -668,12 +670,13 @@ With a fixed tie rule, the Clarke pivot payment is~\pdcite{vickrey1961counterspe
 \begin{pdexample}{A fair price nobody can find}
 Bob wants to buy a repair; Alice's team wants to sell it. Only Bob knows what
 it is worth to him, and only Alice knows what it costs her. We would like a
-trading rule in which (a)~neither side gains by misreporting its number,
-(b)~neither side expects to lose by taking part, (c)~the trade happens exactly
-when the repair is worth more to Bob than it costs Alice, and (d)~the rule
-balances its own books, with no outside party covering a shortfall. Item~4
-says that when the two sides' ranges of possible numbers overlap, no rule
-achieves all four.
+trading rule in which (a)~neither side gains by misreporting its number
+(incentive compatibility), (b)~neither side expects to lose by taking part
+(individual rationality), (c)~the trade happens exactly when the repair is
+worth more to Bob than it costs Alice (efficiency), and (d)~the rule balances
+its own books, with no outside party covering a shortfall (budget balance).
+Item~4 says that when the two numbers are independent and their ranges
+overlap, no rule achieves all four.
 
 This is a constructed example. Let Bob's value $v$ and Alice's cost $c$ each be
 equally likely anywhere from 0 to 100 credits. Trading whenever $v>c$ would
@@ -684,8 +687,10 @@ $\tfrac23v+\tfrac{25}{3}$ and Alice names $\tfrac23c+25$, so they trade only
 when $v$ exceeds $c$ by at least 25. A repair worth 60 that costs 45 would gain
 15 credits, but Bob names $48.3$ and Alice $55$, and the trade is lost.
 Expected gain falls to $9\cdot100/64\approx14.1$ credits, 84\% of the 16.7
-available, and for these distributions no rule meeting (a), (b) and (d) does
-better. For VCG, count a trade as worth $v$ to Bob and $-c$ to Alice, and no
+available. By item~2, a rule that asks for the true numbers, trades when $v$
+exceeds $c$ by at least 25 and charges the price the shaded numbers would give
+has the same outcome, and under it nobody gains by misreporting. For these
+distributions no rule meeting (a), (b) and (d) does better. For VCG, count a trade as worth $v$ to Bob and $-c$ to Alice, and no
 trade as 0 to both. When $v>c$, the item-3 payment charges Bob
 $\max(-c,0)-(-c)=c$ and Alice $\max(v,0)-v=0$, so Alice is paid nothing, ends
 at $-c$, and (b) fails. The usual variant takes each side's maximum over the
@@ -1234,7 +1239,7 @@ A harness might follow this sequence. Its stored histories can grow without boun
 
 \section{What the Kernel Must Guarantee: Effects and Recovery}\label{pre:sec:kernel-gap}
 
-Suppose an agent may propose any tool call. Theorem~\ref{thm:kernel-gap} names three ways a guarantee can fail and what prevents each. First, if every change passes a check at the moment it takes effect, and the check lets through only changes that keep a rule true, the rule stays true whatever the workers propose. Second, if two workers can each read a value and then overwrite it without anyone checking that it is still what they read, one update can vanish, and queuing the writes does not help. Third, if a crash can leave identical records behind after two different histories, no recovery procedure can tell which history happened, so it cannot know for certain what is still owed.
+Suppose an agent may propose any tool call. Theorem~\ref{thm:kernel-gap} has three parts. The first gives a condition that keeps a rule true; the other two show how a guarantee fails. First, if every change passes a check at the moment it takes effect, and the check lets through only changes that keep a rule true, the rule stays true whatever the workers propose. Second, if two workers can each read a value and then overwrite it without anyone checking that it is still what they read, one update can vanish, and queuing the writes does not help. Third, if a crash can leave identical records behind after two different histories, no recovery procedure can tell which history happened, so it cannot know for certain what is still owed.
 
 \begin{pdclaim}{Theorem}{Mediation and durable recovery boundaries}\label{thm:kernel-gap}
 Let $I$ be a state invariant, $s_0\in I$, and $f(s,a)$ the effect of admitted action $a$.
@@ -1249,24 +1254,27 @@ Let $I$ be a state invariant, $s_0\in I$, and $f(s,a)$ the effect of admitted ac
 \noindent\textit{Proof.} For (1), induction on the admitted transitions preserves $I$; the converse follows by appending the specified unsafe transition to its reachable prefix. For (2), both actors read 0 and then each writes 1, whereas two serial increments give 2. For (3), the recovery procedure receives identical input in the two cases, so its output distribution is identical; it cannot concentrate on two different required states.\hfill$\square$
 
 \begin{pdexample}{One crash, two histories}
-This is a constructed example. Heron's job is to run the payment test once
-against the provider's test card and record the result. In history~A, Heron
+This is a constructed example. Heron, one of Alice's workers, must run the
+payment test once against the payment provider's test card and record the
+result. In history~A, Heron
 crashes before starting the test. In history~B, Heron starts it, the provider
 charges the card \$1, and Heron crashes before writing a receipt. After either
 crash the disk says the same thing: test pending, no receipt. A recovery that
 reruns the test charges a second dollar in history~B, \$2 in all; a recovery
 that does not rerun leaves the test never run in history~A. That is part~(3).
 The fix is to record enough before the effect. Before calling, Heron writes
-\texttt{intent op-17}; the provider stores op-17 with its result; recovery asks
-the provider about op-17. In history~A the provider has no op-17, in history~B
-it returns the stored result, and the two histories can be told apart.
-Parts~(1) and~(2) need one line each. If every claim on port 7421 passes a
-check that refuses a second holder, the port has at most one holder whatever
-the agents propose. Two workers that each read the counter at 0 and write 1
+\texttt{intent op-17}; the provider stores op-17 with its result and refuses a
+second op-17; recovery asks the provider about op-17. In history~A, Heron
+wrote the intent and crashed before calling, so the provider has no op-17; in
+history~B it returns the stored result. The two histories can be told apart,
+and a rerun cannot charge twice even if the first request arrives late.
+Parts~(1) and~(2) need one line each. If every request for the lease on the
+payment module passes a check that refuses a second holder, the lease has at
+most one holder whatever the agents propose. Two workers that each read the counter at 0 and write 1
 leave it at 1, not 2.
 \end{pdexample}
 
-Part~(1) can be met by a local check, by a signed permit from another machine that is checked before the effect, by a verified controller or by any other mechanism with the same property; the single-writer kernel is the construction this book develops, not the only one. Operations on separate resources, or whose order does not matter, need not wait for each other. Part~(3) makes retained receipts, or some other record that tells the histories apart, necessary for recovery; refusing all further work keeps some rules true but recovers nothing that was owed. A crash cannot be refused by an admission check, so applying part~(1) to a real system also needs crashes to keep the rule true, or a separate argument about failure and recovery, for which part~(3) states what information must survive.
+Part~(1) can be met by a local check, by a signed permit from another machine that is checked before the effect, by a verified controller or by any other mechanism with the same property; the single-writer kernel is the construction this book develops, not the only one. Operations on separate resources, or whose order does not matter, need not wait for each other. Part~(3) makes retained receipts, or some other record that tells the histories apart, necessary for recovery; refusing all further work keeps some rules true but recovers nothing that was owed. A crash cannot be refused by an admission check, so applying part~(1) to a real system also needs every state a crash can leave behind to satisfy the rule, or a separate argument about failure and recovery, for which part~(3) states what information must survive.
 \pdscope{The theorem says where the obligations lie; it does not show that any particular kernel meets them, and it does not assume that generated proposals are always unsafe.}
 
 \section{Return to the checkout job}\label{sec:prereq-map}

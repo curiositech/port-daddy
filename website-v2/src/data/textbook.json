@@ -14,7 +14,7 @@
       "numeral": "I",
       "title": "Ground Truth",
       "color": "pdcobalt",
-      "blurb": "The first three chapters examine one program that makes every change on a machine, permissions passed from one agent to another, and a sealed environment that limits what an agent can reach. They separate what the software prevents from what it can only detect, and both from what is still only a design.",
+      "blurb": "The first three chapters examine one program that makes every change to a machine's coordination database, permissions passed from one agent to another, and a sealed environment that limits what an agent can reach. They separate what the software prevents from what it can only detect, and both from what is still only a design.",
       "chapters": [
         "single-writer-kernel",
         "anchor-protocol",
@@ -80,7 +80,7 @@
       "role": "proves",
       "discharges": "single-writer-kernel",
       "formerNumeral": "V",
-      "oneLine": "When an agent passes a permission on, the new permission can only be narrower than the one it came from, at every step, and the checker verifies the whole chain.",
+      "oneLine": "When an agent passes a permission on, the new permission can never be broader than the one it came from, at every step, and the checker verifies the whole chain.",
       "question": "How may authority travel without silently growing?",
       "teaser": "A reviewer may read a repository but may not deploy it. If that reviewer delegates another task, the new agent must inherit the same limit. Follow the signed permission chain and the checks that prevent a later delegate from gaining authority.",
       "epigraph": {
