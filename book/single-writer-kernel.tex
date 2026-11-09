@@ -274,8 +274,8 @@ SQLite file. Over the kernel's own state, every change is checked \emph{by
 construction}. Every change to \emph{coordination state} goes through one
 writer, so the daemon puts the changes in one order and is the one place the
 checks run; SQLite's file lock is a backstop. This is Saltzer and Schroeder's
-``economy of mechanism''~\pdcite{saltzer1975protection}: one mechanism in place
-of $N$ hand-written critical sections. The checking is complete only over
+``economy of mechanism''~\pdcite{saltzer1975protection}: one mechanism, with one
+moving part, in place of $N$ hand-written critical sections. The checking is complete only over
 writes that \emph{enter} the daemon. It does not cover what an agent running as
 the same user can do \emph{beside} the daemon. A classical reference monitor is
 always invoked because the hardware or operating system forces every access
@@ -294,7 +294,7 @@ state, with failover, look like a distributed-systems problem, and the usual
 reflex is Raft, Paxos or CRDTs. The kernel avoids that problem. With one writer
 on one machine using one file, there is nothing for several processes to
 \emph{agree} on, so the consensus impossibility result of Fischer, Lynch, and
-Paterson~\pdcite{flp1985} does not apply. The design avoids the result without
+Paterson~\pdcite{flp1985} does not apply. The design sidesteps the result without
 solving it. Distribution across machines belongs to the economy layer; a
 consensus protocol inside the local storage layer would be in the wrong layer.}
 A local writer avoids the agreement protocol required by a replicated
@@ -367,7 +367,7 @@ durability, where the chapter makes its largest correction.
 \input{figures/fig-swk-single-writer}
 \pdmarginanalogy{swk-one-printing-press}{}{one-printing-press}{Like our single-writer daemon, the platen handles jobs one after another.}
 In the kernel (Figure~\ref{fig:swk-single-writer}), dozens of command-line
-invocations and agent connections send their writes to one writer. That writer
+invocations and agent connections funnel their writes through one writer. That writer
 is the daemon, the only process holding a read--write connection to the
 database file. SQLite's operating-system file lock and a bounded busy-wait then
 put all changes in order. Two mechanisms can do that ordering, and the
@@ -478,7 +478,8 @@ writer except by running the same procedure in reverse, so the record never
 has two writers, even for the duration of a mistake. A flag would not do, for
 the same reason revocation needs an epoch in \pdchapref{anchor}{The Anchor
 Protocol}. The model-checked attack there restores a backup taken before a
-revocation and so brings a revoked credential back into use; it fails only
+revocation and so resurrects a dead credential, bringing a revoked one back
+into use; it fails only
 when stored state carries the epoch under which it was valid. A restored
 harbor database that predates the handover is the same attack against the
 writer role, and the same defence stops it. The argument is a
@@ -625,7 +626,7 @@ invariant.
 \section{The resource subsystem: claims, locks, and fair exclusion}
 \label{sec:resource}
 % ═════════════════════════════════════════════════════════════════════════════
-The project began with network ports: two agents that each start a development
+The project began with network ports, its namesake and its original sin: two agents that each start a development
 server on the same port collide, and one silently fails. The resource subsystem
 turns that problem into one exclusion mechanism, used for network ports, for
 named mutex locks, and for claims on regions of source files. Every higher
@@ -665,8 +666,8 @@ appears. One writer, one constraint, one holder.
 
 \input{figures/fig-swk-race-dramatization}
 
-In Figure~\ref{fig:swk-race-dramatization} both requests reach that one commit
-point: \texttt{claude:worker-1} is granted the port, and \texttt{codex:bench}
+Figure~\ref{fig:swk-race-dramatization} draws the two requests as two lanes
+converging on that one commit point: \texttt{claude:worker-1} is granted the port, and \texttt{codex:bench}
 is told who holds it.
 
 \subsection{The claim lifecycle as a finite-state machine}
@@ -797,7 +798,7 @@ race the first.
 The conspicuous gap in the claim lifecycle (Figure~\ref{fig:swk-claim-lifecycle}) is
 the absence of a \textsc{queued} state. Locks have a time-to-live, but acquisition is
 a race won by whoever asks first, so a fast agent that keeps re-acquiring a busy
-file can keep a slow agent waiting forever.
+file can starve a slow agent, keeping it waiting forever.
 
 \ifdefined\pdswisslandmarkplate
 \begin{figure}[p]
@@ -808,7 +809,7 @@ file can keep a slow agent waiting forever.
 \pdmarginpagebreak
 \fi
 
-The design that would close OP-1 without adding a background scheduler to the
+The design that would close OP-1 without dragging a background scheduler into the
 kernel is a \pdterm{Stigmergic Ticket-Lock}: each waiting agent leaves a
 numbered ticket in shared state, and the agent that releases the claim hands it
 to the lowest ticket. It is specified here in enough detail to build and to
@@ -849,7 +850,7 @@ and the queue share one code path and the ticket table exists.
 \input{figures/fig-swk-ticket-lock-delta}
 
 Figure~\ref{fig:swk-ticket-lock-delta} shows the change against the shipped
-state machine: cooperative release would consult the ticket queue, while
+state machine as one exit closed and one still open: cooperative release would consult the ticket queue, while
 expiry still bypasses it.
 
 \pdexercisepointer{\ref{ex:swk-release-idempotent}}{\ref{ex:swk-op1-ticket}}{\pageref{ex:swk-release-idempotent}}
@@ -899,8 +900,9 @@ coordination lineage & the coordination object: what work is already in flight, 
 \end{tabularx}
 \end{table}
 
-In the communication subsystem (Table~\ref{tab:swk-comm-organ}), stored
-records become messages between agents. The kernel implements the message
+In the communication subsystem (Table~\ref{tab:swk-comm-organ}), the store
+stops being a lockbox and becomes a medium for conversation: stored records
+become messages between agents. The kernel implements the message
 carrier; the \emph{meaning} carried on top of it (typed speech acts, protocol
 state machines) belongs to the coordination layer. Three pieces matter here:
 the bus, the shared markers that fade over time, and the two records of
@@ -950,12 +952,14 @@ insects~\pdcite{grasse1959}, coordination through marks left in the
 environment, and the tuple spaces of Gelernter's Linda~\pdcite{gelernter1985};
 ant-colony optimization uses it too~\pdcite{dorigo1999}. Each marker's weight
 decays exponentially, $w \cdot r^{\Delta t}$, at a rate set for its kind. The
-decay is computed both on a background tick \emph{and} at read time, so a
-reader sees the correctly decayed value without waiting for the tick, and a
-marker is deleted once its weight falls below a small threshold. Old signals
-therefore fade on their own instead of piling up on the shared board. How fast
+decay is computed both on a background evaporation tick \emph{and} at read
+time, so a reader sees the correctly decayed value without waiting for the
+tick, and a marker is deleted once its weight falls below a small threshold.
+Old signals therefore evaporate on their own instead of piling up on the
+shared board, which is the kernel's defense against blackboard rot. How fast
 they should fade is an open calibration question (OP-8): too slow and stale
-signals linger; too fast and they fade before other agents act on them.
+signals linger and rot; too fast and they evaporate before other agents act on
+them.
 
 \begin{pdexample}{The Decay Arithmetic a Calibration Will Use}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1073,7 +1077,8 @@ transports, and the hardening design of \S\ref{sec:merkle} does not change it.
 
 Later chapters borrow Hobbes's word \pdterm{sovereign} for the one authority
 whose rules every party accepts before acting. In a harbor that authority is
-the daemon, and this subsystem holds its two ways of making a rule bind.
+the daemon, and this subsystem holds the sovereign's two levers, its two ways
+of making a rule bind.
 The subsystem handles three kinds of rule; \emph{deontic} is the logician's
 word for rules of must, must-not and may, and we follow the vocabulary of
 deontic logic for computer systems of Jones and
@@ -1130,7 +1135,7 @@ stays expressible. The standard example is a dangerous override flag that a
 tool exposes for emergencies: it \emph{exists} (an agent is \emph{capable} of
 invoking it) but \emph{must not be used} (it is \emph{forbidden}). If capability
 and permission were one field, that state could not be written down, and a rule
-against silently bypassing safeguards would have nothing to check.
+against silently bypassing guardrails would have nothing to check.
 
 \input{figures/fig-swk-capability-permission}
 
@@ -1526,10 +1531,10 @@ Three consequences follow, from least to most important.
   sealed room proves from the other direction that the gate suffices; controllability says the
   gate is the only place a guarantee \emph{can} live. This is why ``all spend is recorded'' in
   the economy chapters is precisely complete mediation of $\Sigma_c$.
-\item \textbf{Two things a designer can change.} With plant, observation, and policy fixed, widening $\Sigma_c$
+\item \textbf{Two dials a designer can turn.} With plant, observation, and policy fixed, widening $\Sigma_c$
   (owning more channels) can remove a controllability obstruction; relabelling
   the same policy cannot.
-  The plant is the second thing a designer can change: $\overline{L}$ sits on the left of the containment, so shrinking
+  The plant is the other dial: $\overline{L}$ sits on the left of the containment, so shrinking
   it can remove offending histories, though a strict improvement is not guaranteed. The detect-only verdicts above
   turn on the universal plant enabling the forbidden event at the very start (\texttt{internal\_plan},
   for example), and are conditional on the modelling choice $L = \Sigma^{*}$. An event that never becomes physically possible needs no
@@ -1715,7 +1720,8 @@ modes again.\fi
 % Flush a pending top float as well: a paragraph pagebreak alone can leave
 % its caption on the comparison's supposedly fresh margin.
 \pdmarginpagebreak
-The five modes have two public neighbours that look similar to them.
+The five modes have two public neighbours that look similar enough to pass for
+the same instrument in different clothes.
 Sheridan and Verplank rank a system on a ten-point scale by how much of the
 decide-and-act loop the computer holds rather than the
 human~\pdcite{sheridanverplank1978}; Parasuraman, Sheridan and Wickens later
@@ -1735,7 +1741,8 @@ and neither of the other scales measures it.
 \begin{pdclaim}{Design invariant}{The Three Gradings Are Independent Axes}
 \setlength{\parskip}{4pt plus 1pt}
 No mechanism's assurance mode in this book is assigned from its automation level
-or from its evaluation depth, and every combination of extremes occurs.
+or from its evaluation depth, and every corner, every combination of extremes,
+occurs.
 
 A fully autonomous
 component (Sheridan level~10) whose actions are merely logged is
@@ -1925,8 +1932,8 @@ adding two kinds, and OP-5 stays open.
 
 Who checks the checker? \pdchapref{stp}{From Spawn to Person}%
 \ifpdbook\ (Theorem~\ref{stp:thm:tower-imported})\fi{} gives a conditional
-answer using a model in which work passes through several levels of
-inspection, each inspector drawn at random from separate groups. If a cheater
+answer with its inspection-tower model, in which work passes up through
+several levels of inspection, each inspector drawn at random from separate groups. If a cheater
 must pay bribes in advance and cannot know which inspector will be drawn, then,
 under a stated cost threshold, bribing does not raise the cheater's expected
 payoff (ties count against bribery). If, in addition, each level has at least a
@@ -1993,7 +2000,7 @@ cannot reliably say whose half-finished work this was.
 \end{pdexample}
 
 \textbf{Memory}, meaning session records, durable notes and the operation log,
-is implemented. The kernel also guards against forgetting: a monitor rule checks
+is implemented. The kernel even guards against amnesia: a monitor rule checks
 that an active session's durable note count never goes down. By
 Theorem~\ref{thm:schneider} that rule detects and compensates; it cannot
 prevent.
@@ -2021,8 +2028,8 @@ none of this today. Whether replaying the inputs is close enough to count as
 ``restoring work,'' and against what test, remains open, so the chapter reports
 the mechanism as a direction, not as a solution to OP-4.
 \pdchapref{stp}{From Spawn to Person} reaches the same limit from the identity
-side: a continuity witness can show that the ledger stayed with the right agent
-identity, never that the successor inherited the predecessor's experience.
+side: a continuity witness can show that the ledger followed the right body,
+the right agent identity, never that the successor inherited the predecessor's experience.
 
 \input{figures/fig-swk-rehydration-pipeline}
 
@@ -2190,7 +2197,8 @@ pieces together: a case file that outlives every clerk who touches it.
 
 \paragraph{The idea in one breath.}
 \emph{How do we know each guard is needed? Remove one guard at a time: each
-time, the checker finds a run that breaks one of the six promises. The
+time, the checker constructs the crime, a run that breaks one of the six
+promises. The
 shortest such runs take from one to seven steps.}
 
 \paragraph{Intuition: the notarized escrow folder.}
@@ -2264,8 +2272,8 @@ There is no proof to read; there is a search to rerun. The checker performs a br
 enumeration of the reachable states from the initial state, evaluates the six predicates in
 each, and stops at the first violation. The mutation suite then disables one guard at a
 time and reports the shortest violating trace it finds. A checker that has never caught a
-seeded bug is an unvalidated checker; the five traces below show that this one catches
-seeded bugs.
+seeded bug is an unvalidated checker; the five traces below show that this one has
+teeth and catches seeded bugs.
 
 \begin{pdexample}{The Crimes, and Their Shortest Scripts}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2311,7 +2319,7 @@ owner-funded $\wedge$ verified $\wedge$ receipted at settle & the wrong-principa
 
 The wrong-principal payout takes seven steps because the checker had to walk the
 entire legitimate path first: set the policy, admit the receipt, witness, verify, and only
-then settle from the wrong account. That is exactly how the fraud would look in
+then settle from the wrong purse. That is exactly how the fraud would look in
 production, which is the point of asking a machine rather than an author to find it.
 
 \paragraph{What it gives.}
@@ -2336,8 +2344,8 @@ Safety only: liveness
 (``the work eventually settles'') needs fairness assumptions this check does not make.
 
 And
-an invariant list is only as good as its coverage; the mutation suite shows that each of
-these six catches a seeded bug, and it does not show that the list is complete.
+an invariant list is only as good as its coverage; the mutation suite shows that these six
+have teeth, each catching a seeded bug, and it does not show that the list is complete.
 
 The unbounded-parameter version, in TLA\textsuperscript{+}
 with Apalache, is planned and not done.
@@ -2427,7 +2435,7 @@ under the SQLite bindings of one runtime (the compiled single-binary daemon), bu
 the test suite it is \emph{verified} under a different runtime's bindings; a thin
 shim normalizes their pragma and option interfaces. An invariant that passes under
 test can fail in production if the two bindings diverge in lock or pragma semantics,
-the classic ``passes in the test runtime, broken in the deployment runtime'' failure. A
+the classic ``green in the test runtime, broken in the deployment runtime'' failure. A
 continuous-integration pipeline must therefore \emph{boot the deployment runtime}
 and exercise its endpoints, not merely build it.
 
@@ -2485,7 +2493,7 @@ rows.
 A security argument depends on its threat model. The kernel deliberately keeps
 its trusted computing base small (one writer, one file), which is good security
 practice. Keeping it small puts several adversaries out of scope, and
-Table~\ref{tab:threat-model} names each one.
+Table~\ref{tab:threat-model} draws that boundary, naming each one.
 
 \renewcommand{\arraystretch}{1.25}
 \begin{table}[H]
@@ -2515,8 +2523,8 @@ agents}. They are not filesystem isolation enforced by the operating system: the
 is no syscall filter, no \texttt{pledge}/\texttt{unveil}, no macOS
 Seatbelt, no Landlock. A malicious agent ignores a claim row and writes the file.
 The kernel provides \emph{advisory} coordination; real OS sandboxing of agent
-processes is out of scope at this layer. It belongs to a kernel boundary under a
-separate user, outside the daemon (\S\ref{sec:enforcement-gap}), which is only
+processes is out of scope at this layer. It belongs to a jail outside the daemon, a
+kernel boundary under a separate user (\S\ref{sec:enforcement-gap}), which is only
 proposed and would need a real operating-system primitive. Advisory claims must
 not be read as isolation.
 
@@ -2571,7 +2579,7 @@ Today's coordination enforcement is the \textbf{Coordination Guard}
 (\texttt{cli/commands/guard.ts}) and a \textbf{git shim}
 (\texttt{cli/utils/git-shim.ts}) that intercept destructive commands. Both run
 \emph{in-band}, as the same user, through a \texttt{PATH} the agent controls, so
-the arrangement is advisory by construction: an agent that is refused has at
+the arrangement is advisory by construction: an agent refused at this wall has at
 least five escapes, none of which defeats any cryptography (a documented bypass environment variable,
 an absolute path to the real \texttt{git}, a \texttt{PATH} rewrite, in-process
 \texttt{libgit2}/editor bindings, or simply never attaching a session). The
@@ -2590,12 +2598,13 @@ through warnings to enforcement, with a one-second deadline per hook and a
 breaker that disables the harness when hooks start failing. It is a design for
 steering cooperative agents and gives no confinement guarantee: a same-user agent
 can disable the hook, or simply reach the effect directly. Guard, shim and harness
-therefore belong to one class. They work at the \pdassurance{Observed} and
+are therefore one class of tool seen three times. They work at the \pdassurance{Observed} and
 \pdassurance{Coordinated} modes, they are valuable for the transcript they leave
 and for the cooperative agents they steer, and they do nothing about an agent that
 declines them.
 
-Closing this gap takes several layers, and only the last one actually confines.
+Closing this gap takes several layers, and only the last one is a real wall
+that actually confines.
 A server-side branch-protection-plus-push-broker layer (\Designed) prevents the most
 damaging direct pushes to protected branches, but not same-user tricks; a credential
 broker that meters and injects credentials per request (\Vision) reduces the tokens
@@ -2606,7 +2615,8 @@ refusing the command. That separate-user boundary is the analogue of the
 hardware/operating-system boundary a classical reference monitor relies on for
 ``always invoked,'' and \emph{it does not yet exist}. Until it does, kernel
 enforcement against a non-cooperating same-user agent is \NotGuar: the gate leaves
-a verifiable transcript and raises a loud alarm, and it does not confine. The
+a verifiable transcript and is a loud tripwire that raises an alarm; it is no
+wall and does not confine. The
 mechanically verified macaroon result is real, and it does not mean the kernel can
 presently \emph{compel} a same-user agent to go through the gate. Figure~\ref{fig:swk-enforcement-layers}
 separates optional pre-effect refusal, the unchecked same-user route, and
@@ -2615,8 +2625,8 @@ conditional post-effect response, alongside each mechanism's source-reported mat
 \input{figures/fig-swk-enforcement-layers}
 \FloatBarrier
 
-This chapter therefore prescribes that separate boundary; it is not one option
-among the layers. The guard and the shim are interim tools at the Observed mode,
+This chapter therefore prescribes that separate boundary; it is not one more option
+on the menu of layers. The guard and the shim are interim tools at the Observed mode,
 kept because they leave a transcript, and the book does not build its argument on
 them. The boundary does \emph{not} settle whether the single-writer design is also
 the right way for several agents to share a repository, compared with a worktree
@@ -2727,7 +2737,7 @@ those objects needs its own boundary. \pdchapref{sealed}{The Sealed Harbor}
 develops confidentiality and bounded releases; \pdchapref{he}{The Harbor Economy}
 develops the separate licensing and payment contract. This chapter contributes what
 it has already specified. Taint is a persistent security label, unlike a stigmergic
-marker that fades (\S\ref{sec:comm}); letting it fade would reopen the forbidden
+marker that evaporates (\S\ref{sec:comm}); letting it fade would reopen the forbidden
 egress path. In the stated model, egress and file writes are controllable events
 (Theorem~\ref{thm:regimentation-controllability}), and the sandbox that would make an
 agent a different-uid process is OP-9's specified hardening (\S\ref{sec:merkle}).
@@ -2780,7 +2790,8 @@ what it explicitly does \emph{not} provide, so higher layers do not assume too m
   \item \textbf{A durable, versioned, history-cursored publish/subscribe bus}, a
   tuple space, and decaying stigmergic markers. The coordination layer's speech
   act is carried \emph{inside} the bus envelope, and the decay that clears stale
-  signals is \emph{provided} by the storage layer.
+  signals, the defense against blackboard rot, is \emph{provided} by the
+  storage layer.
   \item \textbf{The deontic split as a primitive} (Def.~\ref{def:deontic}):
   prohibition $\to$ monitor (detect/regiment), obligation $\to$ commitment,
   permission $\to$ capability. The coordination layer must not re-implement
@@ -2851,8 +2862,8 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
   otherwise permitted work; detection and compensation require separate
   evidence and remedies.
 \item Done means re-checkable. A commitment closes only through a reference from the
-  finite oracle vocabulary; free text leaves it open.
-\item Later layers are limited by continuity. Memory survives a crash; checkpoint keeps notes,
+  finite oracle vocabulary; free text bounces back and the commitment stays open.
+\item Continuity narrows downstream, so later layers are limited by it. Memory survives a crash; checkpoint keeps notes,
   not execution state; the outcome ledger is partial. Nothing built on top can be more
   certain than that.
 \item The kernel reports its own coverage. Enforced, degraded or stubbed, per rule, so
@@ -2897,7 +2908,7 @@ Module A renames \texttt{users.name} to \texttt{display\_name}; module B, loaded
 Follow a single claim request from command line to disk. At how many points does the single-writer discipline (Definition~\ref{def:single-writer}) hold by \emph{routing} versus by the \emph{file lock}?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-claim-routing}
-Command line, authenticated Unix-socket request, daemon request queue, the sole read/write connection, one transaction, WAL commit. The discipline holds by routing at two points, the client-to-API boundary and the daemon's sole-connection boundary; SQLite's file lock is one fallback at write time. The discipline depends mainly on routing; no database rule forbids other connections.
+Command line, authenticated Unix-socket request, daemon request queue, the sole read/write connection, one transaction, WAL commit. The discipline holds by routing at two points, the client-to-API boundary and the daemon's sole-connection boundary; SQLite's file lock is one backstop at write time. The discipline depends mainly on routing; no database rule forbids other connections.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op7-sequencer}
 The boot ledger orders migrations, but modules still self-initialize, so the order is not yet authoritative (OP-7). What is the smallest change that makes it so, a \texttt{user\_version} sequencer over \emph{declared} migrations, and can any useful remnant of ``any module, any order'' survive it for renames, backfills, and down-migrations?
@@ -3039,7 +3050,7 @@ A request speech act is sent over the bus and redelivered once by the at-least-o
 The transport delivers the request twice. The consumer applies one semantic state transition and recognizes the duplicate as transport nondeterminism; diagnostics may count the redelivery, the operator's view shows one act. An envelope idempotency key plus a unique (consumer, key) receipt lets the consumer store ``effect applied'' atomically with the effect, making retry safety explicit rather than conventional. Exactly-once is still not guaranteed for an unbrokered external effect.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op8-decay}
-What per-kind marker decay rate keeps stigmergic signals from lingering after they go stale or fading too early (OP-8)? Frame this as an empirical measurement, not a constant to guess.
+What per-kind marker decay rate keeps stigmergic signals from rotting (lingering after they go stale) or evaporating too early (OP-8)? Frame this as an empirical measurement, not a constant to guess.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-op8-decay}
 For each marker kind, log creation, reads, the actions it influenced, its supersession, and the time at which operators label it stale. Fit a survival curve and choose the half-life that minimizes $C_{\text{stale}}\cdot\text{false-live} + C_{\text{lost}}\cdot\text{false-expired}$, validated on held-out projects. Claims and presence should decay far faster than decisions or learned skills. Publish the confidence and re-estimate under drift.
@@ -3200,7 +3211,7 @@ mediation), \emph{tamper-resistant}, and \emph{small enough to be verified}.
 Lampson's \emph{Protection}~\pdcite{lampson1974} gives the access-matrix model the
 monitor enforces, and Saltzer and Schroeder's design
 principles~\pdcite{saltzer1975protection} (economy of mechanism, fail-safe
-defaults, complete mediation) are the standard we hold the kernel to. Where a
+defaults, complete mediation) are the yardstick we hold the kernel to. Where a
 classical security kernel mediates memory and CPU access for an operating system,
 ours mediates \emph{coordination} state for a set of cooperating processes, and it
 gets complete mediation more cheaply than by interposing on every system call: it
@@ -3373,7 +3384,7 @@ bindings and checking that the resulting states hash to the same value, is speci
 (\S\ref{sec:invariants}) and does not run in the pipeline today. Even once it does
 it is a test, not a proof: name the divergence class it would miss.
 \item[$\bigstar$ OP-4 --- Checkpoint that restores work.] Status: \Open, and still the most
-important unbuilt thing at this layer. It is two problems under one number. They
+important unbuilt thing at this layer. It is two problems wearing one number. They
 have different difficulties, different owners and, most important for anyone
 deciding what to build, different odds of ever being closed, so the table names
 them separately.
@@ -3403,7 +3414,7 @@ ordered boot ledger with post-apply schema verification ships
 migrations does not, and modules still self-initialize. Can any useful remnant of
 ``any module, any order'' survive safe renames, backfills, and down-migrations?
 \item[$\bigstar$ OP-8 --- Stigmergic decay calibration.] Status: \Open. The right per-kind
-decay, so coordination markers neither linger after they go stale nor fade before other agents act on them.
+decay, so coordination markers neither rot, lingering after they go stale, nor evaporate before other agents act on them.
 \item[$\bigstar$ OP-9 --- Same-machine adversary.] Status: \Open. \S\ref{sec:merkle}
 specifies the hardening (spawns in \texttt{bwrap}/\texttt{unshare} sandboxes
 under ephemeral UIDs, plus the kernel-verified peer credential
@@ -3450,9 +3461,9 @@ and compensates; it does not regiment, and among the states its rules cover we
 credit pre-commit regimentation only to the uniqueness constraint and the boot gate. Cross-subsystem
 atomicity is a defect that can be fixed now. Hash-chain tamper-evidence is
 narrowed to cross-machine provisioning, where it actually protects someone. The two
-real weak points, partial local identity enforcement (I12) and the lack of a
+genuine soft spots, partial local identity enforcement (I12) and the lack of a
 checkpoint that restores work (OP-4), are the two things a cross-machine economy
-and a durable notion of agent personhood depend on most.
+and a durable notion of agent personhood lean on hardest.
 
 \pdthesis{The kernel is solid where it is local and provisional exactly where a
 cross-machine economy would need it to be cryptographic and continuous.}
