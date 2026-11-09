@@ -25,6 +25,7 @@
 % Citation registrations for Chapter 0
 \ifdefined\pdbookreference
   \pdbookreference{agha1986actors}{282}{G.~Agha. \newblock \emph{Actors: A Model of Concurrent Computation in Distributed Systems}. \newblock MIT Press, Cambridge, MA, 1986.}{Agha 1986}
+  \pdbookreference{anderson1972}{336}{J.~P. Anderson. \newblock \emph{Computer Security Technology Planning Study}, Volume~I. \newblock Technical Report ESD-TR-73-51, U.S. Air Force Electronic Systems Division, October 1972. \newblock \href{https://apps.dtic.mil/sti/pdfs/AD0758206.pdf}{Primary record}.}{Anderson 1972}
   \pdbookreference{arrow1951social}{284}{K.~J. Arrow. \newblock \emph{Social Choice and Individual Values}. \newblock John Wiley \& Sons, New York, 1951.}{Arrow 1951}
   \pdbookreference{austin1962how}{285}{J.~L. Austin. \newblock \emph{How to Do Things with Words}. \newblock Oxford University Press, 1962.}{Austin 1962}
   \pdbookreference{becker1968}{287}{G.~S. Becker. \newblock Crime and punishment: An economic approach. \newblock \emph{Journal of Political Economy}, 76(2):169--217, 1968.}{Becker 1968}
@@ -902,7 +903,7 @@ If one constant $\epsilon>0$ lower-bounds every $\epsilon_t$, then $\Pr(\mathrm{
 The theorem shows how risk that keeps getting through the admission check accumulates: if every step lets an unsafe effect through with at least a fixed probability, the chance of staying safe shrinks geometrically with the number of steps. The hazard bound must be measured or otherwise justified; a positive sampling temperature does not imply it, and a policy restricted to safe actions has zero hazard. Hazards that shrink fast enough need not force failure: with $\epsilon_t=2^{-t-2}$ the hazards total at most $1/4$, so the union bound leaves survival probability at least $3/4$.
 \pdscope{The theorem does not show that every model must eventually fail, and an unsafe token a model proposes is not an unsafe effect unless the check lets it through.}
 
-\subsection{What the Model Sees Is Not a Record}
+\subsection{What the Model Sees Is Not a Record}\label{sec:prereq-context-record}
 
 A model's \pdterm{context window} is the text it can see at once. Like
 volatile RAM, it keeps nothing after the worker exits unless something
@@ -1080,7 +1081,7 @@ If the index costs $\ell_0$ tokens and asset $i$ costs $\ell_i$ when loaded with
 \end{figure}
 
 
-\subsection{Hooks and Supervisory Control}
+\subsection{Hooks and Supervisory Control}\label{sec:prereq-supervisory}
 
 \paragraph{Example: A write can be refused; a crash must be accommodated.}
 Suppose the next event is either a requested write or a power failure. A gate
@@ -1319,6 +1320,68 @@ leave it at 1, not 2.
 Part~(1) can be met by a local check, by a signed permit from another machine that is checked before the effect, by a verified controller or by any other mechanism with the same property; the single-writer kernel is the construction this book develops, not the only one. Operations on separate resources, or whose order does not matter, need not wait for each other. Part~(3) makes retained receipts, or some other record that tells the histories apart, necessary for recovery; refusing all further work keeps some rules true but recovers nothing that was owed. A crash cannot be refused by an admission check, so applying part~(1) to a real system also needs every state a crash can leave behind to satisfy the rule, or a separate argument about failure and recovery, for which part~(3) states what information must survive.
 \pdscope{The theorem says where the obligations lie; it does not show that any particular kernel meets them, and it does not assume that generated proposals are always unsafe.}
 
+\subsection{Why a Generative Model Cannot Be Its Own Kernel}\label{sec:prereq-no-self-kernel}
+Suppose the model that proposes a tool call is also asked to decide whether
+the call may take effect. It reviews its own proposal, and the harness runs
+whatever call the model finally emits. Could that model serve as the kernel of
+Definition~\ref{def:kernel}? This chapter already supplies the answer, and
+each part of it names a hypothesis that the arrangement does not meet.
+
+\paragraph{The decision is separate from the effect.}
+Part~(1) of Theorem~\ref{thm:kernel-gap} needs each change checked against the
+current state in one indivisible step with the change itself. The model judges
+the state its prompt described, and the harness assembled that prompt before
+inference began. The change happens later, when the harness runs the call, and
+another worker can write in between, as in the counter example. The model
+cannot close that gap, because the actuator that makes the change is outside
+the model.
+
+\paragraph{Nothing refuses the model's output.}
+In the supervisory-control model of Section~\ref{sec:prereq-supervisory},
+generating a token is an uncontrollable event. A refusal the model writes is
+itself an event of the generator $\mathcal G$, not a supervisor's choice. If
+the harness runs every call the model emits, the supervisor enables every
+event, so $\mathrm{Lang}(\Gamma/\mathcal G)=\mathrm{Lang}(\mathcal G)$, and the
+inclusion in $E$ holds only if every trace the model can produce is already
+safe. That is a property of the policy, which a review written by the same
+policy cannot establish. The review may make an unsafe call less likely, and
+so lower the hazard $\epsilon_t$ of Theorem~\ref{thm:non-determinism}, but it
+gives no reason for the hazard to be zero.
+
+\paragraph{Its state does not survive.}
+A kernel retains coordination state, and part~(3) of
+Theorem~\ref{thm:kernel-gap} needs records that survive a crash and tell two
+histories apart. A context window keeps nothing after the worker exits and can
+lose distinctions when it is compacted
+(Section~\ref{sec:prereq-context-record}). That is why Design
+invariant~\ref{req:external-state} keeps the system of record outside the
+model.
+
+\paragraph{It fails Anderson's requirements.}
+Anderson's 1972 planning study asked three things of the mechanism that
+validates each access: it must be tamper proof, it must always be invoked, and
+it must be small enough to be subject to analysis and
+tests~\pdcite{anderson1972}. A conventional access check keeps its policy apart
+from the requests it judges, but a model reads its instructions and the
+material it judges in one context window. Text that the monitored worker
+writes, or that reaches the model in a file or a tool's output, lands in the
+same input as the policy. \pdterm[prompt injection]{Prompt injection}, text
+written so that a model reading it will follow it as an instruction, is
+therefore tampering with the monitor's input; because the policy travels in
+that input, it can change the decision without changing the model. The model
+is also invoked only when the harness calls it, so an effect that reaches the
+host by another route, such as a subprocess an earlier call started, never
+passes through it. And the decision of a large model depends on billions of
+parameters and on the whole context, so tests cover the inputs tried, not the
+inputs an adversary will choose.
+
+The model may still propose, and its review of a proposal is evidence of the
+expert-judgment kind: an assessment that carries the assessor's error rate.
+The check that decides whether a change takes effect belongs at the actuator,
+outside the model, with durable state of its own.
+\pdchaplink{swk}{Chapter~1} builds that check.
+\pdscope{The argument shows that a model checking its own proposals fails the hypotheses of part~(1) of Theorem~\ref{thm:kernel-gap} and Anderson's requirements. It does not show that a model's review is worthless, or that every model will eventually propose an unsafe action.}
+
 \section{Return to the checkout job}\label{sec:prereq-map}
 The foundations give us a vocabulary for the interrupted repair. Follow the
 questions below in order on a first reading. The front-matter reader map offers
@@ -1456,7 +1519,9 @@ it can still affect the outcome.
 Commitment theory helps describe what persists; message kinds distinguish a
 request from an acceptance; incentives depend on detection and enforceable
 consequences. None replaces the others. The memory and attention calculations
-explain why a prompt cannot carry every record. Chapters 1--3 establish the
+explain why a prompt cannot carry every record, and a model
+that reviews its own proposals is still a proposer: its decision comes before
+the effect, and the party it judges can write to its input. Chapters 1--3 establish the
 checks on transactions, authority and disclosure; Chapters 4--8 use those
 checks for supervision, succession, exchange and federation.
 
