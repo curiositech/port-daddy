@@ -159,7 +159,7 @@ $\mathsf F(\texttt{migrate},\{\texttt{db:prod}\},[0,48])$. Alice files
 $\texttt{schema\_approved}\to\mathsf O(\texttt{migrate},\{\texttt{db:prod}\},[24,30])$.
 Today \texttt{schema\_approved} is not a fact, so the batch check passes.
 
-\emph{Reachable futures} (Theorem~\ref{thm:he-reachable-admission}). The
+\emph{Reachable futures} (admission against reachable maximal fact sets). The
 declared reachable fact sets are $\varnothing$ and
 $\{\texttt{schema\_approved}\}$. The theorem says to check only the largest.
 There the obligation fires and overlaps the freeze on
@@ -174,8 +174,8 @@ Without Alice, only Bob's prohibition remains, which is conflict-free, so Alice
 stays. The blame set is $\{\text{Bob},\text{Alice}\}$, found in two checker
 calls, and neither principal conflicts alone.
 
-\emph{Either-or} (Theorem~\ref{thm:deontic-frontier} and its two-principal
-form above). Let Alice's duty instead be ``migrate, or
+\emph{Either-or} (one step outside the fragment, and its two-principal form
+above). Let Alice's duty instead be ``migrate, or
 ship behind a feature flag''. Choosing the flag removes the clash, since no
 prohibition names that action. With many such choices from several
 principals, each consistent alone, finding a joint choice is NP-complete in

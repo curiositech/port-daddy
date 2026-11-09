@@ -5,8 +5,12 @@
 The settlement above billed Carol for the $16$ files her skill touched. That
 count stays in the example as a cap and as an illustration of a usage meter.
 This subsection replaces it as the basis for settlement. A licence can pay
-for four different observables. Each one can be moved by the licensor, and
-each moves in a different way.
+for four different observables, listed in the table below.
+Each one can be moved by the licensor, and each moves in a different way. Two
+of them come from cooperative game theory. A component's \pdterm{Shapley value}
+is its marginal contribution averaged over every order in which the components
+could have been added; its leave-one-out value is what is lost when it alone
+is removed.
 
 \begin{table}[H]
 \centering
@@ -31,6 +35,7 @@ the payee. A skill's text sits in the agent's context as instruction, so the
 licensor partly writes the behaviour the meter records.
 
 \begin{property}[Meter steering]\label{prop:he-meter-steering}
+\pdstatus{\Designed}{a boundary on the licence contract}
 \setlength{\parskip}{4pt plus 1pt}
 Let a licence pay $m(\tau)$, where $\tau$ is the trace of a run. The skill's
 text changes the distribution of $\tau$. Suppose two versions of a skill have
@@ -40,7 +45,7 @@ higher meter, and the buyer pays the difference for no outcome.
 
 A payment computed only from settled outcomes, under an assignment of skills
 to tasks that the licensor cannot see or set, is unchanged by such edits.
-\textbf{Status:} \Designed{} boundary on the licence contract. It is the payee's
+It is the payee's
 case of Theorem~\ref{thm:folk}: here the party being paid also writes the
 input to the signal.
 \end{property}
@@ -50,7 +55,8 @@ Property~\ref{prop:he-meter-steering}. They fail differently. Fix a set $N$
 of licensed components that may be made available to a task, each owned by
 one licensor. Let $v(S)$ be the expected settled value when exactly the
 components in $S$ are available, so $v(\emptyset)$ is the value with none
-of them. A \emph{royalty rule} $\phi$ assigns each component a share of
+of them. A \pdterm{royalty} is what a licensor is paid for the use of its
+components, and a \emph{royalty rule} $\phi$ assigns each component a share of
 $v(N)-v(\emptyset)$. The first two properties below are among the Shapley
 fairness conditions used for data marketplaces; the third is the condition
 under which their replication result holds~\pdcite{agarwal2019market}:
@@ -61,7 +67,7 @@ under which their replication result holds~\pdcite{agarwal2019market}:
   \item \textbf{Anonymity:} the rule reads $v$ and the component names only,
   not which licensor owns which component.
 \end{itemize}
-A rule is \textbf{split-proof} if no licensor can raise its total share by
+A rule is \pdterm{split-proof} if no licensor can raise its total share by
 re-packaging its own components into a game with the same outcomes: one
 component cut into pieces that act only together, or one component copied.
 
@@ -146,8 +152,8 @@ ownership, which an anonymous rule cannot do. A re-packaging inside one
 licensor then leaves the game the rule sees unchanged, so no share can move. The remaining attack is a false name: register a second licensor key
 and move a component to it. Pooling therefore turns the split attack into a
 Sybil attack on the licensor key (\S\ref{sec:keystone}). Whether it is
-deterred is the question that \pdchapref{stp}{From Spawn to Person} prices
-for reset identities%
+deterred is the question that \pdchapref{stp}{From Spawn to Person} answers,
+by computing a re-entry cost, for reset identities%
 \ifpdbook
 \ (Theorem~\ref{stp:thm:whitewash-cost})%
 \fi
@@ -159,6 +165,7 @@ needs no allocation at all: the split question arises only when several
 licensors' components share one context.
 
 \begin{definition}[Effect-gated royalty]\label{def:he-effect-royalty}
+\pdstatus{\Designed}{not implemented in the reference system}
 \setlength{\parskip}{4pt plus 1pt}
 For each task that settles green and in which the harbor assigned the
 licensor's components to be available, release
@@ -178,7 +185,6 @@ if a re-audit lowers $L$ or reverses the settlement. Loads, opens and
 touched files are recorded as telemetry only; they never set or cap $r$. A cap,
 if the licence has one, is a fixed amount per task written in the licence,
 because a cap computed from the trace can be raised by the licensor's own text.
-\textbf{Status:} \Designed{}; not implemented in the reference system.
 \end{definition}
 
 \noindent Take an illustrative price of $p=0.5$\,\textsc{cr} per point and a

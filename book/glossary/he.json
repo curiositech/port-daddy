@@ -1,0 +1,22 @@
+[
+  {"term": "float plan", "sort": "float plan", "definition": "The signed record of a work agreement: the task, the parties, the acceptance criteria and the funds each party has committed to it."},
+  {"term": "escrow", "sort": "escrow", "definition": "Money the ledger holds on behalf of a contract and releases only on the contract's terms."},
+  {"term": "bond", "sort": "bond", "definition": "A deposit a party posts and gets back if it delivers, and loses in whole or in part (is slashed) if it does not."},
+  {"term": "settlement", "sort": "settlement", "definition": "The single ledger step at the end of a contract that pays each party from escrow and returns or slashes each bond."},
+  {"term": "commons", "sort": "commons", "definition": "The ledger's shared fund that receives slashed bonds and pays for salvage and for onboarding a successor."},
+  {"term": "two-sided market", "sort": "two-sided market", "definition": "A platform market in which how the total price is split between two user groups, not only its level, changes how much trade happens (Rochet and Tirole)."},
+  {"term": "succession price", "sort": "succession price", "definition": "The ratio of a sole specialist's failure rate to its replacement rate above which a pool of interchangeable workers beats the specialist at any skill level."},
+  {"term": "Horn rule", "sort": "Horn rule", "definition": "An if-then rule with one conclusion: once all its premises hold, the conclusion is added as a fact."},
+  {"term": "ground", "sort": "ground", "definition": "Said of a rule written with fixed names and times only, so that no variable is left to fill in when it runs."},
+  {"term": "blame set", "sort": "blame set", "definition": "A set of principals whose commitments together cause a conflict, with no member redundant."},
+  {"term": "epoch root", "sort": "epoch root", "definition": "A value a harbor signs that commits to every card it has issued, narrowed or revoked up to a given epoch."},
+  {"term": "equivocation", "sort": "equivocation", "definition": "A harbor signing two contradictory epoch roots for the same epoch, so that different peers see different histories."},
+  {"term": "grim trigger", "sort": "grim trigger", "definition": "A repeated-game strategy that cooperates until the first observed defection and then defects forever."},
+  {"term": "adversarial test market", "sort": "adversarial test market", "definition": "An internal market in which independent test-writing agents are paid a bounty for each real flaw they find in a diff before it settles."},
+  {"term": "reporting panel", "sort": "reporting panel", "definition": "The set of k test-writing agents asked to find and report flaws in one diff."},
+  {"term": "assurance bound", "sort": "assurance bound", "definition": "The lower bound 1-(1-d)^k on the chance that a panel of k independent reviewers, each reporting a given flaw with probability at least d, reports it."},
+  {"term": "Becker deterrence condition", "sort": "Becker deterrence condition", "definition": "The condition that cheating does not pay when the expected punishment (chance of being caught times the penalty) is at least the gain from cheating."},
+  {"term": "Shapley value", "sort": "Shapley value", "definition": "A component's marginal contribution averaged over every order in which the components could have been added."},
+  {"term": "royalty", "sort": "royalty", "definition": "What a licensor is paid for the use of its licensed components."},
+  {"term": "split-proof", "sort": "split-proof", "definition": "Said of a royalty rule under which no licensor can raise its total share by cutting one component into pieces or copying it."}
+]
