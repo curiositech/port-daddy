@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40243877,
+    "bytes": 40241118,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/672dfc6372a70d7d6a08766504a623c2642122ae681af58d52d5f4c72b0ce311.tar.gz",
-    "sha256": "672dfc6372a70d7d6a08766504a623c2642122ae681af58d52d5f4c72b0ce311",
-    "url": "https://media.portdaddy.dev/book/source/sha256/672dfc6372a70d7d6a08766504a623c2642122ae681af58d52d5f4c72b0ce311.tar.gz"
+    "key": "book/source/sha256/05350e8c3bfb3c9c921ca949f6525e16573b2ec971dc9b14baad0a61e90fedba.tar.gz",
+    "sha256": "05350e8c3bfb3c9c921ca949f6525e16573b2ec971dc9b14baad0a61e90fedba",
+    "url": "https://media.portdaddy.dev/book/source/sha256/05350e8c3bfb3c9c921ca949f6525e16573b2ec971dc9b14baad0a61e90fedba.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
