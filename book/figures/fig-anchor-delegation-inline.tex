@@ -3,7 +3,7 @@
 % Reader question: what evidence travels with a multi-hop delegated
 %   capability, and what happens when an attacker splices a hop?
 % Claim: each signed hop binds parent, child and a fresh nonce to one shared
-%   task hash h; a spliced-in signature that does not cover the local nonce
+%   task hash; a spliced-in signature that does not cover the local nonce
 %   breaks exactly at the one crossing it touches.
 % Evidence: identities id1-id4 (\S "Phase 3: Stigmergic Delegation"); ordinary
 %   hops 1 and 3 (sig1, sig3, fresh n1/n3); the splice at hop 2 (sig3 moved
@@ -15,7 +15,7 @@
 %   missing before this redraw, flagged for the author to confirm). Rejected:
 %   a generic node-link graph -- the atlas's own rejection, since it would
 %   erase the left-to-right time order the splice depends on.
-% Five-second test: "three crossings, same shared hash h below; the middle
+% Five-second test: "three crossings, same shared hash below; the middle
 %   one is dashed red because its signature does not cover n2."
 \begin{figure}[H]
 \centering
@@ -52,11 +52,11 @@
 
   \draw[pd rule] (-5.55,-.35) -- (5.55,-.35);
   \foreach \x in {-5.1,-1.7,1.7,5.1} \node[pd focus datum,minimum size=4pt,inner sep=0pt] at (\x,-.35) {};
-  \node[pd label,anchor=north west,text width=1.9cm,align=left] at (-5.55,-.55) {task hash h};
+  \node[pd label,anchor=north west,text width=1.9cm,align=left] at (-5.55,-.55) {task hash};
 
   \node[pd note,anchor=north west,align=left,text width=6.9cm] at (-5.55,-1.15)
     {each ordinary crossing binds parent, child, a fresh nonce, and the same
-     task hash h; the breach crossing reuses sig3 (bound to n3) where n2 was
+     task hash; the breach crossing reuses sig3 (bound to n3) where n2 was
      expected, so verification fails at that crossing only};
 \end{tikzpicture}
 \caption{Each signature binds adjacent identities, a nonce, and the task hash. Moving a legitimate signature to another hop fails because its signed identities and nonce no longer match. [internal]}

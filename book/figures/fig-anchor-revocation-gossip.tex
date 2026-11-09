@@ -9,7 +9,7 @@
   \node[sg/check,fill=sgViolet!9,minimum width=91pt,minimum height=35pt] (sbrevcard) at (48,42)
     {Harbor Card\\\textsf{kid = r\_42}};
   \node[sg/check,draw=sgRed,minimum width=91pt,minimum height=29pt] (sbrevlog) at (48,112)
-    {local log\\$r\_42$ revoked};
+    {local log\\\textsf{r\_42} revoked};
   \node[sg/check,draw=sgTeal,fill=sgTeal,text=white,minimum width=91pt,
     font=\SGType\bfseries] (sbrevreject) at (48,162) {reject locally};
   \draw[sg/arrow,draw=sgRed] (sbrevcard.south)--(sbrevlog.north);
@@ -17,15 +17,15 @@
   \node[anchor=north west,font=\SGType\bfseries] at (167,0)
     {Remote: delivery missing};
   \node[sg/check,fill=sgViolet!9,minimum width=125pt,minimum height=35pt] (sbrevremote) at (240,42)
-    {same card arrives at\\remote verifier $B$};
+    {same card arrives at\\remote verifier};
   \node[sg/check,minimum width=125pt,minimum height=29pt] (sbrevstale) at (240,112)
-    {local log lacks $r\_42$};
+    {local log lacks \textsf{r\_42}};
   \node[sg/check,draw=sgAmber,minimum width=125pt,minimum height=29pt] (sbrevexposed) at (240,162)
     {may accept before update};
   \draw[sg/arrow,draw=sgViolet] (sbrevremote.south)--(sbrevstale.north);
   \draw[sg/arrow,draw=sgAmber] (sbrevstale.south)--(sbrevexposed.north);
   \node[draw=sgRed,fill=white,line width=.85pt,minimum width=104pt,minimum height=26pt,
-    align=center] at (148,77) {gossip delta $r\_42$\\not delivered};
+    align=center] at (148,77) {gossip delta \textsf{r\_42}\\not delivered};
 \end{tikzpicture}}
 \caption{The issuing daemon stops a revoked card locally. A remote verifier can still accept while its revocation update is undelivered; gossip convergence is not a global kill switch.}
 \label{fig:anchor-revocation-gossip}
