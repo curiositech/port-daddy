@@ -18,5 +18,6 @@
   {"term": "Kani", "sort": "Kani", "definition": "A verification tool for Rust code that checks a function on every input within stated limits and reports any input that breaks an assertion."},
   {"term": "bounded model checking", "sort": "bounded model checking", "definition": "Checking code on every input within stated size limits instead of on a few test inputs; a result says nothing about inputs beyond the limits."},
   {"term": "cover statement", "sort": "cover statement", "definition": "A request to the checker to find at least one input that reaches a stated outcome, which shows that passing assertions are not passing merely because no input reaches the code."},
-  {"term": "negative control", "sort": "negative control", "definition": "A deliberate breakage of the code that a working check must catch, used to show the check can fail."}
+  {"term": "negative control", "sort": "negative control", "definition": "A deliberate breakage of the code that a working check must catch, used to show the check can fail."},
+  {"term": "proof of possession", "sort": "proof of possession", "definition": "A rule for presenting a card: whoever shows it must also sign the request with the private key the card names, so that copied card bytes alone authorize nothing. Specified in Chapter 2, not built."}
 ]
