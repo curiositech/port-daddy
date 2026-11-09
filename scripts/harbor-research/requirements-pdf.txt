@@ -25,7 +25,12 @@
 # checks MEASURE with. They overlap in name at different versions on
 # purpose -- moving either to match the other would silently restate a
 # published measurement.
+#
+# pyyaml is not a reader of pages. It is here because check_corrections.py,
+# which run_pdf_checks.py runs on every PDF, reads book/corrections.yaml, and
+# every job that runs the page checks installs this file and nothing else.
 pillow==12.3.0
 numpy==2.4.6
 scipy==1.17.1
 pymupdf==1.28.2
+pyyaml==6.0.3

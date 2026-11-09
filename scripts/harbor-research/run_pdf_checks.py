@@ -72,6 +72,9 @@ PER_PDF_CHECKS = [
     # that one edition's typeface missed by 0.07 pt. All three editions now
     # report 0 O and 0 H. W findings stay advisory and do not fail the run.
     (os.path.join(REPO_ROOT, "scripts", "harbor-research", "page_spills.py"), []),
+    # Every row of book/corrections.yaml against the printed text: a
+    # correction's `before` must no longer print and its `after` must.
+    (os.path.join(REPO_ROOT, "scripts", "harbor-research", "check_corrections.py"), []),
 ]
 
 # Every check that takes the whole directory of freshly built editions at

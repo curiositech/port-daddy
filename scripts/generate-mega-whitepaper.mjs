@@ -19,11 +19,13 @@
  * when either generated projection has drifted from the JSON.
  */
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, extname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { loadGlossary, renderGlossary } from './generate-book-glossary.mjs';
+import { checkBookWelds, formatFindings, namespaceWeldLabel } from './lint/check-welds.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const textbookPath = resolve(repoRoot, 'book/textbook.json');
@@ -799,6 +801,12 @@ function namespaceLabels(body, prefix, chapterPrefixes = []) {
   const single = new RegExp(`\\\\(${LABEL_COMMANDS.join('|')})(\\*?)\\{([^}]+)\\}`, 'g');
   const range = new RegExp(`\\\\(${RANGE_COMMANDS.join('|')})(\\*?)\\{([^}]+)\\}\\{([^}]+)\\}`, 'g');
   return body
+    // \weld{label}{keyword} (figures/pd-weld.tex): the label is namespaced
+    // like a \ref, except that a Chapter 0 label (prereq:...) is left for the
+    // macro to resolve, since Chapter 0's labels are global. The keyword is
+    // prose and rides through untouched.
+    .replace(/\\weld\s*\{([^{}]+)\}/g, (_whole, label) =>
+      `\\weld{${namespaceWeldLabel(label, prefix, chapterPrefixes)}}`)
     .replace(range, (_whole, command, star, from, to) =>
       `\\${command}${star}{${namespaceOne(from, prefix, chapterPrefixes)}}{${namespaceOne(to, prefix, chapterPrefixes)}}`)
     .replace(single, (_whole, command, star, labels) =>
@@ -1395,38 +1403,154 @@ function loadCorpus(path = corpusPath) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// The build identifier: which source, which fonts, which day
+// ---------------------------------------------------------------------------
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+  'August', 'September', 'October', 'November', 'December'];
+
+// The inputs whose uncommitted edits make a build "+modified": the Book's
+// sources and the helpers that turn them into TeX.
+const BUILD_ID_INPUTS = ['book', 'scripts/build-whitepapers.sh', 'scripts/generate-mega-whitepaper.mjs',
+  'scripts/generate-book-glossary.mjs', 'scripts/lint/check-welds.mjs', 'scripts/prepare-book-fonts.py',
+  'scripts/harbor-research/render_status_tables.py'];
+
+function git(args, root) {
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+}
+
+/**
+ * The short commit the Book is built from. PD_BOOK_COMMIT overrides it. In a
+ * Git checkout of this repository it is HEAD, with "+modified" when a Book
+ * input has uncommitted changes. The source archive has no Git, but its
+ * SOURCE-MANIFEST.json names the exact source, so it prints that digest
+ * instead. A tree that is neither says so.
+ */
+function buildCommit(root = repoRoot, env = process.env) {
+  if (env.PD_BOOK_COMMIT) return env.PD_BOOK_COMMIT;
+  try {
+    // An archive extracted inside some other checkout must not borrow its HEAD.
+    if (realpathSync(git(['rev-parse', '--show-toplevel'], root)) === realpathSync(root)) {
+      const head = git(['rev-parse', '--short=9', 'HEAD'], root);
+      const dirty = git(['status', '--porcelain', '--', ...BUILD_ID_INPUTS], root);
+      return dirty ? `${head}+modified` : head;
+    }
+  } catch {
+    // no Git, or not a repository: fall through to the archive's manifest
+  }
+  const manifest = resolve(root, 'SOURCE-MANIFEST.json');
+  if (existsSync(manifest)) {
+    return `source ${JSON.parse(readUtf8(manifest)).sourceSha256.slice(0, 12)}`;
+  }
+  return 'unversioned';
+}
+
+/**
+ * The build date, from SOURCE_DATE_EPOCH (scripts/build-whitepapers.sh sets
+ * it per build, and the source archive pins it). A generator run outside the
+ * build falls back to HEAD's author time, which is what the build would use
+ * when no source has moved since.
+ */
+function buildEpoch(root = repoRoot, env = process.env) {
+  const pinned = env.SOURCE_DATE_EPOCH;
+  if (pinned !== undefined && pinned !== '') {
+    if (!/^\d+$/.test(pinned)) throw new Error(`SOURCE_DATE_EPOCH must be whole seconds, got ${pinned}`);
+    return Number(pinned);
+  }
+  try {
+    return Number(git(['log', '-1', '--format=%at', 'HEAD'], root)) || null;
+  } catch {
+    return null;
+  }
+}
+
+function formatBuildDate(epoch) {
+  if (epoch === null) return 'undated';
+  const date = new Date(epoch * 1000);
+  return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
+/**
+ * mega-volume-build-id.tex, read by figures/pd-buildid.tex. The font profile
+ * is not here: scripts/prepare-book-fonts.py decides it after this runs, and
+ * TeX reads it as \pdbookfontprofile.
+ */
+function renderBuildId({ root = repoRoot, env = process.env } = {}) {
+  const epoch = buildEpoch(root, env);
+  const commit = buildCommit(root, env);
+  if (/[\\{}%#$&^_~]/.test(commit)) throw new Error(`PD_BOOK_COMMIT must be plain text, got ${commit}`);
+  return [
+    '% GENERATED by scripts/generate-mega-whitepaper.mjs: the build identifier. Do not edit.',
+    `\\def\\pdbuildcommit{${commit}}`,
+    `\\def\\pdbuildepoch{${epoch ?? ''}}`,
+    `\\def\\pdbuilddate{${formatBuildDate(epoch)}}`,
+    '',
+  ].join('\n');
+}
+
+// A chapter source read for the Book: its document body with every \input
+// inlined, and its local bibliography split off.
+function prepareChapterSource(paper) {
+  const sourcePath = resolve(repoRoot, paper.source);
+  const rawSource = readUtf8(sourcePath);
+  const rootBody = documentBody(rawSource, paper.source);
+  const inlined = inlineInputs(rootBody, dirname(sourcePath), [sourcePath]);
+  const split = splitBibliography(inlined, paper.source);
+  return {
+    ...paper,
+    body: split.body,
+    references: split.entries,
+    hasExercises: sourceDeclaresExercises(rawSource),
+  };
+}
+
+// A chapter's body as the Book prints it, before its citations are collated:
+// standalone chrome and paper apparatus stripped, environments and labels
+// namespaced. scripts/lint/check-welds.mjs checks every \weld against exactly
+// this text, so the check and the build cannot disagree about a label.
+function bookChapterBody(paper, chapterPrefixes) {
+  const apparatus = stripPaperApparatus(cleanStandaloneChrome(paper.body));
+  const body = namespaceLabels(namespaceChapterSyntax(apparatus.body, paper), paper.prefix, chapterPrefixes);
+  return { body, stripped: apparatus.stripped };
+}
+
+/** Every chapter's namespaced body, by chapter id (for the weld lint). */
+function bookChapterBodies(textbook = loadTextbook()) {
+  const chapterPrefixes = textbook.chapters.map((c) => c.prefix);
+  return new Map(textbook.chapters.map((paper) =>
+    [paper.id, bookChapterBody(prepareChapterSource(paper), chapterPrefixes).body]));
+}
+
 function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOutDir) } = {}) {
-  const prepared = textbook.chapters.map((paper) => {
-    const sourcePath = resolve(repoRoot, paper.source);
-    const rawSource = readUtf8(sourcePath);
-    const rootBody = documentBody(rawSource, paper.source);
-    const inlined = inlineInputs(rootBody, dirname(sourcePath), [sourcePath]);
-    const split = splitBibliography(inlined, paper.source);
-    return {
-      ...paper,
-      body: split.body,
-      references: split.entries,
-      hasExercises: sourceDeclaresExercises(rawSource),
-    };
-  });
+  const prepared = textbook.chapters.map(prepareChapterSource);
 
   const canonicalReferences = collateReferences(prepared);
   const preparedById = new Map(prepared.map((paper) => [paper.id, paper]));
+  const chapterPrefixes = textbook.chapters.map((c) => c.prefix);
 
   const generatedBodies = [];
+  const namespacedBodies = new Map();
   for (const part of textbook.parts) {
     generatedBodies.push(renderPart(part));
     for (const chapter of part.chapters) {
       const paper = preparedById.get(chapter.id);
-      let body = cleanStandaloneChrome(paper.body);
-      const apparatus = stripPaperApparatus(body);
-      body = apparatus.body;
-      paper.stripped = apparatus.stripped;
-      body = namespaceChapterSyntax(body, paper);
-      body = namespaceLabels(body, paper.prefix, textbook.chapters.map((c) => c.prefix));
-      body = rewriteCitations(body, paper.citationMap, paper.source);
+      const book = bookChapterBody(paper, chapterPrefixes);
+      paper.stripped = book.stripped;
+      namespacedBodies.set(paper.id, book.body);
+      const body = rewriteCitations(book.body, paper.citationMap, paper.source);
       generatedBodies.push(renderChapter(paper, body));
     }
+  }
+
+  // Every cross-chapter \weld must name a numbered section whose text carries
+  // the keyword; a broken one fails here, not as a "??" on a printed page.
+  const welds = checkBookWelds({ textbook, chapterBodies: namespacedBodies });
+  if (welds.findings.length) {
+    throw new Error(
+      `${welds.findings.length} \\weld pointer(s) are broken:\n`
+        + formatFindings(welds.findings).map((line) => `  ${line}`).join('\n'),
+    );
   }
 
   canonicalReferences.sort(compareNormalizedReferences);
@@ -1498,6 +1622,9 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
   writeFileSync(resolve(out, 'mega-volume-map.tex'), renderTextbookMap(textbook), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-solutions.tex'), renderSolutions(chaptersWithExercises), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-mechanized.tex'), renderMechanizedClaims(loadCorpus()), 'utf8');
+  // The chapter-by-chapter dependency matrix the welds define (Appendix D).
+  writeFileSync(resolve(out, 'mega-volume-welds.json'), `${JSON.stringify(welds.matrix, null, 2)}\n`, 'utf8');
+  writeFileSync(resolve(out, 'mega-volume-build-id.tex'), renderBuildId(), 'utf8');
   // The glossary appendix, from book/glossary/*.json (one file per chapter).
   // A malformed glossary fails generation here, not twenty minutes into TeX.
   const glossary = loadGlossary();
@@ -1547,6 +1674,11 @@ function main(argv) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv.slice(2));
 
 export {
+  bookChapterBodies,
+  buildCommit,
+  buildEpoch,
+  formatBuildDate,
+  renderBuildId,
   cleanStandaloneChrome,
   firstAuthorSurname,
   referenceFingerprint,
