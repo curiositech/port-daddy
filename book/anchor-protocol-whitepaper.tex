@@ -180,7 +180,7 @@
 The operating system gives each running program a number, its process ID (PID), and hands the number to a new program once the old one exits. A PID alone therefore cannot tell the original agent from a replacement. Port Daddy calls the governed environment on the machine a harbor: inside it, an agent may act only after the daemon has checked its card, the signed record of what that agent may do. Consider what happens to such a check when the operating system reuses a PID.
 \begin{pdexample}{The Ghost in the Harbor, Traced through One PID}
 \setlength{\parskip}{4pt plus 1pt}
-\pdstatus{\Designed}{the daemon's current connection code makes only the weaker comparison; \S\ref{sec:limitations} tracks the gap}
+\pdstatus{\Designed}{the daemon's current connection code makes neither comparison, since it reports PID~0 (unknown) and checks an agent identifier the caller reports about itself; \S\ref{sec:limitations} tracks the gap}
 Agent~A holds a valid card and runs as PID~4021. It crashes at time $t$.
 Three seconds later the operating system gives 4021 to an unrelated Agent~B,
 which presents A's card. B found the card in a shared temporary file: the bytes
@@ -188,8 +188,8 @@ are identical, the signature is still good and the expiry is still in the future
 Now compare two daemons. One checks only the process number: it computes
 $4021 = 4021$ and accepts B. The other compares the caller with the connection
 recorded when the card was issued \emph{and} checks when the calling process
-started: it computes $t+3 > t$, sees a process that began after the card's
-holder did, and refuses B.
+started: it computes $t+3 > t$, sees a process that started three seconds
+after A died and so cannot be A, and refuses B.
 The card is the same for both daemons and every cryptographic check passes for
 both, so the whole decision rests on a comparison the card's cryptography never
 sees. A passing proof about the card cannot close this gap. [internal]
@@ -200,7 +200,7 @@ When several agents run at once on one machine (\texttt{localhost}), reading fil
   \item \textbf{Resource contention:} Two agents writing the same shared file, such as a SQLite database, with no lock between them, corrupt it.
   \item \textbf{Privilege escalation:} A reviewer agent started by a coder agent should not be able to deploy to production, yet local machines rarely hold one process to fewer rights than its user has (the principle of least privilege).
 \end{enumerate}
-\paragraph{The protocol in brief.} \emph{How can the daemon tell which agent may do what, when a process number proves nothing? Each agent shows a short-lived signed card listing what it may do, and a card passed on to another agent can only shrink. A child card asked for 20 minutes under a parent with 10 minutes left gets 10.}
+\paragraph{The protocol in brief.} \emph{How can the daemon tell which agent may do what, when a process number proves nothing? Each agent shows a short-lived signed card listing what it may do; a card passed on never grows, and a withdrawn card is refused once the withdrawal reaches the verifier. A child card asked for 20 minutes under a parent with 10 minutes left gets 10.}
 The protocol runs inside the harbor, where every agent must prove who it is and what it may do before it acts. It builds on capability-based security, in which holding an unforgeable token is what grants a right, from Dennis and Van Horn~\pdcite{dennis1966programming}, and on the principle of least privilege of Saltzer and Schroeder~\pdcite{saltzer1975protection}. Appendix~\ref{app:related} traces the rest of its history; a reader following the argument rather than the citations can skip it.
 \paragraph{How to read this chapter.} \S\ref{sec:architecture} describes the protocol in four phases, each closing a hole the previous one left open. \S\ref{sec:correct} gives the evidence from three verification layers: what each one proves, and what it leaves to the next. \S\ref{sec:adversary} states the attacker we assume, the properties that hold against it, and where the guarantees stop. Table~\ref{tab:anchor-verification-stack} summarizes the evidence; Table~\ref{tab:threat-closure} returns to port squatting, resource contention and privilege escalation and says how each is handled.
 \vspace{4pt}
@@ -231,7 +231,9 @@ live} (TTL). The protocol has four mechanisms, presented as phases. In
 signature is checked. In asymmetric identity the daemon signs with a private
 key that verifiers never hold. In delegation an agent hands part of its
 authority to another agent. \pdterm[revocation]{Revocation} withdraws a card before it
-expires. Revocation reaches other daemons by gossip. To \pdterm{gossip}
+expires. A fleet can run several daemons, one per machine for example, and a
+card issued by one may be shown to another; revocation reaches the others by
+gossip. To \pdterm{gossip}
 something, a daemon periodically sends what it knows to a few other daemons,
 which pass it on in turn, until every daemon has it. Used as an adjective, as in
 \emph{gossip protocol} or \emph{gossip mesh}, the word names a set of daemons
@@ -245,7 +247,7 @@ Each later phase keeps the earlier checks. In Figure~\ref{fig:anchor-four-phases
 for example, Phase~2 separates signing from verification and still needs
 Phase~1's pinned algorithm. Table~\ref{tab:anchor-four-phases} in
 Appendix~\ref{app:anchor-mech} restates the figure one phase per row.
-One rule runs through every phase, capability \pdterm{attenuation}: a card handed on to another agent never carries more authority than the card it came from. Each handing-on is a \pdterm{hop}, one step from a parent card's holder to a child card's holder. A child's expiry is the earlier of its parent's expiry and the requested expiry, so a request for twenty minutes under a parent with ten minutes left produces a ten-minute card, and an already-signed child claiming the longer expiry must fail verification. Rights and expiry can narrow or stay the same; they never widen. Figure~\ref{fig:anchor-capability-attenuation} shows a valid child, a request shortened before signing, and a refused extra right.
+One rule runs through every phase. Under capability attenuation, a card handed on to another agent never carries more authority than the card it came from. Each handing-on is a \pdterm{hop}, one step from a parent card's holder to a child card's holder. A child's expiry is the earlier of its parent's expiry and the requested expiry, so a request for twenty minutes under a parent with ten minutes left produces a ten-minute card, and an already-signed child claiming the longer expiry must fail verification. Rights and expiry can narrow or stay the same; they never widen. Figure~\ref{fig:anchor-capability-attenuation} shows a valid child, a request shortened before signing, and a refused extra right.
 \pdmarginanalogy{anchor-reduced-key}{A smaller set of permissions}{reduced-key}{Removing teeth suggests removing authority. A capability must also bind that restriction cryptographically.}
 \begin{pdexample}{A Child Card under a Parent with Ten Minutes Left}
 \setlength{\parskip}{4pt plus 1pt}
@@ -298,8 +300,9 @@ The Port Daddy verifier pins the algorithm.
 
 The card cannot choose how it is checked. The verifier takes the allowed
 algorithm and key type from its own trusted policy, then checks the card's
-header against that policy. Rejecting a header that disagrees is part of
-pinning; running whatever algorithm the header asks for is the attack.
+header against that policy. Rejecting a header that disagrees with the policy
+is consistent with pinning; running whatever algorithm the header asks for is
+the weakness the attack exploits.
 
 This is what RFC~8725, the Internet standards body's current best practice for JWTs, recommends~\pdcite{rfc8725jwtbcp}.
 \end{pdclaim}
@@ -321,7 +324,9 @@ The payload must also decode, carry the supported version, and pass the
 issued-at, expiry and valid-from (not-before) time checks.
 
 Two further checks happen elsewhere: \texttt{verify\_for\_channel} checks that
-the card covers the channel in use, and the caller's store checks revocation.
+the card grants the requested operation (publish or subscribe) on the named
+message channel, such as \texttt{logs.build}, where a grant can name one channel
+or a pattern such as \texttt{logs.*}; and the caller's store checks revocation.
 A card can be authentic and unexpired and still be refused by either.
 
 Design invariant~\ref{prop:alg-pinning} therefore gives no reason to delete
@@ -367,9 +372,9 @@ Figure~\ref{fig:anchor-handshake-ladder} shows the exchange in time order: who s
 
 \input{figures/fig-anchor-handshake-ladder}
 
-For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature covers a fresh nonce and the identities of the previous and next holders, so an attacker who intercepts one hop cannot splice it into a different chain.
+For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature must cover a fresh nonce and the identities of the previous and next holders, so that an attacker who intercepts one hop cannot splice it into a different chain.
 
-Two older bodies of work study the property checked here more directly than macaroons do. SPKI/SDSI, a public-key certificate system from the late 1990s, asks whether a chain of certificates only ever narrows as it lengthens, and answers by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the harbor's per-hop subset check is that reduction done one link at a time. Miller's object-capability discipline, in which a capability is the only route to any authority and nothing is allowed merely because a process is present, was worked out for concurrent components that do not trust each other~\pdcite{miller2006robustcomposition}. It is closer to this protocol's split between capabilities and permissions than Dennis and Van Horn's founding 1966 statement. The design rule that follows is to restrict a capability when it is issued and also check the chain when it is verified, so that the chain check is a second defense rather than the only one. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} shows why: checking each card against the root instead of its immediate parent accepts a card that re-grants a right a middle hop had removed.
+Two older bodies of work study the property checked here more directly than macaroons do. SPKI/SDSI, a public-key certificate system from the late 1990s, asks whether a chain of certificates only ever narrows as it lengthens, and answers by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the harbor's per-hop subset check is that reduction done one link at a time. Miller's object-capability discipline, in which a capability is the only route to any authority and nothing is allowed merely because a process is present, was worked out for concurrent components that do not trust each other~\pdcite{miller2006robustcomposition}. That rule, under which authority comes only from a capability held, fits this protocol more closely than Dennis and Van Horn's founding 1966 statement. The design rule that follows is to restrict a capability when it is issued and also check the chain when it is verified, so that the chain check is a second defense rather than the only one. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} shows why: checking each card against the root instead of its immediate parent accepts a card that re-grants a right a middle hop had removed.
 
 \input{figures/fig-anchor-delegation-inline}
 
@@ -385,7 +390,7 @@ it may accept until expiry. Figure~\ref{fig:anchor-revocation-gossip}
 will compare those two verifiers. The problem has two parts. Each daemon must
 store its denials correctly, and the denials must reach the other verifiers.
 
-Cards expire on their own, but sometimes that is too late. Two events force earlier withdrawal: (i) \emph{compromise}, when a Harbor Card leaks from its agent's process and the attacker holds real authority until the card expires; and (ii) \emph{policy reversal}, when the person who granted a right decides an agent should no longer hold \texttt{db:write} and waiting for expiry is unacceptable. Checking a card against a plain list of $n$ revoked IDs takes time proportional to $n$. A hash set of the IDs answers in constant expected time but stores every ID in full. The daemon instead keeps a smaller, approximate index called a \pdterm{cuckoo filter}~\pdcite{fan2014cuckoo}, explained below. As long as every insertion succeeded and deletions are handled correctly, the filter never misses a revoked ID, but it occasionally reports a card as revoked when it is not, a \pdterm{false positive}; the daemon settles each such hit by looking the ID up in its authoritative revocation table. Daemons gossip the log of revoked IDs, which is append-only (entries are only ever added) and ordered with \pdterm[vector clock]{vector clocks}. A vector clock is a list of counters, one per daemon, recording how many of that daemon's updates a copy of the log has seen. Daemons do not gossip their filters, because two filters cannot be merged by OR-ing their bits. Each daemon rebuilds its own filter from the log.
+Cards expire on their own, but sometimes that is too late. Two events force earlier withdrawal: (i) \emph{compromise}, when a Harbor Card leaks from its agent's process and the attacker holds real authority until the card expires; and (ii) \emph{policy reversal}, when the person who granted a right decides an agent should no longer hold \texttt{db:write} and waiting for expiry is unacceptable. Checking a card against a plain list of $n$ revoked IDs takes time proportional to $n$. A hash set of the IDs answers in constant expected time but stores every ID in full. The daemon instead keeps a smaller, approximate index called a \pdterm{cuckoo filter}~\pdcite{fan2014cuckoo}, explained below. As long as every insertion succeeded and deletions are handled correctly, the filter never misses a revoked ID, but it occasionally reports a card as revoked when it is not, a \pdterm{false positive}; the daemon settles each such hit by looking the ID up in its authoritative revocation table. Daemons gossip the log of revoked IDs, which is append-only while its cards are live (an entry is dropped only once its card has expired; see the truncation rule below) and ordered with \pdterm[vector clock]{vector clocks}. A vector clock is a list of counters, one per daemon, recording how many of that daemon's updates a copy of the log has seen. Daemons do not gossip their filters, because two filters cannot be merged by OR-ing their bits. Each daemon rebuilds its own filter from the log.
 
 \paragraph{How a cuckoo filter works.} A cuckoo filter is a compact, approximate set that, unlike older designs, supports deletion. Each inserted key is reduced to a \emph{fingerprint}, a few bits of its hash, and stored in one of two candidate \emph{buckets}, small groups of slots chosen by hashing the key. If both buckets are full, a stored fingerprint is moved to its other bucket, as a cuckoo chick pushes an egg out of the nest, until a slot opens or the insertion fails. A lookup inspects both buckets, so its expected cost is constant. With buckets of $B$ slots and $f$-bit fingerprints, the chance of a false positive is at most about $2B/2^f$ when collisions are rare. The fuller the filter, the more insertions fail; the daemon then rejects the insertion or rebuilds the filter, and never silently drops a revocation. Two keys can share a fingerprint, so deletion must be counted or checked against the authoritative table; otherwise removing one key could remove the other's entry and make a revoked card look valid again.
 
@@ -433,10 +438,11 @@ What matters is how full the filter gets. The false-positive bound of about
 $2B/2^f$ holds for a filter kept below a maximum fill fraction, its
 \pdterm{load ceiling}; above that, insertions begin to fail, and the daemon
 must reject the insertion or rebuild the filter rather than silently drop a
-revocation. Port Daddy's filter refuses insertions beyond 95 percent of its
-slots, and the property test in Table~\ref{tab:anchor-status} checks the bound
-at that load. So the daemon limits how full the filter may get, not how many
-bytes it uses. [internal]
+revocation. Port Daddy's cuckoo-filter library, which the revocation check
+does not yet use, refuses insertions beyond 95 percent of its slots, and its
+property test (Table~\ref{tab:anchor-status}) checks the bound at that load.
+So the design limits how full the filter may get, not how many bytes it uses.
+[internal]
 \end{pdexample}
 
 \begin{pdclaim}{Design invariant}{Revocation-Augmented Verification}
@@ -485,7 +491,7 @@ $t$ exceeds the entry's recorded card expiry plus that allowance, without
 changing any live card's authoritative revocation status.
 
 Because attenuation
-only ever shrinks a lifetime (\S\ref{sec:architecture}), no descendant of a
+never lengthens a lifetime (\S\ref{sec:architecture}), no descendant of a
 revoked card can outlive the entry that names it, so a dropped entry cannot be
 needed again by a chain derived from it.
 
@@ -587,24 +593,29 @@ Following the practice of AWS (s2n-tls~\pdcite{aws2022s2n}) and Microsoft (Proje
 Trace one obligation, \emph{no hop may widen rights}, down the stack.
 
 (1)~Model. The ProVerif model \texttt{harbor\_card\_v7} checks
-\texttt{is\_subset(mid, root)} and \texttt{is\_subset(final, mid)}. Its RESULT
-line is true, so the escalating chain is never accepted, provided
-\texttt{is\_subset} is the right order.
+\texttt{is\_subset(mid, root)} and \texttt{is\_subset(final, mid)}. ProVerif
+reports the query \emph{the escalating chain is never accepted} as true. The
+result holds only if the model's \texttt{is\_subset}, the rule saying which
+capability is contained in which, matches the real one.
 
-(2)~Source. The Rust counterpart is the predicate
-\texttt{harbor\_verify\_caps\_subset\_json}. Its Kani \emph{harness}, the small
-program that sets up the inputs and assertions Kani checks, covers lists of
-at most two entries drawn from four one-byte rights and compares acceptance
-with bit-set inclusion. Longer lists and arbitrary strings are not covered.
+(2)~Source. The Rust counterpart is \texttt{verify\_capability\_subset}, which
+the FFI export \texttt{harbor\_verify\_caps\_subset\_json} calls after parsing
+two JSON lists. Its Kani \emph{harness}, the small program that sets up the
+inputs and assertions Kani checks, covers lists of at most two entries drawn
+from four one-byte rights and compares acceptance with bit-set inclusion.
+Longer lists, arbitrary strings and the export's JSON parsing are not covered.
 
 (3)~Binary. The daemon's Arbiter, a monitor described below, loads that
-function through the FFI, the foreign-function interface that lets the
+export through the FFI, the foreign-function interface that lets the
 TypeScript daemon call compiled Rust (the FFI listings are in
 Appendix~\ref{app:anchor-mech}), and calls it in its \texttt{CAP\_ESCALATION}
-rule.
+rule. The Arbiter checks only after a change is committed, so here a widening
+is detected and cleaned up, not prevented; the conformance suite is what shows
+the running binary refusing the tested attacks.
 
-Two gaps remain where a person, not a tool, must vouch. Gap~1: is the model's
-two-atom order the same relation as the Rust predicate? Gap~2: is the library
+Two gaps remain where a person, not a tool, must vouch. Gap~1: the model has
+just two capabilities, read and write, with read contained in write; is that
+the same containment rule the Rust predicate applies to lists of rights? Gap~2: is the library
 the daemon loads built from this crate? [internal]
 \end{pdexample}
 
@@ -652,7 +663,7 @@ For the modeled delegation phase, ProVerif confirmed the correspondence:
 
 In words: every card accepted for $b$ was either issued to $b$ by the daemon, or issued to some $a$ who then delegated it to $b$. The match is \emph{non-injective}: one issuance can match several acceptances.
 \end{pdclaim}
-\pdscope{It does not show freedom from replay, attenuation, or safety for chains of any depth; those are separate queries.}
+\pdscope{It does not show freedom from replay, attenuation, or safety for chains of arbitrary depth; those are separate queries.}
 
 Each of the three protocol phases was checked separately in ProVerif 2.05.
 Table~\ref{tab:proverif-results} adds two tests of algorithm confusion;
@@ -729,13 +740,13 @@ A secure protocol design is no help if the code has memory errors, such as readi
 \begin{pdclaim}{Design invariant}{Memory Safety within the Harness Bound}
 \setlength{\parskip}{4pt plus 1pt}
 \label{inv:anchor-memory-safety}
-Kani~\pdcite{aws2022kani} checks the card parser on every token of at most 32 bytes of valid UTF-8 text containing a dot, unrolling each loop at most 128 times (its \emph{unwind bound}).
+Kani~\pdcite{aws2022kani} checks the card parser on every token of exactly 32 bytes of valid UTF-8 text containing a dot, unrolling each loop at most 128 times (its \emph{unwind bound}).
 
 The harness replaces three functions with simple stand-ins, or \emph{stubs}: key decoding returns a fixed key; base64 decoding, which turns the card's text back into bytes, returns either an error or 32 zero bytes; signature verification returns success or failure.
 
 On every path these stubs allow, the code neither panics (aborts with a runtime error) nor reads or writes out of bounds.
 \end{pdclaim}
-\pdscope{The stubbed header of 32 zero bytes is not valid JSON, so this harness never reaches successful card acceptance, and longer tokens and the real cryptography lie outside it.}
+\pdscope{The stubbed header of 32 zero bytes is not valid JSON, so this harness never reaches successful card acceptance, and shorter or longer tokens and the real cryptography lie outside it.}
 
 \begin{pdclaim}{Design invariant}{Secret-Independent Source Control Flow}
 \setlength{\parskip}{4pt plus 1pt}
@@ -749,7 +760,8 @@ This is a property of the source text, established by reading it; Kani adds only
 \subsection{The procedures, precisely}\label{sec:algorithms}
 
 The pseudocode below shows only signature checking and per-hop attenuation. A
-complete card verifier must also check expiry, audience, format, the calling
+complete card verifier must also check expiry, audience (the harbor the card
+was issued for), format, the calling
 process and revocation. The symbols $\bot$ and $\top$ mean rejection and
 acceptance. \texttt{Encode} is a fixed encoding with exactly one way to read
 any message; the symbolic models in Appendix~\ref{app:proverif} assume that
@@ -911,10 +923,10 @@ function Harbor.VerifyChain(chain, pk_daemon):
 
 The \texttt{harbor-card-rs} crate, a Rust package, supplies both the source
 compiled into the shared library the daemon loads and the Kani harnesses.
-Sharing source keeps the checked code and the shipped code from drifting apart,
-but the harnesses still cover different parts of it. The harnesses are
+Sharing source removes one way for the checked code and the shipped code to
+drift apart, but the harnesses still cover different parts of it. The harnesses are
 compiled only under \texttt{cfg(kani)}. One parser harness replaces three
-functions with stubs and limits tokens to 32 bytes; the decoded-claims
+functions with stubs and limits tokens to exactly 32 bytes; the decoded-claims
 harnesses call the production functions with no stubs. A Kani
 \pdterm{cover statement} asks the tool to find at least one input that reaches a stated
 outcome, which shows that a harness whose assertions pass is not passing
@@ -929,15 +941,16 @@ The decoded-claims harness states the lifetime rule as a formula: accept
 exactly when the version is 2, issued-at $\le$ expiry, issued-at $\le$
 now $+\,60$\,s, now $\le$ expiry, and not-before is absent, zero or $\le$ now.
 It checks that the Rust function agrees with the formula for every 64-bit value
-of every field, far too many cases to enumerate. Its covers demand that each
-verdict be reachable. The version-2 card worked again after the harness
-listing, issued at 950, expiring at 1000 and valid from 980, gives one of each:
+of the version and time fields, far too many cases to enumerate. Its covers
+demand that each verdict be reachable. Take the version-2 card used in the
+example after the harness listing: issued at 950, expiring at 1000 and valid
+from 980. It gives an acceptance and two kinds of rejection:
 it is accepted at 990 ($980 \le 990 \le 1000$ and $950 \le 990 + 60$),
 rejected at 1001 (expired) and rejected at 979 (not yet valid).
 
 The parser harness, by contrast, runs the real \texttt{verify()} on tokens of
-at most 32 bytes. Its base64 stub returns either an error or 32 zero bytes, and
-32 zero bytes are not valid JSON, so every run stops at the header decode and
+exactly 32 bytes. Its base64 stub returns either an error or 32 zero bytes, and
+32 zero bytes are not valid JSON, so every run stops at or before the header decode and
 never reaches the algorithm check or the claims check. The one harness that
 runs \texttt{verify()} never reaches the lines the other harnesses prove things
 about. [internal]
@@ -1021,9 +1034,10 @@ fn proof_decoded_claims_policy() {
 }
 \end{lstlisting}
 
-The harness's reference formula, its \emph{oracle}, computes in 128-bit
-arithmetic, so it checks the production function's capped 64-bit clock-skew
-arithmetic against an independent expression. Every signed 64-bit timestamp
+The production function adds the 60-second clock-skew allowance in 64-bit
+arithmetic that stops at the largest 64-bit value instead of overflowing. The
+harness's reference formula, its \emph{oracle}, does the same sum in 128-bit
+arithmetic, which cannot overflow, so the two are computed independently. Every signed 64-bit timestamp
 and version value is in range, including the extremes where the arithmetic
 caps. The seven covers include successful acceptance and each kind of
 rejection. The harness leaves identity strings empty on purpose: this
@@ -1058,11 +1072,12 @@ Requests use \texttt{pub} or \texttt{sub} on one of
 $\{\epsilon,\texttt{a},\texttt{ab},\texttt{aba},\texttt{b},\texttt{ba}\}$.
 An independent oracle that lists the finite cases checks the actual channel
 matcher, and three covers require an authorized, an unauthorized and an
-expired case.
+invalid-lifetime case.
 
 The two-hop harness uses the same operations and patterns, one grant
-at each of root, child and grandchild, and rate and payload ceilings that are
-either absent or any unsigned 64-bit value. It asks whether two accepted
+at each of root, child and grandchild, and the grant's two optional limits, a
+maximum message rate per minute and a maximum payload size, each either absent
+or any unsigned 64-bit value. It asks whether two accepted
 immediate-parent checks imply that the root covers the grandchild directly and
 that both ceilings are preserved. Five covers require accepted chains, a
 rejected second hop, the case a root-only check wrongly accepts, and accepted
@@ -1100,8 +1115,9 @@ workflow is not a passing run; the recorded verdict and the bounds in
 Kani~0.67.0, all five per-change harnesses and all 17 covers pass, and both
 negative controls produce the required named counterexamples. The ordinary
 Rust test suite passes 103 tests, including the signed-card example and a
-check that the 256 possible selector values together generate exactly the
-documented finite input sets. These results establish the stated bounded
+check that the 256 possible values of the one-byte selector, which the
+harnesses use to pick each grant's operation and pattern, together produce
+exactly the documented finite sets. These results establish the stated bounded
 checks.
 \pdscope{They do not certify the cryptographic primitives, arbitrary strings, or the daemon's use of the library.}
 
@@ -1216,7 +1232,8 @@ the other user cannot open. Faster gossip does not prevent credential theft.
   session's chain still has that fixed depth. The spawn policy and the
   verifier also have different depth limits, worked by hand in
   Appendix~\ref{sec:anchor-limitations-boundaries}. The per-hop argument shows
-  that rights never grow along any finite chain; it does not show that every
+  that rights never grow along any finite chain in which every hop passed the
+  subset check; it does not show that every
   path through the daemon enforces a maximum depth.
   \item \textbf{A program is not a person.} A Harbor Card authenticates whoever holds it, not a human and not, by itself, a process. The Ghost in the Harbor scene of \S\ref{sec:problem} is a gap in binding a card to a process: nothing in the card's cryptography stops a \emph{different} process from presenting a card whose original holder has died, because the card says what may be done, not who is doing it. The daemon's local connection code does not yet make the stronger check of the
 opening example. \path{lib/ipc-auth.ts} returns PID~0 (unknown) and the daemon's
@@ -1938,7 +1955,7 @@ daemon applies, not a property the verifier guarantees. [internal]
     \item \textbf{Threat Model Exclusions:} Collusion across all independent subsystems (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out of scope; if all enforcing components are compromised, the guarantees become advice only.
     \item \textbf{Performance Trade-offs:} Cryptographic checks and the chosen transaction-durability policy incur computation and I/O costs. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
     % SUBMISSION-SKILL: this bullet previously read "...surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing)..." — verbatim boilerplate carried over from the Bonded Commons chapter's identically-named appendix (agent-transactions-whitepaper.tex, \S\ref{sec:bonded-limitations-boundaries}). Judge markets and multi-sig routing are not Anchor Protocol concepts; retargeted to the boundaries this chapter actually names in \S\ref{sec:limitations}.
-    \item \textbf{Implementation Maturity:} The core protocol runs in production; three items discussed in \S\ref{sec:limitations} do not yet.
+    \item \textbf{Implementation Maturity:} The core protocol runs in production. Three items in \S\ref{sec:limitations} are unfinished: the delegation proof covers fixed depths only, and no depth limit at verification or protection of the transport is enforced.
     \pdstatus{\Built}{Harbor Cards, delegation and revocation}
     \pdstatus{\BuiltWeak}{the delegation proof, which covers fixed depths only}
     \pdstatus{\Designed}{a chain-depth limit enforced at verification, and enforced protection of the transport}
@@ -2063,7 +2080,7 @@ The ideas the rest of the book relies on, in order:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item A \textbf{harbor card} is a short-lived signed statement of exactly what one agent may do; the daemon checks the card, not the process, and a process with no card can do nothing the harbor mediates.
-\item \textbf{Attenuation only narrows}: a child card is a subset of its parent in scope and in lifetime, at every hop. The symbolic capability-order models check the stated rights constraint; they do not by themselves prove every runtime lifetime or task-binding check.
+\item \textbf{Attenuation never widens}: a child card is a subset of its parent in scope and in lifetime, at every hop. The symbolic capability-order models check the stated rights constraint; they do not by themselves prove every runtime lifetime or task-binding check.
 \item \textbf{Algorithmic pinning}: the verifier chooses the signature algorithm from policy, never from the token's header. The same bytes that a header-selected verifier accepts, a policy-pinned verifier refuses.
 \item \textbf{Revocation needs current local knowledge}: a verifier rejects a revoked card once its authoritative state includes the revocation. The expected gossip time is an average, not a deadline, and a partition that can last indefinitely rules out any finite guarantee that every daemon has heard.
 \item \textbf{Filters do not merge; logs do.} Two daemons cannot union their cuckoo filters, so the append-only revocation log is the shared object and each daemon rebuilds its own filter from it.
