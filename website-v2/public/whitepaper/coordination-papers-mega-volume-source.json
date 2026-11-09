@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40243649,
+    "bytes": 40243827,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/d0f60760e79630346d829b11e5006d96f779d16f239160d1720a3fbe73229e55.tar.gz",
-    "sha256": "d0f60760e79630346d829b11e5006d96f779d16f239160d1720a3fbe73229e55",
-    "url": "https://media.portdaddy.dev/book/source/sha256/d0f60760e79630346d829b11e5006d96f779d16f239160d1720a3fbe73229e55.tar.gz"
+    "key": "book/source/sha256/99c8df19645a8b787047ecf92f4961000f80ff71c8cb995b50451d64d2733e6d.tar.gz",
+    "sha256": "99c8df19645a8b787047ecf92f4961000f80ff71c8cb995b50451d64d2733e6d",
+    "url": "https://media.portdaddy.dev/book/source/sha256/99c8df19645a8b787047ecf92f4961000f80ff71c8cb995b50451d64d2733e6d.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "4dbdcb8e9091c533bc5ab32765ebeb3ff1db8727ff3ca11b01d1adf3d2344f62",
+  "manifestSha256": "9b987f56f8ed37b92f067efa8f9fad80fdb818176327c8766fcc0fc17df7e469",
   "schemaVersion": 1,
   "source": {
     "fileCount": 535,
@@ -2032,10 +2032,10 @@
         "sha256": "7d5e360ec53d2a726cd166c0202142d008516280c8abe600d9c2daad60c5bd1a"
       },
       {
-        "bytes": 287516,
+        "bytes": 287762,
         "mode": 420,
         "path": "book/legible-swarm.tex",
-        "sha256": "91d81b5f47bed4edeefe45d7f6266ce82a9c88bc5a1813340b26aefe92b7ef97"
+        "sha256": "50e34b09d868b49337c465e02d8ffa29d7196d3a0fb6385949c4d0ac7c69a8d7"
       },
       {
         "bytes": 1076,
@@ -3232,6 +3232,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "abf878bd72e5ba986cc5e471d7ac7038cda9b23c9d9b8dc782915fef7777e374"
+    "sha256": "a5d32a7a7f5f69a93778862a018aadbb1ccab926044d95acc97d7ad3111616ea"
   }
 }
