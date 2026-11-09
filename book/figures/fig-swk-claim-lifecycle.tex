@@ -47,11 +47,11 @@
 \textbf{\#} & \textbf{API Trigger} & \textbf{Database Operation} & \textbf{Invariant \& Guarantee} \\
 \midrule
 1 & \texttt{POST /claims} \newline \texttt{\{"resource":"lib/auth.ts"\}} & \texttt{INSERT INTO claims ...} \newline On conflict: \texttt{SELECT holder} & Single atomic decision; winner gets \texttt{201 Created}; loser receives \texttt{409 Conflict} with current holder. \\
-2 & \texttt{POST /claims/renew} \newline \texttt{\{"token":"tk\_94a2"\}} & \texttt{UPDATE claims SET expires\_at} \newline \texttt{WHERE holder = requester} & Fully idempotent; extends TTL without creating duplicate records or advancing the fencing epoch. \\
+2 & \texttt{POST /claims/renew} \newline \texttt{\{"token":"tk\_94a2"\}} & \texttt{UPDATE claims SET expires\_at} \newline \texttt{WHERE holder = requester} & Idempotent while the claim is live; extends TTL without creating duplicate records or advancing the fencing epoch. After expiry a claim is a new acquire (row~1) with a new epoch. \\
 3 & Next read / acquire \newline \texttt{GET /claims} or \texttt{POST}, \newline or the cleanup tick & \texttt{DELETE FROM claims} \newline \texttt{WHERE expires\_at < now()} & No sweeper of its own: an expired row goes when a read or acquire that checks expiry runs, or at the daemon's periodic cleanup. Until then a read can still report it. \\
 4 & \texttt{POST /claims/release} \newline \texttt{\{"token":"tk\_94a2"\}} & \texttt{DELETE FROM claims} \newline \texttt{WHERE holder = requester} & Immediate deterministic cleanup; excises the lock record upon task completion. \\
 \bottomrule
 \end{tabularx}\endgroup
-\caption{The guarded claim lifecycle as a finite-state machine. Acquire is a single atomic insert against a SQLite uniqueness constraint; re-claim and release are idempotent; expiry moves a claim to \emph{expired}, from which a sweep returns it to \emph{free}: the next read or acquire that checks expiry, or the daemon's periodic cleanup. There is no \emph{queued} state: losing callers receive \texttt{409 Conflict} and must manage their own backoff. [internal, alg:acquire]}
+\caption{The guarded claim lifecycle as a finite-state machine. Acquire is a single atomic insert against a SQLite uniqueness constraint; re-claim of a \emph{held} claim and release are idempotent, while a claim on an \emph{expired} row, even by its holder, is a new acquire; expiry moves a claim to \emph{expired}, from which a sweep returns it to \emph{free}: the next read or acquire that checks expiry, or the daemon's periodic cleanup. There is no \emph{queued} state: losing callers receive \texttt{409 Conflict} and must manage their own backoff. [internal, alg:acquire]}
 \label{fig:swk-claim-lifecycle}
 \end{figure}

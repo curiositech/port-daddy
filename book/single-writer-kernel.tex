@@ -694,8 +694,8 @@ is told who holds it.
 \subsection{The claim lifecycle as a finite-state machine}
 \input{figures/fig-swk-claim-lifecycle}
 Figure~\ref{fig:swk-claim-lifecycle} states four properties as a state machine:
-acquire is one atomic insert, re-claim and release are idempotent, an expired
-claim is swept back to free by a later read or the daemon's cleanup tick, and there
+acquire is one atomic insert, re-claim of a live claim and release are
+idempotent, an expired claim is swept back to free by a later read or the daemon's cleanup tick, and there
 is no queued state.
 The coordination layer builds typed ownership on these four. The acquire
 path is small enough to state as an algorithm (Listing~\ref{alg:acquire}); we
@@ -706,7 +706,8 @@ then give the central property as a theorem.
 \lstset{style=pseudocode}
 \begin{lstlisting}[caption={Claim acquisition. The whole acquire is a single
 insert against a uniqueness constraint; the loser is handed the current holder,
-not an error to retry blindly.},label={alg:acquire},captionpos=b]
+not an error to retry blindly. Expiry is checked before the holder, so a
+holder's own claim after its lease expired is a new acquisition.},label={alg:acquire},captionpos=b]
 function acquire(key, requester, ttl):
   // single atomic statement; the uniqueness constraint is the mutex
   try:
@@ -714,12 +715,12 @@ function acquire(key, requester, ttl):
     return GRANTED(holder=requester)         // we won
   catch UNIQUE_CONSTRAINT_VIOLATION:
     existing = SELECT row WHERE row.key = key
-    if existing.holder == requester:
+    if existing.expires_at < now():          // expired, whoever held it
+      DELETE row WHERE key = key AND expires_at < now()
+      return acquire(key, requester, ttl)    // new acquisition; one retry
+    if existing.holder == requester:         // live, and the requester's
       UPDATE row SET expires_at = now()+ttl  // idempotent re-claim
       return GRANTED(holder=requester)
-    if existing.expires_at < now():          // stale holder
-      DELETE row WHERE key = key AND expires_at < now()
-      return acquire(key, requester, ttl)    // one bounded retry
     return DENIED(holder=existing.holder)    // loser learns the winner
 \end{lstlisting}
 \end{minipage}
@@ -730,6 +731,14 @@ The reference implementation's claims on files and their line ranges do run an
 overlap check, but an overlap comes back to the claimant as a warning and both
 claims are recorded. The next result therefore states the assumptions of a
 stronger protocol that covers both.
+
+The order of the two checks in the catch path matters once epochs are added.
+Expiry comes first, so a holder that claims again after its own lease expired
+makes a new acquisition, and a fenced design gives it a new epoch. With the
+holder checked first, the expired row would be renewed under its old epoch,
+and the holder's own effects from before its pause would still pass the gate:
+the late write that epochs exist to stop. Re-claim is idempotent only while
+the claim is live (I3).
 
 \pdstatus{\Designed}{fencing (I2b): no per-resource epoch is kept and no effect broker checks one; exact-key exclusion is built}
 The second half of the theorem below uses a \pdterm{fencing token}, an idea
@@ -765,7 +774,8 @@ perfectly serialized.
 Assume conflicting acquisitions are checked and inserted in one serialized
 transaction: by uniqueness for exact keys, or by an overlap predicate for
 line intervals and path hierarchies. Assume each new allocation takes the
-next value of a persistent per-resource epoch. Assume one process both issues
+next value of a persistent per-resource epoch, a holder's own claim after its
+lease expired included. Assume one process both issues
 the epochs and gates the effects: it checks and applies each downstream effect
 in one serialized step, and admits the effect only if its epoch is the newest
 issued for the resource and was issued to the presenter, whose identity the
@@ -782,7 +792,7 @@ and rejects the current epoch from anyone but its holder.
 \setlength{\parskip}{4pt plus 1pt}
 Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic.
 
-Take an effect on a resource, and let $e$ be the epoch of the newest grant on it, held by $h$, when the effect's step runs. The process that issued $e$ runs the check in the same serialized order, so the check reads $e$ itself, not an estimate of it. An agent holding an older grant holds an epoch below $e$, because each new allocation took the next value, so every effect it stamped with its own epoch is refused. It could name $e$, a small integer, but $e$ was issued to $h$, so only $h$ passes. The lease is never consulted: until a newer grant exists no one else holds the resource, so an effect from $h$ under $e$ cannot overwrite another holder's work.
+Take an effect on a resource, and let $e$ be the epoch of the newest grant on it, held by $h$, when the effect's step runs. The process that issued $e$ runs the check in the same serialized order, so the check reads $e$ itself, not an estimate of it. An agent holding an older grant holds an epoch below $e$, because each new allocation took the next value, so every effect it stamped with its own epoch is refused. It could name $e$, a small integer, but $e$ was issued to $h$, so only $h$ passes. A holder that claimed again after its own lease expired holds a new epoch, so its effects stamped before that claim are refused as well. The lease is never consulted: until a newer grant exists no one else holds the resource, so an effect from $h$ under $e$ cannot overwrite another holder's work.
 \end{proof}
 
 \begin{pdboundary}
@@ -790,8 +800,9 @@ Take an effect on a resource, and let $e$ be the epoch of the newest grant on it
 Each hypothesis is needed. Without one serialized acquisition, two requests
 can both be granted. Without the newest-epoch check, the woken holder passes
 with its old epoch. Without the binding, any agent that learns the current
-epoch passes as its holder. If an allocation reuses an epoch, or a restart
-rebuilds the counter, an old effect carries the current number. A gate that
+epoch passes as its holder. If an allocation reuses an epoch, as renewing a
+holder's expired row would, or a restart rebuilds the counter, an old effect
+carries the current number. A gate that
 knows only the epochs presented to it, as Kleppmann's storage server
 does~\pdcite{kleppmann2016locking}, refuses an older epoch only after a newer
 one has reached it; the theorem does not cover that gate. The set is
@@ -2255,7 +2266,7 @@ I1a & Process-crash durability & reply only after commit, on SQLite's atomic com
 I1b & Power-loss durability & (needs full synchronization) & \NotGuar \\
 I2 & Mutual exclusion (1 holder per conflict domain) & uniqueness constraint + busy-wait (exact keys); overlap check that warns (file regions) & \Built{} for exact keys; \BuiltWeak{} for file regions (overlap reported, both claims kept) \\
 I2b & Fencing of a stale holder at the effect gate & per-resource epoch, bound to its holder, checked by the process that issues it & \Designed{} (no epoch is kept or checked) \\
-I3 & Idempotence of re-claim/re-release & upsert / delete-if-exists & \Built \\
+I3 & Idempotence of re-claim (live claims only) and re-release & upsert / delete-if-exists & \Built \\
 I4 & Liveness reclamation (TTL sweep) & lazy expiry on read + ticks & \Built \\
 I5 & Metric-control separation (Law 1) & daemon-derived deadline & \Built \\
 I6 & Oracle-bound closure (Law 2) & finite oracle vocabulary & \Built \\
@@ -2495,8 +2506,10 @@ clock.
 \end{itemize}
 \end{definition}
 
-Listing~\ref{alg:acquire}'s stale-holder branch is a sweep of one key followed
-by an acquire. An expired lease that no sweep has reached still blocks an
+Listing~\ref{alg:acquire}'s expired-lease branch is a sweep of one key
+followed by an acquire. The specification keeps no epoch, so a holder's
+renewal and its new acquisition after expiry look the same in it; under
+fencing they differ (Theorem~\ref{thm:exclusion}). An expired lease that no sweep has reached still blocks an
 acquire and still answers a read, and the specification records that.
 Because $t$ is whatever the transaction
 read, a wall clock that steps (\S\ref{sec:adjacency}) changes how long a lease
@@ -2951,7 +2964,8 @@ what it explicitly does \emph{not} provide, so higher layers do not assume too m
 
 \subsection{What the storage layer provides to the coordination layer}
 \begin{itemize}[leftmargin=1.4em]
-  \item \textbf{Atomic, idempotent, time-to-live'd claims} (I2--I4): exclusive
+  \item \textbf{Atomic, idempotent, time-to-live'd claims} (I2--I4), where
+  re-claim is idempotent only while the claim is live: exclusive
   over ports and named locks, and advisory over file regions and symbols, where
   an overlap is reported and both claims are kept; the coordination layer's typed
   ownership reduces to claim and release.
@@ -3017,7 +3031,9 @@ The chapter's main results, in the order the rest of the book relies on them:
 \item A fenced lease adds an epoch to the ownership record. The stronger
   theorem requires atomic conflict checks and allocation, plus a gate, run by
   the process that issues the epochs, that admits only the newest epoch and only
-  from the agent it was issued to; the gate need not check the lease. An exact-key claim alone does not supply
+  from the agent it was issued to; the gate need not check the lease. A claim
+  after expiry, even by the same holder, is a new acquisition with a new epoch.
+  An exact-key claim alone does not supply
   those extra guarantees, and fencing is designed, not built.
 \item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
   idempotency key the coordination layer has yet to supply; only protocol violations raise alarms.
