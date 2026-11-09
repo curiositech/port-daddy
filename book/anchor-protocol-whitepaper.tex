@@ -803,6 +803,16 @@ verified under Alice's authenticated key, not the daemon's. Heron's key then
 verifies Heron's next delegation. Each signature both checks the current link
 and supplies the authenticated identity needed for the next one.
 
+\texttt{Decode}, in Algorithms~\ref{alg:symmetric} and~\ref{alg:asymmetric},
+reads only a root card, whose fields are the agent, the harbor, the card
+identifier and the rights, in that order. A chain mixes root cards with
+delegations, which \texttt{Encode\_delegation} builds from the parent link,
+its signature, the child's name and key, and the child's rights. So
+Algorithm~\ref{alg:delegation} reads every link through accessors that accept
+either shape: \texttt{Subject} gives the link's holder, \texttt{ExtractCaps}
+its grant (rights and expiry), and \texttt{AuthenticatedSubjectKey} the
+holder's key, used only after the link's signature has passed.
+
 \subsubsection{Phase 1: Symmetric HS256 with Algorithm Pinning}
 
 Algorithm~\ref{alg:symmetric} is the verification procedure that resists algorithm confusion (CVE-2015-9235~\pdcite{cve20159235}).
@@ -904,12 +914,13 @@ Algorithm~\ref{alg:delegation} presents the authorization chain verification, in
 Require: Daemon Public Key: pk_daemon
 Require: Order: subseteq, inclusion of grants
 
-function Agent.Delegate(token_parent, sk_parent, agent_child, cap_sub):
+function Agent.Delegate(token_parent, sk_parent, agent_child, pk_child, cap_sub):
     (msg_parent, sigma_parent) <- token_parent
-    (_, agent_parent, harbor, cap_parent) <- Decode(msg_parent)
+    agent_parent <- Subject(msg_parent)  // root card or delegation
+    cap_parent <- ExtractCaps(msg_parent)
     if cap_sub not_subseteq cap_parent:
         return _|_  // Cannot escalate capabilities
-    msg_delegate <- Encode_delegation(msg_parent, sigma_parent, agent_child, cap_sub)
+    msg_delegate <- Encode_delegation(msg_parent, sigma_parent, agent_child, pk_child, cap_sub)
     sigma_delegate <- Ed25519.Sign(msg_delegate, sk_parent)
     emit Delegated(agent_parent, agent_child, cap_sub)
     return (msg_delegate, sigma_delegate)
