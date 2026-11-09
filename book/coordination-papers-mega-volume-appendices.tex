@@ -382,6 +382,11 @@ Cross-chapter & Claim signalling under \emph{private} monitoring: ch.~7 assumes 
 \end{table}
 
 \input{additions/app-players}
+% The glossary follows the lettered appendices and precedes any printed
+% bibliography: generated from book/glossary/*.json by
+% scripts/generate-book-glossary.mjs (via the Book generator), sorted by each
+% entry's sort key, with the page of the term's \pdterm definition.
+\pdgeneratedinput{../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-glossary.tex}{glossary}
 \ifdefined\pdEnableMarginCitations\else
   \clearpage
   \pdbackmatterheaders{References}
