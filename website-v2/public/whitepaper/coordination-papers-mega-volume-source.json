@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40242670,
+    "bytes": 40243649,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/9e09fe2d0af74336bef0bdca474f31b1d46bf1a501dc21cb344ca13683d7e27e.tar.gz",
-    "sha256": "9e09fe2d0af74336bef0bdca474f31b1d46bf1a501dc21cb344ca13683d7e27e",
-    "url": "https://media.portdaddy.dev/book/source/sha256/9e09fe2d0af74336bef0bdca474f31b1d46bf1a501dc21cb344ca13683d7e27e.tar.gz"
+    "key": "book/source/sha256/d0f60760e79630346d829b11e5006d96f779d16f239160d1720a3fbe73229e55.tar.gz",
+    "sha256": "d0f60760e79630346d829b11e5006d96f779d16f239160d1720a3fbe73229e55",
+    "url": "https://media.portdaddy.dev/book/source/sha256/d0f60760e79630346d829b11e5006d96f779d16f239160d1720a3fbe73229e55.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "c42abe792aa2068cfb5946f9078849e2ec27a96503774f7eee363ecf0cb57002",
+  "manifestSha256": "4dbdcb8e9091c533bc5ab32765ebeb3ff1db8727ff3ca11b01d1adf3d2344f62",
   "schemaVersion": 1,
   "source": {
     "fileCount": 535,
@@ -40,22 +40,22 @@
         "sha256": "cc87d30a2fd82dec82037aa4846d99b22d0335abd5a37eaece9011bea3093122"
       },
       {
-        "bytes": 7474,
+        "bytes": 7675,
         "mode": 420,
         "path": "book/additions/app-isolation.tex",
-        "sha256": "5b3d891d73cabb2c6ad584143479f8eab12132d6f74eb9cb3414046b5e80ddf0"
+        "sha256": "428844dbfe2677b57dad6a69e631476f5ae31e3f331b57bcaa9287e6d9936679"
       },
       {
-        "bytes": 4182,
+        "bytes": 4489,
         "mode": 420,
         "path": "book/additions/app-players.tex",
-        "sha256": "e37c4fdaf2b04b830b717868a41b705087708906dfb96a3e193bd0890699b5aa"
+        "sha256": "4e66a627098ef521444c4e1f030fc000114692c9df1e7ec73e4b5ff5a919d853"
       },
       {
-        "bytes": 1482,
+        "bytes": 1448,
         "mode": 420,
         "path": "book/additions/he-effective-reviewers.tex",
-        "sha256": "40f13fcdfa5c7a277ec2d265dcce7342035330f8bec73d51ad73604996978876"
+        "sha256": "897933769d20c2c3cf91c960ce22afe88dfb74b09cdb160c684f1139bfeba866"
       },
       {
         "bytes": 3723,
@@ -106,10 +106,10 @@
         "sha256": "9cff61a6da811d49427d752741f146f8ecbe26b48b5f53f21dc9180a77166894"
       },
       {
-        "bytes": 26748,
+        "bytes": 27079,
         "mode": 420,
         "path": "book/additions/ls-many-authors.tex",
-        "sha256": "6766f166074edbf9ac5a4ca8f746a294c8b663ee4bfa4808a54b99e7ce49c83f"
+        "sha256": "08abbecd3d91a56d290baaab29a3f6daf987a47eae5ef6d5905ec3e6624b034d"
       },
       {
         "bytes": 4742,
@@ -124,22 +124,22 @@
         "sha256": "fcf9d7abd8c07ec9c46bca60eba77632514c9f93148c3d111db43fce0f6c430e"
       },
       {
-        "bytes": 7025,
+        "bytes": 7179,
         "mode": 420,
         "path": "book/additions/sealed-person-ledger.tex",
-        "sha256": "387e4b4bf9f460dfd296cf20dc851405a476bc9f730b38fbdd5f10ff5db4404d"
+        "sha256": "7dcfbd65ec1084c04befa5ed0776fce2f7f3ca272d3e362e10c0774de308748c"
       },
       {
-        "bytes": 14635,
+        "bytes": 14653,
         "mode": 420,
         "path": "book/additions/sealed-tenants.tex",
-        "sha256": "15e4e8c4b0cd8ee0eda08d466f444b0d80b429b52e36d608b3f5b127c4a8fa36"
+        "sha256": "21e54cca30f92b6697b2e8915959e13389420056d389bb823df82d8348f6ee24"
       },
       {
-        "bytes": 17049,
+        "bytes": 17150,
         "mode": 420,
         "path": "book/additions/stp-consolidation.tex",
-        "sha256": "e3ea23c39cecf735b68663f72770ee63f4c6a46cc22cffdcd66c6259806fea29"
+        "sha256": "d6975806e46d6d7fbc1d36f1adfe8a4356ec0c06caeac5aaf9d6b10d2e43995c"
       },
       {
         "bytes": 2419,
@@ -172,16 +172,16 @@
         "sha256": "3e9a712b41318c7d5c8a9d56933591449352930ff611a211eec00a8a5307652d"
       },
       {
-        "bytes": 8798,
+        "bytes": 9742,
         "mode": 420,
         "path": "book/additions/swk-control-game.tex",
-        "sha256": "64be155f1e19be1329f675c25eb8d6786d2a0776b07489d880c410110482fe27"
+        "sha256": "a4674b2e5628444915263857976f0890f6136758f2ea934de289e780fd5d1b8f"
       },
       {
-        "bytes": 2656,
+        "bytes": 2900,
         "mode": 420,
         "path": "book/additions/swk-exercises-control.tex",
-        "sha256": "e2691457a66c226ad08008f1e093d121d7c9f20efda19353e12e8e2597a49e29"
+        "sha256": "f191e7a53de341321913b5ce7020d0a0aee465b06289b5602b27644042574c67"
       },
       {
         "bytes": 212921,
@@ -3184,10 +3184,10 @@
         "sha256": "7440a42d9c289b4d369d2f78e7f7ce76e39188932eef3a9652e30a6bd81353af"
       },
       {
-        "bytes": 230418,
+        "bytes": 230501,
         "mode": 420,
         "path": "book/spawn-to-person.tex",
-        "sha256": "943a9276364118376c4ec96c172898bc6bac5771e25908d80c6202e701c33835"
+        "sha256": "37c1045c301e4acb35794826cc86418f210bb0850b5ee8348246a140cf76b900"
       },
       {
         "bytes": 10210,
@@ -3232,6 +3232,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "f898d5dc1f903c2af42da2b9e0bbbe2fbfb29d4a5847af084b2a442b31bca28c"
+    "sha256": "abf878bd72e5ba986cc5e471d7ac7038cda9b23c9d9b8dc782915fef7777e374"
   }
 }
