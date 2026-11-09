@@ -929,6 +929,7 @@ Algorithm~\ref{alg:delegation} presents the authorization chain verification, in
 \begin{lstlisting}[caption={Algorithm 3: Authorization Chain Verification},label={alg:delegation}]
 Require: Daemon Public Key: pk_daemon
 Require: Order: subseteq, inclusion of grants
+Require: Revocation table: revoked (root jti values and link ids H(sigma_i))
 
 function Agent.Delegate(token_parent, sk_parent, agent_child, pk_child, cap_sub):
     (msg_parent, sigma_parent) <- token_parent
