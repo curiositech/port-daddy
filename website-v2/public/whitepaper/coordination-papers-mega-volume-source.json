@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40405176,
+    "bytes": 40405686,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/a55ac60c8564d7879fefddcf3657cdcfa119133c098e4959d23b90101e585f0b.tar.gz",
-    "sha256": "a55ac60c8564d7879fefddcf3657cdcfa119133c098e4959d23b90101e585f0b",
-    "url": "https://media.portdaddy.dev/book/source/sha256/a55ac60c8564d7879fefddcf3657cdcfa119133c098e4959d23b90101e585f0b.tar.gz"
+    "key": "book/source/sha256/6a43e22c38f4d876bf2ce2cf52e0fe47fb81a69433e748f15e3506edf27334d4.tar.gz",
+    "sha256": "6a43e22c38f4d876bf2ce2cf52e0fe47fb81a69433e748f15e3506edf27334d4",
+    "url": "https://media.portdaddy.dev/book/source/sha256/6a43e22c38f4d876bf2ce2cf52e0fe47fb81a69433e748f15e3506edf27334d4.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "3755a1658c5fedab029b3012d7f5a174ed00cac38c609e9f337d7694947d723c",
+  "manifestSha256": "77700633ebf7a2e8a81ef5f0ad3a6e4b46ab83e5bac2c60d2ac2669eca786f62",
   "schemaVersion": 1,
   "source": {
     "fileCount": 559,
@@ -310,10 +310,10 @@
         "sha256": "35a96503d85b3e62fa34add41a579a52b7e115970cc5729535c721f1d35ab211"
       },
       {
-        "bytes": 54452,
+        "bytes": 54718,
         "mode": 420,
         "path": "book/corpus.json",
-        "sha256": "5439e28aadddf3975a47a6adee4cce99f9d5264e3616152ee6bd86a8bee4f6d1"
+        "sha256": "c4b819de061d54d6d84f45667e0245c3eec4d26ea741ca65682cde9d6fdd631d"
       },
       {
         "bytes": 5235,
@@ -328,10 +328,10 @@
         "sha256": "d7a20d9a8bab8bac25220d31a1d479e86039b7692fa16f16969a1806dfa0cdc9"
       },
       {
-        "bytes": 175234,
+        "bytes": 175772,
         "mode": 420,
         "path": "book/federated-harbor-whitepaper.tex",
-        "sha256": "de34ab4a0f6fe0ce87f369431a1512da6007ff0da6190f0eb49750c33276e66a"
+        "sha256": "21006b57759e1e94927b2d2ff94d61a9ab1ee0408fb56edafd89a86629115606"
       },
       {
         "bytes": 644,
@@ -3358,10 +3358,10 @@
         "sha256": "0c6a72008e4ade477d2dad371110f09007b992ee82a5af42826b748ffa4853ec"
       },
       {
-        "bytes": 21868,
+        "bytes": 21874,
         "mode": 420,
         "path": "scripts/harbor-research/render_status_tables.py",
-        "sha256": "ac7992988e310894f1a84b1dc8f871661ecea20282692a8f47d9f02073e4a418"
+        "sha256": "d9f81cf7f2d1395987a55d1d26ffd08bd5a8a728c203c98f8047f2f00ef15707"
       },
       {
         "bytes": 18325,
@@ -3376,6 +3376,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "e269decffc65f35a697313ac32ea3bb95c98b858978d7dfa821b2163f46fec4f"
+    "sha256": "94d31d1cad90df08e00fbdd26c2aad561abcacc9d469b0781c581f7c959757d2"
   }
 }
