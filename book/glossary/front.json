@@ -62,6 +62,7 @@
   {"term": "supervisor", "sort": "supervisor", "definition": "In supervisory control, a controller that watches a system's events and can disable the controllable ones."},
   {"term": "lifecycle hook", "sort": "lifecycle hook", "definition": "A script a harness runs at a fixed point, such as just before a tool call, which can refuse the call or record what happened."},
   {"term": "complete mediation", "sort": "complete mediation", "definition": "The property that every route to an effect passes through the check."},
+  {"term": "prompt injection", "sort": "prompt injection", "definition": "Text written so that a language model reading it will follow it as an instruction; where the model is asked to judge that text, it changes the judgment without changing the model."},
   {"term": "stigmergy", "sort": "stigmergy", "definition": "Coordination through marks left in a shared environment, which later workers read instead of receiving direct messages."},
   {"term": "claim (on work)", "sort": "claim (on work)", "definition": "A record announcing that a worker intends to work on something; it prevents collisions only if conflicting writes must pass a check that consults it."},
   {"term": "epoch", "sort": "epoch", "definition": "A number attached to a lease that rises each time the lease changes hands, so the resource can refuse writes from an earlier holder."},
