@@ -167,9 +167,11 @@ describe('Spawn-to-Person publication contract', () => {
     expect(pedagogy).toMatch(/\\newcommand\{\\BUILTWEAK\}\{\\BuiltWeak\}/);
     expect(pedagogy).toMatch(/\\newcommand\{\\BuiltWeak\}.*\\textsc\{partial\}/);
     // Checkpoint and outcome ledger are the two subsystems marked partial; memory is built.
-    expect(source).toContain('Subsystem 1 --- Memory: the episodic record \\quad\\BUILT}');
-    expect(source).toContain('Subsystem 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}');
-    expect(source).toContain('Subsystem 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}');
+    // Since the plain-language rewrite each grade is a \pdstatus tag on the line
+    // directly after its heading, not part of the heading text.
+    expect(source).toContain('Subsystem 1 --- Memory: the episodic record}\n\\pdstatus{\\Built}{');
+    expect(source).toContain('Subsystem 2 --- Checkpoint: restorable state}\n\\pdstatus{\\BuiltWeak}{');
+    expect(source).toContain('Subsystem 3 --- Outcome ledger: the witnessed record of delivery}\n\\pdstatus{\\BuiltWeak}{');
     // The continuity-subsystems table (which replaced the three-subsystems figure) says
     // what each partial subsystem does not carry across a restart.
     expect(source).toContain('\\label{tab:stp-organs}');
