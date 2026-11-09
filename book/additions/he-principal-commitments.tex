@@ -10,7 +10,7 @@ issue commitments into it. Bob forbids migrations during a release freeze;
 Alice's direction derives an obligation to migrate. Tag each sentence with the
 principal who issued it, authenticated by the card that submitted it. The tag
 is metadata. It adds no atom and changes no clause of the conflict definition.
-Write $P=P_1\uplus\cdots\uplus P_M$ for the tagged union of the principals'
+Write $P=P_1\uplus\cdots\uplus P_J$ for the tagged union of the principals'
 accepted sentences.
 
 When the tagged set is in conflict, a blame set, as defined in
@@ -25,18 +25,18 @@ uses the blame set to route escalations.
 \begin{pdclaim}{Theorem}{Principal-Tagged Detection and Minimal Blame}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:he-tagged-blame}
-Let $P=P_1\uplus\cdots\uplus P_M$ be a policy set in $\mathcal{L}_c$ whose
+Let $P=P_1\uplus\cdots\uplus P_J$ be a policy set in $\mathcal{L}_c$ whose
 sentences carry issuing-principal tags.
 \begin{enumerate}[leftmargin=1.8em,itemsep=1pt,label=(\alph*)]
 \item The checker of Theorem~\ref{thm:deontic-detect} decides whether $P$ is
 in conflict within that theorem's bound, and every sentence its witness uses
 carries the tag of its issuer.
-\item Conflict is upward-closed: if $Q\subseteq P$ is in conflict, so is $P$.
+\item Conflict is upward-closed: if $P'\subseteq P$ is in conflict, so is $P$.
 \item Let $P$ be in conflict. The \emph{deletion filter} sets
-$B\leftarrow\{1,\dots,M\}$ and then, for $i=1,\dots,M$ in turn, removes $i$
-from $B$ whenever $\biguplus_{j\in B\setminus\{i\}}P_j$ is in conflict. It
-makes exactly $M$ checker calls and returns a set $B$ such that
-$\biguplus_{j\in B}P_j$ is in conflict and no proper subset of $B$ is.
+$\mathcal B\leftarrow\{1,\dots,J\}$ and then, for $i=1,\dots,J$ in turn, removes $i$
+from $\mathcal B$ whenever $\biguplus_{j\in \mathcal B\setminus\{i\}}P_j$ is in conflict. It
+makes exactly $J$ checker calls and returns a set $\mathcal B$ such that
+$\biguplus_{j\in \mathcal B}P_j$ is in conflict and no proper subset of $\mathcal B$ is.
 \end{enumerate}
 \end{pdclaim}
 \begin{proof}
@@ -48,21 +48,21 @@ derivation chain, the rules whose tokens clash, the claims, or the difference
 constraints on a cycle. Each sentence keeps its tag.
 
 (b) Adding facts or definite Horn rules can only enlarge the least Horn model,
-so a derivation of $\bot$ in $Q$ persists in $P$: clause (i). Bodies are
-monotone, so every token fired in $Q$ also fires in $P$, and an overlapping
-obligation and prohibition persist: clause (ii). The claims of $Q$ are claims
-of $P$: clause (iii). The deadline graph of $Q$ is a subgraph of that of $P$,
+so a derivation of $\bot$ in $P'$ persists in $P$: clause (i). Bodies are
+monotone, so every token fired in $P'$ also fires in $P$, and an overlapping
+obligation and prohibition persist: clause (ii). The claims of $P'$ are claims
+of $P$: clause (iii). The deadline graph of $P'$ is a subgraph of that of $P$,
 so a negative cycle persists: clause (iv). This is the monotonicity of
 Theorem~\ref{thm:he-reachable-admission}, applied to sentences rather than
 facts.
 
-(c) The union over $B$ is in conflict initially by hypothesis, and $B$ shrinks
+(c) The union over $\mathcal B$ is in conflict initially by hypothesis, and $\mathcal B$ shrinks
 only to a set whose union is in conflict, so the final union is in conflict.
-Let $i$ remain in the final $B$, and let $B_i$ be the value of $B$ when $i$ was
-tested. The union over $B_i\setminus\{i\}$ was conflict-free. The final $B$ is
-a subset of $B_i$, so $B\setminus\{i\}\subseteq B_i\setminus\{i\}$, and by
-(b) the union over $B\setminus\{i\}$ is conflict-free. Every proper subset of
-$B$ lies inside some $B\setminus\{i\}$, so by (b) again it is conflict-free.
+Let $i$ remain in the final $\mathcal B$, and let $\mathcal B_i$ be the value of $\mathcal B$ when $i$ was
+tested. The union over $\mathcal B_i\setminus\{i\}$ was conflict-free. The final $\mathcal B$ is
+a subset of $\mathcal B_i$, so $\mathcal B\setminus\{i\}\subseteq \mathcal B_i\setminus\{i\}$, and by
+(b) the union over $\mathcal B\setminus\{i\}$ is conflict-free. Every proper subset of
+$\mathcal B$ lies inside some $\mathcal B\setminus\{i\}$, so by (b) again it is conflict-free.
 The loop makes one checker call per principal.
 \end{proof}
 
@@ -92,7 +92,7 @@ on instances where $P_1$ alone and $P_2$ alone each have one.
 Membership is that of Theorem~\ref{thm:deontic-frontier}: the union is a policy
 set of the extended language.
 
-For hardness, take that theorem's reduction from a 3-SAT formula $\varphi$ and
+For hardness, take that theorem's reduction from a 3-SAT formula and
 divide its sentences. Give $P_1$ the variable rules
 $\mathrm{sel}^{+}_x\to\mathsf{O}(\mathrm{assert}_x)$ and
 $\mathrm{sel}^{-}_x\to\mathsf{F}(\mathrm{assert}_x)$, on identical scope and
@@ -103,7 +103,7 @@ selection is empty. No selector holds, no token fires, and $P_1$ has no claim,
 deadline or integrity constraint: it is conflict-free. $P_2$ alone has no
 prohibition, no rule that a selector can fire, and no claim, deadline or
 integrity constraint, so every discharge selection is conflict-free. The union is exactly the reduction's instance, which has a
-conflict-free selection if and only if $\varphi$ is satisfiable. The division
+conflict-free selection if and only if the formula is satisfiable. The division
 takes linear time.
 \end{proof}
 
@@ -118,9 +118,9 @@ Prohibitions behave better than obligations.
 \begin{pdclaim}{Theorem}{Prohibitions Compose}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:he-prohibitions-compose}
-Let $P\in\mathcal{L}_c$ be conflict-free, and let $\Delta$ be a finite set of
+Let $P\in\mathcal{L}_c$ be conflict-free, and let $\Gamma$ be a finite set of
 deontic rules of modality $\mathsf{F}$ with monotone bodies. Then
-$P\cup\Delta$ is in conflict if and only if some token fired by $\Delta$
+$P\cup\Gamma$ is in conflict if and only if some token fired by $\Gamma$
 clashes with an $\mathsf{O}$ token fired by $P$: same action, overlapping
 scope and overlapping interval. In particular, a policy set issued by any
 number of principals that contains no $\mathsf{O}$ rule, no integrity
@@ -128,13 +128,13 @@ constraint, no exclusive claim and no deadline constraint is conflict-free.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-$\Delta$ adds no fact, Horn rule or integrity constraint, so $P\cup\Delta$ has
+$\Gamma$ adds no fact, Horn rule or integrity constraint, so $P\cup\Gamma$ has
 the least Horn model of $P$ and clause (i) is unchanged. Claims and the
 deadline graph are unchanged, so clauses (iii) and (iv) are unchanged. The
-fired tokens are those of $P$ together with $\Delta$'s, all of modality
+fired tokens are those of $P$ together with $\Gamma$'s, all of modality
 $\mathsf{F}$. A clause-(ii) clash pairs an $\mathsf{O}$ token with an
 $\mathsf{F}$ token; $P$ had none, and every $\mathsf{O}$ token comes from $P$,
-so any new clash pairs a token of $\Delta$ with an $\mathsf{O}$ token of $P$.
+so any new clash pairs a token of $\Gamma$ with an $\mathsf{O}$ token of $P$.
 The converse is immediate. For the second statement: definite Horn rules
 without integrity constraints never derive $\bot$; without $\mathsf{O}$ rules
 clause (ii) cannot hold; without claims clause (iii) cannot; and an empty

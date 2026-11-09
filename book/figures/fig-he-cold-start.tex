@@ -3,10 +3,10 @@
 %
 % Reader question: does the subsidy end because a threshold in the market was
 % crossed, or because a calendar date arrived?
-% Claim: the regime changes exactly when observed depth crosses lambda-star;
+% Claim: the regime changes exactly when observed depth crosses nu-star;
 % time never appears as an axis.
 % Evidence: this section's cold-start policy -- seed below zero, import at
-% zero, charge only once liquidity clears lambda-star.
+% zero, charge only once liquidity clears nu-star.
 % Must distinguish: the measured state (upper, a trajectory) from the policy
 % applied to that state (lower, a step schedule) -- two different kinds of
 % line that happen to share one vertical trigger.
@@ -21,7 +21,7 @@
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\trig{3.70}
   \node[pd title,anchor=west,text width=9.7cm] at (-0.30,7.90)
-    {the regime changes when observed depth crosses $\lambda^\star$, not when
+    {the regime changes when observed depth crosses $\nu^\star$, not when
      time passes};
   % ---- upper panel: measured market state ----------------------------------
   \draw[pd rule,->] (-0.30,4.15) -- (8.30,4.15);
@@ -31,7 +31,7 @@
     plot coordinates {(0,4.15)(0.73,4.24)(1.47,4.42)(2.20,4.72)(2.94,5.16)
       (3.70,5.92)(4.40,6.43)(5.14,6.72)(6.04,6.85)(8.00,6.90)};
   \draw[pd guide] (-0.30,5.95) -- (8.00,5.95);
-  \node[pd label,anchor=west] at (8.15,5.95) {$\lambda^\star$};
+  \node[pd label,anchor=west] at (8.15,5.95) {$\nu^\star$};
   \node[pd focus datum] at (\trig,5.95) {};
   % ---- the shared trigger, the figure's subject --------------------------
   \draw[pd spine] (\trig,-2.05) -- (\trig,6.70);
@@ -53,6 +53,6 @@
 \end{tikzpicture}
 \caption{Pricing follows realized liquidity, not calendar time. Suppliers
 are paid to join, then work is free, and buyers are charged only above
-$\lambda^\star$; a market that never crosses the threshold never charges. [internal]}
+$\nu^\star$; a market that never crosses the threshold never charges. [internal]}
 \label{fig:he-cold-start}
 \end{figure}
