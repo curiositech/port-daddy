@@ -1,9 +1,7 @@
 [
   {"term": "two-machine problem", "sort": "two-machine problem", "definition": "The fact that permission, knowledge of revocations and collectible funds do not cross from one owner's machine to another's on their own, and do not cross together."},
   {"term": "federation", "sort": "federation", "definition": "A group of harbors with different owners that exchange cards, revocations and payments while none of them rules the others."},
-  {"term": "equivocation", "sort": "equivocation", "definition": "One party signing two different versions of the same record and showing each version to a different audience."},
   {"term": "witness log", "sort": "witness log", "definition": "An append-only log to which every harbor posts signed summaries of its records, so that anyone can check what a harbor published, and any auditor who receives two signed versions for the same epoch holds proof that the harbor equivocated."},
-  {"term": "epoch root", "sort": "epoch root", "definition": "The signed fingerprint of a harbor's card records that the harbor posts to the witness log once per epoch."},
   {"term": "transfer ceremony", "sort": "transfer ceremony", "definition": "The four-message exchange in which a destination harbor checks a card offered by another harbor and then issues its own card, valid only at the destination."},
   {"term": "harbor sovereignty", "sort": "harbor sovereignty", "definition": "A daemon's exclusive authority over issuing, narrowing and revoking its own harbor's cards, deciding which cards from other harbors to accept, and signing that harbor's epoch roots."},
   {"term": "inter-harbor scope", "sort": "inter-harbor scope", "definition": "The property of an operation whose effects cross from one owner's harbor into another's."},
