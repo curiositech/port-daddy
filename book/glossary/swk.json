@@ -110,11 +110,6 @@
   "definition": "The set of histories that are physically possible before any rule is imposed."
  },
  {
-  "term": "supervisor",
-  "sort": "supervisor",
-  "definition": "The program that, after each history, decides which controllable events to block next."
- },
- {
   "term": "controllability",
   "sort": "controllability",
   "definition": "The property of a rule that no uncontrollable event, possible after an allowed history, can lead out of the rule; exactly the rules with this property can be enforced before the fact without losing allowed behavior."

@@ -216,8 +216,8 @@ We model an agent-coordination system as a four-layer stack
 (Figure~\ref{fig:swk-stack-map}), each layer serving a different \emph{whom}.
 \begin{description}[leftmargin=2.2em,style=nextline]
 \item[L0, storage (the machine).] A single always-on daemon over one local
-database: it stores records durably and applies changes one at a time. The
-figure labels this layer Substrate. \emph{This chapter's core.}
+database: it stores records durably and applies changes one at a time.
+\emph{This chapter's core.}
 \item[Coordination (the agents).] The protocol agents speak through the storage
 layer: ownership claims, a message bus, shared signals that fade over time,
 obligations, and policy enforcement. This chapter specifies the implemented
@@ -1305,8 +1305,8 @@ has a finite witness, and once you have violated one you can never un-violate it
 \pdterm{plant} $L$ is the set of histories that are physically possible before any policy is
 imposed. The illustrative classification takes $L=\Sigma^{*}$, allowing
 every finite string; actual hardware and protocols may restrict that plant.
-A \emph{policy} is a prefix-closed $K \subseteq L$. A \pdterm{supervisor} is the
-program that, after each history, decides which events to block next: formally, a
+A \emph{policy} is a prefix-closed $K \subseteq L$. As in Chapter~0, a supervisor is
+the program that, after each history, decides which events to block next: formally, a
 function from the history so far to a set of events to disable next. The whole theorem
 turns on its type. It may disable members of $\Sigma_c$, the \emph{controllable
 alphabet} of events that pass through a mediation boundary before taking effect, and
@@ -2039,7 +2039,7 @@ violating once-only state invariants unless bounded by the outcome ledger.
 
 \textbf{The witnessed-outcome ledger}, the durable record of what an agent
 actually delivered, is the subsystem reputation is computed from. A \BuiltWeak{}
-substrate now ships: durable commitments, daemon-derived deadlines, oracle-bound
+version of it now ships: durable commitments, daemon-derived deadlines, oracle-bound
 closure, API/CLI surfaces, and overdue detection. Neutral graded outcome events,
 sanctions, identity binding, and reputation updates remain absent. OP-4 concerns continuing interrupted work; the richer outcome ledger
 concerns attributing and assessing completed work. They share durable records,
@@ -3592,8 +3592,7 @@ alike.
 
 For the reader cross-referencing the accompanying chapters, the body's neutral names map
 to the series' internal terms as follows: the \emph{storage / coordination /
-legibility / economy} layers are the series' L0--L3 (figures label L0
-\emph{substrate}); the \emph{policy monitor} is
+legibility / economy} layers are the series' L0--L3; the \emph{policy monitor} is
 the Arbiter; \emph{stigmergic markers} are pheromones; the \emph{bus} is tube; the
 \emph{authorization chain} and \emph{coordination lineage} are the two objects the
 series keeps distinct under the single phrase ``delegation chain.'' The maturity
