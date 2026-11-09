@@ -532,7 +532,7 @@ C_B' \subseteq \mathrm{att}_B\bigl(\mathrm{map}_{A\to B}(\mathrm{att}_A(C_A))\bi
 where $\mathrm{map}_{A\to B}$ is the resource mapping that $B$ signed and versioned and that the offer names. When both harbors name the same resource the mapping is the identity, and Theorem~\ref{lem:fh-att} is that case. A different mapping version, or an offer that names none for a resource of $B$'s own, gives $D_B$ nothing to mint.
 \end{pdclaim}
 
-\pdexercisepointerone{\ref{ex:fh-xfer-attenuation}}{\pageref{ex:fh-xfer-attenuation}}
+\pdexercisepointer{\ref{ex:fh-xfer-offer}}{\ref{ex:fh-xfer-attenuation}}{\pageref{ex:fh-xfer-offer}}
 
 \subsection{Threats foreclosed and threats deferred}\label{sec:fh-xfer-threats}
 
@@ -1001,6 +1001,8 @@ causation nor a verdict. The custody transition produces one of two outcomes: \e
 
 The designed transition is atomic in the bucket-partition sense: a bond moves once from in-escrow to either cleared or refunded. This property depends on the custody-ledger assumptions of Design Invariant~\ref{thm:fh-escrow-bound}; witness records alone cannot make two external transfers atomic.
 
+\pdexercisepointerone*{\ref{ex:fh-three-party-settlement}}{\pageref{ex:fh-three-party-settlement}}
+
 \begin{pdrecitation}
 \item Name the ledger's two exits and the four assumptions in Invariant~\ref{thm:fh-escrow-bound}.
 \item Why can't an inclusion proof authorize clearance?
@@ -1429,6 +1431,13 @@ What to carry away from this chapter:
 
 \pdexercisesfor{\S\ref{sec:fh-xfer}}{Cross-Harbor Capability Transfer}
 
+\begin{pdexercise}[kind=Check,rating=1]{ex:fh-xfer-offer}
+List the fields of message~(2) of the transfer ceremony (\S\ref{sec:fh-xfer-ceremony}), and say which object the message must never carry and why. Then name the attack that the recipient field stops and the one that the transfer identifier stops.
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-xfer-offer}
+The offer, signed under $\mathit{sk}_A$, carries the transfer identifier $\mathit{xid}$, the recipient $B$, the attestation $\bar{C}_A=(\mathit{id}(C_A),\mathrm{att}_A(C_A),\mathit{pk}_{\mathrm{hold}},t_{\mathrm{exp}},e_A)$, the identifier and version of $\mathrm{map}_{A\to B}$, and the root $R_A^{(e_A)}$. It must never carry $C_A$. The card is a bearer credential, so its bytes would give $D_B$, or anyone on the wire, the card's full authority at $A$. The recipient field stops misbinding: an offer made to $B$ cannot be replayed at a third harbor as if it had been made there. The transfer identifier, consumed atomically at $B$, stops a replayed offer from minting a second card at $B$.
+\end{pdsolution}
+
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-xfer-attenuation}
 Alice's card $C_A$ authorizes \texttt{db:write} on $A$'s \emph{test} database. $D_B$ accepts it and mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$ authorizing \texttt{db:write} on $B$'s \emph{staging} database. Trace Theorem~\ref{lem:fh-att}'s proof sketch against this concrete case: at which step, if any, does ``subset composition is a subset'' stop being a statement about the \emph{same} resource space? State precisely what kind of act minting $C_B'$ actually is here, and what two things a correct $D_B$ must additionally establish before minting it.
 \end{pdexercise}
@@ -1494,6 +1503,15 @@ cannot satisfy these incompatible pins. A zero edge only enforces equality,
 so both-$\mathsf{ret}$ and both-$\mathsf{del}$ remain possible without other pins or raw claims.
 \end{pdsolution}
 
+\pdexercisesfor{\S\ref{sec:fh-settlement}}{Cross-Harbor Settlement}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:fh-three-party-settlement}
+In the worked example (\S\ref{sec:fh-ex-settle}), take $b_\alpha=\$100$, an adjudicated cleanup cost of \$30, and an escrow fee of \$4 under a cap $\phi=\$5$. Name the custodian, the adjudicator and the beneficiary, and say whose root holds the migration records and whose holds the failed test. Give the payments on clearance and the bond's lifecycle row. What does the custodian do if Beta's claim asks for \$10 of the payment to go to Beta's contractor, whom the bond's terms do not list?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-three-party-settlement}
+The federation escrow is the custodian, the adjudicator is the one the bond's signed terms name, and Beta is the listed beneficiary. The migration records sit under the staging root $R_S^{(e_S)}$ and the failed test under Beta's root $R_B^{(e_B)}$, so the claim carries an inclusion proof against each. Clearance pays Beta \$30 and the fee recipient \$4 and refunds \$66 to Acme; the payments sum to \$100. The lifecycle row is $(0,0,100,0)$: the whole bond is cleared, and the \$66 refund belongs to the clearance, not to a second lifecycle entry. The custodian has no move that pays an unlisted party, so it cannot pay the contractor. It can clear to the listed recipients, and Beta then pays its contractor itself.
+\end{pdsolution}
+
 \pdexercisesfor{\S\ref{sec:fh-formal}}{Formal Model}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-proverif-federation}
@@ -1555,8 +1573,11 @@ For the same reason, no structural mechanism closes the all-witnesses case: if t
 Start with what is observed. In a complete enrollment log for a stated time
 window, let $n_X$ count successful enrollments sponsored by harbor $X$, with one
 recorded sponsor per enrollment, and let $n_{\mathrm{all}}=\sum_X n_X$. For $n_{\mathrm{all}}>0$, the
-sponsor shares $n_X/n_{\mathrm{all}}$ and their Herfindahl index $\sum_X(n_X/n_{\mathrm{all}})^2$ measure
-concentration among \emph{successful} sponsorships. For $n_{\mathrm{all}}=0$, these quantities
+sponsor shares $n_X/n_{\mathrm{all}}$ measure concentration among
+\emph{successful} sponsorships, and so does their Herfindahl index
+$\sum_X(n_X/n_{\mathrm{all}})^2$, the sum of the squared shares. It is $1$ when
+one sponsor accounts for every enrollment and one over the number of sponsors
+when they share enrollments equally. For $n_{\mathrm{all}}=0$, these quantities
 are undefined. They do not measure how many applicants were turned away.
 For example, the same log of ten enrollments is consistent with ten requests
 and no refusals, or with a thousand requests and 990 refusals. The enrollment
