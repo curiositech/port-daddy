@@ -168,7 +168,7 @@
 \thispagestyle{empty}
 \vspace{0.6cm}
 \vspace{0.4cm}
-\noindent\textbf{Keywords:} reference monitor, single-writer transactions, SQLite
+\noindent\textbf{Keywords:} complete mediation, single-writer transactions, SQLite
 write-ahead logging, durability by fault class, linearizability, deontic logic,
 commitments, stigmergy, local-first coordination, multi-agent systems
 \vspace{0.4cm}
@@ -791,7 +791,7 @@ race the first.
 
 \input{figures/session-swk-lock-demo}
 
-\subsection{Fairness without a scheduler: the Stigmergic Ticket-Lock (OP-1)}
+\subsection{Fairness without a scheduler: a ticket lock (OP-1)}
 \label{sec:op1}
 \pdstatus{\Designed}{OP-1 open; no ticket table in the reference implementation}
 
@@ -871,7 +871,11 @@ when a crashed worker is recovered in \S\ref{sec:continuity}.
 Delegated work needs records of its own. When Heron hands part of the test
 run to Wren, two questions arise: who allowed Wren to act, and what larger work
 Wren's task belongs to. The \pdterm{authorization chain} answers the first: it
-is the signed record of who granted which permission to whom. The
+is the signed record of who granted which permission to whom. Each handing-on
+in it is a \pdterm{hop}, one step from a parent card's holder to a child
+card's holder. \pdchapref{anchor}{The Anchor Protocol} models the chain's
+delegation step in \pdterm{ProVerif}, a tool that checks a protocol's messages against an
+attacker who controls the network. The
 \pdterm{coordination lineage} answers the second: it records which task was
 handed down from which, so the system can tell which agents already sit above
 Wren in the line of hand-offs. An \pdterm{upward block} is the rule that uses
@@ -914,8 +918,8 @@ The bus is a durable, ordered, \emph{at-least-once} publish/subscribe channel ov
 a messages table, with a versioned envelope (a version tag, a message kind, a body,
 and an in-reply-to pointer), a history cursor for replay, and a per-message
 time-to-live. The coordination layer's typed speech act, which carries a
-performative, a conversation identifier, a coordination lineage, and a reply
-deadline, is layered \emph{inside} this envelope. The kernel ships the carrier;
+declared message type such as a request or a delegation, a conversation
+identifier, a coordination lineage, and a reply deadline, is layered \emph{inside} this envelope. The kernel ships the carrier;
 the coordination layer ships what it carries.
 
 \keyidea[Redelivery needs deduplication]{A \emph{healthy} at-least-once bus can
@@ -943,7 +947,7 @@ lets one recovery finish every case with exactly one effect.
 % This subsection introduces three source notes. Give them a fresh rail,
 % rather than pushing the preceding idempotency caption away from its figure.
 \pagebreak[4]
-\subsection{Stigmergic markers: decay as a provided guarantee}
+\subsection{Shared markers: decay as a provided guarantee}
 
 The kernel also carries \pdterm{stigmergic markers}: numeric signals that
 agents leave in shared state for other agents to read, whose weight fades over
@@ -1502,7 +1506,7 @@ checker says otherwise, and the mechanism is visible in the policy automaton
 tries to forbid it; it lets the read happen and records the taint transition. What the
 tainted state disables is \texttt{net\_egress} alone, and egress is controllable. Every
 uncontrollable event the plant enables is enabled by the policy in every reachable state, so
-the criterion holds and the constructive direction of the theorem hands us the supervisor:
+the controllability condition holds and the constructive direction of the theorem hands us the supervisor:
 track taint, gate the channel. This automaton is Schneider's own Figure~1, a two-state
 security automaton for ``no \texttt{Send} after a \texttt{FileRead}''~\pdcite{schneider2000},
 with his states relabelled. The alphabet split adds a grading to Schneider's
@@ -1910,7 +1914,7 @@ text would (Goodhart's law: a measure that becomes a target stops measuring).}
 % but the label collision could mislead a formal-methods reader. Left as
 % authored; a human should decide adopt/gloss/rename before this term goes
 % further (e.g. into a companion formal chapter).
-\subsection{Extending the oracle vocabulary: State-Machine Assertions (OP-5)}
+\subsection{Extending the oracle vocabulary: two proposed kinds (OP-5)}
 \pdstatus{\Designed}{OP-5 open; neither kind is in the shipped vocabulary}
 
 The obvious way to widen what a commitment can close against is to widen the
@@ -2031,7 +2035,8 @@ none of this today. Whether replaying the inputs is close enough to count as
 ``restoring work,'' and against what test, remains open, so the chapter reports
 the mechanism as a direction, not as a solution to OP-4.
 \pdchapref{stp}{From Spawn to Person} reaches the same limit from the identity
-side: a continuity witness can show that the ledger followed the right body,
+side: the chain of signed records linking each successor process to its
+predecessor can show that the ledger followed the right body,
 the right agent identity, never that the successor inherited the predecessor's experience.
 
 \input{figures/fig-swk-rehydration-pipeline}
@@ -2339,7 +2344,7 @@ primitive in the front matter without a definition per chapter.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-Bounded model checking on a small instance proves the specification at these parameters,
+Checking every reachable state of a small instance proves the specification at these parameters,
 not the deployed daemon: deployment must \emph{refine} this machine, mapping every real code
 path to a transition, and that mapping is a separate obligation.
 
@@ -2728,7 +2733,8 @@ scoping alone does not prevent exfiltration: an agent holding both
 and post it to the second, and no claim rule notices. The
 containment answer is information-flow control: taint the read, propagate the
 taint through spawns and shared writes, and gate every release channel behind a
-declassification policy with a leakage budget. Theorem~\ref{thm:regimentation-controllability}
+policy that lets a value out only with its owner's approval and within a
+leakage budget. Theorem~\ref{thm:regimentation-controllability}
 already gives the storage-layer form of it in one line: gate the channel, never
 the token.
 
@@ -3232,7 +3238,7 @@ to its conclusion with a machine-checked proof of functional correctness from
 specification down to the binary~\pdcite{klein2009sel4}; gVisor, a user-space
 kernel that interposes on every system call a guest makes rather than trusting
 the host's boundary to hold~\pdcite{young2019gvisor}; and Firecracker, the
-microVM monitor that has isolated untrusted multi-tenant workloads in
+microVM monitor that has isolated untrusted workloads from many customers in
 production since 2018~\pdcite{agache2020firecracker}. Any of the three would
 give this kernel a stronger trusted computing base than an ephemeral-UID
 process boundary. None is adopted here, and the gap stays open: the single
@@ -3375,7 +3381,7 @@ included?
 \item[$\bigstar$ OP-2 --- Regimentation vs.\ enforcement boundary.] Status: \Closed{} under the stated models.
 Theorem~\ref{thm:decidability} supplies a synchronous database-guard
 construction. Theorem~\ref{thm:regimentation-controllability} gives the exact
-realization criterion under full observation: a prefix-closed safety language
+realization condition under full observation: a prefix-closed safety language
 must be controllable~\pdcite{rw87,rw89}. External authorization may precede
 an effect; post-commit monitoring alone cannot prevent that effect
 (Theorem~\ref{thm:schneider}). Concrete boundaries still require an explicit
@@ -3429,9 +3435,10 @@ not out of the model. State the dependency the other way round as well, because 
 is the sentence an operator needs: OP-9 is the \emph{precondition} for any
 \pdassurance{Confined} claim on a machine that more than one principal can log into.
 Until the sandbox and the kernel-verified peer credential ship, a confinement claim
-on a shared host is a claim about a cooperating co-tenant, and its grade is
-\pdassurance{Observed}. That grade marks the difference between a boundary the
-kernel enforces and one the other tenant is choosing to respect.
+on a shared host depends on the cooperation of every other \pdterm{tenant}, each
+a customer organization the host serves with its own agents, data and users.
+Its grade is \pdassurance{Observed}. That grade marks the difference between a boundary the
+kernel enforces and one the other tenants are choosing to respect.
 \item[$\bigstar$ OP-10 --- Per-write-path durability.] Status: \Open. Typed durability
 selection (\S\ref{sec:durability}, \Designed) would route a money-bearing
 transaction through a connection configured with \texttt{synchronous=FULL}
