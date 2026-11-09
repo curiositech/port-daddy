@@ -76,10 +76,10 @@ flow from its data flow, tags values with capabilities, and checks a policy at
 every tool call. On AgentDojo, a benchmark of tool-using tasks with planted
 prompt injections, it solves $77\%$ of the tasks with provable security,
 against $84\%$ for an undefended agent. It lists text-to-text
-attacks as a non-goal and acknowledges side channels. That is the same
-structure as the attenuation of \pdchapref{anchor}{The Anchor Protocol} and the
-labels and release gate of \pdchapref{sealed}{The Sealed Harbor}. A hypervisor
-cannot supply it.
+attacks as a non-goal and acknowledges side channels. CaMeL's capability tags and
+per-call policy check have the same structure as the attenuation of
+\pdchapref{anchor}{The Anchor Protocol} and the labels and release gate of
+\pdchapref{sealed}{The Sealed Harbor}, and no hypervisor can supply them.
 
 \paragraph{The model provider is a named principal.}
 \pdchapref{sealed}{The Sealed Harbor} notes that a remote model interface is a
