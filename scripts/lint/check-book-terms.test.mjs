@@ -203,3 +203,56 @@ A \pdterm{work unit} is a case file; an \pdterm{escrow account} holds funds.
     rmSync(clean, { recursive: true, force: true });
   }
 });
+
+// Things the reader never meets as a use of a term: another meaning of the
+// same words (other_senses), a chapter title (in textbook.json or in a
+// \pdchapref), a book-reference registration, and the abstract and Keywords
+// line the assembler strips from every chapter.
+test('other senses, titles, references and stripped matter are not early uses', () => {
+  const small = mkdtempSync(join(tmpdir(), 'book-terms-senses-'));
+  const files = {
+    'book/textbook.json': {
+      parts: [{ id: 'p', title: 'Ground Rules', blurb: 'A part.', chapters: ['one'] }],
+      chapters: [{ number: 1, id: 'one', prefix: 'one', source: 'book/chapter-one.tex', title: 'The Ground Floor' }],
+    },
+    'book/coordination-papers-mega-volume.tex': String.raw`\begin{document}
+\pdgeneratedinput{../.cache/x/mega-volume-contents.tex}{contents}
+\input{coordination-papers-mega-volume-chapter-0.tex}
+\pdgeneratedinput{../.cache/x/mega-volume-body.tex}{body}
+\end{document}
+`,
+    'book/coordination-papers-mega-volume-chapter-0.tex': String.raw`Ground truth comes first, and the grounds for it.
+See \pdchapref{one}{The Ground Floor}.
+\pdbookreference{k}{1}{A. Author. \emph{On Ground}. Press, 1999.}{Author 1999}
+`,
+    'book/chapter-one.tex': String.raw`\begin{document}
+\begin{abstract}A ground rule, in the standalone abstract.\end{abstract}
+\noindent\textbf{Keywords:} ground, rules
+\section{Rules}
+A rule is \pdterm{ground} when no variable is left.
+\end{document}
+`,
+    'book/glossary/one.json': [
+      { term: 'ground', sort: 'ground', definition: 'With no variables.', other_senses: ['ground truth', 'grounds'] },
+    ],
+  };
+  try {
+    for (const [name, content] of Object.entries(files)) {
+      const path = join(small, name);
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+    }
+    const report = check({ root: small });
+    assert.deepEqual(report.glossaryErrors, []);
+    assert.deepEqual(byKind(report, 'early-use'), []);
+    // Without other_senses, "Ground truth" in Chapter 0 is an early use again.
+    writeFileSync(join(small, 'book/glossary/one.json'),
+      JSON.stringify([{ term: 'ground', sort: 'ground', definition: 'With no variables.' }]));
+    const plain = byKind(check({ root: small }), 'early-use');
+    assert.equal(plain.length, 1);
+    assert.equal(plain[0].file, 'book/coordination-papers-mega-volume-chapter-0.tex');
+    assert.equal(plain[0].line, 1);
+  } finally {
+    rmSync(small, { recursive: true, force: true });
+  }
+});

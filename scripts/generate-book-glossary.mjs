@@ -42,6 +42,10 @@ const defaultGlossaryDir = resolve(repoRoot, 'book/glossary');
 const defaultOutDir = '.cache/whitepaper-build/coordination-papers-mega-volume';
 const OUTPUT_NAME = 'mega-volume-glossary.tex';
 const FIELDS = ['term', 'sort', 'definition'];
+// Optional. `other_senses` lists phrases that use the term's words in another
+// meaning ("ground truth" for the logic term "ground"); the define-before-use
+// lint does not count them as uses. The glossary itself does not print them.
+const OPTIONAL = ['other_senses'];
 
 /**
  * The label key of a term: lower-cased, every run of characters other than
@@ -243,13 +247,19 @@ function loadGlossary(dir = defaultGlossaryDir) {
           complete = false;
         }
       }
-      const extra = Object.keys(item).filter((key) => !FIELDS.includes(key));
+      const extra = Object.keys(item).filter((key) => !FIELDS.includes(key) && !OPTIONAL.includes(key));
+      if ('other_senses' in item && !(Array.isArray(item.other_senses)
+        && item.other_senses.every((phrase) => typeof phrase === 'string' && phrase.trim()))) {
+        errors.push(`${where}: "other_senses" must be a list of non-empty strings`);
+        complete = false;
+      }
       if (extra.length) warnings.push(`${where}: ignored field(s) ${extra.map((key) => `"${key}"`).join(', ')}`);
       if (!complete) return;
       const entry = {
         term: item.term.trim(),
         sort: item.sort.trim(),
         definition: item.definition.trim(),
+        otherSenses: (item.other_senses ?? []).map((phrase) => phrase.trim()),
         source,
         line: lines[index] ?? 1,
       };
