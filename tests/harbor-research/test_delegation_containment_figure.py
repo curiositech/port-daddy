@@ -72,7 +72,7 @@ class DelegationContainmentTests(unittest.TestCase):
             self.assertIn(phrase, flat)
         self.assertNotIn('draws the containment:',chapter)
         self.assertIn('\\input{figures/fig-swk-delegation-chains}\n\\FloatBarrier', chapter)
-        self.assertIn('\\pdmarginpagebreak\nThe ladder these modes', chapter)
+        self.assertIn('\\pdmarginpagebreak\nThe five modes have two public neighbours', chapter)
         self.assertIn('\\input{figures/fig-swk-controllability-quadrant}\n\\FloatBarrier', chapter)
 
     @unittest.skipUnless(os.environ.get('BOOK_DELEGATION_PDF'),'assembled Book not supplied')
