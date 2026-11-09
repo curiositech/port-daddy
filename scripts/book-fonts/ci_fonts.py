@@ -151,8 +151,10 @@ def restore(dest: Path, env: dict[str, str]) -> int:
     target.chmod(0o700)
     for name, data in fonts.items():
         path = target / name
-        with open(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "wb") as stream:
-            stream.write(data)
+        # Owner-only before any byte lands; the directory is already 0700.
+        path.touch(mode=0o600, exist_ok=True)
+        path.chmod(0o600)
+        path.write_bytes(data)
     print(f"Restored {len(fonts)} pinned Suisse files from {len(parts)} slices.")
     return 0
 
