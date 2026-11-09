@@ -23,5 +23,6 @@
  {"term": "clique", "sort": "clique", "definition": "In the audit-tower model, a group of auditors that one bribe can buy together; separate cliques must be bribed separately."},
  {"term": "honeypot tasks", "sort": "honeypot tasks", "definition": "Audit tasks with independently established answers, designed to look like ordinary work, used to catch dishonest grading."},
  {"term": "verifiable random function", "sort": "verifiable random function", "definition": "A cryptographic random draw whose fairness anyone can check afterwards, used here to select audits."},
+ {"term": "keep-gain convention", "sort": "keep-gain convention", "definition": "The settlement rule under which a caught cheat forfeits its bond but keeps the gain from cheating; the usual statement of Becker's deterrence condition assumes it."},
  {"term": "exposure ladder", "sort": "exposure ladder", "definition": "The ordered levels of contact an agent can have with a skill in one run: listed, loaded, file read, script run."}
 ]
