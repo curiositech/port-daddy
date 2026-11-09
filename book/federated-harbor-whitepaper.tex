@@ -244,7 +244,7 @@ offer and into the grant that results.
 \section{The Federated Authority}\label{sec:fh-authority}
 % ═════════════════════════════════════════════════════════════════════════════
 In \pdchapref{bonded}{The Bonded Commons}, one daemon on one machine ran the shared bond pool. It could suggest who should act when, but a suggestion only sticks if every agent, knowing only what it was told, does no better by ignoring it, and the daemon's local rules cannot guarantee that. Federation makes this harder: there are several owners, each learns of events late, and their interests may conflict, so any model of the federation must include all three.
-The federation has four parts: two independently governed harbors; the witness log, where each harbor posts once per epoch (a numbered reporting period) a signed fingerprint of its card records, called its epoch root; and an escrow that holds bond money. Each harbor numbers its own epochs. We write $e_A$ for harbor $A$'s epoch and $R_A^{(e_A)}$ for its root, and we never compare one harbor's epoch number with another's. Table~\ref{tab:fh-topology} shows the four channels that run between them. The escrow can take no more than its agreed fee only if its payment system can pay no one but the two parties and the capped fee, settles each bond once, and cannot be bypassed by its operator (\S\ref{sec:fh-escrow}). Every protocol in the rest of the chapter belongs to one of these parts.
+The federation has four parts: two independently governed harbors; the witness log, where each harbor posts once per epoch (a numbered reporting period) a signed fingerprint of its card records, called its epoch root; and an escrow that holds bond money. Each harbor numbers its own epochs. We write $e_A$ for harbor $A$'s epoch and $R_A^{(e_A)}$ for its root, and we never compare one harbor's epoch number with another's. Table~\ref{tab:fh-topology} shows the four channels that run between them. The escrow can take no more than its agreed fee only if its payment system can pay no one but the bond's poster, its listed beneficiaries and the capped fee, settles each bond once, and cannot be bypassed by its operator (\S\ref{sec:fh-escrow}). Every protocol in the rest of the chapter belongs to one of these parts.
 \input{figures/tab-fh-topology}
 \subsection{Sovereignty as a property \mbox{characterization}}\label{sec:fh-sovereignty}
 \pdchapref{bonded}{The Bonded Commons} described its key-management service by a list of required properties rather than by one construction (a per-machine signing key, a per-machine SQLite database), so that its argument holds for any construction with those properties. We describe sovereignty the same way. A daemon has \pdterm{harbor sovereignty} when it alone issues and revokes its own harbor's cards, sets the rule for narrowing them, decides which cards from other harbors to accept, and signs that harbor's epoch roots.
@@ -392,7 +392,7 @@ The protocols in this chapter are designed against the following attackers.
 A signed epoch binding lets $B$ reject an offer older than the state $B$
 has already accepted. The offer names its recipient and a transfer
 identifier inside $A$'s signature. The recipient field stops the offer being
-replayed at a third harbor, the identifier, consumed atomically at $B$,
+replayed at a third harbor. The identifier, consumed atomically at $B$,
 stops a second card being minted from one offer, and expiry plus a declared
 freshness rule govern use while $B$'s view may be stale.
 \pdscope{An isolated $B$ cannot learn from the binding that a newer root exists, and none of these requirements has been verified for the cross-harbor protocol.}
@@ -582,7 +582,7 @@ round two harbors are informed. In the next round both independently contact
 one of their other two peers. The probability neither contacts the last
 uninformed harbor is $(1/2)^2=1/4$. Each subsequent round succeeds with
 probability $3/4$, so the expected total is $1+1/(3/4)=7/3$ rounds, rather
-than $\log_2 3$. Anti-entropy is push--pull: every harbor, informed or not,
+than $\log_2 3$. Anti-entropy is push-pull: every harbor, informed or not,
 contacts one peer per round and the pair exchange what they hold. With $m=3$
 the first round finishes the job with probability $1/2$ and the second always
 does, so the expectation falls to $3/2$ rounds. Each calculation needs a stated
@@ -592,12 +592,12 @@ expectations nor a deadline.
 
 \subsection{Convergence bound}\label{sec:fh-conv-bound}
 
-Epidemic gossip spreads a message to all $m$ nodes in an expected $\Theta(\Delta \log m)$ time only in a specific model: every node can contact every other, each node picks the peers it contacts uniformly at random, and every round of length $\Delta$ is delivered reliably. Two variants of that model must be kept apart. In \emph{push}, only informed nodes make contact, and each sends what it knows. In \emph{push--pull}, every node makes contact and the two ends exchange what they hold, which is what anti-entropy reconciliation does~\pdcite{demers1987epidemic}. The theorem below applies both variants to the federation, treating each harbor as one node of a complete network however many daemons run inside it.
+Epidemic gossip spreads a message to all $m$ nodes in an expected $\Theta(\Delta \log m)$ time only in a specific model: every node can contact every other, each node picks the peers it contacts uniformly at random, and every round of length $\Delta$ is delivered reliably. Two variants of that model must be kept apart. In \emph{push}, only informed nodes make contact, and each sends what it knows. In \emph{push-pull}, every node makes contact and the two ends exchange what they hold, which is what anti-entropy reconciliation does~\pdcite{demers1987epidemic}. The theorem below applies both variants to the federation, treating each harbor as one node of a complete network however many daemons run inside it.
 
 \begin{pdclaim}{Theorem}{Conditional Revocation Dissemination}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:fh-conv}
-Let $m$ harbors form a complete overlay with reliable synchronous rounds of duration $\Delta$. In the push model each harbor that holds revocation $c$ contacts one independently uniform peer per round and sends it $c$; in the push--pull model every harbor contacts one independently uniform peer per round and the two exchange revocation deltas. If harbor $X$ publishes revocation $c$ at $t_0$, then:
+Let $m$ harbors form a complete overlay with reliable synchronous rounds of duration $\Delta$. In the push model each harbor that holds revocation $c$ contacts one independently uniform peer per round and sends it $c$; in the push-pull model every harbor contacts one independently uniform peer per round and the two exchange revocation deltas. If harbor $X$ publishes revocation $c$ at $t_0$, then:
 \begin{enumerate}[nosep]
 \item \textbf{Revocation dissemination.} Under either model all harbors are informed within $\Theta(\log m)$ rounds, with high probability and in expectation.
 \item \textbf{Equivocation verification.} Any auditor possessing two differently signed roots for the same $(X,e)$ detects equivocation in $O(1)$ signature and equality checks.
@@ -605,7 +605,7 @@ Let $m$ harbors form a complete overlay with reliable synchronous rounds of dura
 \end{enumerate}
 \end{pdclaim}
 
-The first item is the standard result for randomized rumor spreading on a complete graph. For push, Pittel showed that $\log_2 m+\ln m+O(1)$ rounds suffice~\pdcite{pittel1987rumor}; push--pull needs only $\log_3 m+O(\log\log m)$~\pdcite{karp2000rumor}. Demers et al.\ introduced anti-entropy and rumor mongering but do not prove these bounds. Neither bound fixes the constant hidden in its last term. The second follows from the signed-root format. The third is an indistinguishability result: an auditor isolated in one partition cannot distinguish equivocation from delay.
+The first item is the standard result for randomized rumor spreading on a complete graph. For push, Pittel showed that $\log_2 m+\ln m+O(1)$ rounds suffice~\pdcite{pittel1987rumor}; push-pull needs only $\log_3 m+O(\log\log m)$~\pdcite{karp2000rumor}. Demers et al.\ introduced anti-entropy and rumor mongering but do not prove these bounds. Neither bound fixes the constant hidden in its last term. The second follows from the signed-root format. The third is an indistinguishability result: an auditor isolated in one partition cannot distinguish equivocation from delay.
 
 \begin{pdclaim}{Design invariant}{Service-Level Attacker Window}
 \setlength{\parskip}{4pt plus 1pt}
@@ -681,7 +681,8 @@ directly, a \pdterm{relayed link} when both endpoints' reports reach the
 auditor although the endpoints never reconcile it, and a \pdterm{severed link}
 when no report from it reaches the auditor. Compared and relayed links are
 \emph{visible}. Take four relays $0,1,2,3$ in a ring, each reporting one
-number, its log head. Relay $0$ equivocates: the head it shows across link
+number, its log head. Links $0\!-\!1$, $1\!-\!2$ and $2\!-\!3$ are compared and
+agree; link $3\!-\!0$ is relayed. Relay $0$ equivocates: the head it shows across link
 $3\!-\!0$ differs by $s=3$ from the one it shows relay $1$. The auditor's
 \pdterm{cochain} is the list of reported differences, one per link:
 \[
@@ -798,8 +799,8 @@ those and $209$ more, so the residual detected nothing extra.
 
 \input{figures/tab-fh-sheaf-harness}
 
-On the same vector encoding, the Hansen--Ghrist sheaf
-Laplacian~\pdcite{hansengrist2019} $\Delta_{\mathcal F}=\delta^*\delta$ drives
+On the same vector encoding, the sheaf Laplacian of Hansen and
+Ghrist~\pdcite{hansengrist2019}, $\Delta_{\mathcal F}=\delta^*\delta$, drives
 linear diffusion $\dot x=-\Delta_{\mathcal F}x$ at a rate set by its smallest
 positive eigenvalue $\lambda^{+}_{\min}(\Delta_{\mathcal F})$. Diffusion
 averages numbers, while gossip merges signed records, so neither convergence
@@ -1874,7 +1875,7 @@ Gabriele Farina.
 Single-harbor capability authenticity (inherited) & ProVerif 2.05 & \Closed & Anchor \path{harbor_card_v*.pv} \\
 Cross-realm authenticity (\S\ref{sec:fh-xfer}) & ProVerif query sketch & \Partial\ no executable model or verification run & \S\ref{sec:fh-proverif-ext} \\
 Attenuation monotonicity across boundary (Lem.~\ref{lem:fh-att}) & Set-inclusion argument & \Partial\ requires shared resource universe; protocol unmechanized & \S\ref{sec:fh-xfer-att} \\
-Federated revocation dissemination (Theorem~\ref{thm:fh-conv}) & Conditional push or push--pull model~\pdcite{pittel1987rumor,karp2000rumor} & \Partial\ expected asymptotic result; no partition deadline & \S\ref{sec:fh-revocation} (argument) \\
+Federated revocation dissemination (Theorem~\ref{thm:fh-conv}) & Conditional push or push-pull model~\pdcite{pittel1987rumor,karp2000rumor} & \Partial\ expected asymptotic result; no partition deadline & \S\ref{sec:fh-revocation} (argument) \\
 Cross-witness equivocation evidence & Signed-root comparison; dissemination model & \Partial\ verification immediate once views meet; no hard delivery bound & --- \\
 Escrow extraction bound (Design invariant~\ref{thm:fh-escrow-bound}) & Transition-system case analysis & \Partial\ conditional on non-bypassable custody; no runtime conformance & \S\ref{sec:fh-settlement} \\
 Cross-harbor Conservation (\S\ref{sec:fh-tla-ext}) & Lifecycle-accounting sketch & \Partial\ no executable specification or verification run & \S\ref{sec:fh-cross-conservation} \\
