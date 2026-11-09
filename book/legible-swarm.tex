@@ -1863,8 +1863,24 @@ selects what crosses that boundary, and its adequacy depends on the decision
 to be made. The finite counting arguments below state their own source,
 encoding and error assumptions; the update-count example describes a workload,
 not a Shannon channel capacity or a human throughput in bits. A larger
-inspection budget changes the model's parameters, and a summary must still say
-which distinctions it preserves.
+inspection budget changes the model's parameters; it does not tell a summary
+which distinctions to keep.
+
+What a summary must preserve depends on the task. A task fixes the actions
+open to the operator, a loss for each action in each state of the work, and a
+prior over those states. A digest is \pdterm{decision-sufficient} for a task when
+the operator's best decision from the digest has the same expected loss as her
+best decision from the full record. The definition is restricted to one task on
+purpose. Blackwell's comparison of experiments asks the same of every task at
+once~\pdcite{blackwell1953}, and a digest can be decision-sufficient for one task
+while failing another. Take four artifacts, one of them critical. For the task of
+choosing two artifacts to open, a one-bit digest that names the pair holding the
+critical artifact loses nothing. For the task of naming the critical artifact
+without opening anything, the same bit leaves the operator wrong half the time.
+The lower bound in \S\ref{sec:lowerbound} concerns the first kind of task:
+choose at most $m$ artifacts to open, and lose if any critical one is left out.
+Under any prior that gives every possible critical set positive probability, a
+digest is decision-sufficient for that task exactly when it never misses.
 
 \begin{pdclaim}{Empirical hypothesis}{Reading Runs Out Before Writing}
 \setlength{\parskip}{4pt plus 1pt}
@@ -4339,6 +4355,11 @@ Miles Turpin, Julian Michael, Ethan Perez, and Samuel R.\ Bowman.
 Bertrand Meyer.
 \newblock Applying ``Design by Contract''.
 \newblock \textit{IEEE Computer}, 25(10):40--51, 1992.
+
+\bibitem{blackwell1953}
+David Blackwell.
+\newblock Equivalent Comparisons of Experiments.
+\newblock \textit{Annals of Mathematical Statistics}, 24(2):265--272, 1953.
 
 \bibitem{greenswets1966}
 David M.\ Green and John A.\ Swets.
