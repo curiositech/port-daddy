@@ -1,0 +1,187 @@
+[
+ {
+  "term": "digest",
+  "sort": "digest",
+  "definition": "A short summary written for one reader, in which each statement links to the evidence behind it."
+ },
+ {
+  "term": "legibility",
+  "sort": "legibility",
+  "definition": "The operator's ability to tell, in the time she has, what the swarm did and why, and to check each statement against its evidence."
+ },
+ {
+  "term": "zoom",
+  "sort": "zoom",
+  "definition": "The property of a summary whose every statement opens, in one step, to the artifact behind it, such as the diff, the test log or the committed file."
+ },
+ {
+  "term": "escalation",
+  "sort": "escalation",
+  "definition": "A decision handed up to a human because no agent may make it alone."
+ },
+ {
+  "term": "performative",
+  "sort": "performative",
+  "definition": "A typed message whose declared type (request, commitment, delegation or termination) states what it intends, who owns it and when it ends."
+ },
+ {
+  "term": "honest attestation",
+  "sort": "honest attestation",
+  "definition": "A self-report that runs every invariant check, separates verified-good from no-evidence-of-bad, and fails loudly about what it cannot check."
+ },
+ {
+  "term": "counter-surface",
+  "sort": "counter-surface",
+  "definition": "A view that lists what the attention queue did not show the operator, and why."
+ },
+ {
+  "term": "regret",
+  "sort": "regret",
+  "definition": "An item's estimated harm if it is left unseen; in this chapter, stakes times irreversibility times anomaly."
+ },
+ {
+  "term": "tacit consent",
+  "sort": "tacit consent",
+  "definition": "Consent inferred from someone merely staying put, without any act of agreeing."
+ },
+ {
+  "term": "consent grant",
+  "sort": "consent grant",
+  "definition": "An explicit, scoped, time-limited and revocable authorization the operator gives the daemon, recording scope, stakes ceiling, reversibility floor and expiry."
+ },
+ {
+  "term": "level of automation",
+  "sort": "level of automation",
+  "definition": "How much of a task a machine may do without asking a human, on Sheridan's ten-point scale."
+ },
+ {
+  "term": "read-surface",
+  "sort": "read-surface",
+  "definition": "Any view an operator or agent reads to learn the swarm's state, such as a briefing, a digest or the attention queue."
+ },
+ {
+  "term": "mêtis",
+  "sort": "metis",
+  "definition": "Hands-on, case-specific practical knowledge that a system depends on and that resists being written down (James C. Scott's term)."
+ },
+ {
+  "term": "Potemkin digest",
+  "sort": "potemkin digest",
+  "definition": "A digest whose lines assert a state nobody can check, because the evidence behind them was discarded."
+ },
+ {
+  "term": "tacit knowledge",
+  "sort": "tacit knowledge",
+  "definition": "Practitioner knowledge that cannot be fully put into words; in Polanyi's phrase, we know more than we can tell."
+ },
+ {
+  "term": "roadmap",
+  "sort": "roadmap",
+  "definition": "A versioned, amendable statement of intent, priority and dependency, organized by phase, against which the swarm's output is compared."
+ },
+ {
+  "term": "sole-responsibility role",
+  "sort": "sole-responsibility role",
+  "definition": "One named agent identity that alone may write the state a critical invariant protects."
+ },
+ {
+  "term": "completion claim",
+  "sort": "completion claim",
+  "definition": "A commitment whose satisfaction is decided by a verifier derived from the task's acceptance criteria."
+ },
+ {
+  "term": "sensitivity",
+  "sort": "sensitivity",
+  "definition": "In signal detection theory, how far apart the evidence scores of dangerous and safe items lie, written d′."
+ },
+ {
+  "term": "criterion",
+  "sort": "criterion",
+  "definition": "In signal detection theory, the threshold on the evidence score above which an item is inspected, written β."
+ },
+ {
+  "term": "vigilance task",
+  "sort": "vigilance task",
+  "definition": "Sustained watching for rare events."
+ },
+ {
+  "term": "vigilance decrement",
+  "sort": "vigilance decrement",
+  "definition": "The decline in detection that sets in over a long watch."
+ },
+ {
+  "term": "situation awareness",
+  "sort": "situation awareness",
+  "definition": "Perceiving the current state, understanding it, and projecting what happens next (Endsley's three levels)."
+ },
+ {
+  "term": "abdication gradient",
+  "sort": "abdication gradient",
+  "definition": "The hypothesized slide by which an operator goes from doing the work, to approving it, to rubber-stamping it, to being absent."
+ },
+ {
+  "term": "Inception Canary",
+  "sort": "inception canary",
+  "definition": "A proposed, consented, blinded probe that slips known, already-fixed defects into review to measure whether the operator still catches them."
+ },
+ {
+  "term": "compaction",
+  "sort": "compaction",
+  "definition": "Shortening an agent's working context into a summary when the context runs out of room."
+ },
+ {
+  "term": "read-poverty",
+  "sort": "read-poverty",
+  "definition": "A regime in which legible state accumulates faster than anyone can read it, so participants search by eye or act blind."
+ },
+ {
+  "term": "directory",
+  "sort": "directory",
+  "definition": "A maintained list of which agents exist, what each says it can do, and where their records live."
+ },
+ {
+  "term": "discovery ranker",
+  "sort": "discovery ranker",
+  "definition": "The scoring function that ranks candidate agents for a query by a clamped weighted sum of file, note, identity, skill, episode and load signals."
+ },
+ {
+  "term": "split ranker",
+  "sort": "split ranker",
+  "definition": "One shared candidate list and decay rule with a separate scoring head for each reader, needed because collaborator fit and inspection priority can strictly disagree."
+ },
+ {
+  "term": "uplift",
+  "sort": "uplift",
+  "definition": "The change in expected settled outcome when a skill is made available to a task, compared with the same task without it."
+ },
+ {
+  "term": "cost of goods sold",
+  "sort": "cost of goods sold",
+  "definition": "The direct variable costs of producing output; for a swarm, chiefly inference tokens."
+ },
+ {
+  "term": "pheromone decay",
+  "sort": "pheromone decay",
+  "definition": "Multiplying every stored coordination trace by a decay factor each interval, so stale traces fade."
+ },
+ {
+  "term": "charter",
+  "sort": "charter",
+  "definition": "The root object of a many-author harbor, recording who delegated what to whom, which rule settles a clash, and how the charter itself may change."
+ },
+ {
+  "term": "unity of command",
+  "sort": "unity of command",
+  "definition": "The rule that each person reports to exactly one person; here, that every scope and every delegator has a single direct delegator."
+ },
+ {
+  "term": "deletion filter",
+  "sort": "deletion filter",
+  "definition": "The procedure that removes one principal's commitments at a time and reruns the conflict check, keeping each principal whose removal makes the conflict disappear."
+ },
+ {
+  "term": "blame set",
+  "sort": "blame set",
+  "definition": "The principals the deletion filter keeps: a group whose directions still conflict on their own, from which no one can be dropped."
+ }
+]
