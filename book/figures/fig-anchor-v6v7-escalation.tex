@@ -33,11 +33,9 @@
   \node[pd label,anchor=north] at (5.0,-.35)
     {rejects the attempted restoration of write permission};
 \end{tikzpicture}
-\caption{The capability sets are identical in both panels; only the checks
-change. Write includes read in this model. With each delegation link
-authenticated, testing every child against its immediate parent prevents
-permission re-escalation. The ProVerif pair establishes these verdicts for
-the displayed two-delegation chain; the finite-chain argument uses subset
-transitivity.}
+\caption{The capability sets are the same in both panels; only the checks
+change. If every link is authenticated, checking each child against its
+immediate parent stops re-escalation. ProVerif checks this two-link chain;
+subset transitivity covers longer chains.}
 \label{fig:anchor-v6v7-escalation}
 \end{figure}
