@@ -207,8 +207,8 @@ uninterrupted seconds before the next review request. The correct fragment
 does not make the whole patch acceptable.
 \item \textbf{False completion.} Drake reports ``all green'' after deleting
 the original failing test. The report confuses passing the remaining suite
-with satisfying the preserved acceptance criterion. Heron's accepted
-contribution must be checked against that original criterion.
+with satisfying the preserved acceptance criterion. Heron's candidate
+repair must also be checked against that original criterion.
 \item \textbf{A stale destructive proposal.} Finch proposes a force-push
 that would discard an unmerged contribution. Whether recovery is possible
 or not, that effect lies outside the repair grant and needs a separate decision.
@@ -451,7 +451,7 @@ g = \langle\, &\textsc{scope},\ \textsc{stakes-ceiling}\ s_{\max},\ \textsc{reve
 &\textsc{ttl},\ \textsc{revocable}\,\rangle,
 \end{aligned}
 \]
-For Alice's grant, the daemon may apply reversible formatting changes under
+where \textsc{ttl} is how long the grant stays in force. For Alice's grant, the daemon may apply reversible formatting changes under
 stakes threshold $s_{\max}$ in \texttt{tests/}, preserving the original checkout
 acceptance test, for two hours. This grant permits neither unrelated changes
 nor deployment.
@@ -765,7 +765,7 @@ proved that any proposal is correct.}
 \section{The Leviathan rules, it does not just watch (the authority half)}\label{sec:authority-rules}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The title is \emph{Legibility \& Authority}. A read-only legibility layer is a
+The chapter's subject is legibility and authority. A read-only legibility layer is a
 glorified dashboard; the point of Hobbes is that the sovereign rules as well as
 sees. This section specifies the authority half: the
 mechanisms by which the consented daemon actually decides, blocks, lands, and
@@ -977,7 +977,7 @@ The naive threshold would return
 \[
 \tilde g = 1 + 2(2)/(3.6-2) = 3.5
 \]
-and sent the work to the pool. That is the
+and send the work to the pool. That is the
 right-hand error lens of Figure~\ref{fig:specialization}. These are model
 calculations, not measured roadmap performance.
 
@@ -994,7 +994,7 @@ At the round number $\rho=0.5$:
 \[
 g(0.5,2)=1+2(0.5)-0.5^2=1.75
 \]
-[verified, closed form].\footnote{Worked numbers carry a tag throughout: [verified] when a named script in the repository regenerates them, [internal] when only the chapter's own derivation does.}
+[verified, closed form].\footnote{Worked numbers carry a tag throughout: [verified] marks a stated check or a calculation anyone can rerun; [internal] marks a chapter derivation or a project-reported script run.}
 
 The naive $\tilde g(\rho,2)=1+\rho/(1-\rho)$ gives
 \[
@@ -1284,12 +1284,11 @@ u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476
 \]
 [verified, closed form] --- the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\delta,w)$ points the script confirms against bisection to machine precision.
 
-For a model in which a missed bad item costs $100$, inspection costs $1$,
-and a needless interruption costs $5$ ($C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$, so $u_{\mathrm{crit}}=6/105\approx0.057$), the feasible debit interval is
+Now let a missed bad item cost $C_{\mathrm{miss}}=100$, an inspection $c_{\mathrm{att}}=1$, and a needless interruption $C_{\mathrm{fa}}=5$. The operator wants an escalation once its probability of being genuine exceeds $u_{\mathrm{crit}}=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(C_{\mathrm{miss}}+C_{\mathrm{fa}})=6/105\approx0.057$. Assume signals $u$ are spread uniformly on $[0,1]$ and $V(u)=u$ is that probability. With $x=1-u^\star$ the escalated share, each item's expected alarm cost is $c_{\mathrm{att}}x+C_{\mathrm{fa}}x^2/2$, which must not exceed the attention budget $A$ (unrelated to the accountability benefit $A$ of Eq.~\ref{eq:specboundary}). Silenced genuine warnings cost $C_{\mathrm{miss}}(u^\star-u_{\mathrm{crit}})$ when $u^\star>u_{\mathrm{crit}}$, and the miss budget allows $1$. At $w=1$, $\delta=u^\star/(1-u^\star)$. At $A=3.3$, $2.5x^2+x=3.3$ gives $x=0.9662$, so $\delta_{\min}=0.0338/0.9662=0.035$; $u^\star\le0.0571+0.01$ gives $\delta_{\max}=0.0671/0.9329=0.072$:
 \[
-[\delta_{\min},\delta_{\max}]=[0.0350,0.0720]
+[\delta_{\min},\delta_{\max}]=[0.0350,0.0720].
 \]
-at attention budget $A=3.3$, and it is \emph{empty} at $A=2.0$ (there $\delta_{\min}=0.396$ exceeds $\delta_{\max}=0.072$, so no debit satisfies both walls at once) [verified closed forms, grid-confirmed].
+At $A=2.0$, $2.5x^2+x=2$ gives $x=0.7165$ and $\delta_{\min}=0.2835/0.7165=0.396>\delta_{\max}$, so the interval is \emph{empty} [verified closed forms, grid-confirmed].
 
 An empty band means the fix is capacity or evidence quality; no choice of $\delta$ will do.
 
@@ -1304,7 +1303,7 @@ the numerical choices that made the example easy to compute.
 \label{thm:escalation-threshold}
 Let $w>0$, $\delta\ge0$, and let $b,V$ be continuous on $[0,1]$, with $b$
 strictly increasing and $V:[0,1]\to[0,1]$ nondecreasing. An agent with signal
-$u$ receives expected benefit $b(u)$ before the dismissal debit; $V(u)$ is the
+$u$ receives expected benefit $b(u)$ before the false-escalation debit; $V(u)$ is the
 probability its escalation is upheld. Its expected payoff
 $\Pi_\delta(u)=b(u)-\delta w\,(1-V(u))$ is strictly increasing. If
 $\Pi_\delta(0)<0<\Pi_\delta(1)$, there is a unique interior zero $u^\star$.
@@ -2387,7 +2386,7 @@ chapter has one theorem with two applications rather than two coincidences.
 
 \subsection{Existence: the yellow pages (a solved shape)}\label{sec:existence}
 
-The canonical prior art is forty years old. \textbf{FIPA} (\emph{Foundation for
+The canonical prior art is about a quarter-century old. \textbf{FIPA} (\emph{Foundation for
 Intelligent Physical Agents}) made a \textbf{Directory Facilitator} (DF) ---
 \emph{the mandatory ``yellow pages'' agent: others register the services they offer
 and query to find agents that offer a needed service} (FIPA Agent Management
@@ -3273,13 +3272,13 @@ Rather than assign the roles and then check them, run the consent-grant lifecycl
 
 \textbf{Step~1, issue:} the grant $g = \langle$\,the \texttt{tests/} subtree with the original checkout test preserved, a low stakes ceiling $s_{\max}$, a reversibility floor $v_{\min}$ no irreversible act clears, a two-hour \textsc{ttl}\,$\rangle$ comes into existence because Alice says so, and nothing else in the system can create one --- so whoever occupies this step is a source of authority rather than a user of it.
 
-\textbf{Step~2, act:} the formatting diffs land and the review agent's force-push is escalated instead, because it fails $v_{\min}$; the daemon performed both, and it did not choose the floor it applied --- so this step exercises an authority it did not author.
+\textbf{Step~2, act:} the formatting diffs land and Finch's force-push is escalated instead, because it fails $v_{\min}$; the daemon performed both, and it did not choose the floor it applied --- so this step exercises an authority it did not author.
 
 \textbf{Step~3, witness:} the daemon records $(g, x, \text{reason}, \text{artifact})$ for each, which only means anything if the recorder is answerable to someone it is not.
 
 \textbf{Step~4, expire:} at 5:25 the grant leaves the active set with nobody's permission, and Alice's override would have emptied it sooner.
 
-Now read off what the four steps require: exactly one participant who originates authority and can withdraw it, exactly one who exercises it under terms set elsewhere, and --- the step that never appears --- any moment at which the daemon must be a \emph{party} to the agents' rule of the road.
+The four steps need exactly one participant who creates authority and can withdraw it, and exactly one who exercises it on terms set by someone else. No step ever needs the daemon to be a \emph{party} to the agents' rule of the road.
 
 The grant issuer and the executor occupy different roles. This design assigns
 them the author and actor positions in Hobbes' vocabulary; the lifecycle makes
@@ -3355,8 +3354,8 @@ design proposal without treating the arrows as a deduction.
 What this chapter leaves coupled, in the order the rest of the book will lean on it:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
-\item \textbf{The swarm is a state of nature.} Four valid writes in one window overlap; nothing in the agents' competence prevents it, because the conflict is in the schedule, not in the work.
-\item \textbf{Consent changes the schedule, not the participants.} Under consented serialization the same four writes become one commit log with a grant record each, naming actor, claim, artifact and reason.
+\item \textbf{The swarm is a state of nature.} Three locally valid edits to one \texttt{settings.json} revision overlap (Figure~\ref{fig:state-of-nature}); nothing in the agents' competence prevents it, because the conflict is in the schedule, not in the work.
+\item \textbf{Consent changes the schedule, not the participants.} Under consented serialization the same three edits become one commit log with a grant record each, naming actor, claim, artifact and reason.
 \item \textbf{Legibility-with-zoom.} A digest is a lens, never a replacement: every claim in it resolves to an artifact, and a digest whose claims resolve to nothing is a facade, however green.
 \item \textbf{The authority half.} The daemon gates or escalates on every act under a grant the operator gave once; the override is a single edge from operator to daemon, and the escalation threshold has a tuning band, not a point.
 \item \textbf{Specialization has a boundary.} A pooled queue beats sole ownership only when utilization and the skill premium put the operator on one side of the queueing boundary; the worked point $(\rho,r)=(0.556,\,2.5)$ clears a boundary of $2.483$ and so falls, barely, on sole ownership's side, while the same pool against a $2.8/\text{hr}$ specialist ($r=2.33$) falls on the pool's.
@@ -3399,7 +3398,7 @@ scenario in which both agents are perfectly cooperative and the swarm still
 deadlocks or clobbers state.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-cooperative-clobber}
-Alice and Bob are both asked to improve \texttt{auth.ts}. Each reads the same base revision, makes a locally correct edit, and commits; without a claim or merge serialization, Bob's whole-file rewrite erases Alice's change, and no malice is required. A deadlock variant: two cooperative agents take claims on files $X$ and $Y$ in opposite order and each waits indefinitely for the other's claim.
+Wren and Heron are both asked to improve \texttt{auth.ts}. Each reads the same base revision, makes a locally correct edit, and commits; without a claim or merge serialization, Heron's whole-file rewrite erases Wren's change, and no malice is required. A deadlock variant: two cooperative agents take claims on files $X$ and $Y$ in opposite order and each waits indefinitely for the other's claim.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-deliberate-vs-emergent}
 Dai et al.~\pdcite{dai2024} observe LLM societies \emph{spontaneously} reaching
@@ -3483,13 +3482,13 @@ A typical CI dashboard usually fails as follows: deploy is irreversible but the 
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-adversarial-legibility}
 \emph{Adversarial legibility.} An agent that \emph{knows} it
 is being made legible can optimize its narration to look good while the diff lies.
-Verifiable-zoom is a partial answer. Can L2 \emph{alone} --- without L1's jail and
-L3's reputation --- detect a deterministic narration$\leftrightarrow$artifact
+Verifiable-zoom is a partial answer. Can the legibility layer \emph{alone},
+without sandbox confinement and without a reputation system, detect a deterministic narration$\leftrightarrow$artifact
 divergence before reputation exists? Sketch the consistency check and the class of
 divergence it cannot catch.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-adversarial-legibility}
-L2 can compare structured narration claims against independently derived artifacts: claimed changed files versus the tree diff, ``tests passed'' versus a protected runner receipt, ``no deletion'' versus Git objects, and claimed command results versus brokered tool logs. Emit a contradiction event on mismatch. This catches deterministic report/artifact divergence, deleted tests, fabricated execution, and omitted changed paths. It cannot establish semantic correctness, detect a poisoned acceptance suite, observe effects that bypass logging, or distinguish two artifacts that are syntactically consistent but jointly wrong --- those require effect confinement, independent evaluation, or later outcome evidence.
+The legibility layer can compare structured narration claims against independently derived artifacts: claimed changed files versus the tree diff, ``tests passed'' versus a protected runner receipt, ``no deletion'' versus Git objects, and claimed command results versus brokered tool logs. Emit a contradiction event on mismatch. This catches deterministic report/artifact divergence, deleted tests, fabricated execution, and omitted changed paths. It cannot establish semantic correctness, detect a poisoned acceptance suite, observe effects that bypass logging, or distinguish two artifacts that are syntactically consistent but jointly wrong --- those require effect confinement, independent evaluation, or later outcome evidence.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:authority-rules}}{The Leviathan rules, it does not just watch (the authority half)}
@@ -3685,7 +3684,7 @@ can be gamed. Does the bound survive an adversary who controls which artifacts
 \emph{appear} critical? Connect to adversarial legibility (Exercise~\ref{ex:ls-adversarial-legibility}).
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-adversarial-critical-set}
-The theorem is conditional on an encoder that knows the true critical set. If an adversary controls apparent criticality and can make a critical artifact observationally indistinguishable from inert artifacts, any policy that opens fewer than all $N$ can be forced to miss one --- the same narration-versus-artifact gap Exercise~\ref{ex:ls-adversarial-legibility} probes at L2. Zero miss then requires inspecting all $N$, a trusted independent signal that restricts the adversary, or a randomized guarantee stated probabilistically. The combinatorial bound still applies once a true set is fixed; it does not by itself solve adversarial set identification. An adaptive adversary requires a separately stated observation and timing model; there is no general replacement obtained merely by inserting an indistinguishability-class size into the binomial formula.
+The theorem is conditional on an encoder that knows the true critical set. If an adversary controls apparent criticality and can make a critical artifact observationally indistinguishable from inert artifacts, any policy that opens fewer than all $N$ can be forced to miss one --- the same narration-versus-artifact gap Exercise~\ref{ex:ls-adversarial-legibility} probes for the legibility layer. Zero miss then requires inspecting all $N$, a trusted independent signal that restricts the adversary, or a randomized guarantee stated probabilistically. The combinatorial bound still applies once a true set is fixed; it does not by itself solve adversarial set identification. An adaptive adversary requires a separately stated observation and timing model; there is no general replacement obtained merely by inserting an indistinguishability-class size into the binomial formula.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b1-frontier-run}
 Run \texttt{python3 skills/harbor-results/scripts/b1\_frontier.py} and read off the
@@ -3693,7 +3692,7 @@ zoom-advantage row at $F{=}1000,k{=}20$. Compute $k\log_2(F/k)$ by hand first an
 compare it to the row's flat-opens count.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b1-frontier-run}
-By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is in the \emph{dense}-flag regime ($k/F=0.02$ here versus $0.004$ there): the theorem's guaranteed speedup requires a sufficiently sparse flagged set, and this row is the chapter's own example of where the advantage shrinks rather than disappears.
+By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is denser ($k/F=0.02$ here versus $0.004$ there). It is still inside the theorem's window $d<1/12$, where the guarantee is $1000/(2\cdot20\cdot6+80)=3.1\times$, and the run's $4.3\times$ exceeds it: the advantage shrinks with density but does not disappear.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-noisy-zoom-oracle}
 Theorem~\ref{thm:zoom-advantage}'s group query is exact: it reports whether
@@ -3936,7 +3935,7 @@ Voice is honest only if refusal has consequence for the authority. The unconditi
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-express-consent-properties}
 Show that the consent grant (Invariant~\ref{def:consent}) is \emph{express} in
-Locke's sense by listing the four properties that distinguish it from ``the operator
+Locke's sense by listing the properties that distinguish it from ``the operator
 just started using the tool.''
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-express-consent-properties}
@@ -4153,8 +4152,8 @@ operator must rely on those records.}
 
 \subsection{The open problems, as a map}\label{sec:openproblems}
 
-Table~\ref{tab:open} consolidates the starred exercises into the chapter's open-problem
-surface, with the rung each couples to. They are genuine research problems, not
+Table~\ref{tab:open} collects the chapter's open problems, most of them posed as
+Open exercises, with the mechanism each one bears on. They are genuine research problems, not
 homework dressed up.
 
 \begin{table}[H]
@@ -4165,7 +4164,7 @@ homework dressed up.
 \toprule
 \textbf{Open problem} & \textbf{Difficulty} & \textbf{Couples to} \\
 \midrule
-Forced-zoom rate $p(r,s,v)$ (Ex.~\ref{ex:ls-pareto-digest}) & $\star\star\star$ & reputation-to-risk calibration (\S\ref{sec:operator}) \\
+Forced-zoom rate $p(r,s,v)$ & $\star\star\star$ & reputation-to-risk calibration (\S\ref{sec:operator}) \\
 Operator-attention vs.\ token-COGS Pareto frontier (Ex.~\ref{ex:ls-pareto-digest}) & $\star\star\star$ & \S\ref{sec:tokens} \\
 Compaction-quality scalar as an attestation invariant (Ex.~\ref{ex:ls-replay-metric-soundness}) & $\star\star$ & honest attestation \\
 Completionist verification of the unverifiable (Ex.~\ref{ex:ls-honest-fallback-ladder}) & $\star\star$ & Invariant~\ref{def:completionist} \\
@@ -4180,8 +4179,8 @@ judgment, neither of which the succession price covers
 (Ex.~\ref{ex:ls-succession-corner}) & $\star\star$ & \S\ref{sec:succession-corner} \\
 \bottomrule
 \end{tabular}
-\caption{The chapter's open problems, consolidated from the starred exercises, with
-difficulty and the mechanism each couples to. Several couple this layer forward to the
+\caption{The chapter's open problems, mostly from its Open exercises, with
+difficulty and the mechanism each bears on. Several couple this layer forward to the
 identity-and-reputation layer, which the accompanying chapters develop.}
 \label{tab:open}
 \end{table}
@@ -4639,8 +4638,8 @@ in this chapter with no design document yet.
 
 \smallskip
 \noindent A second key, in the same grammar, labels \emph{claims} rather than code.
-Every formal result in this chapter carries exactly one of these markers directly under
-it; this chapter uses those markers as follows:
+Formal results checked outside this document carry the marker \Verified\ directly
+under them; the others are argued in the chapter. The markers mean:
 \Verified\ = independently re-derived and checked numerically, or subjected to a
 pre-registered falsification sweep, outside this document; \Proved\ = argued here with
 a proof or proof sketch and not independently checked; \Unproved\ = stated as a design
