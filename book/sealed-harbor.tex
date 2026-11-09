@@ -1546,11 +1546,14 @@ a transition system to three local \emph{unwinding conditions}, output
 consistency, step consistency, and local respect, each a per-transition lemma
 amenable to mechanization, and the Isabelle Archive of Formal Proofs already
 carries stateful intransitive-noninterference developments in exactly this
-lineage. The finite model shows the shape of that proof. Its local-respect check already
-holds mechanically, its declassification steps are the intransitive
-downgrader domain of Rushby's framework, and the lift consists of restating the
+lineage. A policy is \emph{intransitive} when information may pass from one
+domain to another only through a trusted \emph{downgrader}, a domain allowed
+to pass on what it received. The finite model shows the shape of that proof. Its local-respect check already
+holds mechanically, its declassification steps play the role of Rushby's
+downgrader, and the lift consists of restating the
 transition relation abstractly and discharging the three lemmas once, for all
-depths and all secrets. One precision the lift must get right from the start:
+depths and all secrets. Intransitive purge and TA-security are two formal
+definitions of noninterference with such a downgrader. One precision the lift must get right from the start:
 Rushby's soundness result for these conditions is with respect to intransitive
 purge, but van der Meyden shows the conditions are sound \emph{and complete}
 for the strictly stronger TA-security property, which additionally preserves
