@@ -246,10 +246,11 @@ has a blind spot that more of the same evidence does not remove.
 Ask the same question of any dashboard: which channel produced this number, and what can that channel not show?
 
 \Cref{app:volume-status} shows what is built and what is only designed;
-\cref{app:result-atlas} records the results and their limits. The companion
+\cref{app:result-atlas} records the results and their limits. The repository file
 \path{docs/harbor-research/mega-volume-epistemic-manifest.yaml} preserves each
 result's source, status, conditions, limits, chapter home, and verification
-artifact. The chapters stand alone; the book's claim is the chain they make.
+artifact. Each chapter's results can be checked on their own; the book's larger
+claim depends on how they connect.
 
 \section{Classical Multi-Agent Systems Foundations}\label{sec:prereq-classical-mas}
 
@@ -408,7 +409,7 @@ subset, any deliberate violations and their justification.
 \subsubsection{What a failed attempt leaves owed}
 \label{sec:why-bdi-matters}
 
-The useful connection is a separation of jobs. A proposal generator can suggest
+The lesson for the repair is a separation of jobs. A proposal generator can suggest
 a new patch; a durable task record keeps track of what Alice still requested.
 A compiler error can justify another attempt, a blocked state or an
 \pdterm{escalation}, a decision handed up to a human because no agent may make
@@ -700,7 +701,7 @@ for agent work must choose which property to give up.
 
 \subsection{Social Choice Theory and Arrow's Impossibility Theorem}
 
-When a \pdterm{swarm}, a group of agents working on related tasks, must combine its members' rankings of candidate actions (choosing between two designs, say), social choice theory describes what any combining rule can and cannot do.
+When a \pdterm{swarm}, a group of agents working on related tasks, must combine its members' rankings of candidate actions (choosing among three designs, say), social choice theory describes what any combining rule can and cannot do.
 
 \begin{pdexample}{Three consistent voters, one cyclic majority}
 The rankings are $A\succ B\succ C$, $B\succ C\succ A$, and $C\succ A\succ B$.
@@ -777,7 +778,7 @@ inputs; it is no evidence that either input statement is true. The equations
 that follow count the cost of forming many such scores.
 \end{pdexample}
 
-The Transformer~\pdcite{vaswani2017attention} is a widely used architecture. Let $X \in \mathbb{R}^{L \times d}$ be an input sequence of $L$ \pdterm[token]{tokens}, the word pieces a model reads and writes, projected into a $d$-dimensional embedding space. For one attention head, the input is mapped via learned weight matrices $W_Q, W_K, W_V \in \mathbb{R}^{d \times d_k}$ into Queries ($Q$), Keys ($K$), and Values ($V$):
+In the Transformer~\pdcite{vaswani2017attention}, let $X \in \mathbb{R}^{L \times d}$ be an input sequence of $L$ \pdterm[token]{tokens}, the word pieces a model reads and writes, projected into a $d$-dimensional embedding space. For one attention head, the input is mapped via learned weight matrices $W_Q, W_K, W_V \in \mathbb{R}^{d \times d_k}$ into Queries ($Q$), Keys ($K$), and Values ($V$):
 \begin{equation}
 Q = X W_Q, \quad K = X W_K, \quad V = X W_V
 \end{equation}
@@ -885,8 +886,8 @@ The theorem shows how risk that keeps getting through the admission check accumu
 \subsection{What the Model Sees Is Not a Record}
 
 A model's \pdterm{context window} is the text it can see at once. Like
-volatile, lossy RAM, it keeps nothing after the worker exits unless something
-outside the model stores it, and a prompt can contain an exact string while
+volatile RAM, it keeps nothing after the worker exits unless something
+outside the model stores it. Unlike RAM, a prompt can contain an exact string while
 the model's answer still fails to retrieve or use it. Holding bytes is
 different from using them.
 
@@ -922,7 +923,7 @@ The coordination kernel must never rely on the model's context window as the sys
 
 We now look at how coding agents built on language models reach the host machine, organize their reasoning and search among candidate solutions.
 
-\subsection{The Contemporary Landscape: Systems Comparison}
+\subsection{Questions to Ask of a Coding Harness}
 
 A coding harness combines a model's proposals with tools on the host. Judge
 each execution path by what it can guarantee; a product's name says nothing
@@ -1145,9 +1146,9 @@ Adding workers changes who needs which observations. A \pdterm{role} is a job de
 
 \subsection{Stigmergic Communication: Environmental Coordination}
 
-Communication cost depends on who publishes, who consumes each update, and what state they need. In 1959, French biologist Pierre-Paul Grass{\'e} coined the term \pdterm{stigmergy} (from the Greek \emph{stigma}, mark, and \emph{ergon}, work) for coordination through marks left in a shared environment, to explain how termites build intricate, cathedral-like mounds without a leader or direct messages.
+Communication cost depends on who publishes, who consumes each update, and what state they need. In 1959, French biologist Pierre-Paul Grass{\'e} coined the term \pdterm{stigmergy} (from the Greek \emph{stigma}, mark, and \emph{ergon}, work) for coordination through marks left in a shared environment, to explain how termites build cathedral-like mounds without a leader or direct messages.
 
-\pdmarginfigure{termites}{Cathedral termite mound (\emph{Nasutitermes triodiae}) in Litchfield National Park, Australia. Social insects construct massive architectural edifices through stigmergic environmental modification without central coordination or peer-to-peer communication.}%
+\pdmarginfigure{termites}{Cathedral termite mound (\emph{Nasutitermes triodiae}) in Litchfield National Park, Australia. The termites build it by responding to marks left in the shared structure, with no central coordinator and no direct messages between insects.}%
 In stigmergic coordination, the shared environment carries the messages:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Marks in shared state:} Agents leave lasting, machine-readable marks in shared records, such as file locks, reservations on functions, activity counters and append-only notes.
