@@ -212,8 +212,8 @@ who only needs ``what runs today'' can skip the proofs and read
 Kernel} supply the inspectable work record and the transaction layer;
 \pdchapref{anchor}{The Anchor Protocol} deepens the cryptographic identity
 ceremony; and \pdchapref{he}{The Harbor Economy} uses this chapter's outcome
-records to set prices. Any chapter can be opened first; this one connects the
-single-operator chapters to the market chapters.}
+records to set prices. Any chapter can be opened first; this one is the
+hinge, connecting the single-operator chapters to the market chapters.}
 \vspace{0.3cm}
 \tableofcontents
 \newpage
@@ -265,8 +265,9 @@ the process that produced the work.}
 daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 \emph{prove who it is to one machine}. Legibility (L2) lets one operator
 \emph{see} the swarm. None of that yet gives other operators a person whose
-record they can trade on. This chapter supplies what the market needs from the
-single-operator tool: \pdterm{continuity}, the link that lets a later process
+record they can trade on. This chapter builds the bridge from the
+single-operator tool to the market by supplying what the market needs:
+\pdterm{continuity}, the link that lets a later process
 carry on the same person's account as an earlier one, and the reputation it makes possible.
 % --- FIGURE 1: the L0->L3 stack map, placing Chapter III ---
 \subsection{What this chapter claims, and what it refuses to claim}
@@ -384,8 +385,9 @@ to job.
 \end{pdexample}
 
 \noindent Figure~\ref{fig:role-person} draws the distinction: the job stays
-with the role, whoever fills it, and the record stays with the person, whatever
-role it holds. Corporate legal personality offers an analogy for an entity
+with the role, whoever fills it, and the record stays with the person, one
+identity walking through a sequence of roles and accumulating a witnessed
+history as it goes. Corporate legal personality offers an analogy for an entity
 distinguished from its current members. In \emph{Dartmouth College v.\
 Woodward}, 17 U.S.\ 518, 636 (1819), the Court describes a corporation as an
 entity created by law with properties conferred by its
@@ -463,7 +465,7 @@ the person. The split separates a current embodiment from what persists across
 replacements; a stored record is not consciousness, so the split does not
 establish Locke's criterion.
 
-But Locke's raw version has a flaw that matters for us. Direct memory
+But Locke's raw version has a bug that matters for us. Direct memory
 \emph{connectedness} is not \emph{transitive}: the old general remembers being a
 brave officer who remembered being a boy, yet the general does not remember being
 the boy (Reid's objection). If identity \emph{were} direct memory connectedness,
@@ -674,7 +676,8 @@ why the identity mechanism here protects only inside one operator's fleet, and
 why it must be extended before it can work at a boundary between operators
 that neither of them controls (\pdchapref{fh}{The Federated Harbor}). Capital
 does enter this system: as bonds in \pdchapref{bonded}{The Bonded Commons},
-sized against a specific breach, rather than as an entry fee.
+sized against a specific breach, rather than as an entry fee, a toll at the
+door.
 \pdexercisepointerone*{\ref{ex:stp-nomint-sweep}}{\pageref{ex:stp-nomint-sweep}}
 
 \begin{pdrecitation}
@@ -905,8 +908,8 @@ $r(i)=90$, retaining the sanctioned identity yields $60$, ten points more
 than a reset: the actor keeps the identity and bears the $30$ penalty.
 
 An actor with a good enough record gains nothing by abandoning its identity
-after one bad outcome, because a fresh identity starts at the newcomer score
-of $50$ and no higher. A newcomer does gain: at $50$, a $30$-point penalty
+after one bad outcome, because the escape hatch, a fresh identity, starts at
+the newcomer score of $50$ and no higher. A newcomer does gain: at $50$, a $30$-point penalty
 leaves $20$, and a fresh identity gives it $50$ back. The next definition asks
 that every actor who cheats ends up worse off; the newcomer case shows that
 requirement fails whenever fresh identities are free. That is why the theorem
@@ -1426,7 +1429,8 @@ name. Buyers see the reputation; they do not see the engine (the model that
 does the work). This is the used-car market of Akerlof~\pdcite{akerlof1970}
 with one twist that makes it sharper: here the hidden information is what runs
 behind a name you already trust. A low-quality engine, Akerlof's lemon,
-inherits the strong engine's record. Reputation was supposed to solve adverse selection by
+inherits the strong engine's record. The lemon is wearing the plum's history.
+Reputation was supposed to solve adverse selection by
 aggregating past quality~\pdcite{mailath-samuelson}; the swap severs the link
 between the record and the machine that will produce the next outcome, so the
 record measures the wrong object.
@@ -1589,8 +1593,8 @@ obligations land on nobody (\emph{liability stranding}, two steps).
 combination of owner (principal) and model engine, and apply penalties to the
 owner, across all its engines. Getting either one wrong opens an escape. If
 penalties were recorded per engine, an agent caught cheating on engine A could
-keep working at full score on engine B under the same name; the model checker
-finds this in one step, with no migration involved. If prices were set per
+keep working at full score on engine B under the same name, an escape hatch
+the model checker finds in one step, with no migration involved. If prices were set per
 owner only, buyers would pay the same whichever engine ran, and the incentive
 to swap in the cheap engine (Theorem~\ref{thm:engine-swap}(a)) returns.
 
@@ -1618,7 +1622,7 @@ on one engine key, then act at full score on its sibling. The scope rule
 blocks this escape by pricing per (principal, engine) and sanctioning per
 principal. The same rule closes
 skill-versioning's escape (a sanctioned \texttt{v1} must not act clean through
-\texttt{v2}), so one rule closes both escapes. Resuming a process and migrating to another provider
+\texttt{v2}), so one rule closes both escapes (one rule, two doors). Resuming a process and migrating to another provider
 therefore require the stated security property and its three migration
 safeguards. Migration and the no-mint law of
 \S\ref{sec:continuity} fit together on paper: migration moves a score whole, with its
@@ -1954,7 +1958,8 @@ have a numbered, verified result in a companion formal paper. The quality
 vector, the neutral-judge ceremony, and the bandit-versus-reputation argument
 of \S\ref{sec:not-bandit} are design arguments, drawn from the prior art cited
 here and consistent with the proven parts. Read the claims in
-\S\ref{sec:not-bandit} and \S\ref{sec:adr0049} that way.
+\S\ref{sec:not-bandit} and \S\ref{sec:adr0049} that way, with the
+theorem-grade register turned down one notch.
 \pdscope{Nothing in this chapter or its companions proves that the three-axis decomposition is the right one or that the judge ceremony is incentive-compatible.}
 
 \subsection{S3 --- a graded job, end to end}
@@ -2612,7 +2617,7 @@ universally optimal.}
 \section{What this chapter hands the market}\label{sec:handoff}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This chapter's output is a precise hand-off to \pdchapref{he}{The
+This chapter is the bridge; its output is a precise hand-off to \pdchapref{he}{The
 Harbor Economy}. We summarize what is delivered, what is borrowed, and what is
 explicitly owed.
 
@@ -2664,7 +2669,7 @@ trade, such as a prepaid purchase of known content.}
 \section{History and prior art: the sources of the design}\label{sec:priorart}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This chapter draws on four literatures that rarely cite each other: the
+This chapter sits at the confluence of four literatures that rarely cite each other: the
 philosophy of \emph{personal identity}, the statistics of \emph{reputation and
 skill rating}, the economics of \emph{reputation in markets}, and the practice
 of \emph{LLM-as-judge} evaluation. The argument is that an agent economy must
@@ -2680,7 +2685,7 @@ The question ``is the agent at $t_2$ the same person as the agent at $t_1$'' is 
 from psychological continuity; competing accounts remain live. The
 \emph{memory criterion} (Locke~\pdcite{locke1689identity}, 1689: \emph{identity consists
 in continuity of consciousness, not of substance}) is the founding move; it has a
-famous flaw, the non-transitivity of memory \emph{connectedness} (\textbf{Reid's
+famous bug, the non-transitivity of memory \emph{connectedness} (\textbf{Reid's
 objection}: the old general remembers the officer who remembered the boy, yet does
 not remember the boy). The \emph{psychological-continuity} repair
 (Parfit~\pdcite{parfit1984}, 1984: \emph{identity is an overlapping chain of
