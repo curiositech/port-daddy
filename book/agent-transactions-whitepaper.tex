@@ -404,7 +404,7 @@ The daemon's role therefore has a precise game-theoretic test. Aumann~\pdcite{au
 \]
 Every mixed Nash equilibrium induces such a distribution. Issuing recommendations does not by itself create one; the inequality has to hold.
 
-The commons authority can play this mediator role. It observes the global claim graph and emits a recommendation pair on a contested file: \emph{Agent~$\alpha$, proceed; Agent~$\beta$, defer or coordinate.} A deterministic policy can still produce a genuinely random $\mu$, because the agents do not know which system state the daemon observed. Being deterministic does not make a recommendation obeyed. The agents' payoffs, the bond coverage and the value of future rounds must make the inequality above hold.
+The commons authority can play this mediator role. It observes the global claim graph and emits a recommendation pair on a contested file: \emph{Agent~$\alpha$, proceed; Agent~$\beta$, defer or coordinate.} A deterministic policy can still look random to the agents (a non-degenerate $\mu$), because they do not know which system state the daemon observed. Being deterministic does not make a recommendation obeyed. The agents' payoffs, the bond coverage and the value of future rounds must make the inequality above hold.
 
 \begin{property}[Conditional Correlating-Device Interpretation]\label{prop:correlating-device}
 \pdstatus{\Designed}{a conditional interpretation, not an observed equilibrium}
@@ -699,7 +699,7 @@ ordered pair, using distinct domain tags. The signed checkpoint must also
 identify the intended tree and its size. The drawing omits wire-format
 details; the two-level forest applies the path calculation at each level.
 
-\paragraph{Witness to an abstract KMS.} Each $R_{\text{harbor},\ell}$ is also sent to a key management service (KMS) with the properties listed in \S\ref{sec:federated-sovereign}, which keeps it as a witness: an independent copy that can only grow. The KMS accepts roots only in order and periodically publishes a signed summary of everything it holds (a signed tree head), as in Certificate Transparency~\pdcite{laurie2013ct}. A daemon that shows different roots for the same epoch to different parties (equivocation) can then be caught by auditors who check that successive tree heads are consistent.
+\paragraph{Witness to an abstract KMS.} Each $R_{\text{harbor},\ell}$ is also sent to a key management service (KMS) with the properties listed in \S\ref{sec:federated-sovereign}, which appends it to a witness log, an independent record outside the daemon that can only grow. The KMS accepts roots only in order and periodically publishes a signed summary of everything it holds (a signed tree head), as in Certificate Transparency~\pdcite{laurie2013ct}. A daemon that shows different roots for the same epoch to different parties (equivocation) can then be caught by auditors who check that successive tree heads are consistent.
 
 \begin{pdclaim}{Design invariant}{Proof Soundness}
 \setlength{\parskip}{4pt plus 1pt}
@@ -729,7 +729,7 @@ calculation excludes serialization and context metadata.
 
 \subsection{Mutable-Signal Ledger (Pheromone Lineage)}\label{sec:pheromones}
 
-Stigmergy, coordination through marks left in a shared environment, comes from biology. There pheromones only accumulate: ants deposit them and they evaporate~\pdcite{theraulaz1999stigmergy}. Software agents need more. An agent that left a hint and later found it wrong must be able to retract it while keeping the record of who left it and who retracted it. Signals must therefore be revocable, renamable and traceable to their author.
+Stigmergy, coordination through marks left in a shared environment, comes from biology. There a mark can only be added. Ants deposit pheromone, no ant can take it back, and it fades by evaporating~\pdcite{theraulaz1999stigmergy}. Software agents need more. An agent that left a hint and later found it wrong must be able to retract it while keeping the record of who left it and who retracted it. Signals must therefore be revocable, renamable and traceable to their author.
 
 For example, choose decay $S2^{-u/h}$, where $u$ is the time since the
 spray, with strength $S=8$ and half-life $h=10$ minutes. After twenty minutes the view is $2$. A revocation then
@@ -832,8 +832,10 @@ case. Pike ($\beta$) is working on ``add rate limiter'', which must ship by
 the release cut at minute~75. At minute~20 Pike finds that it must edit
 \texttt{auth.ts} ($f$), and that work will take another 25 minutes.
 
-With locks, Pike waits until Wren finishes at minute~60. It then finishes at
-minute $60+25=85$, misses the cut, and only Wren's task ships. With advisory
+With locks, Wren releases \texttt{auth.ts} only when it finishes at
+minute~60, too late for Pike's 25 minutes of work to meet the cut; this is
+what the theorem's release assumption stands for. Pike finishes at minute
+$60+25=85$, after the cut, and only Wren's task ships. With advisory
 claims, the daemon tells both agents about the overlap on \texttt{auth.ts}.
 Wren has not needed the file and does not expect to, so it releases the claim
 at minute~21. Pike finishes at minute $21+25=46$, before the cut, and both
@@ -845,7 +847,7 @@ tasks ship. Both agents preferred that outcome, and the lock blocked it.
 This instance refutes the universal claim that exclusive locks always improve team welfare. It does not derive Sen's theorem, which needs unrestricted preferences and a decision rule with personal vetoes; a production lock manager may restrict preferences, negotiate releases or time out claims. The usable lesson is narrower. Do not give an agent an unconditional veto over a shared resource when the team may know something the allocator does not.
 
 This is not a contrived scenario. AI agents are \emph{inherently uncertain} about which files they will modify when they begin a task.\marginnote{\input{figures/spark-welfare-loss}\par
-Chance $L(\rho)=1-(1-\rho)^2$ that a precautionary lock blocks one of two agents, as the overlap probability $\rho$ grows.} An agent asked to ``fix the login bug'' cannot predict whether it will need the authentication middleware, the route handler, the test suite, or all three. Enforced claims force agents to either:
+Chance $L(\rho)=1-(1-\rho)^2$ that a precautionary lock blocks at least one of two agents, as the overlap probability $\rho$ grows.} An agent asked to ``fix the login bug'' cannot predict whether it will need the authentication middleware, the route handler, the test suite, or all three. Enforced claims force agents to either:
 \begin{enumerate}[nosep]
   \item \textbf{Over-claim} (request locks on every file they might touch) $\rightarrow$ destroys parallelism.
   \item \textbf{Under-claim} (request locks only on files they're certain about) $\rightarrow$ produces undetected conflicts, defeating the purpose.
@@ -855,7 +857,7 @@ The margin curve shows how fast over-claiming costs a pair of agents. Let
 $\rho$ be the probability that one agent's precautionary locks cover a file
 the other agent turns out to need. Treat the two agents alike and
 independently, and assume, as in Theorem~\ref{prop:sen}, that a blocking lock
-is not released before the deadline. Each agent escapes being blocked with
+is not released early enough for the blocked agent to finish by the deadline. Each agent escapes being blocked with
 probability $1-\rho$, both escape with probability $(1-\rho)^2$, and the team
 loses the outcome in which both tasks ship with probability
 $L(\rho)=1-(1-\rho)^2$. At $\rho=0.5$ that is $0.75$, the marked point; at
@@ -966,7 +968,7 @@ Reversal appends a counter-record signed by the daemon, with a Merkle-Forest pro
 \item Of the four governance mechanisms in \S\ref{sec:governance}'s escalation order, which one is the equilibrium response to a claim that was merely precautionary, and which to a claim whose holder crashed?
 \end{pdrecitation}
 
-This subsection is short on purpose, because full governance design is outside this chapter's scope. What it shows is that advisory claims and bonds leave room for a clean appeals path that a machine can run, so a mistaken settlement can always be appealed.
+This subsection is short on purpose, because full governance design is outside this chapter's scope. What it shows is that advisory claims and bonds leave room for a clean appeals path that a machine can run, so a party with standing can still challenge a mistaken settlement within the appeal window.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Crash Recovery as Social Continuation}\label{sec:crash-recovery}
@@ -979,7 +981,7 @@ A database recovers from a crash with the ARIES protocol~\pdcite{mohan1992aries}
 \begin{definition}[Social Recovery]\label{def:social-recovery}
 \pdstatus{\Designed}{the recovery policy modeled here}
 \setlength{\parskip}{4pt plus 1pt}
-When agent $\alpha$ is declared dead (no heartbeat for longer than a threshold $\theta_{\text{dead}}$ that depends on what $\alpha$ was doing):
+When agent $\alpha$ is declared dead (no heartbeat for at least a threshold $\theta_{\text{dead}}$ that depends on what $\alpha$ was doing):
 \begin{enumerate}[nosep]
   \item All active sessions of $\alpha$ are marked \texttt{abandoned}.
   \item $\alpha$ is queued in the \pdterm{resurrection set} $\mathcal{R}$, the queue of dead agents awaiting a successor, with status \texttt{pending}.
@@ -1003,8 +1005,9 @@ $\phi$ is ``repair checkout regression; keep \texttt{checkout\_regression}''.
 The trail $N$ holds seven notes, the last reading ``rounding fix in
 \texttt{currency.ts}, 2 of 3 failing tests pass''. The claims $F$ are
 \texttt{payment/currency.ts} and \texttt{tests/checkout.spec.ts}. Wren's first
-note names \texttt{h-12} as its salvage parent. What Wren does not get is why
-Heron abandoned approach~A, if Heron never wrote that down.
+note names \texttt{h-12} as its salvage parent. What Wren does not get is anything
+Heron reasoned but never wrote down, such as how it meant to fix the last
+failing test.
 \end{pdexample}
 
 \subsection{What Morality Means When Death Is Cheap}\label{sec:morality}
@@ -1390,7 +1393,7 @@ discount would be $3$; if $c=5$, the posted bond is $5$, not $3$. $\kappa$ incre
 
 The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - \kappa)\}$ prices every threat from the same cleanup-cost curve. One calibration may not serve every task: a price intended to deter costly sabotage can exclude providers from low-exposure work, while an accessible price may leave severe losses underfunded. Task permissions, recoverability and loss estimates therefore matter alongside the multiplier.
 
-Table~\ref{tab:threat-bonds} gives illustrative starting bands, not validated coverage levels. Careless work means an attempted result that is sloppy, partial or fails review; abandonment means leaving accepted work unfinished; sabotage means deliberate damage to shared state. These descriptions classify outcomes for analysis; they do not test intent.
+Table~\ref{tab:threat-bonds} gives illustrative starting bands, each a share of the \pdterm{claim ceiling} (the most that will be paid out on a claim), not validated coverage levels. Careless work means an attempted result that is sloppy, partial or fails review; abandonment means leaving accepted work unfinished; sabotage means deliberate damage to shared state. These descriptions classify outcomes for analysis; they do not test intent.
 
 \begin{table}[H]
 \centering
@@ -1452,7 +1455,7 @@ The weak-improvement result of \S\ref{sec:youle:welfare} is conditional on Phase
 The settlement design needs an adjudication rule distinct from lifecycle
 status. Neither a missed heartbeat nor the TLA$^{+}$ excerpt itself determines
 a slash. Attribution is recorded (\S\ref{sec:attribution}), and the agreed
-appeal window permits challenge. That is most of what is needed, but it makes the daemon the verifier, the judge and the arbiter of evidence at once, a position no single component should hold. Call any evaluator whose verdict settlement relies on an oracle. Strong evidence does not make a single oracle correct; it makes it confidently wrong in the cases where its evidence is incomplete.
+appeal window permits challenge. That is most of what is needed, but it makes the daemon the verifier, the judge and the arbiter of evidence at once, a position no single component should hold. We call any evaluator whose verdict a settlement relies on an oracle. Strong evidence does not make a single oracle correct; it makes it confidently wrong in the cases where its evidence is incomplete.
 
 One proposal separates three evaluators with different costs and failure
 modes. Their agreement is useful only under an explicit rule for missing
@@ -1496,7 +1499,7 @@ The advisor that sets bond sizes posts a bond on its own accuracy. Whether this 
 \paragraph{$c$ as a project health metric.} A rising $c$ means breaches cost more to recover from, which suggests coordination in the project is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. This is a feedback loop: risky spawns cost more exactly when the project can least afford them.
 
 \paragraph{Threat-class bond bands and their defensibility.}\label{sec:pricing:defensibility}
-The pricing function $\pi$ resolves to one of three nominal bands, each a share of the \pdterm{claim ceiling} (the most that will be paid out on a claim) and calibrated to the threat class the bond is defending against:
+The pricing function $\pi$ resolves to one of three nominal bands, each a share of the claim ceiling and calibrated to the threat class the bond is defending against:
 \begin{itemize}[nosep]
   \item \textbf{Careless} (accidental damage during honest attempts): $\pi \in [10\%,\,25\%]$ of the claim ceiling.
   \item \textbf{Abandonment} (walk-away mid-task; cleanup dominates): $\pi \in [25\%,\,50\%]$ of the claim ceiling.
@@ -1745,9 +1748,8 @@ window, resource threshold, task class, and false-positive and false-negative
 rates against independently assessed outcomes. The score does not itself
 authorize interruption or sanctions. A separately authorized recovery procedure
 may pause at a safe boundary, retain available task state, ask for a revised
-plan, or start a successor. Pausing a process does not undo external effects;
-a summary can omit information; recovery is not guaranteed to preserve all
-context or resolve the underlying problem.
+plan, or start a successor. Pausing does not undo external effects, and
+recovery may lose context.
 
 \paragraph{Consented historical-defect probes.}
 A candidate evaluation uses consented, blinded probes drawn from historical
@@ -1936,7 +1938,10 @@ choosing \texttt{Tick} after a dead agent is queued, never choosing
 \texttt{Tick} alone does not exclude it. Eventual recovery needs an enabled
 recovery action and fairness for its selection. Also, \texttt{Dismiss}
 deletes the retained session in this excerpt: its note monotonicity covers
-active sessions, not this explicit destructive action.
+active sessions, not this explicit destructive action. The implementation's
+removal (\texttt{pd session rm}) archives instead
+(Theorem~\ref{lem:integrity}), so Dismiss models a stronger, destructive
+action than the API offers.
 
 \textbf{Key invariant}: \texttt{EscrowInvariant} requires every active session
 in this abstract model to carry a positive escrow value. The \texttt{Begin}
@@ -2197,7 +2202,7 @@ service's complicity, not possession of a publicly visible signature.
 
 \input{figures/fig-bonded-key-custody}
 
-\paragraph{Magic-link single-use atomicity.} The email-gated recovery path requires that each emitted magic-link token be redeemable \emph{at most once}; otherwise a race window between two consumers can produce two valid recovery completions for the same token. The ProVerif model~\pdcite{blanchet2016modeling} encodes the property as an injective event: $\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$. This prevents duplicate consumption; it does not guarantee that anyone redeems the token. The runtime analogue is a single atomic SQL update with a \texttt{WHERE consumed\_at IS NULL RETURNING} clause; Because SQLite serializes writers, the first committed transaction consumes the token and any later attempt gets zero rows back. Figure~\ref{fig:magic-link-inline} follows two attempts against the same unused token.
+\paragraph{Magic-link single-use atomicity.} The email-gated recovery path requires that each emitted magic-link token be redeemable \emph{at most once}; otherwise a race window between two consumers can produce two valid recovery completions for the same token. The ProVerif model~\pdcite{blanchet2016modeling} encodes the property as an injective event: $\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$. This prevents duplicate consumption; it does not guarantee that anyone redeems the token. The runtime analogue is a single atomic SQL update with a \texttt{WHERE consumed\_at IS NULL RETURNING} clause. Because SQLite serializes writers, the first committed transaction consumes the token and any later attempt gets zero rows back. Figure~\ref{fig:magic-link-inline} follows two attempts against the same unused token.
 
 \input{figures/fig-magic-link-inline}
 
@@ -2217,7 +2222,7 @@ and signing-oracle model; storing a key there alone is insufficient.
 
 \paragraph{Recovery and its structural limits.} Recovery is email magic link. The structural limit: \emph{if the user loses both passphrase and old machine}, harbor session keys wrapped only for that pubkey cannot be recovered. That is the cost of encrypting data at rest so that the KMS learns nothing about it. An opt-in Shamir escrow mode~\pdcite{shamir1979share} ($t$-of-$n$ secret sharing across $\mathcal{K}$, email, and recovery contacts) trades some zero-knowledge for stronger recovery.
 
-\paragraph{Passkeys instead of passwords.} Identity rests on WebAuthn-backed device keypairs, so there are no secrets to phish and no passphrase is needed for every action. New devices enroll by exchanging a short-lived pairing token that re-encrypts the KMS master under the new device's public key. Mobile devices act as \emph{viewers}, not peers: they sign low-stakes actions (approve an ask, bump budget) over a WebSocket viewer channel, but they do not run the full daemon. Each account's harbors gossip Merkle roots among its own devices; cross-account gossip requires explicit signed consent.
+\paragraph{Passkeys instead of passwords.} Identity rests on WebAuthn-backed device keypairs, so there are no secrets to phish and ordinary actions need no passphrase. New devices enroll by exchanging a short-lived pairing token that re-encrypts the KMS master under the new device's public key. Mobile devices act as \emph{viewers}, not peers: they sign low-stakes actions (approve an ask, bump budget) over a WebSocket viewer channel, but they do not run the full daemon. Each account's harbors gossip Merkle roots among its own devices; cross-account gossip requires explicit signed consent.
 
 What we deliberately do \emph{not} do: require passwords, use TOTP as a primary factor, or couple recovery to a single cloud vendor.
 
@@ -2252,7 +2257,7 @@ The ideas below are the ones later chapters use, in the order they use them:
 \item \textbf{Structural scope limitation is a theorem}, not a policy: accepted operations stay within the root grant when every relevant effect
 passes through the verifier. Checks have a runtime cost; an unmediated write
 is outside that guarantee.
-\item \textbf{The record is tamper-evident.} Notes are hash-chained, each session's notes are gathered into a tree, and each period's session roots go into a harbor tree whose root the daemon signs (the Merkle forest). Six properties follow. Notes can only be added. A proof that checks out means the note really was recorded, unless the daemon's key or SHA-256 is broken. A daemon cannot publish two different roots for the same period without contradicting its own earlier signature, which the witness log exposes, or forking its identity. Every signal traces back to one signing principal. A reader can replay events to correct for a revocation that arrived late. Revoking a signal adds an event instead of deleting one. Separately, a bounded model check shows that the money ledger creates or loses no credits except by top-up. Property tests show that two simultaneous escrow requests cannot overdraw a wallet, provided the balance check and the debit happen in one transaction.
+\item \textbf{The record is tamper-evident.} Notes are hash-chained, each session's notes are gathered into a tree, and each period's session roots go into a harbor tree whose root the daemon signs (the Merkle forest). The design requires six properties; only the first is proved here, and the other five are design invariants. Notes can only be added. A proof that checks out must mean the note really was recorded, unless the daemon's key or SHA-256 is broken. A daemon must not be able to publish two different roots for the same period without contradicting its own earlier signature, which the witness log exposes, or forking its identity. Every signal must trace back to one signing principal. A reader must be able to replay events to correct for a revocation that arrived late. Revoking a signal must add an event instead of deleting one. Separately, a bounded model check shows that the money ledger creates or loses no credits except by top-up. Property tests show that two simultaneous escrow requests cannot overdraw a wallet, provided the balance check and the debit happen in one transaction.
 \item \textbf{Exclusive locks can backfire.} If Wren locks a file just in case and Pike turns out to need it, the lock can block an outcome both of them prefer. Advisory claims block nothing; they guarantee that every overlap between registered claims is reported. An appeal can reverse a settlement only by adding a counter-record, never by rewriting one.
 \item \textbf{A crash is a social event.} Recovery is continuation of the record by whoever next holds the role, not resurrection of the process.
 \item \textbf{Intent is irrelevant to settlement}; the bond pays on the evidence, whatever the agent meant.
@@ -2275,7 +2280,7 @@ An agent $\alpha$ holds a Harbor Card with \texttt{fs:write:auth.ts}, \texttt{db
 \begin{pdsolution}{ex:bonded-cap-attenuation}
 The rejected card violates \emph{temporal} attenuation: Theorem~\ref{thm:scope} requires $C(\tau_{k}) \subseteq C(\tau_{k-1})$ along every dimension of the capability, and TTL is one such dimension: a child's expiry must not exceed its parent's. Here the child requests $20$~minutes against a parent that expires at $15$; even though the capability set $\{\texttt{fs:write:auth.ts}\}$ is a subset of $\alpha$'s, the delegation as a whole is not a narrowing.
 
-An acceptable card is $\{\texttt{fs:write:auth.ts}\}$, TTL~$\le 15$~minutes, which drops \texttt{db:read} (a valid narrowing of the capability set) and matching or shortening the TTL. A strictly narrower example is $\{\texttt{fs:read:auth.ts}\}$, TTL~$=10$~minutes, if the deployment's capability lattice places \texttt{read} below \texttt{write} on the same resource.
+An acceptable card is $\{\texttt{fs:write:auth.ts}\}$, TTL~$\le 15$~minutes, which drops \texttt{db:read} (a valid narrowing of the capability set) and matches or shortens the TTL. A strictly narrower example is $\{\texttt{fs:read:auth.ts}\}$, TTL~$=10$~minutes, if the deployment's capability lattice places \texttt{read} below \texttt{write} on the same resource.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:attribution}}{Attribution and mutable views}
@@ -2497,7 +2502,7 @@ effect additionally requires complete capture and principal binding; it says not
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-Six further results build on these three layers. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the append-only record the rest of the architecture depends on. The federated custody design (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and bases identity on passkeys, so no passphrase is needed for every action. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) divides coordination acts into five classes, because acts with different losses and participation costs may need different prices. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
+Six further pieces of the design build on these three layers. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the append-only record the rest of the architecture depends on. The federated custody design (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and bases identity on passkeys, so ordinary actions need no passphrase. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) divides coordination acts into five classes, because acts with different losses and participation costs may need different prices. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
 
 Advisory claims leave room for negotiation when agents know more about
 their needs than the allocator. Their benefit depends on the conflict and
