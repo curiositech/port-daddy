@@ -3471,7 +3471,7 @@ design proposal without treating the arrows as a deduction.
 
 \input{figures/legible-swarm-hayek-scott}
 
-\pdexercisepointer{\ref{ex:ls-hobbes-mapping}}{\ref{ex:ls-ranker-political-organ}}{\pageref{ex:ls-hobbes-mapping}}
+\pdexercisepointer{\ref{ex:ls-hobbes-mapping}}{\ref{ex:ls-express-consent-properties}}{\pageref{ex:ls-hobbes-mapping}}
 \input{additions/ls-many-authors}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -3580,7 +3580,7 @@ own staleness/decay discipline (forward-reference \S\ref{sec:staleness}), and do
 \emph{it} need a counter-surface, ad infinitum?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-ranker-counter-surface}
-Use one complete append-only decision ledger, not a second ranked dashboard. For every candidate item, store candidate ID, source/evidence pointers, policy and model version, input features, score components, threshold/lane, surfaced-or-suppressed verdict, reason codes, expiry, and a counterfactual such as ``would surface if anomaly were 0.08 higher.'' The operator can query suppressed items since a cursor, sort by any raw field, and sample items uniformly rather than through the production ranker. Decisions are immutable; their current relevance expires by signal-specific TTL (\S\ref{sec:staleness}) and is recomputed from raw state. Run independent random omission audits and expose raw event-log access. The regress terminates at completeness plus direct sampling: the base ledger records every candidate and every ranking decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to rank the ranker's omissions. The remaining trust assumption is the complete event-capture boundary; that assumption should be tested and externally anchored, not hidden behind another summary. (Same construction answers Exercise~\ref{ex:ls-ranker-political-organ}.)
+Use one complete append-only decision ledger, not a second ranked dashboard. For every candidate item, store candidate ID, source/evidence pointers, policy and model version, input features, score components, threshold/lane, surfaced-or-suppressed verdict, reason codes, expiry, and a counterfactual such as ``would surface if anomaly were 0.08 higher.'' The operator can query suppressed items since a cursor, sort by any raw field, and sample items uniformly rather than through the production ranker. Decisions are immutable; their current relevance expires by signal-specific TTL (\S\ref{sec:staleness}) and is recomputed from raw state. Run independent random omission audits and expose raw event-log access. The regress terminates at completeness plus direct sampling: the base ledger records every candidate and every ranking decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to rank the ranker's omissions. The remaining trust assumption is the complete event-capture boundary; that assumption should be tested and externally anchored, not hidden behind another summary.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:zoom}}{The mechanism: legibility-with-zoom}
@@ -4070,16 +4070,6 @@ just started using the tool.''
 \begin{pdsolution}{ex:ls-express-consent-properties}
 The grant is discrete, explicitly issued, scoped, time-bounded, and revocable and audited. ``Started using the tool'' has none of these properties: it is continuous rather than discrete, inferred rather than issued, unscoped, open-ended, and carries no explicit revocation act.
 \end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-ranker-political-organ}
-\emph{The ranker as a political authority.} Specify the ``what did the
-queue suppress, and why'' counter-surface (Table~\ref{tab:counter-surface})
-so that ranking-as-governing is itself legible.
-Does the counter-surface need its own counter-surface? Where does the regress
-terminate, and on what principle?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-ranker-political-organ}
-Same construction as Exercise~\ref{ex:ls-ranker-counter-surface}: one complete, append-only decision ledger recording every candidate, its ranking decision, reason codes, and a counterfactual, queryable directly and sampled independently of the production ranker rather than re-ranked by a second dashboard. The regress terminates at completeness plus direct sampling. The base ledger already records every candidate and decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to audit the ranker's omissions. The remaining trust assumption is the completeness of the event-capture boundary itself; that assumption should be tested and externally anchored, not hidden behind another summary.
-\end{pdsolution}
 \input{additions/ls-exercises-authors}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -4293,7 +4283,7 @@ Abdication-resistance: does skill-retention practice preserve situation awarenes
 Calibrating discovery-ranker weights with no ground truth (Ex.~\ref{ex:ls-implicit-feedback-goodhart}) & $\star\star$ & implicit relevance feedback \\
 Decay-vs-summary boundary (Ex.~\ref{ex:ls-decay-vs-summary}) & $\star$ & Invariant~\ref{prop:decay} \\
 Legibility's information-theoretic lower bound (Ex.~\ref{ex:ls-adversarial-critical-set}) & $\star\star\star$ & Thm.~\ref{thm:lowerbound} \\
-The ranker-as-political-authority regress (Ex.~\ref{ex:ls-ranker-political-organ}) & $\star\star$ & Invariant~\ref{prop:legible-sovereign} \\
+The ranker-as-political-authority regress (Ex.~\ref{ex:ls-ranker-counter-surface}) & $\star\star$ & Invariant~\ref{prop:legible-sovereign} \\
 The succession corner \emph{beyond the mean}: tail response, and consistency of
 judgment, neither of which the succession threshold covers
 (Ex.~\ref{ex:ls-succession-corner}) & $\star\star$ & \S\ref{sec:succession-corner} \\
