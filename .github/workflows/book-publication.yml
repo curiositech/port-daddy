@@ -214,7 +214,8 @@ jobs:
               "checks": "run_pdf_checks.py --expect 1 and check-book-spreads.mjs passed",
               "run": os.environ["RUN_URL"],
           }
-          json.dump(receipt, open(os.path.join(out, "book-publication.json"), "w"), indent=2)
+          with open(os.path.join(out, "book-publication.json"), "w") as stream:
+              stream.write(json.dumps(receipt, indent=2) + "\n")
           print(json.dumps(receipt, indent=2))
           PY
           # The fonts must never ride along: refuse to stage anything but PDFs and JSON.

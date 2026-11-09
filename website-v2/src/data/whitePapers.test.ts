@@ -135,10 +135,12 @@ describe('whitepaper metadata sync', () => {
     expect(statSync(abs).size).toBeGreaterThan(10_000)
   })
 
-  test('the full-fidelity collected volume downloads from its canonical repository artifact', () => {
-    expect(COLLECTED_VOLUME.downloadUrl).toBe(
-      'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
-    )
+  test('the collected volume downloads from the deployed Book, not the committed copy', () => {
+    // deploy-website-v2.yml serves the Book it built from the merged source
+    // (ADR-0145); raw.githubusercontent.com would serve the committed PDF,
+    // which can lag it.
+    expect(COLLECTED_VOLUME.downloadUrl).toBe('/whitepaper/coordination-papers-mega-volume.pdf')
+    expect(COLLECTED_VOLUME.downloadUrl).toBe(COLLECTED_VOLUME.pdfPath)
   })
 
   test('collected-volume pages and sizeKb match the actual PDF', () => {
