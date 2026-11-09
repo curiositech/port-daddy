@@ -20,9 +20,14 @@
   "definition": "A session's sequence of timestamped notes recording its observations, decisions and progress, to which notes can be added but never changed."
  },
  {
-  "term": "Merkle forest",
-  "sort": "merkle forest",
-  "definition": "The three-level evidence structure in which each session's hash-chained notes form a tree, each epoch's session roots form a harbor tree whose root the daemon signs, and the harbor trees, one per epoch, make up the forest."
+  "term": "harbor log",
+  "sort": "harbor log",
+  "definition": "One append-only Merkle log per harbor, in the style of Certificate Transparency, whose leaves are the roots of completed sessions and whose state the daemon signs as checkpoints."
+ },
+ {
+  "term": "signed checkpoint",
+  "sort": "signed checkpoint",
+  "definition": "The daemon's signature over a harbor log's current size and root; Certificate Transparency calls it a signed tree head."
  },
  {
   "term": "inclusion proof",
@@ -30,9 +35,9 @@
   "definition": "The short list of sibling hashes, with a signed root, that lets anyone check that one note belongs to a recorded session."
  },
  {
-  "term": "minimal liberalism",
-  "sort": "minimal liberalism",
-  "definition": "Sen's condition that at least two individuals each have a pair of outcomes over which their own preference decides the social choice."
+  "term": "consistency proof",
+  "sort": "consistency proof",
+  "definition": "The short list of hashes showing that a larger signed checkpoint of an append-only log extends a smaller one, with every earlier entry kept unchanged."
  },
  {
   "term": "conflict graph",
