@@ -44,13 +44,13 @@
   \draw[pd guide] (\xB,-0.60) -- (\xB,-4.55);
 
   \node[pd tag,anchor=south,text width=4.4cm,align=center] at ({(\xA+\xG)/2},-1.16)
-    {bond post: $b_\alpha$ locked, signed into $R_A{}^{(e)}$};
+    {bond post: $b_\alpha$ locked, terms under $R_A{}^{(e_A)}$};
   \node[pd badge] (m1) at ({(\xA+\xG)/2},-1.40) {1};
   \draw[pd arrow,pd to badge] (\xA,-1.20) -- (m1);
   \draw[pd arrow,pd from badge] (m1) -- (\xG,-1.60);
 
   \node[pd tag,anchor=south,text width=4.4cm,align=center] at ({(\xG+\xB)/2},-2.36)
-    {damage claim: $\mathsf{cl}_B=(R_B{}^{(e)},\mathrm{evidence})$};
+    {damage claim: $\mathsf{cl}_B=(R_B{}^{(e_B)},\mathrm{evidence})$};
   \node[pd badge] (m2) at ({(\xG+\xB)/2},-2.60) {2};
   \draw[pd arrow,pd to badge] (\xB,-2.40) -- (m2);
   \draw[pd arrow,pd from badge] (m2) -- (\xG,-2.80);
@@ -76,12 +76,12 @@
 \toprule
 \# & step & binds / value \\
 \midrule
-1 & bond post & $A\to$ escrow: $b_\alpha$ locked, TTL signed into $R_A{}^{(e)}$ and $R_B{}^{(e)}$ \\
-2 & damage claim & $B\to$ escrow: $\mathsf{cl}_B=(R_B{}^{(e)},\mathrm{evidence})$, a Merkle inclusion proof \\
-3 & verify \& clear & escrow checks the proof against step 1's terms; clear or refuse \\
+1 & bond post & $A\to$ escrow: $b_\alpha$ locked; terms (TTL, beneficiaries, adjudicator) under the roots of $A$ and each harbor named \\
+2 & damage claim & $B\to$ escrow: $\mathsf{cl}_B$, with a Merkle inclusion proof against each root that holds evidence \\
+3 & verify \& clear & custodian checks the proofs and the adjudicator's ruling against step 1's terms; clear or refuse \\
 \bottomrule
 \end{tabular}
 \normalsize
-\caption{Posting a bond and announcing damage do not settle it. Escrow checks the proof against the signed conditions, then makes one terminal decision: clear or refuse. [internal]}
+\caption{Posting a bond and announcing damage do not settle it. The escrow, as custodian, checks the proofs and the adjudicator's ruling against the signed terms, then makes one terminal move: clear or refuse. [internal]}
 \label{fig:fh-settle-protocol}
 \end{figure}
