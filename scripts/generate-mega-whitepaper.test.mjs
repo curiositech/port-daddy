@@ -357,9 +357,10 @@ test('Book TeX has one canonical directory with no legacy source copies', () => 
 });
 
 test('no fragment joins the figure corpus without a chapter that inputs it', () => {
-  const inputRe = /\\input\{figures\/([A-Za-z0-9._-]+?)(?:\.tex)?\}/g;
+  // Chapter additions live one level down and reach figures through ../figures/.
+  const inputRe = /\\input\{(?:\.\.\/)?figures\/([A-Za-z0-9._-]+?)(?:\.tex)?\}/g;
   const inputted = new Set();
-  for (const root of ['book']) {
+  for (const root of ['book', 'book/additions']) {
     for (const entry of readdirSync(resolve(root), { withFileTypes: true })) {
       if (!entry.isFile() || !entry.name.endsWith('.tex')) continue;
       const source = readFileSync(resolve(`${root}/${entry.name}`), 'utf8');
