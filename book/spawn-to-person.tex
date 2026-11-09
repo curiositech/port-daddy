@@ -2274,7 +2274,13 @@ the expected-forfeiture inequality
   \qquad\Longleftrightarrow\qquad
   \rho \;\ge\; \rho^\star \;=\; \frac{G_k}{d\,B},
 \]
-which is Becker's condition, and note that the detector term $d$ belongs in it: the
+which is Becker's condition. It assumes the \pdterm{keep-gain convention} of
+settlement: a caught judge forfeits $B$ but keeps the gain $G_k$. A settlement
+that also claws the gain back needs a lower rate. \pdchapref{he}{The Harbor
+Economy} states the condition as a theorem%
+\ifpdbook\ (Theorem~\ref{he:prop:becker-deterrence})\fi\ and compares the two
+conventions. When $G_k>dB$ the critical rate exceeds one, and no audit rate
+deters at that bond. The detector term $d$ belongs in the condition: the
 $d$-free form $\Pr(\text{honeypot}) > G_k/B$ is the perfect-detector special case
 $d=1$ and under-quotes the required injection rate by a factor of $1/d$.
 
@@ -2294,7 +2300,8 @@ under-quote.
 Let level $k{+}1$ audit level-$k$ auditors, each audit sampled
 \emph{sealed} from a pool spanning $C$ disjoint cliques, each auditor bonded at $B$
 with audit parameters $(\rho,d)$ and stipulated bribe price
-$\beta=\rho d B>0$. Assume one clique is sampled uniformly after the briber
+$\beta=\rho d B>0$, an auditor's expected forfeiture under the keep-gain
+convention. Assume one clique is sampled uniformly after the briber
 commits, buying $j$ cliques prevents detection with probability $j/C$, and
 all $j$ payments are made regardless of the draw. Relative to buying none,
 the briber's expected gain is
@@ -2323,7 +2330,11 @@ conditional recurrence pushes expected surviving value strictly below $u$ after
 \]
 levels for target
 $0<u\le G_0$, a depth
-\emph{logarithmic} in $G_0/u$. Counting one selected bond per level gives
+\emph{logarithmic} in $G_0/u$. The recurrence bounds residual damage, the
+corrupt value still expected to survive. It does not deter a judge at a
+level where $G_k>\rho dB$. With the target $u=\beta$, the value still at
+stake falls below the bribe price, so from that depth on the Becker
+condition $\rho dB\ge G_k$ holds again. Counting one selected bond per level gives
 $B$ times this depth; total capital reserved by all eligible judges depends
 on whether their bonds can be reused and is not determined by that count.
 \end{pdclaim}
@@ -2344,24 +2355,36 @@ be enough: a fault that no level can detect would survive every level.
 \label{ex:audit-depth}
 \marginnote{\input{figures/spark-stp-audit-depth}\par
 The model's linear bribery phase delays geometric decay. All three traces
-stop below one unit; they are not measured audit performance.}
+stop below the bribe price $\beta=10$; they are not measured audit performance.}
 Walk a corrupt grade worth $G_0 = 400$ up the tower with the running
 parameters above: $\rho=0.25$ and $d=0.8$, so $\rho d = 0.2$, a bribe per
 group costs $\beta = \rho d B = 10$, and the geometric factor is
 $\lambda = 1-\rho d = 0.8$. Nobody learns which group will audit until the
 bribes are paid.
 
+This grade is a counterexample to deterrence, and the example uses it on
+purpose. Becker's condition at $G_0=400$ gives $\rho^\star=400/(0.8\times50)=10>1$,
+so no audit rate at this bond deters the level-0 judge. At $\rho=0.25$ the bond
+would have to be $G_0/(\rho d)=2{,}000$, and it must exceed $G_0/d=500$ before
+any rate up to one deters: bonds have to scale with the gain they guard. A
+smaller gain would not rescue the comparison of pool sizes below, because
+bribery pays only where deterrence already fails: $CB\ge B>\rho dB=\beta$ for
+every $C\ge1$. The tower
+therefore does not deter this judge. It bounds the residual damage, and the
+depth that matters is the depth at which the value still at stake falls below
+the bribe price $\beta$, where the Becker condition holds again.
+
 With a heterogeneous pool of $C=8$ groups, bribing all eight costs
 $8\times10=80$ and avoids an expected loss of $400\times0.2=80$: a tie,
 resolved against bribery. (Every number of bribed groups gives the briber
 zero expected gain, since the gain is affine in $j$.) The bribery threshold
 $G_k > CB = 400$ is unmet even at level 0, so nobody is bribed and the value
-at risk falls $400\to320\to256\to205\to\cdots$. After $27$ levels it is
-$400\times0.8^{27}\approx0.97$, below one unit; the tower needs
+at risk falls $400\to320\to256\to205\to\cdots$. After $17$ levels it is
+$400\times0.8^{17}\approx9.0$, below the bribe price; the tower needs
 \[
-  \lceil \log 400/\log 1.25 \rceil = 27
+  \lceil \log 40/\log 1.25 \rceil = 17
 \]
-levels, counting $27\times50=\$1{,}350$ in selected bonds. This is not a
+levels, counting $17\times50=\$850$ in selected bonds. This is not a
 capital requirement for the entire eight-clique candidate pool.
 
 For $C=1$, a single bribe of $10$ avoids $80$ of expected loss, so bribery
@@ -2369,24 +2392,25 @@ pays; the threshold is $G_k>50$. To obtain the following linear
 phase, additionally assume the briber pays each level's bribes from its
 remaining budget, cannot replenish that budget, and the next level values
 only that remainder. The script then subtracts $C\beta=10$ per level
-($400 \to 390 \to 380 \to\cdots$) for $35$ levels before the geometric phase takes
-over for
+($400 \to 390 \to 380 \to\cdots$) for $35$ levels. In each of them the briber
+buys the whole pool, so no audit in those levels detects anything. The
+geometric phase then takes over for
 \[
-  \lceil \log 50/\log 1.25\rceil = 18
+  \lceil \log 5/\log 1.25\rceil = 8
 \]
-more: $53$ levels and $53\times50=\$2{,}650$ in selected bonds. The
+more: $43$ levels and $43\times50=\$2{,}150$ in selected bonds. The
 linear phase tracks net budget under the extra assumption, not disappearance
 of the fraudulent grade itself.
 
 \emph{Now you try:} at $C=2$, where does the linear
 phase stop? (Bleed $C\beta = 20$ per level until $G_k \le CB = 100$, i.e.\ $15$
-levels, then $21$ geometric ones: $36$ levels, $\$1{,}800$.)
+levels, then $11$ geometric ones: $26$ levels, $\$1{,}300$.)
 \end{pdexample}
 
 \paragraph{What $C$ is actually doing, and the symbol it shares with the market.}
 The clique count $C$ is this theorem's diversity parameter. It is why the
 worked numbers above contrast $C=8$ against a monoculture $C=1$, and why the
-monoculture costs roughly twice the bond capital. $C$ stands in for something
+monoculture costs about two and a half times the bond capital. $C$ stands in for something
 statistical, and a critic who worries that every judge runs on the same few
 foundation models is right: ``disjoint clique'' says who can be bribed
 together, while shared blind spots are a statistical correlation. \pdchapref{he}{The Harbor Economy} gives the
@@ -2443,9 +2467,10 @@ Continuation value is a familiar source of discipline in repeated games~\pdcite{
 \input{figures/fig-stp-deterrence-regime}
 
 \noindent\textbf{What heterogeneity gives, and three conditions.} The two
-results of the audit-depth example above, $27$ levels and \$1{,}350 of selected
-bonds at $C=8$ against $53$ levels and \$2{,}650 at $C=1$, compare designs
-within the extra non-replenishing-budget model. Raising $C$ removes its linear prefix at these parameters; this does not prove that an externally financed adversary must run out of money. The selected-bond totals exclude collateral held by unused candidates. Three hypotheses are required and must not be dropped in
+results of the audit-depth example above, $17$ levels and \$850 of selected
+bonds at $C=8$ against $43$ levels and \$2{,}150 at $C=1$, compare designs
+within the extra non-replenishing-budget model. Both are depths to the bribe
+price for a gain that no audit rate deters at level 0. Raising $C$ removes its linear prefix at these parameters; this does not prove that an externally financed adversary must run out of money. The selected-bond totals exclude collateral held by unused candidates. Three hypotheses are required and must not be dropped in
 restatement. (i) \emph{Sealed sampling is a hypothesis, not hygiene}: a leaked draw
 collapses $C$ to $1$ and puts the VRF sampler inside the trusted computing base.
 (ii) \emph{The tower needs an exogenously honest root}: the operator, when there is a
@@ -2459,7 +2484,8 @@ deployment evidence supports it; distinct cliques alone do not establish it.
 
 \keyidea[A deeper audit still needs a sound root]{The tower model bounds a recursion under stated sampling, detection, and
 incentive assumptions. It does not create a competent grader or an honest root.
-The illustrative $27$ levels / $\$1{,}350$ versus $53$ / $\$2{,}650$ comparison
+What it bounds is residual damage; a judge whose gain exceeds $\rho dB$ is not
+deterred by it. The illustrative $17$ levels / $\$850$ versus $43$ / $\$2{,}150$ comparison
 depends on the assumed conditional detection rates, not measurements of deployed
 judge pools. A VRF can make a draw verifiable; it cannot make the selected judge
 correct. Oracle completeness, cross-clique dependence, and the terminal root
@@ -2843,7 +2869,9 @@ evidence but does not create its provenance or accountability.
 \item \textbf{Bonded grading needs its stated detection model.} The tower uses
 prepaid bribes, sealed uniform clique sampling, and a conditional detection
 bound. Geometric contraction starts below the bribery threshold; a trustworthy
-root is a separate assumption. A bond alone neither makes a grade correct nor
+root is a separate assumption. The contraction bounds residual damage: when a
+gain exceeds $dB$, no audit rate deters it, and the bond has to grow with the
+gain. A bond alone neither makes a grade correct nor
 excludes other ways to obtain useful evidence.
 \item \textbf{Revocation needs a freshness contract}: a tombstone retracts a
 record without erasing its history. A finite stale-use bound requires delivery
@@ -3389,19 +3417,23 @@ scratch: a judge cheats for gain $G$, is sampled with probability $\rho$, is
 caught given sampling with probability $d$, and forfeits bond $B$ when
 caught. Write the cheat payoff, set it to zero, and recover
 $\rho^\star = G/(dB)$. Then check the two worked towers: at $G_0=400$,
-$d=0.8$, $B=50$, $\rho=0.25$, confirm $27$ levels at $C=8$ and $53$ at $C=1$.
+$d=0.8$, $B=50$, $\rho=0.25$, compute $\rho^\star$ for the level-0 judge and
+confirm $17$ levels at $C=8$ and $43$ at $C=1$ to the bribe price $\beta=10$.
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-rho-star-derive}
 With one-shot corrupt gain at most $G$, re-audit probability $\rho$,
 conditional detection probability $d$, and slashable bond $B$, weak local deterrence requires $\rho d B\ge G$, giving
 $\rho^\star=G/(dB)$ when $dB>0$ and $G\le dB$. Strict deterrence
 requires a strict inequality; if $G>dB$, no audit probability at this bond
-suffices. At
-$G_0=400,d=0.8,B=50,\rho=0.25$: $\rho d=0.2$, so $\lambda=1-\rho d=0.8$; with
+suffices. The worked towers are such a case: $G_0=400>dB=40$, so
+$\rho^\star=10$ and no audit rate deters the level-0 judge; the tower bounds
+residual damage instead. At
+$G_0=400,d=0.8,B=50,\rho=0.25$: $\rho d=0.2$, so $\lambda=1-\rho d=0.8$ and
+$\beta=10$; with
 $C=8$ the threshold $G_k>CB=400$ is unmet at level $0$, giving
-$\lceil\log 400/\log 1.25\rceil=27$ levels; with $C=1$ the threshold is only
-$G_k>50$, so bribery bleeds linearly for $35$ levels before $18$ more
-geometric ones close it, $53$ total.
+$\lceil\log 40/\log 1.25\rceil=17$ levels to fall below $\beta$; with $C=1$ the
+threshold is only $G_k>50$, so bribery bleeds linearly for $35$ levels before
+$8$ more geometric ones close it, $43$ total.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-arbitration-capacity}
 Arbitration capacity: the contraction theorem measures the depth to an
@@ -3538,8 +3570,9 @@ this chapter's own.
   \item\label{op:root} \textbf{The grading oracle's honest root and its telemetry
   (\S\ref{sec:oracle}).} Theorem~\ref{thm:tower-imported} solves the stated
   conditional recurrence with a
-  derived contraction factor $\lambda = 1-\rho d$ and a computed depth ($27$ levels /
-  \$1{,}350 at $C{=}8$; $53$ / \$2{,}650 at $C{=}1$). What remains open is what that
+  derived contraction factor $\lambda = 1-\rho d$ and a computed depth to the
+  bribe price ($17$ levels / \$850 at $C{=}8$; $43$ / \$2{,}150 at $C{=}1$) for
+  a gain no audit rate deters. What remains open is what that
   theorem explicitly does not supply: the exogenously honest root the tower
   terminates against at scale, and the deployment telemetry that estimates $d$ and
   the cross-clique collusion correlation the disjointness hypothesis assumes away.
