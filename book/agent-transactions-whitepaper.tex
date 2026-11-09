@@ -389,7 +389,9 @@ A mediator flips a fair coin and privately recommends $(\mathit{proceed},\mathit
 An agent told to proceed gets $3$ by following rather than $0$ by deviating;
 an agent told to defer gets $1$ rather than $-2$. Both recommendations are
 obedient under these payoffs and observations. In the inequality below, the
-two weighted advantages are $\tfrac12(3-0)$ and $\tfrac12(1-(-2))$.
+two weighted advantages are $\tfrac12(3-0)$ and $\tfrac12(1-(-2))$. Each
+recommended pair is itself a Nash equilibrium of this game, so the coin only
+chooses between two equilibria.
 
 Change the payoff from causing a collision to $4$, and the defer recommendation
 ceases to be obedient: $1-4<0$. The identical message protocol now fails the
@@ -405,14 +407,14 @@ The daemon's role therefore has a precise game-theoretic test. Aumann~\pdcite{au
 \]
 Every mixed Nash equilibrium induces such a distribution. Issuing recommendations does not by itself create one; the inequality has to hold.
 
-The commons authority can play this mediator role. It observes the global claim graph and emits a recommendation pair on a contested file: \emph{Agent~$\alpha$, proceed; Agent~$\beta$, defer or coordinate.} A deterministic policy can still look random to the agents (a non-degenerate $\nu$), because they do not know which system state the daemon observed. Being deterministic does not make a recommendation obeyed. The agents' payoffs, the bond coverage and the value of future rounds must make the inequality above hold.
+The commons authority could play this mediator role, but as built it does something weaker. It sends no recommendations. It reports every overlap to both endpoints (Definition~\ref{def:advisory}), so whatever one agent learns from it, the other can learn too: its signals are public. When every signal is public, each player knows the whole recommended profile, so each profile the device draws must itself be a Nash equilibrium of the stage game. A public device can only randomize among Nash equilibria. The example above is no stronger than that: although each recommendation is delivered privately, an agent told to proceed can infer that the other was told to defer. Outcomes that no mixture of Nash equilibria reaches need recommendations that stay private, which the daemon does not send. A daemon that did send them, for example \emph{Agent~$\alpha$, proceed; Agent~$\beta$, defer or coordinate}, could use a deterministic policy that still looks random to the agents (a non-degenerate $\nu$), because they do not know which system state the daemon observed. Being deterministic does not make a recommendation obeyed. The agents' payoffs, the bond coverage and the value of future rounds must make the inequality above hold.
 
 \begin{property}[Conditional Correlating-Device Interpretation]\label{prop:correlating-device}
 \pdstatus{\Designed}{a conditional interpretation, not an observed equilibrium}
 \setlength{\parskip}{4pt plus 1pt}
-Port Daddy's daemon supplies the information structure of a correlating device for the agent-coordination game.
+Port Daddy's daemon, as built, supplies only public signals: it reports every overlap to both endpoints, so it can at most randomize among Nash equilibria. It would supply the information structure of a correlating device for the agent-coordination game only if it sent recommendations that stayed private.
 
-It induces a correlated equilibrium only under the following conditions:
+Such a device induces a correlated equilibrium only under the following conditions:
 \begin{enumerate}[nosep]
   \item \textbf{Specified distribution.} The model fixes a joint recommendation distribution $\nu$ and assumes the players know it.
 
