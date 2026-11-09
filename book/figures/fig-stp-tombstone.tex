@@ -3,9 +3,9 @@
 % including the fraud, forever inspectable; only the SEPARATE spendable-score
 % trace changes, and it changes on a bounded delay, not instantly and not by
 % deletion. Evidence: outcome o_3 (fraudulent), the overturning re-audit,
-% tombstone t(o_3) appended, then imported at a foreign harbor; the fraud's
+% tombstone bar-o_3 appended, then imported at a foreign harbor; the fraud's
 % contribution stays spendable until import, then falls to zero; the
-% propagation window tau is measured, not asserted zero. Must distinguish:
+% propagation window tau_rev is measured, not asserted zero. Must distinguish:
 % the append-only history (never mutated) from spendable score (the only
 % thing that changes) and the bounded, not instantaneous, delay. Grammar:
 % two aligned tracks on one time axis, an event rail above a step trace,
@@ -21,7 +21,7 @@
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.65,7.20) -- (9.45,7.20);
   \foreach \x/\ly/\lab in {0.95/7.60/$o_1$,2.45/7.60/$o_2$,
                        4.05/7.60/{$o_3$ fraudulent},5.65/8.40/{re-audit},
-                       7.05/7.60/{$t(o_3)$ appended},8.80/7.60/{imported tomb\-stone}} {
+                       7.05/7.60/{$\bar{o}_3$ appended},8.80/7.60/{imported tomb\-stone}} {
     \draw[pd tick] (\x,6.95) -- (\x,7.45);
     \node[pd label,anchor=south,align=center,text width=1.7cm] at (\x,\ly) {\lab};
   }
@@ -32,7 +32,7 @@
   \draw[pd breach rule] (3.75,6.90) -- (4.35,7.50);
   \draw[pd breach rule] (3.75,7.50) -- (4.35,6.90);
   \node[pd note,anchor=west,text width=9.3cm] at (0.65,6.30)
-    {$o_3$ remains inspectable; $t(o_3)$ is a later compensating fact};
+    {$o_3$ remains inspectable; $\bar{o}_3$ is a later compensating fact};
   % ---- contribution of o_3 to spendable reputation ---------------------------
   \node[pd title,anchor=west] at (0,4.55) {contribution of $o_3$ to spendable reputation};
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.65,-0.55) -- (9.45,-0.55);
@@ -46,10 +46,10 @@
   \node[pd ready label,anchor=south west] at (8.95,0.05) {nullified};
   \draw[pd breach rule,{Stealth[length=1.4mm,width=0.9mm]}-{Stealth[length=1.4mm,width=0.9mm]}] (7.05,-1.05) -- (8.80,-1.05);
   \node[pd breach label,anchor=north,text width=4.6cm,align=center] at (7.90,-1.25)
-    {bounded propagation window $\tau$};
+    {bounded propagation window $\tau_{\mathrm{rev}}$};
   \node[pd note,anchor=north west,text width=9.3cm] at (0.65,-2.90)
     {the honest claim is a bounded window, not an instantaneous or history-deleting correction};
 \end{tikzpicture}
-\caption{A tombstone removes a fraudulent contribution from future scoring without erasing history. Importing harbors remain exposed until it arrives; $\tau$ measures that convergence interval. [internal]}
+\caption{A tombstone removes a fraudulent contribution from future scoring without erasing history. Importing harbors remain exposed until it arrives; $\tau_{\mathrm{rev}}$ measures that convergence interval. [internal]}
 \label{fig:tombstone}
 \end{figure}
