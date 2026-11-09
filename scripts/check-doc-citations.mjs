@@ -54,6 +54,14 @@ const SEALED_SYNTHETIC_CITATIONS = Object.freeze([
     line: 47,
     token: 'routes/future/direct-writer.ts',
   }),
+  // The players experiment's sealed manifest names each task repo's own
+  // tests/conftest.py (a path inside the generated repos, not this one).
+  Object.freeze({
+    documentPath: 'docs/harbor-research/experiments/players-20261109/MANIFEST.md',
+    documentSha256: '2282e1e914af6993c7d9fc1984cb290b2a27c1eae6ab1d109b1caa7db6b68a86',
+    line: 159,
+    token: 'tests/conftest.py',
+  }),
 ])
 
 /** Exact immutable annotation; changed report bytes or citation identity fail closed. */
