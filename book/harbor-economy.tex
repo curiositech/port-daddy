@@ -253,11 +253,11 @@ different ways to fail. This is a constructed example; no deployment ran it.
 
 \begin{pdexample}{One repair, two sources of funds}
 Bob reserves $400$ credits (\textsc{cr}) for Alice's labor, $50$ for Dana's lease,
-and at most $10$ for Carol's skill: $460$ in payment funds. Alice separately
+and $10$ for Carol's skill licence: $460$ in payment funds. Alice separately
 posts $100$ in performance collateral. The contract therefore holds $560$,
 not $460$ and not a $560$ bounty.
-On a successful repair using $16$ metered files at $0.5$\,\textsc{cr} each,
-Carol earns $8$. Bob receives the unused $2$ reserve; Alice receives her
+On a successful repair Carol earns her flat $10$ licence fee, however much
+of the repository her skill touched. Alice receives her
 $400$ payment and her $100$ collateral back. Returning collateral is not
 income.
 \end{pdexample}
@@ -312,7 +312,7 @@ runtime control of $a_2$ while it runs on his repository. Under this rental vari
 reputational: if $a_2$ underperforms, $a_2$'s public score falls, and Alice's
 asset loses value.
 \emph{Side~3 (IP).} Carol never touches Bob's repository at all; she licenses her
-lint-and-type skill into Bob's float plan at $0.5$\,\textsc{cr} per file, metered,
+lint-and-type skill into Bob's float plan for a flat $10$\,\textsc{cr} fee,
 released to Carol \emph{only on green settlement}. Carol is privately informed about
 her skill's quality; Bob cannot inspect it before he runs it. One refactor has
 three sides, and in each a different party knows something the others do not.
@@ -781,11 +781,12 @@ deontic layer separately governs \emph{permission} (what it \emph{may} do).
 Section~\ref{sec:deontic-decision} checks whether the agreed norms conflict.}
 
 \paragraph{Skill licensing (IP).} This contract releases the per-use fee
-\emph{only on green settlement} (metered $+$ clawback). The motivation is
+\emph{only on green settlement}, and claws it back if a later audit reverses
+that settlement. The motivation is
 adverse selection: when buyers cannot distinguish quality, a pooled price can
 make high-quality sellers withdraw, as in \textbf{Akerlof}'s model
 \pdcite{akerlof1970}. That model does not uniquely require contingent payment.
-Here, metering, clawback, and a Merkle \emph{portfolio proof} (a short
+Here, release on green, clawback, and a Merkle \emph{portfolio proof} (a short
 cryptographic proof that given settled outcomes are in the ledger's record)
 are proposed responses. Their effect depends on reliable grading and
 attributable records; a Merkle proof authenticates those records, not their
@@ -802,17 +803,18 @@ Bob posts one float plan for
 the $1{,}200$-line refactor, with three line items. \emph{Labor:} a $400$\,\textsc{cr}
 bounty to Alice's firm. \emph{Capital:} a $50$\,\textsc{cr} lease for Dana's
 profiling specialist, which Alice's crew needs for one module. \emph{IP:} Carol's
-lint-and-type skill, metered at $0.5$\,\textsc{cr} per file against a $20$-file cap,
-so $10$\,\textsc{cr} is reserved. Bob's wallet is debited
+lint-and-type skill, licensed for a flat $10$\,\textsc{cr} fee payable only on
+green settlement, so $10$\,\textsc{cr} is reserved. Bob's wallet is debited
 $400+50+10 = 460$\,\textsc{cr} into escrow. Alice separately posts a
 $100$\,\textsc{cr} performance bond, also into escrow. Before any agent spawns, the
 escrow row holds $560$\,\textsc{cr}.
 
 The job settles \textbf{Success}: the original checkout regression is retained
 and passes, and the authorized repair merges without unrelated migrations. The
-metered licence bills only the $16$ files the skill actually touched, so
-$16 \times 0.5 = 8$\,\textsc{cr} releases to Carol and the unused $2$\,\textsc{cr}
-returns to Bob. Alice's bond is refunded as collateral, not income.
+licence fee of $10$\,\textsc{cr} releases to Carol. It does not depend on how
+many files the skill opened or touched, because Carol's own instructions to
+the agent can raise that count (\S\ref{sec:he-licence-split}). Alice's bond is
+refunded as collateral, not income.
 \end{pdexample}
 
 Figure~\ref{fig:he-two-bucket-settlement} keeps the two funding sources separate
@@ -820,7 +822,7 @@ and gives both contractual outcomes.
 
 \input{figures/fig-he-two-bucket-settlement}
 
-\noindent Check it on one line: $-458 + 400 + 50 + 8 + 0 = 0$. Three sides have
+\noindent Check it on one line: $-460 + 400 + 50 + 10 + 0 = 0$. Three sides have
 three privately informed counterparties and three different reputation keys,
 and they share one escrow row that opens at $560$\,\textsc{cr} and closes at zero.
 Design Invariant~\ref{prop:conservation} is not re-proved per side; it is the \emph{same}
@@ -3272,7 +3274,7 @@ Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Vision{} &
   no estimator specified or shipped \\
 Multi-dimensional reputation, neutral judges & \Vision{} & no axis-aggregation spec \\
 Labor / rental / licensing contracts & \Designed{} & rental and licensing unshipped \\
-Skill licensing (metered $+$ clawback $+$ Merkle proof) & \Designed{} &
+Skill licensing (release on green $+$ clawback $+$ Merkle proof) & \Designed{} &
   cross-harbor verifiability undeployed \\
 Adversarial test market (Purchased Assurance Bound, Thm.~\ref{thm:assurance}) &
   \Vision{} & no mutation-testing oracle and no bounty-per-killed-mutant contract
