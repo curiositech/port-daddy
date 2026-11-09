@@ -229,7 +229,11 @@ is \emph{authorization}. A JSON Web Token (JWT) is the record's encoding, not
 a source of authority by itself. The time from issuance to expiry is its
 \emph{time to live} (TTL). We present
 four mechanisms as phases: algorithm pinning, asymmetric identity, delegation,
-and revocation. This ordering explains their security dependencies, not a release
+and revocation. Revocation reaches other daemons by gossip. To \pdterm{gossip}
+something, a daemon periodically sends what it knows to a few other daemons,
+which pass it on in turn, until every daemon has it. Used as an adjective, as in
+\emph{gossip protocol} or \emph{gossip mesh}, the word names a set of daemons
+that spreads information this way, or the rules they follow to do it. This ordering explains their security dependencies, not a release
 schedule or a claim that every mechanism is deployed
 (Figure~\ref{fig:anchor-four-phases}; Table~\ref{tab:anchor-four-phases}).
 \input{figures/fig-anchor-four-phases}
@@ -1392,8 +1396,8 @@ Agent Payments Protocol (AP2): Mandates.
 \begin{table}[H]
 \centering
 \caption{The four phases as a lookup table, restating Figure~\ref{fig:anchor-four-phases}'s flow in row form. Threat closure is cumulative, not substitutive. Each phase closes one attack
-surface, and the last column is why no later phase reopens it: every phase adds a check
-that a later phase changes the key or the chain of, never the party that performs it.
+surface, and the last column is why no later phase reopens it. A later phase may change
+the key or the chain behind an earlier phase's check, but never who performs it.
 [internal]}
 \label{tab:anchor-four-phases}
 \small
@@ -1405,7 +1409,7 @@ that a later phase changes the key or the chain of, never the party that perform
 1 & HS256 pinning: the verifier takes the algorithm from policy & header-selected algorithm (algorithm confusion) & the verification algorithm remains fixed by policy; later phases change the key type, not who chooses \\
 2 & Ed25519 identity: the daemon signs with a private key, verifiers hold only the public key & shared-secret theft & no verifier holds a secret that could mint a card; a stolen public key mints nothing \\
 3 & delegation: a child card carries its parent chain, checked as a subset at every hop & downstream privilege growth & the subset check is per hop and monotone, so no later hop widens scope or lifetime \\
-4 & revocation: epoch filters gossiped between daemons and consulted at every acceptance & post-issue authority (a leaked card that should die before its TTL) & acceptance requires the current epoch, so every daemon that holds the epoch refuses the revoked card \\
+4 & revocation: revocation-ID log gossiped between daemons; each daemon builds its own filter & post-issue authority (a leaked card that should die before its TTL) & acceptance requires the current epoch, so every daemon that holds the epoch refuses the revoked card \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1997,7 +2001,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item A \textbf{harbor card} is a short-lived signed statement of exactly what one agent may do; the daemon checks the card, not the process, and a process with no card can do nothing the harbor mediates.
-\item \textbf{Attenuation is monotone}: a child card is a subset of its parent in scope and in lifetime, at every hop, The symbolic capability-order models check the stated rights constraint; they do not by themselves prove every runtime lifetime or task-binding check.
+\item \textbf{Attenuation is monotone}: a child card is a subset of its parent in scope and in lifetime, at every hop. The symbolic capability-order models check the stated rights constraint; they do not by themselves prove every runtime lifetime or task-binding check.
 \item \textbf{Algorithmic pinning}: the verifier chooses the signature algorithm from policy, never from the token's header. The same bytes that a header-selected verifier accepts, a policy-pinned verifier refuses.
 \item \textbf{Revocation needs current local knowledge}: a verifier rejects a revoked card once its authoritative state includes the revocation. Expected gossip asymptotics are not a two-interval deadline; an unbounded partition prevents any finite global freshness guarantee.
 \item \textbf{Filters do not merge; logs do.} Two daemons cannot union their cuckoo filters, so the append-only revocation log is the shared object and each daemon rebuilds its own filter from it.
