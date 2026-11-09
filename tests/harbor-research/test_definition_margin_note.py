@@ -25,7 +25,7 @@ def source_check(source):
                    r'by at least $\Delta$',
                    "that same actor's clean continuation over the same window",
                    'Include every identity through which the actor can route work',
-                   r'\Designed{} definition for the stated access model and clean continuation'):
+                   r'\pdstatus{\Designed}{for the stated access model and clean continuation}'):
         assert phrase in text, 'Missing definition condition: '+phrase
     for stale in ('first edition', 'III.6.1', r'\footnote'):
         assert stale not in body, 'Historical framing is not part of the definition'
@@ -69,7 +69,7 @@ class DefinitionMarginNoteTests(unittest.TestCase):
                               ('every actor producing', 'some actor producing'),
                               ("same actor's clean continuation", "another actor's clean continuation"),
                               ('every identity through which', 'one identity through which'),
-                              (r'\Designed{} definition', r'\Built{} definition'),
+                              (r'\pdstatus{\Designed}{for the stated', r'\pdstatus{\Built}{for the stated'),
                               (OPEN, OPEN+OPEN)]:
             mutant = source.replace(before, after)
             self.assertNotEqual(mutant, source)

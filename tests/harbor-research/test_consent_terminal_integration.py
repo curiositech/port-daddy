@@ -113,8 +113,8 @@ class ConsentTerminalSources(unittest.TestCase):
         source = (ROOT / 'book/legible-swarm.tex').read_text()
         section = source[source.index(r'\subsection{Consent as'):source.index(r'\ifpdmargincolumn\pdconsentregion')]
         for phrase in ('unexpired and unrevoked; otherwise it escalates',
-                       'Every action taken under $g$ records', 'all five conditions apply to every admission',
-                       "decision renews $g$; expiry or revocation removes it"):
+                       'Every action taken under $g$ records', 'All five conditions apply to every action decision',
+                       "decision renews $g$; only expiry or revocation removes it"):
             self.assertIn(phrase, section)
         self.assertNotIn('three-clause guard', section)
         self.assertNotIn('loop back to active', section)
@@ -150,7 +150,7 @@ class ConsentTerminalSources(unittest.TestCase):
                          source.index(r'\ifdefined\pdreflectionplate\pdreflectionplate{the-unseen-boat}')]
         self.assertEqual(re.findall(r'\\pdcite\{([^}]+)\}', opening),
                          ['scott1998', 'scott1998', 'rao2010'])
-        for token in (r'\textbf{m\^etis}', 'hands-on', 'case-specific',
+        for token in (r'\pdterm[metis]{m\^etis}', 'hands-on', 'case-specific',
                       'Normalbaum', 'diff, test output, error and reasoning'):
             self.assertIn(token, opening)
         for squeeze in (r'\vspace', r'\small', r'\fontsize', r'\enlargethispage'):

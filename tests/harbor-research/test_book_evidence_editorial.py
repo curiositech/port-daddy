@@ -53,7 +53,7 @@ class BookEvidenceEditorial(unittest.TestCase):
         self.assertEqual(score - retained, 30)
         self.assertEqual(retained - newcomer, 10)
         source = (WEB / 'spawn-to-person.tex').read_text()
-        start = source.index(r'\begin{pdexample}{Sanctions at the Newcomer Floor}')
+        start = source.index(r'\begin{pdexample}{Sanctions at the Newcomer Score}')
         text = " ".join(source[start:source.index(r'\end{pdexample}', start)].split())
         for phrase in (r"$r(i)=90$, retaining the sanctioned identity yields $60$",
                        "ten points more than a reset",
@@ -135,7 +135,7 @@ class BookEvidenceEditorial(unittest.TestCase):
             "ch05-continuity-rope-splice",
             "ch05-stagecoach-relay-post", "ch05-stepped-surveyors-pole",
             "ch05-wax-seal-signet",
-            "ch06-dockyard-cargo-sling", "ch06-grain-tally-board",
+            "ch06-dockyard-cargo-sling",
             "ch06-reusable-printing-block",
             "ch07-cleanup-repair-kit", "ch07-dual-control-escrow-box",
             "ch07-shear-pin-fuse",
@@ -146,7 +146,11 @@ class BookEvidenceEditorial(unittest.TestCase):
         self.assertEqual(set(placed), expected_placed)
         # The explanatory passage carries these ideas without a second object
         # analogy. Retain the art provenance, but do not restore decoration.
-        for unplaced in ("movable-type", "ch05-episodic-card-file", "ch06-wharf-steelyard-scale"):
+        # The tally board left the bond-ledger section in the plain-language
+        # rewrite (Erich's decision to cut nautical metaphors that stand in for
+        # a mechanism); its plate and sidecar stay in the tree.
+        for unplaced in ("movable-type", "ch05-episodic-card-file", "ch06-wharf-steelyard-scale",
+                         "ch06-grain-tally-board"):
             self.assertNotIn(unplaced, placed)
             self.assertTrue((WEB / "plates/margin-evidence" / (unplaced + ".pdf")).is_file())
             self.assertTrue((WEB / "plates/margin-evidence" / (unplaced + ".json")).is_file())
