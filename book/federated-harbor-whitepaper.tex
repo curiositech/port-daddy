@@ -186,127 +186,145 @@
 Alice's team has a candidate repair for Bob's checkout. Before acceptance,
 it must pass a test in a separately administered staging environment.
 Alice's local test-database card grants no authority over that environment.
-The staging operator must decide which repair to admit, which evidence to
+The staging operator must decide which repair to accept, which evidence to
 trust and what to do if a parent credential is revoked while the test runs.
 Bob's contract must also say where any funded remedy can be collected.
 
-Three failures isolate the boundary. A well-signed foreign credential may
-have no accepted issuer or local resource grant. A previously accepted grant
-may depend on a revocation the destination has not yet received. A funded bond
-may be recorded at the source while the destination holds the evidence needed
-to adjudicate it. Local correctness alone resolves none of these exchanges.
+Three failures show where the boundary lies. A credential with a valid
+signature from another owner may come from an issuer the destination has never
+accepted, or name no resource the destination has granted. A grant the
+destination accepted earlier may depend on a revocation that has not reached it
+yet. A funded bond may be held at the source while the evidence needed to decide
+a claim against it sits at the destination. Getting each machine right on its
+own fixes none of these.
 
-This is the \textbf{two-machine problem}: permission, knowledge and collectible
-funds do not automatically cross an administrative boundary together. We first
-set up a separate robotics case that makes the resources and owners explicit.
-Then we develop local admission, revocation, evidence comparison and settlement,
-and return to that case to check the whole protocol. These are constructed
-scenarios, not claims of an end-to-end deployment.
+This is the \pdterm{two-machine problem}: permission, knowledge of revocations
+and collectible funds do not cross from one owner's machine to another's on
+their own, and they do not cross together. We first set up a robotics case that
+names the resources and owners. Then we develop local acceptance, revocation,
+evidence comparison and settlement, and return to that case to check the whole
+protocol. The scenarios are constructed; none describes a deployment.
 
 \subsection{What this chapter is and is not}\label{sec:fh-scope}
-This chapter closes the book. \pdchapref{anchor}{The Anchor Protocol} supplies the cryptographic-token substrate; \pdchapref{bonded}{The Bonded Commons} supplies the economic and governance model; this chapter specifies the federation boundary. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's authorization chain across a trust boundary; \S\ref{sec:fh-revocation} extends its revocation mesh; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
-The design requires no global consensus over all work events. This choice
-differs from ledger-backed constructions such as ETHDKG~\pdcite{schindler2019ethdkg};
-it is not a claim that federation generally requires a blockchain. The cost of that simplification is that we cannot lean on a chain for ordering, equivocation detection, or settlement; we must construct each of those primitives from peer gossip plus a federated witness log. The advantage is that the design composes cleanly with the local-first, single-operator-machine architecture developed in \pdchapref{he}{The Harbor Economy} and \pdchapref{bonded}{The Bonded Commons}.
+This chapter closes the book. Each owner's machine runs a harbor, the governed environment in which that owner's daemon decides what agents may do there. A \pdterm{federation} is a group of harbors with different owners that exchange cards, revocations and payments while none of them rules the others. \pdchapref{anchor}{The Anchor Protocol} supplies the signed capability cards; \pdchapref{bonded}{The Bonded Commons} supplies the economic and governance model; this chapter specifies what happens where two harbors meet. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's authorization chain from one owner to another; \S\ref{sec:fh-revocation} extends its revocation gossip; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
+The design needs no global agreement on the order of work events, unlike
+ledger-backed constructions such as ETHDKG~\pdcite{schindler2019ethdkg}.
+Without a shared chain we cannot rely on one for ordering, for settlement, or for catching \pdterm{equivocation}: one party signing two different versions of the same record and showing each version to a different audience. We build each of those from peer gossip plus a \pdterm{witness log}, an append-only log to which every harbor posts signed summaries of its records, so that anyone can check what a harbor published and catch it publishing two versions. In return, the design fits the local-first architecture of \pdchapref{he}{The Harbor Economy} and \pdchapref{bonded}{The Bonded Commons}, in which one operator runs each machine.
 \subsection{Which obligation each protocol carries}\label{sec:fh-contributions}
 Transfer determines what the destination may authorize. Revocation determines
 what it currently knows about dependencies. Evidence comparison determines
 which received claims can coexist. Settlement determines who may release
-funds after an agreed decision. Admission determines which principals may
-participate in those protocols. A proof for one of these obligations does
-not discharge the others. Appendix~\ref{app:fh-mech} records the precise
-artifact scope; a multi-principal equilibrium result remains open.
+funds after an agreed decision. Joining rules determine which owners may
+take part in those protocols at all. A proof for one of these obligations
+does not discharge the others. Appendix~\ref{app:fh-mech} records what each
+has been checked against.
 
 \section{A staging task with three owners}\label{sec:fh-ex-setup}
 
-For this separate constructed case, take two organizations: Acme Robotics (Alice's employer) and Beta Vision (Bob's employer). The shared project is a perception-and-control stack: Acme owns the controller, Beta owns the vision system, both run against a shared staging environment that lives on a third machine maintained by neither.
+For this constructed case, take two organizations: Acme Robotics (Alice's employer) and Beta Vision (Bob's employer). The shared project is a perception-and-control stack. Acme owns the controller, Beta owns the vision system, and both run against a shared staging environment on a third machine that neither maintains.
 
-Three machines: Alice's laptop (harbor $A$, controller code, controller test database), Bob's laptop (harbor $B$, vision code, vision test database), staging-server (harbor $S$, shared staging database, no agents resident).
+Three machines, three harbors: Alice's laptop (harbor $A$, controller code, controller test database), Bob's laptop (harbor $B$, vision code, vision test database), and the staging server (harbor $S$, shared staging database, no agents resident).
 
-Each harbor has gone through the admission ceremony of \S\ref{sec:fh-admission}. Acme's harbor was sponsored by an existing partner harbor at the open-source consortium that hosts the staging server; Acme sponsored Beta during a six-month probationary period and reviewed its
-retained evidence. In this constructed policy, Beta then met the graduation
-criteria and funded replacement coverage before Acme's sponsorship ended. The staging server harbor is sponsored by the consortium directly and is treated as a known-honest verifier for the purposes of this example.
+Each harbor joined the federation through the sponsored ceremony of \S\ref{sec:fh-admission}, in which an existing member, the sponsor, posts a bond that is lost if the newcomer misbehaves. A partner harbor at the open-source consortium that hosts the staging server sponsored Acme; Acme in turn sponsored Beta through a six-month probation and reviewed the
+evidence Beta kept. In this constructed policy, Beta then met the graduation
+criteria and funded its own coverage before Acme's sponsorship ended. The consortium sponsored the staging server's harbor directly, and this example treats that harbor as an honest verifier.
 
 \subsection{The agent task}\label{sec:fh-ex-task}
 
-Acme's agent --- call it Controller-7 --- needs to run a schema migration on the staging database to add a column for a new sensor type. The migration is destructive (drops and recreates the column); if it goes wrong, the staging database is unusable for the joint demo scheduled three hours later.
+Acme's agent, Controller-7, needs to run a schema migration on the staging database to add a column for a new sensor type. The migration is destructive (it drops and recreates the column); if it goes wrong, the staging database is unusable for the joint demo three hours later.
 
-Controller-7's local card $C_A$ authorizes \texttt{db:migrate} against the controller test database, attenuated through Acme's risk policy ($\mathrm{att}_A$ = ``only against tables in the \texttt{controller} schema; only between 9am and 5pm; only if a human operator has approved within the last 30 minutes''). The card is valid at $A$, but the database it needs to migrate is at $S$.
-These are distinct resources. The test-database card is evidence of eligibility,
-not authority over staging. Before the task, $S$ must publish a local policy
-that maps this class of $A$-issued request to a separately authorized staging
-grant; its identifier and version belong in the offer and resulting grant.
+Controller-7's local card $C_A$ authorizes \texttt{db:migrate} against the controller test database, narrowed by Acme's risk policy ($\mathrm{att}_A$ = ``only against tables in the \texttt{controller} schema; only between 9am and 5pm; only if a human operator has approved within the last 30 minutes''). The card is valid at $A$, but the database it needs to migrate is at $S$.
+These are different resources. The test-database card shows that Controller-7
+may ask; it gives no authority over staging. Before the task, $S$ must publish a
+local policy that maps this kind of $A$-issued request to a separately
+authorized staging grant, and the policy's identifier and version go into the
+offer and into the grant that results.
 
 
 \section{The Federated Authority}\label{sec:fh-authority}
 % ═════════════════════════════════════════════════════════════════════════════
-The Bonded Commons chapter defined a \emph{commons authority} with sovereign scope inside a single machine. Its daemon can recommend compatible actions, but a correlated equilibrium requires the specified information structure and obedience inequalities~\pdcite{owens2026bonded}. Local enforcement does not establish those incentive conditions. Federation adds separate authorities, delayed observations, and potentially conflicting interests; each must enter the model.
-The federation design has four elements: two sovereign harbors, a witnessed epoch-root log, and a settlement escrow. Table~\ref{tab:fh-topology} shows the four rails that connect them. The escrow is structurally bounded only under the custody assumptions in \S\ref{sec:fh-escrow}. Every primitive in the rest of the chapter attaches to one of these elements.
+In \pdchapref{bonded}{The Bonded Commons}, one daemon on one machine ran the shared bond pool. It could suggest who should act when, but a suggestion only sticks if every agent, knowing only what it was told, does no better by ignoring it, and the daemon's local rules cannot guarantee that~\pdcite{owens2026bonded}. Federation makes this harder: there are several owners, each learns of events late, and their interests may conflict, so any model of the federation must include all three.
+The federation has four parts: two independently governed harbors; the witness log, where each harbor posts once per epoch (a numbered reporting period) a signed fingerprint of its card records, called its \pdterm{epoch root}; and an escrow that holds bond money. Table~\ref{tab:fh-topology} shows the four channels that run between them. The escrow can take no more than its agreed fee only if its payment system can pay no one but the two parties and the capped fee, settles each bond once, and cannot be bypassed by its operator (\S\ref{sec:fh-escrow}). Every protocol in the rest of the chapter belongs to one of these parts.
 \input{figures/tab-fh-topology}
 \subsection{Harbor sovereignty as a property \mbox{characterization}}\label{sec:fh-sovereignty}
-In Bonded, the Admissible KMS was characterized by a list of properties rather than by a specific construction (per-machine signing key, per-machine SQLite, etc.) so that the argument carried over to any concrete instantiation. We adopt the same posture here.
+\pdchapref{bonded}{The Bonded Commons} described its key-management service by a list of required properties rather than by one construction (a per-machine signing key, a per-machine SQLite database), so that its argument holds for any construction with those properties. We describe sovereignty the same way.
 \begin{pdexample}{Sovereignty over the Card Is Not Sovereignty over What It Touches}
 \setlength{\parskip}{4pt plus 1pt}
-\pdmarginanalogy{fh-local-admission-turnstile}{}{ch08-local-admission-turnstile}{Like a visitor pass presented at a locally controlled turnstile, a valid foreign credential does not compel the receiving harbor to admit it.}%
-Consider this case: Alice's \texttt{db:write} card is well-formed under the Anchor Protocol, and Bob's daemon refuses it anyway, because Bob's daemon has never rooted Alice's signing key. Check the checklist below against this one case before reading it formally.
-$D_A$ authenticates its own issuance and revocation decisions. It may
-delegate a bounded right to attenuate under its policy; that right is not
-permission to issue arbitrary root authority. Bob's refusal is independent
-of whether Alice has revoked the source card.
-The failure also shows item~4 by its absence: acceptance is $D_B$'s call alone, and no amount of well-formedness at $A$ can compel it.
-Once the transfer ceremony of \S\ref{sec:fh-xfer} lets $D_B$ mint a derived card, sovereignty over what that derived card does to $B$'s own database still belongs to $D_B$, never to $D_A$ --- exactly the boundary the property characterization below draws.
+\pdmarginanalogy{fh-local-admission-turnstile}{}{ch08-local-admission-turnstile}{Like a visitor pass presented at a locally controlled turnstile, a valid foreign credential does not compel the receiving harbor to accept it.}%
+Consider this case: Alice's \texttt{db:write} card is well-formed under the Anchor Protocol, and Bob's daemon refuses it anyway, because Bob's daemon has never accepted Alice's harbor key as an issuer. Check this one case against the five items of the design invariant below before reading them formally.
+Alice's daemon $D_A$ signs its own issuing and revoking decisions. It may
+hand on a bounded right to narrow cards under its policy, but that right
+does not let anyone issue new root authority. Bob's refusal does not depend
+on whether Alice has revoked the card.
+The case also illustrates item~4: acceptance is the decision of Bob's daemon $D_B$ alone, and no amount of well-formedness at $A$ can compel it.
+Once the \pdterm{transfer ceremony} of \S\ref{sec:fh-xfer}, a four-message exchange in which $B$ checks a card offered by $A$ and then issues its own, lets $D_B$ mint a derived card, what that derived card does to $B$'s database is still $D_B$'s to govern, never $D_A$'s. The design invariant below draws exactly that boundary.
 \end{pdexample}
 \Needspace{12\baselineskip}
 \begin{pdclaim}{Design invariant}{Harbor Sovereignty}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:fh-sovereignty}
-A daemon $D_A$ is \emph{sovereign over harbor $A$} if it has exclusive authority over five things:
+A daemon $D_A$ is sovereign over harbor $A$, the property we call \pdterm{harbor sovereignty}, if it has exclusive authority over five things:
 \begin{enumerate}[nosep]
 \item \textbf{Issuance.} Only $D_A$ can mint a Harbor Card using $A$'s private signing key $\mathit{sk}_A$; its root signature verifies under the corresponding public key $\mathit{pk}_A$.
-\item \textbf{Attenuation.} $D_A$ controls the local admission predicate $\mathrm{att}_A$. A holder may
-attenuate a delegated grant where the protocol permits, but cannot relax
-$A$'s admission policy.
+\item \textbf{Attenuation.} $D_A$ controls the local narrowing rule $\mathrm{att}_A$. A holder may
+narrow a delegated grant where the protocol permits, but cannot relax
+$A$'s policy.
 \item \textbf{Revocation.} Only $D_A$ can decide that a card it issued is revoked. The gossip protocol of \S\ref{sec:fh-revocation} propagates the \mbox{decision}
 under its delivery assumptions; $D_A$ does not control when other harbors learn of it, but it controls whether the revocation event exists.
 \item \textbf{Acceptance.} $D_A$ alone decides which inbound cards from other harbors to accept and under what local policy. No external party can compel acceptance.
 \item \textbf{Evidence binding.} The epoch root $R_A^{(e)}$ that $D_A$ publishes to the witness log is signed under $\mathit{sk}_A$ and binds the entire $A$-side state of issued, attenuated, and revoked cards up to epoch $e$. No other harbor can publish a root that purports to be $A$'s.
 \end{enumerate}
-This is a deliberately narrow characterization, intended to hold of any conforming daemon implementation rather than proved from a formal model. It does \emph{not} say that $D_A$ is sovereign over everything an $A$-side agent does; the agent may be operating against a database hosted at $B$, in which case $B$-side policy applies and $D_A$ has nothing to say about it. Sovereignty is over the \emph{issuance and revocation surface of $A$'s own cards}, not over downstream effects.
+Sovereignty covers the issuing and revoking of $A$'s own cards, not what those cards later touch. An $A$-side agent may be working against a database hosted at $B$; then $B$'s policy applies and $D_A$ has no say.
 \end{pdclaim}
-We will use Design Invariant~\ref{def:fh-sovereignty} as the discipline against which subsequent protocols are checked. The transfer ceremony of \S\ref{sec:fh-xfer} produces a card valid at $B$; verifying a foreign signature does not itself transfer sovereignty. What
-matters is that $B$ independently decides whether the foreign evidence satisfies
-its own admission policy. The ceremony gives subsequent use a local issuer
-while retaining a dependency on the foreign grant's validity.
+Every later protocol is checked against Design Invariant~\ref{def:fh-sovereignty}. The transfer ceremony ends with a card valid at $B$ and issued by $B$. $B$ decides
+on its own whether $A$'s signed offer satisfies $B$'s policy, and checking
+$A$'s signature gives $A$ no authority at $B$. The new card has a local issuer
+but still depends on $A$'s original card staying valid.
 \subsection{Inter-harbor scope}\label{sec:fh-scope-property}
-The dual notion is equally important. \emph{Inter-harbor scope} is the scope of operations whose effects cross the trust boundary between sovereign harbors.
+The second notion concerns where an operation's effects land. An operation has \pdterm{inter-harbor scope} when its effects cross from one owner's harbor into another's.
 \begin{pdclaim}{Design invariant}{Inter-Harbor Scope}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:fh-interscope}
 An operation $o$ has \emph{inter-harbor scope $(A, B)$} if its execution causes a state change observable to $B$ under authority that originated at $A$.
 Examples: an $A$-issued card used to write to a $B$-hosted database; a settlement clearing a bond posted at $A$ against damage measured at $B$; a revocation issued by $A$ becoming visible to a $B$-side verifier.
-This boundary is a scoping decision this chapter's protocols are built to respect, not a theorem derived from a model: every later claim about what a protocol closes or defers (\S\ref{sec:fh-threat-model} onward) is checked against exactly this line.
+Every later claim about what a protocol closes or defers (\S\ref{sec:fh-threat-model} onward) is checked against this line. The line is a choice of scope that the protocols respect; no model derives it.
 \end{pdclaim}
-Most operations are \emph{intra-harbor}: minting, verifying, attenuating, and revoking cards under one harbor's authority, observed by agents under that same harbor. \pdchapref{anchor}{The Anchor Protocol} develops these intra-harbor authority checks under its stated model and implementation boundaries. The Federated Harbor's contribution is exactly the inter-harbor surface: every protocol that determines its guarantees lives at the boundary.
+Most operations are \emph{intra-harbor}: minting, verifying, narrowing and revoking cards under one harbor's authority, observed by agents under that same harbor. \pdchapref{anchor}{The Anchor Protocol} develops those checks under its stated model. This chapter covers the operations with inter-harbor scope, because every protocol that sets the federation's guarantees acts at that boundary.
 \subsection{The witness log}\label{sec:fh-witness}
-The witness log is the device that makes the federation auditable without making any harbor sovereign over the others. It plays the same role that the Merkle Forest plays for daemon evidence in \pdchapref{bonded}{The Bonded Commons} (\ifpdbook\S\ref{bonded:sec:merkle-forest}\else the subsection \emph{The Merkle Forest: Cross-Daemon Inclusion Proofs}\fi): an accumulator whose inclusion and append-only consistency proofs can be checked against authenticated roots. These checks do not establish that the publisher recorded every relevant event or that a recorded claim is true.
-\begin{pdclaim}{Design invariant}{Witness-Log Admissibility}
+The witness log lets anyone audit the federation without making any harbor sovereign over the others. It does for harbors what the Merkle Forest does for daemon evidence in \pdchapref{bonded}{The Bonded Commons} (\ifpdbook\S\ref{bonded:sec:merkle-forest}\else the subsection \emph{The Merkle Forest: Cross-Daemon Inclusion Proofs}\fi). Each harbor hashes its records into a tree and signs the root, and anyone holding that signed root can cheaply check that a given record is in the tree (an inclusion proof) and that a later root extends an earlier one without rewriting it (a consistency proof).
+\pdscope{These checks do not show that the harbor recorded every relevant event, or that what it recorded is true.}
+\begin{pdclaim}{Design invariant}{Witness-Log Requirements}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:fh-witness}
-A witness log $W$ is admissible for the Federated Harbor if it provides:
+A witness log $W$ meets the Federated Harbor's requirements if it provides:
 \begin{enumerate}[nosep]
 \item \textbf{Append-only.} Once $W$ records an entry, $W$ cannot retract or reorder it.
 \item \textbf{Per-harbor latest-root binding.} For each harbor $X$ in the federation and each epoch $e$, $W$ records at most one root $R_X^{(e)}$ signed under $\mathit{sk}_X$.
 \item \textbf{Auditable consistency.} Any third party can verify, given $R_X^{(e_1)}$ and $R_X^{(e_2)}$ with $e_1 \le e_2$, that $R_X^{(e_2)}$ is a Merkle-consistent extension of $R_X^{(e_1)}$.
-\item \textbf{Equivocation evidence.} If an auditor obtains two differently signed roots for the same harbor and epoch, it can verify the contradiction immediately. Disseminating both views to a common auditor depends on the overlay and partition model (Theorem~\ref{thm:fh-conv}).
-\item \textbf{Threshold publishability.} The act of publishing $R_X^{(e)}$ to $W$ does not require $D_X$ to trust any other party; the cross-signatures collected from other daemons in the federation are an auditor convenience, not an authorization gate.
+\item \textbf{Equivocation evidence.} If an auditor obtains two differently signed roots for the same harbor and epoch, it can verify the contradiction immediately. Getting both versions to one auditor depends on the delivery and partition model (Theorem~\ref{thm:fh-conv}).
+\item \textbf{Threshold publishability.} The act of publishing $R_X^{(e)}$ to $W$ does not require $D_X$ to trust any other party; cross-signatures collected from other daemons help auditors but authorize nothing.
 \end{enumerate}
 \end{pdclaim}
-This list is intentionally close in shape to the five properties of the Admissible KMS in \pdchapref{bonded}{The Bonded Commons} (``Federated Sovereign''). That chapter specifies the required properties and sketches a candidate construction whose intended security claim remains unproved. We likewise separate the requirements from the evidence for a construction. Section~\ref{sec:fh-formal} sketches one concrete instantiation built on Certificate Transparency-style append-only logs~\pdcite{laurie2013ct} cross-witnessed in the Sigstore/Rekor pattern~\pdcite{newman2022sigstore}; the substrate need not be unique.
+\begin{pdexample}{An Epoch Root, Its Proofs, and an Equivocation}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. In epoch~7 Acme's harbor $A$ records four card events: $\ell_1$ issues $C_A$ to Controller-7; $\ell_2$ narrows $C_A$ to the \texttt{controller} schema; $\ell_3$ issues a second card $T$; $\ell_4$ revokes $T$. Hash each event, $h_i=H(\ell_i)$, then hash pairs upward:
+\[
+R_A^{(7)}=H\bigl(H(h_1,h_2),\,H(h_3,h_4)\bigr).
+\]
+Acme signs that one value and posts it to the witness log.
+
+\emph{Inclusion.} To show that $\ell_4$ (revoke $T$) is recorded, Acme hands an auditor two hashes, $h_3$ and $H(h_1,h_2)$. The auditor computes $H(h_3,h_4)$, then $H\bigl(H(h_1,h_2),H(h_3,h_4)\bigr)$, and compares the result with the signed $R_A^{(7)}$.
+
+\emph{Consistency.} In epoch~8 Acme appends $\ell_5$, which revokes $C_A$, and posts $R_A^{(8)}=H(R_A^{(7)},h_5)$. The consistency proof is the single hash $h_5$. An auditor who kept $R_A^{(7)}$ checks that $H(R_A^{(7)},h_5)$ equals the signed $R_A^{(8)}$, which shows that the four epoch-7 events are still there, unchanged and in order.
+
+\emph{Equivocation.} Suppose Acme shows Beta's auditor one signed $R_A^{(8)}$ and the staging server's auditor a different signed $R_A^{(8)}$. Each signature verifies on its own, and any auditor who holds both holds proof that Acme signed two histories for one epoch.
+\end{pdexample}
+The list has the same shape as the five required properties of the key-management service in \pdchapref{bonded}{The Bonded Commons}. As there, the requirements are stated apart from any construction that might meet them. Section~\ref{sec:fh-formal} sketches one construction, built on Certificate Transparency-style append-only logs~\pdcite{laurie2013ct} that witness one another in the Sigstore/Rekor pattern~\pdcite{newman2022sigstore}; other constructions could meet the same list.
 \subsection{What the federation is not}\label{sec:fh-not}
-It is worth saying what the federation is not, so that the rest of the chapter does not have to keep refuting positions it never took.
-The federation is \emph{not} a consensus protocol. There is no global agreement on the order of events; there is per-harbor monotonicity (epoch roots only extend), there is cross-harbor witnessing (each root is published to a shared log), and there is detectable equivocation. None of these require harbors to agree on a global order, and the preceding chapters' designs explicitly avoid that overhead.
-The federation is \emph{not} a hub-and-spoke topology with a privileged coordinator. The witness log is replicable; in practice a small set of mutually-witnessing log instances suffices, and any harbor can read from any of them. The hub-and-spoke failure mode --- one well-funded coordinator captures the federation by becoming everyone's only witness --- is a real risk we discuss in \S\ref{sec:fh-failure-modes}, and the structural pushback is gossip-based witness redundancy.
-The federation is \emph{not} a permissionless market in identities. New harbors enter through the admission ceremony of \S\ref{sec:fh-admission}, which requires either a pre-existing bond or an existing harbor sponsor. This is by design; the cost is that the federation is invitation-bounded, the benefit is that Sybil attacks against the federation~\pdcite{douceur2002sybil} cost the attacker as much per identity as honest entry does.
+Three things the federation is not, stated once so that the rest of the chapter need not keep refuting them.
+The federation is \emph{not} a consensus protocol. No one agrees on a global order of events. Each harbor's epoch roots only ever extend its own history, each root is published to the shared log, and equivocation can be detected. None of this needs harbors to agree on an order, and the earlier chapters' designs avoid that overhead on purpose.
+The federation is \emph{not} built around a privileged central coordinator. The witness log can be copied: a few log instances that witness one another are enough, and any harbor can read from any of them. The risk is that one well-funded operator captures the federation by becoming everyone's only witness. \S\ref{sec:fh-failure-modes} discusses it; the design's answer is to keep several independent witnesses, compared by gossip.
+The federation is \emph{not} open to anyone. A new harbor enters through the joining ceremony of \S\ref{sec:fh-admission}, which needs a bond of its own or a sponsor among the existing harbors. Entry is therefore by invitation, and in exchange a Sybil attack (one attacker running many identities)~\pdcite{douceur2002sybil} costs the attacker as much per identity as honest entry costs.
 Figure~\ref{fig:fh-sovereignty-fence} returns to Alice's refused database
 request: a card can be valid at its source and still be unacceptable at its
 destination. Bob decides what may touch Bob's database.
@@ -322,7 +340,7 @@ With the boundary in view, the recall prompts separate sovereign powers from dow
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Threat Model}\label{sec:fh-threat-model}
 % ═════════════════════════════════════════════════════════════════════════════
-We make the threat model explicit before introducing the protocols so that the design choices can be checked against named adversary powers. We follow the Dolev--Yao convention~\pdcite{dolev1983security} extended to the federation case: an attacker controls every wire between harbors, can intercept and replay any cross-machine message, and may collude with any bounded number of harbor operators. The attacker cannot break the underlying cryptographic primitives (Ed25519 signatures, SHA-256 hashes); these assumptions are inherited from Anchor.
+We state the threat model before the protocols so that each design choice can be checked against a named attacker power. We follow the Dolev--Yao convention~\pdcite{dolev1983security}, extended to the federation: an attacker controls every wire between harbors, can intercept and replay any cross-machine message, and may collude with any bounded number of harbor operators. The attacker cannot break the underlying cryptographic primitives (Ed25519 signatures, SHA-256 hashes); these assumptions are inherited from Anchor.
 \begin{pdexample}{A Four-Step Breach, Traced}
 \setlength{\parskip}{4pt plus 1pt}
 Before naming attacker classes in general, trace one all the way through. \path{proofs/relay/CardRevocation.tla} models a single relay with a \texttt{revoked} set and an \texttt{everRevoked} ground-truth set, and TLC checks the invariant \texttt{RevocationFinal == badAccept = FALSE} against three configurations.
@@ -331,61 +349,61 @@ Before naming attacker classes in general, trace one all the way through. \path{
 \[
 \mathsf{Issue}(c) \;\to\; \mathsf{Revoke}(c) \;\to\; \mathsf{RollbackRestore}(c) \;\to\; \mathsf{Accept}(c),
 \]
-and \texttt{badAccept} is true at the end --- the restored \texttt{revoked} set no longer contains $c$, so \texttt{Accept} (which consults only \texttt{revoked}) admits a card the relay had already promised to refuse. The trace shows revocation erased by restoring an older database.
+and \texttt{badAccept} is true at the end. The restored \texttt{revoked} set no longer contains $c$, so \texttt{Accept} (which consults only \texttt{revoked}) accepts a card the relay had already promised to refuse. Restoring an older database has erased the revocation.
 
 \textbf{Epoch} (the fix: an external epoch counter that \texttt{Revoke} bumps and that \texttt{RollbackRestore} does not roll back, with \texttt{Accept} additionally requiring \texttt{cardEpoch[c] = epoch}): the same four-step trace no longer breaches, because the restored card's epoch is stale even though its \texttt{revoked} bit was rolled back, and TLC reports the invariant holding over a larger, 76-state space.
 
-Three runs, one relay, one added counter: that is the entire mechanism behind ``only-issuer-revokes'' being trustworthy across a backup/restore mishap, and it is the reason this chapter's own per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) are an external, \mbox{monotonic} anchor rather than a value the relay's own database could quietly roll back.
+The whole fix is one counter that a restore cannot roll back. It is why revocation by the issuer alone survives a backup restored by mistake, and why this chapter keeps each harbor's per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) outside the relay's own database, where a restore cannot quietly undo them.
 \end{pdexample}
 
 \subsection{In-scope attacks}\label{sec:fh-attacks-in}
 
 The protocols in this chapter are designed against the following attackers.
 
-\paragraph{Cross-realm identity spoofing.} An attacker presents a card at $B$ claiming issuance by $A$, using a forged signature under $\mathit{sk}_A$. \emph{Closed by} signature verification against $A$'s public key as recorded in the witness log (\S\ref{sec:fh-xfer}). Reduces to Ed25519 EUF-CMA security~\pdcite{bernstein2012high}.
+\paragraph{Cross-realm identity spoofing.} An attacker presents a card at $B$ claiming issuance by $A$, using a forged signature under $\mathit{sk}_A$. \emph{Closed by} signature verification against $A$'s public key as recorded in the witness log (\S\ref{sec:fh-xfer}). This reduces to Ed25519's standard unforgeability guarantee (EUF-CMA: no one without the key can forge a signature, even after seeing many)~\pdcite{bernstein2012high}.
 
 \paragraph{Replay across the boundary.}
-A signed epoch binding lets $B$ reject an offer older than its accepted
-current state. It does not tell an isolated $B$ that a newer root exists.
-A transfer identifier and atomic consume record prevent duplicate issuance
-at $B$; expiry and a declared freshness policy govern use during stale views.
-These are protocol requirements, not verified cross-realm results.
+A signed epoch binding lets $B$ reject an offer older than the state $B$
+has already accepted. A transfer identifier, consumed atomically at $B$,
+stops a second card being minted from one offer, and expiry plus a declared
+freshness rule govern use while $B$'s view may be stale.
+\pdscope{An isolated $B$ cannot learn from the binding that a newer root exists, and none of these requirements has been verified for the cross-harbor protocol.}
 
 \paragraph{Capability inflation across transfer.} An attacker presents at $B$ a card $C_B'$ that claims authority beyond the attenuation predicate applied at $A$. \emph{Closed by} the requirement that the verifier at $B$ recompute the composed attenuation $\mathrm{att}_B \circ \mathrm{att}_A$ from the envelope rather than trust an intermediate claim (\S\ref{sec:fh-xfer}); reduces to Anchor's intra-harbor attenuation invariant.
 
-\paragraph{Stale-revocation acceptance.} An attacker at $B$ presents a card revoked at $A$ but not yet observed at $B$. Under the reliable connected-overlay model the window has expected scale $\Theta(\Delta\log m)$; during a partition it is unbounded. A bond can price a configured service-level window, not eliminate the tail.
+\paragraph{Stale-revocation acceptance.} An attacker at $B$ presents a card revoked at $A$ but not yet observed at $B$. With $m$ harbors gossiping in reliable rounds of length $\Delta$ over a connected network, the window is expected to grow like $\Theta(\Delta\log m)$; during a partition it is unbounded. A bond sized to an agreed service-level window can compensate losses inside that window and cannot remove the risk beyond it.
 
-\paragraph{Cross-witness equivocation.} A malicious daemon $D_A$ publishes contradictory roots to isolated witnesses. The contradiction is cryptographically verifiable once a common auditor receives both views, but the time to that event is topology- and partition-dependent. A witness bond prices confirmed equivocation; it does not create a delivery deadline.
-Table~\ref{tab:fh-witness-log} lays out all five properties against what each one prevents.
+\paragraph{Cross-witness equivocation.} A malicious daemon $D_A$ publishes contradictory roots to isolated witnesses. The contradiction is cryptographically verifiable once a common auditor receives both views, but how long that takes depends on the network and on partitions. A witness bond pays out once equivocation is confirmed; it does not make the proof arrive by any deadline.
+Table~\ref{tab:fh-witness-log} pairs each of the five witness-log properties with the failure it prevents; per-harbor latest-root binding, for instance, stops a harbor silently publishing two roots for one epoch.
 
 \input{figures/tab-fh-witness-log}
 
 
 \paragraph{Settlement redirection or equivocation.} A signed escrow promise makes misconduct attributable. Prevention requires a custody ledger whose transition API cannot name an arbitrary recipient or fee. Design Invariant~\ref{thm:fh-escrow-bound} states the bound conditionally on that mechanism; without it, the full bond remains at risk.
 
-\paragraph{Harbor membership forgery at the federation boundary.} An attacker presents a card from a harbor purporting to be in the federation but that has no admission record. \emph{Closed by} the admission ceremony (\S\ref{sec:fh-admission}) which produces a permanent, witness-logged enrollment record co-signed by an existing harbor's sponsor bond. A claimed harbor with no enrollment record is treated as outside the federation regardless of how well-formed its cards appear.
+\paragraph{Harbor membership forgery at the federation boundary.} An attacker presents a card from a harbor that claims federation membership but has no enrollment record. \emph{Closed by} the joining ceremony (\S\ref{sec:fh-admission}), which writes a permanent enrollment record to the witness log, co-signed by the existing harbor that posted the sponsor bond. A claimed harbor with no enrollment record is treated as outside the federation regardless of how well-formed its cards appear.
 
 \subsection{Out-of-scope attacks}\label{sec:fh-attacks-out}
 
-We are explicit about what is not closed.
+The protocols do not close the following.
 
-\paragraph{Compromise of a harbor's signing key.} If $\mathit{sk}_A$ leaks, the attacker can issue arbitrary $A$-side cards until $A$ rotates the key and publishes the rotation to the witness log. We inherit Anchor's key-rotation procedure unchanged. The federation does not close the underlying primitive; receivers still need independent local grants to bound the damage. Any
-foreign derivative that trusts the compromised issuer remains exposed until
-its dependency is invalidated at the receiving boundary.
+\paragraph{Compromise of a harbor's signing key.} If $\mathit{sk}_A$ leaks, the attacker can issue arbitrary $A$-side cards until $A$ rotates the key and publishes the rotation to the witness log. Anchor's key-rotation procedure applies unchanged. Each receiver limits the
+damage with its own local grants, and any card a receiver derived from the
+compromised issuer stays exposed until the receiver invalidates it.
 
-\paragraph{Sybil at the federation layer.} An attacker who can pay the admission cost $m$ times can run $m$ federated harbors. The cost ratio between honest and adversarial admission is the decisive parameter; we discuss it in \S\ref{sec:fh-admission} but do not give a tight bound. This is named open work.
+\paragraph{Sybil at the federation layer.} An attacker who can pay the joining cost $m$ times can run $m$ federated harbors. What decides the matter is the ratio of the attacker's joining cost to an honest harbor's; \S\ref{sec:fh-admission} discusses it and gives no tight bound.
 
-\paragraph{Cartel formation across harbors.} Bonded's folk-theorem cartel-resistance argument relied on the daemon as a correlation device inside one machine. Across harbors, cartels can form offline and present a unified front to the witness log; the witness log records that all harbors agreed, which is consistent with both honest agreement and cartel collusion. We acknowledge this and state the open work in \S\ref{sec:fh-limitations}.
+\paragraph{Cartel formation across harbors.} Bonded's folk-theorem cartel-resistance argument relied on the daemon as a correlation device inside one machine. Across harbors, cartels can form offline and present a unified front to the witness log; the witness log records that all harbors agreed, which is consistent with both honest agreement and cartel collusion. \S\ref{sec:fh-limitations} states what remains to be done.
 
-\paragraph{Centralization gravity.} Accepted authority can concentrate even when many endpoints exist; the
-trust-topology alternatives in Maler and Reed~\pdcite{maler2008venn} motivate
-that risk, not a fixed timetable for concentration. The Federated Harbor's structural pushback --- replicable witness logs, no central coordinator --- is design discipline, not theorem. We formally classify this in \S\ref{sec:fh-failure-modes}.
+\paragraph{Concentration of control.} Control over which roots are accepted can end up in a few hands even when many endpoints exist; the
+trust topologies compared by Maler and Reed~\pdcite{maler2008venn} show how,
+though they set no timetable for it. The design's response, copyable witness logs and no central coordinator, is a design choice and not a theorem. \S\ref{sec:fh-failure-modes} returns to it.
 
 \paragraph{Side channels.} Constant-time signature verification, cache-side-channel resistance, and timing-attack resistance are inherited from the underlying libraries; we do not re-prove them and we note where we trust them.
 
 \subsection{Threat-band visualization}\label{sec:fh-threat-band-viz}
 
-Figure~\ref{fig:fh-threat-bands} uses position to distinguish \textbf{Open} questions, \textbf{Conditional} arguments, and \textbf{Mechanized} evidence. These are qualitative assurance categories, not measured security scores. The cross-realm identity and replay claim remains conditional; the available single-harbor capability models do not mechanize the transfer protocol. We return to these distinctions when discussing limitations.
+Figure~\ref{fig:fh-threat-bands} places each threat in one of three bands: \textbf{Open} questions, \textbf{Conditional} arguments, and \textbf{Mechanized} evidence. The bands are qualitative; they are not measured security scores. The cross-harbor identity and replay claim sits in the conditional band, because the single-harbor capability models do not cover the transfer protocol. The limitations section returns to these bands.
 
 \input{figures/fig-fh-threat-bands}
 
@@ -394,35 +412,35 @@ Figure~\ref{fig:fh-threat-bands} uses position to distinguish \textbf{Open} ques
 \section{Cross-Harbor Capability Transfer}\label{sec:fh-xfer}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The first governing protocol is the cross-harbor capability transfer ceremony. An $A$-side agent holds a Harbor Card $C_A$ minted by $D_A$ under Anchor Phase 2 or Phase 3. It seeks admission at $B$. Two cases must remain distinct. Over the same
-resource universe, $B$ may accept a further restriction of the offered grant.
-For the separately administered staging resource, $B$ must instead authorize a new local
-grant under a declared mapping. The four-message skeleton carries either
-exchange, but the subset theorem below covers only the first.
+The first protocol is the transfer ceremony. An agent on harbor $A$ holds a Harbor Card $C_A$ minted by $D_A$ under Anchor Phase 2 or Phase 3, and asks to use it at $B$. Two cases must stay separate. If $A$ and $B$ name the
+same resources, $B$ may accept a narrower version of the offered grant. If the
+resource belongs to $B$ alone, as a separately run staging database does, $B$
+must instead issue a new local grant under a mapping it has published. The same
+four messages carry either exchange, but the subset theorem below covers only the first.
 
 \input{figures/fig-fh-xfer-ceremony}
 
 \subsection{The four-message ceremony}\label{sec:fh-xfer-ceremony}
 
-Figure~\ref{fig:fh-xfer} follows the four-message transfer ceremony. Each
-harbor retains its root authority; the transferred capability is scoped by
-the receiving harbor. The four messages are:
+Figure~\ref{fig:fh-xfer} follows the four messages. Each harbor keeps its
+own root authority, and the receiving harbor sets the scope of the card it
+issues. The four messages are:
 
 \begin{enumerate}[nosep,leftmargin=*]
 \item $\mathsf{xfer\_req}(C_A, B)$ --- Alice's agent presents $C_A$ to its local daemon $D_A$ and names $B$ as the target harbor. The request is intra-harbor; standard Anchor verification applies.
 
 \item $\mathsf{xfer\_offer}\langle C_A, \mathrm{att}_A, R_A^{(e)} \rangle$ --- $D_A$ constructs an envelope binding the card, an attenuation predicate $\mathrm{att}_A$ specifying what subset of $C_A$'s authority is being offered for cross-realm use, and its current epoch root $R_A^{(e)}$. The envelope is signed under $\mathit{sk}_A$ and sent to $D_B$.
 
-\item $\mathsf{xfer\_ack}\langle C_B', R_B^{(e)} \rangle$ --- $D_B$ verifies the envelope's signature against $A$'s public key as recorded in the witness log; checks $R_A^{(e)}$ against its locally accepted witness state and applies its admission policy. For the same resource universe it mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$; for a separate resource it must instead issue a new local grant under the declared mapping. In either case the card is valid only at $B$ and signed under $\mathit{sk}_B$. The acknowledgment is sent back to $D_A$ along with $B$'s current epoch root.
+\item $\mathsf{xfer\_ack}\langle C_B', R_B^{(e)} \rangle$ --- $D_B$ verifies the envelope's signature against $A$'s public key as recorded in the witness log; checks $R_A^{(e)}$ against the witness state it has accepted and applies its own acceptance policy. For the same resource universe it mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$; for a separate resource it must instead issue a new local grant under the declared mapping. In either case the card is valid only at $B$ and signed under $\mathit{sk}_B$. The acknowledgment is sent back to $D_A$ along with $B$'s current epoch root.
 
 \item $\mathsf{xfer\_deliver}\langle C_B' \rangle$ --- $D_B$ delivers $C_B'$ to the agent at $B$ that will use it. Subsequent presentations verify the local card under $\mathit{pk}_B$ and check local expiry, scope and recorded revocation dependencies. No synchronous $A$-side lookup is required, subject to the freshness policy below.
 \end{enumerate}
 
-Each derivative $C_B'$ carries the transfer identifier of the offer that produced it, and $D_B$ mints at most one derivative per identifier, so a replayed $\mathsf{xfer\_offer}$ cannot produce a second $C_B'$; the identifier is part of what the counter-signature covers. The critical property is that after message (3), no further synchronous interaction with $A$ is required for the agent to operate at $B$. The cost is that revocation of $C_A$ at $A$ does not instantaneously revoke $C_B'$ at $B$; Theorem~\ref{thm:fh-conv} gives an expectation only under its delivery model, and partitions require fail-closed policy or bounded credential TTLs.
+Each derivative $C_B'$ carries the transfer identifier of the offer that produced it, and $D_B$ mints at most one derivative per identifier, so a replayed $\mathsf{xfer\_offer}$ cannot produce a second $C_B'$; the identifier is part of what the counter-signature covers. After message (3) the agent can work at $B$ without waiting on $A$. The cost is that revoking $C_A$ at $A$ does not at once revoke $C_B'$ at $B$. Theorem~\ref{thm:fh-conv} gives only an expected delay, under its delivery model; during a partition $B$ must refuse cards it cannot check (fail closed) or rely on short card lifetimes (TTLs).
 
 \subsection{Why this composes cleanly with Anchor}\label{sec:fh-xfer-compose}
 
-The Anchor Protocol's Phase-3 delegation already proves that a chain $C_{\text{daemon}} \to C_A \to C_B$ of attenuated cards is verifiable under the issuing daemon's public key, and that an attacker cannot inflate a downstream cap to exceed an upstream one. The transfer ceremony is Phase-3 delegation across a trust boundary, with two changes:
+The Anchor Protocol's Phase-3 delegation already proves that a chain $C_{\text{daemon}} \to C_A \to C_B'$ of narrowed cards is verifiable under the issuing daemon's public key, and that an attacker cannot inflate a downstream cap to exceed an upstream one. The transfer ceremony is Phase-3 delegation across a trust boundary, with two changes:
 
 \begin{enumerate}[nosep]
 \item The second link in the chain is signed under a \emph{different} root key ($\mathit{sk}_B$ instead of $\mathit{sk}_A$), so the verifier at $B$ uses $B$'s public key $\mathit{pk}_B$, rather than $\mathit{pk}_A$.
@@ -432,14 +450,12 @@ the derivative after learning that its parent is invalid. Observing a new
 root without that enforcement step does not revoke anything.
 \end{enumerate}
 
-The composition reuses signature and restriction operations; no integration
-or performance measurement follows from that reuse. Acceptance additionally
-requires the receiving harbor's local admission rule, the resource mapping
-or subset check, valid expiry, replay protection and the parent-revocation
-dependency. Root checks use locally accepted witness state, not an oracle for
-global freshness. These checks are obligations of the proposed cross-harbor
-verifier; the single-harbor signature proof does not establish their joint
-implementation.
+The composition reuses Anchor's signature and narrowing operations.
+Acceptance at $B$ also needs $B$'s local acceptance rule, the resource
+mapping or subset check, an unexpired card, replay protection, and the check
+that the parent card has not been revoked. Root checks use the witness state
+$B$ has accepted, which may lag behind the newest roots.
+\pdscope{Anchor's single-harbor signature proof covers none of these added checks, and no integration or performance measurement exists for them.}
 
 \subsection{Attenuation across the boundary}\label{sec:fh-xfer-att}
 
@@ -449,13 +465,13 @@ Exchanging access to a different resource requires an additional local grant.
 
 \begin{pdexample}{Composing Two Attenuations, on the Same Resource}
 \setlength{\parskip}{4pt plus 1pt}
-Take Alice's card $C_A$ authorizing \texttt{db:write} on $A$'s own test database, with $\mathrm{att}_A$ the identity narrowing (it removes nothing). $D_B$ accepts the transfer to that same database --- suppose, for this example, $A$'s test database is itself reachable at $B$ --- and applies $\mathrm{att}_B=$ ``only between 9am and 5pm.''
+Take Alice's card $C_A$ authorizing \texttt{db:write} on $A$'s own test database, with $\mathrm{att}_A$ the identity narrowing (it removes nothing). $D_B$ accepts the transfer to that same database (suppose, for this example, that $A$'s test database is itself reachable at $B$) and applies $\mathrm{att}_B=$ ``only between 9am and 5pm.''
 
 The composed card is \[
 C_B'=\mathrm{att}_B(\mathrm{att}_A(C_A)):
 \] \texttt{db:write}, time-windowed to business hours.
 
-Every operation $C_B'$ authorizes --- a write, during business hours, on $A$'s test database --- is also one $C_A$ authorizes, since $C_A$ places no restriction $C_B'$ does not already respect: subset composition is a subset, exactly as the Theorem below states it in general.
+Every operation $C_B'$ authorizes (a write, during business hours, on $A$'s test database) is also one $C_A$ authorizes, since $C_A$ places no restriction that $C_B'$ does not already respect. A subset of a subset is a subset, which is what the Theorem below states in general.
 
 Exercise~\ref{ex:fh-xfer-attenuation} asks what changes in this argument the moment $\mathrm{att}_B$ names a database $C_A$ never mentioned at all.
 \end{pdexample}
@@ -477,20 +493,21 @@ Cross-realm policy at $B$ adds the constraint ``and the operation must be permit
 
 \subsection{Threats foreclosed and threats deferred}\label{sec:fh-xfer-threats}
 
-The ceremony closes only the threats implied by those bindings; the remaining
-threats are deferred to other primitives. Specifically:
+The ceremony closes only the threats its signatures and bindings address;
+other protocols handle the rest:
 
 \begin{itemize}[nosep]
 \item \textbf{Foreclosed:} identity spoofing of $\mathit{sk}_A$ across the boundary; capability inflation across the transfer; replay at $B$ against a stale $R_A$.
 \item \textbf{Deferred:} revocation latency (handled in \S\ref{sec:fh-revocation}); settlement disputes (handled in \S\ref{sec:fh-settlement}); admission of unbonded new harbors (handled in \S\ref{sec:fh-admission}).
 \end{itemize}
 
-\pdmarginanalogy{fh-customs-seal}{}{ch08-transit-customs-seal}{Like a tamper-evident seal on a cargo door: if anyone alters $A$'s signed offer on its way to $B$, the signature check shows it. The seal hides nothing; anyone who handles the offer can read it.}%
-We are explicit that the ceremony does not close every threat in one step. Federation is a layered defense; this is one layer.
+\pdmarginanalogy{fh-customs-seal}{}{ch08-transit-customs-seal}{Like a tamper-evident seal on cargo: any alteration of $A$'s signed offer shows when $B$ checks the signature, and the seal hides nothing. $B$ then issues its own narrower card, and only that card works at $B$.}%
+The ceremony is one layer of the federation's defense, not all of it.
 
 \subsection{Mechanization status}\label{sec:fh-xfer-mech}
+\pdstatus{\Designed}{ProVerif query sketch only; no executable model}
 
-The four-message ceremony has a ProVerif query sketch, not an executable cross-realm model or a verification transcript (Appendix~\ref{app:fh-proverif}). Authenticity and witness-log freshness therefore remain unmechanized. The set-inclusion argument in Theorem~\ref{lem:fh-att} applies within its shared resource universe; it does not establish protocol authenticity or freshness.
+The ceremony has a ProVerif query sketch (Appendix~\ref{app:fh-proverif}) and no executable model or verification transcript, so no machine has checked its authenticity or the freshness of the roots it relies on. Theorem~\ref{lem:fh-att} is a set-inclusion argument within one shared resource universe and says nothing about either.
 
 % Keep the full questions readable without occupying the following revocation
 % diagram's caption rail. Only this recitation uses the body-column form.
@@ -504,7 +521,7 @@ The four-message ceremony has a ProVerif query sketch, not an executable cross-r
 \section{Federated Revocation}\label{sec:fh-revocation}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The second governing protocol is the federated revocation mesh. The Anchor Protocol handles revocation inside a single mesh by gossiping an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks for anti-entropy reconciliation~\pdcite{demers1987epidemic}: pairs of daemons periodically reconcile their event logs, designating the cuckoo filter $F$ purely as a local, ephemeral read-path index. The Federated Harbor extends this to the multi-administrative-domain case.
+The second protocol spreads revocations between harbors. Inside one harbor, the Anchor Protocol gossips an append-only event log of revoked card identifiers. Pairs of daemons use vector clocks to find the entries one holds and the other lacks, and exchange them (anti-entropy reconciliation~\pdcite{demers1987epidemic}); the cuckoo filter $F$ is only a fast local index built from that log. This section extends the same scheme to harbors with different owners.
 
 Two pieces are added on top of the Anchor mechanism: (a) per-epoch roots $R_X^{(e)}$ published to a shared witness log so a third party can audit any harbor's local view, and (b) cross-witness signatures so the auditor pattern generalizes Certificate Transparency~\pdcite{laurie2013ct}.
 
@@ -515,20 +532,20 @@ In the stated push model, each informed harbor contacts one peer per round.
 Starting from one informed harbor, even an ideal sequence with no duplicate
 contacts informs at most $2^k$ harbors after $k$ rounds. Eight harbors thus
 need at least three rounds; sixty-four need at least six. These are best-case
-lower bounds, not expected completion times.
+lower bounds; the expected number of rounds is larger.
 
 Random contacts can hit already informed peers. With $m=3$, after the first
 round two harbors are informed. In the next round both independently contact
 one of their other two peers. The probability neither contacts the last
 uninformed harbor is $(1/2)^2=1/4$. Each subsequent round succeeds with
 probability $3/4$, so the expected total is $1+1/(3/4)=7/3$ rounds, rather
-than $\log_2 3$. This calculation fixes a finite-size model explicitly;
-$\Theta(\log m)$ alone cannot supply its expectation or a deadline.
+than $\log_2 3$. The calculation needs a stated model of a finite network;
+the asymptotic $\Theta(\log m)$ gives neither this expectation nor a deadline.
 \end{pdexample}
 
 \subsection{Convergence bound}\label{sec:fh-conv-bound}
 
-Standard epidemic dissemination gives an expected $\Theta(\Delta \log m)$ completion time only under an appropriate connected, reliable-round model~\pdcite{demers1987epidemic}. The property below instantiates that model at the federation level, treating each harbor's filter as one node in a complete overlay regardless of how many local daemons participate in the harbor's mesh. It is a model-conditional expectation, not an inherited wall-clock deadline.
+Epidemic gossip spreads a message to all $m$ nodes in an expected $\Theta(\Delta \log m)$ time when the network is connected and every round of length $\Delta$ is delivered reliably~\pdcite{demers1987epidemic}. The theorem below applies that model to the federation, treating each harbor as one node of a complete network however many daemons run inside it.
 
 \begin{pdclaim}{Theorem}{Conditional Revocation Dissemination}
 \setlength{\parskip}{4pt plus 1pt}
@@ -541,41 +558,42 @@ Let $m$ harbors form a complete overlay. In each reliable synchronous round of d
 \end{enumerate}
 \end{pdclaim}
 
-The first item is the standard asymptotic epidemic-dissemination result~\pdcite{demers1987epidemic}; the asymptotic notation does not supply an exact constant or a finite-size expectation. The second follows from the signed-root format. The third is an indistinguishability result: an auditor isolated in one partition cannot distinguish equivocation from delay.
+The first item is the standard asymptotic result for epidemic gossip~\pdcite{demers1987epidemic}; it fixes no constant. The second follows from the signed-root format. The third is an indistinguishability result: an auditor isolated in one partition cannot distinguish equivocation from delay.
 
 \begin{pdclaim}{Design invariant}{Service-Level Attacker Window}
 \setlength{\parskip}{4pt plus 1pt}
 \label{cor:fh-window}
 If an operator additionally imposes a partition bound $T_p$ and a bound $T_g$ for dissemination and local enforcement after connectivity resumes, then stale-card exposure is bounded by $T_p+T_g$.
 
-Without those operational assumptions the protocol supplies an expected latency under its model, not a structural maximum. The bound is a direct consequence of Theorem~\ref{thm:fh-conv} once those two operational commitments are added; it is the operator's own $T_p$ and $T_g$, not anything the formal model proves on its own, that makes the bound a maximum rather than an expectation --- the same conditional shape as Design Invariant~\ref{thm:fh-escrow-bound}.
+The bound follows from Theorem~\ref{thm:fh-conv} once the operator commits to $T_p$ and $T_g$. Those commitments, not the model, turn an expected delay into a maximum, just as the custody assumptions do for Design Invariant~\ref{thm:fh-escrow-bound}.
 \end{pdclaim}
 
 \input{figures/fig-fh-revocation-regime}
 
-The finality that ``only-issuer-revokes'' rests on is model-checked with a negative
-control. Under the rollback configuration the relay's revocation set is restored from a
-backup taken before the revocation, and TLC finds the four-step breach; the epoch
+Revocation by the issuer alone depends on a revocation, once recorded, staying
+recorded. That property is model-checked with a negative control. Under the
+rollback configuration the relay's revocation set is restored from a backup taken
+before the revocation, and TLC finds the four-step breach; the epoch
 configuration closes it (\S\ref{sec:fh-witness}).
 
 \input{figures/session-fh-rollback}
 
-The distinction determines the exposure bound. A bond can be priced against an operator-declared service-level window, but an unbounded partition creates an unbounded exposure tail. Deployments must therefore combine bond sizing with expiry, fail-closed acceptance, or an explicit partition limit.
+A bond can be sized to cover losses inside an operator-declared window, but an unbounded partition leaves unbounded exposure. A deployment must therefore combine bond sizing with card expiry, fail-closed acceptance, or an explicit partition limit.
 
 \subsection{Conflict resolution across harbors}\label{sec:fh-revocation-conflict}
 
 The interesting case is disagreement. Harbor $A$ has revoked card $c$; harbor $B$ has not yet seen the revocation; an agent presents $c$ at $B$ for an action that affects $A$'s database. Three candidate resolution rules from the proposal~\pdcite{owens2026proposal}, evaluated:
 
 \begin{enumerate}[nosep]
-\item \textbf{Pessimistic (anyone-revokes-is-revoked).} The card is revoked iff any harbor has revoked it. Vulnerable to an attacker who would gain by injecting spurious revocations into the gossip mesh; it also rejects too many honest cards.
-\item \textbf{Authoritative (only-issuer-revokes).} Only $A$ can revoke $A$'s cards. This is the rule we adopt. Under the service-level assumptions of Design Invariant~\ref{cor:fh-window}, it gives an operator-priced attacker window; without them, exposure has no finite structural maximum.
+\item \textbf{Pessimistic (anyone-revokes-is-revoked).} Treat a card as revoked if any harbor says it is revoked. This protects against an issuer that refuses to revoke its own bad card, but it is easy to abuse. An attacker who can slip fake revocation notices into the gossip between harbors can get valid cards refused everywhere, so honest work keeps getting blocked.
+\item \textbf{Authoritative (only-issuer-revokes).} Only $A$ can revoke $A$'s cards. This is the rule we adopt. Under the service-level assumptions of Design Invariant~\ref{cor:fh-window}, the attacker's window is bounded by the operator's declared limits; without them, exposure has no finite maximum.
 \item \textbf{Epoch-bounded (revocation propagates within $\Delta$ epochs and inconsistency is a contract violation).} A refinement of (2) for the case where one harbor falls persistently behind. We treat this as a degraded mode of (2) rather than a separate rule.
 \end{enumerate}
 
-We adopt rule (2). The pessimistic rule has the wrong defaults; the epoch-bounded rule is operationally the same as (2) with a watchdog. Issuer-authenticated revocation and amount-preserving settlement are
-separate obligations; adopting this rule does not prove conservation.
+We adopt rule (2). The pessimistic rule lets anyone block honest work, and
+the epoch-bounded rule is rule (2) with a watchdog.
 
-Table~\ref{tab:fh-revocation-rules} lays out all three rules against what each defends against.
+Table~\ref{tab:fh-revocation-rules} sets the three rules side by side: the pessimistic rule defends against an issuer that refuses to revoke, the authoritative rule against spurious revocations from a non-issuer, and the epoch-bounded rule against a harbor that falls persistently behind.
 
 \input{figures/tab-fh-revocation-rules}
 
@@ -583,9 +601,9 @@ Table~\ref{tab:fh-revocation-rules} lays out all three rules against what each d
 
 \subsection{Event Log \& Ephemeral Cuckoo Discipline}\label{sec:fh-cuckoo}
 
-Two Bloom filters over the same universe merge by a bitwise OR; two cuckoo filters cannot, because each stores a fingerprint in one of two hashed buckets that can overflow, so a union may have nowhere to place a fingerprint. The cuckoo filter is therefore purely a local, ephemeral read-path index derived from the authoritative Append-Only Event Log. The filter retains local Anchor-side disciplines (load capping, pollution resistance) but cross-harbor validation is strict: a filter at $B$ that holds $c \in F_B$ where $c$ was revoked at $A$ is correct only if there is a corresponding inclusion proof in $R_A^{(e+1)}$ in the witness log. A positive filter result is checked against the exact authenticated log.
+Two Bloom filters over the same universe merge by a bitwise OR; two cuckoo filters cannot, because each stores a fingerprint in one of two hashed buckets that can overflow, so a union may have nowhere to place a fingerprint. The cuckoo filter is therefore only a local, disposable index for fast reads, built from the append-only event log that decides. The filter keeps Anchor's local safeguards (load capping, pollution resistance), and the cross-harbor check is strict: a filter at $B$ that holds $c \in F_B$ where $c$ was revoked at $A$ is correct only if there is a corresponding inclusion proof in $R_A^{(e+1)}$ in the witness log. A positive filter result is checked against the exact authenticated log.
 Rebuilding with unchanged hash functions can reproduce the same false positive;
-rebuilding repairs a stale or damaged cache, not every fingerprint collision. Spurious revocations injected by an attacker into a peer's log are rejected on first attempt to verify against the witness log. The discipline is: \emph{local filters are advisory read-caches; the event and witness logs are authoritative}.
+rebuilding repairs a stale or damaged cache, not every fingerprint collision. Fake revocations that an attacker slips into a peer's log fail the first check against the witness log. \emph{Local filters only advise; the event log and the witness log decide.}
 
 \subsection{Visible discrepancies and their certificates}\label{sec:fh-sheaf}
 
