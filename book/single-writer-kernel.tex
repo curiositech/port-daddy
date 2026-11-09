@@ -401,7 +401,7 @@ kernel inherits exactly the crash semantics that configuration defines. The clai
 WAL with normal synchronization guarantees. \S\ref{sec:durability} shows that
 this is less than a casual reading assumes.
 \subsection{Schema evolution: an ordered boot ledger, not yet a sequencer (OP-7)}
-\pdstatus{\BuiltWeak}{the ordered boot ledger ships; the sequencer is specified}
+\pdstatus{\BuiltWeak}{OP-7, the seventh of the chapter's numbered open problems (Table~\ref{tab:op-status}); the ordered boot ledger ships; the sequencer is specified}
 The initial schema-by-union approach (\texttt{CREATE TABLE IF NOT EXISTS}) created
 vulnerabilities around unsequenced renames and multi-column backfills. The kernel's
 answer so far is partial, and it trades one property for another.
@@ -725,7 +725,9 @@ revision~7. A database with only one current claim can still be paired with a
 filesystem that accepts Heron's stale patch. The stronger design therefore
 requires the effect broker to compare the submitted lease and epoch against
 the current allocation: epoch~1 is refused once epoch~2 is current.
-Figure~\ref{fig:swk-fencing-epoch} follows this late effect. A file write that
+Figure~\ref{fig:swk-fencing-epoch} shows the same late effect with two other
+agents, \texttt{claude:auth} and \texttt{codex:worker}, and epochs 104 and 105
+in place of 1 and 2. A file write that
 bypasses the broker is outside the guarantee, even if the claim table is
 perfectly serialized.
 
@@ -839,7 +841,7 @@ the kernel. That property is what makes the design worth stating.
 
 The design does \emph{not} cover one path. A holder that never calls
 \texttt{release}, because it crashed or its lease simply expired, returns the
-resource through the lazy TTL sweep (I4), and the sweep consults no ticket queue.
+resource through the lazy TTL sweep (invariant I4, Table~\ref{tab:invariants}), and the sweep consults no ticket queue.
 So bounded wait would hold for cooperative release and fail on exactly the
 failure path the kernel was built to expect. OP-1 remains open until the sweep
 and the queue share one code path and the ticket table exists.
@@ -1164,6 +1166,8 @@ the uniqueness check refuses the second row before it commits. Prevention and
 repair are different histories. Making test deletion unreachable would require
 a guard on the actual edit path with enough information to recognize the
 forbidden change; adding another post-commit subscriber does not supply it.
+A violation's \emph{bad prefix} is the shortest opening part of a history that
+already breaks the rule, whatever happens next.
 
 \begin{theorem}[A prevention bound for post-commit monitoring]\label{thm:schneider}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1315,7 +1319,8 @@ solution. A policy has \pdterm{controllability}, and is called
 \emph{controllable}, when no uncontrollable event that the plant allows after a
 permitted history leads out of the policy. The name is Ramadge and Wonham's, and
 the theorem below shows that controllable policies are exactly the ones a
-supervisor can regiment.
+supervisor can regiment. The largest controllable part of a policy is its
+\emph{supremal controllable sublanguage}.
 
 \begin{pdexample}{The Policy Table, Checked by Hand}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1444,7 +1449,9 @@ construction for a mediated database invariant. The controllability theorem
 instead characterizes exact realization of a specified prefix-closed language
 under full observation. It distinguishes owning the credential channel for a
 push from observing an internal model event after it has happened. Neither
-statement makes local database computability necessary for every safe protocol.
+theorem says every safe protocol must decide inside a local database
+transaction; the external permit described after
+Theorem~\ref{thm:decidability} can also stop an effect before it happens.
 Dastani, Sardina and Yazdanpanah~\pdcite{dastani2017normenforcement} model three
 norm-enforcement mechanisms of normative multi-agent systems as supervisory
 control of discrete-event systems, which gives those mechanisms a
@@ -1708,7 +1715,7 @@ modes again.\fi
 % Flush a pending top float as well: a paragraph pagebreak alone can leave
 % its caption on the comparison's supposedly fresh margin.
 \pdmarginpagebreak
-The ladder these modes form has two public neighbours that look similar to it.
+The five modes have two public neighbours that look similar to them.
 Sheridan and Verplank rank a system on a ten-point scale by how much of the
 decide-and-act loop the computer holds rather than the
 human~\pdcite{sheridanverplank1978}; Parasuraman, Sheridan and Wickens later
@@ -1727,8 +1734,8 @@ and neither of the other scales measures it.
 
 \begin{pdclaim}{Design invariant}{The Three Gradings Are Independent Axes}
 \setlength{\parskip}{4pt plus 1pt}
-No mechanism's rung in this book is assigned from its automation level or from
-its evaluation depth, and the corners are all occupiable.
+No mechanism's assurance mode in this book is assigned from its automation level
+or from its evaluation depth, and every combination of extremes occurs.
 
 A fully autonomous
 component (Sheridan level~10) whose actions are merely logged is
@@ -1738,7 +1745,7 @@ component (Sheridan level~10) whose actions are merely logged is
 
 An EAL7 product can contain \pdassurance{Observed}
 mechanisms and an unevaluated one can contain \pdassurance{Attested} mechanisms,
-because EAL scores the evaluation and this ladder scores the mechanism.
+because EAL scores the evaluation and the assurance mode scores the mechanism.
 \end{pdclaim}
 
 \pdscope{The modes are a design vocabulary, not a measured scale: no procedure assigns a mode by measurement, and no inter-rater agreement stands behind the assignments.}
@@ -1751,7 +1758,7 @@ only if applied consistently.
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
 (i) Detect-only policies still have value: detection feeding audit, reputation, and
-slashing is real enforcement. The theorem rules out only exact realization of the full
+slashing (forfeiting a posted bond) is real enforcement. The theorem rules out only exact realization of the full
 permitted language. A stricter supervisor may still prevent violations by sacrificing
 legal histories, and detection needs suitable observations.
 
@@ -2201,7 +2208,9 @@ refinement is a separate obligation named in the boundary below.
 The checker that explores the machine is short enough to run while reading. Its
 output below is the evidence behind the state count and the shortest-crime table:
 with every guard on, no reachable state violates an invariant; with any one guard
-off, the checker finds the violating run and prints it.
+off, the checker finds the violating run and prints it. The claim below labels
+its six invariants I1--I6; these labels are local to this model and are not the
+I1--I12 labels of Table~\ref{tab:invariants}.
 
 \begingroup
 \pdsessionwordwraptrue
@@ -2310,8 +2319,7 @@ Table~\ref{tab:invariants} states the kernel's invariants as claims about subsys
 unit is where related obligations meet. The machine's I1 and I5 concern
 current epochs; I2 concerns at-most-once settlement per key; I3 requires both
 an acceptance policy and a verifier receipt; I4 checks delegation narrowing;
-and I6 binds settlement to its owner and receipt. These six labels are local
-to this model and are not the I1--I12 labels of Table~\ref{tab:invariants}.
+and I6 binds settlement to its owner and receipt.
 The model illustrates how the mechanisms compose; it does not prove all
 properties of those subsystems. The continuity chapter's checkpoint and the market chapters'
 settlement inherit the same object, which is why the book can name the work unit as its
