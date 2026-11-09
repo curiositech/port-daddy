@@ -609,7 +609,7 @@ No API operation edits or deletes a note. Removing a session (\texttt{pd session
 
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-By code inspection of the session module (\texttt{lib/sessions.ts}): the note API performs only \texttt{INSERT INTO session\_notes}, and the module issues no \texttt{UPDATE} or \texttt{DELETE} against notes. Its one removal operation releases the session's active file claims, sets an active session's status to \emph{abandoned}, records archive metadata and appends a tombstone note; it issues no \texttt{DELETE} against \texttt{sessions}. Commit and abort update only the session's \emph{status} field. So notes survive every operation the API offers.
+By code inspection of the session module (\texttt{lib/sessions.ts}): the note API performs only \texttt{INSERT INTO session\_notes}, and the module issues no \texttt{UPDATE} or \texttt{DELETE} against notes. Its one removal operation releases the session's active file claims, sets an active session's status to \emph{abandoned}, records archive metadata and appends a tombstone note; it issues no \texttt{DELETE} against \texttt{sessions}. Commit and abort set the session's status, phase and timestamps, release its file claims and may append one handoff note; neither updates nor deletes a note. So notes survive every operation the API offers.
 \end{proof}
 
 \subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
