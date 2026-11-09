@@ -179,7 +179,7 @@
 0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{From Spawn to Person:}}\\[0.2cm]
-  {\Large Identity, Continuity, and the Substrate\\of Agentic Reputation}\\[0.3cm]
+  {\Large Identity, Continuity, and the Records\\ Behind Agentic Reputation}\\[0.3cm]
   \rule{\textwidth}{0.5pt}
 }
 \author{
@@ -881,7 +881,7 @@ between an obligation and the party expected to discharge it.
 \pdmarginanalogy{stp-wax-seal-signet}{}{ch05-wax-seal-signet}{A signet suggests attribution: a signature binds a record to a signing key. Execution evidence and a principal-binding rule must establish the separate accountability claim.}%
 \medskip\noindent\textbf{The escape to prevent.} An authentic credential can still be disposable. Signature validity answers who controls a credential; an entry and liability policy decides whether abandoning it escapes a penalty. Keep those two questions separate.
 
-\begin{pdexample}{Sanctions at the Newcomer Floor}
+\begin{pdexample}{Sanctions at the Newcomer Score}
 \setlength{\parskip}{4pt plus 1pt}
 \label{ex:newcomer-floor}
 The expression
@@ -927,7 +927,7 @@ restricted.
 Fix a score-based access mechanism and a sanction window. It is \pdterm{sanction-respecting} if some $\Delta>0$ lowers the score available to every actor producing a specified dishonest outcome by at least $\Delta$, relative to that same actor's clean continuation over the same window. Include every identity through which the actor can route work when computing its available score.
 \end{definition}
 
-\begin{pdclaim}{Theorem}{The Newcomer-Floor Escape}
+\begin{pdclaim}{Theorem}{The Newcomer-Score Escape}
 \label{thm:necessity}
 Assume fresh identities obtain a fixed score $r_0$, creating and using one is free, and the mechanism cannot connect it to the actor's existing liability. Assume further that an actor whose clean continuation has available score $r_0$ can produce the dishonest outcome, and access depends only on its available identity score. Then an identity-local score penalty cannot make this mechanism sanction-respecting.
 \end{pdclaim}
@@ -958,7 +958,7 @@ that falls below the newcomer score, here $r_0=50$.}
 \label{tab:necessity-numbers}
 \end{table}
 
-\pitfall[Identity does not prove honesty]{The newcomer-floor theorem identifies an escape under stated access rules. Preventing that escape still does not make the score accurate: the system needs witnessed outcomes, competent evaluation, and enforceable liability. A signature authenticates a credential; it does not certify its holder's conduct.}
+\pitfall[Identity does not prove honesty]{The newcomer-score theorem identifies an escape under stated access rules. Preventing that escape still does not make the score accurate: the system needs witnessed outcomes, competent evaluation, and enforceable liability. A signature authenticates a credential; it does not certify its holder's conduct.}
 
 \noindent Mechanisms that count identities, such as a \emph{quorum} or a
 \emph{trust aggregate}, and have no outside check on who may enter are open to
@@ -978,7 +978,7 @@ If a fresh identity improves on the sanctioned continuation, resetting can
 reduce the penalty; if it restores the clean continuation, it erases that
 penalty. This escape, shedding a penalty by moving to a fresh identity, is \pdterm{whitewashing}. If an actor can costlessly multiply identities to inflate votes or aggregate unreserved credit, quorum mechanisms collapse (the Sybil attack~\pdcite{douceur2002}).
 
-Binding spawned actors to a durable principal with aggregated exposure limits is one way to make sanctions persist; costly identity creation is another. Either needs a payoff analysis to establish deterrence. Theorem~\ref{thm:necessity} proves the specified newcomer-floor
+Binding spawned actors to a durable principal with aggregated exposure limits is one way to make sanctions persist; costly identity creation is another. Either needs a payoff analysis to establish deterrence. Theorem~\ref{thm:necessity} proves the specified newcomer-score
 case; the broader Sybil threat requires its own voting and aggregation rules.
 \end{property}
 
@@ -1406,9 +1406,9 @@ from a checkpoint somewhere else. Both are body changes under a constant name,
 and the ledger must decide what follows the name and what follows the body.
 
 \medskip\noindent\textbf{In one breath.} What happens when an identity
-quietly swaps the model behind its name? If buyers cannot see which model ran,
-they pay the same for either, so the cheaper model always earns the seller
-more; if the daemon records the model on every outcome and prices follow
+quietly swaps the model behind its name? For one delivery with no future
+reputation at stake, if buyers cannot see which model ran, they pay the same
+for either, so the cheaper model earns the seller more; if the daemon records the model on every outcome and prices follow
 quality, the seller swaps only when the cheap model is the efficient choice.
 With a strong model costing $0.5$ per job and a cheap one $0.2$, the hidden swap
 gains $0.3$ per job at any price.
@@ -1711,7 +1711,7 @@ only that the ledger followed the right body.
 
 \begin{pdrecitation}
 \item Without looking: how do credential authenticity, durable principal
-binding, and costly resetting differ? Which assumptions make the newcomer-floor
+binding, and costly resetting differ? Which assumptions make the newcomer-score
 escape possible?
 \item Is the whitewashing-cost bound's design lever the size of the penalty
 or the shape of the ceiling schedule?
@@ -2794,7 +2794,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{A role is replaced; a person accumulates.} A role is a job, defined without reference to who fills it, and anyone can be given it this week. A person is the continuing ledger account that a chain of signed succession records links processes to; its witnessed outcomes survive every respawn.
 \item \textbf{Continuity is a ledger fact.} A later process continues a person when signed succession records link it to that person's account. Three subsystems support it: episodic memory survives process death, the checkpoint keeps a summary and worktree lineage but not execution state, and the outcome ledger keeps commitments and closures in part.
 \item \textbf{Authenticity and liability binding are separate.} A valid credential
-can still be disposable. The newcomer-floor theorem states when a reset erases
+can still be disposable. The newcomer-score theorem states when a reset erases
 a score sanction; principal-wide entry and exposure rules address a
 different part of that escape.
 \item \textbf{Whitewashing has a conditional price.} A reset costs the discounted continuation gap $W_\delta$; a deviation that triggers it with probability $p$ after delay $\tau$ faces expected cost $p\delta^\tau W_\delta$. The worked schedule costs $18$ without discounting. Front-loading minimizes honest-newcomer friction only under the stated relative discount factors, ceiling, and deterrence constraint.
@@ -3035,7 +3035,7 @@ idempotency journal.
 When an LLM agent dies mid-thought, what is recoverable and what is
 fundamentally lost? Propose a taxonomy of agent-death by what survives
 (record / claims / execution state / latent ``intent''). This is the hard
-half of the problem of a checkpoint that restores execution. (Open Problem~\ref{op:death},
+half of OP-4, the checkpoint that restores work. (Open Problem~\ref{op:death},
 \S\ref{sec:open}.)
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-death-taxonomy}
@@ -3480,7 +3480,7 @@ The genuinely unsolved problems this chapter surfaces, gathered for the reader w
 wants the research frontier rather than the pedagogy. Every starred exercise in the
 body cross-references this list \emph{by name}, not by a hand-typed numeral, so the
 two cannot drift apart. Note that the ``OP-$n$'' identifiers used in the body for
-kernel-layer problems (e.g.\ OP-4, a checkpoint that restores execution) belong to a \emph{shared}
+kernel-layer problems (e.g.\ OP-4, Checkpoint that restores work) belong to a \emph{shared}
 namespace owned by \pdchapref{swk}{The Single-Writer Kernel} and are deliberately
 not renumbered here; this list is
 this chapter's own.
