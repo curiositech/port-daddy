@@ -18,15 +18,15 @@
   \tikzset{rung/.style={pd label,minimum width=\ldw cm,minimum height=2.3cm,
     draw,line width=.9pt,align=left,text width=6.9cm,inner xsep=8pt,inner ysep=8pt}}
   \node[rung,pd focus fill,line width=1.6pt] (i2) at (0,{2*\ldy})
-    {\textbf{$\mathcal{I}_2$ Structural} --- separate git worktrees keep ordinary
+    {\textbf{$\mathcal{I}_2$ Structural:} separate git worktrees keep ordinary
      edits in separate working copies; access is not confined, and
      integration conflicts remain possible};
   \node[rung] (i1) at (0,\ldy)
-    {\textbf{$\mathcal{I}_1$ Advisory} --- shared working directory; file claims
+    {\textbf{$\mathcal{I}_1$ Advisory:} shared working directory; file claims
      registered with the commons authority; claim overlaps reported,
      writes not blocked};
   \node[rung] (i0) at (0,0)
-    {\textbf{$\mathcal{I}_0$ None} --- shared working directory; no conflict
+    {\textbf{$\mathcal{I}_0$ None:} shared working directory; no conflict
      reporting; ordinary edits share the same files};
   \draw[pd focus arrow] (i0.north) -- (i1.south);
   \draw[pd focus arrow] (i1.north) -- (i2.south);
