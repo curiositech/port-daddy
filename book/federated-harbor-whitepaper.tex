@@ -1549,7 +1549,7 @@ The condition asks that every acceptance at $B$ be preceded by matching issuance
 
 No executable cross-harbor model or run transcript exists; Appendix~\ref{app:fh-mech} records the gap.
 
-The separate artifact \path{proofs/bonded/federated/federated.pv} has a committed successful ProVerif transcript with daemon, KMS, and email shares exposed. Its query, however, concerns a fresh private constant \texttt{account\_root} that is never bound to \texttt{combine4} of those shares or published. The success establishes secrecy of that unused constant; it does not establish the intended four-principal reconstruction claim. The recorded result is:
+The separate artifact \path{proofs/bonded/federated/federated.pv} has a committed successful ProVerif transcript with daemon, KMS, and email shares exposed. Its query, however, concerns a fresh private constant \texttt{account\_root} that is never bound to \texttt{combine4} of those shares or published. The success establishes secrecy of that unused constant; it does not establish the intended four-principal reconstruction claim. The query is vacuous: it would still report true if all four shares were published, because nothing connects them to the queried name. The recorded result is:
 \begin{lstlisting}[caption={\texttt{proofs/bonded/federated/federated.pv}, actual ProVerif output},style=proverif]
 Starting query not attacker(account_root[])
 RESULT not attacker(account_root[]) is true.
@@ -1566,7 +1566,7 @@ Exercise~\ref{ex:fh-proverif-federation} diagnoses this vacuous query and specif
 
 The executable Bonded Commons Conservation specification models an abstract single-machine bond pool. A cross-harbor extension would need per-harbor pools, escrow custody, and in-transit transfers. This sketch names only lifecycle buckets and a witness log:
 
-\begin{lstlisting}[caption={Cross-Harbor Conservation specification (sketch)},style=tlaplus]
+\begin{lstlisting}[caption={Cross-Harbor Conservation specification (sketch; it checks nothing)},style=tlaplus]
 CONSTANTS Harbors, MaxBonds, Capabilities
 VARIABLES Bucket, WitnessLog
 
@@ -1582,13 +1582,13 @@ BucketPartition ==
 Spec == Init /\ [][Next]_<<Bucket, WitnessLog>>
 \end{lstlisting}
 
-The sketch defines neither \texttt{Init} nor \texttt{Next}, and a one-hot bucket label says nothing about recipient balances. No executable cross-harbor specification, configuration or Apalache run exists, so the cross-harbor partition remains a conditional design invariant. Appendix~\ref{app:fh-tla} identifies the narrower executable Conservation model and its recorded TLC result.
+The listing verifies nothing. \texttt{BucketPartition} holds for every function into the four labels, so it is a typing fact that no transition could break. The sketch defines neither \texttt{Init} nor \texttt{Next}, and a one-hot bucket label says nothing about recipient balances. A useful model needs both transitions out of escrow and an invariant that a bad transition can break: the payments of a cleared bond sum to its amount, and each bond closes once. It also needs a negative control, an operator bypass that pays an unlisted party, which the model checker must catch. No executable cross-harbor specification, configuration or Apalache run exists, so the cross-harbor partition remains a conditional design invariant. Appendix~\ref{app:fh-tla} identifies the narrower executable Conservation model and its recorded TLC result.
 
 \subsection{What is checked by machine and what is argued}\label{sec:fh-mech-summary}
 
 Each claim sits in one band of Figure~\ref{fig:fh-threat-bands}.
 
-\paragraph{Available model evidence.} Single-harbor capability models are inherited from Anchor. The committed TLC transcript concerns Bonded's single-machine Conservation model. Cross-realm protocol sketches and the cross-harbor bucket partition have no executable verification evidence here. The separate vault model's successful query does not encode the intended reconstructed root.
+\paragraph{Available model evidence.} Single-harbor capability models are inherited from Anchor. The committed TLC transcript concerns Bonded's single-machine Conservation model. Cross-realm protocol sketches and the cross-harbor bucket partition have no executable verification evidence here. The separate vault model's successful query is vacuous: it does not encode the intended reconstructed root.
 
 \paragraph{Conditional (assumption scope).} Revocation dissemination is expected $\Theta(\Delta\log m)$ only under the stated reliable complete-overlay model with uniform peer choice (Theorem~\ref{thm:fh-conv}). The escrow extraction bound is conditional on a non-bypassable recipient-whitelisted custody ledger (Design Invariant~\ref{thm:fh-escrow-bound}).
 
@@ -2264,7 +2264,7 @@ Cross-federation cartel-resistance bound & --- & \Open & --- \\
 
 The repository contains Anchor's executable capability models under \path{analyses/}, including \path{analyses/harbor_card_v3_delegation.pv}. It does not supply executable cross-realm transfer, attenuation, or escrow models. The correspondence in \S\ref{sec:fh-proverif-ext} is a query sketch; root freshness at acceptance and cross-realm resource mapping remain proof obligations.
 
-The separate \path{proofs/bonded/federated/federated.pv} and its committed transcript are available for inspection. Its queried private constant is unrelated to the computed vault term, so its successful result does not prove the intended four-principal security claim. Exercise~\ref{ex:fh-proverif-federation} identifies the missing term binding and compromise controls.
+The separate \path{proofs/bonded/federated/federated.pv} and its committed transcript are available for inspection. Its queried private constant is unrelated to the computed vault term, so its successful result is vacuous and does not prove the intended four-principal security claim. Exercise~\ref{ex:fh-proverif-federation} identifies the missing term binding and compromise controls.
 
 \section{TLA+ Artifact and Cross-Harbor Scope}\label{app:fh-tla}
 
