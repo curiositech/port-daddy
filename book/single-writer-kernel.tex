@@ -272,8 +272,8 @@ programs cannot alter (\emph{tamper-resistant}), and that is \emph{small enough
 to verify}. Here the reference monitor is a concrete local daemon over one
 SQLite file. Over the kernel's own state, every change is checked \emph{by
 construction}. Every change to \emph{coordination state} goes through one
-writer holding one file lock, so the operating system's lock puts the changes
-in order and is the one place the checks run. This is Saltzer and Schroeder's
+writer, so the daemon puts the changes in one order and is the one place the
+checks run; SQLite's file lock is a backstop. This is Saltzer and Schroeder's
 ``economy of mechanism''~\pdcite{saltzer1975protection}: one mechanism in place
 of $N$ hand-written critical sections. The checking is complete only over
 writes that \emph{enter} the daemon. It does not cover what an agent running as
@@ -1168,7 +1168,6 @@ forbidden change; adding another post-commit subscriber does not supply it.
 \begin{theorem}[A prevention bound for post-commit monitoring]\label{thm:schneider}
 \setlength{\parskip}{4pt plus 1pt}
 A monitor invoked only after a transition commits cannot prevent a safety violation
-
 whose bad prefix ends at that transition. It can detect the prefix, halt later
 actions, and enforce a separate recovery or bounded-response property. Therefore a
 post-commit subscription must not be credited with making the triggering state
@@ -1179,15 +1178,15 @@ unreachable.
 \setlength{\parskip}{4pt plus 1pt}
 Schneider's execution-monitor model~\pdcite{schneider2000} recognizes safety
 properties through finite bad prefixes and enforces them by suppressing an action
-
 before that prefix enters the target execution. A subscriber invoked after commit
 cannot suppress the committing action. Compensation may establish a different
 eventual or bounded-recovery property, but it does not retroactively remove the bad
 prefix.
 \end{proof}
 
-\keyidea[Constraints prevent; monitors detect]{Only two mechanisms refuse a
-change before it commits: the uniqueness constraint (no two holders of one
+\keyidea[Constraints prevent; monitors detect]{Among the forbidden states the
+policy monitor's rules cover, only two mechanisms refuse the change before it
+commits: the uniqueness constraint (no two holders of one
 resource key; no duplicate process-identity squat) and the fail-closed boot
 gate (no serving from a test database; no serving when a critical self-check
 fails). The states they refuse are \emph{truly} unreachable. The policy monitor
@@ -1524,9 +1523,9 @@ Three consequences follow, from least to most important.
   (owning more channels) can remove a controllability obstruction; relabelling
   the same policy cannot.
   The plant is the other dial: $\overline{L}$ sits on the left of the containment, so shrinking
-  it can remove offending histories, though a strict improvement is not guaranteed. Both detect-only verdicts above
-  turn on ``the universal plant enables \texttt{internal\_plan},'' and are conditional on the
-  modelling choice $L = \Sigma^{*}$. An event that never becomes physically possible needs no
+  it can remove offending histories, though a strict improvement is not guaranteed. The detect-only verdicts above
+  turn on the universal plant enabling the forbidden event at the very start (\texttt{internal\_plan},
+  for example), and are conditional on the modelling choice $L = \Sigma^{*}$. An event that never becomes physically possible needs no
   supervisor, which is why data minimization and capability removal are governance moves and
   not merely hygiene: a secret never loaded into the room regiments the compound policy with
   no gate at all.
@@ -1734,7 +1733,7 @@ its evaluation depth, and the corners are all occupiable.
 A fully autonomous
 component (Sheridan level~10) whose actions are merely logged is
 \pdassurance{Observed}; a component that stops for human approval at every step
-(level~3) but routes its one effect through an attested broker is
+(level~5) but routes its one effect through an attested broker is
 \pdassurance{Attested}.
 
 An EAL7 product can contain \pdassurance{Observed}
@@ -1841,7 +1840,6 @@ general proof of resistance to proxy gaming or misspecified scope policy.
 \setlength{\parskip}{4pt plus 1pt}
 Closing a commitment as ``done'' is refused unless the agent supplies a non-empty
 reference drawn from a \emph{finite oracle vocabulary}: a released claim, a merged
-
 commit hash, a passing test identifier, or a satisfied policy sub-check. Free-text
 notes cannot close a commitment. (Invariant I6.)
 \end{property}
@@ -2307,7 +2305,7 @@ then settle from the wrong account. That is exactly how the fraud would look in
 production, which is the point of asking a machine rather than an author to find it.
 
 \paragraph{What it gives.}
-Every earlier theorem in this chapter is now a property \emph{of} one concrete object.
+Several earlier results reappear here as properties of one concrete object.
 Table~\ref{tab:invariants} states the kernel's invariants as claims about subsystems; the work
 unit is where related obligations meet. The machine's I1 and I5 concern
 current epochs; I2 concerns at-most-once settlement per key; I3 requires both
@@ -2351,7 +2349,7 @@ and linearizability. They are the main formal result of the architecture, and
 the coordination layer's typed ownership depends on them.
 
 Figure~\ref{fig:swk-consistency-model} shows both guarantees on one history. The
-theorem's five hypotheses are the assumptions both guarantees need.
+theorem's six hypotheses are the assumptions both guarantees need.
 
 \input{figures/fig-swk-consistency-model}
 
@@ -2824,7 +2822,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item One writer, one file. Every mutation reaches the daemon and is committed in one
   order; the reply follows the commit. Serializability and linearizability follow
-  from that discipline plus four named assumptions; no agreement protocol is needed.
+  from that discipline plus five named assumptions; no agreement protocol is needed.
 \item Durability is split by fault class. Acknowledged commits survive a process
   crash under the stated storage assumptions; a power loss can lose recent commits
   under the default synchronous setting. The setting is the
@@ -3442,8 +3440,8 @@ one file, one decider, no consensus.
 
 Where it stops, it stops formally. Durability is split: process-crash durable
 (I1a), \emph{not} guaranteed against power loss (I1b). The policy monitor detects
-and compensates; it does not regiment, and we credit the only genuine pre-commit
-regimentation to the uniqueness constraint and the boot gate. Cross-subsystem
+and compensates; it does not regiment, and among the states its rules cover we
+credit pre-commit regimentation only to the uniqueness constraint and the boot gate. Cross-subsystem
 atomicity is a defect that can be fixed now. Hash-chain tamper-evidence is
 narrowed to cross-machine provisioning, where it actually protects someone. The two
 real weak points, partial local identity enforcement (I12) and the lack of a
