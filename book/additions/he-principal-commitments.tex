@@ -159,14 +159,14 @@ $\mathsf F(\texttt{migrate},\{\texttt{db:prod}\},[0,48])$. Alice files
 $\texttt{schema\_approved}\to\mathsf O(\texttt{migrate},\{\texttt{db:prod}\},[24,30])$.
 Today \texttt{schema\_approved} is not a fact, so the batch check passes.
 
-\emph{Reachable futures} (admission against reachable maximal fact sets). The
+\emph{Reachable futures} (Theorem~\ref{thm:he-reachable-admission}). The
 declared reachable fact sets are $\varnothing$ and
 $\{\texttt{schema\_approved}\}$. The theorem says to check only the largest.
 There the obligation fires and overlaps the freeze on
 $[\max(0,24),\min(48,30)]=[24,30]$, so the daemon refuses Alice's rule now
 rather than when the schema is approved.
 
-\emph{Blame} (the minimal-blame theorem above). Suppose Alice also issued
+\emph{Blame} (Theorem~\ref{thm:he-tagged-blame}). Suppose Alice also issued
 the fact \texttt{schema\_approved}, so the combined set is in conflict. Run the
 deletion filter in the order Bob, then Alice. Without Bob, Alice's set fires an
 obligation and meets no prohibition, so it is conflict-free and Bob stays.
@@ -174,14 +174,14 @@ Without Alice, only Bob's prohibition remains, which is conflict-free, so Alice
 stays. The blame set is $\{\text{Bob},\text{Alice}\}$, found in two checker
 calls, and neither principal conflicts alone.
 
-\emph{Either-or} (one step outside the fragment, and its two-principal form
-above). Let Alice's duty instead be ``migrate, or
+\emph{Either-or} (Theorems~\ref{thm:deontic-frontier}
+and~\ref{thm:he-joint-frontier}). Let Alice's duty instead be ``migrate, or
 ship behind a feature flag''. Choosing the flag removes the clash, since no
 prohibition names that action. With many such choices from several
 principals, each consistent alone, finding a joint choice is NP-complete in
 general, so the daemon searches with a time limit and refuses on a timeout.
 
-\emph{Prohibitions} (Prohibitions Compose, above). Pike adds
+\emph{Prohibitions} (Theorem~\ref{thm:he-prohibitions-compose}). Pike adds
 $\mathsf F(\texttt{deploy},\{\texttt{prod}\},[0,60])$. The daemon looks up the
 obligations fired on \texttt{deploy}, at today's facts and at
 $\{\texttt{schema\_approved}\}$, finds none, and accepts the freeze without a

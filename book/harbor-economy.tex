@@ -1162,7 +1162,7 @@ one key costs him one bond.
 Inside Alice's own harbor this cannot happen: her daemon minted every key there
 and knows they are all hers. Here Bob's daemon minted them, and nothing Alice
 can check tells her whether they belong to $100$ principals or to one. The fix
-at the end of this section keys bonds and sanctions to the principal. That
+in \S\ref{sec:he-principal-above} keys bonds and sanctions to the principal. That
 stops bond-farming inside one harbor; binding a principal across harbors is
 the open problem.
 \end{pdexample}
@@ -1226,7 +1226,7 @@ that depends on it.}
 \item Why does a trusted local root not establish trust between operators?
 \end{pdrecitation}
 
-\subsection{The principal above the actor}
+\subsection{The principal above the actor}\label{sec:he-principal-above}
 
 The economic counterparty in every trade is the \textbf{principal} (the human or
 org owning a fleet), not the agent. Bonds, reputation inheritance, and sanctions
@@ -2018,7 +2018,7 @@ yet defend against any of the gaps below.
 
 \begin{pdexample}{Watching Orphaned Escrow Get Stuck, by Hand}
 \setlength{\parskip}{4pt plus 1pt}
-This traces the first gap in the table below against numbers from
+This traces the first gap in Table~\ref{tab:gaps} against numbers from
 earlier in the chapter; it does not resolve the gap. Take
 the three-sided settlement of \S\ref{sec:one-settlement}: Bob's $400$\,\textsc{cr}
 bounty, $50$\,\textsc{cr} lease, and $10$\,\textsc{cr} licence reserve, plus
@@ -2987,7 +2987,8 @@ rationality; the worked no-trade region in \S\ref{sec:ms} instantiates the
 impossibility on the linear double auction of Chatterjee \&
 Samuelson~\pdcite{chatterjee1983}. The incentive-compatibility arguments are imperfect-monitoring folk
 theorems (Green--Porter; Abreu--Pearce--Stacchetti~\pdcite{aps1990}), whose exogenous
-public signal we cannot take for granted, which is why the grader must be modeled.
+public signal we cannot take for granted, which is why the grader must be
+modeled (\S\ref{sec:ic}).
 Grossman--Hart~\pdcite{grossman1986} motivates the control-right design question for
 the rental side, and Akerlof~\pdcite{akerlof1970} the lemons argument for licensing.
 This family supplies impossibility boundaries and design questions: what a
