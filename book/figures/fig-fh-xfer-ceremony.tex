@@ -1,8 +1,10 @@
 % Stable atlas ID: IV/fig:fh-xfer.
 % Question: which messages cross the boundary, and when can B verify alone?
-% Claim: only offer/ack cross; subset attenuation requires a shared resource universe.
+% Claim: only offer/ack cross, and neither carries the bearer card C_A; the offer is a
+%   D_A-signed attestation naming holder, recipient and transfer id; subset
+%   attenuation requires a shared resource universe.
 % Relation: four-party sequence, time downward, realms side by side.
-% Evidence: sec:fh-xfer-ceremony's four messages and signed epoch roots.
+% Evidence: sec:fh-xfer-ceremony's four messages, the attestation fields and signed epoch roots.
 % Counter-reading: local verification does not eliminate asynchronous revocation.
 \begin{figure}[t]
 \centering
@@ -29,19 +31,21 @@
     {request $C_A$};
   % Wire messages have their field lists above, never on the arrows.
   \draw[pd protocol arrow] (3,-3.05) -- (5.7,-3.05);
-  \node[pd protocol label,anchor=south,text width=5.3cm,align=center] at (4.35,-2.9)
-    {offer: $C_A$, attenuation $\mathrm{att}_A$,\\signed epoch root $R_A^{(e)}$};
+  \node[pd protocol label,anchor=south,text width=6.7cm,align=center] at (4.35,-2.9)
+    {offer signed by $D_A$: attestation of $C_A$\\(id, scope, holder key, expiry, parent epoch),\\recipient $B$, transfer id; never $C_A$ itself};
   \draw[pd protocol arrow] (5.7,-4.85) -- (3,-4.85);
-  \node[pd protocol label,anchor=south,text width=5.3cm,align=center] at (4.35,-4.7)
-    {acknowledge: $C'_B$, epoch root $R_B^{(e)}$\\$C'_B=\mathrm{att}_B(\mathrm{att}_A(C_A))\subseteq C_A$};
+  \node[pd protocol label,anchor=south,text width=6.7cm,align=center] at (4.35,-4.7)
+    {acknowledge: transfer id, id of $C'_B$, $B$'s root\\ same resource: $C'_B\subseteq\mathrm{att}_B(\mathrm{att}_A(C_A))$};
   \draw[pd focus arrow] (5.7,-6.35) -- (8.7,-6.35);
-  \node[pd focus label,anchor=south,text width=3.3cm,align=center] at (7.2,-6.2)
-    {deliver $C'_B$\\verify locally under $\mathit{pk}_B$};
+  \node[pd focus label,anchor=south,text width=3.8cm,align=center] at (7.2,-6.2)
+    {deliver $C'_B$ to its holder\\verify: $\mathit{pk}_B$ + possession};
 \end{tikzpicture}
-\caption{Only the offer and acknowledgement cross the boundary. The
+\caption{Only the offer and acknowledgement cross the boundary, and neither
+carries the bearer card $C_A$: the offer is $D_A$'s signed attestation of it,
+naming the holder, the recipient and a transfer identifier. The
 displayed subset relation assumes the same resource identifiers. A different
 resource needs a new grant under $B$'s policy. Local verification uses $B$'s
-public key and must enforce the parent-revocation dependency.
-[internal]}
+public key and the holder's proof of possession, and must enforce the
+parent-revocation dependency. [internal]}
 \label{fig:fh-xfer}
 \end{figure}
