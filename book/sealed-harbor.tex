@@ -811,6 +811,8 @@ committed $s$. Exercise~\ref{ex:sealed-launder} asks how to model the extra regi
 
 \input{figures/fig-sealed-laundering-fork}
 
+\pdexercisepointer{\ref{ex:sealed-pairs}}{\ref{ex:sealed-launder}}{\pageref{ex:sealed-pairs}}
+
 \section{What the mediated gate can enforce}\label{sec:sealed-enforceability}
 
 \noindent\emph{Express lane: which rules can the gate enforce exactly,
@@ -960,6 +962,8 @@ deployment assumption the two remaining links inherit. It needs evidence
 about the workroom itself, because an attestation measurement alone does not
 show that the measured implementation mediates every effect.
 \end{pdboundary}
+
+\pdexercisepointerone{\ref{ex:sealed-compound}}{\pageref{ex:sealed-compound}}
 
 % ---------------------------------------------------------------------------
 % The Sealed Harbor: chapter body, part 2 (conservation, detection, the
@@ -1221,6 +1225,8 @@ Differential privacy bounds individual influence in aggregates; it does not
 protect the whole dataset, nor Erin's model.
 \end{pdboundary}
 
+\pdexercisepointer{\ref{ex:sealed-torn}}{\ref{ex:sealed-crossover}}{\pageref{ex:sealed-torn}}
+
 \input{additions/sealed-person-ledger}
 
 \section{Canaries with a power curve and a clock}\label{sec:sealed-detection}
@@ -1439,6 +1445,8 @@ The sequential test detects \emph{statistical} leak signatures; a
 single-shot exfiltration is covered by Theorem~\ref{thm:sealed-power}.
 \end{pdboundary}
 
+\pdexercisepointer{\ref{ex:sealed-power}}{\ref{ex:sealed-canary-secrecy}}{\pageref{ex:sealed-power}}
+
 \input{additions/sealed-canary-audit}
 
 \section{The leakage budget: $q\cdot b$ bits, before timing}\label{sec:sealed-budget}
@@ -1526,6 +1534,9 @@ not bound the others. Their alphabets, timing and failure outcomes must also
 be declared before anyone quotes a total bound.
 
 \input{figures/fig-sealed-leakage-ledger}
+
+\pdexercisepointerone{\ref{ex:sealed-budget}}{\pageref{ex:sealed-budget}}
+
 \input{additions/sealed-tenants}
 
 \section{Limitations and boundaries}\label{sec:sealed-limitations}
@@ -1589,7 +1600,6 @@ reported by the chapter, without an archival run receipt or calibrated error
 bounds supplied here. The room is a proposed confinement design whose
 complete-mediation obligation must be validated for each deployment.
 
-\pdexercisepointer*{\ref{ex:sealed-pairs}}{\ref{ex:sealed-budget}}{\pageref{ex:sealed-pairs}}
 \begin{pdrecitation}
 \item Without looking: state the sentence that replaces ``mathematically cannot
   phone home,'' and distinguish its model evidence from the deployment assumptions needed
