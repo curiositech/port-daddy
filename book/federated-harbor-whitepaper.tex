@@ -656,146 +656,100 @@ rebuilding repairs a stale or damaged cache, not every fingerprint collision. Fa
 
 \subsection{Visible discrepancies and their certificates}\label{sec:fh-sheaf}
 
-Harbors gossip summaries of their logs to each other.
-Below, the same nodes are also called witnesses, and relays in the ring example.
-A dishonest harbor might tell one neighbor that its log head is at entry 12
-and another that it is at 15. If each pair of neighbors reports the difference
-it saw, an auditor can add those differences around any loop of harbors.
-Honest numbers always cancel to zero around a loop, so in a noise-free
-comparison at one snapshot a nonzero total proves that someone told two
-stories. This section asks which links leave a lie invisible to that loop
-test, how to turn a nonzero total into checkable proof, and how small a change
-to the reports would make them consistent. If the auditor already holds the
-liar's two signed statements, comparing them directly is simpler and keeps
-more information; the loop arithmetic is useful for auditing the network
-layout and measuring repairs.
+Harbors gossip summaries of their logs to each other. A dishonest harbor might
+tell one neighbor that its log head is at entry 12 and another that it is at
+15. If the auditor holds both signed statements, comparing them is the whole
+test. Table~\ref{tab:fh-sheaf-harness} shows this on equal evidence: a checker
+that compares each sender's signed claims caught every lie that the loop test
+below caught, and $209$ more. The loop test earns its place only where links
+exchange differences and the raw values are gone. There it shows which links
+leave a lie invisible, and it turns a nonzero loop total into a
+\pdterm{contradiction certificate}: a small set of received reports that anyone
+can check and that cannot all be honest together.
+
+Before any comparison or attribution, bind each signed report to its subject
+(the harbor or record it describes), its proposition (the fact or coordinate it
+states) and its epoch. Two reports contradict each other only when signer,
+subject, proposition and epoch all match and the values differ. Reports about
+different subjects, or for different epochs, can both be honest.
 
 \pdmarginanalogy{fh-traverse-compass}{}{ch08-closed-traverse-compass}{Like a surveyor checking whether measured bearings close around a traverse, the residual tests consistency around visible loops. A discrepancy calls for investigation; it does not by itself identify dishonesty.}%
-Take three harbors in a ring, each reporting one number at a common
-snapshot. Go once around the ring and add the three reported differences.
-Three fixed values cannot produce a nonzero sum, because each value is added
-once and subtracted once. The test sees only the chosen number, not the whole
-signed log, and a nonzero sum can come from noise, from mismatched snapshots
-or from a dishonest report; the arithmetic alone does not say which.
-
 \begin{pdexample}{Reported Differences by Hand: One Ring, One Chain, One Dark Link}
 \setlength{\parskip}{4pt plus 1pt}
 A link is a \pdterm{compared link} when its two endpoints reconcile it
 directly, a \pdterm{relayed link} when both endpoints' reports reach the
 auditor although the endpoints never reconcile it, and a \pdterm{severed link}
 when no report from it reaches the auditor. Compared and relayed links are
-\emph{visible}; write $K_j$ for the visible links that carry coordinate $j$.
-Take four relays $0,1,2,3$ in a ring, each reporting one number (its log head) for one shared coordinate. The links
-$0\!-\!1$, $1\!-\!2$ and $2\!-\!3$ are compared and agree; the link $3\!-\!0$ is
-not reconciled directly, but both its endpoints' reports reach the auditor, so all four
-links are visible and $K_j$ is the whole ring. Relay $0$ equivocates: the head
-it shows across $3\!-\!0$ differs by $s=3$ from the one it shows relay $1$.
-
-The
-auditor's \pdterm{cochain} is the list of reported differences, one per link:
+\emph{visible}. Take four relays $0,1,2,3$ in a ring, each reporting one
+number, its log head. Relay $0$ equivocates: the head it shows across link
+$3\!-\!0$ differs by $s=3$ from the one it shows relay $1$. The auditor's
+\pdterm{cochain} is the list of reported differences, one per link:
 \[
 g=(g_{01},g_{12},g_{23},g_{30})=(0,0,0,3).
-\] Write $\delta x$, the coboundary of $x$, for the differences that
-candidate vertex values $x$ would produce along the links, and $r$ for the
-smallest Euclidean distance from $g$ to any such $\delta x$. We call $r$ the
-\pdterm{completion residual}: \emph{completion} because severed links, met
-below, are filled with whatever values fit best. The detector asks
-whether one history $x=(x_0,x_1,x_2,x_3)$ has differences reproducing $g$.
-
-Around a loop a coboundary sums to zero and $g$ sums to $3$, so none does. Least
-squares finds the closest: $x=(0,0.75,1.5,2.25)$, with coboundary
-$\delta x=(-0.75,-0.75,-0.75,+2.25)$, which misses by exactly $0.75$ on every
-link. The nearest consistent assignment spreads the discrepancy evenly
-around the loop; it explains the data geometrically and does not reconstruct
-the sender's actual lie. Hence
-\[
-\begin{aligned}
-r&=\sqrt{4\times0.75^{2}}=1.5
-  =\frac{|s|}{\sqrt n}=\frac{3}{\sqrt4},
-\end{aligned}
 \]
-two routes to one number [verified].
+Write $\delta x$, the coboundary of candidate vertex values $x$, for the
+differences those values would produce, and $r$ for the smallest Euclidean
+distance from $g$ to any $\delta x$. We call $r$ the \pdterm{completion
+residual}: \emph{completion} because severed links are filled with whatever
+values fit best. Around a loop every $\delta x$ sums to zero while $g$ sums to
+$3$. The closest fit, $x=(0,0.75,1.5,2.25)$, misses by $0.75$ on every link,
+so $r=\sqrt{4\times0.75^{2}}=1.5=3/\sqrt4$ [verified].
 
-Now break the loop twice and watch the
-same arithmetic go silent. \emph{As a chain} $0\!-\!1\!-\!2\!-\!3$ with the same
-lie on the never-compared end link $2\!-\!3$: the assignment $x=(0,0,0,-3)$
-reproduces $g=(0,0,3)$ exactly, so $r=0$, and the reader has just built the
-adversary's alibi by hand.
-
-\emph{As a ring with a dark link:} keep the ring and
-the lie on $3\!-\!0$ but sever $1\!-\!2$. Now $g_K=(0,0,3)$ on three visible
-links and $x=(0,0,3,3)$ reproduces it exactly: $r=0$ again. The loop is still
-there in the full graph $G_j$ of links carrying $j$; it is gone from the visible graph $K_j$, and the residual sees only $K_j$.
-This is the residual's visibility clause, checkable in four numbers.
-A direct checker instead groups authenticated reports by sender, shared
-coordinate and claim context (such as the same snapshot or prefix). If the
-equivocator's two reports with values differing by $3$ remain visible, that
-comparison detects the contradiction without a cycle. Comparing different
-senders or different epochs would not establish equivocation. The zero
-residual on the chain is not an all-clear for the raw claims.
-
-\emph{Now
-you try:} on $C_8$, a ring of eight, a lie of size $2$ on the relayed edge gives $2/\sqrt8=0.7071$;
-the same lie on any bridge (a link whose removal disconnects the network) gives $0$; the same lie on $C_8$
-with any one of the other seven links severed also gives $0$ [verified].
+Break the loop and the same arithmetic goes silent. As a chain
+$0\!-\!1\!-\!2\!-\!3$ with the lie on the end link, $x=(0,0,0,-3)$ reproduces
+$g=(0,0,3)$ exactly, so $r=0$. Keep the ring but sever $1\!-\!2$: the three
+visible links form a path, $x=(0,0,3,3)$ fits, and again $r=0$. The zero
+residual on the chain is not an all-clear: the equivocator's two signed
+reports, if the auditor holds them, still contradict each other directly.
 \end{pdexample}
 
 Figure~\ref{fig:fh-cochain-hand} draws all three variants side by side.
 
 \input{figures/fig-fh-cochain-hand}
 
-The same least-squares split appears when items are ranked from inconsistent
-pairwise comparisons. Jiang, Lim, Yao and Ye~\pdcite{jiang2011hodgerank}
-separate an edge flow into the part that global scores explain and a leftover
-that no scores explain. Our residual is that leftover: the disagreement that no
-assignment of values to the visible vertices explains.
+In general each witness reports a short vector of numbers, its log state
+coordinate by coordinate, and each link compares the first few coordinates
+that both its ends report. This structure is a \pdterm{cellular sheaf} on the
+gossip graph: numbers at every vertex and edge, plus maps saying which of a
+vertex's numbers each edge compares. Here those maps keep a prefix of the
+coordinates, so we call them \pdterm{prefix restrictions}. For each coordinate
+$j$, write $K_j$ for the graph of visible links that compare $j$. The
+\pdterm{cycle space} of $K_j$ is the set of edge vectors orthogonal to every
+coboundary on $K_j$; on a ring it is spanned by the vector that goes once
+around, and $r$ is the length of the reports' projection onto these cycle
+spaces. Finally, give every visible link a resistance of one ohm. The
+\pdterm{effective resistance} $R_{\mathrm{eff}}(f)$ of a link $f$ is the
+voltage needed to push one ampere between its endpoints through the whole
+network: $(n-1)/n$ on a ring of $n$, and $1$ on a bridge, a link whose removal
+disconnects the network.
 
-The ring calculation subtracts and projects numbers, so it needs vectors; a
-collection of signed logs ordered by extension has no such arithmetic. We
-therefore choose which numbers each witness reports and which of them each
-channel compares. The result is a \pdterm{cellular sheaf} $\mathcal F$: a vector
-space at every vertex and edge of a graph, plus maps saying how a vertex's
-numbers are compared along each of its edges, here on the gossip graph $G=(V,E)$ of witnesses. Witness $v$ holds a \pdterm{stalk} $\mathbb{R}^{d_v}$, the vector of numbers encoding its log state; edge $f=\{u,v\}$ holds $\mathbb{R}^{|S_f|}$, the shared prefix coordinates $S_f$ that both endpoints report; and each restriction map $\rho_{v,f}$ selects from witness $v$'s state the coordinates that edge $f$ compares. Here $S_f$ is always the first $|S_f|$ coordinates, so we call these maps \pdterm{prefix restrictions}. With real numbers throughout, the coboundary $\delta$, its adjoint $\delta^*$, and the predicted edge differences $(\delta x)_f=\rho_{u,f}x_u-\rho_{v,f}x_v$
-are all defined. The measured vector $g_f$ comes instead from the reports made
-on that channel. An equivocator may report different values to different
-neighbors, so $g$ need not equal $\delta x$ for any single assignment $x$; if
-we built the input by applying $\delta$ to one stored state per vertex, the
-residual would be zero by construction. The theorem below is about this vector encoding, not about signed logs directly.
-
-Detection depends on which edges the auditor can see, using the three tiers of the ring example. On a compared edge the auditor holds a direct cross-check and needs no loop arithmetic; on a relayed edge both endpoints' reports reach it by gossip; from a severed edge nothing reaches it. Write $K$ for the compared-plus-relayed, or \emph{visible}, edge set, and for each shared coordinate $j$ write $K_j := (V, \{f \in K : j \in S_f\})$ for the visible coordinate subgraph. Whether a cycle lies in $K_j$ or only in the full coordinate subgraph $G_j$ changes the theorem: a cycle through a severed edge constrains nothing, because the completion may give the severed edge any value.
-Here a global section is one assignment of values to every witness that explains all visible edges at once. The \pdterm{cycle space} of $K_j$ is the set of edge vectors orthogonal to every coboundary on $K_j$; on a ring it is spanned by the vector that goes once around. Write $\Pi_K$ for the orthogonal projection onto these visible cycle spaces, and $\varepsilon_K$ for a vector of offsets on the visible edges, such as the changes one liar makes to its reports.
-
-\input{figures/fig-fh-visible-topology}
-
-
-
-\begin{pdclaim}{Theorem}{Detection iff the Missing Edge Closes a \emph{visible} Cycle}
+\begin{pdclaim}{Theorem}{A Loop Test Sees a Lie Only on a Visible Cycle}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sheaf-equivocation}
-Assume prefix restrictions, the three-tier visibility model above, and a \textbf{single equivocator} $q$ (the single-equivocator hypothesis is needed: two liars on a common cycle can cancel each other's contribution to the residual).
-
-The detection statistic is the least-squares \emph{completion residual}
-\begin{equation}
-r \;=\; \min_x \bigl\| \, g_K - (\delta x)\big|_K \, \bigr\|_2
-\;=\; \Bigl( \textstyle\sum_j \bigl\| \mathrm{Proj}_{\mathrm{cycle}(K_j)}\, g^j \bigr\|^2 \Bigr)^{1/2},
-\end{equation}
-the distance to the visible coboundary image. Severed blocks impose no rows
-and are excluded from both the detector and its comparators.
-For a nonzero lie supported on one uncompared visible coordinate edge, the
-residual is positive if and only if that edge lies on a cycle of $K_j$, with
-the required endpoint reports relayed to the auditor. A bridge or a severed edge
-has no such certificate.
-
-More generally, even one equivocator can choose
-several offsets whose visible sum is a coboundary: detection then occurs
-exactly when $\Pi_K\varepsilon_K\ne0$, not merely because a cycle exists.
-Whenever $r>0$, no global section in this real-valued prefix model explains
-the visible data.
-
-On a forest every coordinate edge assignment is a coboundary,
-so $r=0$. This forest statement relies on the \mbox{coordinate-incidence} restrictions
-here and is not a theorem about arbitrary cellular sheaves.
+Assume noise-free reports, prefix restrictions and the three visibility tiers above.
+\begin{enumerate}[nosep]
+\item Honest reports give $r=0$. If $r>0$, no single assignment of values to the witnesses explains the visible reports.
+\item A single offset $s\neq0$ on one link $f$ in coordinate $j$ gives
+$r=|s|\sqrt{1-R_{\mathrm{eff}}(f)}$, with the effective resistance taken in
+$K_j$. So $r>0$ exactly when $f$ lies on a cycle of $K_j$. A lie on a bridge
+or on a severed link gives $r=0$; on a ring of $n$ the residual certifies the
+fraction $1/\sqrt n$ of the lie, so a lie of $3$ on $C_6$ gives
+$r=3/\sqrt6=1.2247$, the fraction $0.4082$.
+\item Several offsets can cancel, even when one sender makes all of them. A
+witness that shifts every report on its star by the same amount produces the
+coboundary of a changed value at that witness, and $r=0$.
+\end{enumerate}
 \end{pdclaim}
+\begin{proof}[Proof sketch]
+\setlength{\parskip}{4pt plus 1pt}
+$r$ is the distance from the visible cochain to the image of the coboundary,
+the severed links being free, so it is the length of the cochain's projection
+onto the visible cycle spaces. Honest reports are a coboundary. For a single
+offset, the squared length of the projection of a link's indicator onto the
+cycle space is $1-R_{\mathrm{eff}}(f)$, the standard identity for unit
+resistances. A shift of $s$ on every link at witness $q$ is $\delta$ applied
+to $s$ times the indicator of $q$; it lies in the image and projects to zero.
+\end{proof}
 
 \input{figures/fig-fh-cycle-vs-cut}
 
@@ -807,355 +761,70 @@ here and is not a theorem about arbitrary cellular sheaves.
 \pdmarginpagebreak
 \fi
 
-\noindent Abramsky and Brandenburger's work on contextuality~\pdcite{abramsky2011operational}
-offers a loose analogy: local observations that no single global explanation
-fits. Our question is narrower and depends on the data. Is the observed edge
-vector the coboundary of some vertex assignment on the visible edges? The
-residual $r$ answers it. A single-edge perturbation gives a nonzero residual
-exactly when the edge lies on a visible coordinate cycle, while several
-offsets can cancel each other.
-\pdscope{A zero residual says only that the edge encoding has a consistent explanation, not that every sender's authenticated claims agree.}
+\paragraph{What a loop test witnesses.}
+Item~3 is the general rule: cycle checks witness inconsistency, not
+dishonesty. A witness that tells every neighbor the same wrong value changes
+its whole star, and those changes form a cut, the links between that witness
+and the rest, whose syndrome (the part a cycle can see) is zero. The loop test
+then reports a consistent world, though not the true one. A nonzero residual
+likewise says that some report is wrong, not which endpoint lied: a $+o$ lie
+by $q$ toward $w$ and a $-o$ lie by $w$ toward $q$ produce identical
+observations. Naming a culprit needs the signed reports themselves, bound as
+above, and forensics of the kind developed for consensus
+protocols~\pdcite{sheng}.
 
-\paragraph{Comparison under equal evidence.}
-The relayed tier supplies both endpoint reports to the auditor. A direct
-comparator can therefore use those same reports: group authenticated claims
-by sender, coordinate, and snapshot, and compare the values within each
-group. If every group agrees, its values define a vertex assignment $x$,
-and all derived edge differences equal $\delta x$. Consequently, a nonzero
-residual implies a duplicate-claim conflict in the same noise-free evidence.
-The converse fails because forming edge differences discards information.
-The categorical section below gives the corresponding registered-fact test.
+Locating an error is harder than detecting it. For edge errors, which change
+the report on a link rather than a witness's whole star, the rule depends on
+the edge connectivity $\kappa'(K_j)$, the fewest links whose removal splits
+$K_j$. Every nonzero error on at most $k$ links is detected exactly when
+$\kappa'(K_j)\ge k+1$, and every such error can be located exactly when
+$\kappa'(K_j)\ge 2k+1$ [verified]. The errors no cycle can see are the
+coboundaries, and the fewest links a nonzero coboundary can occupy form a
+minimum cut; two $k$-link errors look the same exactly when their difference
+is a coboundary on at most $2k$ links. A ring of four has $\kappa'=2$: it
+detects one bad link but cannot say which, since an error of $+1$ on link~1
+and one on link~2 add the same amount to the loop total. The complete graph on
+four harbors has $\kappa'=3$ and names one bad link: each link lies on exactly
+two of the four triangles, no two links share the same pair, and the two
+triangles whose totals turn nonzero identify it. Locating a lying witness,
+whose errors fall on its whole star, is open.
 
 The synthetic harness \path{skills/harbor-results/scripts/sheaf_harness_v2.py}
-uses seed 20260816, stalk dimension $5$, shared-prefix sizes $2$ to $4$,
-and $200$ trials in each of nine scenario arms. In this noise-free test of
-$1{,}800$ trials the residual raised an alarm in $1{,}101$. A plain check that
-groups each sender's signed claims and compares them caught all $1{,}101$ of
-those and $209$ more; the residual never caught a lie the plain check missed.
-A weaker baseline that looks only at directly reconciled links does miss $313$
-of the residual's alarms, but only because it ignores relayed reports that the
-residual is given. The residual therefore detects nothing extra. Its uses are
-auditing which links leave lies invisible, computing the smallest repair, and
-producing a \pdterm{contradiction certificate}: a small set of received reports
-that anyone can check and that cannot all be honest together, here a loop whose
-differences do not sum to zero.
+uses seed 20260816, five coordinates per witness, shared prefixes of $2$ to $4$, and
+$200$ noise-free trials in each of nine scenario arms. The residual raised an
+alarm in $1{,}101$ of the $1{,}800$ trials. The direct checker caught all of
+those and $209$ more, so the residual detected nothing extra.
 \pdscope{Both checks see only visible records, and the shared snapshot and authenticated senders are assumptions of the synthetic test; no deployment data is involved.}
-
-Table~\ref{tab:fh-sheaf-harness} records the counts. The same harness checks
-the one-edge cycle/bridge law, the masking caused by missing edges, and
-structural and mutation controls, which together confirm that the linear
-computation does what this section states.
 
 \input{figures/tab-fh-sheaf-harness}
 
-\paragraph{Edges as one-ohm resistors.}
-Give every visible edge resistance one ohm. The \pdterm{effective resistance}
-between an edge's endpoints is the voltage needed to push one ampere between
-them through the whole network.
-On a cycle, the one-ohm edge is in parallel with the other $n-1$ ohms, so
-$R_{\mathrm{eff}}=(1^{-1}+(n-1)^{-1})^{-1}=(n-1)/n$. On a bridge, all
-current must cross that one edge and $R_{\mathrm{eff}}=1$. The formulas below
-use this unit-edge normalization. The residual has the feature coordinate's
-units; it is not a probability of dishonesty.
-
-\begin{pdexample}{The Consistency Radius, Six-Cycle vs.\ Six-Path, and the $1/\sqrt n$ Scaling}
-\setlength{\parskip}{4pt plus 1pt}
-\marginnote{\input{figures/spark-fh-cycle-radius}\par
-Unit-weight visible cycles, one altered edge. Longer loops certify a smaller
-fraction of the lie; a bridge certifies zero.}
-Six harbors in a ring ($C_6$), unit-weight edges, a lie of magnitude $|s|=3$ on one relayed cycle edge. The completion residual $r$ is a least-squares form of what Robinson calls the \emph{consistency radius}~\pdcite{robinson}. The effective resistance across that edge is $R_{\mathrm{eff}}=(n-1)/n=5/6$, so by hand:
-\[
-\begin{aligned}
-r \;&=\; |s|\sqrt{1-R_{\mathrm{eff}}} \;=\; 3\sqrt{1-\tfrac56}\\
-&=\; \tfrac{3}{\sqrt6} \;=\; 1.2247 \quad\text{[verified]}.
-\end{aligned}
-\]
-Cut the same ring into a six-node path ($P_6$), same edge, same lie: every edge of a path is a bridge, so $R_{\mathrm{eff}}=1$ and \[
-r=|s|\sqrt{1-1}=0
-\] exactly [verified]. On a tree every pattern of link differences comes from some vertex values, so the best fit absorbs the whole lie.
-
-\texttt{sheaf\_consistency\_radius.py}'s closed-form section (\texttt{[0] CLOSED FORM vs the R6 mechanism numbers}) prints both against its own numerical solve:
-\begin{lstlisting}
-C6 relayed cycle edge, lie 3.0:  r = 1.224745   |s|*sqrt(1-R_eff) = 3*sqrt(1-0.8333) = 1.224745
-P6 relayed cut edge,   lie 3.0:  r = ...        R_eff = 1.000000 -> predicted 0
-\end{lstlisting}
-matching the hand value to six decimals on $C_6$, and on $P_6$ holding the printed residual under $10^{-9}$ (the script's own \texttt{TOL\_SILENT} zero-residual threshold) rather than printing a literal $0$ [internal, \texttt{sheaf\_consistency\_radius.py}].
-
-The general law is \[
-r=|s|/\sqrt n
-\] on any $C_n$: $|s|/2$ at $n{=}4$, $|s|/\sqrt6\approx0.4082|s|$ at $n{=}6$, $|s|/\sqrt8\approx0.3536|s|$ at $n{=}8$ [verified, closed form]. The residual shrinks as the ring grows, and any path reads as silence, giving zero for every $n$.
-
-\emph{Now you try:} reproduce both printed lines and the general law against the script (Exercise~\ref{ex:fh-consistency-radius-run}), then reason about why the theorem needs a \emph{single} equivocator (Exercise~\ref{ex:fh-two-liar-boundary}).
-\end{pdexample}
+On the same vector encoding, the Hansen--Ghrist sheaf
+Laplacian~\pdcite{hansengrist2019} $\Delta_{\mathcal F}=\delta^*\delta$ drives
+linear diffusion $\dot x=-\Delta_{\mathcal F}x$ at a rate set by its smallest
+positive eigenvalue $\lambda^{+}_{\min}(\Delta_{\mathcal F})$. Diffusion
+averages numbers, while gossip merges signed records, so neither convergence
+story proves the other.
+\pdscope{This chapter derives no relaxation-time bound for the federation; reconciling the two stories is open (Appendix~\ref{app:fh-mech}).}
 
 \pdexercisepointer{\ref{ex:fh-consistency-radius-run}}{\ref{ex:fh-two-liar-boundary}}{\pageref{ex:fh-consistency-radius-run}}
 
-\paragraph{The residual as a certificate.} The consistency radius measures how
-far local data sits from the nearest global section. Here $r$ is also a bound on
-repairs. Every additive correction that makes the visible data consistent has
-norm at least $r$, and some correction has norm exactly $r$ when corrections
-may touch every visible edge. Restricting the correction to one sender, or to
-a chosen set of edges, can make the least correction larger or rule it out.
-Topology enters through electrical network theory. A lie on edge $f$ hides in
-proportion to how well the rest of the visible graph can explain it away,
-which is the effective resistance $R^{K_j}_{\mathrm{eff}}(f)$ measured in the
-visible coordinate subgraph. On a bridge $R_{\mathrm{eff}}=1$ and the lie
-hides completely; on a long cycle $R_{\mathrm{eff}}\to1$ and the certified
-fraction $\sqrt{1-R_{\mathrm{eff}}}$ decays like $1/\sqrt n$. Severing a link
-raises the effective resistance of every edge whose loops ran through it,
-which is the visibility clause in numerical form.
-
-Recall that $\Pi_K$ removes all edge differences explainable by vertex
-values. An offset vector $o$
-lists the altered reports attributed to a chosen sender $q$; the linear map
-$\Lambda_q$ places those changes on visible edges. Thus $\Omega_q=\Pi_K \Lambda_q$ keeps
-only the observable part. The support $U$ in the theorem is a set of edges.
-A vector in the kernel $\ker \Omega_q$, the offsets that
-$\Omega_q$ sends to zero, causes no alarm, so the bound concerns $o_\perp$, the part
-perpendicular to that invisible subspace.
-The largest and smallest positive singular values measure the largest and
-smallest amplification on that observable subspace. These definitions
-explain why no positive lower bound can apply to the whole offset vector.
-
-\begin{pdclaim}{Theorem}{Soundness and Achievability of the Completion Residual}
-\setlength{\parskip}{4pt plus 1pt}
-\label{thm:radius-soundness}
-For the completion-residual detector with prefix restrictions and three-tier
-visibility: $r>0$ iff no global section explains the compared-plus-relayed
-data, and honest executions give $r=0$ exactly, for every visibility pattern.
-
-
-Every additive correction $\varepsilon_K$ for which
-$g_K-\varepsilon_K\in\operatorname{im}\delta_K$ satisfies
-$\|\varepsilon_K\|\ge r$. Equality is attained by the orthogonal residual
-when every visible edge is available for correction. Thus $r$ is the exact
-\emph{unrestricted} correction norm. For a prescribed support $U$, the
-minimum over corrections supported in $U$ is only bounded below by $r$;
-that constrained set may be empty.
-
-For a single equivocator $q$ with offset vector $o$ and visible-lie
-operator $\Lambda_q$, put $\Omega_q=\Pi_K \Lambda_q$, where $\Pi_K$ projects onto the visible
-cycle space. If $\Omega_q\ne0$, then
-$\sigma^{+}_{\min}(\Omega_q)\|o_\perp\|\le r\le\|\Omega_q\|_{\mathrm{op}}\|o_\perp\|$,
-where $o_\perp$ is the component of $o$ orthogonal to $\ker \Omega_q$.
-If $\Omega_q=0$, every such offset is invisible and $r=0$.
-
-
-For a single-edge
-lie of size $s$ in coordinate $j$,
-\[
-r=|s|\sqrt{1-R^{K_j}_{\mathrm{eff}}(f)},\qquad\text{on } C_n:\ |s|/\sqrt n,
-\]
-with the effective resistance taken in the visible subgraph $K_j$, not in
-$G_j$.
-\end{pdclaim}
-\begin{proof}[Proof sketch]
-\setlength{\parskip}{4pt plus 1pt}
-$r$ is the distance from the visible cochain $g_K$ to the image of the
-coboundary restricted to visible edges, the severed blocks being free.
-
-An
-offset pattern is consistent with the data iff $g_K-\varepsilon_K$ lies in that
-image, so $\|\varepsilon_K\|\ge r$ by definition of the distance, and the
-completion residual is itself an unrestricted correction, which gives equality
-in that class only. Restricting the feasible corrections cannot lower an
-infimum. Honest data
-is a coboundary, so $r=0$.
-
-For the operator bounds, $\Omega_qo=\Omega_qo_\perp$;
-the smallest positive and largest singular values give the two inequalities.
-The projection can erase offsets that $\Lambda_q$ itself does not erase, so its
-kernel cannot be omitted. For one lie of size $s$ on $f$, $g_K$ is $s$ times
-the edge indicator, and the squared norm of its projection off the coboundary
-image is $s^2$ times one minus the edge's effective resistance, the standard
-identity between the cycle-space projection of an edge and
-$1-R_{\mathrm{eff}}(f)$; on $C_n$ every edge has $R_{\mathrm{eff}}=(n-1)/n$.
-\end{proof}
-
-\begin{pdexample}{Which Lies the Kernel Hides: One Triangle}
-\setlength{\parskip}{4pt plus 1pt}
-This is a constructed example. Three harbors, Pike (the sender $q$), Heron
-and Wren, form a triangle with edges Pike$\to$Heron, Heron$\to$Wren and
-Wren$\to$Pike, and each edge records head minus tail. Pike tells Heron its
-value plus $s_1$ and tells Wren its value plus $s_2$. Pike is the tail of its edge
-to Heron and the head of its edge from Wren, so the offsets on Pike's two edges
-are $o=(-s_1,+s_2)$. The triangle's cycle space is spanned by $(1,1,1)$, so
-\[
-\Omega_q o=\tfrac{s_2-s_1}{3}\,(1,1,1),\qquad r=\frac{|s_1-s_2|}{\sqrt3}.
-\]
-\emph{A consistent lie}, $s_1=s_2=3$, gives $r=0$: Pike has simply reported a
-different value to everyone, and no loop test can object. \emph{A split view},
-$s_1=3$ and $s_2=0$, gives $r=3/\sqrt3\approx1.73$, matching the single-edge
-formula $3\sqrt{1-2/3}$ with $R_{\mathrm{eff}}=2/3$ on $C_3$.
-
-The kernel of $\Omega_q$ is the line $s_1=s_2$, exactly the consistent lies. $\Omega_q$ has
-one nonzero singular value, $\sqrt{2/3}\approx0.816$, so the theorem's two
-bounds coincide: $r$ is $0.816$ times the length of the visible part of $o$,
-which is $|s_1-s_2|/\sqrt2$. For $s_1=3$, $s_2=0$ that is $0.816\times2.12\approx1.73$ again.
-\end{pdexample}
-
-\begin{pdexample}{A Minimum Repair Need Not Be One Sender's Lie}
-On an oriented triangle, take $g=(1,0,0)$. Consistency requires the cycle
-sum to vanish. An unrestricted correction must therefore sum to $1$ and
-has minimum norm at $(1/3,1/3,1/3)$, giving $r=1/\sqrt3$.
-If only two incident edges may be altered, the minimizing correction is
-$(1/2,1/2,0)$ up to edge order, with norm $1/\sqrt2$.
-If only the original edge is allowed, its norm is $1$. All three solve
-precisely stated optimization problems; only the first is the orthogonal
-projection residual. A localization claim must specify which feasible
-corruption class it is using.
-\end{pdexample}
-
-\begin{pdclaim}{Theorem}{Localization}
-\setlength{\parskip}{4pt plus 1pt}
-\label{thm:radius-localization}
-Noise-free, single equivocator whose offsets are on edges incident to $q$:
-the edge residual is supported on the union of visible coordinate cycles
-through those edges.
-
-This locates an inconsistency, not a culpable endpoint.
-
-
-Let $z=\Pi_K\varepsilon_K$ and let additive observation noise satisfy
-$\|\eta_K\|\le\nu$. If $\max_f\|z_f\|>2\nu$, at least one observed residual
-entry on the clean support exceeds $\nu$, while every entry outside that
-support is at most $\nu$. Preserving a unique largest entry requires the
-stronger gap condition
-$\|z_{f_*}\|-\max_{f\ne f_*}\|z_f\|>2\nu$.
-
-
-Coordinated offsets that form a coboundary can cancel completely; the
-single-equivocator support statement is not coalition attribution.
-\end{pdclaim}
-\begin{proof}[Proof sketch]
-\setlength{\parskip}{4pt plus 1pt}
-Project each incident-edge offset onto the cycle space and take the union of
-the resulting supports.
-
-Orthogonal projection is nonexpansive, so every block
-of $\Pi_K\eta_K$ has norm at most $\nu$.
-
-The reverse triangle inequality
-gives the detection threshold and, by applying the bound to both competing
-entries, the $2\nu$ ranking-gap condition. A large maximum alone says nothing
-about the gap: a cycle may have several equal-magnitude residual entries.
-\end{proof}
-
-\begin{pdclaim}{Theorem}{Cost}
-\setlength{\parskip}{4pt plus 1pt}
-\label{thm:radius-cost}
-Because the visible coboundary splits per shared coordinate into graph
-incidence operators, $r$ is one sparse least-squares problem that decomposes
-into at most $J$ scalar graph-Laplacian systems, where $J$ is the number
-of registered scalar coordinates. For numerical accuracy $\tau\in(0,1)$,
-the corresponding solver complexity has the form
-$\widetilde O(|E|\cdot J\log(1/\tau))$ with symmetric diagonally dominant
-solvers~\pdcite{spielman-teng}.
-
-Bach's \#P-hardness of sheaf
-cohomology~\pdcite{bach} concerns coherent sheaves on projective space, the wrong
-category; finite cellular sheaves over $\mathbb{R}$ on graphs are linear
-algebra.
-\end{pdclaim}
-
-\noindent\textbf{Checked.} In the stated synthetic test: soundness $0/600$ violations; achievability
-$600/600$ (a consistent pattern of norm exactly $r$ constructed every time).
-The effective-resistance closed form is exact on $C_4$ to $C_{12}$ and on $200$
-random graphs; the lower bound is tight under the adversarial offset
-($r/\|o_\perp\|=\sigma^{+}_{\min}=0.4082=1/\sqrt6$); a uniform kernel lie of
-norm $5$ gives $r=2\times10^{-14}$, a consistent alternative state rather than a
-split view, invisible in principle and correctly not flagged, and on a cycle of
-$K_j$ the uniform offsets are the only such directions, every kernel direction
-lying in the uniform span to $5\times10^{-16}$. Localization $200/200$ on the
-two-cycles topology and $128/128$ on severed expanders; the noise boundary:
-at least $95\%$ localization up to a noise-to-lie ratio of $0.1$, $76.5\%$ at
-$0.2$. Conjugate gradient's timing slope against $|E|$ stays well under the
-$1.6$ gate while dense solve is consistently super-linear; the gate checks
-that the per-coordinate decomposition scales, not the exact slope. Two coordinated liars on a
-common cycle, each alone certified at $r\ge|s|/\sqrt8$, jointly cancel to
-$r=6\times10^{-15}$ [internal, \texttt{sheaf\_consistency\_radius.py}].
-
-\paragraph{What the residual is for.} The statistic gives a federation
-operator something to inspect: $r$ is the smallest unrestricted additive
-correction to the visible numerical edge data. That correction may spread
-changes across several senders, so it need not describe what any one agent
-did. Sparse solves make the computation a candidate for online use, though a
-deployment still needs a measured latency budget. The closed form also turns
-topology into policy. Effective resistance tells a federation where it must
-force direct reconciliation (on bridges, where the residual cannot help) and
-where a single-edge numerical perturbation gives a larger certified residual
-(on short cycles). Direct comparison remains available whenever the same
-authenticated endpoint claims are present.
-
-\begin{pdboundary}
-\setlength{\parskip}{4pt plus 1pt}
-The one-edge detection law does not extend to arbitrary offset patterns. A
-coalition whose combined lie is a coboundary describes a consistent
-alternative world, and two coordinated liars on a common cycle cancel the
-residual to numerical zero.
-
-$r$ bounds an additive correction from below in the stated linear model only.
-Noise needs its own allowance. The residual never says who lied: a $+o$ lie by
-$q$ toward $w$ and a $-o$ lie by $w$ toward $q$ produce identical observations,
-so the residual points to cycles through the equivocator and cannot say which
-endpoint lied. Naming culprits needs signatures and forensics~\pdcite{sheng},
-which this detector complements.
-
-A zero $r$ is not an all-clear, for three separate reasons: uniform offsets can
-form a consistent alternative in this edge model; severed edges allow
-consistent alternatives by construction; and real-number arithmetic can miss
-contradictions that a richer encoding would catch~\pdcite{caru}. Where no
-report crosses, nothing can be seen, and severing one link of a loop darkens
-the whole loop, hiding all of it from the residual. Under measurement noise the certificate needs a threshold above
-the honest noise level; below it, the data are ``consistent with noise.''
-\end{pdboundary}
-
-\paragraph{Sheaf Laplacian dynamics.} On a cellular sheaf with real stalks, the Hansen--Ghrist sheaf Laplacian~\pdcite{hansengrist2019} is $\Delta_{\mathcal{F}} = \delta^* \delta$. Its kernel $\ker(\Delta_{\mathcal{F}}) \cong H^0(G; \mathcal{F})$ is the set of vertex assignments that agree on every edge, the globally synchronized states. The sheaf Laplacian exists only for the vector encoding built above: signed logs grow by adding authenticated entries, not by adding and scaling vectors, and supply no inner product of their own. Its smallest nonzero eigenvalue $\lambda_{\min}^{+}(\Delta_{\mathcal{F}})$ governs how fast continuous linear diffusion $\dot{x} = -\Delta_{\mathcal{F}}x$ settles; it need not be the second eigenvalue, since the kernel can have several dimensions. Anti-entropy gossip over signed append-only logs with an equivocator is different: discrete, asynchronous, adversarial, and growing by merging records rather than averaging numbers. Epidemic dissemination (Theorem~\ref{thm:fh-conv}, a separately argued result~\pdcite{demers1987epidemic}) and sheaf diffusion are two different convergence stories, and neither proves the other.
-\pdscope{This chapter derives no relaxation-time bound for the federation; reconciling the two stories is open (Appendix~\ref{app:fh-mech}).}
-
 \subsection{From observations to a checkable refusal}\label{sec:fh-evidence-decision}
 
-An auditor deciding whether to accept a work receipt needs to distinguish
-missing evidence, incompatible evidence, and evidence compatible with several
-possible worlds. An authentic packet identifies its issuer; its schema, fact,
-work item and snapshot determine which other packets it may be compared with,
-and a digest alone does not settle that. A zero difference records equality
-but loses the shared raw value. If the auditor holds authenticated endpoint
-claims, comparing each sender's claims directly can therefore expose a split
-that even the exact test on categorical (finite-valued) edge data cannot see.
-
-For Bob's checkout repair, take one yes/no fact: was the original regression
-test retained or deleted? Several witnesses each hold a value for it at the
-same snapshot under one work item, and two authenticated claims from one
-witness, such as Heron, about that fact and snapshot can be compared directly.
-Different snapshots are no contradiction, and a missing receipt is missing
-evidence, not a value. When two witnesses compare notes, the receipt says
-either that they agree (without saying on what) or that one saw retained and
-the other deleted. A disagreement receipt therefore forces both witnesses'
-values; each is a \pdterm{forced value}, called a pin for short. If a chain of
-agreement receipts links a witness pinned to retained with one pinned to
-deleted, or one witness is pinned both ways, the receipts
-contradict each other, and those receipts are the proof.
-
-In symbols, write the values as the \pdterm{one-hot} vectors
-$\mathbf{1}_{\mathsf{ret}}=(1,0)$ and $\mathbf{1}_{\mathsf{del}}=(0,1)$, in which exactly one
-entry is one, and let each edge record head minus tail. An agreement receipt is
-the zero difference, which forces a whole connected component to share one
-value without saying which. A disagreement receipt
-$\mathbf{1}_{\mathsf{del}}-\mathbf{1}_{\mathsf{ret}}=(-1,1)$ fixes its tail to $\mathsf{ret}$ and
-its head to $\mathsf{del}$, and these forced endpoint values are its pins.
-
-\begin{pdexample}{A contradiction with zero cycle residual}
-The path $0\to1\to2$ reports $\mathbf{1}_{\mathsf{del}}-\mathbf{1}_{\mathsf{ret}}$ on each edge. Vertex $1$ must then be
-both $\mathsf{del}$ and $\mathsf{ret}$, a contradiction. With edge costs $2$ and $3$, the two receipts
-give a certificate of cost $5$. Unrestricted real potentials can nevertheless
-fit this path exactly, so its cycle residual is zero. Only the restriction to
-two allowed values exposes the failure; no extra topology is involved.
-The categorical assignment oracle and exhaustive subset oracle in
-\texttt{test\_claim\_audit.py} and
-\mbox{\texttt{test\_costed\_claim\_certificates.py}} check these two \mbox{decisions}
-independently of the production checker. Neither authenticates the producer.
-\end{pdexample}
+An auditor deciding whether to accept a work receipt must tell missing evidence
+from incompatible evidence. For Bob's checkout repair, take one yes/no fact,
+bound as above: was the original regression test retained or deleted, at one
+snapshot under one work item? A receipt between two witnesses says either that
+they agree, without saying on what, or that one saw retained and the other
+deleted. Write the values as \pdterm{one-hot} vectors, in which exactly one
+entry is one: $\mathbf{1}_{\mathsf{ret}}=(1,0)$ and
+$\mathbf{1}_{\mathsf{del}}=(0,1)$, with each edge recording head minus tail. An
+agreement receipt is the zero difference. A disagreement receipt
+$\mathbf{1}_{\mathsf{del}}-\mathbf{1}_{\mathsf{ret}}$ fixes its tail to
+$\mathsf{ret}$ and its head to $\mathsf{del}$; each fixed endpoint value is a
+\pdterm{forced value}, a pin for short. On the path $0\to1\to2$ with that
+disagreement on both links, vertex $1$ is pinned both ways. Real-valued
+potentials still fit the path exactly, so its loop residual is zero; only the
+restriction to two allowed values exposes the contradiction.
 
 \begin{pdclaim}{Theorem}{Exact categorical contradiction certificate}
 \label{thm:categorical-certificate}
@@ -1180,68 +849,12 @@ Source edges are nonzero and do not overlap the zero path; when both pins
 come from one source edge, charge that edge once.
 \end{proof}
 
-
-
-The path example uses two conflicting pins at the same vertex, so its
-zero-edge path has length zero. For distinct pinned vertices, a chain of
-zero edges carries the same equality between them. The certificate consists
-of those equality receipts and the two receipts giving different pins.
-Its cost is the sum over distinct receipts, not over every time a receipt
-is mentioned in the argument. This is the object minimized in the theorem.
-
-\paragraph{How much redundant observation is enough?}
-The scalar cycle example also explains why detection is easier than error
-identification. On an oriented four-cycle, an error $(1,0,0,0)$ and an error
-$(0,1,0,0)$ have the same cycle projection: each contributes total circulation
-one. Both alarm, but the residual cannot tell which edge changed.
-
-The same reasoning gives a general rule for a typed linear observation model, which we state with a proof sketch. An
-\pdterm{edge group} contains all coordinates of one channel; the size of an
-error's support counts the channels it touches, whatever their dimension or
-the error's size. Let $M$ map allowed vertex features to edge features, and define the
-\pdterm{redundancy distance} $d_{\mathcal F}$ as the smallest number of edge
-groups supporting a nonzero vector in $\operatorname{im}M$, or infinity when
-$M=0$. It counts how many channel groups must change to turn one
-honest-looking prediction into a different honest-looking one, which is the
-minimum-distance rule of error-correcting codes applied to this linear
-encoding. Every nonzero error affecting at
-most $k$ edge groups is detected exactly when $d_{\mathcal F}>k$; all such
-errors are uniquely identifiable modulo compatible data exactly when
-$d_{\mathcal F}>2k$. Indeed, ambiguity between two $k$-group errors is a
-compatible difference on at most $2k$ groups, and every such difference can
-be split to construct an ambiguous pair. In the scalar connected-graph case
-$d_{\mathcal F}$ is the minimum cut size. A four-node complete graph has cut
-size three and identifies one arbitrary-amplitude edge-report error; a cycle
-has cut size two and cannot always identify which single edge erred.
-
-\begin{pdexample}{A Ring Detects, a Complete Graph Names}
-\setlength{\parskip}{4pt plus 1pt}
-This is a constructed example. Take four harbors and one number per link. As a
-ring ($C_4$) the fewest links whose removal splits the network is $2$, so
-$d_{\mathcal F}=2$: any single bad link is detected ($2>1$) but cannot always be
-named ($2$ is not greater than $2$). A $+1$ error on link~1 and a $+1$ error on
-link~2 both add $1$ to the loop total, and the auditor cannot tell them apart.
-
-As a complete graph on four harbors (six links), the minimum cut is $3$, so one bad link
-can be named ($3>2$). Each link lies on exactly two of the four triangles, and
-no two links share the same pair, so the two triangles whose totals turn
-nonzero identify the link. Error-correcting codes follow the same rule:
-sending each bit three times gives distance $3$, enough to detect two flipped
-copies or to correct one.
-\end{pdexample}
-
-\begin{pdboundary}
-An edge-report error is a fault in a report; it does not show that an agent
-caused harm or that a principal is dishonest. The model must fix its feature
-domains, restriction maps and independent observations before the distance
-rule applies, and drawing extra triangles adds no measurement. When the visible
-data extend consistently to unseen edges, that shows only that an extension
-exists, not that the unseen receipts agree with it. Minimum-cost certificates
-choose among observations already held; deciding which new observation to ask
-for needs a predictive or adversarial model, and two receipts can be useless
-alone yet decisive together. With these distinctions an operator can ask for
-more evidence, or refuse to decide, without inventing guilt or certainty.
-\end{pdboundary}
+The categorical oracles in \texttt{test\_claim\_audit.py} and
+\mbox{\texttt{test\_costed\_claim\_certificates.py}} check these decisions
+independently of the production checker; neither authenticates the producer.
+A certificate shows that the receipts held cannot all be right. It does not
+show which agent caused harm, and choosing which new observation to request
+needs a predictive or adversarial model of its own.
 
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -1804,7 +1417,7 @@ What to carry away from this chapter:
 \item \textbf{The card stays home; a signed attestation crosses.} $A$ describes the card, naming its holder, the recipient and a transfer identifier, and $B$ issues its own holder-bound card within $\mathrm{att}_B(\mathrm{map}_{A\to B}(\mathrm{att}_A(C_A)))$. On a shared resource the mapping is the identity and inclusion follows by composing the narrowings. Authenticity and freshness require the stated assumptions; the transfer protocol remains unmechanized.
 \item \textbf{Revocation propagation has a conditional expectation.} Reliable rounds on a complete network with uniform peer choice give expected logarithmic dissemination. It supplies neither a deterministic delivery deadline nor a finite deadline during a partition.
 \item \textbf{A one-edge perturbation alarms exactly on a visible coordinate cycle.} For a perturbation of size $3$, the residual is $1.2247$ on $C_6$ and zero on $P_6$. This concerns the edge encoding; authenticated endpoint claims can be compared directly on either graph.
-\item \textbf{The residual is an exact unrestricted repair cost.} It is only a lower bound when corrections must obey a prescribed support. Attribution needs additional support assumptions, and multiple offsets can cancel even when one agent supplies them. The equal-information direct checker misses none of the residual's alarms in the stated noise-free model.
+\item \textbf{A loop test witnesses inconsistency, not dishonesty.} A witness that shifts its whole star leaves a zero residual. Errors on at most $k$ links can be located only when the visible graph's edge connectivity is at least $2k+1$. Bind each report to its subject, proposition and epoch before comparing it; with both signed reports in hand, direct comparison catches every lie the residual catches.
 \item \textbf{Cross-harbor settlement has separate accounting obligations and three separate roles.} A custodian holds each bond, an adjudicator named in its terms rules on claims, and an arbiter, where there is one, only checks that a release matches the ruling. One funded bond occupies one lifecycle account; recipient transfers require their own conservation rule and non-bypassable custody. The partition alone shows neither that an implementation conforms nor that a harbor failure stays contained.
 \item \textbf{Joining is a sponsored ceremony with a record.} A new harbor joins when an existing harbor posts a bond on its behalf; it works under probation while that bond is at risk and graduates only after its own coverage is funded. The witness-logged enrollment record is what a later dispute reads.
 \item \textbf{The rollback configuration fails by design.} Restoring a revocation database can resurrect a revoked card. The committed mitigation makes each card match an external epoch, which keeps finality but refuses every outstanding card after any revocation. The repair compares the database's \texttt{dbEpoch} with the newest published epoch instead and adds an availability property; it is a design requirement, and the finite TLC check covers only the stricter rule.
@@ -1841,7 +1454,7 @@ epoch:     Model checking completed. No error has been found.   (76 distinct sta
 \end{lstlisting}
 \textbf{Baseline} (\texttt{Rollback=FALSE, Epoched=FALSE}, \path{CardRevocation_baseline.cfg}): no adversary action is available, so a card in \texttt{revoked} stays revoked and \texttt{RevocationFinal} holds trivially over 13 reachable states. \textbf{Rollback} (\texttt{Rollback=TRUE, Epoched=FALSE}, \path{CardRevocation_rollback.cfg}): \texttt{RollbackRestore} can drop a card from the DB's \texttt{revoked} set while \texttt{everRevoked} (ground truth) stays set; \texttt{Accept} then only checks \texttt{revoked}, so the restored card is accepted again and \texttt{badAccept} fires. The invariant is violated \emph{by design}, as the negative control for the attack. \textbf{Epoch} (\texttt{Rollback=TRUE, Epoched=TRUE}, \path{CardRevocation_epoch.cfg}): the mitigation adds an external epoch that \texttt{Revoke} bumps and that a restore does \emph{not} roll back; \texttt{Accept} now additionally requires \texttt{cardEpoch[c] = epoch}, so a restored card's stale epoch disables acceptance even though \texttt{revoked} was rolled back, and the invariant holds again over the larger 76-state space (the mitigation adds reachable states without reintroducing the breach). The same rule disables every other card minted before the latest revocation. With $c_1$ and $c_2$ issued and only $c_1$ revoked, $c_2$ is refused, and TLC is silent because it checks \texttt{badAccept} alone. An availability property (every unexpired, never-revoked card is accepted while the database is current) would catch this, and the \texttt{dbEpoch} rule of \S\ref{sec:fh-threat-model} is designed to keep both.
 
-The rollback configuration tests whether a restored database can resurrect a revoked capability. A relay revokes card $c$ (an agent's leaked capability); the relay's database is later restored from a backup taken before the revocation; the restored \texttt{revoked} set no longer contains $c$; the relay's own \texttt{Accept} check, consulting only that set, accepts a presentation of $c$ it had already promised to refuse. TLC's counterexample trace is exactly \texttt{Issue(c)} $\to$ \texttt{Revoke(c)} $\to$ \texttt{RollbackRestore(c)} $\to$ \texttt{Accept(c)}, four transitions, \texttt{badAccept} true at the end. The failure is intended: a baseline or an untested mitigation would give false comfort, and this negative control is what gives the epoch configuration's clean pass its meaning, the same discipline \S\ref{sec:fh-sheaf}'s structural and mutation controls apply. This chapter's own per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) are the same design move at the federation layer: an external, monotonic anchor that a local rollback cannot touch lets a cross-harbor verifier rely on ``only-issuer-revokes'' instead of taking the issuer's word for it.
+The rollback configuration tests whether a restored database can resurrect a revoked capability. A relay revokes card $c$ (an agent's leaked capability); the relay's database is later restored from a backup taken before the revocation; the restored \texttt{revoked} set no longer contains $c$; the relay's own \texttt{Accept} check, consulting only that set, accepts a presentation of $c$ it had already promised to refuse. TLC's counterexample trace is exactly \texttt{Issue(c)} $\to$ \texttt{Revoke(c)} $\to$ \texttt{RollbackRestore(c)} $\to$ \texttt{Accept(c)}, four transitions, \texttt{badAccept} true at the end. The failure is intended: a baseline or an untested mitigation would give false comfort, and this negative control is what gives the epoch configuration's clean pass its meaning. This chapter's own per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) are the same design move at the federation layer: an external, monotonic anchor that a local rollback cannot touch lets a cross-harbor verifier rely on ``only-issuer-revokes'' instead of taking the issuer's word for it.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-consistency-radius-run}
@@ -1850,14 +1463,14 @@ Read \path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, section \
 \begin{pdsolution}{ex:fh-consistency-radius-run}
 By hand: $C_6$ has $R_{\mathrm{eff}}=5/6$, so $r=3\sqrt{1-5/6}=3/\sqrt6=1.224745$ [verified]. $P_6$'s relayed edge is a bridge (a path has no route between an edge's endpoints other than the edge itself), so $R_{\mathrm{eff}}=1$ and $r=3\sqrt{1-1}=0$ exactly [verified].
 
-The script's own printed lines (\path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, \texttt{section0}), quoted in the worked example above [internal, \texttt{sheaf\_consistency\_radius.py}]: the $C_6$ line's two computed quantities (the least-squares solve's $r$ and the closed form's \texttt{pred}) are asserted equal to within $10^{-9}$ of each other and within $10^{-6}$ of $1.224745$ (\texttt{check(abs(r - pred) < 1e-9 and abs(r - 1.224745) < 1e-6, \ldots)}). The numerical solve and the hand formula are checked against each other, not merely printed side by side. The $P_6$ line's assertion is different in kind: \texttt{check(rP < TOL\_SILENT and abs(ReffP - 1.0) < 1e-9, \ldots)} with \texttt{TOL\_SILENT}$=10^{-9}$, i.e.\ it asserts the residual is \emph{below a silence threshold}, not equal to a specific float. That is the honest way to assert ``zero'' about a least-squares solve that carries ordinary floating-point roundoff rather than landing on the exact bit pattern for $0.0$.
+The script's own printed lines (\path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, \texttt{section0}) [internal, \texttt{sheaf\_consistency\_radius.py}]: the $C_6$ line's two computed quantities (the least-squares solve's $r$ and the closed form's \texttt{pred}) are asserted equal to within $10^{-9}$ of each other and within $10^{-6}$ of $1.224745$ (\texttt{check(abs(r - pred) < 1e-9 and abs(r - 1.224745) < 1e-6, \ldots)}). The numerical solve and the hand formula are checked against each other, not merely printed side by side. The $P_6$ line's assertion is different in kind: \texttt{check(rP < TOL\_SILENT and abs(ReffP - 1.0) < 1e-9, \ldots)} with \texttt{TOL\_SILENT}$=10^{-9}$, i.e.\ it asserts the residual is \emph{below a silence threshold}, not equal to a specific float. That is the honest way to assert ``zero'' about a least-squares solve that carries ordinary floating-point roundoff rather than landing on the exact bit pattern for $0.0$.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-two-liar-boundary}
-Theorem~\ref{thm:sheaf-equivocation} assumes a \emph{single} equivocator and says outright why that hypothesis is needed. Two colluding reporters sit on the same visible cycle $K_j$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over global sections and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence, if any, could still catch the coalition.
+Theorem~\ref{thm:sheaf-equivocation}, item~3, warns that several offsets can cancel. Two colluding reporters sit on the same visible cycle $K_j$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over assignments of values to the witnesses and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence, if any, could still catch the coalition.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-two-liar-boundary}
-$r$ is defined as the \emph{best-fit} residual: the smallest disagreement left over after choosing the global section $x$ and the free severed blocks $g_{\mathrm{sev}}$ that explain as much of the observed data as any choice can. It is not a per-liar quantity; it is a property of the whole observed cochain $g_K$. If two equivocators on a common cycle choose offsets $o_1$ and $o_2$ such that $o_1+o_2$ happens to be a coboundary (the \emph{sum} of their two lies looks exactly like one consistent change of state), then the best-fit global section can absorb $o_1+o_2$ entirely, leaving a near-zero residual, exactly the way a lone liar's offset is absorbed when it lies off a visible cycle (the bridge case of the six-path example). Nothing in the definition of $r$ requires the offsets to be individually small for their \emph{sum} to be small or zero; it requires only that the sum land in the image of $\delta$, the space the completion can always explain away. This is why a one-edge example cannot establish completeness for arbitrary multiple offsets: the one-edge detection guarantee cannot be applied separately and then
+$r$ is defined as the \emph{best-fit} residual: the smallest disagreement left over after choosing the global section $x$ (one assignment of values to every witness) and the free severed blocks $g_{\mathrm{sev}}$ that explain as much of the observed data as any choice can. It is not a per-liar quantity; it is a property of the whole observed cochain $g_K$. If two equivocators on a common cycle choose offsets $o_1$ and $o_2$ such that $o_1+o_2$ happens to be a coboundary (the \emph{sum} of their two lies looks exactly like one consistent change of state), then the best-fit global section can absorb $o_1+o_2$ entirely, leaving a near-zero residual, exactly the way a lone liar's offset is absorbed when it lies off a visible cycle (the bridge case of Theorem~\ref{thm:sheaf-equivocation}, item~2). Nothing in the definition of $r$ requires the offsets to be individually small for their \emph{sum} to be small or zero; it requires only that the sum land in the image of $\delta$, the space the completion can always explain away. This is why a one-edge example cannot establish completeness for arbitrary multiple offsets: the one-edge detection guarantee cannot be applied separately and then
 added. Soundness remains: $r>0$ still certifies incompatibility of the encoded
 data. Completeness for arbitrary coordinated errors was never supplied; even
 one sender can choose several offsets that cancel in projection.
@@ -2190,45 +1803,15 @@ Agent Payments Protocol (AP2): Mandates.
 \newblock Verifiable-credential authorization chain: SD-JWT+kb checkout mandate, JWS detached-content merchant authorization, JCS canonicalization, 2026.
 \newblock \url{https://github.com/google-agentic-commerce/AP2}.
 
-\bibitem{abramsky2011operational}
-Samson Abramsky and Adam Brandenburger.
-\newblock The operational-sheaf-theoretic approach to contextuality and non-locality.
-\newblock \textit{New Journal of Physics}, 13(11):113036, 2011.
-
-\bibitem{jiang2011hodgerank}
-Xiaoye Jiang, Lek-Heng Lim, Yuan Yao, and Yinyu Ye.
-\newblock Statistical ranking and combinatorial Hodge theory.
-\newblock \textit{Mathematical Programming}, 127(1):203--244, 2011.
-
 \bibitem{hansengrist2019}
 Jakob Hansen and Robert Ghrist.
 \newblock Toward a spectral theory of cellular sheaves.
 \newblock \textit{Journal of Applied and Computational Topology}, 3(4):315--358, 2019.
 
-\bibitem{robinson}
-Michael Robinson.
-\newblock Sheaves Are the Canonical Data Structure for Sensor Integration.
-\newblock \textit{Information Fusion}, 36:208--224, 2017.
-
-\bibitem{caru}
-Giovanni Car\`u.
-\newblock On the Cohomology of Contextuality.
-\newblock In \textit{Proc.\ 13th International Conference on Quantum Physics and Logic (QPL 2016)}, EPTCS 236, pp.~21--39, 2017.
-
 \bibitem{sheng}
 Peiyao Sheng, Gerui Wang, Kartik Nayak, Sreeram Kannan, and Pramod Viswanath.
 \newblock BFT Protocol Forensics.
 \newblock In \textit{Proc.\ ACM Conference on Computer and Communications Security (CCS)}, pp.~1722--1743, 2021.
-
-\bibitem{spielman-teng}
-Daniel A. Spielman and Shang-Hua Teng.
-\newblock Nearly-Linear Time Algorithms for Graph Partitioning, Graph Sparsification, and Solving Linear Systems.
-\newblock In \textit{Proc.\ 36th ACM Symposium on Theory of Computing (STOC)}, pp.~81--90, 2004.
-
-\bibitem{bach}
-Eric Bach.
-\newblock Sheaf Cohomology is \#P-hard.
-\newblock \textit{Journal of Symbolic Computation}, 27(4):429--433, 1999.
 
 \bibitem{halpernmoses1990}
 Joseph Y. Halpern and Yoram Moses.
@@ -2274,7 +1857,7 @@ Federated revocation dissemination (Theorem~\ref{thm:fh-conv}) & Conditional pus
 Cross-witness equivocation evidence & Signed-root comparison; dissemination model & \Partial\ verification immediate once views meet; no hard delivery bound & --- \\
 Escrow extraction bound (Design invariant~\ref{thm:fh-escrow-bound}) & Transition-system case analysis & \Partial\ conditional on non-bypassable custody; no runtime conformance & \S\ref{sec:fh-settlement} \\
 Cross-harbor Conservation (\S\ref{sec:fh-tla-ext}) & Lifecycle-accounting sketch & \Partial\ no executable specification or verification run & \S\ref{sec:fh-cross-conservation} \\
-Sheaf detection of equivocation (Thm.~\ref{thm:sheaf-equivocation}) & Pre-registered statistical harness, 200 trials/arm & \Partial\ gates pass at the stated scope (single equivocator, real stalks, prefix restrictions); not mechanized & \path{sheaf_harness_v2.py} \\
+Sheaf detection of equivocation (Thm.~\ref{thm:sheaf-equivocation}) & Pre-registered statistical harness, 200 trials/arm & \Partial\ gates pass at the stated scope (one offset, real-valued encoding, prefix restrictions); the direct checker dominates on equal evidence; not mechanized & \path{sheaf_harness_v2.py} \\
 \midrule
 Sheaf-Laplacian relaxation-time bound (\S\ref{sec:fh-sheaf}) & --- & \Open\ no derivation and no citation; the gossip and linear-diffusion models are not reconciled & --- \\
 Trustless settlement for non-fungible bonds & --- & \Open\ no construction or impossibility proof & --- \\
