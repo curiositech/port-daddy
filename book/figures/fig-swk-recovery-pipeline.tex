@@ -3,6 +3,6 @@
 \begin{figure}[H]
 \centering
 \SGMeasuredFigure{fig-swk-recovery-pipeline}{\SGRecoveryAdmission}
-\caption{Checkpointing, page checks, and audit-link checks precede admission. A failed critical check blocks service. The dashed group marks separate mechanisms, not a completed shared recovery invariant.}
+\caption{Checkpointing, page checks, and audit-link checks run before the daemon serves requests. A failed critical check blocks service. The dashed group marks separate mechanisms, not a completed shared recovery invariant.}
 \label{fig:swk-recovery-pipeline}
 \end{figure}

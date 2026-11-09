@@ -5,8 +5,8 @@
 %   holds it, A releases, C claims -- linearizes to one total order on the
 %   writer's rail, even though the requests overlap in caller time.
 % Evidence: book/single-writer-kernel.tex thm:consistency (the
-%   conditional consistency model: committed transactions admit a serial
-%   order, claim/lock operations are linearizable with commit as the
+%   conditional consistency model: committed transactions have an
+%   equivalent serial order, claim/lock operations are linearizable with commit as the
 %   linearization point).
 % Must distinguish: caller-time overlap (the bands) from the one commit
 %   order (the rail); that a losing claim still gets a definite outcome

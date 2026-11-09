@@ -38,17 +38,17 @@ each next event among those that $\overline{L}$ enables after the current
 history and the protocol has not disabled. A \emph{protocol} $S$ is a
 supervisor, possibly randomized, that disables only events of $\Sigma_c$; it
 decides from the observed projection and from the results of any audits it
-spends, and it may shut down by disabling all of $\Sigma_c$. Let
+runs, and it may shut down by disabling all of $\Sigma_c$. Let
 $\mathrm{Safe}_H(S)$ be the infimum, over agent policies, of the probability
 that every history of length at most $H$ lies in $\overline{K}$. Call $S$
 \emph{fully useful} when, after any reachable history $s$, it never disables a
 controllable $a$ with $sa\in\overline{K}$.
 
 (a) If $K$ is controllable and observable, some deterministic protocol that
-spends no audit is fully useful and has $\mathrm{Safe}_H(S)=1$ for every $H$.
+runs no audit is fully useful and has $\mathrm{Safe}_H(S)=1$ for every $H$.
 
 (b) If some string $u\in\Sigma_u^{*}$ lies in $\overline{L}\setminus\overline{K}$,
-then $\mathrm{Safe}_H(S)=0$ for every protocol $S$, whatever its audit budget,
+then $\mathrm{Safe}_H(S)=0$ for every protocol $S$, however many audits it runs,
 and every $H\ge|u|$. If $K$ is not controllable, the same conclusion holds for
 every fully useful protocol once $H$ covers a witness of the failure.
 \end{pdclaim}
