@@ -3402,11 +3402,14 @@ Stornetta~\pdcite{haberstornetta1991}, built on Merkle's hash trees~\pdcite{merk
 a structure that predates blockchains and does not depend on them.
 
 \keyidea[One writer reduces coordination machinery]{The kernel's novelty lies
-less in any single primitive than in their \emph{composition under one
-constraint}: a single local writer makes mutual exclusion, serializability,
-linearizability, complete mediation, and a durable audit log consequences of one
-architectural choice instead of five separately engineered subsystems. The
-contribution is that reduction, together with stating exactly where it stops
+less in any single primitive than in how much follows from \emph{one writer}.
+A single local writer puts every write transaction in one commit order.
+Exclusion and consistency follow only with the disciplines
+Theorems~\ref{thm:exclusion} and~\ref{thm:consistency} assume, among them
+checking and mutating in one transaction and replying only after commit. Complete mediation holds only for
+writes that reach the daemon (\S\ref{sec:threatmodel}), and the durable audit
+log is a property of the write-ahead log. The contribution is that reduction,
+with its conditions stated, together with stating exactly where it stops
 working.}
 
 % ═════════════════════════════════════════════════════════════════════════════
