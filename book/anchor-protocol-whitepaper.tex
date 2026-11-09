@@ -1639,7 +1639,7 @@ source argument nor the no-panic harness provides.
 \endlastfoot
 Authentication correspondence in the listed phase models (\S\ref{sec:algorithms}) & ProVerif 2.05 & \Closed\ non-injective correspondence queries TRUE & \path{harbor_}\allowbreak\path{card_v*.pv} \\
 Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \path{alg}\allowbreak\path{confusion.pv} \\
-Delegation chain authenticity (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ chain authenticity TRUE; 17-case runtime conformance & \path{chain-}\allowbreak\path{replay.pv} \\
+Delegation chain authenticity (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ non-injective chain authenticity TRUE; the model never reads its consumed-nonce table, so it does not prove a replayed chain is refused (the 17-case runtime conformance suite tests that) & \path{chain-}\allowbreak\path{replay.pv} \\
 Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2s/2^f$ at load $0.95$ & cuckoo property tests \\
 GitHub-App webhook origin authentication & ProVerif (Dolev-Yao relay) & \Closed\ origin auth TRUE; daemon re-verifies GitHub HMAC (runtime conformance) & \path{ingress_}\allowbreak\path{origin_}\allowbreak\path{auth.pv} \\
 Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $X$ cannot publish into $Y$; \texttt{HARBOR\allowbreak\_MISMATCH} conformance & \path{ingress_}\allowbreak\path{tenant_}\allowbreak\path{isolation.pv} \\
