@@ -22,9 +22,9 @@ deletes the rest. Is it $\varepsilon$-private for some finite $\varepsilon$
 under the subject-level neighboring relation?
 \end{pdexercise}
 \begin{pdsolution}{ex:sealed-tenant-random-scrub}
-No. Suppose one of data subject $u$'s records contains a token $w$ that appears
-nowhere else in the log. With $u$'s records present, the output contains $w$
-with probability at least $\tfrac12$; with them removed, with probability
+No. Suppose one of data subject $u$'s records contains a token, say a rare
+surname, that appears nowhere else in the log. With $u$'s records present, the
+output contains that token with probability at least $\tfrac12$; with them removed, with probability
 $0$. The ratio of the two probabilities is unbounded, so no finite
 $\varepsilon$ holds. For a scrubber whose output depends on whose records are
 present, randomization is necessary for a finite $\varepsilon$
@@ -36,17 +36,17 @@ every neighbor pair.
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-tenant-cache}
 A clinic tenant shares one prefix cache among its staff, keyed by tenant.
-Nurse $A$ sends a prompt that begins with a fixed intake template followed by
-a patient's name and symptoms. Trace what nurse $B$ can learn by timing, say
+Nurse Ito sends a prompt that begins with a fixed intake template followed by
+a patient's name and symptoms. Trace what Nurse Bell can learn by timing, say
 which invariant fails, and give a key that fixes it and its cost.
 \end{pdexercise}
 \begin{pdsolution}{ex:sealed-tenant-cache}
-$B$ sends the template followed by a candidate patient's name. A fast first
+Bell sends the template followed by a candidate patient's name. A fast first
 token signals a cache hit, which means someone in the tenant recently sent
-that prefix, so $B$ learns that the named patient was recently seen. A tenant
+that prefix, so Bell learns that the named patient was recently seen. A tenant
 key isolates tenants but violates Design invariant~\ref{inv:sealed-label-keyed}:
-the entry extending past the template carries the patient's label and $A$'s
-scope, and $B$ is not authorized. Key entries by owner label instead. The
+the entry extending past the template carries the patient's label and Ito's
+scope, and Bell is not authorized. Key entries by owner label instead. The
 template itself carries no owner's data, so it can still be cached across the
 tenant, or globally,
 so only the patient-specific suffix loses its hits. Timing inside an
@@ -55,23 +55,23 @@ authorized scope remains a residual (Table~\ref{tab:sealed-not-promised}).
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:sealed-tenant-persistent}
 A persistent agent in the sense of \pdchapref{stp}{From Spawn to Person}
-serves tenants $A$ and $B$ on alternating days with one memory store and one
+serves tenants $T_1$ and $T_2$ on alternating days with one memory store and one
 reputation score. Propose a partitioning, say which parts of its record may
 be shared across tenants and through which channel, and say what a tombstone
-on one of $A$'s records can and cannot retract.
+on one of $T_1$'s records can and cannot retract.
 \end{pdexercise}
 \begin{pdsolution}{ex:sealed-tenant-persistent}
 Partition episodic memory by owner label and mount only the partitions the
-work order authorizes. Anything written while $A$'s partition is mounted
-carries $A$'s label, including summaries and embeddings derived from $A$'s
-records, so none of it enters $B$'s jobs. Identity and outcome grades may be
-shared when they carry no owner's data; one that reveals $A$'s data keeps
-$A$'s label, whoever signed it. Statistics aggregated over owners may leave
+work order authorizes. Anything written while $T_1$'s partition is mounted
+carries $T_1$'s label, including summaries and embeddings derived from $T_1$'s
+records, so none of it enters $T_2$'s jobs. Identity and outcome grades may be
+shared when they carry no owner's data; one that reveals $T_1$'s data keeps
+$T_1$'s label, whoever signed it. Statistics aggregated over owners may leave
 through the ledger. A learned skill may cross tenants only if it carries no
 owner's data or each owner has released it, and, because it will be read as
 instructions, only as operator-reviewed text; the review settles integrity,
-not confidentiality. A tombstone on one of $A$'s records removes it
-from $A$'s partition, its index and every cache entry carrying its label. It
+not confidentiality. A tombstone on one of $T_1$'s records removes it
+from $T_1$'s partition, its index and every cache entry carrying its label. It
 cannot retract the record's influence from trained weights
 \pdcite{thudi2021unlearning}: a per-tenant adapter must be retrained without
 it, and shared training relies on the bound the ledger charged. If the

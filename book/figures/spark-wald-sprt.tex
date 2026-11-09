@@ -7,12 +7,12 @@
   \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
 \fi
 \begin{tikzpicture}[x=4.8pt,y=6.5pt,font=\fontsize{7}{8}\selectfont]
-  % Upper boundary A (Alarm)
+  % Upper boundary theta_1 (Alarm)
   \draw[red!80!black,line width=.65pt] (0,3) -- (14,3);
-  \node[anchor=east,inner sep=1.5pt,text=red!80!black] at (0,3) {$A$};
-  % Lower boundary B (Clear)
+  \node[anchor=east,inner sep=1.5pt,text=red!80!black] at (0,3) {$\theta_1$};
+  % Lower boundary theta_0 (Clear)
   \draw[pdinkmuted!65,line width=.65pt] (0,-3) -- (14,-3);
-  \node[anchor=east,inner sep=1.5pt,text=pdinkmuted] at (0,-3) {$B$};
+  \node[anchor=east,inner sep=1.5pt,text=pdinkmuted] at (0,-3) {$\theta_0$};
   % Zero line
   \draw[pdinkmuted!25,line width=.3pt,dash pattern=on 1.5pt off 1.5pt] (0,0) -- (14,0);
   % Sample cumulative log-likelihood walk reaching threshold A at step 12

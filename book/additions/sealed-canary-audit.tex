@@ -16,7 +16,7 @@ $\varepsilon$.
 \begin{pdclaim}{Theorem}{Canaries Falsify a Declared $\varepsilon$}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sealed-canary-falsify}
-Plant $m$ canaries, each the only record of a fresh synthetic data subject, and
+Plant $c$ canaries, each the only record of a fresh synthetic data subject, and
 include each independently with probability $\tfrac12$, the coins kept secret
 by the auditor. Suppose the pipeline from logs to released artifact is
 $(\varepsilon,\delta)$-private under the subject-level neighboring relation.
@@ -25,12 +25,12 @@ $(\varepsilon,\delta)$-private under the subject-level neighboring relation.
 $\Pr[\text{flag}\mid\text{included}]\le
 e^{\varepsilon}\Pr[\text{flag}\mid\text{excluded}]+\delta$.
 
-(ii) Fix $r\le m$ before the audit. If an auditor guesses include or exclude for
+(ii) Fix $r\le c$ before the audit. If an auditor guesses include or exclude for
 $r$ distinct canaries, at most one guess each, and gets $W$ of them right, then
 for every $v$,
 $\Pr[W\ge v]$ is at most
 $\Pr\bigl[\mathrm{Bin}(r,\tfrac{e^\varepsilon}{1+e^\varepsilon})\ge v\bigr]$
-plus a term in $\delta$ that is at most $2m\delta$ \pdcite{steinke2023onerun}.
+plus a term in $\delta$ that is at most $2c\delta$ \pdcite{steinke2023onerun}.
 If that bound, evaluated at the observed $W$, falls below a significance level
 $\eta$, the declaration is refuted at level $\eta$. The two conditions
 matter: twenty guesses about one canary are one coin, not twenty, and would
@@ -52,7 +52,7 @@ $\delta>0$ case through the connection between privacy and generalization
 \setlength{\parskip}{4pt plus 1pt}
 This is a constructed example. Erin's support \pdterm{adapter}, a small set
 of fine-tuned weights added to her model, declares $\varepsilon=0.5$ with
-$\delta=0$. An auditor plants $m=100$ synthetic customers and flips a secret
+$\delta=0$. An auditor plants $c=100$ synthetic customers and flips a secret
 coin for each that decides whether the customer's record goes into the
 training data. After training the auditor ranks the 100 by the model's
 likelihood and guesses, once per customer, which were included, so $r=100$.
