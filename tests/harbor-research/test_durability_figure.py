@@ -16,8 +16,8 @@ def contract(text):
                      'stable storage', 'sync not established', 'WAL / NORMAL',
                      r'Fault at $t_0+5\,\mathrm{ms}$', r'daemon\\killed',
                      r'power\\lost', r'OS/cache\\intact', r'cache\\erased',
-                     'record survives', 'record may be lost', 'I1a: Built',
-                     'I1b: NotGuar', 'OS and database/WAL state intact',
+                     'record survives', 'record may be lost', 'I1a: implemented',
+                     'I1b: not guaranteed', 'OS and database/WAL state intact',
                      'five-millisecond interval is illustrative'):
         assert required in drawing, required
     for forbidden in (r'\resizebox', r'\scalebox', r'\tiny', r'\scriptsize',
@@ -36,7 +36,7 @@ class DurabilityFigure(unittest.TestCase):
         source = SOURCE.read_text()
         for before, after in [('record may be lost', 'record is lost'),
                               ('sync not established', 'sync guaranteed'),
-                              ('I1b: NotGuar', 'I1b: Built'),
+                              ('I1b: not guaranteed', 'I1b: implemented'),
                               ('interval is illustrative', 'interval was measured')]:
             with self.subTest(after=after), self.assertRaises(AssertionError):
                 contract(source.replace(before, after))
@@ -59,7 +59,7 @@ class DurabilityFigure(unittest.TestCase):
             index = doc.resolve_names()[labels['swk:fig:swk-durability-dramatization'][3]]['page']
             page = doc[index]; left, right, _ = column(page, index + 1)
             top = page.search_for('commit acknowledged')[0].y0
-            bottom = page.search_for('I1b: NotGuar')[0].y1 + 12
+            bottom = page.search_for('I1b: not guaranteed')[0].y1 + 12
             spans = [s for b in page.get_text('dict')['blocks'] if 'lines' in b
                      for line in b['lines'] for s in line['spans']
                      if top <= s['bbox'][1] < bottom and left-1 <= s['bbox'][0] < right]

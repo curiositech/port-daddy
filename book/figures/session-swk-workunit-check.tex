@@ -14,17 +14,17 @@ BASELINE (all guards on): 536 reachable states explored.
   violations: NONE -- all six invariants hold in every state [ok]
 
 MUTATION SUITE -- disable each guard; the checker must find a violating trace:
-  guard OFF [epoch] -> caught I1/I5: effect admitted with stale epoch
+  guard OFF [epoch] -> caught W1/W5: effect admitted with stale epoch
     shortest trace (4 steps): propose->authorize -> start_exec
                               -> reassign_role -> admit_effect(STALE)
-  guard OFF [idem] -> caught I2: idempotency key settled twice
+  guard OFF [idem] -> caught W2: idempotency key settled twice
     shortest trace (2 steps): ext_op(k1) -> ext_op(k1)
-  guard OFF [verify] -> caught I3: verified without policy+receipt
+  guard OFF [verify] -> caught W3: verified without policy+receipt
     shortest trace (4 steps): propose->authorize -> start_exec
                               -> witness -> verify
-  guard OFF [attenuate] -> caught I4: child grant exceeds parent scope
+  guard OFF [attenuate] -> caught W4: child grant exceeds parent scope
     shortest trace (1 step): delegate(ESCALATED)
-  guard OFF [settle] -> caught I6: settlement unfunded/unreceipted/wrong principal
+  guard OFF [settle] -> caught W6: settlement unfunded/unreceipted/wrong principal
     shortest trace (7 steps): propose->authorize -> start_exec -> set_policy
                               -> admit_verifier_receipt -> witness
                               -> verify -> settle(p2!)

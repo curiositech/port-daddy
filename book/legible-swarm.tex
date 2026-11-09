@@ -881,7 +881,7 @@ all $c$ servers busy and must wait, the quantity that makes a pool a pool}).
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:specialization}
 Under the queueing-specialization setup, sole ownership weakly dominates the pool
-if and only if the skill premium clears
+if and only if the skill advantage clears
 \begin{equation}\label{eq:specboundary}
 \frac{\mu_{\mathrm{spec}}}{\mu_{\mathrm{pool}}} \;\ge\; \gamma_A(\rho,c)
 \;=\; c\rho \;+\; \frac{1}{\,1 + \dfrac{C(c,\rho)}{c(1-\rho)}
@@ -955,7 +955,7 @@ $\mu_{\mathrm{spec}} = 3/\text{hr}$; the alternative is three generalists at
 $\mu_{\mathrm{pool}} = 1.2/\text{hr}$ each.
 
 Then $\rho = 2/3.6 = 0.556$ and the
-skill premium is $r_{\mathrm{sk}} = 3/1.2 = 2.5$. Erlang-C at $(c,\rho)=(3,0.556)$ is $0.300$, so
+skill advantage is $r_{\mathrm{sk}} = 3/1.2 = 2.5$. Erlang-C at $(c,\rho)=(3,0.556)$ is $0.300$, so
 \[
 \begin{aligned}
 \gamma &= 3(0.556)\\
@@ -1050,12 +1050,12 @@ skill but never below
 W_\infty=\frac{\xi}{\eta(\xi+\eta)},
 \]
 the residual downtime a request meets when it arrives during an outage. No
-skill premium removes it, so past a point the honest fix for a slow sole role is
+skill advantage removes it, so past a point the honest fix for a slow sole role is
 a better handoff and not a better owner. The second is that the ceiling can
 bind absolutely: writing $K=W_{\mathrm{pool}}+A/(c_{\mathrm{wait}}\lambda_F)$ for the
 response-time threshold in hours,
-pooling wins at \emph{every} skill premium once $\xi/\eta$, the owner's failure
-rate over its replacement rate, clears the \pdterm{succession price}
+pooling wins at \emph{every} skill advantage once $\xi/\eta$, the owner's failure
+rate over its replacement rate, clears the \pdterm{succession threshold}
 $D^\star=\eta K/(1-\eta K)$, the ratio above which no amount of skill makes up
 for the outages. That threshold exists only while $\eta K<1$, the condition
 worth remembering. Where succession is fast enough that
@@ -1082,7 +1082,7 @@ $\eta K=0.51<1$ and
 \[
 D^\star=\frac{0.51}{0.49}\approx1.04,
 \]
-so pooling wins at every skill premium once $\xi/\eta>1.04$, that is once
+so pooling wins at every skill advantage once $\xi/\eta>1.04$, that is once
 $\xi>0.52$/hr, a crash about every two hours. At $\xi=1$/hr,
 \[
 W_\infty=\frac{1}{0.5\times1.5}\approx1.33\text{ hr}>1.021\text{ hr},
@@ -3363,7 +3363,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{Consent changes the schedule, not the participants.} Under consented serialization the same three edits become one commit log with a grant record each, naming actor, claim, artifact and reason.
 \item \textbf{Legibility-with-zoom.} A digest is a lens, never a replacement: every claim in it resolves to an artifact, and a digest whose claims resolve to nothing is a facade, however green.
 \item \textbf{The authority half.} The daemon gates or escalates on every act under a grant the operator gave once; the override is a single edge from operator to daemon, and the escalation threshold has a tuning band, not a point.
-\item \textbf{Specialization has a boundary.} A pooled queue beats sole ownership only when utilization and the skill premium put the operator on one side of the queueing boundary; the worked point $(\rho,r_{\mathrm{sk}})=(0.556,\,2.5)$ clears a boundary of $2.483$ and so falls, barely, on sole ownership's side, while the same pool against a $2.8/\text{hr}$ specialist ($r_{\mathrm{sk}}=2.33$) falls on the pool's.
+\item \textbf{Specialization has a boundary.} A pooled queue beats sole ownership only when utilization and the skill advantage put the operator on one side of the queueing boundary; the worked point $(\rho,r_{\mathrm{sk}})=(0.556,\,2.5)$ clears a boundary of $2.483$ and so falls, barely, on sole ownership's side, while the same pool against a $2.8/\text{hr}$ specialist ($r_{\mathrm{sk}}=2.33$) falls on the pool's.
 \item \textbf{Reading can become the bottleneck.} The zero-miss message
 lower bound depends on both the critical set and the number of permitted opens. At
 $N=60,m=8$, the lower bounds for two and four critical items are $5.98$ and
@@ -3538,7 +3538,7 @@ The honest ladder: (1) use a deterministic verifier where the property is decida
 Thm.~\ref{thm:specialization}.} Eq.~\ref{eq:specboundary} assumes a specialist who
 never fails. Extend it to an $M/M/1$ queue \emph{with breakdowns} and a succession
 protocol, and find the repair rate at which sole ownership stops being worthwhile regardless of
-skill premium, then check whether that rate is above or below the one an operator
+skill advantage, then check whether that rate is above or below the one an operator
 can actually promise.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-succession-corner}
@@ -3553,7 +3553,7 @@ owner's mean wait decreases in skill to an infimum
 $W_\infty=\xi/(\eta(\xi+\eta))$, the residual downtime a request meets when it
 arrives during an outage, which it never attains, so no amount of skill removes
 downtime below $W_\infty$. Writing $K=A/(c_{\mathrm{wait}}\lambda_F)+W_{\mathrm{pool}}$ for the
-pool's cost line, pooling dominates at \emph{every} skill premium iff $W_\infty$
+pool's cost line, pooling dominates at \emph{every} skill advantage iff $W_\infty$
 has reached that line, $W_\infty\ge K$, which rearranges to
 $\xi/\eta\ge D^\star=\eta K/(1-\eta K)$. Whether that threshold sits above or
 below what an operator can promise is an empirical question about the concrete
@@ -4171,7 +4171,7 @@ Decay-vs-summary boundary (Ex.~\ref{ex:ls-decay-vs-summary}) & $\star$ & Invaria
 Legibility's information-theoretic lower bound (Ex.~\ref{ex:ls-adversarial-critical-set}) & $\star\star\star$ & Thm.~\ref{thm:lowerbound} \\
 The ranker-as-political-authority regress (Ex.~\ref{ex:ls-ranker-political-organ}) & $\star\star$ & Invariant~\ref{prop:legible-sovereign} \\
 The succession corner \emph{beyond the mean}: tail response, and consistency of
-judgment, neither of which the succession price covers
+judgment, neither of which the succession threshold covers
 (Ex.~\ref{ex:ls-succession-corner}) & $\star\star$ & \S\ref{sec:succession-corner} \\
 \bottomrule
 \end{tabular}

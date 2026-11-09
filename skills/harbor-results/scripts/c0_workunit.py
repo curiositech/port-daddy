@@ -14,12 +14,12 @@ Instance: principals p1 (owner) and p2; one work unit; one exclusive role with
 fencing epochs; a root grant with one delegation; one external-op idempotency key.
 
 The six invariants (from the research roadmap, Document 3 / C0):
-  I1  every admitted effect carried the CURRENT role epoch at admit time
-  I2  each idempotency key settles at most once
-  I3  a VERIFIED completion has an acceptance policy and an admitted verifier receipt
-  I4  no delegated grant is more permissive than its immediate parent
-  I5  role reassignment invalidates stale epochs at the effect boundary (= I1's teeth)
-  I6  every settlement is funded by the owning principal and references a receipt
+  W1  every admitted effect carried the CURRENT role epoch at admit time
+  W2  each idempotency key settles at most once
+  W3  a VERIFIED completion has an acceptance policy and an admitted verifier receipt
+  W4  no delegated grant is more permissive than its immediate parent
+  W5  role reassignment invalidates stale epochs at the effect boundary (= W1's teeth)
+  W6  every settlement is funded by the owning principal and references a receipt
 
 Production route: the same spec in TLA+ checked by TLC/Apalache; this Python
 checker is the faithful small-instance version, and its mutation suite is the
@@ -100,19 +100,19 @@ def transitions(s: S):
 def violated(s: S):
     v = []
     if any(eu != ec for (eu, ec) in s.effects):
-        v.append('I1/I5: effect admitted with stale epoch')
+        v.append('W1/W5: effect admitted with stale epoch')
     if len(s.extkeys) != len(set(s.extkeys)):
-        v.append('I2: idempotency key settled twice')
+        v.append('W2: idempotency key settled twice')
     if s.wu == 'V' and not (s.policy and s.receipt):
-        v.append('I3: verified without policy+receipt')
+        v.append('W3: verified without policy+receipt')
     for g in s.grants:
         if g[3] is not None:
             parent = grants_get(s.grants, g[3])
             if parent and not g[2].issubset(parent[2]):
-                v.append('I4: child grant exceeds parent scope')
+                v.append('W4: child grant exceeds parent scope')
     if s.settle is not None:
         if s.settle[0] != 'p1' or s.wu != 'V' or not s.receipt:
-            v.append('I6: settlement unfunded/unreceipted/wrong principal')
+            v.append('W6: settlement unfunded/unreceipted/wrong principal')
     return v
 
 # ---------------- checker ----------------
@@ -157,8 +157,8 @@ def print_trace(actions):
     for index in range(first_count, count, 2):
         print(' ' * 30 + '-> ' + ' -> '.join(actions[index:index + 2]))
 
-for gname, expect in [('epoch', 'I1/I5'), ('idem', 'I2'), ('verify', 'I3'),
-                      ('attenuate', 'I4'), ('settle', 'I6')]:
+for gname, expect in [('epoch', 'W1/W5'), ('idem', 'W2'), ('verify', 'W3'),
+                      ('attenuate', 'W4'), ('settle', 'W6')]:
     GUARDS[gname] = False
     n, bad, tr = check()
     assert bad is not None, f'mutation {gname} NOT caught — checker has a blind spot!'
