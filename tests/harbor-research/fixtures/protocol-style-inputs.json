@@ -3,10 +3,10 @@
   "scope": "Current protocol fixture inputs; exact hashes are not a rendered acceptance receipt. The September checkpoint remains historical.",
   "reviewed_source_head": "856b3ccb156ae243e9e438cb1f8787a6d087f953",
   "changes_reviewed": {
-    "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged.",
+    "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; imakeidx loads before hyperref and \\pdprintbookindex prints the index of defined terms last. Protocol environment definitions unchanged.",
     "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence.",
     "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance.",
-    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; protocol environments unchanged.",
+    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; \\pdterm, \\pdscope and \\pdstatus added, \\pdterm indexes and labels its term for the glossary, \\pdstatus is a margin tag in the Book. Protocol environments unchanged.",
     "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter structure unchanged.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
     "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required."
@@ -24,8 +24,8 @@
     },
     {
       "path": "book/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "ecb675750b99b30e591f5b50859f5410b562dcf90039a398078aa0318ac175c0",
-      "bytes": 65001
+      "sha256": "99f1e2205397ec124a17a080d7e642d27a531923d6c799e8d83975ec6228edad",
+      "bytes": 66171
     },
     {
       "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
@@ -69,8 +69,8 @@
     },
     {
       "path": "book/figures/pd-pedagogy.tex",
-      "sha256": "4df2929a2e3a61c5be3c7dd6db02104b1decd440acf01f2cc9e122ce07abb891",
-      "bytes": 80226
+      "sha256": "c8a8ec107ec244e4facab7d62f2d577dfc62bacbcddb7f1527d1d63000688eec",
+      "bytes": 90793
     },
     {
       "path": "book/figures/pd-semantic-blocks.tex",
