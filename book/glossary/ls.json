@@ -183,5 +183,10 @@
   "term": "blame set",
   "sort": "blame set",
   "definition": "The principals the deletion filter keeps: a group whose directions still conflict on their own, from which no one can be dropped."
+ },
+ {
+  "term": "decision-sufficient",
+  "sort": "decision-sufficient",
+  "definition": "Said of a digest, for one stated task, when the operator's best decision from the digest has the same expected loss as her best decision from the full record."
  }
 ]
