@@ -774,7 +774,9 @@ supply that enforcement. A trusted gate could instead compute a restricted
 release directly from committed input, as the finite model does; accepting
 unconstrained worker-computed candidates gives up that guarantee.
 Section~\ref{sec:sealed-budget} therefore measures this residual, and that
-measurement is the reason the $q\cdot b$ account exists. The present
+measurement is the reason the $q\cdot b$ account exists. Over $q$ jobs, each
+returning $b$ freely chosen bits, a worker can carry at most $q\cdot b$ bits,
+before timing. The present
 mutations cannot exhibit the attack, because the model's \texttt{submit}
 carries no payload. They test that the gate releases $g$ and nothing else;
 they do not test that the gate's \emph{input} is honest. Closing that gap is
