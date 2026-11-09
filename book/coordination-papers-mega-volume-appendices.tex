@@ -171,7 +171,13 @@ each depends on a custody interface that no party can bypass.
 \paragraph{Relay federation.}
 \pdstatus{\BuiltWeak}{}
 The current Relay carries authenticated events between harbors over outbound
-HTTPS and server-sent events.
+HTTPS and server-sent events. The ProVerif model of the Relay's end-to-end
+path, \path{analyses/relay_e2e_secrecy.pv}, treats the Relay as the attacker.
+It proves that the Relay cannot learn a payload and cannot forge an event
+under a publisher's key. Its replay query fails: the Relay can deliver one
+signed envelope twice, and the subscriber accepts both copies. Only the weaker
+agreement holds, that every accepted event was published at least once, so the
+model does not rule out replay.
 \pdscope{The Relay does not copy daemon databases, put events in one global
 order, authorize local effects, keep messages secret end to end on its own, or
 provide the witness logs and settlement rules of \pdchapref{fh}{The Federated
@@ -197,6 +203,24 @@ Harbor}.}
 \setlength{\LTpre}{0pt}\setlength{\LTpost}{0pt}
 \pdgeneratedinput{../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-mechanized.tex}{mechanized claims}
 \par}
+
+% Hand-written close to the generated Appendix B: the facts the manifest's
+% fields cannot carry (tool pins for research rows, a manual-only CI job).
+\paragraph{Pinned tools.} The proofs workflow installs fixed versions:
+ProVerif~2.05 from opam, Kani~0.67.0, TLC from the \texttt{tla2tools.jar} of
+release~1.8.0 under Java~17, Apalache~0.57.0, and Z3~4.8.12 from the Ubuntu
+package \texttt{4.8.12-3.1build1}. The result scripts run under Python~3.12
+with the numeric packages pinned in
+\path{skills/harbor-results/scripts/requirements.txt}. The three property-test
+suites run in the \texttt{unit-tests} job under Node~22, with fast-check~4.7.0
+as locked in \path{package-lock.json}. Wired research-program rows carry no
+evidence policy of their own, so their evidence column shows only a dash.
+
+\paragraph{A wired row that no pull request runs.} The count of wired artifacts
+above includes the Kani parser harness \texttt{proof\_verify\_logic\_only}. Its
+job, \texttt{kani-harbor-card-parser}, runs only when someone dispatches it by
+hand, and no recurring run is set up, so no pull request runs it. The other
+five Kani harnesses run whenever the proofs workflow runs on a pull request.
 
 \section{Result atlas}\label{app:result-atlas}\label{app:one-spine}
 
