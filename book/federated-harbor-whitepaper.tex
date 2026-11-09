@@ -558,26 +558,30 @@ round two harbors are informed. In the next round both independently contact
 one of their other two peers. The probability neither contacts the last
 uninformed harbor is $(1/2)^2=1/4$. Each subsequent round succeeds with
 probability $3/4$, so the expected total is $1+1/(3/4)=7/3$ rounds, rather
-than $\log_2 3$. The calculation needs a stated model of a finite network;
-the asymptotic $\Theta(\log m)$ gives neither this expectation nor a deadline.
+than $\log_2 3$. Anti-entropy is push--pull: every harbor, informed or not,
+contacts one peer per round and the pair exchange what they hold. With $m=3$
+the first round finishes the job with probability $1/2$ and the second always
+does, so the expectation falls to $3/2$ rounds. Each calculation needs a stated
+model of a finite network; the asymptotic $\Theta(\log m)$ gives neither these
+expectations nor a deadline.
 \end{pdexample}
 
 \subsection{Convergence bound}\label{sec:fh-conv-bound}
 
-Epidemic gossip spreads a message to all $m$ nodes in an expected $\Theta(\Delta \log m)$ time only in a specific model: every node can contact every other, each node picks the peers it contacts uniformly at random, and every round of length $\Delta$ is delivered reliably~\pdcite{demers1987epidemic}. The theorem below applies that model to the federation, treating each harbor as one node of a complete network however many daemons run inside it.
+Epidemic gossip spreads a message to all $m$ nodes in an expected $\Theta(\Delta \log m)$ time only in a specific model: every node can contact every other, each node picks the peers it contacts uniformly at random, and every round of length $\Delta$ is delivered reliably. Two variants of that model must be kept apart. In \emph{push}, only informed nodes make contact, and each sends what it knows. In \emph{push--pull}, every node makes contact and the two ends exchange what they hold, which is what anti-entropy reconciliation does~\pdcite{demers1987epidemic}. The theorem below applies both variants to the federation, treating each harbor as one node of a complete network however many daemons run inside it.
 
 \begin{pdclaim}{Theorem}{Conditional Revocation Dissemination}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:fh-conv}
-Let $m$ harbors form a complete overlay. In each reliable synchronous round of duration $\Delta$, informed harbors contact independently uniform peers and exchange revocation deltas. If harbor $X$ publishes revocation $c$ at $t_0$, then:
+Let $m$ harbors form a complete overlay with reliable synchronous rounds of duration $\Delta$. In the push model each harbor that holds revocation $c$ contacts one independently uniform peer per round and sends it $c$; in the push--pull model every harbor contacts one independently uniform peer per round and the two exchange revocation deltas. If harbor $X$ publishes revocation $c$ at $t_0$, then:
 \begin{enumerate}[nosep]
-\item \textbf{Revocation dissemination.} All harbors are informed in expected $\Theta(\log m)$ rounds under the stated epidemic model.
+\item \textbf{Revocation dissemination.} Under either model all harbors are informed within $\Theta(\log m)$ rounds, with high probability and in expectation.
 \item \textbf{Equivocation verification.} Any auditor possessing two differently signed roots for the same $(X,e)$ detects equivocation in $O(1)$ signature and equality checks.
 \item \textbf{No hard deadline.} If delivery can be lost indefinitely or the overlay can remain partitioned, no finite worst-case dissemination or common-auditor detection bound exists.
 \end{enumerate}
 \end{pdclaim}
 
-The first item is the standard asymptotic result for epidemic gossip~\pdcite{demers1987epidemic}; it fixes no constant. The second follows from the signed-root format. The third is an indistinguishability result: an auditor isolated in one partition cannot distinguish equivocation from delay.
+The first item is the standard result for randomized rumor spreading on a complete graph. For push, Pittel showed that $\log_2 m+\ln m+O(1)$ rounds suffice~\pdcite{pittel1987rumor}; push--pull needs only $\log_3 m+O(\log\log m)$~\pdcite{karp2000rumor}. Demers et al.\ introduced anti-entropy and rumor mongering but do not prove these bounds. Neither bound fixes the constant hidden in its last term. The second follows from the signed-root format. The third is an indistinguishability result: an auditor isolated in one partition cannot distinguish equivocation from delay.
 
 \begin{pdclaim}{Design invariant}{Service-Level Attacker Window}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2068,6 +2072,16 @@ Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, How
 \newblock Epidemic Algorithms for Replicated Database Maintenance.
 \newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 1987.
 
+\bibitem{pittel1987rumor}
+Boris Pittel.
+\newblock On Spreading a Rumor.
+\newblock \textit{SIAM Journal on Applied Mathematics}, 47(1):213--223, 1987.
+
+\bibitem{karp2000rumor}
+Richard Karp, Christian Schindelhauer, Scott Shenker, and Berthold V\"ocking.
+\newblock Randomized Rumor Spreading.
+\newblock In \textit{41st IEEE Symposium on Foundations of Computer Science (FOCS)}, pp.~565--574, 2000.
+
 \bibitem{herlihy2018atomic}
 Maurice Herlihy.
 \newblock Atomic Cross-Chain Swaps.
@@ -2224,7 +2238,7 @@ Gabriele Farina.
 Single-harbor capability authenticity (inherited) & ProVerif 2.05 & \Closed & Anchor \path{harbor_card_v*.pv} \\
 Cross-realm authenticity (\S\ref{sec:fh-xfer}) & ProVerif query sketch & \Partial\ no executable model or verification run & \S\ref{sec:fh-proverif-ext} \\
 Attenuation monotonicity across boundary (Lem.~\ref{lem:fh-att}) & Set-inclusion argument & \Partial\ requires shared resource universe; protocol unmechanized & \S\ref{sec:fh-xfer-att} \\
-Federated revocation dissemination (Theorem~\ref{thm:fh-conv}) & Conditional epidemic model~\pdcite{demers1987epidemic} & \Partial\ expected asymptotic result; no partition deadline & \S\ref{sec:fh-revocation} (argument) \\
+Federated revocation dissemination (Theorem~\ref{thm:fh-conv}) & Conditional push or push--pull model~\pdcite{pittel1987rumor,karp2000rumor} & \Partial\ expected asymptotic result; no partition deadline & \S\ref{sec:fh-revocation} (argument) \\
 Cross-witness equivocation evidence & Signed-root comparison; dissemination model & \Partial\ verification immediate once views meet; no hard delivery bound & --- \\
 Escrow extraction bound (Design invariant~\ref{thm:fh-escrow-bound}) & Transition-system case analysis & \Partial\ conditional on non-bypassable custody; no runtime conformance & \S\ref{sec:fh-settlement} \\
 Cross-harbor Conservation (\S\ref{sec:fh-tla-ext}) & Lifecycle-accounting sketch & \Partial\ no executable specification or verification run & \S\ref{sec:fh-cross-conservation} \\
