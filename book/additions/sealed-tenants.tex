@@ -106,17 +106,8 @@ instructions, data otherwise. The rule has three parts.
   with directive use, $I(\ell)$ must be operator.
 \end{enumerate}
 
-The integrity part is new to this chapter, whose labels so far protect
-confidentiality only. It answers the write side of a shared store: the table's
-injections need no special access, and an instruction a model stored in
-long-term memory compromised later sessions again
-\pdcite{greshake2023indirect}.
-
-Third parties named in content are kept out of training. A private fact is
-often shared within a group that has no bounded size
-\pdcite{brown2022privacy}, and the ledger cannot charge an owner it cannot
-name. Table~\ref{tab:sealed-tenant-policy} applies the rule to common classes
-of log content.
+Table~\ref{tab:sealed-tenant-policy} applies the rule to common classes of log
+content.
 
 % The open-font proof needs a fresh margin so this caption sits beside its
 % table rather than below the two citations above it.
@@ -148,6 +139,17 @@ Model inferences about a person & release, visible to that person & no & no & no
 \bottomrule
 \end{tabularx}
 \end{table}
+
+The integrity part is new to this chapter, whose labels so far protect
+confidentiality only. It answers the write side of a shared store: the
+injection rows of Table~\ref{tab:sealed-tenant-channels} need no special access, and an
+instruction a model stored in long-term memory compromised later sessions
+again \pdcite{greshake2023indirect}.
+
+Third parties named in content are kept out of training. A private fact is
+often shared within a group that has no bounded size
+\pdcite{brown2022privacy}, and the ledger cannot charge an owner it cannot
+name.
 
 \begin{pdclaim}{Design invariant}{Label-Keyed Caches and Stores}
 \setlength{\parskip}{4pt plus 1pt}
