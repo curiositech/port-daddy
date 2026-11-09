@@ -4,7 +4,7 @@
 Mem0's update step applies one of \texttt{ADD}, \texttt{UPDATE},
 \texttt{DELETE} or \texttt{NOOP} to each candidate fact, and \texttt{DELETE}
 removes a stored memory that new information contradicts~\pdcite{chhikara2025mem0}.
-Suppose the stored memory is a grant note with $\mathsf{ptr}=\{g_1\}$ and a new
+Suppose the stored memory is a grant note with $\mathsf{ptr}=\{\mathsf{g}_1\}$ and a new
 message says the grant was revoked. Which condition of
 Design invariant~\ref{inv:stp-ledger-faithful} does \texttt{DELETE} violate, and
 what should the update write instead?
@@ -13,10 +13,10 @@ what should the update write instead?
 It violates F4: a note with nonempty $\mathsf{ptr}$ is never deleted or
 rewritten in place. Deleting it erases the record of what the agent believed
 when it last acted, so an audit or appeal cannot reconstruct that belief. The
-update should append a superseding note with $\mathsf{ptr}=\{g_1,r_1\}$, where
-$r_1$ is the revocation event in $L$, and tombstone the old note. F1 adds a
+update should append a superseding note with $\mathsf{ptr}=\{\mathsf{g}_1,\mathsf{r}_1\}$, where
+$\mathsf{r}_1$ is the revocation event in $\mathcal{L}$, and tombstone the old note. F1 adds a
 second requirement: if the revocation exists only in the message and not in
-$L$, the new note is texture and cannot change the grant's status until the
+$\mathcal{L}$, the new note is texture and cannot change the grant's status until the
 issuer records the revocation. Mem0's graph variant, which marks a conflicting
 relation invalid instead of removing it, is closer to F4.
 \end{pdsolution}
@@ -31,13 +31,13 @@ consolidation receipt let an auditor find?
 Step~1 labels the ERP content with an external source class taken from its
 channel. Step~2 does not fire, because the ERP record does not claim to be a
 grant; it is texture. Step~3 stops the false authority: the batch would set the
-note with $\mathsf{ptr}=\{g_1,g_2\}$ to scope $\{\text{lunch},\text{reception}\}$,
-while $L$ gives $S_L=\{\text{lunch}\}$, so F1 fails and the batch is rejected
+note with $\mathsf{ptr}=\{\mathsf{g}_1,\mathsf{g}_2\}$ to scope $\{\text{lunch},\text{reception}\}$,
+while $\mathcal{L}$ gives $S_{\mathcal{L}}=\{\text{lunch}\}$, so F1 fails and the batch is rejected
 whole. If the checker is misconfigured and accepts the batch, step~7 still stops
-the order: admission evaluates $S_L$, reception $\notin S_L$, and the request is
+the order: admission evaluates $S_{\mathcal{L}}$, reception $\notin S_{\mathcal{L}}$, and the request is
 denied. The receipt records the digests before and after, the consolidator and
 its engine, the policy version and the verdict. In the misconfigured run it
-shows an accepted batch that superseded the $\{g_1,g_2\}$ note, which is where
+shows an accepted batch that superseded the $\{\mathsf{g}_1,\mathsf{g}_2\}$ note, which is where
 an auditor finds the fault.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-bounded-coverage}
@@ -54,7 +54,7 @@ the role needs $kb=200\cdot 12=2{,}400$ bits. The budget is
 $256\cdot 8=2{,}048$ bits, and $2{,}048<2{,}400$, so by
 Theorem~\ref{thm:stp-coverage-ledger} some assignment is served with wrong terms.
 The cheapest scheme stores no terms in memory. At boot the harness reads the
-role's open set from $\mathrm{Owed}(L)$ and serves each obligation with its full
+role's open set from $\mathrm{Owed}(\mathcal{L})$ and serves each obligation with its full
 terms; obligations created during the session are served from their ledger
 events as they are recorded. Memory may hold pointers or none. If the ledger
 read fails, the successor must not act within the scope of any obligation it

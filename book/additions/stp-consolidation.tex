@@ -91,49 +91,49 @@ reached an average attack success rate of 80\% or more while poisoning under
 
 \begin{definition}[Memory as a view]\label{def:stp-memory-view}
 \pdstatus{\Designed}{}
-Let $L$ be the append-only ledger. Four functions of $L$ describe the person's
+Let $\mathcal{L}$ be the append-only ledger. Four functions of $\mathcal{L}$ describe the person's
 account: the
-outstanding-obligation set $\mathrm{Owed}(L)$ (open commitments, debts, escrow,
-open sanctions); the authority state $\mathrm{Auth}(L)$ (live grants with their
-scopes, revocations, restrictions); the outcome multiset $\mathrm{Rep}(L)$,
+outstanding-obligation set $\mathrm{Owed}(\mathcal{L})$ (open commitments, debts, escrow,
+open sanctions); the authority state $\mathrm{Auth}(\mathcal{L})$ (live grants with their
+scopes, revocations, restrictions); the outcome multiset $\mathrm{Rep}(\mathcal{L})$,
 tombstones applied, keyed by principal and engine; and the lineage
-$\mathrm{Lin}(L)$ with its closure $\mathsf{succ}^{*}$. A \textbf{memory} $M$
+$\mathrm{Lin}(\mathcal{L})$ with its closure $\mathsf{succ}^{*}$. A \textbf{memory} $M$
 is a finite set of notes
 $n=(\mathsf{text},\mathsf{ptr},\mathsf{kind},\mathsf{src})$, where
-$\mathsf{ptr}\subseteq\mathrm{ids}(L)$ names the events the note rests on
+$\mathsf{ptr}\subseteq\mathrm{ids}(\mathcal{L})$ names the events the note rests on
 (empty for \pdterm{texture}, episodic detail that carries no authority) and $\mathsf{src}$ is a source class the platform
 assigns from the arrival channel. A \textbf{consolidation} is any procedure
-$\Gamma$ mapping $(M,L)$ to a memory $M'$ that writes only to the memory store.
+$\Gamma$ mapping $(M,\mathcal{L})$ to a memory $M'$ that writes only to the memory store.
 \end{definition}
 
 \begin{pdexample}{Reading Heron Off the Ledger}
 \setlength{\parskip}{4pt plus 1pt}
 \label{ex:stp-four-readings}
-This is a constructed example. Here are seven entries of $L$ on Heron's
+This is a constructed example. Here are seven entries of $\mathcal{L}$ on Heron's
 account, in order:
 \begin{enumerate}[label=e\arabic*,leftmargin=2.2em,itemsep=1pt]
 \item succession heron\#1 $\to$ heron\#2, signed by Alice's daemon;
-\item grant $g_1$: edit \texttt{src/checkout/*} until Friday;
-\item commitment $c_1$: fix the session token and keep the acceptance test, due
+\item grant $\mathsf{g}_1$: edit \texttt{src/checkout/*} until Friday;
+\item commitment $\mathsf{c}_1$: fix the session token and keep the acceptance test, due
 Friday 17:00;
-\item closure of $c_1$: suite v3 passed at commit \texttt{a41f9c} on runner-7;
+\item closure of $\mathsf{c}_1$: suite v3 passed at commit \texttt{a41f9c} on runner-7;
 \item outcome $o_1$: accepted;
-\item commitment $c_2$: review Pike's patch, due Monday;
-\item revocation of $g_1$.
+\item commitment $\mathsf{c}_2$: review Pike's patch, due Monday;
+\item revocation of $\mathsf{g}_1$.
 \end{enumerate}
-The four readings are $\mathrm{Owed}(L)=\{c_2\}$, because e4 closed $c_1$;
-$\mathrm{Auth}(L)=\varnothing$, because e7 revoked $g_1$;
-$\mathrm{Rep}(L)=\{o_1\}$; and $\mathrm{Lin}(L)$ is heron\#1 $\to$ heron\#2.
+The four readings are $\mathrm{Owed}(\mathcal{L})=\{\mathsf{c}_2\}$, because e4 closed $\mathsf{c}_1$;
+$\mathrm{Auth}(\mathcal{L})=\varnothing$, because e7 revoked $\mathsf{g}_1$;
+$\mathrm{Rep}(\mathcal{L})=\{o_1\}$; and $\mathrm{Lin}(\mathcal{L})$ is heron\#1 $\to$ heron\#2.
 For this chapter's purposes, those four readings describe Heron's account
 completely.
 
 Now Heron's memory consolidates away the note ``review Pike's patch''. The
-memory changes and $L$ does not, so $\mathrm{Owed}(L)$ still contains $c_2$.
+memory changes and $\mathcal{L}$ does not, so $\mathrm{Owed}(\mathcal{L})$ still contains $\mathsf{c}_2$.
 That is ``forgetting is not resetting'' in one line.
 \end{pdexample}
 
 The theorem below rests on two assumptions about how the system is deployed.
-\textbf{P1} (memory cannot write to the ledger): entries are added to $L$ only
+\textbf{P1} (memory cannot write to the ledger): entries are added to $\mathcal{L}$ only
 by specific ledger operations (opening a commitment, closing it against
 independent evidence as in Def.~\ref{def:oracle}, a permission granted or
 revoked by its issuer, a tombstone, a succession record). $\Gamma$ can perform
@@ -141,7 +141,7 @@ none of them, and none of them accepts a memory note as evidence. \textbf{P2}
 (permission is read only from the ledger): when an agent asks to do something
 with an outside effect, such as sending a payment or pushing a commit, the
 guard decides yes or no from the request and the permissions recorded in the
-ledger, $\mathrm{Auth}(L)$, alone; what the memory $M$ says plays no part. The
+ledger, $\mathrm{Auth}(\mathcal{L})$, alone; what the memory $M$ says plays no part. The
 theorem also uses the principal binding, defined formally in the next
 section.
 
@@ -150,15 +150,15 @@ section.
 Assume P1. For every consolidation $\Gamma$, the values of $\mathrm{Owed}$,
 $\mathrm{Auth}$, $\mathrm{Rep}$ and $\mathrm{Lin}$, and the principal binding of
 Definition~\ref{def:principal}, are the same after $\Gamma$ as before, and an
-obligation can leave $\mathrm{Owed}(L)$ only through a ledger operation. If P2
+obligation can leave $\mathrm{Owed}(\mathcal{L})$ only through a ledger operation. If P2
 also holds, $\Gamma$ cannot change whether a given request is allowed; it can
 change only which requests the agent makes.
 \end{pdclaim}
 \begin{proof}
-By P1, $\Gamma$ appends nothing to the append-only $L$, so $L$ is unchanged, and
-so are the listed functions of $L$. Membership in $\mathrm{Owed}(L)$ changes
-only when $L$ does, which by P1 takes a ledger operation. Under P2, the guard's
-decision depends only on the request and $\mathrm{Auth}(L)$, and $\Gamma$
+By P1, $\Gamma$ appends nothing to the append-only $\mathcal{L}$, so $\mathcal{L}$ is unchanged, and
+so are the listed functions of $\mathcal{L}$. Membership in $\mathrm{Owed}(\mathcal{L})$ changes
+only when $\mathcal{L}$ does, which by P1 takes a ledger operation. Under P2, the guard's
+decision depends only on the request and $\mathrm{Auth}(\mathcal{L})$, and $\Gamma$
 changes neither for a fixed request.
 \end{proof}
 
@@ -178,16 +178,16 @@ place a note that points into the ledger.
 \begin{pdclaim}{Design invariant}{Ledger-Faithful Consolidation}
 \label{inv:stp-ledger-faithful}
 \pdstatus{\Designed}{}
-A consolidation $\Gamma:(M,L)\mapsto M'$ is ledger-faithful when:
+A consolidation $\Gamma:(M,\mathcal{L})\mapsto M'$ is ledger-faithful when:
 \begin{enumerate}[label=F\arabic*,leftmargin=2.2em,itemsep=2pt]
 \item \emph{No mint.} Every note asserting a commitment, closure, grant,
-revocation, outcome or debt has a nonempty $\mathsf{ptr}$ into $L$ and carries
+revocation, outcome or debt has a nonempty $\mathsf{ptr}$ into $\mathcal{L}$ and carries
 its status (scope, amounts, deadlines, open or closed) as structured fields
-that must equal what $L$ gives for those events. Free text in such a note is
+that must equal what $\mathcal{L}$ gives for those events. Free text in such a note is
 texture. A note with empty $\mathsf{ptr}$ is texture, with authority no higher
 than its least authoritative source.
-\item \emph{Coverage.} Every element of $\mathrm{Owed}(L)$, and every live grant
-and restriction in $\mathrm{Auth}(L)$, within the role's scope reaches the
+\item \emph{Coverage.} Every element of $\mathrm{Owed}(\mathcal{L})$, and every live grant
+and restriction in $\mathrm{Auth}(\mathcal{L})$, within the role's scope reaches the
 successor with its full terms: counterparty, scope, deadline, conditions.
 Serving it from the ledger at boot discharges this condition.
 \item \emph{One source, one vote.} Notes resting on the same events or source
@@ -201,7 +201,7 @@ This is a requirement on any consolidator allowed to write to the memory path;
 tombstones, and the property F4 cites, are defined in the section on revocation
 later in this chapter.
 F1 and F4 can be checked deterministically against
-$L$ because they compare pointers and structured fields, not prose; no check
+$\mathcal{L}$ because they compare pointers and structured fields, not prose; no check
 of free text is claimed, and none is needed, since free text never carries
 authority. F2 needs a declared list of required records, like the coverage test of
 Figure~\ref{fig:stp-handoff-coverage}.
@@ -227,7 +227,7 @@ keeps open obligations visible until resolved or validly transferred.
 \setlength{\parskip}{4pt plus 1pt}
 A tempting test calls a consolidation safe if it preserves the outstanding
 obligations and the outcome multiset. It is neither necessary nor sufficient.
-\emph{Not necessary:} both are functions of $L$, the harness should serve open
+\emph{Not necessary:} both are functions of $\mathcal{L}$, the harness should serve open
 obligations from the ledger anyway (Theorem~\ref{thm:stp-coverage-ledger}), and
 an agent need not remember its reputation to have it. \emph{Not sufficient:}
 each case below preserves both and still changes what the agent does.
@@ -254,11 +254,11 @@ directive with no ledger pointer is texture, served as a claim.
 \setlength{\parskip}{4pt plus 1pt}
 \label{ex:stp-lunches-only}
 The case is Cerruti et al.'s procurement example~\pdcite{cerruti2026eal}. Grant
-$g_1$ lets the buyer purchase from TableWorks in categories
-$S_1=\{\text{lunch},\text{coffee}\}$, capped at 6{,}000 USD. Amendment $g_2$
+$\mathsf{g}_1$ lets the buyer purchase from TableWorks in categories
+$S_1=\{\text{lunch},\text{coffee}\}$, capped at 6{,}000 USD. Amendment $\mathsf{g}_2$
 narrows it to lunches:
 \[
-S_L=S_1\cap\{\text{lunch}\}=\{\text{lunch}\}.
+S_{\mathcal{L}}=S_1\cap\{\text{lunch}\}=\{\text{lunch}\}.
 \]
 A non-authoritative ERP record lists the vendor under lunches and reception
 refreshments, and an incremental writer absorbs it (write ``reception'' for
@@ -266,21 +266,21 @@ reception refreshments):
 \[
 S_M=\{\text{lunch}\}\cup\{\text{reception}\}=\{\text{lunch},\text{reception}\}.
 \]
-Request $q$: 6{,}000 USD of reception refreshments. The amount check passes in
+The request: 6{,}000 USD of reception refreshments. The amount check passes in
 both views, $6{,}000\le 6{,}000$. The category check splits them:
-reception $\notin S_L$, so the ledger denies; reception $\in S_M$, so memory
+reception $\notin S_{\mathcal{L}}$, so the ledger denies; reception $\in S_M$, so memory
 permits. False authority has formed.
 
 Stipulate one open commitment, Friday's catering, before and after the update:
 $|\mathrm{Owed}|=1$ both times, and no outcome was added or removed. The
 tempting test passes, and the memory is wrong. F1 catches it: the grant note
-rests on $\mathsf{ptr}=\{g_1,g_2\}$, its scope field must equal the current
-scope in $L$, which is $S_L$, and the ERP text has an empty $\mathsf{ptr}$, so it
+rests on $\mathsf{ptr}=\{\mathsf{g}_1,\mathsf{g}_2\}$, its scope field must equal the current
+scope in $\mathcal{L}$, which is $S_{\mathcal{L}}$, and the ERP text has an empty $\mathsf{ptr}$, so it
 is texture and cannot widen the grant note. P2 catches
-it independently, because admission evaluates $S_L$.
+it independently, because admission evaluates $S_{\mathcal{L}}$.
 
 \emph{Now you try:} a 6{,}000 USD and a 6{,}001 USD lunch order. (Both views
-permit the first, since lunch $\in S_L\cap S_M$ and $6{,}000\le 6{,}000$; both
+permit the first, since lunch $\in S_{\mathcal{L}}\cap S_M$ and $6{,}000\le 6{,}000$; both
 deny the second, since $6{,}001>6{,}000$.)
 \end{pdexample}
 
@@ -293,17 +293,17 @@ assigned by the platform from the arrival channel, never inferred from the text.
 on the memory path; they enter only through ledger operations, so P1 holds by
 construction.
 \item A consolidation is one batch proposal over a snapshot of $M$. A
-deterministic checker, not the consolidator, tests F1 and F4 against $L$,
+deterministic checker, not the consolidator, tests F1 and F4 against $\mathcal{L}$,
 comparing pointers and structured status fields, and rejects a failing batch
-whole. Notes are served with those fields rendered from $L$, so prose in a note
+whole. Notes are served with those fields rendered from $\mathcal{L}$, so prose in a note
 cannot restate a grant more widely than the ledger does.
 \item A note with imperative force and empty $\mathsf{ptr}$ is served as a claim
 labelled with its author and session, not as an instruction.
-\item Summaries are rebuilt from $L$ and retained episodes, never from the
+\item Summaries are rebuilt from $\mathcal{L}$ and retained episodes, never from the
 previous summary.
 \item Each memory store belongs to one principal.
 \item No admission decision reads $M$ (P2): memory may suggest an action; only
-$\mathrm{Auth}(L)$ can permit it.
+$\mathrm{Auth}(\mathcal{L})$ can permit it.
 \end{enumerate}
 Claude Code's documentation states the read half for its own files: they are context,
 and blocking an action regardless of the model's decision takes a
