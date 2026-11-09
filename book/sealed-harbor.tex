@@ -1164,8 +1164,9 @@ while the advanced bound gives $3.31$, so
 the advanced bound is not yet smaller; at $k=128$, $\varepsilon=0.05$, basic
 gives $6.40$ but advanced gives $3.30$\pdprov{a3\_epsilon\_ledger.py}{20260816}{verified}.
 
-These comparisons fix the caps and horizon. The smaller advanced
-$\varepsilon$ allows $\delta'=10^{-6}$; basic composition remains pure-DP.
+These comparisons fix the caps and horizon. The advanced bound's smaller
+$\varepsilon$ comes with a failure probability $\delta'=10^{-6}$; basic
+composition remains pure-DP.
 The crossing compares $\varepsilon$ values, not uniformly stronger guarantees.
 
 \emph{Now you try:} at $k=8$,
