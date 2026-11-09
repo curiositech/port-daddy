@@ -34,7 +34,7 @@
   \node[pd terminal,minimum width=3.3cm]    (S2) at (\sx,0)       {graduated};
   \draw[pd focus arrow] (S0) -- (S1);
   \draw[pd focus arrow] (S1) -- (S2);
-  \foreach \i/\t in {1.5/{$S$ posts bond}, 0.5/{criteria met; bond funded}}{
+  \foreach \i/\t in {1.5/{sponsor posts bond}, 0.5/{criteria met; bond funded}}{
     \node[pd label,anchor=east,text width=2.3cm,align=right] at ({\gx-.55},{\i*\dy}) {\t};}
   \foreach \i/\n in {1.5/1, 0.5/2}{\node[pd badge] at ({\gx-.22},{\i*\dy}) {\n};}
   % the one branch off the honest path: misbehavior forfeits the sponsor bond
@@ -48,7 +48,7 @@
   \node[pd title,anchor=north west] at (.05,{\ly-.16}) {guard};
   \node[pd title,anchor=north west] at (5.90,{\ly-.16}) {what it costs};
   \draw[pd hairline] (0,{\ly-.80}) -- (\R,{\ly-.80});
-  \foreach \i/\n/\g/\c in {0/1/{sponsor $S$ posts bond, sized to worst-case loss}/{$S$'s capital at risk},
+  \foreach \i/\n/\g/\c in {0/1/{sponsor posts bond, sized to worst-case loss}/{sponsor's capital at risk},
                            1/2/{criteria met, $N$'s bond funded; sponsor release permitted}/{$N$'s replacement bond},
                            2/3/{$N$ forges, equivocates, or refuses a settled bond}/{sponsor bond forfeit, not $N$'s}}{
     \node[pd badge] at (.28,{\ly-1.60-\i*1.10}) {\n};
