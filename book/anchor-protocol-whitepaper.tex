@@ -664,7 +664,7 @@ the daemon loads built from this crate? [internal]
 \toprule
 \textbf{Layer} & \textbf{Tool} & \textbf{What it shows} & \textbf{What it cannot show} \\
 \midrule
-protocol model & ProVerif & secrecy, authentication correspondence in the modeled phase, attenuation soundness on the multi-hop model & that the modeled protocol is this source (the specification gap; a human asserts it) \\
+protocol model & ProVerif & authentication correspondence in the modeled phase, attenuation soundness on the multi-hop model; its secrecy queries hold by construction & that the modeled protocol is this source (the specification gap; a human asserts it) \\
 Rust source & Kani and tests & decoded lifetime and channel-policy predicates on stated domains; bounded subset checks; a separately stubbed parser & that the inspected source is this running binary (the deployment gap; a human asserts it) \\
 running binary & conformance suite & the selected attacks are refused at the FFI boundary & any attack the suite does not contain \\
 \bottomrule
@@ -704,7 +704,10 @@ reproduce the full models.
 \centering
 \caption{Five baseline queries and two algorithm-confusion tests.
 Pinned verification passes; the naive verifier fails as intended.
-The delegation query covers a single hop.}
+The delegation query covers a single hop. The two secrecy queries are
+tautologies of their models: no process sends the key on a public
+channel and no rule recovers it, so they check the model, not the
+protocol.}
 \label{tab:proverif-results}
 \small
 \renewcommand{\arraystretch}{1.12}
@@ -1234,13 +1237,13 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 
 \begin{table}[H]
 \centering
-\caption{ProVerif checks the model. Kani checks stated decoded-policy domains, bounded capability structures, a separately stubbed 32-byte parser, and a 16-byte comparator. Neither tool proves the deployed system correct.}
+\caption{ProVerif checks the model. Kani checks stated decoded-policy domains, bounded capability structures, a separately stubbed 32-byte parser, and a 16-byte comparator. Neither tool proves the deployed system correct. Master-key secrecy is a tautology of its model, which never sends the key on a public channel (Appendix~\ref{app:phase2}).}
 \label{tab:properties}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lll@{}}
 \toprule
 \textbf{Property} & \textbf{Verified} & \textbf{Tool} & \textbf{Deployed} \\
 \midrule
-Master Key Secrecy~\pdcite{blanchet2016modeling} & Yes & ProVerif & --- \\
+Master Key Secrecy~\pdcite{blanchet2016modeling} & Tautology & ProVerif & --- \\
 Algorithm Confusion Immunity~\pdcite{mclean2015critical} & Yes & ProVerif & --- \\
 Authenti\-cation correspondence~\pdcite{lowe1997hierarchy} & Yes & ProVerif & --- \\
 Delegation Integrity~\pdcite{birgisson2014macaroons} & Yes & ProVerif & --- \\
@@ -1789,10 +1792,13 @@ No run is needed to see the
 counterfactual: delete that one word and the replicated output publishes the
 key directly, and the secrecy query fails on the first step.
 
-A model can be
-this close to failing and still be sound. It must not be sound by
-\emph{accident}, which is why the key-distribution channel is
-declared rather than assumed. [internal]
+So the secrecy query is a tautology of the model. It holds because the model
+never sends the key where the attacker can read it, and it would hold for any
+protocol written that way. The v1 model is the same: \texttt{master\_key} is
+never output at all, and no rule inverts \texttt{hs256}. The TRUE verdicts in
+Table~\ref{tab:proverif-results} check that each model keeps its key off the
+public channel. They are not evidence that the protocol keeps it secret.
+[internal]
 \end{pdexample}
 
 \begin{lstlisting}[caption={\texttt{harbor\_card\_v2\_asymmetric.pv} (verified in ProVerif 2.05)}]
