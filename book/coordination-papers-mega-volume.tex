@@ -94,8 +94,8 @@
 {\large\bfseries\pdeditiontitle}\par\vspace{3pt}
 {\color{hhgray}\pdeditionsubtitle}\par\vspace{10pt}
 {\bfseries\pdeditionclaim}\par\vspace{6pt}
-{\color{hhgray}This book follows that claim from one machine and one operator to work shared
-across principals, economic interests, and mutually distrustful systems. Its \pdchaptercountword{}
+{\color{hhgray}This book follows that claim from one machine run by one human to work shared
+across several owners, economic interests, and mutually distrustful systems. Its \pdchaptercountword{}
 chapters are ordered by what they stand on; each proof chapter follows the chapter whose promises it
 keeps.}\par\vspace{12pt}
 Erich Owens \textperiodcentered\ Curiositech LLC \textperiodcentered\ \texttt{engineering@portdaddy.dev}\par
@@ -157,7 +157,7 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \begin{abstract}
 \noindent Two workers can agree on a task and still overwrite each other's work.
 A passing test can concern the wrong revision. A process can disappear while
-its obligations remain. This book studies the mechanisms needed to distinguish
+the work it owes remains. This book studies the mechanisms needed to distinguish
 these cases and make coordinated work inspectable.
 
 The argument starts on one machine, where a single program checks and
@@ -169,7 +169,7 @@ name their models, and proposed designs are kept apart from built ones.
 
 The book's main construction is a coordinating service, the \pdterm{kernel},
 that keeps durable records and checks each change it governs before that
-change takes effect. It is one way to keep the stated safety rules true, not a
+change is made. It is one way to keep the stated safety rules true, not a
 proof that every system needs this design. Three limits run through the book.
 A digital signature shows which key signed a record, not that the record is
 accurate. A penalty deters cheating only if cheating is likely to be detected
@@ -190,7 +190,7 @@ A green test result can accompany a deleted assertion. A convincing account
 of a repair can describe a different revision from the one delivered. Two
 capable workers can undo each other's changes, and a worker that disappears
 can leave a payment, a promise or a disputed result behind. The
-\pdterm{operator}, the person who runs the machine and answers for the
+\pdterm{operator}, the human who runs the machine and answers for the
 workers on it, must then be able to reconstruct what was allowed, what
 happened and what is still owed, and to continue after a convincing answer
 turns out to be wrong. That is the standard this book asks its mechanisms to
@@ -215,9 +215,9 @@ An \pdterm{agent} is a program,
 usually built around a language model, that observes its task and proposes
 actions; the workers above are agents. A \pdterm{harbor} is the governed environment the agents work in,
 run by a \pdterm{daemon}, a background service that holds the shared record and
-decides, for each change an agent proposes, whether that change takes effect.
+decides, for each change an agent proposes, whether that change goes ahead.
 That decision is \pdterm{admission}, and to admit a change means only to let it
-pass this check and take effect. The shared record includes a
+pass this check and go ahead. The shared record includes a
 \pdterm{ledger}, the authoritative account of who holds which resources, who
 owes what and what has been paid. A \pdterm{grant} states what its holder may
 do, to which resources and until when; the daemon signs each grant as a
