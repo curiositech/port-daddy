@@ -1,0 +1,166 @@
+% figures/pd-weld.tex -- \weld{label}{keyword}: a pointer from one chapter to
+% a section of another, printed with its page when the page is worth having.
+%
+%   \weld{fh:sec:fh-xfer-ceremony}{transfer}   ->  "§8.4.2, p. 793"  (far)
+%                                              ->  "§8.4.2"          (near)
+%
+% The pointer prints its page when the target is three or more pages from
+% the pointer, and only the section number when it is nearer: a reader one
+% page-turn away does not need a folio, and one two hundred pages away does.
+% The distance is measured on the previous pass from a label set at the
+% pointer, so the decision is per build: the open-proof and the Suisse
+% publication editions each decide it for their own pagination.
+%
+% THE LABEL. A chapter writes another chapter's section as
+% <prefix>:<label>, the same spelling the generator already leaves alone
+% (scripts/generate-mega-whitepaper.mjs, namespaceOne): `fh:sec:fh-xfer-
+% ceremony` is the Federated Harbor's \label{sec:fh-xfer-ceremony}. An
+% unprefixed label is the chapter's own. Chapter 0 is \input directly and
+% is not namespaced, so its sections are reached as prereq:<label> and the
+% prefix is dropped here. The volume appendices are not namespaced either;
+% a chapter cannot point into them with \ref, and \weld does not try.
+%
+% THE KEYWORD. It prints nothing. scripts/lint/check-welds.mjs (run by the
+% generator, so a broken weld fails the build before TeX starts) checks that
+% the label names a numbered section and that the section's text contains
+% the keyword; the generator also writes the chapter-by-chapter dependency
+% matrix the welds define, mega-volume-welds.json, for Appendix D.
+%
+% A MISSING TARGET prints "§??" and raises LaTeX's own undefined-reference
+% warning (refcount's \refused), which the publication gate in
+% scripts/build-whitepapers.sh refuses.
+%
+% CONVERGENCE. Printing ", p. P" lengthens the paragraph, which can move the
+% pointer by a page and so change the distance it was decided on. A weld
+% that printed its page on the previous pass keeps it down to two pages, so a
+% one-page wobble cannot flip the decision back and forth until the build
+% runs out of passes.
+%
+% In a standalone chapter compile (\ifpdbook false) a weld into another
+% chapter names that chapter by title, because that chapter is another
+% document; a weld into the chapter's own sections resolves as usual.
+\usepackage{refcount}
+\makeatletter
+% The previous pass's "printed its page" decisions, written at shipout and
+% read back from the .aux on the next pass.
+\providecommand\pdweldfar[1]{\global\expandafter\let\csname pd@weld@far@#1\endcsname\@empty}
+\def\pd@weld@markfar#1{\protected@write\@auxout{}{\string\pdweldfar{#1}}}
+\makeatother
+\ExplSyntaxOn
+\int_const:Nn \c__pd_weld_far_int { 3 }
+\int_const:Nn \c__pd_weld_sticky_int { 2 }
+\tl_const:Nn \c__pd_weld_foundations_tl { prereq }
+\int_new:N \g__pd_weld_int
+\tl_new:N \l__pd_weld_label_tl
+\tl_new:N \l__pd_weld_head_tl
+\tl_new:N \l__pd_weld_rest_tl
+\tl_new:N \l__pd_weld_elsewhere_tl
+\tl_new:N \l__pd_weld_site_tl
+\tl_new:N \l__pd_weld_target_page_tl
+\tl_new:N \l__pd_weld_site_page_tl
+\seq_new:N \l__pd_weld_parts_seq
+\bool_new:N \l__pd_weld_far_bool
+\regex_const:Nn \c__pd_weld_split_regex { \A ([^:]+) : (.+) \Z }
+\regex_const:Nn \c__pd_weld_folio_regex { \A [0-9]+ \Z }
+
+\NewDocumentCommand \weld { m m } { \__pd_weld:n {#1} }
+
+% Which label TeX looks up, or which chapter is another document.
+\cs_new_protected:Npn \__pd_weld_resolve:n #1
+  {
+    \tl_set:Nn \l__pd_weld_label_tl {#1}
+    \tl_clear:N \l__pd_weld_elsewhere_tl
+    \regex_extract_once:NnNT \c__pd_weld_split_regex {#1} \l__pd_weld_parts_seq
+      {
+        \tl_set:Nx \l__pd_weld_head_tl { \seq_item:Nn \l__pd_weld_parts_seq { 2 } }
+        \tl_set:Nx \l__pd_weld_rest_tl { \seq_item:Nn \l__pd_weld_parts_seq { 3 } }
+        \legacy_if:nTF { pdbook }
+          {
+            \str_if_eq:eeT { \l__pd_weld_head_tl } { \c__pd_weld_foundations_tl }
+              { \tl_set_eq:NN \l__pd_weld_label_tl \l__pd_weld_rest_tl }
+          }
+          {
+            \str_if_eq:eeTF { \l__pd_weld_head_tl } { \pdchapterprefix }
+              { \tl_set_eq:NN \l__pd_weld_label_tl \l__pd_weld_rest_tl }
+              {
+                \bool_lazy_or:nnT
+                  { \str_if_eq_p:ee { \l__pd_weld_head_tl } { \c__pd_weld_foundations_tl } }
+                  { \cs_if_exist_p:c { pdchapternumberof \l__pd_weld_head_tl } }
+                  { \tl_set_eq:NN \l__pd_weld_elsewhere_tl \l__pd_weld_head_tl }
+              }
+          }
+      }
+  }
+
+\cs_new_protected:Npn \__pd_weld:n #1
+  {
+    \__pd_weld_resolve:n {#1}
+    \tl_if_empty:NTF \l__pd_weld_elsewhere_tl
+      { \__pd_weld_print: }
+      {
+        \str_if_eq:eeTF { \l__pd_weld_elsewhere_tl } { \c__pd_weld_foundations_tl }
+          { Chapter \nobreakspace 0 }
+          {
+            \exp_args:Nee \pdchapref { \l__pd_weld_elsewhere_tl }
+              { \exp_not:v { pdchaptertitleof \l__pd_weld_elsewhere_tl } }
+          }
+      }
+  }
+
+\cs_new_protected:Npn \__pd_weld_print:
+  {
+    \int_gincr:N \g__pd_weld_int
+    \tl_set:Nx \l__pd_weld_site_tl { pd-weld-site- \int_use:N \g__pd_weld_int }
+    \exp_args:NV \label \l__pd_weld_site_tl
+    \exp_args:NV \refused \l__pd_weld_label_tl
+    \exp_args:NV \IfRefUndefinedExpandable \l__pd_weld_label_tl
+      { \textbf { \S?? } }
+      {
+        \tl_set:Nx \l__pd_weld_target_page_tl
+          { \exp_args:NV \getpagerefnumber \l__pd_weld_label_tl }
+        \tl_set:Nx \l__pd_weld_site_page_tl
+          { \exp_args:NV \getpagerefnumber \l__pd_weld_site_tl }
+        \__pd_weld_decide:
+        \use:x { \exp_not:N \hyperref [ \l__pd_weld_label_tl ] }
+          { \S \use:x { \exp_not:N \getrefnumber { \l__pd_weld_label_tl } } }
+        \bool_if:NT \l__pd_weld_far_bool
+          {
+            ,~p.\nobreakspace
+            \use:x { \exp_not:N \hyperref [ \l__pd_weld_label_tl ] }
+              { \tl_use:N \l__pd_weld_target_page_tl }
+            \use:x { \exp_not:c { pd@weld@markfar } { \int_use:N \g__pd_weld_int } }
+          }
+      }
+  }
+
+% Far when the pages are three or more apart, or two or more apart for a weld
+% that was far last pass. A folio that is not an arabic number (front matter)
+% cannot be measured, and an unmeasured pointer prints its page.
+\cs_new_protected:Npn \__pd_weld_decide:
+  {
+    \bool_set_true:N \l__pd_weld_far_bool
+    \regex_match:NVT \c__pd_weld_folio_regex \l__pd_weld_target_page_tl
+      {
+        \regex_match:NVT \c__pd_weld_folio_regex \l__pd_weld_site_page_tl
+          {
+            \int_compare:nNnT
+              {
+                \int_abs:n
+                  { \l__pd_weld_target_page_tl - \l__pd_weld_site_page_tl }
+              }
+              <
+              {
+                \cs_if_exist:cTF { pd@weld@far@ \int_use:N \g__pd_weld_int }
+                  { \c__pd_weld_sticky_int } { \c__pd_weld_far_int }
+              }
+              { \bool_set_false:N \l__pd_weld_far_bool }
+          }
+      }
+  }
+\prg_generate_conditional_variant:Nnn \regex_match:Nn { NV } { T }
+\ExplSyntaxOff
+% Bookmarks and other PDF strings carry the keyword: a section number in a
+% bookmark would point nowhere.
+\ifdefined\pdfstringdefDisableCommands
+  \pdfstringdefDisableCommands{\def\weld#1#2{#2}}%
+\fi
