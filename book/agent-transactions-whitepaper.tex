@@ -697,8 +697,8 @@ identify the intended tree and its size. The drawing omits wire-format
 details; the harbor log applies the same path calculation once in the session
 tree and once in the log.
 
-\paragraph{Proving that the log only grew.} Because the log is one tree that
-only grows, anyone can also check that it has only grown. Given two signed checkpoints of
+\paragraph{Proving that the log only grew.} A single growing tree also lets
+anyone check that nothing was removed from it. Given two signed checkpoints of
 sizes $N_1<N_2$, a \pdterm{consistency proof} is the $O(\log N_2)$ hashes
 that show the first $N_1$ leaves of the larger tree are exactly the smaller
 tree~\pdcite{laurie2013ct}. If a daemon dropped or changed a session root it
@@ -807,8 +807,8 @@ so no central allocator can gather it in time~\pdcite{hayek1945}.
 operators\ifpdbook\ (\S\ref{ls:sec:hayek})\fi. Exclusive file locks meet the
 problem directly. The lock manager knows who holds which file. It does not
 know that the holder will never need the file, or that another agent needs it
-now; each agent knows only its own half. The instance below shows what that
-costs.
+now; each agent knows only its own half. The instance below shows the
+resulting loss.
 
 \begin{pdclaim}{Theorem}{A Pareto-Inferior Locking Instance}
 \setlength{\parskip}{4pt plus 1pt}
@@ -846,7 +846,7 @@ tasks ship. Both agents preferred that outcome, and the lock blocked it.
 
 \input{figures/fig-sen-pareto-locking}
 
-This instance refutes the universal claim that exclusive locks always improve team welfare. The loss has no conflict of preferences in it: both agents rank the same outcome first, and what fails is that Pike's need and Wren's indifference never reach the holder of the lock before the deadline. That is Hayek's knowledge problem, not Sen's liberal paradox~\pdcite{sen1970impossibility}, which needs individuals whose preferences conflict over an unrestricted domain. A production lock manager may also negotiate releases or time out claims. The usable lesson is narrower. Do not give an agent an unconditional veto over a shared resource when the team may know something the allocator does not.
+This instance refutes the universal claim that exclusive locks always improve team welfare. The loss has no conflict of preferences in it: both agents rank the same outcome first, and what fails is that Pike's need and Wren's indifference never reach the holder of the lock before the deadline. That is Hayek's knowledge problem. Sen's liberal paradox~\pdcite{sen1970impossibility} is a different result: it needs individuals whose preferences conflict over an unrestricted domain. A production lock manager may also negotiate releases or time out claims. The usable lesson is narrower. Do not give an agent an unconditional veto over a shared resource when the team may know something the allocator does not.
 
 The scenario is common, because AI agents are \emph{inherently uncertain} about which files they will modify when they begin a task.\marginnote{\input{figures/spark-welfare-loss}\par
 Chance $L_{\mathrm{lock}}(\rho)=1-(1-\rho)^2$ that a precautionary lock blocks at least one of two agents, as the overlap probability $\rho$ grows.} An agent asked to ``fix the login bug'' cannot predict whether it will need the authentication middleware, the route handler, the test suite, or all three. Enforced claims force agents to either:
@@ -1171,7 +1171,7 @@ Table~\ref{tab:claim-stage-game} therefore falls by the expected forfeiture
 $p_{\mathrm f}b$, and every $T$ payoff is unchanged. Here $p_{\mathrm f}$ is
 the chance that the adjudicator proves the false claim and collects; the
 repeated game below still assumes that both principals see every past action.
-If $p_{\mathrm f}b<1$, $F$ still strictly dominates and $(F,F)$, now paying
+If $p_{\mathrm f}b<1$, $F$ still strictly dominates and $(F,F)$, now giving
 $1-p_{\mathrm f}b$ to each, is still the unique stage equilibrium. If
 $p_{\mathrm f}b\ge1$, $T$ is a dominant stage action (strictly so above $1$),
 and truthful signaling needs no repeated game at all.
@@ -1229,9 +1229,9 @@ Substituting $u_D - u_C = 1,\; u_C - u_P = 2$ and $k = 3$ gives $1 - p_{\mathrm 
 \begin{pdclaim}{Theorem}{Claim Signaling Incentive Compatibility}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:claim-signaling-ic}
-Let the players be two principals with persistent identities that cannot escape the stated punishment. Assume the payoffs in Table~\ref{tab:claim-stage-game}; a bond under which every false claim, in every round, forfeits $p_{\mathrm f}b$ in expectation, with $0\le p_{\mathrm f}b<1$; and perfect public monitoring: both players observe the same past actions before each new round.
+Let the players be two principals with persistent identities that cannot escape the stated punishment. Assume the payoffs in Table~\ref{tab:claim-stage-game}; a bond under which every false claim, in every round, forfeits $p_{\mathrm f}b$ in expectation; and perfect public monitoring: both players observe the same past actions before each new round.
 
-Under the three-round graduated-trigger strategy described above, cooperative truthful signaling is a subgame-perfect equilibrium for $\delta>\delta^\star_{k=3}(p_{\mathrm f}b)$, the unique root in $(0,1)$ of
+If $p_{\mathrm f}b<1$, then under the three-round graduated-trigger strategy described above, cooperative truthful signaling is a subgame-perfect equilibrium for $\delta>\delta^\star_{k=3}(p_{\mathrm f}b)$, the unique root in $(0,1)$ of
 \[
 (2+p_{\mathrm f}b)(\delta^3+\delta^2+\delta)-(1-p_{\mathrm f}b)=0.
 \]
@@ -1242,7 +1242,7 @@ The ledger and identity mechanisms motivate these hypotheses but do not establis
 
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-The public punishment counter, zero to three, is the only state. By the one-shot deviation principle for discounted games with bounded payoffs, the profile is subgame-perfect if no single deviation, followed by a return to the profile, pays in any state. In the cooperation state a deviation gains $1-p_{\mathrm f}b$ now and starts three punishment rounds, each $2+p_{\mathrm f}b$ below cooperation, so it does not pay when $1-p_{\mathrm f}b\le(2+p_{\mathrm f}b)(\delta+\delta^2+\delta^3)$. The left side of the displayed equation is strictly increasing in $\delta$, negative at $0$ and positive at $1$, so its root in $(0,1)$ is unique, and the inequality holds strictly above it. In a punishment state the prescribed $(F,F)$ is the stage game's Nash equilibrium, because $p_{\mathrm f}b<1$. Switching to $T$ there earns $0$ instead of $1-p_{\mathrm f}b>0$ in that round and restarts the counter at three, so it loses both now and later. Grim trigger replaces the three-round sum by $\delta/(1-\delta)$. If $p_{\mathrm f}b\ge1$, each $F$ payoff is at most the $T$ payoff against the same action, so $T$ is dominant.
+The public punishment counter, zero to three, is the only state. By the one-shot deviation principle for discounted games with bounded payoffs, the profile is subgame-perfect if no single deviation, followed by a return to the profile, is profitable in any state. In the cooperation state a deviation gains $1-p_{\mathrm f}b$ now and starts three punishment rounds, each $2+p_{\mathrm f}b$ below cooperation, so it is unprofitable when $1-p_{\mathrm f}b\le(2+p_{\mathrm f}b)(\delta+\delta^2+\delta^3)$. The left side of the displayed equation is strictly increasing in $\delta$, negative at $0$ and positive at $1$, so its root in $(0,1)$ is unique, and the inequality holds strictly above it. In a punishment state the prescribed $(F,F)$ is the stage game's Nash equilibrium, because $p_{\mathrm f}b<1$. Switching to $T$ there gets $0$ instead of $1-p_{\mathrm f}b>0$ in that round and restarts the counter at three, so it loses both now and later. Grim trigger replaces the three-round sum by $\delta/(1-\delta)$. If $p_{\mathrm f}b\ge1$, each $F$ payoff is at most the $T$ payoff against the same action, so $T$ is dominant.
 \end{proof}
 
 \begin{pdboundary}
@@ -1838,7 +1838,7 @@ Dismiss models a stronger, destructive action than the API offers.
 \subsection{The Conservation Theorem}\label{sec:conservation}
 
 \pdmarginanalogy{bonded-escrow-box}{}{ch07-dual-control-escrow-box}{Like a dual-control iron escrow chest requiring two separate keys to unlock, escrowed funds cannot be released unilaterally until criteria and verification agree.}%
-The local bond-accounting subsystem tracks three monetary buckets per project: the \textbf{wallet}, \textbf{escrow}, and the \textbf{commons pool}. Money is counted in integer minor units (cents, for example), so every amount is a non-negative integer and the identity below is exact. Conserving the total is a separate obligation from the lifecycle's rule that a session needs positive escrow to begin, and this accounting argument does not show that the runtime implements the model.
+The local bond-accounting subsystem tracks three monetary buckets per project: the \textbf{wallet}, \textbf{escrow}, and the \textbf{commons pool}. The theorem counts money in integer minor units (cents, for example), so every amount is a non-negative integer and the identity below is exact. Conserving the total is a separate obligation from the lifecycle's rule that a session needs positive escrow to begin, and this accounting argument does not show that the runtime implements the model.
 Positive escrow at the start and conservation across transfers are independent:
 a system can satisfy either while violating the other.
 
@@ -2036,7 +2036,7 @@ Safety == Conservation /\ NoNegative
 \centering\small
 \caption{The theorem's names and the checked model's. Money in both is a whole number of units.}
 \label{tab:bonded-conservation-dictionary}
-\begin{tabular}{@{}ll@{}}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{.36\linewidth} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Theorem~\ref{thm:conservation}} & \textbf{\texttt{Conservation.tla}} \\
 \midrule
@@ -2048,11 +2048,11 @@ $\mathrm{topUp}(\mathit{amt})$ & \texttt{Mint(a, amt)} \\
 $\mathrm{escrow}(b)$ & \texttt{Stake(a, amt)} with \texttt{amt} $=b$ \\
 $\mathrm{markRunning}(\mathit{id})$ & none; no money moves \\
 $\mathrm{refund}(\mathit{id})$ & \texttt{Refund(a, amt)} with \texttt{amt} $=b$ \\
-$\mathrm{slash}(\mathit{id},\zeta)$, $\zeta\ge1$ & \texttt{PartialSlash(a, slash, keep)} with $\zeta$ and $b-\zeta$ \\
+$\mathrm{slash}(\mathit{id},\zeta)$, $\zeta\ge1$ & \texttt{PartialSlash(a, slash, keep)} with \texttt{slash} $=\zeta$, \texttt{keep} $=b-\zeta$; \texttt{Slash(a)} if $\zeta=b$ is all of $a$'s escrow \\
 $\mathrm{slash}(\mathit{id},0)$ & \texttt{Refund} \\
-none & \texttt{Slash(a)}, \texttt{Payout} \\
+none & \texttt{Payout} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \paragraph{The implementation.} The ledger in \texttt{lib/bonds.ts} does not
