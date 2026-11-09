@@ -260,6 +260,7 @@ in the margin at first use; later short citations link back to those entries.\pa
 \pdfbookmark[0]{How to Read the Margin}{book.readingkey}%
 {\pddisplayface\Huge\bfseries How to Read the Margin\par}
 \vspace{12pt}
+{\small
 \noindent Every consequential claim in this book carries a grade, every worked
 number names its evidence, and every mechanism says what an attacker would have
 to defeat. This page collects those keys. Each one is defined again where a
@@ -268,8 +269,8 @@ chapter first uses it.
 \medskip\noindent{\pdtextface\bfseries Implementation grades.} A grade sits in
 the margin beside the claim it grades, or in a table cell, with a short note on
 what it covers. It grades the claim, not the chapter.\par\smallskip
-{\renewcommand{\arraystretch}{1.25}%
-\begin{tabularx}{\linewidth}{@{}p{2.6cm}X@{}}
+{\renewcommand{\arraystretch}{1.15}%
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
 \Built & shipped and exercised by tests in the reference implementation\\
 \BuiltWeak & shipped, but materially weaker than its name suggests\\
 \Designed & specified, with a proof or a written protocol, but not yet shipped\\
@@ -279,8 +280,8 @@ stated configuration\\
 \end{tabularx}}
 
 \medskip\noindent{\pdtextface\bfseries Evidence on worked numbers.}\par\smallskip
-{\renewcommand{\arraystretch}{1.25}%
-\begin{tabularx}{\linewidth}{@{}p{2.6cm}X@{}}
+{\renewcommand{\arraystretch}{1.15}%
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
 \textsf{[verified]} & the stated check or reproducible calculation\\
 \textsf{[verified arithmetic]} & the calculation only\\
 \textsf{[internal]} & a chapter derivation or a project-reported run\\
@@ -288,8 +289,8 @@ stated configuration\\
 \noindent None of these tags alone establishes deployed behavior.
 
 \medskip\noindent{\pdtextface\bfseries Markers in verification tables.}\par\smallskip
-{\renewcommand{\arraystretch}{1.25}%
-\begin{tabularx}{\linewidth}{@{}p{2.6cm}X@{}}
+{\renewcommand{\arraystretch}{1.15}%
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
 \Closed & the model is verified and its runtime conformance test passes\\
 \Partial & the design is verified; the runtime is tested empirically, not proved\\
 \Open & known, and not yet mechanized\\
@@ -297,16 +298,15 @@ stated configuration\\
 
 \medskip\noindent{\pdtextface\bfseries What an attacker must defeat.} Chapter~1
 grades each mechanism by what an attacker would have to defeat to make a claim
-about it false. There are five such modes, and they do not form a single order.
-Appendix~\ref{app:volume-status} lists them, with what runs today for each mechanism.
+about it false, in five modes that form no single order;
+Appendix~\ref{app:volume-status} lists them.
 
 \medskip\noindent{\pdtextface\bfseries Other marks.}
-A word set in bold is being defined; the glossary lists every definition with
-its page. \textbf{Scope.} says what the claim beside it does not show.
+Bold marks a definition; the glossary lists each with its page.
+\textbf{Scope.} says what the claim beside it does not show, and
 \emph{Where this stops} marks the limit of a section's result. A margin analogy
-gives an everyday picture of a mechanism beside the plain statement, which
-carries the argument. A source's full entry appears in the margin at first use;
-later short citations link back to it.
+pictures a mechanism beside the plain statement, which carries the argument.
+A source's full entry appears in the margin at first use.\par}
 
 \cleartoleftpage
 \input{figures/fig-book-reader-map}
