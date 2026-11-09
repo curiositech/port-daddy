@@ -6,7 +6,8 @@
 % Claim: at beta=0.2 the power curve reaches 0.8 after a single canary and
 %   saturates fast; the muted beta=0.5 reference needs far more canaries for
 %   the same confidence.
-% Source: thm:sealed-power (Canaries with a power curve).
+% Source: thm:sealed-power (Canaries with a power curve). The curves assume
+% independent misses; perfectly correlated misses hold power at 1 - beta.
 \begingroup\makeatletter
 \ifdefined\pd@typesetpicturebox
   \let\pgfsys@typesetpicturebox\pd@typesetpicturebox
