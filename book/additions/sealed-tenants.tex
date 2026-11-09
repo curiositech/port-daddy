@@ -18,7 +18,7 @@ tenant is a customer account: a company, a clinic, a household. A
 data subject is anyone whose data a record carries: the user who typed it,
 and anyone the text names. Every log line is a candidate
 input to something that outlives the job: a memory store, a retrieval index,
-an \pdterm{adapter} (a small set of fine-tuned weights) for one tenant, a
+an adapter for one tenant, a
 model trained on everyone, a cache. The privacy unit is the
 data subject, not the tenant and not the line. McMahan et al.\ define user-level
 neighbors this way: two datasets are neighbors when one adds or removes all
@@ -236,7 +236,7 @@ gate enforces the norm; the model only proposes.
 
 \begin{pdexample}{One Log Line, Five Destinations}
 \setlength{\parskip}{4pt plus 1pt}
-This is a constructed example. A clinic's intake agent, Wren, logs the line
+This is a constructed example. A clinic's intake agent logs the line
 ``Patient reports chest pain since Tuesday; his sister has the same
 condition.'' Its owner label is
 $\{\text{clinic},\text{patient},\text{sister}\}$. The line is
@@ -244,8 +244,9 @@ special-category health data and it names a third party, so two rows of
 Table~\ref{tab:sealed-tenant-policy} apply, and at each destination the
 stricter cell decides.
 
-Tenant memory: yes, but only in the patient's own scope, with his release and
-a time limit. Shared memory: no. The clinic's adapter: no. Shared training:
+Tenant memory: only with a release, in the patient's own scope and for a
+limited time; under the \emph{discloser's} cell, the patient's release covers
+his sister's mention only inside his own scope. Shared memory: no. The clinic's adapter: no. Shared training:
 no. Cache: only under a key for the patient.
 
 Billing analytics inside the same clinic fails the appropriateness norm, even

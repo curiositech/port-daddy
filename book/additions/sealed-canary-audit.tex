@@ -37,27 +37,6 @@ matter: twenty guesses about one canary are one coin, not twenty, and would
 refute a pipeline that releases nothing.
 \end{pdclaim}
 
-\begin{pdexample}{One Audit, One Hundred Coins}
-\setlength{\parskip}{4pt plus 1pt}
-This is a constructed example. Erin's support adapter declares
-$\varepsilon=0.5$ with $\delta=0$. Wren plants $m=100$ synthetic customers
-and flips a secret coin for each that decides whether the customer's record
-goes into the training data. After training she ranks the 100 by the model's
-likelihood and guesses, once per customer, which were included, so $r=100$.
-
-If the declaration is true, each guess is right with probability at most
-$e^{0.5}/(1+e^{0.5})=0.622$, so an honest $\varepsilon$ allows about 62 right
-guesses on average. Suppose Wren gets 74 right. Then
-$\Pr[\mathrm{Bin}(100,0.622)\ge74]\approx0.009$, below 5\% and even below
-1\%, so the declaration is refuted at either level. Suppose instead she gets
-68 right. The tail is about $0.14$, and the declaration is not refuted. At the
-5\% level the dividing line is 71 right guesses, with a tail of about
-$0.042$; 70 right gives $0.066$.
-
-A count below the line proves nothing about privacy, because the guesser may
-simply be weak.
-\end{pdexample}
-
 \paragraph{Proof sketch.}
 Part (i) is the privacy definition applied to the event ``the detector flags
 this canary'' on the two neighbors that differ by its synthetic data subject. For part (ii) with $\delta=0$, condition on the artifact and on every
@@ -68,6 +47,28 @@ at most $e^\varepsilon/(1+e^\varepsilon)$. Steinke, Nasr and Jagielski turn
 this into the binomial bound (their Proposition~5.1), and prove the
 $\delta>0$ case through the connection between privacy and generalization
 (their Theorem~5.2). \qed
+
+\begin{pdexample}{One Audit, One Hundred Coins}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. Erin's support \pdterm{adapter}, a small set
+of fine-tuned weights added to her model, declares $\varepsilon=0.5$ with
+$\delta=0$. An auditor plants $m=100$ synthetic customers and flips a secret
+coin for each that decides whether the customer's record goes into the
+training data. After training the auditor ranks the 100 by the model's
+likelihood and guesses, once per customer, which were included, so $r=100$.
+
+If the declaration is true, each guess is right with probability at most
+$e^{0.5}/(1+e^{0.5})=0.622$, so an honest $\varepsilon$ allows about 62 right
+guesses on average. Suppose the auditor gets 74 right. Then
+$\Pr[\mathrm{Bin}(100,0.622)\ge74]\approx0.009$, below 5\% and even below
+1\%, so the declaration is refuted at either level. Suppose instead the auditor gets
+68 right. The tail is about $0.14$, and the declaration is not refuted. At the
+5\% level the dividing line is 71 right guesses, with a tail of about
+$0.042$; 70 right gives $0.066$.
+
+A count below the line proves nothing about privacy, because the guesser may
+simply be weak.
+\end{pdexample}
 
 Part (i) changes how Theorem~\ref{thm:sealed-power} reads for training: at
 $\varepsilon=1$ and a false-flag rate of $1\%$, no detector flags an included

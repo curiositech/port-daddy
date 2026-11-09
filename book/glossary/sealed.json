@@ -22,7 +22,7 @@
  {
   "term": "differential privacy",
   "sort": "differential privacy",
-  "definition": "A property of a randomized release: adding or removing the record of any one data subject changes the probability of any set of outputs by at most a factor e^epsilon, plus a small additive slack delta."
+  "definition": "A property of a randomized release: adding or removing any one record changes the probability of any set of outputs by at most a factor e^epsilon, plus a small additive slack delta."
  },
  {
   "term": "data subject",
@@ -67,7 +67,7 @@
  {
   "term": "subject-keyed ledger",
   "sort": "subject-keyed ledger",
-  "definition": "A privacy ledger that keeps one meter per data subject and charges each meter only for the training rounds that used that subject's records."
+  "definition": "A privacy ledger that keeps one meter per data subject and charges each meter for every training round that could read that subject's records."
  },
  {
   "term": "tenant",

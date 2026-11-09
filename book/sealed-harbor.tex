@@ -310,10 +310,10 @@ obligation; something else must enforce it. Two terms in the table need
 defining first. A \pdterm{declassification} is an owner's authorized removal
 of their label from a value, and it is the only way a value computed from a
 secret may leave the room. \pdterm[differential privacy]{Differential privacy}
-is a property of a randomized release in which adding or removing the record
-of any one \pdterm{data subject}, a human the data is about, changes the
-probability of each set of outputs by at most a factor $e^{\varepsilon}$,
-plus a small additive slack $\delta$. The number $\varepsilon$, read
+is a property of a randomized release in which adding or removing any one
+record changes the probability of each set of outputs by at most a factor
+$e^{\varepsilon}$, plus a small additive slack $\delta$. The human a record is
+about is its \pdterm{data subject}. The number $\varepsilon$, read
 \pdterm{epsilon}, is the release's privacy loss: smaller is more private.
 
 {\footnotesize
@@ -801,9 +801,10 @@ blocking every violation and nothing else? A rule qualifies when it forbids
 only actions the gate can stop and the gate sees enough to know when to stop
 them. Of the agent's 8 kinds of event, the gate can veto 5.}
 
-The vocabulary is the kernel chapter's. The \emph{plant} is the declared list
-of events the agent can perform, and a gate realizes a rule \emph{exactly}
-when it blocks every violation and nothing else. Exact realization needs two
+The vocabulary is the kernel chapter's. The \emph{plant} is the set of
+histories, sequences of events, that the agent can physically produce before
+any rule is imposed; its event types form the \emph{alphabet}. A gate
+realizes a rule \emph{exactly} when it blocks every violation and nothing else. Exact realization needs two
 things. The rule must forbid only controllable actions: the gate can block a
 network send, but it cannot stop the model from reading what is already in its
 context. And the gate must observe enough to know when to block. If two
@@ -964,8 +965,8 @@ release really is private.
 overspend the privacy budget? Not if one atomic step both checks the budget
 and records the spend; then the running total always equals the sum of the
 journal and never passes the cap. On a two-client instance with a budget of
-4, a deliberately torn write that splits those steps lets the recorded spend
-reach 5.}
+4, a deliberately torn write, which logs each cost in full but adds one less
+to the running total, lets the recorded spend reach 5.}
 
 \paragraph{The scene, resumed.} \pdmarginanalogy{sealed-sandglass-orifice}{}{ch03-sandglass-flow-orifice}{Like an hourglass whose precision orifice meters the escape of sand grain by grain, the differential privacy ledger meters information release under a strict cumulative budget.}%
 Derek's data never leaves the room. What leaves is a stream of gated
@@ -981,8 +982,7 @@ Section~\ref{sec:sealed-design}, which is why the enforceability link comes
 first.
 
 \paragraph{Differential privacy in one paragraph.}
-Fix which datasets count as neighbors: here they differ in one data subject's
-record. A randomized mechanism $A$ is $\varepsilon$-private if, for every
+Fix which datasets count as neighbors: here they differ in one record. A randomized mechanism $A$ is $\varepsilon$-private if, for every
 neighbor pair $D,D'$ and every output event $S$,
 \[
 \Pr[A(D)\in S]\le e^\varepsilon\Pr[A(D')\in S].
@@ -1208,9 +1208,11 @@ protect the whole dataset, nor Erin's model.
 \section{Canaries with a power curve and a clock}\label{sec:sealed-detection}
 
 \noindent\emph{Express lane: how likely is a leak to be caught, and how
-soon? A leak is missed only if every canary it carries is missed, and a
-sequential test that watches the gate's outputs estimates how many outputs
-pass before it decides. When each canary is missed 20\% of the time, a leak
+soon? If canaries are missed independently, a leak escapes only when every
+canary it carries is missed; if the gate's outputs are independent and
+identically distributed, Wald's formula gives the expected number of outputs
+a sequential test watches before it decides. When each canary is missed 20\%
+of the time, a leak
 carrying 3 canaries is caught with probability 0.992.}
 
 \paragraph{Intuition: dye packs and quality control.}

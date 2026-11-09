@@ -9,11 +9,13 @@
 the governed environment in which agents work) that trains on many people's
 logs needs one balance per data subject, because the guarantee each of them
 cares about is their own. A \pdterm{subject-keyed ledger} keeps one meter per
-data subject and charges each meter only for the training rounds that used
+data subject and charges each meter for every training round that could read
 that subject's records. Such a harbor usually serves several customer organizations, each a
 \pdterm{tenant} with its own agents, data and users. Two logs are
 \pdterm{subject-level neighbors} when one is the other with every record of a
-single data subject removed. Each record carries an owner label, here the set
+single data subject removed. This is a stronger relation than the one-record
+neighbors of the $\varepsilon$-ledger, whose corollary protects a single
+record, not a person with many records. Each record carries an owner label, here the set
 of data subjects whose data it carries (Section~\ref{sec:sealed-tenants} gives the
 full rule). The state is the chapter's, with one index added. Let $U$ be the
 set of data subjects, and fix an order $\alpha>1$ of
@@ -63,32 +65,6 @@ $\delta\in(0,1)$.
 \pdscope{The accounting proof below establishes neither premise of the
 corollary.}
 
-\begin{pdexample}{Four Meters, Three Rounds}
-\setlength{\parskip}{4pt plus 1pt}
-This is a constructed example. Take the budget $B=0.25$. Alice, Bob and Wren
-have logs from the start. Round~1 costs $\rho_1=0.15$; all three can afford
-it, so $P_1=\{\text{Alice},\text{Bob},\text{Wren}\}$ and each of their
-meters reads $0.15$. Pike's first logs then arrive, and his meter starts
-at~$0$.
-
-Round~2 costs $0.10$, and everyone can afford it. Alice, Bob and Wren reach
-$0.15+0.10=0.25$, exactly $B$, and Pike reaches $0.10$.
-
-Round~3 costs $0.10$. Alice, Bob and Wren would reach $0.35>0.25$, so they are
-out and $P_3=\{\text{Pike}\}$. A support thread labelled
-$\{\text{Alice},\text{Pike}\}$ is now excluded, because Alice is out, even
-though Pike is in; a record labelled $\{\text{Pike}\}$ is used. Pike ends
-at $0.20$.
-
-The journal holds three entries: round~1 for Alice, Bob and Wren at $0.15$;
-round~2 for all four at $0.10$; round~3 for Pike alone at $0.10$. Each meter
-equals the sum of the entries that name that subject: Alice
-$0.15+0.10=0.25$, Pike $0.10+0.10=0.20$.
-
-Now suppose Bob appears unresolved as two identities in two tenants. He then
-has two meters, each capped at $0.25$, and can be charged $0.50$ in total.
-\end{pdexample}
-
 \paragraph{Proof.}
 Induction over the sequential interleaving, one coordinate per data subject. Base:
 $\sigma\equiv0$ and $\Lambda=()$, so every sum is empty and every bound holds.
@@ -100,11 +76,37 @@ to the sequential case as in Theorem~\ref{thm:sealed-conservation}. With a
 single data subject, the theorem is that theorem with $\rho$ in place of
 $\varepsilon$. \qed
 
+\begin{pdexample}{Four Meters, Three Rounds}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. Take the budget $B=0.25$. Carol, Heron and Wren
+have logs from the start. Round~1 costs $\rho_1=0.15$; all three can afford
+it, so $P_1=\{\text{Carol},\text{Heron},\text{Wren}\}$ and each of their
+meters reads $0.15$. Pike's first logs then arrive, and his meter starts
+at~$0$.
+
+Round~2 costs $0.10$, and everyone can afford it. Carol, Heron and Wren reach
+$0.15+0.10=0.25$, exactly $B$, and Pike reaches $0.10$.
+
+Round~3 costs $0.10$. Carol, Heron and Wren would reach $0.35>0.25$, so they are
+out and $P_3=\{\text{Pike}\}$. A support thread labelled
+$\{\text{Carol},\text{Pike}\}$ is now excluded, because Carol is out, even
+though Pike is in; a record labelled $\{\text{Pike}\}$ is used. Pike ends
+at $0.20$.
+
+The journal holds three entries: round~1 for Carol, Heron and Wren at $0.15$;
+round~2 for all four at $0.10$; round~3 for Pike alone at $0.10$. Each meter
+equals the sum of the entries that name that subject: Carol
+$0.15+0.10=0.25$, Pike $0.10+0.10=0.20$.
+
+Now suppose Heron appears unresolved as two identities in two tenants. He then
+has two meters, each capped at $0.25$, and can be charged $0.50$ in total.
+\end{pdexample}
+
 A round charges only the people whose records it could read. Removing a data subject
 with no candidate record leaves the round's input unchanged, so the round costs
 that subject nothing, and their meter does not move. This is what makes the
-meters differ: Alice, whose logs feed every round, reaches $B$ while Bob, who
-appears in one round in five, has spent a fifth as much. A ledger that charged
+meters differ: in the example, Carol, Heron and Wren reach $B$ after two
+rounds, while Pike, whose logs arrived later, stands at $0.20$. A ledger that charged
 everyone with budget left would be sound but would move every meter in
 lockstep.
 
