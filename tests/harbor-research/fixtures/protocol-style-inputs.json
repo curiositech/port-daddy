@@ -6,7 +6,7 @@
     "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged.",
     "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence.",
     "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance.",
-    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; protocol environments unchanged.",
+    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged.",
     "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter structure unchanged.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
     "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required."
@@ -69,8 +69,8 @@
     },
     {
       "path": "book/figures/pd-pedagogy.tex",
-      "sha256": "4df2929a2e3a61c5be3c7dd6db02104b1decd440acf01f2cc9e122ce07abb891",
-      "bytes": 80226
+      "sha256": "d42ef01c8a32aa5e223956d12841ae8b0e022bee8e38cfe3dc7a1160a62d9406",
+      "bytes": 81905
     },
     {
       "path": "book/figures/pd-semantic-blocks.tex",
