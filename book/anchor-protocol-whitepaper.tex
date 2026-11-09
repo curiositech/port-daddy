@@ -389,7 +389,8 @@ The verifier takes the keys in turn: \texttt{card\_0} under
 \texttt{pk\_daemon}, \texttt{card\_1} under the \texttt{pk\_A} it has just
 read from the authenticated \texttt{card\_0}, and \texttt{card\_2} under the
 \texttt{pk\_B} read from \texttt{card\_1}. All three signatures pass, because
-each card was signed by the holder its parent names.
+the daemon signed the root and each later card was signed by the holder its
+parent names.
 
 Then it compares each child with its immediate parent. \texttt{admin} on
 \texttt{a*} covers \texttt{sub} on \texttt{ab}, so \texttt{card\_1} passes.
@@ -399,9 +400,9 @@ Then it compares each child with its immediate parent. \texttt{admin} on
 on \texttt{a*} covers \texttt{pub} on \texttt{ab} as well. [internal]
 \end{pdexample}
 
-For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature must cover a fresh nonce and the identities of the previous and next holders, so that an attacker who intercepts one hop cannot splice it into a different chain.
+For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature must cover a fresh nonce and the identities of the previous and next holders, so that an attacker who intercepts one hop cannot splice it into a different chain. That hop binding is the structure \path{proofs/anchor/delegation/chain-replay.pv} models (Listing~\ref{lst:anchor-chain-replay}), a separate model from Algorithm~\ref{alg:delegation}, which carries no nonces.
 
-Two older bodies of work study the property checked here more directly than macaroons do. SPKI/SDSI, a public-key certificate system from the late 1990s, asks whether a chain of certificates only ever narrows as it lengthens, and answers by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the harbor's per-hop subset check is that reduction done one link at a time. Miller's object-capability discipline, in which a capability is the only route to any authority and nothing is allowed merely because a process is present, was worked out for concurrent components that do not trust each other~\pdcite{miller2006robustcomposition}. That rule fits this protocol more closely than Dennis and Van Horn's founding 1966 statement, and Hardy's confused deputy is the classic case for it: a compiler overwrote its system's billing file on a user's behalf because, in Hardy's words, it ``runs with authority stemming from two sources''~\pdcite{hardy1988confused}. The design rule that follows is to restrict a capability when it is issued and also check the chain when it is verified, so that the chain check is a second defense rather than the only one. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} shows why: checking each card against the root instead of its immediate parent accepts a card that re-grants a right a middle hop had removed. Macaroons, and Biscuit, a public-key token format descended from them~\pdcite{biscuit2026}, cannot fall into that trap, because a holder can only append restrictions and the verifier checks every one. A Harbor Card child instead restates its rights in full, which is why the verifier must compare each child with its parent.
+Two older bodies of work study the property checked here more directly than macaroons do. SPKI/SDSI, a public-key certificate system from the late 1990s, asks whether a chain of certificates only ever narrows as it lengthens, and answers by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the harbor's per-hop subset check is that reduction done one link at a time. Miller's object-capability discipline, in which a capability is the only route to any authority and nothing is allowed merely because a process is present, was worked out for concurrent components that do not trust each other~\pdcite{miller2006robustcomposition}. That rule fits this protocol more closely than Dennis and Van Horn's founding 1966 statement, and Hardy's confused deputy is the classic case for it: a compiler overwrote its system's billing file on a user's behalf because, in Hardy's words, it ``runs with authority stemming from two sources''~\pdcite{hardy1988confused}. The design rule that follows is to restrict a capability when it is issued and also check the chain when it is verified, so that the chain check is a second defense rather than the only one. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} shows why: checking each card against the root instead of its immediate parent accepts a card that re-grants a right a middle hop had removed. Neither macaroons nor Biscuit, their public-key descendant~\pdcite{biscuit2026}, can fall into that trap, because a holder can only append restrictions and the verifier checks every one. A Harbor Card child instead restates its rights in full, which is why the verifier must compare each child with its parent.
 
 \input{figures/fig-anchor-delegation-inline}
 
@@ -1933,6 +1934,45 @@ process
   )
 \end{lstlisting}
 
+\subsection{Hop Binding and Replay (\texttt{chain-replay.pv})}\label{sec:anchor-chain-replay}
+
+\path{proofs/anchor/delegation/chain-replay.pv} models a chain of three
+signatures, $P \to A \to B \to C$, in which each hop signs
+\texttt{hopBind(nonce, prev\_id, next\_id, message)}. Each signer records
+the nonce it uses in a table, \texttt{issued\_nonce}, and the final holder
+$C$ verifies the whole chain before it acts.
+Listing~\ref{lst:anchor-chain-replay} gives the verifier and the query.
+ProVerif~2.05 reports the query true
+(\path{proofs/anchor/delegation/chain-replay.run.log}).
+
+\begin{lstlisting}[caption={\texttt{chain-replay.pv} (excerpt): the final verifier and the query},label={lst:anchor-chain-replay}]
+table issued_nonce(nonce).
+table consumed_nonce(nonce).
+
+let HopC_Verifier(skC : skey, pkP : pkey, pkA : pkey, pkB : pkey, idP_expected : id) =
+  in(pub, (n1 : nonce, idP : id, idA : id, m : message, s1 : sig,
+           n2 : nonce, idB : id, s2 : sig,
+           n3 : nonce, idC_in : id, s3 : sig));
+  if id_of_pk(pk(skC)) = idC_in then
+  if idP = idP_expected then
+  (* nonce freshness: each must have been issued and not already consumed *)
+  get issued_nonce(=n1) in
+  get issued_nonce(=n2) in
+  get issued_nonce(=n3) in
+  (* Replay protection: refuse if ANY nonce was already consumed *)
+  if verify(pkP, hopBind(n1, idP, idA, m), s1) then
+  if verify(pkA, hopBind(n2, idA, idB, m), s2) then
+  if verify(pkB, hopBind(n3, idB, idC_in, m), s3) then
+    insert consumed_nonce(n1);
+    insert consumed_nonce(n2);
+    insert consumed_nonce(n3);
+    event chain_accepted(idP, idA, idB, idC_in, m).
+
+query idP : id, idA : id, idB : id, idC : id, m : message;
+  event(chain_accepted(idP, idA, idB, idC, m)) ==>
+  event(chain_authorized(idP, idA, idB, idC, m)).
+\end{lstlisting}
+
 \subsection{Soundness of the Attenuation Proof (v5)}\label{sec:attn-soundness}
 
 \begin{pdexample}{Enumerating What the Capability Order Can Derive}
@@ -2031,6 +2071,32 @@ single difference:
 
 \input{figures/session-anchor-v6-attack}
 
+Listing~\ref{lst:anchor-v6-excerpt} gives the middle holder and the verifier
+of the attack model. The daemon issues \texttt{cap\_write} to $A$, and an
+honest $A$ delegates only \texttt{cap\_read} to $B$. The v7 model is
+identical except for the line marked \texttt{BUG}.
+
+\begin{lstlisting}[caption={\texttt{harbor\_card\_v6\_multihop\_attack.pv} (excerpt): the middle holder and the verifier},label={lst:anchor-v6-excerpt}]
+(* Malicious B: holds cap_read from A, re-delegates cap_write to C (escalation). *)
+let MaliciousB(b: id, b_sk: skey, cc: id) =
+    in(c, (d1: bitstring, d1s: bitstring));
+    let delegate_token(parent: bitstring, =b, my_cap: capability) = d1 in
+    let d2 = delegate_token((d1, d1s), cc, cap_write) in
+    out(c, (d2, sign(d2, b_sk))).
+
+let NaiveVerifier(a_pk: pkey, b_pk: pkey) =
+    in(c, (d2: bitstring, d2s: bitstring));
+    let delegate_token((d1: bitstring, d1s: bitstring), cc: id, final_cap: capability) = d2 in
+    let delegate_token((base: bitstring, bases: bitstring), b: id, mid_cap: capability) = d1 in
+    let base_token(=daemon_id, a: id, =harbor_id, root_cap: capability) = base in
+    if check_sign(base, pk(daemon_sk), bases) = true then
+    if check_sign(d1, a_pk, d1s) = true then
+    if check_sign(d2, b_pk, d2s) = true then
+    if is_subset(final_cap, root_cap) = true then   (* BUG: checks root, not parent *)
+        event Accepted(cc, harbor_id, final_cap).
+
+query cc: id; event(Accepted(cc, harbor_id, cap_write)) ==> false.
+\end{lstlisting}
 
 \paragraph{Multi-hop scope and evidence.}
 Property~\ref{thm:attn-sound} is single-hop (Daemon $\to A\to$ verifier).
@@ -2157,9 +2223,35 @@ computational guarantees explicit. This chapter applies these bounded checks to 
 multi-agent coordination and names each one, instead of presenting them together
 as a claim that the whole system is secure.
 
-\subsection{Capability-Based Authorization}
+\subsection{Capability-Based Authorization}\label{app:capability-auth}
 
 Capability-based security dates back to Dennis and Van Horn's 1966 paper on programming semantics for multiprogrammed computations~\pdcite{dennis1966programming}. Birgisson et al.~\pdcite{birgisson2014macaroons} introduced Macaroons, which use chained HMACs for decentralized delegation with contextual caveats. The Anchor Protocol's authorization chains (\S\ref{sec:delegation}) are inspired by Macaroons but adapted for JWT-based identity in local development environments.
+
+\pdchapref{swk}{The Single-Writer Kernel} described the kernel's macaroon gate
+and its third-party caveat, a caveat that holds only when the holder also
+presents a second token, a discharge, from the party the caveat names; in the
+kernel's gate that party is the daemon. The verifier must then
+make sure that the discharge it is shown was issued for the grant in front of
+it. Two models in \path{analyses/} study that binding for a caveat the daemon
+discharges. In both, the relay recomputes the grant's chain of HMACs from the
+daemon's root key, recomputes the discharge from the caveat key, and then
+checks a binding value \texttt{d\_bound} that arrives with the discharge. Both
+treat HMAC as a keyed one-way function: nobody can compute it under a key they
+do not hold.
+\begin{itemize}
+  \item In \path{analyses/macaroon_discharge_v2_naive_unsound.pv}, a
+  low-authority grant and a high-authority grant share one caveat key, and the
+  daemon discharges only the low one. The relay accepts when
+  \texttt{d\_bound = hmac(BIND0, d1)}, where \texttt{d1} is the discharge's
+  recomputed signature and \texttt{BIND0} a public constant.
+  \item In \path{analyses/macaroon_discharge_v1.pv}, the relay accepts when
+  \texttt{d\_bound = hmac(BIND0, (g\_sig, d1))}, which also folds in
+  \texttt{g\_sig}, the signature of the grant being presented. Each of its
+  two grants has its own caveat key.
+\end{itemize}
+Each model asks whether the relay authorizes a grant only if the daemon issued
+a discharge for that grant. ProVerif reports the query false for v2 and true
+for v1.
 
 \subsection{JWT Security}
 
@@ -2263,10 +2355,10 @@ RESULT event(accepted_naive(m_4)) ==> event(issued_A(m_4)) is false.
 The first line is the property this chapter relies on; the second is the negative control, checked in the same file so the true result is not vacuous.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-chain-replay}
-\path{proofs/anchor/delegation/chain-replay.pv} models a 3-hop chain $P \to A \to B \to C$. Which property does the model check, and what does the run log's verdict say?
+Listing~\ref{lst:anchor-chain-replay} excerpts the verifier of \path{proofs/anchor/delegation/chain-replay.pv}, which models a 3-hop chain $P \to A \to B \to C$ and whose query ProVerif reports true. Which property does the query state? The verifier's comments promise replay protection. Does its code refuse a chain presented a second time, and could the query tell you if it did not?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-chain-replay}
-It checks that every chain $C$ accepts corresponds to one $P$ actually authorized, with the \emph{same} $(P,A,B,C,m)$ tuple: no hop can be replayed against a different message, and no hop can be spliced out of one chain into another. Each signature binds \texttt{hopBind(nonce, prev\_id, next\_id, message)} and the verifier checks that the nonces were issued. It inserts them into \texttt{consumed\_nonce}, but never reads that table before acceptance. Consequently this model does not establish one-time use: replaying the identical chain can still satisfy the displayed non-injective correspondence. Message substitution and duplicate acceptance are different questions.
+The query states that every chain $C$ accepts corresponds to one $P$ actually authorized, with the \emph{same} $(P,A,B,C,m)$ tuple: no hop can be replayed against a different message, and no hop can be spliced out of one chain into another, because each signature binds \texttt{hopBind(nonce, prev\_id, next\_id, message)}. The code does not do what its comments promise. It reads \texttt{issued\_nonce} three times, so every nonce must have been issued, but it only inserts into \texttt{consumed\_nonce} and never reads that table before acceptance. A chain presented a second time passes every check and is accepted again. The query cannot notice: it is non-injective, so the one \texttt{chain\_authorized} event matches every acceptance of that chain. Refusing a replay needs a check that no nonce is already in \texttt{consumed\_nonce}, and showing it needs an injective query. The runtime conformance suite tests replay rejection; no model in this chapter proves it, which is what Table~\ref{tab:anchor-status} records. Message substitution and duplicate acceptance are different questions.
 
 Pinned verdict (\path{proofs/anchor/delegation/chain-replay.run.log}):
 \begin{lstlisting}
@@ -2349,7 +2441,7 @@ Trace the chain $A{:}\texttt{write} \to B{:}\texttt{read} \to C{:}\texttt{write}
 The induction: if every hop satisfies $\mathrm{cap}_i \subseteq \mathrm{cap}_{i-1}$, transitivity of $\subseteq$ chains them directly into $\mathrm{cap}_N \subseteq \mathrm{cap}_{N-1} \subseteq \cdots \subseteq \mathrm{cap}_0$. Checking $\mathrm{cap}_i \subseteq \mathrm{cap}_0$ independently at each hop supplies no such chain: it only asks whether each capability fits inside the \emph{root}, which a re-escalating middle hop can satisfy (write $\subseteq$ root) while still expanding relative to what that hop's own parent actually held (write $\not\subseteq$ $B$'s read). This is why the security note after Algorithm~\ref{alg:delegation} credits Property~\ref{thm:attn-sound} with the single hop only. The multi-hop result comes from checking every hop, by transitivity, and its machine-checked confirmation at depth two is the v6/v7 pair in the next two exercises, not a restatement of the property at greater depth.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-multihop-attack}
-Read \path{analyses/harbor_card_v6_multihop_attack.pv}. State the attack in words: who forges what, at which hop, and why does a verifier that checks only the final capability against the root accept it?
+Listing~\ref{lst:anchor-v6-excerpt} excerpts \path{analyses/harbor_card_v6_multihop_attack.pv}, and the session above it shows the verdict. State the attack in words: who signs what, at which hop, and why does a verifier that checks only the final capability against the root accept it?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-multihop-attack}
 The root holds \texttt{cap\_write}. Honest $A$ correctly attenuates to \texttt{cap\_read} for $B$, a legitimate restriction. Malicious $B$, holding only that read-capped delegation, signs a \emph{new} delegation to $C$ carrying \texttt{cap\_write}: an authority $B$ never held, forged with $B$'s own legitimately-issued delegation key, not by breaking any signature. \texttt{NaiveVerifier} unwraps the two-hop chain and checks \texttt{is\_subset(final\_cap, root\_cap)}, the final capability against the root only, and never re-derives what the intermediate hop actually held. Because \texttt{cap\_write} is a subset of the root, the check passes and $C$ is accepted with full write authority, although $B$ itself only ever held read. This is hop-2 escalation: a child re-grants an authority its own parent narrowed away, and a root-vs-final comparison is structurally blind to it.
@@ -2364,10 +2456,10 @@ RESULT not event(Accepted(cc_2,harbor_id[],cap_write)) is false.
 ProVerif reports the query false and also exhibits the concrete trace above as a witness.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-multihop-fix}
-\path{analyses/harbor_card_v7_multihop_fixed.pv} is identical to v6 except for the verifier. Name the one modeling change that closes the attack, and what the RESULT line becomes.
+\path{analyses/harbor_card_v7_multihop_fixed.pv} is identical to v6 except for the line marked \texttt{BUG} in Listing~\ref{lst:anchor-v6-excerpt}. What must that line become to close the attack, and what does the RESULT line become?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-multihop-fix}
-The only change is in the verifier: v6's single check \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} becomes two checks in sequence, \texttt{is\allowbreak\_subset(mid\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} for hop~1 ($A \to B$ against the root) \emph{and} \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{mid\allowbreak\_cap)} for hop~2 ($B \to C$ against what $B$ actually held). Same malicious $B$, same forged \texttt{cap\_write} delegation, same query; only the verifier's comparison target moves from the root to the immediate parent.
+Both models already check each link's signature under its signer's key, so the only change is in the comparison: v6's single check \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} becomes two checks in sequence, \texttt{is\allowbreak\_subset(mid\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} for hop~1 ($A \to B$ against the root) \emph{and} \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{mid\allowbreak\_cap)} for hop~2 ($B \to C$ against what $B$ actually held). Same malicious $B$, same forged \texttt{cap\_write} delegation, same query; only the verifier's comparison target moves from the root to the immediate parent.
 
 \Needspace{6\baselineskip}
 Pinned output (\path{analyses/harbor_card_v7_results.txt}):
@@ -2378,12 +2470,12 @@ The identical escalation attempt v6 accepted is now rejected at the \texttt{is\_
 \end{pdsolution}
 \pdmarginanalogy{anchor-couriers-pouch}{}{ch02-couriers-dispatch-pouch}{Like a diplomatic courier pouch requiring a designated officer to break the seal, a third-party caveat requires a distinct witness to issue its discharge.}%
 \begin{pdexercise}[kind=Trace,rating=3]{ex:anchor-macaroon-discharge}
-The authorization chains in this chapter use signed Ed25519 cards. \path{analyses/macaroon_discharge_v1.pv} and \path{analyses/macaroon_discharge_v2_naive_unsound.pv} model a related but different construction, an HMAC-chained macaroon with a third-party discharge caveat. Compare the two: what does the naive discharge verifier in v2 accept, and what does v1's verifier check that closes the hole?
+The authorization chains in this chapter use signed Ed25519 cards. \S\ref{app:capability-auth} describes two models of a related construction, a macaroon with a third-party caveat, and the binding each relay checks. What does v2's relay accept that the daemon never discharged, and how? Then say whether v1's true verdict shows that folding \texttt{g\_sig} into the binding is what closes v2's hole.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-macaroon-discharge}
-Both models share a grant chain: a first-party caveat folded into the root HMAC, a third-party commitment \texttt{vid} keyed by a shared caveat key, and a discharge bound to the request via \texttt{hmac(BIND0,} $\cdots$\texttt{)}. In v2, two grants (a low-authority one the daemon discharges, and a high-authority one it never discharges) share the same caveat key, which is realistic, because one live session's check backs every grant minted under it. v2's naive relay computes \texttt{bound = hmac(BIND0, d1)}, binding the discharge to the \emph{caveat} only, never to which grant it is being presented for. An attacker who holds the daemon's genuinely-issued low-authority discharge, which is public since it travels in the clear, can present it alongside the public high-authority grant; the relay recomputes the same discharge chain from the shared caveat key and accepts. \texttt{RelayAuthorizesNaive} fires for the high-authority grant's signature although the daemon's \texttt{DaemonIssuesDischarge} event never named it. This is the macaroon-construction analogue of \path{analyses/harbor_card_v6_multihop_attack.pv}: a verifier that checks a credential against something coarser than the exact object in front of it (there, the root instead of the immediate parent; here, the caveat key instead of the specific grant) accepts a substitution.
+In v2 the attacker holds the high-authority grant's public macaroon and the discharge the daemon published for the low-authority grant. Both grants share one caveat key, so that discharge recomputes correctly under the high grant, and the relay's binding \texttt{hmac(BIND0, d1)} names only the discharge, never the grant it was issued for. The relay therefore authorizes the high grant: \texttt{RelayAuthorizesNaive} fires for a grant signature for which \texttt{DaemonIssuesDischarge} never fired, and the query is false. The attacker forges nothing. It reuses a genuine discharge it cannot compute itself. This is the macaroon form of the v6 mistake in \path{analyses/harbor_card_v6_multihop_attack.pv}: a verifier that checks a credential against something coarser than the object in front of it (here the shared caveat, there the root instead of the immediate parent) accepts a substitution.
 
-v1's verifier folds the grant's own signature into the binding, \texttt{bound = hmac(BIND0, (g\_sig, d1))}, not just the discharge chain. A discharge minted for the low-authority grant's signature cannot satisfy the high-authority grant's binding check: HMAC is modeled as a one-way keyed PRF with no destructor, so the attacker can replay the low discharge's bytes verbatim but cannot recompute the high-authority binding without the private caveat key only the daemon holds.
+Folding \texttt{g\_sig} into the binding, as v1 does, makes a discharge bound to the low grant's signature fail the high grant's check. But v1 also changes a second thing: each of its grants has its own caveat key, so in v1 the low grant's discharge would not even recompute under the high grant's key. v1's true verdict therefore does not show that the binding alone closes v2's hole. The model that would show it keeps v2's shared caveat key and changes only the binding.
 
 \Needspace{6\baselineskip}
 Pinned output, v1 (\path{analyses/macaroon_discharge_v1_results.txt}):
@@ -2395,7 +2487,7 @@ Pinned output, v2 (\path{analyses/macaroon_discharge_v2_naive_unsound_results.tx
 \begin{lstlisting}
 RESULT event(RelayAuthorizesNaive(s)) ==> event(DaemonIssuesDischarge(s)) is false.
 \end{lstlisting}
-Both discharges are unforgeable without the caveat key; the entire gap in v2 is that its binding forgets which grant it was issued for.
+Both discharges are unforgeable without the caveat key; in v2 the gap is that the binding forgets which grant the discharge was issued for.
 \end{pdsolution}
 
 \pdprintsolutions
