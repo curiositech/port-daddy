@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40405686,
+    "bytes": 40405676,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/6a43e22c38f4d876bf2ce2cf52e0fe47fb81a69433e748f15e3506edf27334d4.tar.gz",
-    "sha256": "6a43e22c38f4d876bf2ce2cf52e0fe47fb81a69433e748f15e3506edf27334d4",
-    "url": "https://media.portdaddy.dev/book/source/sha256/6a43e22c38f4d876bf2ce2cf52e0fe47fb81a69433e748f15e3506edf27334d4.tar.gz"
+    "key": "book/source/sha256/7826ba6c415419faccdfbb68bf23e54c6e0688823bfea4908588885292c6bf44.tar.gz",
+    "sha256": "7826ba6c415419faccdfbb68bf23e54c6e0688823bfea4908588885292c6bf44",
+    "url": "https://media.portdaddy.dev/book/source/sha256/7826ba6c415419faccdfbb68bf23e54c6e0688823bfea4908588885292c6bf44.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "77700633ebf7a2e8a81ef5f0ad3a6e4b46ab83e5bac2c60d2ac2669eca786f62",
+  "manifestSha256": "183e495e1eb6374b76279a5c264ca38b97e440e0b951953d6020c109cfd272f6",
   "schemaVersion": 1,
   "source": {
     "fileCount": 559,
@@ -304,10 +304,10 @@
         "sha256": "9e1c31d3bf17058dc0157c67b046f1d3ca49e4dd90afb6532de7538a506627f3"
       },
       {
-        "bytes": 19954,
+        "bytes": 20209,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume.tex",
-        "sha256": "35a96503d85b3e62fa34add41a579a52b7e115970cc5729535c721f1d35ab211"
+        "sha256": "627de002139595cc4230d97514b3934a6ea82aad8bb882cdc330a755737572c7"
       },
       {
         "bytes": 54718,
@@ -3376,6 +3376,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "94d31d1cad90df08e00fbdd26c2aad561abcacc9d469b0781c581f7c959757d2"
+    "sha256": "a88045951d560ee5e73963e796a0fc9794fc4caf5a830da8d636feba1c3b61d9"
   }
 }
