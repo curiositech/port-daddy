@@ -57,6 +57,12 @@ which trains on preference pairs without a reward model, regurgitates more
 than RL \pdcite{pappu2024rlhf}. Table~\ref{tab:sealed-tenant-channels} collects the
 channels.
 
+% The open-font proof needs a fresh margin so this caption sits beside its
+% table rather than below the three citations above it.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
+
 \begin{table}[H]\centering\footnotesize
 \caption{Channels by which one tenant's log content can reach another
 principal. Figures are the cited studies' measurements on their own models and
