@@ -681,7 +681,8 @@ is told who holds it.
 \input{figures/fig-swk-claim-lifecycle}
 Figure~\ref{fig:swk-claim-lifecycle} states four properties as a state machine:
 acquire is one atomic insert, re-claim and release are idempotent, an expired
-claim is swept back to free on the next read, and there is no queued state.
+claim is swept back to free by a later read or the daemon's cleanup tick, and there
+is no queued state.
 The coordination layer builds typed ownership on these four. The acquire
 path is small enough to state as an algorithm (Listing~\ref{alg:acquire}); we
 then give the central property as a theorem.
@@ -829,7 +830,7 @@ file can starve a slow agent, keeping it waiting forever.
 \pdmarginpagebreak
 \fi
 
-The design that would close OP-1 without dragging a background scheduler into the
+The design that would close OP-1 without adding a scheduler for claims to the
 kernel is a \pdterm{Stigmergic Ticket-Lock}: each waiting agent leaves a
 numbered ticket in shared state, and the agent that releases the claim hands it
 to the lowest ticket. It is specified here in enough detail to build and to
@@ -857,12 +858,15 @@ ORDER BY seq_num ASC LIMIT 1;
 \end{enumerate}
 Because the state transition would be driven entirely \emph{reactively} by the
 releasing agent inside one transaction, FIFO ordering among waiters follows from the
-ticket table's own monotonic sequence, with no background timer or polling thread in
-the kernel. That property is what makes the design worth stating.
+ticket table's own monotonic sequence, with no timer of its own. The daemon does
+run periodic work elsewhere, such as its cleanup tick and the evaporation tick for
+markers, but a cooperative handoff would wait for neither, and that is what makes
+the design worth stating.
 
 The design does \emph{not} cover one path. A holder that never calls
 \texttt{release}, because it crashed or its lease simply expired, returns the
-resource through the lazy TTL sweep (invariant I4, Table~\ref{tab:invariants}), and the sweep consults no ticket queue.
+resource through the TTL sweep (invariant I4, Table~\ref{tab:invariants}), lazy or
+at the cleanup tick, and neither sweep consults a ticket queue.
 So bounded wait would hold for cooperative release and fail on exactly the
 failure path the kernel was built to expect. OP-1 remains open until the sweep
 and the queue share one code path and the ticket table exists.
@@ -3132,10 +3136,10 @@ Two agents call \texttt{acquire} on the same fresh key at the same instant. Walk
 The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key, holder) commits. The second hits the unique-key violation, selects the extant row inside the catch path, and returns \texttt{DENIED}\allowbreak\texttt{(holder}\allowbreak\texttt{=first)}: that select is where the loser learns the name. For range and hierarchy claims the trace is safe only after both requests map to the same canonical conflict key or the overlap test runs in one immediate transaction.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op1-ticket}
-The Stigmergic Ticket-Lock gives bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a background scheduler, or argue that no reactive-only design can, and say what the minimum scheduler would be.
+The Stigmergic Ticket-Lock gives bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a scheduler for claims, or argue that no reactive-only design can, and say what the minimum scheduler would be.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-op1-ticket}
-Add a durable FIFO ticket queue per conflict domain, a maximum lease $\ell$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No background scheduler is required for safety, but liveness requires some live caller or tick to trigger the transitions. Eventual requests alone give no finite wait bound. If leases cannot renew past $\ell$, a live trigger arrives within $d$ of each expiry, and each handoff completes within $h$, then a requester with $q$ predecessors waits at most $(q+1)(\ell+d+h)$, a conservative bound allowing a current holder as well. Without finite trigger and processing bounds, reactive safety can hold while waiting is unbounded. Every external effect must validate the fencing epoch, or an expired holder can still act.
+Add a durable FIFO ticket queue per conflict domain, a maximum lease $\ell$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No scheduler for claims is required for safety, but liveness requires some live caller or tick to trigger the transitions. Eventual requests alone give no finite wait bound. If leases cannot renew past $\ell$, a live trigger arrives within $d$ of each expiry, and each handoff completes within $h$, then a requester with $q$ predecessors waits at most $(q+1)(\ell+d+h)$, a conservative bound allowing a current holder as well. Without finite trigger and processing bounds, reactive safety can hold while waiting is unbounded. Every external effect must validate the fencing epoch, or an expired holder can still act.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:comm}}{The communication subsystem: the bus, stigmergy, and two delegation chains}
@@ -3469,8 +3473,8 @@ OP-11 & Cross-subsystem atomicity by default & \Open & One local transaction (\S
 
 \begin{description}[leftmargin=2.2em,style=nextline]
 \item[$\bigstar$ OP-1: Fair exclusion without a scheduler.] Status: \Open. Add
-bounded-wait to claims and locks while keeping the single-writer,
-no-background-scheduler simplicity. \S\ref{sec:resource} specifies a reactive
+bounded-wait to claims and locks while keeping the single writer and adding no
+scheduler for claims. \S\ref{sec:resource} specifies a reactive
 ticket-lock that would do it for cooperatively released claims and leaves the lazy
 TTL-sweep path, the one that matters when an agent dies, unfair. Nothing of it
 ships. Is a FIFO wait-list of time-to-live'd reservations enough once the sweep is
