@@ -1,0 +1,290 @@
+{
+  "collected_at": "2026-11-09T07:31:15Z",
+  "git_head": "f7d447527d0fff921882aa530cc06d576317e152",
+  "materials_seal": {
+    "differing": [],
+    "match": true
+  },
+  "model": "claude-opus-5-5 (configured subagent model; serving model may differ)",
+  "result": {
+    "answer_problems": [],
+    "answered": 48,
+    "criteria": {
+      "ccei_plain_ge_tau": true,
+      "ccei_pooled_ge_tau": true,
+      "ccei_reframed_ge_tau": true,
+      "median_share_diff_le_tol": true
+    },
+    "experiment": "A",
+    "frame_gap": 0.0,
+    "frame_invariant": true,
+    "item_consistency": {
+      "mean_abs_share_diff": 0.0,
+      "median_abs_share_diff": 0.0,
+      "median_by_reframe_type": {
+        "discount": 0.0,
+        "intercept": 0.0,
+        "pack": 0.0,
+        "unit": 0.0
+      },
+      "pairs": 24,
+      "per_budget": [
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B01",
+          "reframe_type": "intercept",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B02",
+          "reframe_type": "pack",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B03",
+          "reframe_type": "intercept",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B04",
+          "reframe_type": "pack",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B05",
+          "reframe_type": "intercept",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B06",
+          "reframe_type": "unit",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B07",
+          "reframe_type": "pack",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B08",
+          "reframe_type": "discount",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B09",
+          "reframe_type": "intercept",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B10",
+          "reframe_type": "discount",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B11",
+          "reframe_type": "intercept",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B12",
+          "reframe_type": "unit",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B13",
+          "reframe_type": "discount",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B14",
+          "reframe_type": "pack",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B15",
+          "reframe_type": "discount",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B16",
+          "reframe_type": "intercept",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B17",
+          "reframe_type": "unit",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B18",
+          "reframe_type": "unit",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B19",
+          "reframe_type": "discount",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B20",
+          "reframe_type": "discount",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B21",
+          "reframe_type": "pack",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B22",
+          "reframe_type": "unit",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B23",
+          "reframe_type": "pack",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        },
+        {
+          "abs_share_diff": 0.0,
+          "budget_id": "B24",
+          "reframe_type": "unit",
+          "share_plain": 0.5,
+          "share_reframed": 0.5,
+          "spend_ratio_plain": 1.0,
+          "spend_ratio_reframed": 1.0
+        }
+      ],
+      "share_identical_within_0.02": 1.0
+    },
+    "items": 48,
+    "off_line_rate": {
+      "plain": 0.0,
+      "reframed": 0.0
+    },
+    "offers_file_unchanged": true,
+    "other_files_in_work_dir": [],
+    "plain": {
+      "ccei": 1.0,
+      "ccei_projected_to_line": 1.0,
+      "garp_holds": true,
+      "garp_violating_pairs": 0,
+      "n": 24
+    },
+    "pooled": {
+      "ccei": 1.0,
+      "ccei_projected_to_line": 1.0,
+      "garp_holds": true,
+      "garp_violating_pairs": 0,
+      "n": 48
+    },
+    "random_benchmark_exceedance": {
+      "p_random_ccei_plain_ge_subject": 0.0,
+      "p_random_ccei_pooled_ge_subject": 0.0,
+      "p_random_ccei_reframed_ge_subject": 0.0
+    },
+    "rational_within_frames": true,
+    "reframed": {
+      "ccei": 1.0,
+      "ccei_projected_to_line": 1.0,
+      "garp_holds": true,
+      "garp_violating_pairs": 0,
+      "n": 24
+    },
+    "session_id": "pa01",
+    "test": "T1",
+    "verdict": "pass"
+  },
+  "scaffold": "Claude Code subagent (fresh context)"
+}
