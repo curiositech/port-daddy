@@ -111,6 +111,12 @@ often shared within a group that has no bounded size
 name. Table~\ref{tab:sealed-tenant-policy} applies the rule to common classes
 of log content.
 
+% The open-font proof needs a fresh margin so this caption sits beside its
+% table rather than below the two citations above it.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
+
 \begin{table}[H]\centering\footnotesize
 \caption{Where a log line may go, by data class, under the flow rule.
 \emph{yes}: allowed; \emph{release}: only with the owner's declassification
