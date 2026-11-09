@@ -10,7 +10,7 @@
  {"term": "body-lease", "sort": "body-lease", "definition": "The live process, with a heartbeat, that holds an agent's work during one run; a respawn replaces it while the durable identity remains."},
  {"term": "no-mint", "sort": "no-mint", "definition": "The rule that credit passed to successors is debited in full from the source while each successor receives a discounted share, so splitting or copying a record never creates credit."},
  {"term": "load receipt", "sort": "load receipt", "definition": "A proposed record the daemon writes when it hands notes to a successor, naming the successor and the digests of the notes actually given to it."},
- {"term": "tombstone", "sort": "tombstone", "definition": "An appended record that retracts an earlier outcome later found invalid, without deleting the original entry."},
+ {"term": "tombstone", "sort": "tombstone", "definition": "An appended record that retracts an earlier record, such as an outcome later found invalid, while the original stays in the log."},
  {"term": "consolidation", "sort": "consolidation", "definition": "A background rewrite of an agent's stored memory into fewer, more general entries."},
  {"term": "endogenous authorization laundering", "sort": "endogenous authorization laundering", "definition": "Cerruti et al.'s name for memory that, with no attacker present, comes to state permissions the agent was never granted."},
  {"term": "authority collapse", "sort": "authority collapse", "definition": "Zhan et al.'s name for a memory that keeps a claim while erasing the source constraints on its use."},
