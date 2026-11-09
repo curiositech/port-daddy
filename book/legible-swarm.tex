@@ -2849,7 +2849,7 @@ List the three feasible choices. Their losses $(L_{\mathrm{succ}},L_{\mathrm{op}
 
 \emph{Pause and check:} if the audit weight becomes zero, the work-only summary minimizes both objectives. Disagreement requires a real oversight obligation, not merely two named readers. The next result studies a different question: the counting floors when two readers need disjoint critical sets.
 
-\begin{pdclaim}{Theorem}{Super-Additive Split Penalty}
+\begin{pdclaim}{Theorem}{Joint-Digest Floor under a Shared Opening Budget}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:split-penalty}
 For integers $N,m,k$ with $k\ge1$ and $2k\le m<N$, let
@@ -2879,12 +2879,19 @@ F(k)=\log_2\!\frac{2k+1}{k+1}\longrightarrow1.
 Consequently $R(2k+1,k,2k)\to\infty$ as $k\to\infty$.
 \end{pdclaim}
 
-The denominator is the sum of two single-reader lower bounds, each allowing
-$m$ opens. Those separate review budgets permit up to $2m$ opens in total,
-whereas the joint bound allows only $m$. This is a comparison of lower bounds
-under different total opening budgets, not an equal-budget comparison of
-architectures. It neither establishes attainable encoding lengths nor says
-that running two heads costs more than twice one head.
+Read the ratio with care. Each of the two separate readers may open $m$
+items, $2m$ in all; the joint digest may open only $m$. What the theorem
+shows: one digest that must serve two readers with disjoint critical sets
+inside one reader's opening budget needs more bits than the two
+single-reader floors together. The extra bits come from sharing that budget,
+not from serving two readers with one digest. At an equal total budget the
+order reverses. A joint review set of $2m$ items made of two disjoint
+$m$-item halves contains at least $\binom mk^2$ of the possible $2k$-sets,
+strictly more when $k\ge1$, and $\binom N{2k}\le\binom Nk^2$. So whenever
+$2m\le N$, the joint floor with $2m$ opens, $\mathrm{Floor}(N,2k,2m)$, is
+strictly below $2F(k)$; when $2m>N$ the joint reader can open everything and
+needs no bits at all.
+\pdscope{These are lower bounds on message length; nothing here says a real encoder reaches them.}
 
 \begin{pdexample}{The Split-Floor Arithmetic, at the Sweep's Own Instance}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2914,6 +2921,13 @@ the joint floor is about $6.70\%$ above that sum.
 The ratio to just one reader's floor is instead
 \[
 F(4)/F(2)\approx2.1340.
+\]
+
+Give the joint digest the same sixteen opens the two separate readers have
+between them, and its floor drops below their sum:
+\[
+\mathrm{Floor}(60,4,16)=\log_2\!\frac{\binom{60}{4}}{\binom{16}{4}}
+=\log_2\frac{487635}{1820}\approx8.0657\text{ bits}<11.9644.
 \]
 
 These are closed-form lower bounds, not measured token costs or achieved
@@ -3741,7 +3755,8 @@ The single-reader floor is $5.9822$ bits and the joint floor is $12.7662$ bits.
 The script's reported $2.13\times$ compares the joint floor with only one
 single-reader floor. Dividing instead by $2(5.9822)=11.9644$ gives $1.0670$.
 The joint digest permits eight opens total; each separate reader may open
-eight. Neither ratio measures an equal-total-budget implementation saving.
+eight. Neither ratio measures an equal-total-budget implementation saving;
+with sixteen opens in total the joint floor falls to $8.0657$ bits, below $11.9644$.
 The recorded sweep reports \texttt{violations: 0/16 -> floor HOLDS} and
 \texttt{ratio:\ \ 2.13x} [internal, \texttt{a7\_experiment.py}]. Its zero
 violations concern the finite tested configurations and the script's
