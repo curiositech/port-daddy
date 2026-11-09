@@ -22,8 +22,8 @@ which reads fit, and the settlement reader, which reads uplift.
 \setlength{\parskip}{4pt plus 1pt}
 Let $A$ be the high-fit skill with zero uplift, such as a procedure the
 agent already performs without help, and $B$ the lower-fit skill with
-uplift $u(B)>0$. Then
-$\bigl(\mathrm{fit}(A)-\mathrm{fit}(B)\bigr)\bigl(u(A)-u(B)\bigr)<0$, a
+uplift $\mathrm{uplift}(B)>0$. Then
+$\bigl(\mathrm{fit}(A)-\mathrm{fit}(B)\bigr)\bigl(\mathrm{uplift}(A)-\mathrm{uplift}(B)\bigr)<0$, a
 strict reversal. By Theorem~\ref{thm:comonotone}, no shared head serves
 both orders. The construction is the one in the proof of
 Theorem~\ref{thm:split-ranker}, with uplift in place of regret.

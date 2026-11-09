@@ -24,20 +24,20 @@ second repair chosen by rule rather than by assignment.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-many-authors-cycle}
 In the worked example, the migration takes thirty minutes, Bob's review takes
-$R$ minutes and must follow it, and Alice's demo is $D$ minutes away. Write the
-cycle weight as a function of $R$ and $D$. Find the longest feasible review
-when $D=80$ and when $D=70$, and the earliest feasible demo when Bob insists
-on $R=60$.
+$\Delta_{\mathrm{rev}}$ minutes and must follow it, and Alice's demo is $\Delta_{\mathrm{demo}}$ minutes away. Write the
+cycle weight as a function of $\Delta_{\mathrm{rev}}$ and $\Delta_{\mathrm{demo}}$. Find the longest feasible review
+when $\Delta_{\mathrm{demo}}=80$ and when $\Delta_{\mathrm{demo}}=70$, and the earliest feasible demo when Bob insists
+on $\Delta_{\mathrm{rev}}=60$.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-many-authors-cycle}
-With $z$ the present moment, the four constraints are $s-m\le-30$, $m-e\le-R$,
-$z-s\le0$ and $e-z\le D$. Summing them, the left side is $0$, so the cycle
-weight is $-30-R+0+D$ and the schedule is feasible exactly when $D-30-R\ge0$,
-that is $R\le D-30$, with the migration starting now.
+With $t_{\mathrm{now}}$ the present moment, the four constraints are $t_{\mathrm{start}}-t_{\mathrm{end}}\le-30$, $t_{\mathrm{end}}-t_{\mathrm{rev}}\le-\Delta_{\mathrm{rev}}$,
+$t_{\mathrm{now}}-t_{\mathrm{start}}\le0$ and $t_{\mathrm{rev}}-t_{\mathrm{now}}\le \Delta_{\mathrm{demo}}$. Summing them, the left side is $0$, so the cycle
+weight is $-30-\Delta_{\mathrm{rev}}+0+\Delta_{\mathrm{demo}}$ and the schedule is feasible exactly when $\Delta_{\mathrm{demo}}-30-\Delta_{\mathrm{rev}}\ge0$,
+that is $\Delta_{\mathrm{rev}}\le \Delta_{\mathrm{demo}}-30$, with the migration starting now.
 
-At $D=80$ the longest review is $80-30=50$ minutes, with weight
-$-30-50+80=0$ and no slack. At $D=70$ it is $70-30=40$ minutes; a fifty-minute
-review there gives $-30-50+70=-10$, infeasible. With $R=60$ the demo must be
+At $\Delta_{\mathrm{demo}}=80$ the longest review is $80-30=50$ minutes, with weight
+$-30-50+80=0$ and no slack. At $\Delta_{\mathrm{demo}}=70$ it is $70-30=40$ minutes; a fifty-minute
+review there gives $-30-50+70=-10$, infeasible. With $\Delta_{\mathrm{rev}}=60$ the demo must be
 at least $30+60=90$ minutes away, with weight $-30-60+90=0$ at that point.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-many-authors-bets}

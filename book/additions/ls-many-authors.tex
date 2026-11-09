@@ -11,7 +11,7 @@ participant who originates authority and can withdraw it.'' Bob's repository
 already breaks the premise in a small way. Bob owns the code and its
 acceptance test; Alice runs the team. Nothing stops Bob from directing an
 agent himself, and nothing stops a third person from joining. This section
-asks what survives when $M$ people direct $N$ agents through one daemon,
+asks what survives when $M$ people direct a fleet of agents through one daemon,
 what the single-operator design must add, and which conflicts between their
 directions can be found before any agent acts.
 
@@ -99,7 +99,7 @@ when it is accepted, to the principal who requested it. Every admitted action
 belongs to one work order and names exactly one grant, and the guard admits it
 only if that grant descends from the work order's principal. The witness of the
 consent-grant lifecycle (\S\ref{sec:consent}) becomes
-$(p, g, x, \text{reason}, \text{artifact})$, with $p$ that principal. An agent
+$(i, g, x, \text{reason}, \text{artifact})$, with $i$ that principal. An agent
 may hold grants from two people; the guard checks each action against the one
 grant it names, never their union, and never a grant from someone the work was
 not done for.
@@ -257,45 +257,45 @@ Rule R8 needs a target. The incident command system's answer is
 The theorem below states exactly when that answer is needed for escalation to
 be well defined.
 
-Model delegation as a finite directed acyclic graph $G$. Its nodes are
+Model delegation as a finite directed acyclic graph $\mathcal G$. Its nodes are
 principals and \emph{objects} (scopes, invariants and agent grants). An edge
 $u\to v$ means principal $u$ delegated authority to $v$. Objects have no
-outgoing edges, the charter root $r$ has no incoming edge, and every node is
-reachable from $r$. A principal $p$ \emph{holds authority over} object $s$ when
-$G$ has a path from $p$ to $s$. A conflict witness touches a nonempty set $S$
+outgoing edges, the charter root $r_0$ has no incoming edge, and every node is
+reachable from $r_0$. A principal $p$ \emph{holds authority over} object $s$ when
+$\mathcal G$ has a path from $p$ to $s$. A conflict witness touches a nonempty set $S$
 of objects. Its \emph{common authorities} are
 \[
-C(S)=\{\,p : p \text{ holds authority over every } s\in S\,\},
+\mathcal C(S)=\{\,p : p \text{ holds authority over every } s\in S\,\},
 \]
-which contains $r$. Escalation for $S$ is \emph{well defined} when $C(S)$ is
+which contains $r_0$. Escalation for $S$ is \emph{well defined} when $\mathcal C(S)$ is
 totally ordered by reachability. Its lowest element is then the first hop, and
-each further hop is the next element up to $r$.
+each further hop is the next element up to $r_0$.
 
 \begin{pdclaim}{Theorem}{Unity of Command Is Exactly Well-Defined Escalation}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:ls-unity-of-command}
 Escalation is well defined for every nonempty set of objects if and only if,
-in the transitive reduction of $G$, every object and every principal with a
+in the transitive reduction of $\mathcal G$, every object and every principal with a
 path to an object has at most one parent.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-Write $A(v)$ for the set of principals with a path to $v$. The transitive
+Write $\mathcal A(v)$ for the set of principals with a path to $v$. The transitive
 reduction of a finite acyclic graph has the same paths between the same pairs
-of nodes, so $A(v)$ may be read off the reduction.
+of nodes, so $\mathcal A(v)$ may be read off the reduction.
 
 If every such node has at most one parent, follow parents upward from an
 object $s$. Each step is forced, and every principal with a path to $s$ lies on
-this one route to $r$, so $A(s)$ is a chain. For a set $S$, $C(S)$ is the
-intersection of the chains $A(s)$, $s\in S$. It is a subset of one chain, hence
-a chain, and it contains $r$.
+this one route to $r_0$, so $\mathcal A(s)$ is a chain. For a set $S$, $\mathcal C(S)$ is the
+intersection of the chains $\mathcal A(s)$, $s\in S$. It is a subset of one chain, hence
+a chain, and it contains $r_0$.
 
 Conversely, let $v$ be an object $s$, or a principal with a path to an
 object $s$, and let $v$ have two parents $p\ne q$ in the transitive reduction.
 Both are principals, since only principals delegate. Neither reaches the
 other: if $p$ reached $q$, the path from $p$ through $q$ to $v$ would imply the
 edge from $p$ to $v$, and the reduction would have removed it; symmetrically
-for $q$. Both reach $s$ through $v$, so both lie in $C(\{s\})$, which is
+for $q$. Both reach $s$ through $v$, so both lie in $\mathcal C(\{s\})$, which is
 therefore not a chain.
 \end{proof}
 
@@ -423,19 +423,19 @@ freeze. The daemon refuses Wren's plan before Wren
 starts, and Alice receives the witness. Nobody had to decide anything.
 
 \textbf{Instruction time: an infeasible schedule.} Alice asks Bob for one
-exception. Bob will allow the migration if he reviews it. Let $s$ be the
-migration's start, $m$ its end and $e$ the end of Bob's review. Wren
-estimates thirty minutes, so $m-s\ge30$, that is $s-m\le-30$. Bob's rule needs
-sixty minutes of review, so $e-m\ge60$, that is $m-e\le-60$. Let $z$ be the
-present moment, minute $0$. The migration cannot start before now, $z-s\le0$,
+exception. Bob will allow the migration if he reviews it. Let $t_{\mathrm{start}}$ be the
+migration's start, $t_{\mathrm{end}}$ its end and $t_{\mathrm{rev}}$ the end of Bob's review. Wren
+estimates thirty minutes, so $t_{\mathrm{end}}-t_{\mathrm{start}}\ge30$, that is $t_{\mathrm{start}}-t_{\mathrm{end}}\le-30$. Bob's rule needs
+sixty minutes of review, so $t_{\mathrm{rev}}-t_{\mathrm{end}}\ge60$, that is $t_{\mathrm{end}}-t_{\mathrm{rev}}\le-60$. Let $t_{\mathrm{now}}$ be the
+present moment, minute $0$. The migration cannot start before now, $t_{\mathrm{now}}-t_{\mathrm{start}}\le0$,
 and Alice's demo is at minute eighty, so the review must end by then:
-$e-z\le80$. Summing the four inequalities, the left side cancels to $0$ and the
+$t_{\mathrm{rev}}-t_{\mathrm{now}}\le80$. Summing the four inequalities, the left side cancels to $0$ and the
 right side is
 \[
 -30-60+0+80=-10,
 \]
-so $0\le-10$ is required. The cycle $z\to e\to m\to s\to z$ has weight $-10$,
-and the schedule is infeasible. (Bounding only $e-s$ would not do: it limits
+so $0\le-10$ is required. The cycle $t_{\mathrm{now}}\to t_{\mathrm{rev}}\to t_{\mathrm{end}}\to t_{\mathrm{start}}\to t_{\mathrm{now}}$ has weight $-10$,
+and the schedule is infeasible. (Bounding only $t_{\mathrm{rev}}-t_{\mathrm{start}}$ would not do: it limits
 how long the work takes, not when it ends.) Each constraint is needed, so the blame set is
 again both people. The witness touches Alice's demo and Bob's review rule; the
 only common authority is Bob. He receives one proposal: shorten the review to

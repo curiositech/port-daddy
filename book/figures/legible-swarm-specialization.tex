@@ -7,8 +7,8 @@
 % Claim: the true boundary is the Erlang-C threshold; the worked instance
 % clears it into the sole-owner region; a simpler proposed threshold
 % diverges from it rather than saturating, so it is falsified.
-% Evidence: the Erlang-C boundary $g_A(\rho,3)$, the superseded $\tilde g$,
-% and the worked point $\rho=.556,r=2.5$, book/legible-swarm.tex
+% Evidence: the Erlang-C boundary $\gamma_A(\rho,3)$, the superseded $\tilde\gamma$,
+% and the worked point $\rho=.556,r_{\mathrm{sk}}=2.5$, book/legible-swarm.tex
 % [internal, closed form].
 % Must distinguish: the exact boundary (solid) from the falsified proposed
 % one (dashed); which side of the exact boundary is pooled versus sole.
@@ -47,7 +47,7 @@
   \node[pd label,anchor=north,align=center,text width=3.6cm] at (6,-1.02)
     {pooled utilization $\rho$};
   \node[pd label,rotate=90,anchor=south,align=center,text width=3.0cm] at (-.82,3.1)
-    {skill premium $r$};
+    {skill premium $r_{\mathrm{sk}}$};
 
   \node[pd focus label,anchor=west,align=left,text width=2.55cm] at (7.45,5.12)
     {exact Erlang--C\\boundary};
@@ -57,9 +57,9 @@
   \node[pd title,anchor=west] at (8.45,1.10) {pool wins};
 
   \node[pd label,anchor=west,align=left] at (7.08,2.42)
-    {$\rho=.556$\\$r=2.5$};
+    {$\rho=.556$\\$r_{\mathrm{sk}}=2.5$};
   \draw[pd hairline] (6.96,2.58)--(6.67,3.00);
 \end{tikzpicture}
-\caption{At three agents, pooling wins below $g_A(\rho,3)$ and sole ownership above it. The dashed, superseded threshold diverges incorrectly; the worked point narrowly favours sole ownership. [internal; closed form]}
+\caption{At three agents, pooling wins below $\gamma_A(\rho,3)$ and sole ownership above it. The dashed, superseded threshold diverges incorrectly; the worked point narrowly favours sole ownership. [internal; closed form]}
 \label{fig:specialization}
 \end{figure}
