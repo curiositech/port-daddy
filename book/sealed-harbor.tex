@@ -1600,7 +1600,6 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 
 \section{Exercises}
 \label{sec:sealed-exercises}
-\input{additions/sealed-exercises-tenants}
 
 \pdexercisesfor{\S\ref{sec:sealed-noninterference}}{Silence except through the slot}
 
@@ -1763,6 +1762,8 @@ $3.40$, and at $k=35$ it is $3.48$ against $3.50$, so the crossover is $k=35$
 [verified].
 \end{pdsolution}
 
+\input{additions/sealed-exercises-person-ledger}
+
 \pdexercisesfor{\S\ref{sec:sealed-detection}}{Canaries with a power curve and a clock}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:sealed-power}
@@ -1819,6 +1820,8 @@ gives $1-\beta^0=0$, which is why detection is backed by a bounded bond and is
 not offered as a guarantee.
 \end{pdsolution}
 
+\input{additions/sealed-exercises-canary-audit}
+
 % Keep this compact question together; its timing qualifier is part of the task.
 \Needspace{7\baselineskip}
 \pdexercisesfor{\S\ref{sec:sealed-budget}}{The leakage budget: $q\cdot b$ bits, before timing}
@@ -1834,6 +1837,8 @@ to $\log_2 3\approx1.585$ bits per job, so about $317$ more bits, for roughly
 $13{,}117$ bits in total; the timing term is why scheduled release with one
 slot is the design default.
 \end{pdsolution}
+
+\input{additions/sealed-exercises-tenants}
 
 \section{History and references}
 \label{sec:sealed-history}

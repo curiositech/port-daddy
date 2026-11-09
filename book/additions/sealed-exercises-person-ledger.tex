@@ -1,0 +1,18 @@
+\pdexercisesfor{\S\ref{sec:sealed-person-ledger}}{The ledger keyed by data subject}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:sealed-person-budget}
+Each data subject has a lifetime zero-concentrated budget $\rho_{\max}=0.25$, and
+training runs in rounds of cost $0.04$. How many rounds can a data subject join, and
+what $\varepsilon$ does the amount spent give at $\delta=10^{-6}$ by the
+conversion $\varepsilon=\rho+2\sqrt{\rho\ln(1/\delta)}$? What is the worst case
+if the same data subject appears unresolved in three tenants?
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-person-budget}
+Six rounds: $6\times0.04=0.24\le0.25$, and a seventh would reach $0.28$. With
+$\rho=0.24$: $\ln10^6=13.816$, $0.24\times13.816=3.316$, $\sqrt{3.316}=1.821$,
+so $\varepsilon=0.24+3.642=3.88$. Three unresolved keys can each be charged
+$0.24$, and zero-concentrated costs add, so the data subject carries $0.72$:
+$0.72\times13.816=9.947$, $\sqrt{9.947}=3.154$, and
+$\varepsilon=0.72+6.308=7.03$. Resolving one data subject to one key is part of the
+ledger's correctness, not an optimization.
+\end{pdsolution}
