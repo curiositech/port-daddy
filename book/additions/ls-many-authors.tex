@@ -81,8 +81,9 @@ A harbor directed by principals $1,\dots,M$ satisfies:
 delegation and holds the precedence table. An amendment may require $k$ of $M$
 signatures; each amendment is one proposal, accepted or rejected.
 \item \textbf{A delegation tree} (\Designed). After transitive reduction, every
-scope, invariant and agent grant has exactly one delegating parent. The
-daemon refuses a grant that would give a node a second parent.
+scope, invariant and agent grant, and every principal with a delegation path
+to one of them, has exactly one delegating parent. The daemon refuses a grant
+that would give such a node a second parent.
 \item \textbf{Attenuation per person} (\Vision). The charter's allocation to
 principal $i$ bounds every grant $i$ issues, and each agent card attenuates the
 grant of the principal it acts for%
@@ -317,9 +318,10 @@ dictatorships~\pdcite{fickinger2020multi}.
 
 The design consequence is the shape of rules R1, R5 and R8. Escalations are put
 as one proposal to accept or reject, which keeps every decision to two
-outcomes. Each scope has one decider, the local dictator these theorems make
-unavoidable for complete ranked choice. Nothing here requires a vote, and the
-design holds none.
+outcomes, where these impossibility theorems do not apply: a vote between two
+options can be neither dictatorial nor manipulable. Giving each scope one
+decider is a design choice for speed and accountability, not something the
+theorems force. Nothing here requires a vote, and the design holds none.
 
 Owner decisiveness has its own limit. Giving each owner decisive authority
 over its scope, together with the Pareto requirement, is the conflict
@@ -411,9 +413,10 @@ integration owner, Bob issues Alice a narrow grant: \texttt{tests/checkout/},
 symbol \texttt{charge}, thirty minutes. Alice attenuates it onto Heron's card,
 and Heron's fix names that grant (R4).
 
-\textbf{Tally.} Two conflicts were refused before any agent worked, one was
-flagged at claim time, and one was refused at admission. No broken commit
-landed. Bob decided twice and Alice never did. The load fell on the root,
+\textbf{Tally.} Two conflicts were caught before any agent worked: one refused,
+one settled by a proposal Bob accepted. The claim-time check correctly saw
+nothing, because the two file claims did not overlap, and the third conflict
+surfaced at admission, which refused it. No broken commit landed. Bob decided twice and Alice never did. The load fell on the root,
 which is the queueing concern of \S\ref{sec:sole-roles}.
 
 \emph{Now you try:} find the longest review that fits Alice's demo, and redo it

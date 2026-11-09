@@ -7,10 +7,11 @@
 The two theorems above say which policies a gate realizes exactly. They say
 nothing about the rest, and this book does not fill the gap by assuming the
 agent is aligned. Models trained to write exploitable code only when the
-prompt gave the year as 2024 kept the behavior through supervised
-fine-tuning, reinforcement learning and adversarial training; adversarial
-training taught them to recognize the trigger more accurately, hiding the
-behavior rather than removing it~\pdcite{hubinger2024sleeper}. Passing a
+prompt gave the year as 2024 kept the behavior through supervised fine-tuning
+and reinforcement learning. In the same study, models trained to say ``I hate
+you'' on a trigger kept it through adversarial training as well, which taught
+them to recognize the trigger more accurately, hiding the behavior rather than
+removing it~\pdcite{hubinger2024sleeper}. Passing a
 behavioral evaluation does not earn a gate's trust.
 
 \textbf{AI control} is the method for the residue. Greenblatt and colleagues
@@ -19,8 +20,9 @@ trusted model and a small budget of trusted human labor. A red team replaces
 the untrusted model with an attack policy; safety is the probability that no
 unacceptable outcome occurs over the scenario, and usefulness is measured with
 the honest model. Auditing the $2\%$ most suspicious programs gave $62\%$
-safety at $97\%$ usefulness; trusted editing gave $92\%$ at
-$94\%$~\pdcite{greenblatt2024control}. In a multi-step shell setting,
+safety at $97\%$ usefulness; trusted editing at a $20\%$ threshold gave $92\%$
+at $94\%$, usefulness in each case scaled between the trusted and the
+untrusted model~\pdcite{greenblatt2024control}. In a multi-step shell setting,
 resampling suspicious actions before execution cut attack success from $58\%$
 to $7\%$ at a $5\%$ cost in usefulness~\pdcite{bhatt2025ctrlz}. Every lever
 acts before the effect: defer, resample, audit, shut down. A protocol is a
@@ -76,9 +78,11 @@ By part~(a), a control evaluation of an exact gate reduces to
 \emph{conformance testing}: no attack policy can lower its safety, so what is
 left to check is that the deployed gate computes $f$ and that the events it
 claims as $\Sigma_c$ are mediated (boundary item~(ii) above). Part~(b) is that
-boundary from the other side. Every channel the isolation layer leaves
+boundary from the other side. A channel the isolation layer leaves
 unmediated, from a raw socket to a container escape to a timing channel, is an
-uncontrollable event available from the first step. Which channels a microVM,
+uncontrollable event. When the agent can reach it without any controllable
+step, part~(b) makes every protocol unsafe; when it lies behind controllable
+steps, every fully useful protocol is. Which channels a microVM,
 a user-space kernel, a verified microkernel, WebAssembly or a trusted
 execution environment removes is a separate question\ifpdbook, which
 the Book's appendices grade\fi.
@@ -86,12 +90,19 @@ the Book's appendices grade\fi.
 Between the two parts lie the policies that are controllable but not
 observable, or not controllable yet with a nonempty supremal controllable
 sublanguage. There, fully safe protocols exist that are not fully useful, and
-a control evaluation estimates the safety--usefulness frontier. We expect no
-fully safe protocol to be more useful than the most permissive safe supervisor
-of Theorem~\ref{thm:regimentation-controllability}, refined for observation,
-but we have not proved it. An audit is a purchased observation that changes
-$P$ for the step it inspects, so any bound must price audits as changes to the
-observation map. The question is \Open{}.
+a control evaluation estimates the safety--usefulness frontier. One bound
+holds for every protocol, however randomized, partially observing or audited.
+The histories it lets some agent policy reach are closed under prefixes, and
+under uncontrollable events, which it cannot disable. If the protocol is fully
+safe they also lie in $\overline{K}$, so they lie in the supremal controllable
+sublanguage of $\overline{K}$: the closed loop of the most permissive safe
+supervisor of Theorem~\ref{thm:regimentation-controllability}. No fully safe
+protocol lets an agent do more. Under partial observation the bound need not be
+reached, and no single most permissive observing supervisor exists, because
+sublanguages that are both controllable and observable are not closed under
+union. An audit buys observation: it refines $P$ for the step it inspects. How
+close protocols that see only through $P$, plus a budget of audits, can come
+to the bound is \Open{}.
 
 Keep the adversaries apart. The red team in the theorem is zero-sum: it
 minimizes safety and has no payoff of its own. Becker's condition in
@@ -125,7 +136,7 @@ over this alphabet regiments it.
 
 The paper's other lever is an escalation channel. Letting the agent stop and
 flag the task for a person cut GPT-5's cheating on the same variant from $54\%$
-to $9\%$, a relative fall of $45/54\approx 0.83$, and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$.
+to $9\%$, a relative fall of $45/54\approx 0.83$, and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$. The authors report the effect as much less pronounced for Claude Opus~4.1, the model this example opened with.
 \end{pdexample}
 
 \paragraph{A three-configuration harbor protocol (\Vision{}).}
