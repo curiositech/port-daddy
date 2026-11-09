@@ -787,9 +787,13 @@ An explicit transaction addresses atomicity; preventing stale external
 effects still requires the downstream gate. Single ownership, atomic
 reclamation, and fencing are three separate obligations.}
 
-What the discipline looks like from two terminals: one agent holds a lock on a file,
-a second asks for the same name and is told who holds it and for how long, and only
-after the first releases does the second acquire. Nothing here is advisory: the
+What the discipline looks like at the command line: a lock is taken on a file,
+a second request for the same name is told who holds it and for how long, and only
+after the release does the next acquire succeed. The recording runs every command
+from one shell, so every command acts as one minted actor and the \texttt{export}
+lines change nothing (\S\ref{sec:swk-identity} explains why that matters). The
+second request is refused all the same, because a held lock refuses every new
+acquire, its holder's included. Nothing here is advisory: the
 daemon is the single writer for the \texttt{locks} row, so the second request cannot
 race the first.
 
@@ -1066,15 +1070,11 @@ and semantic loop detection are separate checks.}
 
 \pdmarginanalogy{swk-flywheel-governor}{}{ch01-flywheel-governor}{Like a steam engine centrifugal governor whose collar chokes the inlet when speed threatens stability, rate-limiting enforces backpressure before the transport faults.}%
 The kernel ships \emph{two} transports over Unix domain sockets: a
-request/response protocol, and a binary framed transport with peer-credential
-authentication and backpressure for frequent, tight-loop coordination. As
-\S\ref{sec:threatmodel} explains, the peer-credential check is a software
-handshake. The connecting process \emph{states} an agent identity, and the
-daemon checks it against the registration table, with owner-only
-(\texttt{0600}) permissions on the socket file behind it. It is \emph{not}
-the kernel-enforced socket-level credential check (\texttt{SO\_PEERCRED}) it
-resembles and is named after. This weakens the trust boundary for both
-transports, and the hardening design of \S\ref{sec:merkle} does not change it.
+request/response protocol, and a binary framed transport with backpressure for
+frequent, tight-loop coordination. Both sockets are owner-only (\texttt{0600}).
+On the binary transport the connecting process \emph{states} an agent identity,
+and the daemon checks only that the name is registered, so a process can name
+an agent it is not. \S\ref{sec:swk-identity} describes that in-scope weakness.
 
 \pdexercisepointer{\ref{ex:swk-decay-honest}}{\ref{ex:swk-op8-decay}}{\pageref{ex:swk-decay-honest}}
 
@@ -2574,10 +2574,10 @@ cross-machine adversary, which belongs to the economy layer.}
 \toprule
 \textbf{Adversary} & \textbf{In/out of scope} & \textbf{What defends (or does not)} \\
 \midrule
-Buggy cooperating agent & \textbf{in} & Claims, commitments, post-commit monitoring, oracle-bound closure. The primary design target. \\
+Buggy cooperating agent & \textbf{in} & Claims, commitments, post-commit monitoring, oracle-bound closure. The primary design target. Identity confusion is in scope here: the environment a command runs in chooses which identity it acts under, so a buggy agent can act under another agent's name without forging anything (\S\ref{sec:swk-identity}). \\
 Misbehaving agent (ignores advisory claims) & partial & Edit-surface claims are \emph{advisory coordination}, not OS-enforced isolation. A malicious agent can write the file anyway (no kernel-level sandbox such as Landlock, \texttt{unveil}, or Seatbelt). \\
 Same-user process (reads/edits the DB) & \textbf{out} & The database is owner-read/write only; OS-keychain isolation of the signing key remains incomplete. Hash-chain tamper-evidence defends against \emph{nobody} under this exclusion (\S\ref{sec:merkle}). \\
-Different-uid process & \textbf{in (partial)} & Owner-only permissions on the database and both socket files; but the socket peer-credential check is a software handshake (a self-reported agent identity checked against the registration table), \emph{not} the kernel-enforced socket credential (\texttt{SO\_PEERCRED}), which is a real weakness in authentication. This row is the document's operative statement: no other section supersedes it (\S\ref{sec:merkle} specifies hardening that would, but does not ship). \\
+Different-uid process & \textbf{in (partial)} & Owner-only permissions on the database and both socket files. The daemon also serves the same interface on a loopback TCP port for its dashboard unless that port is turned off, and file permissions do not cover it. The kernel's record of a socket peer's user would add nothing while the socket permissions hold; it matters once agents run under user IDs of their own (OP-9, \S\ref{sec:merkle}). This row is the document's operative statement: no other section supersedes it. \\
 Cross-machine / cross-operator & \textbf{out (economy layer)} & Needs the complete local identity contract (\BuiltWeak) and cross-operator attestation (\pdchapref{he}{The Harbor Economy}). \\
 \bottomrule
 \end{tabularx}
@@ -2704,6 +2704,7 @@ single-writer design is a design invariant for confinement and a hypothesis for
 collaboration.
 
 \subsection{Partial actor-soul identity bounds every other invariant}
+\label{sec:swk-identity}
 \pdstatus{\BuiltWeak}{I12: minted identities ship; not every write path requires the credential}
 
 The daemon now issues each worker a lasting identifier, which the book calls an
@@ -2711,8 +2712,22 @@ The daemon now issues each worker a lasting identifier, which the book calls an
 places workers it has not seen before in a shared, capped pool for newcomers. But
 some older code paths, and some security-relevant writes, still accept a worker's
 own statement of who it is without asking for the credential, so on those paths one
-worker can pose as another. That weakens the checks that depend on knowing who is
-acting: that only a lock's owner can release it, that no worker gains more
+worker can pose as another.
+
+The form of this threat that the model keeps in scope needs no attacker. The
+command-line tool presents whatever credential its environment selects: one
+exported in an environment variable, or one stored in a per-terminal file that
+the variable \texttt{PORT\_DADDY\_CONTEXT\_SLOT} redirects, and any process can
+set that variable. A child agent inherits its parent's environment, and agents
+with neither a terminal nor a harness session identifier share one default file
+in a working tree. A buggy agent that means to cooperate can therefore act under
+another agent's identity without forging anything. The lock session in
+\S\ref{sec:resource} shows the effect: its \texttt{export} lines set
+\texttt{PORT\_DADDY\_AGENT\_ID}, a variable the tool does not read, so
+``alice'' and ``bob'' there ran as one actor.
+
+Either way, a worker acting under another's name weakens the checks that depend
+on knowing who is acting: that only a lock's owner can release it, that no worker gains more
 permission than it was granted, and that a worker's notes are never deleted. Each
 is only as strong as the weakest path by which a worker proves its identity, so
 invariants I7, I8 and I9 are sound only once I12 is fully enforced. This is also
@@ -2750,12 +2765,11 @@ Three facts limit what that design achieves, and none of them closes OP-9.
 
 \begin{itemize}[leftmargin=1.4em,itemsep=2pt]
   \item \textbf{It is not what the kernel does today.} The reference implementation
-  does not read the kernel-verified peer credential: it relies on the owner-only
-  socket permission plus a self-reported agent identity checked against the
-  registration table, which is precisely the software handshake
-  Table~\ref{tab:threat-model} records. Nor does it spawn agents into ephemeral-UID
-  sandboxes. The threat-model row, not this section, states the kernel's current
-  authentication posture.
+  neither spawns agents into ephemeral-UID sandboxes nor reads the peer
+  credential. The credential matters only after the first change: while every
+  agent runs as the daemon's own user, it reports that same user for all of
+  them and cannot tell one agent from another. Table~\ref{tab:threat-model},
+  not this section, states the kernel's current posture.
   \item \textbf{The peer credential is not a cryptographic binding.} It is a
   kernel-recorded uid/gid/pid triple attached to a socket connection. It is strong
   because the kernel supplies it, not the peer, and \emph{weak} in the way any
@@ -2836,11 +2850,9 @@ what it explicitly does \emph{not} provide, so higher layers do not assume too m
   for example by network time synchronization. That is a hazard on one machine for
   every expiry sweep, and the ordering between machines of
   Lamport~\pdcite{lamport1978} does not cover it.
-  \item Unix domain sockets, with owner-only permissions on the socket paths. Both
-  transports authenticate a peer by software handshake over that permission model,
-  \emph{not} by the kernel-verified socket credential (\S\ref{sec:threatmodel});
-  reading that credential is OP-9's specified hardening, not an assumption the
-  kernel currently makes.
+  \item Unix domain sockets, with owner-only permissions on the socket paths.
+  Which agent a request speaks for is a separate matter, settled by the identity
+  rules of \S\ref{sec:swk-identity}.
   \item File permissions honored on the database path. OS-protected signing-key
   storage is part of OP-9's hardening proposal, not a protection established by
   the present daemon's file ownership alone.
@@ -2888,8 +2900,7 @@ what it explicitly does \emph{not} provide, so higher layers do not assume too m
   transactional atomicity by default (\S\ref{sec:atomicity}), a real
   execution-checkpoint (OP-4), power-loss durability on any write path (I1b,
   Property~\ref{prop:durability}; the per-path selector of OP-10 is specified, not
-  shipped), a kernel-verified peer credential on either transport (OP-9), or any
-  cross-machine guarantee: remote authority, delivery, membership, and failure
+  shipped), or any cross-machine guarantee: remote authority, delivery, membership, and failure
   assumptions require separate protocols and evidence. The
   status of each open problem is stated once in Table~\ref{tab:op-status}; a higher
   layer should assume nothing stronger than that table.
@@ -3490,8 +3501,7 @@ decay, so coordination markers neither rot, lingering after they go stale, nor e
 specifies the hardening (spawns in \texttt{bwrap}/\texttt{unshare} sandboxes
 under ephemeral UIDs, plus the kernel-verified peer credential
 \texttt{SO\_PEERCRED} / \texttt{LOCAL\_PEERCRED} read on each connection), and
-none of it ships. Today's peer-credential check is a software handshake over an
-owner-only socket, exactly as Table~\ref{tab:threat-model} states. Even built, the
+none of it ships. Even built, the
 hardening would move the adversary from the same-uid row to the different-uid row,
 not out of the model. State the dependency the other way round as well, because it
 is the sentence an operator needs: OP-9 is the \emph{precondition} for any
@@ -3664,11 +3674,10 @@ endpoints in it.
 completeness, the same-machine adversary, and per-write-path durability remain
 open where the proposed mechanism lacks a realizing artifact. Their designs are
 graded \Designed{}, not treated as completed proofs or implementations. One
-security-relevant instance needs naming on its own: the socket
-peer-credential check is a software handshake and \emph{not} the kernel-verified
-\texttt{SO\_PEERCRED} credential, in this chapter's threat model
-(Table~\ref{tab:threat-model}), in \S\ref{sec:comm}, and in \S\ref{sec:merkle}
-alike.
+security-relevant instance needs naming on its own: the environment a command
+runs in chooses the identity it acts under, so a buggy but cooperating agent can
+act under another agent's name (\S\ref{sec:swk-identity},
+Table~\ref{tab:threat-model}).
 \end{enumerate}
 
 \subsection{Nomenclature}
