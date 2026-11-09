@@ -1068,28 +1068,28 @@ Reputation assumes agents want to participate in the commons long-term. When thi
 % ═══════════════════════════════════════════════════════════════════════════════
 
 \pdmarginanalogy{collateral-balance}{Expected loss must outweigh the gain}{bond-balance}{A balance suggests the comparison, not the probability: deterrence depends on expected loss, not the bond's face value alone.}%
-Collateral makes a breach costly to the principal that posted it. It does not eliminate malicious preferences or guarantee full compensation: deterrence depends on detection, collectible collateral, and a gain from sabotage that the penalty exceeds.
+Collateral makes a breach costly to the principal that posted it. Deterrence also needs the breach to be detected, the collateral to be collectible, and the penalty to exceed what sabotage would gain; collateral removes neither malice nor the risk that compensation falls short.
 
 \subsection{The Float Plan}
 
 \begin{definition}[Local collateral profile of a Float Plan]\label{def:bonded-float-plan}
-\Designed{} The profile specifies required contract fields, not a deployed underwriting market.
+\pdstatus{\Designed}{required contract fields, not a deployed underwriting market}
 \setlength{\parskip}{4pt plus 1pt}
 \ifpdbook The Float Plan is defined in Definition~\ref{he:def:float-plan}. Here we specify its collateral profile.\else A Float Plan is a signed work intent with acceptance criteria, a budget, and a bounty.\fi
 For local settlement it records:
 \begin{enumerate}[nosep]
   \item \textbf{Manifest}: A declaration of intent---which files will be touched, expected duration, acceptance criteria (e.g., ``tests pass,'' ``code review approved'').
-  \item \textbf{Collateral}: A performance bond posted by the responsible principal, distinct from the requester's promised bounty. The local daemon reserves credits in its wallet--escrow ledger before admitting bonded work.
-  \item \textbf{Authorization}: The principal's signed intent and the harbor's acceptance record, binding the manifest to the reservation. The prescribed signature ceremony and its implementation status must be checked separately from the ledger transfer.
+  \item \textbf{Collateral}: A performance bond posted by the responsible principal, distinct from the requester's promised bounty. The local daemon reserves credits in its wallet--escrow ledger before bonded work may start.
+  \item \textbf{Authorization}: The principal's signed intent and the harbor's acceptance record, binding the manifest to the reservation. The signature ceremony is checked separately from the ledger transfer.
 \end{enumerate}
 \end{definition}
 
-The contract exchanges a promise of work for a conditional payment. Local accounting needs no second harbor. A \emph{proposed federated} custody profile instead uses Harbor A, Harbor B, and an arbiter in a 2-of-3 release ceremony. That profile is \Designed{}, not a description of the local ledger, and still needs timeout and dispute rules.\ifpdbook\ See \pdchapref{fh}{The Federated Harbor} for the federation's custody boundary.\fi
+The contract trades a promise of work for a conditional payment, and local accounting needs no second harbor. A proposed federated custody profile would instead release funds only when two of three parties (Harbor A, Harbor B and an arbiter) sign. It describes no part of the local ledger and still needs timeout and dispute rules.\ifpdbook\ See \pdchapref{fh}{The Federated Harbor} for the federation's custody boundary.\fi
 
 \subsection{Settlement}
 
 \begin{definition}[Settlement]\label{def:settlement}
-\Designed{} These are contractual transfer rules, conditional on authorized adjudication and funded custody.
+\pdstatus{\Designed}{contractual transfer rules; they need authorized adjudication and funded custody}
 \setlength{\parskip}{4pt plus 1pt}
 When a Float Plan reaches a terminal state, its agreed adjudication rule determines the transfers; the local daemon records authorized transfers atomically. The contract must distinguish payment of the bounty from return or forfeiture of the performance bond:
 \begin{description}[nosep]
@@ -1111,18 +1111,18 @@ This is how performance bonds work in construction. This is how futures markets 
 
 \subsection{What collateral changes for the three adversaries}
 
-\pdthesis{The Sybil attack is priced: 100 disposable identities means 100 bonds.}
+\pdthesis{Each of 100 disposable identities needs its own bond.}
 
 \begin{enumerate}
-  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. Because the bond attaches to the work, not to the identity, disposability does not help the attacker: cheap identity, expensive lie. The cost of defection scales linearly with the number of attack identities, and \S\ref{sec:youle:a5} shows exactly where that linearity stops deterring.
+  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. The bond attaches to the work, so a cheap identity does not make a lie cheap. The cost of defection scales linearly with the number of attack identities, and \S\ref{sec:youle:a5} shows exactly where that linearity stops deterring.
 
   \item \textbf{Misaligned principals} are exposed by the attribution chain. The agent may be ephemeral, but the principal who funded the Float Plan is permanently recorded. Liquidating the bond hurts the principal, not just the agent.
 
-  \item \textbf{Agents that benefit from chaos} face a simple calculation: is the damage to my competitor worth more than my bond? The commons authority doesn't prevent this---it \emph{prices} it. And the pricing can be adjusted: higher-risk operations (write access to core modules) require larger bonds.
+  \item \textbf{Agents that benefit from chaos} face a simple calculation: is the damage to my competitor worth more than my bond? The commons authority does not prevent this. It makes the attack cost the bond, and riskier operations (write access to core modules) can require larger bonds.
 \end{enumerate}
 
 \begin{remark}
-The Float Plan does not make sabotage impossible. It makes sabotage \emph{expensive}. A principal willing to burn money to cause damage will burn the bond and cause the damage. The bond raises the price of defection; it does not eliminate it. The defense against existential threats to the commons is not internal governance but external boundary enforcement: who is allowed to post Float Plans at all. That decision is irreducibly political.
+The Float Plan does not make sabotage impossible. It makes sabotage \emph{expensive}. A principal willing to burn money to cause damage will burn the bond and cause the damage. The bond raises the cost of defection without removing it. Against threats to the commons' existence, the defense is deciding who may post Float Plans at all, and that decision is political.
 \end{remark}
 
 \subsection{Truthful Claim Signaling as Nash Equilibrium}\label{sec:claim-signaling-ic}
@@ -1161,17 +1161,20 @@ $A$: F & $(4,\,0)$ & $(1,\,1)$ \\
 The stage game is a strict Prisoner's Dilemma: $F$ strictly dominates $T$ for each player ($4 > 3$ against $T$, $1 > 0$ against $F$), and $(F, F)$ is the unique one-shot Nash equilibrium. \emph{Truthful signaling is not a one-shot equilibrium}; advisory coordination cannot be sustained by stage-game rationality alone.
 
 \paragraph{Move to the repeated game.}
-What rescues truthful signaling is that the agents are not playing the stage game once. The substrate provides:
+Truthful signaling can survive because the agents play the stage game many times. The commons supplies three things:
 \begin{itemize}[nosep]
   \item \textbf{Observable history.} The Merkle-chained evidence trail of \S\ref{sec:attribution} and heartbeat record of \S\ref{sec:crash-recovery} authenticate retained statements to a verifier with the relevant proof.
 They do not reveal an unrecorded intention or guarantee delivery of every action.
-The game below separately assumes perfect public monitoring.
+The game below assumes more, namely \pdterm{perfect public monitoring}, in which
+both players see the same correct record of past actions before each round.
   \item \textbf{Persistent identity.} The Anchor Protocol's passkey-bound device pairing~\pdcite{owens2026anchor} ties an agent ID to a hardware-rooted credential. Sybil re-registration is bounded by the per-identity onboarding cost $C_{\mathrm{kyc}}$ of \S\ref{sec:youle:a5}, so an agent cannot trivially shed a reputation by re-incarnating.
-  \item \textbf{A discount factor $\delta$.} Principals value future interactions: a development project lives over weeks; insurer relationships compound; reputation discounts (\S\ref{sec:rep-discount}) accrue. For long-lived principals we take $\delta \approx 0.9$ as a working operating point, consistent with the discount used in \S\ref{sec:youle:a6}.
+  \item \textbf{A discount factor $\delta$}, the weight a principal puts on the next round's payoff relative to this round's. Principals value future interactions: a development project lives over weeks; insurer relationships compound; reputation discounts (\S\ref{sec:rep-discount}) accrue. For long-lived principals we take $\delta \approx 0.9$ as a working operating point, consistent with the discount used in \S\ref{sec:youle:a6}.
 \end{itemize}
 
 \paragraph{Strategy profile (graduated trigger).}
-Both agents use the same public mode and punishment counter for each file:
+Under the \pdterm{graduated trigger}, a deviation is punished for a fixed number
+of rounds and cooperation then resumes. Both agents use the same public mode
+and punishment counter for each file:
 \begin{enumerate}[nosep]
   \item Begin in cooperation mode, with counter zero; both play $T$.
   \item A publicly observed deviation from the prescribed profile sets the
@@ -1182,11 +1185,13 @@ Both agents use the same public mode and punishment counter for each file:
     to three. Prescribed $F$ actions do not themselves restart punishment.
 \end{enumerate}
 
-This is the modeled strategy, not a claim that a deployed shared-counter
-protocol already exists. The cartel comparison in \S\ref{sec:youle:a6} also uses
-grim trigger to expose the infinite-punishment limit. Finite punishment is a
-design response to mistakes and outages, but that motivation does not prove
-robustness to misclassified events or inconsistent observations.
+No deployed protocol keeps this shared counter yet; the strategy belongs to
+the model. The cartel comparison in \S\ref{sec:youle:a6} uses the
+\pdterm{grim trigger} instead, under which one deviation starts punishment that
+never ends, to show the limit of infinite punishment. Punishment here is finite
+so that a mistake or an outage does not end cooperation for good, but that
+intent does not make the strategy robust to misread events or inconsistent
+observations.
 
 \paragraph{Deviation analysis.}
 Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, paid in the deviation round, is $d - c = 4 - 3 = 1$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each paying $p = 1$ instead of the cooperative $c = 3$ (a net loss of $c - p = 2$ per round). Discounted at $\delta$:
@@ -1203,7 +1208,7 @@ The general sustainability condition under a $k$-round graduated trigger with st
 \[
 \underbrace{d - c}_{\text{one-shot gain}} \;<\; \underbrace{(c - p) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
 \]
-Substituting $d - c = 1,\; c - p = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.3425$. Under grim trigger ($k \to \infty$), strict deterrence requires $\delta > 1/3 \approx 0.333$ for this payoff table. The three-round threshold is about $0.009$ higher. Finite punishment permits a return to cooperation after three compliant rounds; this calculation does not establish crash tolerance or robustness to mistaken observations.
+Substituting $d - c = 1,\; c - p = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.3425$. Under grim trigger ($k \to \infty$), strict deterrence requires $\delta > 1/3 \approx 0.333$ for this payoff table. The three-round threshold is about $0.009$ higher. Finite punishment allows a return to cooperation after three compliant rounds; the calculation says nothing about crashes or mistaken observations.
 
 \begin{pdclaim}{Theorem}{Claim Signaling Incentive Compatibility}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1248,7 +1253,7 @@ Removing an assumption invalidates this strategy's guarantee, not every possible
   \item \emph{Drop $\delta$ below $1/3$.} Even perpetual mutual-$F$ punishment cannot deter a deviation from $(T,T)$ with these payoffs. No finite window of that punishment can do better. This is a limit of the analyzed strategy family; collateral or a different payoff structure requires a new calculation.
 \end{itemize}
 
-The forward reference is direct. Section~\ref{sec:youle:a6} reuses the same analytical pattern---stage game, repeated-game lift via observable history, deviation calculation, and a $\delta$ threshold---at the insurer pricing layer. The analogy is structural, not a transfer theorem: the payoff functions, monitoring signal, detection timing, and punishment regimes differ and must be derived separately.
+Section~\ref{sec:youle:a6} reuses the same pattern at the insurer pricing layer: a stage game, a repeated game made possible by observable history, a deviation calculation, and a $\delta$ threshold. No result carries over, because the payoff functions, monitoring signal, detection timing and punishment rules differ and must each be derived.
 
 \paragraph{Mechanized claim-signaling.} The argument above is also checked by machine. Standard one-shot-deviation analysis yields the discount-factor threshold $\delta^\star$ as the unique real root in $(0,1)$ of $2\delta^3 + 2\delta^2 + 2\delta - 1 = 0$, numerically $\delta^\star \approx 0.3425$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.34,\,0.35]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.35$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
 
@@ -1325,11 +1330,11 @@ Damage and private gain need not coincide.
   \item \textbf{History adjustment}: $\pi$ may decrease for principals with strong track records.
 \end{enumerate}
 
-We do not close this problem. We tighten the lower bound, propose a scope multiplier, suggest a reputation discount, and describe two concrete mechanisms---the \textbf{Bonded Advisor} (\S\ref{sec:bonded-advisor}) and the \textbf{Competitive-Insurance} market of Youle (\S\ref{sec:youle}). See the worked case in \S\ref{app:worked} for these four requirements worked through a single \$5 task end to end.
+We do not close this problem. We tighten the lower bound, propose a scope multiplier, suggest a reputation discount, and describe two concrete mechanisms: the Bonded Advisor (\S\ref{sec:bonded-advisor}) and Youle's competitive-insurance market (\S\ref{sec:youle}). The repair in \S\ref{app:worked} sized its \$6 bond this way, from a \$5 cleanup bill and a $20\%$ scope uplift.
 
 \subsubsection{Cleanup Lower Bound}\label{sec:cleanup-bound}
 
-Let $c$ be the project's \emph{cleanup cost per breach event}---the human-plus-compute cost to detect, assess, and recover from a budget breach. This is observable from the audit log.
+Let $c$ be the project's \pdterm{cleanup cost}, the human and compute cost to detect, assess and recover from one breach. It can be read from the audit log.
 \pdmarginanalogy{batch3-ch07-repair-kit}{}{ch07-cleanup-repair-kit}{Like repairing a damaged fitting, cleanup consumes work and materials after the breach.}%
 
 \begin{pdclaim}{Theorem}{Cleanup Lower Bound}
@@ -1350,16 +1355,17 @@ If $\pi(\mathcal{F}) < c$, breach is cheap: the bond is forfeit for less than th
 The fixed-cost model assumes a bounded cleanup bill. It is inapplicable to unbounded or poorly controlled tail losses (e.g., dropping a production database or leaking a private key). A finite bond cannot guarantee full compensation for an unbounded loss. Defense of these tasks is explicitly moved to Layer 1 capability confinement (isolation domains, zero-egress policies); the cost-recovery calculation applies only to the bounded loss it actually models.
 \end{proof}
 
-This is a cost-recovery floor under the stated funding rule, not a deterrence
-theorem. With $c=5$, a fully collected bond of $6$ covers cleanup. If sabotage
+The theorem gives a lower bound for recovering cleanup costs under the stated
+funding rule; it says nothing about deterrence. With $c=5$, a fully collected
+bond of $6$ covers cleanup. If sabotage
 gives the principal $10$ and is caught half the time, its expected gain is
 still $10-0.5(6)=7$. Coverage and deterrence are separate calculations.
 Historical cleanup records estimate $c$; they do not bound every future loss.
 
 \subsubsection{Consequential-Scope Multiplier}\label{sec:scope-multiplier}
 
-Let $s(\mathcal{F})$ be plan scope (files claimed, presence of \texttt{db:write}, production-deployment capability). A candidate schedule increases the bond with scope. The linear multiplier
-below is a calibration proposal, not evidence of super-linear growth.
+Let $s(\mathcal{F})$ be plan scope (files claimed, presence of \texttt{db:write}, production-deployment capability). One candidate schedule raises the bond linearly with scope.
+It is a proposal to calibrate, not a measured relationship.
 \[
 \pi(\mathcal{F}) \;\geq\; c \cdot \bigl(1 + \alpha \cdot s(\mathcal{F})\bigr).
 \]
@@ -1373,14 +1379,14 @@ clean settlements, a proposed discount is:
 \pi(\mathcal{F}, p) \;=\; \max\{c,\,\pi(\mathcal{F})(1-\rho(p))\},
 \quad \rho(p) \in [0, r_{\max}],\; r_{\max} \leq 0.5,
 \]
-while retaining the cost-recovery floor. A raw quote of $6$ with a $50\%$
+while keeping the bond at or above $c$. A raw quote of $6$ with a $50\%$
 discount would be $3$; if $c=5$, the posted bond is $5$, not $3$. $\rho$ increases with clean settlements, decreases with breaches, decays over time. The functional form is left open.
 
 \subsubsection{Threat-Class Bond Sizing}\label{sec:pricing:threats}
 
 The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - \rho)\}$ prices every threat from the same cleanup-cost curve. One calibration may not serve every task: a price intended to deter costly sabotage can exclude providers from low-exposure work, while an accessible price may leave severe losses underfunded. Task permissions, recoverability and loss estimates therefore matter alongside the multiplier.
 
-Table~\ref{tab:threat-bonds} gives illustrative starting bands, not validated coverage levels. Careless work means an attempted result that is sloppy, partial or fails review; abandonment means leaving accepted work unfinished; sabotage means deliberate damage to shared state. These descriptions classify outcomes for analysis, not an admission test for intent.
+Table~\ref{tab:threat-bonds} gives illustrative starting bands, not validated coverage levels. Careless work means an attempted result that is sloppy, partial or fails review; abandonment means leaving accepted work unfinished; sabotage means deliberate damage to shared state. These descriptions classify outcomes for analysis; they do not test intent.
 
 \begin{table}[H]
 \centering
@@ -1401,14 +1407,14 @@ Data exfiltration & Not set & Separate confidentiality controls. \\
 
 An abandonment reserve aims to pay for scope-note ingestion, partial-diff review and salvage handoff. Coverage requires a measured cost bound (\S\ref{sec:attribution-survives}). A sabotage reserve aims to fund reconstruction and downstream cleanup; a percentage of task value bounds neither loss, and even a bond exceeding task value may underfund reconstruction. The careless-work band likewise proposes an incentive, not a demonstrated reduction in failures. Each band requires calibration against attributable outcomes and observed costs.
 
-Exfiltration remains \SpecOnly{} in this pricing proposal. The loss or an attacker's gain can exceed collectible collateral, and a bond cannot retract disclosed information. Preventing disclosure requires mediated access and egress controls with their own threat model; ordinary worktrees do not provide confinement (\S\ref{sec:isolation}). This chapter's cleanup-cost conditions establish no protection against disclosure to outsiders.
+This pricing proposal sets no bond for exfiltration. The loss or an attacker's gain can exceed collectible collateral, and a bond cannot retract disclosed information. Preventing disclosure requires mediated access and egress controls with their own threat model; ordinary worktrees do not provide confinement (\S\ref{sec:isolation}). The cleanup-cost conditions give no protection against disclosure to outsiders.
 
 The table informs Phase~2 below through exposure limits: restrict the resources and task value entrusted to a new principal, then reconsider those limits after attributable settlements. A newcomer can still act maliciously. An access tier limits what can be reached or lost; it does not restrict a principal to careless work or certify benign intent.
 
 \subsubsection{Bootstrap Path}\label{sec:pricing:bootstrap}
 
-Competitive insurance (\S\ref{sec:youle}) is a thick-market mechanism. It needs insurers with capital, principals with reputation history, and enough transaction volume that bidders can statistically distinguish good risks from bad. A cold-start deployment may lack all three. The cohort sizes and thresholds
-below are illustrative operating proposals, not measured readiness tests. The conditional auction/static comparison of \S\ref{sec:youle:welfare} describes the modeled end-state; Phases~1--2 below are the path to the assumptions it needs, not optional preamble.
+Competitive insurance (\S\ref{sec:youle}) works only in a busy market. It needs insurers with capital, principals with reputation history, and enough transaction volume that bidders can statistically distinguish good risks from bad. A cold-start deployment may lack all three. The cohort sizes and thresholds
+below are illustrative operating proposals, not measured readiness tests. The conditional auction/static comparison of \S\ref{sec:youle:welfare} describes the modeled end state; Phases~1--2 below are the path to the assumptions it needs.
 
 \paragraph{Phase 1 --- Subsidized seeding.}
 The marketplace operator posts real tasks at above-market rates and invites a small cohort of $5$--$10$ known-capable principals from an existing network. Bonds are fixed at a flat rate per task class; pricing is not a parameter to optimize yet, because there is no data to optimize against. The goal is to produce the first row of the reputation table: clean settlements, breaches, recovery times, observed cleanup cost $c$. The operator is subsidizing the existence of an audit log.
@@ -1419,7 +1425,7 @@ selection, loss severity and uncertainty must also be checked.
 \paragraph{Phase 2 --- Complexity-proportional pricing with graduated access.}
 The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - \rho)\}$ activates, with $\alpha$ calibrated from Phase~1 cleanup data and $\rho$ initialized from the Phase~1 reputation table. New principals enter a tier with limited permissions and task value, using the lower bands of Table~\ref{tab:threat-bonds} as pricing proposals. Access to greater exposure is reconsidered after accumulated clean settlements, mirroring the A5 composite mechanism (\S\ref{sec:youle:a5}); neither the bond band nor the history rules out malicious conduct.
 
-Reputation bootstrapping is the hard problem of this phase. A principal with verifiable work history from another deployment should not start at zero, but the operator cannot verify external histories directly. The mechanism is an \emph{attestation import}: external audit trails signed under an Anchor-issued key (\S\ref{sec:attribution}) earn partial reputation credit, capped well below an equivalent in-system history. The credit is partial because cross-deployment reputation does not control for local cleanup cost, and capped because a fraudulent attestation issuer is a single point of failure.
+Reputation bootstrapping is the hard problem of this phase. A principal with verifiable work history from another deployment should not start at zero, but the operator cannot verify external histories directly. The proposed mechanism imports attestations: external audit trails signed under an Anchor-issued key (\S\ref{sec:attribution}) earn partial reputation credit, capped well below an equivalent in-system history. The credit is partial because cross-deployment reputation does not control for local cleanup cost, and capped because a fraudulent attestation issuer is a single point of failure.
 
 \emph{Illustrative investigation signal.} New-principal $30$-day retention
 below $50\%$ would prompt review of access gates, bond prices, task value and
@@ -1442,7 +1448,7 @@ The weak-improvement result of \S\ref{sec:youle:welfare} is conditional on Phase
 The settlement design needs an adjudication rule distinct from lifecycle
 status. Neither a missed heartbeat nor the TLA$^{+}$ excerpt itself determines
 a slash. Attribution is recorded (\S\ref{sec:attribution}), and the agreed
-appeal window permits challenge. That is most of what is needed, but it places the daemon in a position no single component should occupy: simultaneously the verifier, the judge, and the arbiter of evidence. Strong evidence does not make a single oracle correct. It makes a single oracle confidently wrong in the cases where its evidence is incomplete.
+appeal window permits challenge. That is most of what is needed, but it makes the daemon the verifier, the judge and the arbiter of evidence at once, a position no single component should hold. Call any evaluator whose verdict settlement relies on an oracle. Strong evidence does not make a single oracle correct; it makes it confidently wrong in the cases where its evidence is incomplete.
 
 One proposal separates three evaluators with different costs and failure
 modes. Their agreement is useful only under an explicit rule for missing
@@ -1465,15 +1471,15 @@ they disagree or abstain, hold the bond for human arbitration. Sampled cases
 also receive a human review. If all three verdicts exist, a 2-of-3 rule can
 produce the provisional outcome, with dissent retained for appeal. Final
 human authority and reversal funding must be agreed in advance. This is a
-protocol proposal, not a claim that sampling implements universal majority
-review or makes any evaluator infallible.
+protocol proposal; sampling does not give every case a majority review or
+make any evaluator infallible.
 
 \paragraph{Composition with cartel resistance.}
-Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, a 2-of-3 majority can launder a sabotaged settlement past the human audit, modulo the audit sampling rate. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma d_{\mathrm h}$, where $d_{\mathrm h}$ is the conditional probability that a sampled audit detects misconduct for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
+Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, their 2-of-3 majority can carry a sabotaged settlement past the human audit unless the audit happens to sample it. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma d_{\mathrm h}$, where $d_{\mathrm h}$ is the conditional probability that a sampled audit detects misconduct for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
 
 \subsubsection{The Bonded Advisor}\label{sec:bonded-advisor}
 
-One direction for solving $\pi$ is to delegate its computation to a specialized agent, itself bonded on its advisory accuracy. We call this the \textbf{Bonded Advisor} pattern:
+One direction for solving $\pi$ is to delegate its computation to a specialized agent that is itself bonded on the accuracy of its advice. We call such an agent a \pdterm{Bonded Advisor}:
 \begin{itemize}[nosep]
   \item A principal posts a Float Plan whose only acceptance criterion is ``propose a fleet that meets budget/scope constraints for project $P$.''
   \item A Bonded Advisor surveys $P$ and emits a candidate fleet---itself a set of Float Plans with proposed $\pi$ values.
@@ -1481,9 +1487,9 @@ One direction for solving $\pi$ is to delegate its computation to a specialized 
 \end{itemize}
 
 \pdmarginanalogy{bonded-shear-pin}{}{ch07-shear-pin-fuse}{Like a drive shaft shear pin designed to snap under catastrophic overload to protect the engine, slashing liquidates posted collateral to protect the commons when a contract is breached.}%
-The pricer is priced. Convergence depends on (i) whether the advisor has access to sufficient prior-fleet audit data to pattern-match new projects, (ii) whether reputation history is long enough for discounting to be meaningful, and (iii) whether the population of advisors is large enough for competition to discipline outliers.
+The advisor that sets bond sizes posts a bond on its own accuracy. Whether this converges depends on (i) whether the advisor has access to sufficient prior-fleet audit data to pattern-match new projects, (ii) whether reputation history is long enough for discounting to be meaningful, and (iii) whether the population of advisors is large enough for competition to discipline outliers.
 
-\paragraph{$c$ as a project health metric.} A project whose observed $c$ is rising is fraying---breaches cost more to recover from, implying coordination is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. Homeostatic feedback: risky spawns become expensive when the project needs them least.
+\paragraph{$c$ as a project health metric.} A rising $c$ means breaches cost more to recover from, which suggests coordination in the project is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. This is a feedback loop: risky spawns cost more exactly when the project can least afford them.
 
 \paragraph{Threat-class bond bands and their defensibility.}\label{sec:pricing:defensibility}
 The pricing function $\pi$ resolves to one of three nominal bands, calibrated to the threat class the bond is defending against:
@@ -1503,7 +1509,7 @@ The mechanism adapts classical competitive-insurance market
 models~\pdcite{rothschildstiglitz1976,wilson1977insurance} to agent transactions.
 
 \paragraph{The mechanism.}\label{sec:youle:mechanism}
-Instead of a static bond size $B(\pi, r, s)$ selected by the commons authority (\S\ref{sec:scope-multiplier}), allow a market of \emph{insurer agents} to bid on underwriting each agent transaction. An insurer $I$ offers a quote $(q_I, c_I)$ where $q_I$ is the required premium and $c_I$ is the claim ceiling.
+Instead of a static bond size $B(\pi, r, s)$ selected by the commons authority (\S\ref{sec:scope-multiplier}), let a market of insurer agents bid to underwrite each agent transaction. An insurer $I$ offers a quote $(q_I, c_I)$ where $q_I$ is the required premium and $c_I$ is the \pdterm{claim ceiling}, the most the insurer will pay on a claim.
 
 A principal $P$ submits a transaction $T$ requiring total secured coverage
 $B_T$. Insurers quote $0\le c_I\le B_T$; the principal selects one and
@@ -1527,9 +1533,9 @@ Rothschild--Stiglitz: adverse selection can prevent competitive equilibrium
 from existing~\pdcite{rothschildstiglitz1976,wilson1977insurance}.
 
 \paragraph{Adverse-selection controls.}
-To avoid the classic lemons problem, the mechanism requires:
+To avoid the lemons problem, in which only bad risks stay in the market because good ones find the price too high, the mechanism requires:
 \begin{itemize}[nosep]
-  \item Public agent reputation history (from \S\ref{sec:merkle-forest} the Merkle forest).
+  \item Public agent reputation history (from the Merkle forest of \S\ref{sec:merkle-forest}).
   \item Principal-bound slashing if an agent's history is misrepresented at quote time.
   \item Insurer capital reserve backed by on-chain stake (the same bond mechanism, recursive: an insurer posts bond that its claim ceilings are funded).
 \end{itemize}
@@ -1571,8 +1577,8 @@ defaults when a covered loss occurs. The analyzed simulation uses a
 $s(B_{\mathrm{dep}},B_T)=\min(B_{\mathrm{dep}},B_T)$.
 Premiums are paid on every winning transaction, including defaults; capital
 is replenished between transactions, and funding and entry costs are zero.
-These assumptions specify the numerical experiment, not a complete insurer
-solvency or identity-admission mechanism.
+These assumptions specify the numerical experiment, not a complete
+mechanism for insurer solvency or identity checks.
 
 \input{figures/fig-sybil-inline}
 
@@ -1599,10 +1605,10 @@ combination; it does not estimate a competitive insurer equilibrium.
 
 \input{figures/fig-bonded-sybil-deposit-floor-tikz}
 
-Candidate controls include a non-refundable admission cost, principal-bound
+Candidate controls include a non-refundable entry fee, principal-bound
 exposure reservations, and probationary coverage limits. Their combined
-benefit must be compared with the attacker's total expected discounted gain;
-listing them does not prove deterrence. Full forfeiture is another contract,
+benefit must be compared with the attacker's total expected discounted gain
+before anyone can claim they deter the attack. Full forfeiture is another contract,
 with a separate false-accusation and capital-cost tradeoff. The simulation
 and its analytical checks are recorded in
 \path{proofs/bonded/pareto/cartel-resilience.md}; the composite policy's
@@ -1610,9 +1616,9 @@ incentive and solvency analysis remains open.
 
 \subsubsection{A6 --- Cartel sustainability under the folk theorem}\label{sec:youle:a6}
 
-A5 considers a single-round attack: a Sybil identity bids low, wins, defaults. A6 studies a \emph{repeated game}: a coalition of insurers maintains a price floor $q_{\mathrm{floor}} > q^*$ above the competitive equilibrium, splits the surplus, and uses grim-trigger punishment to deter unilateral deviation. Folk-theorem results can support feasible, individually rational payoffs for sufficiently patient players under their monitoring and regularity assumptions; they do not license every outcome in every repeated game. Here the narrower question is how the supplied payoff model changes as the daemon's per-round cartel-detection probability varies.
+A5 considers a single-round attack: a Sybil identity bids low, wins, defaults. A6 studies a \emph{repeated game}: a coalition of insurers maintains a price floor $q_{\mathrm{floor}} > q^*$ above the competitive equilibrium, splits the surplus, and uses grim-trigger punishment to deter unilateral deviation. Folk theorems say that, under their monitoring and regularity assumptions, sufficiently patient players can sustain any feasible payoffs that beat what each could guarantee alone; they do not make every outcome sustainable in every repeated game. Here the narrower question is how the supplied payoff model changes as the daemon's per-round cartel-detection probability varies.
 
-Grim trigger is used in the analysis below for analytical tractability---it gives the cleanest recurrence and the closed-form $p_d^\star$ threshold of Figure~\ref{fig:cartel-folk}. A production detector should use a graduated response because crashes (\S\ref{sec:crash-recovery}) can be observationally similar to deliberate defection; permanent punishment for a transient infrastructure event would destroy cooperation. The claim-signaling and cartel layers therefore share an analysis template, not one interchangeable equilibrium result.
+Grim trigger is used in the analysis below because it gives the cleanest recurrence and the closed-form $p_d^\star$ threshold of Figure~\ref{fig:cartel-folk}. A production detector should use a graduated response because crashes (\S\ref{sec:crash-recovery}) can be observationally similar to deliberate defection; permanent punishment for a transient infrastructure event would destroy cooperation. The claim-signaling and cartel layers therefore share an analysis template, not one interchangeable equilibrium result.
 
 Figure~\ref{fig:cartel-game-inline} shows how detection probability and sampled
 loss jointly cross the closed-form sustainability boundary.
