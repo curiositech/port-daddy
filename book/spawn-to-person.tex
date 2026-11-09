@@ -1612,6 +1612,40 @@ engine is attested and the price schedule passes the quality gap through.
 
 \paragraph{What attestation gives.} Attestation permits a payment rule to distinguish the engine that supplied the work. With full quality pass-through, the model aligns the seller's engine choice with total surplus. Attestation alone does not force that price rule, measure task quality, or establish that providers will adopt it. Cai et al.~\pdcite{cai2025} study model-substitution audits and propose trusted execution environments as a robust verification approach. That evidence concerns whether the engine claim can be checked; the pricing calculation concerns incentives once the claim can be checked.
 
+Theorem~\ref{thm:engine-swap} prices one engine against another. A harbor
+also has to decide what key a sanction is recorded under, and the two keys
+need not be the same.
+
+\begin{lemma}[Scope of prices and sanctions]\label{lem:stp-scope}
+\setlength{\parskip}{4pt plus 1pt}
+\pdstatus{\Designed}{the two necessity claims are argued here; that the pair suffices is checked only in the bounded model of Property~\ref{thm:resurrection-soundness}}
+Take the setting of Theorem~\ref{thm:engine-swap} with the engine attested,
+and a principal that can run work on two engines, A and B.
+\begin{enumerate}[label=(\alph*),leftmargin=2em,itemsep=2pt]
+\item If sanctions are recorded per (principal, engine), the reputation is
+not sanction-respecting in the sense of
+Definition~\ref{def:sanction-respecting}: a principal that cheats on engine A
+and then works through engine B keeps the score its clean continuation on B
+would have had.
+\item If prices are set per principal alone, the swap gain of
+Theorem~\ref{thm:engine-swap}(a) returns.
+\end{enumerate}
+Prices must therefore be keyed at least per (principal, engine), and
+sanctions at least per principal.
+\end{lemma}
+\begin{proof}
+(a) Definition~\ref{def:sanction-respecting} counts every identity through
+which the actor can route work. Take a principal whose clean continuation runs
+on engine B and which produces the dishonest outcome on engine A. A sanction
+recorded under the key of engine A leaves the key of engine B at its clean
+score, so this principal's available score is not lowered and no positive
+$\sigma$ persists. One such actor is enough, since the definition covers every
+actor. (b) A price that
+depends only on the principal gives $p_H=p_L$, so the attested swap gain
+$\Delta c-(p_H-p_L)$ of Theorem~\ref{thm:engine-swap}(b) equals the
+unattested gain $\Delta c>0$.
+\end{proof}
+
 \paragraph{Resurrection that keeps its debts.} The provider hosting an agent shuts down.
 The principal holds a checkpoint and a competitor will run it. Whether the
 resurrected process \emph{is} the same agent is the question this chapter
@@ -1637,14 +1671,10 @@ $\theta_H$ key, its accessible score exceeding even a clean twin's
 (\emph{engine-history shedding}, two steps). Without (iii) in-flight
 obligations land on nobody (\emph{liability stranding}, two steps).
 
-\smallskip\noindent\emph{Scope rule.} Set prices separately for each
-combination of owner (principal) and model engine, and apply penalties to the
-owner, across all its engines. Getting either one wrong opens an escape. If
-penalties were recorded per engine, an agent caught cheating on engine A could
-keep working at full score on engine B under the same name, an escape hatch
-the model checker finds in one step, with no migration involved. If prices were set per
-owner only, buyers would pay the same whichever engine ran, and the incentive
-to swap in the cheap engine (Theorem~\ref{thm:engine-swap}(a)) returns.
+\smallskip\noindent\emph{Scope.} Prices are keyed per (principal, engine)
+and sanctions per principal, as Lemma~\ref{lem:stp-scope} requires. The model
+checker finds the escape of Lemma~\ref{lem:stp-scope}(a) in one step, with no
+migration involved.
 
 \smallskip\noindent\emph{Checked.} Bounded model check of the migration
 protocol: $747$ reachable states to depth $7$ ($467$ of them
@@ -1666,7 +1696,7 @@ counts describe the bounded model, not elapsed recovery time.
 \paragraph{Why sanctions attach to the principal.} Suppose sanctions are
 keyed like prices, per (principal, engine). An agent can violate
 Definition~\ref{def:sanction-respecting} without migrating: work dishonestly
-on one engine key, then act at full score on its sibling. The scope rule
+on one engine key, then act at full score on its sibling. Lemma~\ref{lem:stp-scope}
 blocks this escape by pricing per (principal, engine) and sanctioning per
 principal. The same rule closes
 skill-versioning's escape (a sanctioned \texttt{v1} must not act clean through
