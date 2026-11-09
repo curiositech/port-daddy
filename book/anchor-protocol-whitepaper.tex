@@ -670,7 +670,7 @@ the daemon loads built from this crate? [internal]
 \toprule
 \textbf{Layer} & \textbf{Tool} & \textbf{What it shows} & \textbf{What it cannot show} \\
 \midrule
-protocol model & ProVerif & authentication correspondence for a capability passed on unchanged (v3), attenuation soundness on the multi-hop model; its secrecy queries hold by construction & that the modeled protocol is this source (the specification gap; a human asserts it) \\
+protocol model & ProVerif & authentication correspondence for a capability passed on unchanged (v3), attenuation soundness at one hop plus a fixed two-delegation pair; its secrecy queries hold by construction & that the modeled protocol is this source (the specification gap; a human asserts it) \\
 Rust source & Kani and tests & decoded lifetime and channel-policy predicates on stated domains; bounded subset checks; a separately stubbed parser & that the inspected source is this running binary (the deployment gap; a human asserts it) \\
 running binary & conformance suite & the selected attacks are refused by the running TypeScript code the suite calls & any attack the suite does not contain \\
 \bottomrule
@@ -1240,7 +1240,7 @@ Enforced by the storage layer, not proved in this chapter; measurable I/O cost \
 Privilege escalation across delegation &
 \S\ref{sec:delegation}; Property~\ref{thm:attn-sound} &
 Per-hop capability attenuation, checked at issuance and re-checked at verification, mechanized against an insider escalation adversary &
-Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-time policy check, not a verification-time invariant \\
+Attenuation mechanized at one hop plus a fixed two-delegation pair, chain authenticity at depth~3; depth is a spawn-time policy check, not a verification-time invariant \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -2327,7 +2327,7 @@ The ideas the rest of the book relies on, in order:
 \item \textbf{Revocation needs current local knowledge}: a verifier rejects a revoked card once its authoritative state includes the revocation. The expected gossip time is an average, not a deadline, and a partition that can last indefinitely rules out any finite guarantee that every daemon has heard.
 \item \textbf{Filters do not merge; logs do.} Two daemons cannot union their cuckoo filters, so the append-only revocation log is the shared object and each daemon rebuilds its own filter from it.
 \item \textbf{Correction is a new card}, with a new identifier and a fresh authority; the old card's history is untouched, and nothing is brought back in part.
-\item The proofs are \textbf{bounded and named}: authentication correspondence for a capability passed on unchanged, attenuation soundness on the multi-hop model, memory safety within the harness bound with the cryptography stubbed, and no secret-dependent branches in the source. Each is a statement about a model, and the chapter says which.
+\item The proofs are \textbf{bounded and named}: authentication correspondence for a capability passed on unchanged, attenuation soundness at one hop plus a fixed two-delegation pair, memory safety within the harness bound with the cryptography stubbed, and no secret-dependent branches in the source. Each is a statement about a model, and the chapter says which.
 \item What the adversary can still do is stated as scope: a process that holds a valid card can use all of its authority until it expires; the protocol limits what a card grants, not what its holder chooses to do with it.
 \end{enumerate}
 
