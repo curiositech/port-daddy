@@ -3827,11 +3827,9 @@ revocable consent grant (Invariant~\ref{def:consent}) with an inalienable overri
 (Invariant~\ref{prop:override}), and a legible-sovereign rule
 (Invariant~\ref{prop:legible-sovereign}) that inverts Hobbes' opaque sovereign.
 
-% The open-font proof needs a fresh margin for this paragraph's citations once
-% the many-authors section moves the history onto a dense page.
-\ifdefined\pdbookfontprofile
-  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
-\fi
+% This paragraph's citations need a fresh margin in both profiles: with the
+% many-authors section, the history's citations overflow one page otherwise.
+\pdmarginpagebreak
 \paragraph{Human factors, automation, and signal detection.}
 The operator model draws on the automation literature:
 \textbf{Bainbridge}'s ironies of automation~\pdcite{bainbridge1983},
