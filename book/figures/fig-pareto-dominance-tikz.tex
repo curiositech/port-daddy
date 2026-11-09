@@ -40,7 +40,7 @@
   \addplot[pd breach series,mark=triangle] coordinates {(0,.926)(.1,.844)(.3,.208)(.5,.163)};
   \addlegendentry{3 colluders}
 \nextgroupplot[
-  xlabel={insurer count $n$},
+  xlabel={insurer count $n_I$},
   title={B. Insurer count},
   xtick={3,5,10},
 ]
@@ -55,7 +55,7 @@
 \bottomrule
 \end{tabular}
 \caption{Simulation frequencies for the tolerance-based comparison defined
-in the text. A fixes $n=5$; B fixes noise and collusion at zero. Each point
+in the text. A fixes $n_I=5$; B fixes noise and collusion at zero. Each point
 uses 2{,}000 trials of 50 transactions.
 [simulation, simulation.mjs]}
 \label{fig:pareto-mc-inline}

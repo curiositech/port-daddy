@@ -41,7 +41,7 @@
   \draw[pd arrow] (\ox,\oy) -- (\xmax,\oy);
   \draw[pd arrow] (\ox,\oy) -- (\ox,\ymax);
   \node[pd label,anchor=west] at (\xmax,\oy) {deposit};
-  \node[pd label,anchor=west] at ({\ox+.08},{\ymax+.16}) {slash $s$};
+  \node[pd label,anchor=west] at ({\ox+.08},{\ymax+.16}) {slash $\zeta$};
   \draw[pd guide] (\kx,\oy) -- (\kx,\ky);
   \draw[pd guide] (\ox,\ky) -- (\kx,\ky);
   \node[pd label,anchor=north] at (\kx,{\oy-.10}) {$B_T$};
@@ -50,7 +50,7 @@
   \draw[pd focus rule] (\ox,\oy) -- (\kx,\ky);
   \draw[pd focus rule] (\kx,\ky) -- (\rx,\ky);
   \node[pd focus datum] at (\kx,\ky) {};
-  \node[pd label,anchor=south] at ({(\kx+\rx)/2},{\ky+.14}) {$s=B_T$};
+  \node[pd label,anchor=south] at ({(\kx+\rx)/2},{\ky+.14}) {$\zeta=B_T$};
   \node[pd note,anchor=north,text width=3.5cm,align=center] at ({(\ox+\rx)/2},{\oy-.72})
     {extra deposit returns intact past $B_T$};
 \end{tikzpicture}

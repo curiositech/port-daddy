@@ -21,11 +21,11 @@
 
   % Beta node
   \node[draw=pdink,fill=white,thick,rounded corners=2pt,inner sep=3pt,pd label] (b1) at (0.9,1.35) {Agent $\beta$};
-  \node[pd label,anchor=west,font=\footnotesize] at (1.85,1.35) {Needs $f$ for task $T_\beta$};
+  \node[pd label,anchor=west,font=\footnotesize] at (1.85,1.35) {Needs $f$ for task $\Gamma_\beta$};
 
   % Outcome panel (a)
   \node[draw=pdink!30,fill=pdink!5,rounded corners=2pt,inner sep=4pt,text width=4.9cm,align=left,anchor=north west] at (0.1,0.7) {
-    \textbf{Outcome:}\enspace $T_\alpha$ finishes, $\beta$ blocked.\\[2pt]
+    \textbf{Outcome:}\enspace $\Gamma_\alpha$ finishes, $\beta$ blocked.\\[2pt]
     \textbf{Welfare:}\enspace 1 task completed.\enspace\textcolor{pderror}{\textbf{[Pareto-inferior]}}
   };
 
@@ -47,10 +47,10 @@
 
   % Outcome panel (b)
   \node[draw=pdteal!30,fill=pdteal!5,rounded corners=2pt,inner sep=4pt,text width=4.9cm,align=left,anchor=north west] at (\wcol+0.1,0.7) {
-    \textbf{Outcome:}\enspace Both $T_\alpha$ and $T_\beta$ finish.\\[2pt]
+    \textbf{Outcome:}\enspace Both $\Gamma_\alpha$ and $\Gamma_\beta$ finish.\\[2pt]
     \textbf{Welfare:}\enspace 2 tasks completed.\enspace\textcolor{pdteal}{\textbf{[Pareto-optimal]}}
   };
 \end{tikzpicture}
-\caption{Precautionary locks versus advisory claims. In panel (a), agent $\alpha$'s decisive lock on an unneeded file $f$ aborts agent $\beta$'s task $T_\beta$. In panel (b), advisory notification lets $\alpha$ release $f$, achieving the Pareto-superior outcome where both tasks succeed.}
+\caption{Precautionary locks versus advisory claims. In panel (a), agent $\alpha$'s decisive lock on an unneeded file $f$ aborts agent $\beta$'s task $\Gamma_\beta$. In panel (b), advisory notification lets $\alpha$ release $f$, achieving the Pareto-superior outcome where both tasks succeed.}
 \label{fig:sen-pareto-locking}
 \end{figure}
