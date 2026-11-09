@@ -576,7 +576,7 @@ The parties have priced five acceptance milestones equally. Agent $a_2$
 completes two before token budget exhaustion. The agreed adjudicator verifies
 those milestones and authorizes \textbf{Partial} ($40\%$). This fraction comes
 from the contract's milestone rule, not the number or length of notes in an
-evidence chain. Funds settle across the four buckets:
+evidence chain. Each of the two buckets splits in two:
 \begin{enumerate}[nosep]
   \item \textbf{Bounty distribution:} Alice earns $40\% \times 400 = 160$\,\textsc{cr} in earned revenue; the remaining $240$\,\textsc{cr} unearned bounty returns to Bob's wallet.
   \item \textbf{Collateral settlement:} Alice receives $40\% \times 100 = 40$\,\textsc{cr} of her performance bond returned as collateral (not income); the remaining $60$\,\textsc{cr} bond is slashed and credited to the \pdterm{commons}, the ledger's shared fund for salvage and for onboarding a successor.
@@ -1430,7 +1430,8 @@ that \pdchapref{fh}{The Federated Harbor} walks through
 \input{figures/fig-fh-xfer-ceremony}%
 drawn in Figure~\ref{fig:fh-xfer} and written out as Protocol~\ref{prot:xfer}.
 \fi
-One property matters for the market. After message (3), Bob's harbor checks
+One property matters for the market. After the third of the four messages,
+Bob's harbor checks
 every later use of the new card $C_B'$ with its own key, with no further live
 exchange with Alice's harbor. The exchange also records which signed snapshot of
 Alice's harbor the card was issued against: the \pdterm{epoch root}
@@ -1620,7 +1621,8 @@ compare and exchange what they know
 probabilistic revocation index with no false negatives and tunable false positives.
 A harbor that signs two contradictory epoch roots for the same epoch commits
 \pdterm{equivocation}: it shows different peers different histories.
-Expected dissemination takes $\Theta(\log m)$ rounds only on a connected
+Expected dissemination takes $\Theta(\log m)$ rounds, where $m$ is the number
+of harbors, only on a connected
 reliable-round overlay under the stated randomized peer-selection model.
 This is an asymptotic expectation, not an exact constant or a partition-tolerant deadline.
 
@@ -1852,8 +1854,8 @@ would also give the platform an interest in slashing.
 
 \begin{pdexample}{A proposed fee on the labor payment}
 \setlength{\parskip}{4pt plus 1pt}
-Take the \textsc{Success} settlement of \S\ref{sec:float-plan}: Bob's $400$\,\textsc{cr}
-bounty clears in full to Alice.
+Take the reduced contract of \S\ref{sec:float-plan} and suppose it settles
+\textsc{Success}: Bob's $400$\,\textsc{cr} bounty clears in full to Alice.
 
 At the stated transaction-fee band of $2$--$5\%$,
 the platform's cut on that one trade is $0.02\times400=8$\,\textsc{cr} at the low
@@ -2411,11 +2413,11 @@ reintroduced some other scarce binding --- principal identity, artifact hash plu
 owner liability, a hardware root, a stake, or a sponsor.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:three-sides}}{What a ``side'' is, and why there are three}
+\pdexercisesfor{\S\ref{sec:three-sides}}{Three purchases, three information problems}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:he-sides-test-rideshare}
-State the operational test for ``how many sides'' in one sentence, then apply
-  it to a ride-share platform: how many sides, and why?
+Using the Rochet--Tirole definition, state a test for how many sides a
+  platform has, then apply it to a ride-share platform: how many sides, and why?
 \end{pdexercise}
 \begin{pdsolution}{ex:he-sides-test-rideshare}
 A side is a distinct, privately informed participant class that must be
@@ -2855,15 +2857,15 @@ turn taste into a machine-checkable fact. Figure~\ref{fig:he-rater-ladder} draws
 \pdexercisesfor{\S\ref{sec:cold-start}}{Cold start, and the auction question}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:he-phase1-subsidize}
-Which side should Phase~1 subsidize, and why? Apply the ``scarcest cross-side
-  externality'' rule.
+Which side should Phase~1 subsidize, and why? Apply the rule of subsidizing
+  the side whose absence most limits trade on the other side.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-phase1-subsidize}
 Phase~1 subsidizes \emph{supply} --- the operators and agent owners willing
 to produce real settled work --- because inventory plus witnessed outcomes is
 exactly the reputation data that later attracts demand and skill licensors;
 above-market, platform-posted tasks are the direct form that subsidy takes. This
-is the ``scarcest cross-side externality'' rule: this proposed scenario assumes that credible supply is the binding constraint.
+follows the rule of subsidizing the side whose absence most limits trade, since this proposed scenario assumes that credible supply is that side.
 That assumption needs participation data; another market may instead lack
 buyers. Charging demand after a measured liquidity threshold is a candidate
 policy, not a consequence of platform theory alone.
@@ -3160,8 +3162,8 @@ Purchased assurance & Delegated computation~\pdcite{goldwasser2008}; AI-safety
 \section{Conclusion}\label{sec:conclusion}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The harbor-master makes a swarm legible and accountable for one operator
-(the single-operator tool developed in \pdchapref{ls}{The Legible Swarm}). When operators trade with each other, the \emph{same} ledger that
+The tools of \pdchapref{ls}{The Legible Swarm} make one operator's swarm
+legible and accountable. When operators trade with each other, the \emph{same} ledger that
 kept one operator's swarm honest becomes the market that lets fleets who don't trust
 each other work together: three sides, one bond, hosted trust. We have not papered
 over the cost of that claim. The identity mechanism the market relies on,
