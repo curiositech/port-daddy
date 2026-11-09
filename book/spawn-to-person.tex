@@ -397,7 +397,7 @@ identity only; it gives software participants no legal personhood.
 
 \subsection{Capability is not permission (a nomenclature the series holds)}
 
-A recurring trap, flagged in the series' cross-layer reconciliation, is the
+A recurring trap is the
 collapse of \emph{capability} into \emph{permission}. They are different
 coordinates of a role and must stay separate.
 
@@ -716,7 +716,7 @@ component.
 \midrule
 episodic memory & the notes, whole, with their ledger addresses & the execution state that produced them \\
 checkpoint & a summary and the worktree lineage & the process's execution state; recovery restores notes, not execution \\
-outcome ledger & the commitments $c_1, c_2$ and the witnessed outcomes $o_1, o_2, o_3$ & an outcome nobody witnessed; a closure no oracle checked \\
+outcome ledger & the agent's commitments and the outcomes an oracle witnessed & an outcome nobody witnessed; a closure no oracle checked \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -847,11 +847,11 @@ That is why this chapter's continuity claims are about the ledger
 following the right body, never about a successor inheriting a predecessor's
 experience.
 
-Rung~3 needs obligation coverage, not just a matching content hash. In a fixed
-source-function test, four newer operator requests displaced ``OBL-01:
-preserve the existing acceptance criteria.'' The brief retained those requests
-and eight later assistant messages but omitted the instruction
-(Figure~\ref{fig:stp-handoff-coverage}). This tests selection, not successor
+Rung~3 needs obligation coverage, not just a matching content hash. In a synthetic
+test of the code that builds a successor's handoff brief from five operator
+turns, the brief kept only the four newest requests and all eight later
+assistant messages, so it dropped the oldest instruction, ``OBL-01: preserve
+the existing acceptance criteria'' (Figure~\ref{fig:stp-handoff-coverage}). This tests selection, not successor
 behaviour.
 
 \input{figures/fig-stp-handoff-coverage}
@@ -864,9 +864,9 @@ capsule retained a transcript reference, so authorized retrieval might recover
 what the brief omits; neither access nor recovery was tested. A matching hash
 also says nothing about who authored the selected records.
 
-\noindent Table~\ref{tab:app-status} is the honest-state ledger for this chapter:
-every major claim with its label and its grounding. It is the artifact a skeptical
-reader should consult first.
+\noindent Table~\ref{tab:app-status} lists every major claim in this chapter
+with its maturity label and its grounding. A skeptical reader should consult
+it first.
 
 % --- FIGURE 5: honest-state table-as-figure ---
 
@@ -1362,7 +1362,8 @@ Figure~\ref{fig:sybil} separates two attacks: resetting to the newcomer baseline
 \subsection{The principal above the actor}
 
 In every trade, the economic counterparty is the \textbf{principal}: the human
-or organization that owns the fleet and stands behind its bonds. Bonds,
+or organization that owns the fleet and stands behind its bonds, deposits
+that are forfeited in whole or in part (\emph{slashed}) if it fails or cheats. Bonds,
 reputation inheritance, and sanctions must ultimately be recorded against the
 principal through the authorization chain; otherwise one principal can farm
 bonds by spawning fresh \emph{agents}, a Sybil attack. This chapter defines the
@@ -1575,7 +1576,8 @@ preserved across provider migration under three clauses: (i) the successor's
 lineage is verified by credential and continuity witness; (ii) every
 successor outcome carries an engine attestation, so the migrated score stays
 keyed to the attested engine that earned it; (iii) open commitments are
-closed or renegotiated with an escrow delta before cutover. Dropping any one
+closed, or renegotiated with any change in the money held in escrow settled,
+before the successor takes over. Dropping any one
 clause allows an escape with a short trace. Without (i) a sanctioned identity
 re-enters clean through migration (\emph{whitewash-by-resurrection}, two
 steps). Without (ii) the successor runs $\theta_L$ while being paid on the
@@ -1595,9 +1597,10 @@ to swap in the cheap engine (Theorem~\ref{thm:engine-swap}(a)) returns.
 \smallskip\noindent\emph{Checked.} Bounded model check of the migration
 protocol: $747$ reachable states to depth $7$ ($467$ of them
 post-migration), and the intact protocol satisfies
-Definition~\ref{def:sanction-respecting} in every state. Mutants caught with
-shortest crimes: key-scoped sanctions in $1$ step, whitewash-by-resurrection
-in $2$, engine-history shedding in $2$, liability stranding in $2$ [internal,
+Definition~\ref{def:sanction-respecting} in every state. Each deliberately
+broken variant (mutant) is caught; the shortest violating trace takes $1$ step
+for key-scoped sanctions and $2$ each for whitewash-by-resurrection,
+engine-history shedding and liability stranding [internal,
 \texttt{b5\_engine\_substitution.py}].
 \end{pdclaim}
 
@@ -1615,7 +1618,7 @@ on one engine key, then act at full score on its sibling. The scope rule
 blocks this escape by pricing per (principal, engine) and sanctioning per
 principal. The same rule closes
 skill-versioning's escape (a sanctioned \texttt{v1} must not act clean through
-\texttt{v2}), so one rule closes both escapes. The resume button and provider migration
+\texttt{v2}), so one rule closes both escapes. Resuming a process and migrating to another provider
 therefore require the stated security property and its three migration
 safeguards. Migration and the no-mint law of
 \S\ref{sec:continuity} fit together on paper: migration moves a score whole, with its
@@ -1631,8 +1634,9 @@ body knew, and starts a new body that reads the plan and the packet first and
 continues the work. Holding the provider fixed does not by itself preserve
 the principal, authenticated lineage, or engine. All three soundness clauses
 still apply: verify the successor's credential and continuity witness, attest
-the engine of each successor outcome, and close or renegotiate open commitments
-with the required escrow delta before cutover. If the relevant identity and
+the engine of each successor outcome, and close open commitments, or
+renegotiate them and settle any change in escrowed money, before the successor
+takes over. If the relevant identity and
 engine properties have been verified unchanged, those checks may already be
 satisfied; provider sameness alone supplies no such evidence. The successor
 also needs the predecessor's open claims and obligations, not just its
@@ -1813,7 +1817,7 @@ also needs cross-operator attestation, which is still only proposed. A local
 identity guarantee does not supply that additional binding.}
 
 \paragraph{An authorization format is not an identity root.}
-The Agent Payments Protocol defines signed mandates for checkout and payment authorization, and UCP specifies an AP2 extension~\pdcite{ap2mandates2026,ucp2026}. These provide concrete message formats for a proposed harbor boundary. A correctly verified mandate can bind permission to a particular checkout; it does not, by itself, establish that two issuers are independent principals or that an issuer's asserted legal identity is true. Cross-operator identity binding therefore remains a separate requirement. A deployment must pin the protocol version and verify that version's signatures, scope, expiry, and key-discovery rules rather than infer them from the protocol's name.
+The Agent Payments Protocol (AP2) defines signed mandates for checkout and payment authorization, and the Universal Commerce Protocol (UCP) specifies an AP2 extension~\pdcite{ap2mandates2026,ucp2026}. These provide concrete message formats for a proposed harbor boundary. A correctly verified mandate can bind permission to a particular checkout; it does not, by itself, establish that two issuers are independent principals or that an issuer's asserted legal identity is true. Cross-operator identity binding therefore remains a separate requirement. A deployment must pin the protocol version and verify that version's signatures, scope, expiry, and key-discovery rules rather than infer them from the protocol's name.
 
 \pdexercisepointer{\ref{ex:stp-local-vs-cross-operator}}{\ref{ex:stp-witness-log-substitute}}{\pageref{ex:stp-local-vs-cross-operator}}
 
@@ -2240,7 +2244,7 @@ First, the proposed protocol diversifies judge principals and model families. Th
 % Keep the VRF explanation with room for its 132pt first-use source note.
 % The paragraph and citation move together; the margin allocator stays strict.
 \Needspace{14\baselineskip}
-Second, the proposed system uses \pdterm{honeypot tasks}: tasks with independently established answers, designed to resemble ordinary work. A \pdterm{verifiable random function} (VRF)~\pdcite{mrv1999}, a random draw whose fairness anyone can check afterwards, can support auditable random selection. A draw is \emph{sealed} only if the briber cannot learn it until after committing and paying. The protocol must therefore protect the key and draw, control publication timing, and test whether honeypots are recognizable. Verifiability alone does not establish secrecy or task indistinguishability. If the draw leaks, the briber can target one auditor and the factor $C$ disappears.
+Second, the proposed system uses \pdterm{honeypot tasks}: tasks with independently established answers, designed to resemble ordinary work. A \pdterm{verifiable random function} (VRF)~\pdcite{mrv1999}, a random draw whose fairness anyone can check afterwards, can support auditable random selection. A draw is \emph{sealed} only if the briber cannot learn it until after committing and paying. The protocol must therefore protect the key and draw, control publication timing, and test whether honeypots are recognizable. Verifiability alone does not establish secrecy or task indistinguishability. If the draw leaks, the briber can target one auditor, and the protection from having many separately bribable groups (the clique count $C$ of the theorem below) disappears.
 
 % Explain both sampling hypotheses before showing their contraction diagram.
 % This also separates its caption from the preceding literature's source notes.
@@ -2361,9 +2365,9 @@ levels, then $21$ geometric ones: $36$ levels, $\$1{,}800$.)
 The clique count $C$ is this theorem's diversity parameter. It is why the
 worked numbers above contrast $C=8$ against a monoculture $C=1$, and why the
 monoculture costs roughly twice the bond capital. $C$ stands in for something
-statistical: the reviewer of a foundation-model monoculture is right that
-``disjoint clique'' is a structural description and correlated error is a
-statistical one. \pdchapref{he}{The Harbor Economy} gives the
+statistical, and a critic who worries that every judge runs on the same few
+foundation models is right: ``disjoint clique'' says who can be bribed
+together, while shared blind spots are a statistical correlation. \pdchapref{he}{The Harbor Economy} gives the
 statistical version%
 \ifpdbook
 \ (\S\ref{he:sec:assurance-correlation})%
@@ -2381,8 +2385,9 @@ not just the same marginal rate at each level. With level-specific conditional
 rates the surviving-value bound is $G_0\prod_j(1-\rho_jd_j)$; without such
 bounds, neither the geometric contraction nor its depth follows.
 Calibrating them requires labeled outcomes, including grades previous levels
-missed. One symbol, two chapters:
-$\theta$ is correlation and $\rho$ stays the audit rate in both.
+missed. Here $\theta$ is a correlation, not the engine quality
+$\theta_H,\theta_L$ of the engine-swap theorem; $\rho$ is the audit rate in
+both chapters.
 
 \begin{pdexample}{Amortized Verification: Sums and Their Integral Approximations}
 Let periods be $t=0,\ldots,T-1$, audit cost $a=1$, corrupt gain $G=10$, detection probability $d=0.8$, bond $B=50$, and forfeitable continuation value $vt$ with $v=0.6$ per period. These are illustrative payoff assumptions. Flat auditing uses $\rho=G/(dB)=0.25$, costing $aT\rho=50$ over $T=200$ periods.
@@ -2423,8 +2428,8 @@ bonds at $C=8$ against $53$ levels and \$2{,}650 at $C=1$, compare designs
 within the extra non-replenishing-budget model. Raising $C$ removes its linear prefix at these parameters; this does not prove that an externally financed adversary must run out of money. The selected-bond totals exclude collateral held by unused candidates. Three hypotheses are required and must not be dropped in
 restatement. (i) \emph{Sealed sampling is a hypothesis, not hygiene}: a leaked draw
 collapses $C$ to $1$ and puts the VRF sampler inside the trusted computing base.
-(ii) \emph{The tower needs an exogenously honest root}: the operator at $n=1$, a
-separately justified adjudicator at scale. The theorem measures the depth to
+(ii) \emph{The tower needs an exogenously honest root}: the operator, when there is a
+single operator; a separately justified adjudicator at scale. The theorem measures the depth to
 that root and does not supply the root. (iii) The theorem is about
 \emph{bribery of sampled auditors}; it does not measure collusion correlated
 \emph{across} cliques, which is a

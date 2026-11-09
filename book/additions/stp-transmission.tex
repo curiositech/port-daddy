@@ -44,12 +44,14 @@ whether honeypots are recognizable. Recognition changes the critical rate.
 \begin{pdclaim}{Theorem}{Recognizable Honeypots Raise the Critical Rate}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:stp-honeypot-recognition}
-Keep the local deterrence model above, with the keep-gain convention: each
+Keep the local deterrence model above, with the keep-gain convention (a
+caught judge forfeits $B$ but keeps the gain $G_k$): each
 grade is a honeypot independently with probability $\rho\in(0,1)$, a corrupt
 grade yields gain $G_k$, and a corrupt honeypot grade is detected with
 probability $d$ and forfeits $B$. Suppose the judge sees, for each item, a
 label that reads ``honeypot'' with probability $\alpha$ on honeypots and $\beta$
-on ordinary items, $0\le\beta<\alpha<1$, and corrupts according to the label
+on ordinary items (a false-label rate, unrelated to the bribe price $\beta$
+above), $0\le\beta<\alpha<1$, and corrupts according to the label
 alone. A corrupt grade on an item labeled ordinary falls on a honeypot with
 probability
 \[

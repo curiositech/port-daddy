@@ -311,10 +311,10 @@ after, the consolidator's identity and engine, the consolidation-policy
 version, the verdict, and the pointer-bearing notes superseded. The checker,
 not $\Gamma$, writes it, so P1 is untouched. This receipt records what the
 memory store became, not what any successor read: a successor that loaded
-stale notes, a subset, or nothing would leave it unchanged. The witness
-\S\ref{sec:parfit-lineage-map} found missing needs a second record, a
-\emph{load receipt} the daemon writes when it injects notes into a successor's
-context: the successor's identity, the digest of the memory state it was
+stale notes, a subset, or nothing would leave it unchanged.
+\S\ref{sec:parfit-lineage-map} found no record of what a successor actually
+loaded. That takes a second receipt, the \emph{load receipt}, which the daemon
+writes when it injects notes into a successor's context: the successor's identity, the digest of the memory state it was
 given, and the digests of the notes actually injected. Together the two
 receipts say what was kept and what was handed on. Neither makes memory
 authoritative.
