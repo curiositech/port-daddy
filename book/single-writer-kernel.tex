@@ -396,14 +396,19 @@ which is why the kernel also runs self-checks that detect a divergent or stale
 second instance (\S\ref{sec:attest}).}
 \subsection{The configuration \emph{is} the durability claim}
 \ifpdmargincolumn\pdcheckpointwindow\fi
-The storage configuration is short, and it decides the durability claim. In WAL mode with
+The storage configuration is short, and it decides the durability claim for an
+operating-system crash or a power loss. In WAL mode with
 the \emph{normal} synchronization level (the WAL is fsync'd at checkpoints rather
 than on every commit), a bounded auto-checkpoint interval, a bounded busy-wait,
 foreign-key enforcement on, and a clean-shutdown checkpoint-and-truncate, the
-kernel inherits exactly the crash semantics that configuration defines. The claim
-``a write that returned success survives a crash'' reduces \emph{entirely} to what
-WAL with normal synchronization guarantees. \S\ref{sec:durability} shows that
-this is less than a casual reading assumes.
+kernel inherits exactly the crash semantics that configuration defines. Against
+those two faults, the claim that an acknowledged write survives reduces
+\emph{entirely} to what WAL with normal synchronization guarantees, and
+\S\ref{sec:durability} shows that this is less than a casual reading assumes.
+A crash of the daemon process alone is a different case. SQLite keeps a
+committed transaction across an application crash at every synchronization
+level~\pdcite{sqlitepragma}, so for that fault the claim rests on the daemon
+replying only after commit, not on the configuration.
 \subsection{Schema evolution: an ordered boot ledger, not yet a sequencer (OP-7)}
 \pdstatus{\BuiltWeak}{OP-7, the seventh of the chapter's numbered open problems (Table~\ref{tab:op-status}); the ordered boot ledger ships; the sequencer is specified}
 The initial schema-by-union approach (\texttt{CREATE TABLE IF NOT EXISTS}) created
@@ -561,9 +566,14 @@ claim has two parts.
 Let a write return success under the default WAL configuration.
 \begin{itemize}[leftmargin=1.4em]
   \item \textbf{I1a (process-crash durability).} If the \emph{daemon process}
-  dies (a forced kill, a panic, an out-of-memory termination), the write survives:
-  the data is in the operating system's page cache, which outlives the process.
-  \Built.
+  dies (a forced kill, a panic, an out-of-memory termination), the write survives.
+  It rests on two things: the daemon replies only after the transaction commits,
+  and SQLite keeps a committed transaction across an application crash at any
+  synchronization level, with WAL or with a rollback journal on
+  disk~\pdcite{sqlitepragma}. The committed pages are in the operating system's
+  page cache, which outlives the process. WAL matters elsewhere: under power
+  loss it keeps the database consistent while syncing only at checkpoints (I1b),
+  and readers do not block the writer~\pdcite{sqlitewal}. \Built.
   \item \textbf{I1b (power-loss durability).} If the \emph{operating system}
   crashes or power is lost \emph{before the next checkpoint}, the most recent
   committed writes may roll back. \NotGuar{} under the normal synchronization
@@ -615,9 +625,10 @@ settlement-ledger entry (money-bearing) & \texttt{synchronous=FULL} on the trans
 \end{table}
 \subsection{Recovery after a crash}
 \pdstatus{\BuiltWeak}{the three boot checks exist but are not one invariant}
-Durability is about what survives; recovery is about what happens next. On daemon
-restart with a WAL, SQLite recovers the valid committed state (I1a's
-mechanism). The kernel must also answer two larger questions: who validates the
+Durability is about what survives; recovery is about what happens next. When the
+daemon restarts, SQLite recovers the valid committed state, which in this
+configuration it reads back from the WAL. I1a rests on that recovery and on the
+reply following the commit, not on WAL as such. The kernel must also answer two larger questions: who validates the
 audit chain on boot, and what becomes of a half-applied cross-subsystem
 operation (\S\ref{sec:atomicity}) after a crash? A boot gate already refuses to
 serve when a critical self-check fails (\S\ref{sec:attest}). Boot-time WAL
@@ -2212,7 +2223,7 @@ Theorem~\ref{thm:exclusion}; I7--I9 carry the regimentation/detection correction
 \toprule
 \textbf{\#} & \textbf{Invariant (theorem)} & \textbf{Mechanism} & \textbf{Maturity} \\
 \midrule
-I1a & Process-crash durability & WAL + OS page cache & \Built \\
+I1a & Process-crash durability & reply only after commit, on SQLite's atomic commit & \Built \\
 I1b & Power-loss durability & (needs full synchronization) & \NotGuar \\
 I2 & Mutual exclusion (1 holder per conflict domain) & uniqueness constraint + busy-wait (exact keys); overlap check that warns (file regions) & \Built{} for exact keys; \BuiltWeak{} for file regions (overlap reported, both claims kept) \\
 I2b & Fencing of a stale holder at the effect gate & per-resource epoch checked by an effect broker & \Designed{} (no epoch is kept or checked) \\
@@ -2972,9 +2983,9 @@ The chapter's main results, in the order the rest of the book relies on them:
   assumptions; no agreement protocol is needed. Across a power loss the most WAL
   with \texttt{synchronous=NORMAL} can offer is buffered durable linearizability.
 \item Durability is split by fault class. Acknowledged commits survive a process
-  crash under the stated storage assumptions; a power loss can lose recent commits
-  under the default synchronous setting. The setting is the
-  durability claim.
+  crash under the stated storage assumptions, because the reply follows the
+  commit; a power loss can lose recent commits under the default synchronous
+  setting, and for that fault the setting decides the durability claim.
 \item A fenced lease adds an epoch to the ownership record. The stronger
   theorem requires atomic conflict checks and allocation, plus an effect broker
   checking the active lease and epoch. An exact-key claim alone does not supply
@@ -3443,8 +3454,9 @@ A single local writer puts every write transaction in one commit order.
 Exclusion and consistency follow only with the disciplines
 Theorems~\ref{thm:exclusion} and~\ref{thm:consistency} assume, among them
 checking and mutating in one transaction and replying only after commit. Complete mediation holds only for
-writes that reach the daemon (\S\ref{sec:threatmodel}), and the durable audit
-log is a property of the write-ahead log. The contribution is that reduction,
+writes that reach the daemon (\S\ref{sec:threatmodel}), and the audit log
+survives a daemon crash because the reply waits for SQLite's commit, not
+because of the write-ahead log. The contribution is that reduction,
 with its conditions, and an exact account of where it stops working.}
 
 % ═════════════════════════════════════════════════════════════════════════════
