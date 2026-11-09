@@ -28,7 +28,7 @@
   \draw[pd rule] (\ox,{\oy+\h}) -- ({\ox+2*\w},{\oy+\h});
 
   \node[cell] at ({\ox+.5*\w},{\oy+1.5*\h}) {ordinary allowed action};
-  \node[cell] at ({\ox+1.5*\w},{\oy+1.5*\h}) {\textbf{capable, forbidden} -- the override flag: it exists, it must not be used};
+  \node[cell] at ({\ox+1.5*\w},{\oy+1.5*\h}) {\textbf{capable, forbidden}: the override flag exists and must not be used};
   \node[cell] at ({\ox+.5*\w},{\oy+.5*\h}) {unreachable: permitted in principle, the sandbox never offers it};
   \node[cell] at ({\ox+1.5*\w},{\oy+.5*\h}) {ordinary forbidden action: sandbox already excludes it};
 
@@ -42,7 +42,7 @@
     \node[pd label,rotate=90,anchor=south] at ({\ox-.42},{\oy+\cy*\h+\h/2}) {\l};}
 \end{tikzpicture}
 \caption{Capability and permission are independent. The shaded case is
-possible but forbidden---the state a collapsed vocabulary cannot express.
-[internal]}
+possible but forbidden, a state that one merged capability-and-permission
+field could not express. [internal]}
 \label{fig:swk-capability-permission}
 \end{figure}
