@@ -43,7 +43,7 @@ Containers & Paths outside the namespaces; refused system calls. & The shared ho
 gVisor & Guest system calls, answered by a user-space kernel ($211$ of $319$ implemented with $55$ host calls). & Flaws in that kernel; timing. System calls run $2.8\times$ slower than native, $2.2\times$ slower than a container. \\
 Firecracker & Every device outside a four-device model; a jailer allowing $24$ system calls; about $50{,}000$ lines of Rust against $1.4$ million for QEMU. & Traffic over the virtio network device; the host kernel; microarchitectural channels unless the host disables SMT. \\
 seL4 & Storage channels, by a machine-checked noninterference proof carried to the C code. & Covert timing channels; it assumes no DMA, a static schedule, and a correct compiler and hardware. \\
-Web\-Assembly & Host memory and code outside the module; typed control flow. & Memory safety inside linear memory: no canaries, no guard pages, writable constants. \\
+Web\-Assembly & Host memory and code outside the module; typed control flow. & Memory safety inside linear memory: no stack canaries, no guard pages, writable constants. \\
 Trusted execution & Plaintext from host software; an attestation that can condition key release. & Physical access: TEE.fail forged a TDX quote that verified as ``UpToDate'' with an interposer under $\$1{,}000$; vendors treat interposition as out of scope. \\
 \bottomrule
 \end{tabularx}
@@ -54,8 +54,10 @@ Three consequences follow for the book's grades.
 \paragraph{Confining hostile code needs a VM or microVM.}
 The Confined mode requires that the process have no path to the protected
 effect other than the paths it was given. A namespace sandbox shares the host
-kernel with everything it protects, and the SandboxEscapeBench authors
-recommend treating plain Docker isolation as insufficient by default. The
+kernel with everything it protects. Marchand and colleagues, whose
+SandboxEscapeBench measures how well language models escape container
+sandboxes, recommend treating plain Docker isolation as insufficient by
+default. The
 hardening specified in \pdchapref{swk}{The Single-Writer Kernel}
 (\S\ref{swk:sec:merkle}) runs each agent in a \texttt{bwrap} or
 \texttt{unshare} sandbox under a throwaway user identity. That stops an agent
@@ -71,8 +73,9 @@ what crosses the gated ones.
 Once isolation has fixed which events exist, an allowed channel carries
 whatever data the policy lets through it. CaMeL separates a task's control
 flow from its data flow, tags values with capabilities, and checks a policy at
-every tool call. It solves $77\%$ of the AgentDojo tasks with provable
-security, against $84\%$ for an undefended agent. It lists text-to-text
+every tool call. On AgentDojo, a benchmark of tool-using tasks with planted
+prompt injections, it solves $77\%$ of the tasks with provable security,
+against $84\%$ for an undefended agent. It lists text-to-text
 attacks as a non-goal and acknowledges side channels. That is the same
 structure as the attenuation of \pdchapref{anchor}{The Anchor Protocol} and the
 labels and release gate of \pdchapref{sealed}{The Sealed Harbor}. A hypervisor
