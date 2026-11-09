@@ -245,10 +245,10 @@ state and records the order of those changes. Its ledger is authoritative for
 those changes and for nothing else about the world outside it.}
 The two guarantees require different qualifications:
 \begin{enumerate}[leftmargin=1.4em]
-  \item \textbf{Durability, with one exception:} a write that returned success
+  \item \textbf{Durability, with two exceptions:} a write that returned success
   survives the death of any agent and the death of the \emph{daemon process}.
-  It does \emph{not} survive every power loss; \S\ref{sec:durability} states
-  which failures it survives.
+  It may \emph{not} survive an operating-system crash or a power loss before the
+  next checkpoint; \S\ref{sec:durability} states which failures it survives.
   \item \textbf{Mediation:} a guard that runs before a change takes effect can
   refuse a forbidden change. A monitor that runs afterwards can only report the
   change or respond to it. Refusing a forbidden change before it takes effect
@@ -1027,14 +1027,14 @@ lineage [checkout-repair, payment-tests]. Wren grants Pike G3: run tests only,
 until 17:00, with lineage [checkout-repair, payment-tests, fix-mock]. Each
 grant is signed by its issuer and carries its lineage inside the signed bytes.
 
-Now Pike makes three requests. First, Pike asks for G4: write
-\texttt{lib/**}. The authorization chain refuses it, because G4 allows more
-than G3. Second, Pike hands payment-tests back to Wren. Running tests is within
+Now Pike makes three requests. First, Pike tries to sign G4, write
+\texttt{lib/**}, for a helper. The authorization chain refuses it, because G4
+allows more than G3, the grant Pike holds. Second, Pike hands payment-tests back to Wren. Running tests is within
 G3, so the signatures allow it, but the lineage already contains
 payment-tests, so loop detection refuses it; Wren also sits above Pike in the
 lineage, so the upward block refuses it as well. Third, Pike hands ``verify
 the payment suite'' to Carol, who is not in the lineage, under a grant to run
-tests only. The signatures verify, the grant is no wider than G3, and the
+tests only, until 17:00. The signatures verify, the grant is no wider than G3, and the
 lineage contains no repeated entry, so both checks pass. Yet this is the
 payment-tests task again under a new name. Recognizing that two differently
 worded tasks are the same task is the open problem stated next.
@@ -1242,11 +1242,11 @@ can see.
 \subsection{The general boundary: regimentation is controllability}
 \label{sec:controllability}
 
-\noindent\emph{Express lane: which rules can a runtime enforce exactly,
-blocking every violation and nothing else? Sort what an agent does into steps
+\noindent\emph{Express lane: which rules can a runtime regiment exactly, that
+is, block every violation and nothing else? Sort what an agent does into steps
 the runtime can block, such as writing a file or pushing to git, and steps it
 cannot, such as the model producing its next token or forming a plan; a rule
-can be enforced exactly if and only if no
+can be regimented exactly if and only if no
 \pdmarginfigure{wonham}{Wonham's supervisory-control theory, built for factory floors, is why a software policy can be proved enforceable rather than hoped.}%
 unblockable step can, by itself, turn an allowed history into a forbidden one.
 Six of the nine rules in Table~\ref{tab:policy-classification} pass this
@@ -1529,7 +1529,7 @@ Three consequences follow, from least to most important.
 \item \textbf{Two things a designer can change.} With plant, observation, and policy fixed, widening $\Sigma_c$
   (owning more channels) can remove a controllability obstruction; relabelling
   the same policy cannot.
-  The plant is the other dial: $\overline{L}$ sits on the left of the containment, so shrinking
+  The plant is the second thing a designer can change: $\overline{L}$ sits on the left of the containment, so shrinking
   it can remove offending histories, though a strict improvement is not guaranteed. The detect-only verdicts above
   turn on the universal plant enabling the forbidden event at the very start (\texttt{internal\_plan},
   for example), and are conditional on the modelling choice $L = \Sigma^{*}$. An event that never becomes physically possible needs no
@@ -1688,7 +1688,7 @@ observable at all. Later audit, reputation, and remedies therefore require
 specified evidence as well as a response mechanism; they do not follow from
 failure of exact controllability.
 
-A rule enforced at a gate is only as strong as the route an action is forced
+A rule checked at a gate is only as strong as the route an action is forced
 to take. This book grades each enforcement mechanism by its
 \pdterm{assurance mode}: what an adversary would have to defeat to make the
 mechanism's claim false. There are five modes.
@@ -1749,7 +1749,8 @@ because EAL scores the evaluation and the assurance mode scores the mechanism.
 \end{pdclaim}
 
 \pdscope{The modes are a design vocabulary, not a measured scale: no procedure assigns a mode by measurement, and no inter-rater agreement stands behind the assignments.}
-The five modes are also not evenly spaced, nor even totally ordered. Brokered
+The five modes are not claimed to be evenly spaced, and they are not totally
+ordered. Brokered
 and Confined defeat different adversaries; neither is a harder version of the
 other, which is why the appendix says these modes are not a maturity staircase.
 The modes name which part of the system a claim depends on, and they are useful
@@ -2561,11 +2562,8 @@ help from the daemon. When a push arrives, the daemon recomputes the chain from
 $K$ and compares.
 
 Now the bypass. Wren runs \texttt{/usr/bin/git push} with her own SSH key, and
-no macaroon is ever presented. Each of the five escapes described next works the
-same way: setting the documented bypass variable, calling \texttt{git} by
-absolute path, rewriting \texttt{PATH}, pushing through an in-process
-\texttt{libgit2} or editor binding, or never attaching a session. In none of the
-five is the macaroon consulted.
+no macaroon is ever presented. The five escapes listed in the next paragraph
+all work this way; in none of them is the macaroon consulted.
 \end{pdexample}
 
 What the gate does \emph{not} yet do is control what the agent can actually do.
