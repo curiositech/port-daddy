@@ -147,10 +147,11 @@ each return 64 bits to Erin can carry at most 12,800 bits, before timing.}
 \paragraph{The scene.}
 Derek owns sensitive financial data $D$. Erin owns a valuable agent system $M$:
 weights, prompts, skills, tools, orchestration. Both want the answer
-$y=f_M(D)$. Neither will hand over what they own. Derek must not receive $M$,
+$y=f_M(D)$. Neither will hand over the crown jewels they own. Derek must not receive $M$,
 Erin must not receive $D$, and the cloud operator hosting the computation must
 receive neither. Figure~\ref{fig:sealed-three-principals} draws the three
-parties and the one boundary that must keep all three apart at once.
+parties, their three sight-lines, and the one boundary that must keep all
+three apart at once.
 \input{figures/fig-sealed-three-principals}
 The question is what the machine running the job can guarantee when the data
 owner and the agent owner distrust each other. Call that machine, with its
@@ -194,8 +195,9 @@ A taint tracker of the kind pitched above, run \emph{soundly} on every token,
 must mark the parity bit as tainted, because it was computed from the secret,
 and drop it. Erin gets $0$ bits.
 
-So a sound taint tracker gives Erin nothing, not even the bit she paid for. A
-tracker loosened to let the parity bit through has the opposite flaw. It
+So a sound taint tracker gives Erin nothing, not even the bit she paid for. The
+other horn of the dilemma, a tracker loosened to let the parity bit through,
+has the opposite flaw. It
 cannot tell whether the released bit is the parity of committed $s$, Derek's
 actual record, or the parity of some other value $f(s)$ the worker computed
 from that record in order to smuggle out a different bit.
@@ -225,8 +227,8 @@ its untrusted worker.
 \pdscope{The choice is a design rule for an untrusted worker; it says nothing
 about how fine a sound analysis of model output could be.}
 
-A secret can leave inside wording, punctuation, error messages, output length
-or timing, and no regular expression, scanner or second model can certify that
+A secret can leave the room riding inside wording, punctuation, error
+messages, output length or timing, and no regular expression, scanner or second model can certify that
 arbitrary prose contains no secret. An ordinary remote model API also reads
 the plaintext it is sent. Sending Derek's data to a third party's inference
 endpoint hands the data to that third party, and no cryptography undoes it.
@@ -234,8 +236,8 @@ endpoint hands the data to that third party, and no cryptography undoes it.
 The architecture therefore controls the \emph{channel} through which output
 leaves, and makes no attempt to vet each token. It turns the question a
 security officer will ask, \emph{how do I know the wall has no other holes?},
-into four claims that can be checked. The gate is the only way out
-(Section~\ref{sec:sealed-noninterference}). The gate can refuse the effects
+into four claims that can be checked. The gate is the only hole in the wall,
+the only way out (Section~\ref{sec:sealed-noninterference}). The gate can refuse the effects
 that its mediation and observation model covers
 (Section~\ref{sec:sealed-enforceability}). A conserved budget meters what
 passes through it (Section~\ref{sec:sealed-conservation}). And a leak is
@@ -296,8 +298,8 @@ canonical contract changes the digest the signatures cover. A key broker that
 follows the protocol refuses a modified contract until both owners sign again;
 the digest by itself stops nothing.
 The contract is a durable work unit in the sense of \pdchapref{swk}{The
-Single-Writer Kernel}: a record that cannot change and that outlives every
-short-lived guest process that executes it.
+Single-Writer Kernel}: a record that cannot change, a case file that outlives
+every short-lived guest process that executes it.
 
 Table~\ref{tab:sealed-work-order-elements} lists the thirteen elements of $C$,
 the check each is meant to drive, and an illustrative value. A field states an
@@ -621,8 +623,8 @@ only difference and compare what Erin sees; whenever the two secrets have the
 same parity, her view must be identical. A search of every schedule of up to 7
 steps found no difference, which is a check of a finite model.}
 
-\paragraph{Intuition: the voting booth.} \pdmarginanalogy{sealed-speaking-tube}{}{ch03-authorized-speaking-tube}{Nothing that depends on Derek's secret reaches Erin except through the gated release.}%
-Looking at a wall will not show whether it has holes. Instead, imagine two
+\paragraph{Intuition: the voting booth.} \pdmarginanalogy{sealed-speaking-tube}{}{ch03-authorized-speaking-tube}{Like a shipboard speaking tube whose whistle stopper must be unplugged before sound can pass, nothing that depends on Derek's secret reaches Erin except through the gated release.}%
+Staring at a wall's bricks will not show whether it has holes. Instead, imagine two
 parallel worlds and ask whether anything visible from outside ever differs.
 If Derek's secret is $0$ in one world and $2$ in the other, and the gate is
 contracted to release only \emph{parity}, then the target is to keep those
@@ -635,7 +637,8 @@ That is noninterference \emph{modulo declassification} in the
 Goguen--Meseguer lineage \pdcite{goguen-meseguer-82,goguen-meseguer-84}.
 Noninterference means that nothing an observer sees depends on the secret;
 modulo declassification, the only dependence allowed is what the contract
-releases through the slot. A common misreading is that the property makes the
+releases through the slot. In a phrase, silence except through the slot, and
+through the slot only what the contract says. A common misreading is that the property makes the
 slot safe. It says only that the slot is the \emph{only} opening. Whether the
 declared function $g$ releases too much is a question about the contract,
 which later sections put a number on. In the booth's terms, the guarantee
@@ -727,7 +730,8 @@ compares. For equal-parity secrets, any difference in the observation sequences
 is a counterexample. For differing-parity secrets, the checker rejects a
 non-gate step if the resulting logs differ and either log changed at that step;
 an earlier gate-release difference may persist unchanged. Deliberately
-planted bugs, called mutations, then show that the search can fail. With the
+planted bugs, called mutations, then show that the search has teeth and can
+fail. With the
 honest gate replaced by one that releases the raw secret, the first difference
 appears four steps in, on a pair that the honest gate keeps identical in every
 searched schedule. Figure~\ref{fig:sealed-two-worlds}
@@ -744,8 +748,9 @@ release produced by the raw-secret mutation.
 The property states the product's headline sentence in a checkable form:
 \emph{every release is explicit, gated, and bounded}. It is the finite-model
 core of the chapter. The general claim over unbounded state is the unwinding
-obligation of Section~\ref{sec:sealed-limitations}. This model shows the shape
-of that argument; the unbounded argument itself is still to be written.
+obligation of Section~\ref{sec:sealed-limitations}. This model is its
+blueprint and shows the shape of that argument; the unbounded argument itself
+is still to be written.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
@@ -762,7 +767,7 @@ quantifies over action sequences of a model whose gate applies $g$ to committed
 input. It does not cover a worker that launders: computing $t=f(s)$ and
 submitting $t$ so that the gate honestly releases $g(t)$. That is the classical
 \pdterm{laundering attack}, in which a secret-derived value passes through an
-honest release so that the release carries a different bit from the one the
+honest release, the escape hatch, so that the release carries a different bit from the one the
 contract intended. The delimited-release literature names it and rules it out
 by enforcement \pdcite{sm03}. The proposed arbitrary-output path does not
 supply that enforcement. A trusted gate could instead compute a restricted
@@ -963,7 +968,7 @@ journal and never passes the cap. On a two-client instance with a budget of
 4, a deliberately torn write, which logs each cost in full but adds one less
 to the running total, lets the recorded spend reach 5.}
 
-\paragraph{The scene, resumed.} \pdmarginanalogy{sealed-sandglass-orifice}{}{ch03-sandglass-flow-orifice}{The ledger records each release's privacy cost and refuses any release that would take the total past the cap.}%
+\paragraph{The scene, resumed.} \pdmarginanalogy{sealed-sandglass-orifice}{}{ch03-sandglass-flow-orifice}{Like an hourglass whose precision orifice meters sand grain by grain, the ledger records each release's privacy cost and refuses any release that would take the total past the cap.}%
 Derek's data never leaves the room. What leaves is a stream of gated
 releases, each with a differential-privacy cost $\varepsilon_i$, and the
 contract says the total never exceeds $\varepsilon_{\max}$. Releases can
@@ -1178,10 +1183,10 @@ and marks this exact crossing.
 \paragraph{What it shows.}
 The contract's budget line becomes an auditable invariant with the same proof
 shape as the bond-conservation result of \pdchapref{bonded}{The Bonded
-Commons}. The mutations show that the check can fail: both standard ways of
-breaking atomicity are caught with shortest traces, and the torn write's worse
-failure, recorded over-spend past the contracted maximum, appears
-concretely.
+Commons}. The mutations show that the invariant has teeth and the check can
+fail: both standard ways of breaking atomicity are caught with shortest
+traces, and the torn write's deeper crime, recorded over-spend past the
+contracted maximum, appears concretely.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1219,8 +1224,8 @@ are planted. The sequential half is quality control. Each gate output is a
 yes-or-no trial, and a sequential probability ratio test accumulates evidence
 on whether the stream is leaking. The three links before this one govern what
 the gate is \emph{allowed} to pass; this one measures what happens when
-something tries to pass anyway. A security officer needs a number, and the
-assurance that canaries exist is not one. The two theorems answer different
+something tries to pass anyway. A security officer needs a number, and
+``we have canaries'' is a mood, not a number. The two theorems answer different
 questions. A single-shot exfiltration is covered by the first, the power
 calculation, and not by the sequential test.
 
@@ -1546,7 +1551,7 @@ amenable to mechanization, and the Isabelle Archive of Formal Proofs already
 carries stateful intransitive-noninterference developments in exactly this
 lineage. A policy is \emph{intransitive} when information may pass from one
 domain to another only through a trusted \emph{downgrader}, a domain allowed
-to pass on what it received. The finite model shows the shape of that proof. Its local-respect check already
+to pass on what it received. The finite model is the blueprint and shows the shape of that proof. Its local-respect check already
 holds mechanically, its declassification steps play the role of Rushby's
 downgrader, and the lift consists of restating the
 transition relation abstractly and discharging the three lemmas once, for all
@@ -1841,8 +1846,8 @@ slot is the design default.
 \label{sec:sealed-history}
 
 Almost nothing in this chapter is new machinery. What is new is how the
-pieces are combined, and the accounting of what the combination does not
-promise. This section says where each piece came from.
+pieces are combined, which piece was bolted to which, and the accounting of
+what the combination does not promise. This section says where each piece came from.
 
 \paragraph{The two-owner systems setting.}
 Ryoan~\pdcite{ryoan16} uses protected sandbox instances to confine
