@@ -1394,28 +1394,32 @@ discount would be $3$; if $c=5$, the posted bond is $5$, not $3$. $\lambda$ incr
 
 The closed-form bond $\pi(\mathcal{F}, P) = \max\{c,c(1 + \eta s)(1 - \lambda)\}$ prices every threat from the same cleanup-cost curve. One calibration may not serve every task: a price intended to deter costly sabotage can exclude providers from low-exposure work, while an accessible price may leave severe losses underfunded. Task permissions, recoverability and loss estimates therefore matter alongside the multiplier.
 
-Table~\ref{tab:threat-bonds} gives illustrative starting bands, each a share of the \pdterm{claim ceiling} (the most that will be paid out on a claim), not validated coverage levels. Careless work means an attempted result that is sloppy, partial or fails review; abandonment means leaving accepted work unfinished; sabotage means deliberate damage to shared state. These descriptions classify outcomes for analysis; they do not test intent.
+Table~\ref{tab:threat-bonds} gives illustrative starting bands. The first three are shares of the \pdterm{claim ceiling} (the most that will be paid out on a claim), not validated coverage levels; the exfiltration row is a lower bound derived below. Careless work means an attempted result that is sloppy, partial or fails review; abandonment means leaving accepted work unfinished; sabotage means deliberate damage to shared state. These descriptions classify outcomes for analysis; they do not test intent.
 
 \begin{table}[H]
 \centering
-\caption{Illustrative bond bands as a percentage of the claim ceiling. These are calibration proposals, not protocol constants or loss guarantees.}
+\caption{Illustrative bond bands. The first three rows are percentages of the claim ceiling; the exfiltration row is a lower bound set by detection power. These are calibration proposals, not protocol constants or loss guarantees.}
 \label{tab:threat-bonds}
 \setlength{\tabcolsep}{3pt}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{2cm}>{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Threat} & \textbf{Bond \%} & \textbf{Intended purpose} \\
+\textbf{Threat} & \textbf{Bond} & \textbf{Intended purpose} \\
 \midrule
 Careless work & 10--25\% & Encourage care with affordable entry. \\
 Abandonment & 25--50\% & Help fund replacement onboarding. \\
 Active sabotage & 100--200\% & Help fund reconstruction and cleanup. \\
-Data exfiltration & Not set & Separate confidentiality controls. \\
+Data exfiltration & $\ge c_{\mathrm x}/p_{\mathrm f}$ & Fund detection and response only; disclosure is not covered. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 An abandonment reserve aims to pay for scope-note ingestion, partial-diff review and salvage handoff. Coverage requires a measured cost bound (\S\ref{sec:attribution-survives}). A sabotage reserve aims to fund reconstruction and downstream cleanup; a percentage of the claim ceiling bounds neither loss, and even a bond above the ceiling may underfund reconstruction. The careless-work band likewise proposes an incentive, not a demonstrated reduction in failures. Each band requires calibration against attributable outcomes and observed costs.
 
-This pricing proposal sets no bond for exfiltration. The loss or an attacker's gain can exceed collectible collateral, and a bond cannot retract disclosed information. Preventing disclosure requires mediated access and egress controls with their own threat model; ordinary worktrees do not provide confinement (\S\ref{sec:isolation}). The cleanup-cost conditions give no protection against disclosure to outsiders.
+The exfiltration row prices something narrower than the leak. A bond cannot retract disclosed information, and the loss or an attacker's gain can exceed any collectible collateral, so the row does not cover the disclosure. It funds only detecting and responding to a leak, the scope \pdchapref{sealed}{The Sealed Harbor} gives it. Let $c_{\mathrm x}$ be the exfiltration counterpart of the cleanup cost $c$: the expected cost of detecting and responding to one leak, not counting the harm of the disclosure itself. The bond is forfeited only if the leak is detected and the bond collected. Call that probability $p_{\mathrm f}$; it is at most the detection power of the sealed harbor's canary theorem\ifpdbook\ (Theorem~\ref{sealed:thm:sealed-power})\fi. The expected forfeiture per leak is then $p_{\mathrm f}\pi(\mathcal F)$, and the Cleanup Lower Bound becomes
+\[
+\pi(\mathcal F)\;\ge\;\frac{c_{\mathrm x}}{p_{\mathrm f}}.
+\]
+An undetected leak forfeits nothing, so no finite bond avoids a deficit on every leak; this bound covers $c_{\mathrm x}$ on average over leaks. In the sealed harbor's recorded example, with $100$ canaries among $10^4$ records and a per-canary miss rate of $0.2$, a $100$-record leak is detected with probability $0.554$, so the bond must be at least $1/0.554\approx1.8$ times $c_{\mathrm x}$. That power assumes each canary is missed independently. If a deliberate exfiltrator's misses are perfectly correlated, the power falls to $0.509$ and the multiplier rises to about $2.0$. Small leaks are where the bound stops being practical: at the same canary density a one-record leak is detected with probability $0.008$, and the bound asks for $125c_{\mathrm x}$ [verified]. Preventing disclosure still requires mediated access and egress controls with their own threat model; ordinary worktrees do not provide confinement (\S\ref{sec:isolation}).
 
 The table informs Phase~2 below through exposure limits: restrict the resources and task value entrusted to a new principal, then reconsider those limits after attributable settlements. A newcomer can still act maliciously. An access tier limits what can be reached or lost; it does not restrict a principal to careless work or certify benign intent.
 
@@ -1500,7 +1504,7 @@ The pricer is itself priced. The advisor that sets bond sizes posts a bond on it
 \paragraph{$c$ as a project health metric.} A project whose $c$ is rising is fraying. Breaches cost more to recover from, which suggests coordination in the project is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. This is homeostatic feedback, like a body correcting its own temperature: risky spawns cost more exactly when the project can least afford them.
 
 \paragraph{Threat-class bond bands and their defensibility.}\label{sec:pricing:defensibility}
-The pricing function $\pi$ resolves to one of three nominal bands, each a share of the claim ceiling and calibrated to the threat class the bond is defending against:
+For the three threat classes priced as shares of the claim ceiling, the pricing function $\pi$ resolves to one of three nominal bands, each calibrated to the threat class the bond is defending against:
 \begin{itemize}[nosep]
   \item \textbf{Careless} (accidental damage during honest attempts): $\pi \in [10\%,\,25\%]$ of the claim ceiling.
   \item \textbf{Abandonment} (walk-away mid-task; cleanup dominates): $\pi \in [25\%,\,50\%]$ of the claim ceiling.
