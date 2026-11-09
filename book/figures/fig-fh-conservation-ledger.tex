@@ -8,9 +8,9 @@
 % Claim: a funded bond occupies exactly one of four buckets at any time, and
 %   every valid transition moves the whole amount from one bucket to
 %   another -- never splitting it, never losing it.
-% Evidence: prop:fh-cross-cons's own notation (P_b, E_b, C_b, R_b) and the
+% Evidence: prop:fh-cross-cons's own notation (post_b, esc_b, clr_b, ref_b) and the
 %   chapter's $100 worked instance: (100,0,0,0) -> (0,100,0,0) ->
-%   (0,0,100,0) with C=90+10, or -> (0,0,0,100) on the refuse branch.
+%   (0,0,100,0) with clr_b=90+10, or -> (0,0,0,100) on the refuse branch.
 % Must distinguish: the two terminal outcomes (cleared vs refunded) share
 %   the same escrow bucket as their common predecessor, and the fee is an
 %   explicit cleared recipient, not a silent subtraction.
@@ -27,10 +27,10 @@
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\xP{0.55}  \def\xE{3.60}  \def\xC{6.65}
   \def\by{0}      \def\ry{-2.85}  \def\bw{2.4cm} \def\bh{1.55cm}
-  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (P) at (\xP,\by) {posted\\[1pt]$P_b$};
-  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (E) at (\xE,\by) {escrow\\[1pt]$E_b$};
-  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (C) at (\xC,\by) {cleared\\[1pt]$C_b$};
-  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (R) at (\xC,\ry) {refunded\\[1pt]$R_b$};
+  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (P) at (\xP,\by) {posted\\[1pt]$\mathsf{post}_b$};
+  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (E) at (\xE,\by) {escrow\\[1pt]$\mathsf{esc}_b$};
+  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (C) at (\xC,\by) {cleared\\[1pt]$\mathsf{clr}_b$};
+  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (R) at (\xC,\ry) {refunded\\[1pt]$\mathsf{ref}_b$};
 
   \draw[pd focus pipe] (P) -- (E);
   \draw[pd focus pipe] (E) -- (C);
@@ -44,9 +44,9 @@
 
   \draw[pd rule] (0.00,-3.75) -- (9.35,-3.75);
   \node[pd label,anchor=north west,text width=9.3cm,align=left] at (0.00,-3.95)
-    {$P_b+E_b+C_b+R_b=100$, and exactly one term is nonzero at any time};
+    {$\mathsf{post}_b+\mathsf{esc}_b+\mathsf{clr}_b+\mathsf{ref}_b=100$, and exactly one term is nonzero at any time};
   \node[pd note,anchor=north west,text width=9.3cm,align=left] at (0.00,-4.95)
-    {worked instance: $(100,0,0,0)\to(0,100,0,0)\to(0,0,100,0)$ with $C{=}90{+}10$,
+    {worked instance: $(100,0,0,0)\to(0,100,0,0)\to(0,0,100,0)$ with $\mathsf{clr}_b{=}90{+}10$,
     or the refuse branch $\to(0,0,0,100)$};
 \end{tikzpicture}
 \caption{Whole-bond status, not recipient balances. Clearance may divide
