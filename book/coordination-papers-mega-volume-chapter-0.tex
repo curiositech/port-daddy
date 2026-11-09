@@ -1086,6 +1086,12 @@ complete implementation map. Two useful levels are:
   \item \textbf{The Inner Agentic Tool Loop:} Covers each tool call: a check that can refuse the call before it runs (\texttt{PreToolUse}), execution in the sandbox, and inspection of the result afterwards (\texttt{PostToolUse}).
 \end{enumerate}
 
+Figure~\ref{fig:audit-admit} follows one rule, keep Bob's original test,
+through the three places it can be enforced: the prompt, the check in the
+write path, and review.
+
+\input{figures/fig-audit-admit}
+
 \begin{figure}[tp]
   \centering
   \input{figures/fig-ch0-lifecycle-hooks.tex}%

@@ -1,0 +1,101 @@
+% Reader question: for one write from Heron to the database, what would an
+% attacker have to defeat under each of the five assurance modes? Claim: the
+% same write carries five different claims; what changes is what stands on
+% the write path, and so what an attacker must beat. Evidence: the chapter's
+% five modes (Observed, Coordinated, Brokered, Confined, Attested) and the
+% appendix definitions; Heron and the database are the book's constructed job.
+% Must distinguish: a check BESIDE the path (a log, a sign-in sheet: Heron can
+% skip it) from one ON the path (a broker, an OS wall, a key vault: the write
+% cannot avoid it). Grammar: five small multiples of one route, identical
+% geometry, only the middle slot varying, with the two sentences per mode in
+% a right-hand column; rejected: a ladder or staircase (the chapter says the
+% modes are not totally ordered) and a bare five-row table (loses where the
+% mechanism sits relative to the write). Five-second test: "Observed and
+% Coordinated leave the path open; the other three put something in the way,
+% and each one is beaten differently."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  mode/.style={pd title,anchor=west},
+  end/.style={pd state,inner xsep=3pt,minimum height=.62cm},
+  heron/.style={end},
+  db/.style={end},
+  onpath/.style={pd focus state,text width=2.4cm,inner xsep=3pt,minimum height=.9cm},
+  beside/.style={pd artifact,minimum height=.5cm},
+  says/.style={pd label,anchor=north west,align=left,text width=4.68cm},
+  write/.style={pd arrow,shorten <=2pt,shorten >=2pt}]
+  % Five identical rows, 2.25 cm apart. In each: the mode at top left, the
+  % write along y=-1.0 (Heron at x=.62, the middle slot at 2.90, the database
+  % at 5.35), anything BESIDE the write below it, and the mode's two sentences
+  % in the right-hand column. Only the middle slot changes from row to row.
+  \foreach \t in {-2.25,-4.50,-6.75,-9.00} \draw[pd lattice] (0,\t) -- (11.15,\t);
+  % ---- Observed: nothing on the path; a log written afterwards -------------
+  \begin{scope}
+    \node[mode] at (0,-.32) {Observed};
+    \node[heron] (h) at (.62,-1.0) {Heron};
+    \node[db] (d) at (5.35,-1.0) {database};
+    \draw[write] (h) -- (d);
+    \node[beside] (log) at (2.90,-1.66) {log};
+    \draw[pd thin arrow,shorten <=2pt,shorten >=2pt] (d.south) to[out=-110,in=0] (log.east);
+    \node[says] at (6.30,-.12)
+      {Nothing stands between them. We read the logs afterwards.\\[3pt]
+       \textbf{Must defeat:}\ nothing; skip the log.};
+  \end{scope}
+  % ---- Coordinated: a sign-in sheet beside the path ------------------------
+  \begin{scope}[yshift=-2.25cm]
+    \node[mode] at (0,-.32) {Coordinated};
+    \node[heron] (h) at (.62,-1.0) {Heron};
+    \node[db] (d) at (5.35,-1.0) {database};
+    \draw[write] (h) -- (d);
+    \node[beside] (sheet) at (2.90,-1.66) {sign-in sheet};
+    \draw[pd arrow,dash pattern=on 2.6pt off 2pt,shorten <=2pt,shorten >=2pt]
+      (h.south) to[out=-80,in=180] (sheet.west);
+    \node[says] at (6.30,-.12)
+      {Heron registers a claim before writing, if it chooses to.\\[3pt]
+       \textbf{Must defeat:}\ its own willingness to register.};
+  \end{scope}
+  % ---- Brokered: the daemon's broker holds the key, on the path ------------
+  \begin{scope}[yshift=-4.50cm]
+    \node[mode] at (0,-.32) {Brokered};
+    \node[heron] (h) at (.62,-1.0) {Heron};
+    \node[onpath] (m) at (2.90,-1.0) {broker\\\pdfigsub holds the key};
+    \node[db] (d) at (5.35,-1.0) {database};
+    \draw[write] (h) -- (m);
+    \draw[write] (m) -- (d);
+    \node[says] at (6.30,-.12)
+      {The daemon holds the credential, so the write must pass through it.\\[3pt]
+       \textbf{Must defeat:}\ find another credential.};
+  \end{scope}
+  % ---- Confined: an OS wall around Heron with one door ---------------------
+  \begin{scope}[yshift=-6.75cm]
+    \node[mode] at (0,-.32) {Confined};
+    \node[heron] (h) at (.62,-1.0) {Heron};
+    \node[db] (d) at (5.35,-1.0) {database};
+    \draw[pd focus rule] (1.24,-.86) -- (1.24,-.58) -- (0,-.58) -- (0,-1.42)
+      -- (1.24,-1.42) -- (1.24,-1.14);
+    \draw[write] (h) -- (d);
+    \node[pd focus label,anchor=south west] at (1.40,-.96) {OS wall, one door};
+    \node[says] at (6.30,-.12)
+      {The operating system gives Heron's process no other route.\\[3pt]
+       \textbf{Must defeat:}\ the isolation itself (a kernel or sandbox escape).};
+  \end{scope}
+  % ---- Attested: a key vault that checks the environment's fingerprint -----
+  \begin{scope}[yshift=-9.00cm]
+    \node[mode] at (0,-.32) {Attested};
+    \node[heron] (h) at (.62,-1.0) {Heron};
+    \node[onpath] (m) at (2.90,-1.0) {key vault\\\pdfigsub checks fingerprint};
+    \node[db] (d) at (5.35,-1.0) {database};
+    \draw[write] (h) -- (m);
+    \draw[write] (m) -- (d);
+    \node[says] at (6.30,-.12)
+      {The database key is released only to a measured, verified environment.\\[3pt]
+       \textbf{Must defeat:}\ the hardware's attestation (physical access).};
+  \end{scope}
+\end{tikzpicture}
+\caption{Same write, five different things an attacker must beat. The log and
+the sign-in sheet sit beside the write, so Heron can skip them; the marks in
+the chapter colour sit on it. The rows are not a staircase: Brokered and Confined defeat different
+adversaries rather than the same adversary harder. [internal]}
+\label{fig:audit-modes}
+\end{figure}

@@ -1,0 +1,60 @@
+% Reader question: where can one rule ("keep the original test") be enforced,
+% and what can each place catch? Claim: the same rule has three checkpoints.
+% A prompt (A) only asks; a write gate (B) refuses a prohibited change before
+% the repository changes; a review (C) can see what no write rule can, but only
+% after the change has happened. Evidence: the Preface's constructed repair
+% job, two attempts: deleting the original test (refused at B) and
+% special-casing the test so it passes (passes A and B, caught only at C).
+% Must distinguish: before the change (A, B) from after it (C); refusal from
+% later detection. Grammar: one stage rail with two traced attempts under it,
+% each ending where it is stopped; rejected: a layered "defence in depth"
+% stack (implies every layer sees every attempt) and three separate panels
+% (loses the shared order). Five-second test: "B stops the deletion before it
+% happens; only C catches the special case, afterwards."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  stage/.style={pd state,text width=1.72cm,inner xsep=3pt,minimum height=1.62cm,anchor=west},
+  gate/.style={pd focus state,text width=1.98cm,inner xsep=3pt,minimum height=1.62cm,anchor=west},
+  attempt/.style={pd title,anchor=west,text width=6.4cm,align=left}]
+  % ---- the stage rail: proposal, three checkpoints, the repository --------
+  % Box widths differ only so each gloss breaks onto two lines; the gaps are
+  % equal (4.57 mm), so spacing does not suggest uneven time.
+  \node[stage,text width=1.35cm] (worker) at (0,0) {Worker\\\pdfigsub proposes a change};
+  \node[stage] (prompt) at ([xshift=4.57mm]worker.east) {Prompt\\\pdfigsub asks; can be ignored};
+  \node[gate]  (gate)   at ([xshift=4.57mm]prompt.east) {Write gate\\\pdfigsub checks before writing};
+  \node[stage] (repo)   at ([xshift=4.57mm]gate.east) {Repository\\\pdfigsub change has happened};
+  \node[stage,text width=1.5cm] (review) at ([xshift=4.57mm]repo.east) {Review\\\pdfigsub after the fact};
+  \foreach \a/\b in {worker/prompt,prompt/gate,gate/repo,repo/review}
+    \draw[pd arrow,shorten <=2pt,shorten >=2pt] (\a.east) -- (\b.west);
+  \node[pd badge] at ($(prompt.north)+(0,.36)$) {A};
+  \node[pd focus badge] at ($(gate.north)+(0,.36)$) {B};
+  \node[pd badge] at ($(review.north)+(0,.36)$) {C};
+  % ---- attempt 1: refused at the write gate --------------------------------
+  \coordinate (s1) at ($(worker.center)+(0,-1.88)$);
+  \coordinate (x1) at ($(gate.center)+(0,-1.88)$);
+  \node[attempt] at (0,-1.38) {Deletes the original test};
+  \draw[pd guide] (gate.south) -- ($(x1)+(0,.26)$);
+  \draw[pd rule] (s1) -- ($(x1)+(-.18,0)$);
+  \node[pd datum] at (s1) {};
+  \draw[pd breach rule] ($(x1)+(-.18,.18)$) -- ($(x1)+(.18,-.18)$);
+  \draw[pd breach rule] ($(x1)+(-.18,-.18)$) -- ($(x1)+(.18,.18)$);
+  \node[pd breach label,anchor=west] at ($(x1)+(.40,0)$) {refused before it happens};
+  % ---- attempt 2: passes A and B, caught only at C -------------------------
+  \coordinate (s2) at ($(worker.center)+(0,-3.20)$);
+  \coordinate (x2) at ($(review.center)+(0,-3.20)$);
+  \node[attempt] at (0,-2.70) {Special-cases the test so it passes};
+  \draw[pd guide] (review.south) -- ($(x2)+(0,.22)$);
+  \draw[pd arrow,shorten >=4pt] (s2) -- (x2);
+  \node[pd datum] at (s2) {};
+  \node[pd breach datum] at (x2) {};
+  \node[pd label,anchor=north east,text width=6.0cm,align=right] at ($(x2)+(0,-.24)$)
+    {passes A and B; only C can catch it};
+\end{tikzpicture}
+\caption{One rule, three places to enforce it. A prompt only asks. A check in
+the write path refuses the deletion before the repository changes. A review
+catches what no write rule can see, such as code that special-cases the test,
+but only after the fact. [constructed example]}
+\label{fig:audit-admit}
+\end{figure}
