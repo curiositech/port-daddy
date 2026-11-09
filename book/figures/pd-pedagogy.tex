@@ -841,6 +841,32 @@
   \newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
   \newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
 \fi
+% ---------------------------------------------------------------------------
+% Plain-language apparatus (the 2026-11 audit). Three semantic commands, so
+% chapters say what a span IS and the rendering can change in one place.
+%
+% \pdterm[sort key]{term}  The defining occurrence of a term: set in bold and
+%                          entered in the index. Use it once per term, at the
+%                          sentence that defines the term in plain words, and
+%                          before any other use of the term in reading order.
+% \pdscope{text}           The one sentence that says what a claim does NOT
+%                          show, in a fixed slot after the claim.
+% \pdstatus{grade}{note}   Maturity of a design: grade is \Built, \BuiltWeak,
+%                          \Designed or \Vision; note is a short phrase or
+%                          empty. Placed beside a heading or claim title,
+%                          never inside the definition's sentence.
+% ---------------------------------------------------------------------------
+\providecommand{\pdterm}[2][]{%
+  \textbf{#2}%
+  \if\relax\detokenize{#1}\relax\index{#2}\else\index{#1@#2}\fi}
+\ifpdswiss
+  \providecommand{\pdscope}[1]{\par\noindent{\pdtextface\bfseries Scope.}\ #1\par}
+  \providecommand{\pdstatus}[2]{\par\noindent{\pdtextface\footnotesize\textcolor{hhgray}{Status:}\ #1\if\relax\detokenize{#2}\relax\else\textcolor{hhgray}{; #2}\fi}\par}
+\else
+  \providecommand{\pdscope}[1]{\par\noindent\textsc{Scope.}\ #1\par}
+  \providecommand{\pdstatus}[2]{\par\noindent{\footnotesize\textcolor{hhgray}{\textsc{Status:}}\ #1\if\relax\detokenize{#2}\relax\else\textcolor{hhgray}{; #2}\fi}\par}
+\fi
+
 % Chapter 5 (From Spawn to Person) spells the same four in capitals. Aliases,
 % not second definitions -- there is still exactly one body per grade.
 \newcommand{\BUILT}{\Built}
