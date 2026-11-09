@@ -1,0 +1,9 @@
+{
+  "$comment": "SHA-256 of the four licensed Suisse Intl OTF files the publication Book is set in. Digests only: the fonts themselves are never committed. ci_fonts.py refuses to upload or restore any other bytes.",
+  "files": {
+    "SuisseIntl-Regular.otf": "95312b39168b172604cc55369909e1090c675dcf0004c49e9f07730f4507e24b",
+    "SuisseIntl-RegularItalic.otf": "e583add43c9e859753b5feccff497d0ed492dbb1eae7783a6f16484bc56ebefa",
+    "SuisseIntl-Semibold.otf": "9b8bb1c5f778eda96e9b897438e9e1f6f0787816893d9bf6365a58376c761db7",
+    "SuisseIntl-SemiboldItalic.otf": "cd766b525e050424d1f026278a98367439b84201850dff4ca21cb4491a60a876"
+  }
+}
