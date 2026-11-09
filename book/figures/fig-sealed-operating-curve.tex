@@ -1,5 +1,5 @@
 % Native analytical power / approximate and chapter-reported stopping comparison.
-% Upper: exact conditional power 1-beta^k at integer k, beta=.2.
+% Upper: exact conditional power 1-beta^j at integer j, beta=.2.
 % Lower: Wald approximations versus chapter-reported simulation means.
 % The source-reported simulation values are not rerun or promoted to CIs here.
 \begin{figure}[H]
@@ -15,14 +15,14 @@
 }
 \SGMeasuredFigure{VIII/fig:sealed-operating-curve}{%
 \begin{tikzpicture}[pd figure,font=\SGType]
-  % Conditional analytic power: integer k is a parameter, not a measurement.
+  % Conditional analytic power: integer j is a parameter, not a measurement.
   \begin{axis}[
     name=power,
     pd axis,
     width=225pt,height=100pt,
     axis lines=left,
     xmin=0,xmax=8.5,ymin=0,ymax=1.03,
-    xlabel={canaries carried $k$ (integer)},
+    xlabel={canaries carried $j$ (integer)},
     ylabel={conditional detection probability},
     xlabel style={oc axis,align=center},
     ylabel style={oc axis},
@@ -40,9 +40,9 @@
       coordinates {(3,.992)};
     \draw[oc guide] (axis cs:3,0) -- (axis cs:3,.992);
     \node[oc focus,anchor=west] at (axis cs:3.25,.82)
-      {$k=3$: $0.992$};
+      {$j=3$: $0.992$};
     \node[oc text,anchor=west] at (axis cs:5.05,.18)
-      {$1-\beta^k$};
+      {$1-\beta^j$};
   \end{axis}
 
   \begin{scope}[yshift=-150pt]

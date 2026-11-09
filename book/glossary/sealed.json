@@ -62,7 +62,7 @@
  {
   "term": "advanced composition",
   "sort": "advanced composition",
-  "definition": "A bound on the total privacy loss of k releases that can be smaller than their sum, at the cost of a positive slack delta."
+  "definition": "A bound on the total privacy loss of k releases that can be smaller than their sum, but only with a positive slack delta."
  },
  {
   "term": "subject-keyed ledger",
@@ -87,7 +87,7 @@
  {
   "term": "zero-concentrated privacy",
   "sort": "zero-concentrated privacy",
-  "definition": "A variant of differential privacy with one parameter rho that implies Rényi differential privacy of every order alpha with loss alpha times rho, so costs simply add."
+  "definition": "A variant of differential privacy with one parameter zeta that implies Rényi differential privacy of every order lambda with loss lambda times zeta, so costs simply add."
  },
  {
   "term": "adapter",
