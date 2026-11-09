@@ -448,7 +448,7 @@ A \pdterm{consent grant} is an explicit, scoped, revocable authorization the
 operator issues to the daemon, of the form
 \[
 \begin{aligned}
-g = \langle\, &\textsc{scope},\ \textsc{stakes-ceiling}\ s_{\max},\ \textsc{reversibility-floor}\ v_{\min},\\
+g = \langle\, &\textsc{scope},\ \textsc{stakes-ceiling}\ s_{\max},\ \textsc{min-reversibility}\ v_{\min},\\
 &\textsc{ttl},\ \textsc{revocable}\,\rangle,
 \end{aligned}
 \]
@@ -894,8 +894,8 @@ $\tilde g = 1+(c-1)\lambda_F/(c\mu_{\mathrm{pool}}-\lambda_F)
 = 1+(c-1)\rho/(1-\rho)$, from a naive
 $M/M/1$-versus-$M/M/c$ response-time comparison. A sweep against simulation
 \emph{falsifies} that shortcut in both directions. Equation~\ref{eq:specboundary}
-is the exact boundary --- the companion formal paper's
-Theorem~2~\pdcite{paper6}, independently re-derived and checked numerically over two
+is the exact boundary: Example~\ref{ex:queue-boundary} derives it from two
+textbook queueing facts, and it was checked numerically over two
 thousand $(\rho,c)$ points. Keeping the shortcut beside the exact result exposes
 its failure: the two thresholds cross exactly once, so the shortcut errs on the
 unsafe side as well as the safe one. Figure~\ref{fig:specialization} shades both error regions.
@@ -1233,8 +1233,8 @@ It can still mediate later actions; that is a separate enforcement boundary.
 The phrase ``physically
 unreachable'' is therefore reserved for the constraint-enforced set --- nowhere else.
 
-This is an invariant on the chapter's \emph{vocabulary} and on which mechanism class
-earns which name; the teeth behind the classification are Schneider's theorem, cited
+This is an invariant on the chapter's \emph{vocabulary} and on which name each
+mechanism class may carry; the teeth behind the classification are Schneider's theorem, cited
 in the paragraph that follows, and are his rather than ours.
 \end{pdclaim}
 
@@ -1345,8 +1345,8 @@ escalations receive by $\delta$, and $w$ converts that weight into the units
 of the benefit.
 
 At 4:05 p.m.\ Pike is unsure about migration ordering. If Pike's evidence gives
-$u=0.03$, escalating pays $0.03-0.05\times0.97\approx-0.019$, so Pike stays
-quiet. At $u=0.10$ it pays $0.10-0.05\times0.90=+0.055$, so Pike escalates.
+$u=0.03$, escalating yields $0.03-0.05\times0.97\approx-0.019$, so Pike stays
+quiet. At $u=0.10$ it yields $0.10-0.05\times0.90=+0.055$, so Pike escalates.
 
 Now the two limits, with the costs and assumptions of the tuning-band example
 above. The attention budget $A$ caps the expected cost, per item, of the alarms
@@ -1937,22 +1937,19 @@ Hence the stated log-ratio is a lower bound for a
 zero-miss digest with review budget $m$.
 \end{proof}
 
-\noindent\Verified.\footnote{A standalone, submission-form version of the
-results folded into this subsection, \S\ref{sec:relevance} and
-\S\ref{sec:tokens-digest} is \emph{The Price of a Summary} (research
-paper~1)~\cite{paper1}; the sweeps cited here are its artifacts, regenerated at seed
+\noindent\Verified.\footnote{The sweeps cited in this subsection were regenerated at seed
 20260816.} The analogy that carries the proof: a digest is not a description of the
 night's work but a \emph{message} that selects, from a codebook shared with the
 overseer, which $m$ items to open. A $B$-bit message distinguishes at most $2^B$
 codewords, and each codeword covers only $\binom{m}{k}$ of the $\binom{N}{k}$ ways
-the critical items could be placed. The bound is a \emph{floor}: the fewest bits
-any zero-miss digest can use. The misread to preempt: the floor does not say
+the critical items could be placed. The bound gives the fewest bits
+any zero-miss digest can use. The misread to preempt: the bound does not say
 a digest needs $B^\star$ bits to be useful. It counts only what the zero-miss
 guarantee needs; cheaper digests are fine the moment misses are tolerated, and
 the two-constraint rate below measures exactly that saving.
 
-Figure~\ref{fig:readpoverty} distinguishes a single-reader floor, the sum
-of two such floors, and a joint floor for disjoint critical sets. The formal
+Figure~\ref{fig:readpoverty} distinguishes a single-reader lower bound, the sum
+of two such bounds, and a joint lower bound for disjoint critical sets. The formal
 comparison follows in Theorem~\ref{thm:split-penalty}.
 
 \input{figures/legible-swarm-readpoverty}
@@ -1961,13 +1958,13 @@ comparison follows in Theorem~\ref{thm:split-penalty}.
 $k$-sets, a $B$-bit digest's zero-miss probability is at most
 $\min\bigl(1,\,2^B\binom{m}{k}/\binom{N}{k}\bigr)$. This counting ceiling need
 not be attainable: review sets can overlap in the critical sets they cover.
-A statistically reliable miss rate below the implied floor would challenge
+A statistically reliable miss rate below the implied lower bound would challenge
 the model or its implementation. Three encoders were run against a
 shared randomized-cover codebook: an \emph{oracle} that sees the true set and
 addresses the best codeword its $B$ bits can reach, a \emph{noisy} encoder (feature
 signal-to-noise ratio near $1$), and a \emph{random} one, with $4{,}000$ placements
-per budget point, sweeping $B$ through the floor at $N{=}60$, $k{=}2$, $m{=}8$.
-Result: $0/16$ violations; the oracle hugs the floor, staying just above it, and
+per budget point, sweeping $B$ through the bound at $N{=}60$, $k{=}2$, $m{=}8$.
+Result: $0/16$ violations; the oracle hugs the bound, staying just above it, and
 the other two need more bits [internal, \texttt{a7\_experiment.py}].
 
 \paragraph{A wrong turn, reported.} A first implementation handed the oracle a
@@ -1985,7 +1982,7 @@ doubting the theorem, and before trusting the refutation.
 \setlength{\parskip}{4pt plus 1pt}
 \label{ex:digest-review-budget}
 Take $N=1000$ artifacts with $k=3$ critical among
-them and a review budget of $m=10$ opens. The floor is
+them and a review budget of $m=10$ opens. The lower bound is
 \[
 \begin{aligned}
 \log_2\binom{1000}{3}-\log_2\binom{10}{3}
@@ -2002,11 +1999,11 @@ grows to
 \[
 \log_2\binom{100}{3}=17.3,
 \]
-cutting the floor to $10.0$ bits. Each extra open allowed to the operator
+cutting the bound to $10.0$ bits. Each extra open allowed to the operator
 removes digest bits, at the rate the formula gives.
 
-\emph{Now you try:} at $N=60$, $k=2$, $m=8$ --- the configuration the
-companion paper's sweep hammers hardest --- what is the floor?
+\emph{Now you try:} at $N=60$, $k=2$, $m=8$, the configuration of the
+falsification sweep above, what is the lower bound?
 \[
 10.79-4.81=5.98 \text{ bits};
 \]
@@ -2017,11 +2014,11 @@ The bound is the formal reason \emph{forgetting must be selective, not lossy-by-
 a digest may drop inert detail freely, but it must retain enough to \emph{point at}
 every critical artifact, which is precisely the ``summarize the state, link to
 the work'' rule. It also bounds recursive summarization (\S\ref{sec:cascade}): each
-re-summarization that drops below the floor on the critical set is irreversible
+re-summarization that drops below the lower bound on the critical set is irreversible
 information loss, which is why one must compact from the durable artifacts, never from
 the previous summary.
 
-\paragraph{The second stage: what a zoom costs.} The floor above covers
+\paragraph{The second stage: what a zoom costs.} The lower bound above covers
 only the first stage, the digest that narrows $N$ artifacts to a flagged set of size
 $F$. It says nothing about the second stage, which is where Invariant~\ref{def:zoom}
 sends the operator. Two results complete the account. The first gives the digest's
@@ -2075,7 +2072,7 @@ one term per cell of the $2\times2$ joint, each comparing that cell against the
 product of its margins, with $0\log_2 0$ read as $0$.
 At the zero-miss,
 tightest-flag corner, $R(0,f{\to}p)=H(p)$: the digest
-must spend the source's full entropy --- and Eq.~\ref{eq:pinned-rate} shows why in
+must carry the source's full entropy --- and Eq.~\ref{eq:pinned-rate} shows why in
 two lines, since $\delta=0$ and $f=p$ kill the middle two terms and leave
 $p\log_2(1/p)+(1-p)\log_2(1/(1-p))$.
 Past the line $f\ge 1-\delta/p$ an independent
@@ -2088,7 +2085,7 @@ toward the independent coupling, where it is $0$. An independent flagger
 $\hat X\sim\mathrm{Bern}(\phi)$ has miss mass $p(1-\phi)$, so it meets the miss
 constraint only when $\phi\ge 1-\delta/p$; when $f<1-\delta/p$ that coupling lies
 outside the flag budget, so the minimum sits on the boundary where any remaining
-slack in either constraint could otherwise be spent moving further along the ray,
+slack in either constraint could otherwise be used to move further along the ray,
 and both constraints bind.
 Binding constraints fix $q_{10}=\delta$ and
 $q_{11}+q_{01}=f$; with the source margin $q_{10}+q_{11}=p$ this pins all four
@@ -2249,7 +2246,7 @@ adaptive, and the operator's dial, which trades bits on the digest for opens on
 the zoom, offers a favorable trade exactly in the sparse-flag corner.
 
 \pdmarginanalogy{ls-telegraph-sounder}{}{ch04-telegraph-sounder-key}{Like a Morse telegraph sounder clicking out discrete impulses across a narrow wire, discrete signals must encode information efficiently across the human attention bottleneck.}%
-\begin{pdexample}{The Bernoulli View of the Floor, and the Zoom-Advantage Numbers}
+\begin{pdexample}{The Bernoulli View of the Lower Bound, and the Zoom-Advantage Numbers}
 \setlength{\parskip}{4pt plus 1pt}
 Let $p$ be the critical-item probability. In the special case of exact
 identification, with no false positives and no misses, the asymptotic
@@ -2316,11 +2313,11 @@ govern each run.
 \pdexercisepointer*{\ref{ex:ls-readpoverty-binding}}{\ref{ex:ls-b1-frontier-run}}{\pageref{ex:ls-readpoverty-binding}}
 
 \begin{pdrecitation}
-\item Without looking: what two terms does the legibility lower bound subtract to get the bit floor, and what happens to it as the review budget $m$ grows to $N$?
+\item Without looking: what two terms does the legibility lower bound subtract to get its bit count, and what happens to it as the review budget $m$ grows to $N$?
 \item State the zoom theorem's opens bound and its noiseless unit-cost
 group-query assumption. Why does sparsity affect whether that bound
 certifies a saving over opening every flagged item?
-\item Why is a floor stated for an oracle-known critical set not automatically a floor against an adversary who controls what looks critical?
+\item Why is a lower bound stated for an oracle-known critical set not automatically a lower bound against an adversary who controls what looks critical?
 \end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -2997,9 +2994,9 @@ List the three feasible choices. Their losses $(L_{\mathrm{succ}},L_{\mathrm{op}
 \pdscope{A shared evidence store, a jointly designed encoding, or a single implementation with two views all remain possible.}
 \noindent The preference reversal recalls Theorem~\ref{thm:comonotone}, while the explicit feasible set supplies the missing budget argument.
 
-\emph{Pause and check:} if the audit weight becomes zero, the work-only summary minimizes both objectives. Disagreement requires a real oversight obligation; two named readers are not enough. The next result studies a different question: the counting floors when two readers need disjoint critical sets.
+\emph{Pause and check:} if the audit weight becomes zero, the work-only summary minimizes both objectives. Disagreement requires a real oversight obligation; two named readers are not enough. The next result studies a different question: the counting lower bounds when two readers need disjoint critical sets.
 
-\begin{pdclaim}{Theorem}{Joint-Digest Floor under a Shared Opening Budget}
+\begin{pdclaim}{Theorem}{Joint-Digest Lower Bound under a Shared Opening Budget}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:split-penalty}
 For integers $N,m,k$ with $k\ge1$ and $2k\le m<N$, let
@@ -3033,17 +3030,17 @@ Read the ratio $R(N,k,m)$, which is unrelated to the rate $R(\delta,f)$, with ca
 items, $2m$ in all; the joint digest may open only $m$. What the theorem
 shows: one digest that must serve two readers with disjoint critical sets
 inside one reader's opening budget needs more bits than the two
-single-reader floors together. The extra bits come from sharing that budget,
+single-reader lower bounds together. The extra bits come from sharing that budget,
 not from serving two readers with one digest. At an equal total budget the
 order reverses. A joint review set of $2m$ items made of two disjoint
 $m$-item halves contains at least $\binom mk^2$ of the possible $2k$-sets,
 strictly more when $k\ge1$, and $\binom N{2k}\le\binom Nk^2$. So whenever
-$2m\le N$, the joint floor with $2m$ opens, $\mathrm{Floor}(N,2k,2m)$, is
+$2m\le N$, the joint lower bound with $2m$ opens, $\mathrm{Floor}(N,2k,2m)$, is
 strictly below $2F(k)$; when $2m>N$ the joint reader can open everything and
 needs no bits at all.
 \pdscope{These are lower bounds on message length; nothing here says a real encoder reaches them.}
 
-\begin{pdexample}{The Joint-Floor Arithmetic, at the Sweep's Own Instance}
+\begin{pdexample}{The Joint-Bound Arithmetic, at the Sweep's Own Instance}
 \setlength{\parskip}{4pt plus 1pt}
 At $N=60$, $k=2$, $m=8$, one reader's lower bound is
 \[
@@ -3058,7 +3055,7 @@ F(4)=\log_2\!\frac{\binom{60}{4}}{\binom84}
 \approx12.7662\text{ bits}.
 \]
 
-The sum of the two single-reader floors is
+The sum of the two single-reader lower bounds is
 \[
 2F(2)\approx11.9644 \text{ bits},
 \]
@@ -3066,15 +3063,15 @@ with eight opens allowed per reader. Hence the ratio plotted in Figure~\ref{fig:
 \[
 R(60,2,8)\approx1.0670:
 \]
-the joint floor is about $6.70\%$ above that sum.
+the joint lower bound is about $6.70\%$ above that sum.
 
-The ratio to just one reader's floor is instead
+The ratio to just one reader's lower bound is instead
 \[
 F(4)/F(2)\approx2.1340.
 \]
 
 Give the joint digest the same sixteen opens the two separate readers have
-between them, and its floor drops below their sum:
+between them, and its lower bound drops below their sum:
 \[
 \mathrm{Floor}(60,4,16)=\log_2\!\frac{\binom{60}{4}}{\binom{16}{4}}
 =\log_2\frac{487635}{1820}\approx8.0657\text{ bits}<11.9644.
@@ -3264,7 +3261,7 @@ reputation requires the additional continuity developed in
 \section{Reconciling the canon: roles, consent, and local knowledge}\label{sec:consent-canon}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The Leviathan metaphor earns its place only if it survives contact with the political-
+The Leviathan metaphor deserves its place only if it survives contact with the political-
 theory canon. Three questions make its limits precise: who authorizes the system,
 how consent can be withdrawn, and what local knowledge a central view cannot replace.
 
@@ -3278,9 +3275,9 @@ party to it. So the metaphor breaks differently depending on which entity sits w
 \setlength{\parskip}{4pt plus 1pt}
 Rather than assign the roles and then check them, run the consent-grant lifecycle of \S\ref{sec:consent} on Alice's 3:25 grant and let the assignment fall out.
 
-\textbf{Step~1, issue:} the grant $g = \langle$\,the \texttt{tests/} subtree with the original checkout test preserved, a low stakes ceiling $s_{\max}$, a reversibility floor $v_{\min}$ no irreversible act clears, a two-hour \textsc{ttl}\,$\rangle$ comes into existence because Alice says so, and nothing else in the system can create one --- so whoever occupies this step is a source of authority rather than a user of it.
+\textbf{Step~1, issue:} the grant $g = \langle$\,the \texttt{tests/} subtree with the original checkout test preserved, a low stakes ceiling $s_{\max}$, a minimum reversibility $v_{\min}$ no irreversible act clears, a two-hour \textsc{ttl}\,$\rangle$ comes into existence because Alice says so, and nothing else in the system can create one --- so whoever occupies this step is a source of authority rather than a user of it.
 
-\textbf{Step~2, act:} the formatting diffs land and Finch's force-push is escalated instead, because it fails $v_{\min}$; the daemon performed both, and it did not choose the floor it applied --- so this step exercises an authority it did not author.
+\textbf{Step~2, act:} the formatting diffs land and Finch's force-push is escalated instead, because it fails $v_{\min}$; the daemon performed both, and it did not choose the minimum it applied --- so this step exercises an authority it did not author.
 
 \textbf{Step~3, witness:} the daemon records $(g, x, \text{reason}, \text{artifact})$ for each, which only means anything if the recorder is answerable to someone it is not.
 
@@ -3368,9 +3365,9 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{The authority half.} The daemon gates or escalates on every act under a grant the operator gave once; the override is a single edge from operator to daemon, and the escalation threshold has a tuning band, not a point.
 \item \textbf{Specialization has a boundary.} A pooled queue beats sole ownership only when utilization and the skill premium put the operator on one side of the queueing boundary; the worked point $(\rho,r)=(0.556,\,2.5)$ clears a boundary of $2.483$ and so falls, barely, on sole ownership's side, while the same pool against a $2.8/\text{hr}$ specialist ($r=2.33$) falls on the pool's.
 \item \textbf{Reading can become the bottleneck.} The zero-miss message
-floor depends on both the critical set and the number of permitted opens. At
-$N=60,m=8$, the floors for two and four critical items are $5.98$ and
-$12.77$ bits; with sixteen opens the four-item floor falls to $8.07$ bits.
+lower bound depends on both the critical set and the number of permitted opens. At
+$N=60,m=8$, the lower bounds for two and four critical items are $5.98$ and
+$12.77$ bits; with sixteen opens the four-item bound falls to $8.07$ bits.
 These are different coverage requirements, not measured compression savings
 between two architectures.
 \item \textbf{Discovery and inspection ask different questions.} A strict
@@ -3434,7 +3431,7 @@ Distinguish \emph{express} from \emph{tacit} consent and explain why
 Invariant~\ref{def:consent} is the former.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-express-vs-tacit-consent}
-Tacit consent is inferred from remaining in or using a system. Express consent is a discrete act over named terms. Invariant~\ref{def:consent} is express because the operator affirmatively issues a grant with scope, stakes ceiling, reversibility floor, TTL, and revocation semantics --- none of which a mere pattern of continued use supplies.
+Tacit consent is inferred from remaining in or using a system. Express consent is a discrete act over named terms. Invariant~\ref{def:consent} is express because the operator affirmatively issues a grant with scope, stakes ceiling, minimum reversibility, TTL, and revocation semantics --- none of which a mere pattern of continued use supplies.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-override-unsuppressable}
 Why must the operator-override
@@ -3540,7 +3537,7 @@ The honest ladder: (1) use a deterministic verifier where the property is decida
 \emph{The succession corner of
 Thm.~\ref{thm:specialization}.} Eq.~\ref{eq:specboundary} assumes a specialist who
 never fails. Extend it to an $M/M/1$ queue \emph{with breakdowns} and a succession
-protocol, and find the repair rate at which sole ownership stops paying regardless of
+protocol, and find the repair rate at which sole ownership stops being worthwhile regardless of
 skill premium --- then check whether that rate is above or below the one an operator
 can actually promise.
 \end{pdexercise}
@@ -3565,7 +3562,7 @@ promised $\eta$ implies $\xi/\eta>D^\star$, no amount of hiring a better
 specialist recovers sole ownership, and the honest fix is a succession plan,
 not a stronger specialist.
 
-The threshold $D^\star$ is defined only when $\eta K<1$. If $\eta K\ge1$, the lower limit $W_\infty$ cannot reach the cost line and this obstruction does not arise. The model assumes failures can occur even while the server is idle, with preemptive-resume service after repair. Under failures only during active service, $W_\infty$ is zero instead. The failure model therefore belongs in the answer, not merely in a numerical implementation. Exercise~\ref{ex:ls-b8-specialization-run} checks the never-failing boundary; the companion economy chapter develops the breakdown model.
+The threshold $D^\star$ is defined only when $\eta K<1$. If $\eta K\ge1$, the lower limit $W_\infty$ cannot reach the cost line and this obstruction does not arise. The model assumes failures can occur even while the server is idle, with preemptive-resume service after repair. Under failures only during active service, $W_\infty$ is zero instead. The failure model therefore belongs in the answer, not merely in a numerical implementation. Exercise~\ref{ex:ls-b8-specialization-run} checks the never-failing boundary; the economy chapter develops the breakdown model.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b8-specialization-run}
 Run \texttt{b8\_specialization.py} with \texttt{python3} from the
@@ -3678,12 +3675,12 @@ At $n{=}1$, name three legibility surfaces that could help a decision
 A briefing could locate unfinished work; an honest attestation could identify which checks ran; a completion receipt could locate the resulting artifact. Each supports a decision about the single actor rather than selecting among collaborators. Accuracy and reduced decision effort must be evaluated; a surface's existence alone does not establish that benefit.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-floor-limits}
-In Thm.~\ref{thm:lowerbound}, what happens to the bit floor as $k\to 0$ (almost
+In Thm.~\ref{thm:lowerbound}, what happens to the bit count of the lower bound as $k\to 0$ (almost
 nothing is critical) and as $k\to N/2$? Relate the answer to why a swarm doing
 mostly-safe work is cheap to digest and a swarm doing mostly-dangerous work is not.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-floor-limits}
-At $k=0$ there is only one critical subset (the empty one) and the floor is zero. For small positive $k$ the cost is roughly $k\log_2(N/m)$ when $k\ll m,N$. At $k=N/2$, exact identification ($m=k$) costs about $N$ bits, while opening almost everything drives the floor toward zero as $m\to N$. The danger fraction alone is not enough; the review budget $m$ matters just as much: mostly-safe work is cheap to digest only when the system can reliably identify that sparsity, and mostly-dangerous work forces $m$ up toward $N$, where the floor stops paying for itself.
+At $k=0$ there is only one critical subset (the empty one) and the lower bound is zero. For small positive $k$ the cost is roughly $k\log_2(N/m)$ when $k\ll m,N$. At $k=N/2$, exact identification ($m=k$) costs about $N$ bits, while opening almost everything drives the bound toward zero as $m\to N$. The danger fraction alone is not enough; the review budget $m$ matters just as much: mostly-safe work is cheap to digest only when the system can reliably identify that sparsity, and mostly-dangerous work forces $m$ up toward $N$, where the bound saves almost nothing over opening everything.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-adversarial-critical-set}
 Thm.~\ref{thm:lowerbound} assumes the critical subset is
@@ -3898,18 +3895,18 @@ Budget allocation over a precedence DAG is a knapsack/resource-allocation proble
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-a7-split-floor-run}
 Run \texttt{python3 skills/harbor-results/scripts/a7\_experiment.py} and read off the
-floor at $N{=}60,k{=}2,m{=}8$, the disjoint-readers floor at $2k{=}4$, and the
-falsification count. Reproduce the two floors by hand from Thm.~\ref{thm:lowerbound}
-first. Distinguish the joint-to-single ratio from the joint-to-two-single-floors
+lower bound at $N{=}60,k{=}2,m{=}8$, the disjoint-readers lower bound at $2k{=}4$, and the
+falsification count. Reproduce the two bounds by hand from Thm.~\ref{thm:lowerbound}
+first. Distinguish the joint-to-single ratio from the joint-to-two-single-bounds
 ratio, and state the opening budget behind each comparison.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-a7-split-floor-run}
-The single-reader floor is $5.9822$ bits and the joint floor is $12.7662$ bits.
-The script's reported $2.13\times$ compares the joint floor with only one
-single-reader floor. Dividing instead by $2(5.9822)=11.9644$ gives $1.0670$.
+The single-reader lower bound is $5.9822$ bits and the joint lower bound is $12.7662$ bits.
+The script's reported $2.13\times$ compares the joint bound with only one
+single-reader bound. Dividing instead by $2(5.9822)=11.9644$ gives $1.0670$.
 The joint digest permits eight opens total; each separate reader may open
 eight. Neither ratio measures an equal-total-budget implementation saving;
-with sixteen opens in total the joint floor falls to $8.0657$ bits, below $11.9644$.
+with sixteen opens in total the joint lower bound falls to $8.0657$ bits, below $11.9644$.
 The recorded sweep reports \texttt{violations: 0/16 -> floor HOLDS} and
 \texttt{ratio:\ \ 2.13x} [internal, \texttt{a7\_experiment.py}]. Its zero
 violations concern the finite tested configurations and the script's
@@ -3966,9 +3963,7 @@ Same construction as Exercise~\ref{ex:ls-ranker-counter-surface}: one complete, 
 % ═════════════════════════════════════════════════════════════════════════════
 
 This chapter sits at the confluence of five external literatures that rarely cite one
-another, plus one internal body of work --- the accompanying formal papers --- whose
-results several of this chapter's claims are popularizations of. We survey them in one
-place; each was introduced in context above.
+another. We survey them in one place; each was introduced in context above.
 
 \paragraph{Legibility and the limits of central schemes.}
 The organizing lens is \textbf{Scott}'s \emph{Seeing Like a State}~\pdcite{scott1998}:
@@ -3981,7 +3976,7 @@ the decisive knowledge is dispersed and not aggregable by a central planner.
 \textbf{Rao}~\pdcite{rao2010} ported ``legibility'' into a standard lens on systems that
 flatten reality to a single purpose. Our contribution is to make Scott's warning a
 \emph{buildable} rule (digest-with-zoom, Invariant~\ref{def:zoom}) and to give it an
-information-theoretic floor (Thm.~\ref{thm:lowerbound}).
+information-theoretic lower bound (Thm.~\ref{thm:lowerbound}).
 
 \paragraph{Authority, consent, and the social contract.}
 The authority argument is Hobbesian~\pdcite{hobbes1651,sep-hobbes}, amended by the
@@ -4046,24 +4041,19 @@ anchors, entry rules, and an attack model. Our specific result here is the \emph
 strictly conflict. The comonotonicity result states when a common ordering can
 nevertheless serve both readers.
 
-\paragraph{The formal siblings, and what they already prove.}
-The nearest prior art for several of this chapter's results is not external at all: it
-is the accompanying formal program, and pretending otherwise would be exactly the
-kind of quiet re-derivation this chapter argues against. \emph{The Price of a
-Summary}~\pdcite{paper1} proves the legibility floor of Thm.~\ref{thm:lowerbound} as its
-Theorem~1 in the same $N,k,m$ notation, and puts it through a pre-registered
-falsification sweep this chapter only sketches; its comonotone characterization explains the rank-order conflict in
-Thm.~\ref{thm:split-ranker}. The extractive counterexample in
-Thm.~\ref{thm:split-digest} additionally states a feasible summary class and
-budget; it does not forbid shared storage. The comparison in Thm.~\ref{thm:split-penalty} uses
-different total opening budgets and must be read that way. The paper's regret-head section is the formal version of the
-decision-theoretic derivation in \S\ref{sec:relevance}, and its zoom theorem
-($2k\lceil\log_2(F/k)\rceil+4k$ adaptive opens) is the algorithm that makes
-digest-with-zoom affordable at scale. \emph{What Needs an Authority}~\pdcite{paper6}
-supplies Thm.~\ref{thm:specialization}'s Erlang-C boundary and, as
-\S\ref{sec:sole-roles} records, the sweep that falsifies the naive response-time
-threshold. The relationship in both cases is the same: this chapter popularizes, the
-formal papers prove and test.
+\paragraph{What the chapter proves, and how to read it.}
+Each result above carries its own proof or proof sketch: the legibility lower
+bound (Thm.~\ref{thm:lowerbound}), the comonotone characterization
+(Thm.~\ref{thm:comonotone}) behind the rank-order conflict in
+Thm.~\ref{thm:split-ranker}, the regret head (Thm.~\ref{thm:regret-head}), the
+zoom bound of $2k\lceil\log_2(F/k)\rceil+4k$ adaptive opens
+(Thm.~\ref{thm:zoom-advantage}) and the Erlang-C boundary
+(Thm.~\ref{thm:specialization}, derived in Example~\ref{ex:queue-boundary}). The
+sweeps reported beside them are finite checks, not further proofs. Two results
+need careful reading. The extractive counterexample in
+Thm.~\ref{thm:split-digest} states a feasible summary class and budget; it does
+not forbid shared storage. The comparison in Thm.~\ref{thm:split-penalty} uses
+different total opening budgets and must be read that way.
 
 \paragraph{Where this chapter is positioned.}
 Table~\ref{tab:related} places the contribution against the nearest neighbors in each
@@ -4082,13 +4072,11 @@ Social contract & Hobbes; Locke; Hume; Hirschman & Express, scoped, revocable co
 Automation \& trust & Bainbridge; Lee \& See; Endsley & Class-specific calibration where needed; SDT inspection loss; proposed vigilance probes \\
 Information foraging & Pirolli \& Card; lost-in-the-middle & Workload-dependent review bottleneck; directory-as-index \\
 Discovery \& trust & FIPA DF/AMS; ANS; EigenTrust & Split ranker: fit vs.\ regret-if-ignored are distinct objectives \\
-Queueing \& staffing & Erlang-C; Kendall; the formal siblings~\pdcite{paper6} & Sole-responsibility roles decided at an exact boundary, not asserted as a principle \\
+Queueing \& staffing & Erlang-C; Kendall & Sole-responsibility roles decided at an exact boundary, not asserted as a principle \\
 \bottomrule
 \end{tabular}
 \caption{Where this chapter sits relative to the nearest prior art in each of its
-contributing literatures. Queueing and staffing is the literature whose nearest prior art is
-internal: the companion formal papers, cited throughout rather than silently
-re-derived.}
+contributing literatures.}
 \label{tab:related}
 \end{table}
 
@@ -4443,12 +4431,6 @@ Arnold O.\ Allen.
 \newblock \textit{Probability, Statistics, and Queueing Theory with Computer Science Applications}.
 \newblock Academic Press, 2nd edition, 1990. (The Allen--Cunneen approximation for $M/G/c$, and the Pollaczek--Khinchine formula.)
 
-\bibitem{paper1}
-Erich Owens.
-\newblock \textit{The Price of a Summary: Information-Theoretic Limits of Agent Oversight}.
-\newblock The Harbor Research Program, Paper~1, 2026. Companion formal paper to this
-chapter; its Theorems~1--4 are the proved versions of several results stated here.
-
 \bibitem{dorfman}
 Robert Dorfman.
 \newblock The Detection of Defective Members of Large Populations.
@@ -4475,13 +4457,6 @@ Nam Nguyen, Thinh Nguyen, and Bella Bose.
 Rate-Distortion-Classification Representation Theory for Bernoulli Sources.
 \newblock arXiv:2601.11919, 2026.
 \url{https://arxiv.org/abs/2601.11919}
-
-\bibitem{paper6}
-Erich Owens.
-\newblock \textit{What Needs an Authority: Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership}.
-\newblock The Harbor Research Program, Paper~6, 2026. Its Theorem~2 is the Erlang-C
-specialization boundary, together with the sweep comparing it against the naive
-response-time threshold.
 
 \bibitem{spence1973}
 Michael Spence.
@@ -4740,7 +4715,7 @@ chain'' unqualified conflates a security claim with a coordination claim and mus
 avoided.
 \item \textbf{Physically unreachable} is reserved for constraint-enforced or
 boot-gate-enforced states only (Invariant~\ref{prop:regiment}); a detect-and-compensate
-monitor never earns the phrase.
+monitor is never given the phrase.
 \end{itemize}
 
 \end{document}
