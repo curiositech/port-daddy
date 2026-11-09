@@ -344,9 +344,9 @@ Phase~2 signs cards with Ed25519 (EdDSA)~\pdcite{bernstein2012high,josefsson2017
 \label{def:anchor-key-hierarchy}
 The daemon is the root certificate authority, the party whose key every other key's authority traces back to. Each harbor has its own Ed25519 key pair. In Phase~2 the daemon signs Harbor Cards with the harbor's private key \texttt{sk\_harbor}, which reaches it over a private channel; agents check a peer's card with the matching public key \texttt{pk\_harbor}, which Port Daddy's discovery service publishes.
 
-Phase~3's delegation uses a different root, the daemon's \emph{own} signing key \texttt{sk\_daemon}. Every verifier checks \texttt{chain[0]}, the first card of a delegation chain, under \texttt{pk\_daemon}. Algorithm~\ref{alg:delegation} requires this, and the models \texttt{analyses/harbor\_card\_v3}, \texttt{v5}, \texttt{v6} and \texttt{v7} assume it. The chain walker in \texttt{lib/delegation-chain.ts} checks the first hop under the principal key its caller supplies; \texttt{core/harbor-card-rs} has no chain verifier.
+Phase~3's delegation uses a different root, the daemon's \emph{own} signing key \texttt{sk\_daemon}. Every verifier checks \texttt{chain[0]}, the first card of an authorization chain, under \texttt{pk\_daemon}. Algorithm~\ref{alg:delegation} requires this, and the models \texttt{analyses/harbor\_card\_v3}, \texttt{v5}, \texttt{v6} and \texttt{v7} assume it. The chain walker in \texttt{lib/delegation-chain.ts} checks the first hop under the principal key its caller supplies; \texttt{core/harbor-card-rs} has no chain verifier.
 
-The per-harbor key pair belongs to Phase~2 only; no delegation chain starts from it.
+The per-harbor key pair belongs to Phase~2 only; no authorization chain starts from it.
 
 This describes how the deployed daemon holds keys. The implementation backs it, together with its \emph{conformance tests}, which run known attacks against the running daemon.
 \end{pdclaim}
@@ -1083,7 +1083,7 @@ immediate-parent checks imply that the root covers the grandchild directly and
 that both ceilings are preserved. Five covers require accepted chains, a
 rejected second hop, the case a root-only check wrongly accepts, and accepted
 chains with each kind of ceiling. These are checks on decoded grants; the
-crate has no verifier for signed delegation chains.
+crate has no verifier for signed authorization chains.
 
 The flat-string FFI predicate has its own contract: rights are opaque
 strings, with no channel-pattern matching. Its harness ranges over lists of at most

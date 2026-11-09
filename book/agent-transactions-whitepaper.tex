@@ -471,7 +471,7 @@ The first layer of trust does not depend on agent reputation or economic incenti
 
 \subsection{Capability Attenuation}
 
-The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards, Ed25519-signed tokens that list the operations an agent may perform. What matters here is that a card can be narrowed without contacting the daemon (offline attenuation). When Agent~A delegates to Agent~B, it creates a new card whose permissions are a subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the delegation chain, never grow.
+The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards, Ed25519-signed tokens that list the operations an agent may perform. What matters here is that a card can be narrowed without contacting the daemon (offline attenuation). When Agent~A delegates to Agent~B, it creates a new card whose permissions are a subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
 
 The capability subset check and the secret-independent comparison are implemented in a Rust core (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani harnesses check that the parser and the comparator cannot panic on bounded symbolic inputs and exercise the subset check on two concrete vectors; the every-hop attenuation property is ProVerif's, in \pdchapref{anchor}{The Anchor Protocol}; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
 
