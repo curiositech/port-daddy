@@ -1333,7 +1333,7 @@ function renderMechanizedClaims(raw, { source = 'book/corpus.json' } = {}) {
     '',
     `This appendix is generated from the proof-estate manifest at \\path{${source}}: `
       + `${artifacts.length} artifacts in total, ${wired} wired into continuous `
-      + `integration and ${retired} retired with a recorded reason --- no third, `
+      + `integration and ${retired} retired with a recorded reason. There is no third, `
       + 'silent state. One table follows per verification method; every row names '
       + "the artifact, its CI job (or its retirement), the manifest's own status "
       + 'for it, and the evidence policy behind it.',
