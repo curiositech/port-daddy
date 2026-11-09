@@ -22,6 +22,13 @@
  * plus any structural defect in the glossary files themselves (the same
  * validation as scripts/generate-book-glossary.mjs --check).
  *
+ * What the reader never meets as a use is not one: the abstract, Keywords
+ * paragraph and Reading time note the assembler strips from each chapter; a
+ * part or chapter title (textbook.json's "title", \pdchapref's title
+ * argument), which is a name; a \pdbookreference registration; and any phrase
+ * an entry lists under "other_senses" (the same words in another meaning, such
+ * as "ground truth" for the logic term "ground").
+ *
  * Reading order is the order scripts/generate-mega-whitepaper.mjs assembles:
  * the root's front matter (from \begin{document}), the contents (whose
  * part and chapter blurbs come from book/textbook.json), Chapter 0, then
@@ -103,7 +110,7 @@ const ARGUMENTS = {
   includegraphics: ['o!', 'm!'], index: ['m!'], url: ['m!'], path: ['m!'], code: ['m!'],
   texttt: ['m!'], href: ['m!', 'm'], hyperlink: ['m!', 'm'], hypertarget: ['m!', 'm'],
   hyperref: ['o!', 'm'], color: ['m!'], textcolor: ['m!', 'm'], pagecolor: ['m!'],
-  colorbox: ['m!', 'm'], pdchapref: ['m!', 'm'], pdchaplink: ['m!', 'm'],
+  colorbox: ['m!', 'm'], pdchapref: ['m!', 'm!'], pdchaplink: ['m!', 'm'],
   pdprovedon: ['m!'], pdexercisepointer: ['m!'], pdmarginfigure: ['m!', 'm'],
   pdmarginexhibit: ['m!', 'm', 'm', 'm'], setlength: ['m!', 'm!'], addtolength: ['m!', 'm!'],
   setcounter: ['m!', 'm!'], addtocounter: ['m!', 'm!'], vspace: ['m!'], hspace: ['m!'],
@@ -112,6 +119,7 @@ const ARGUMENTS = {
   addcontentsline: ['m!', 'm!', 'm'], phantomsection: [], pdstatus: ['m!', 'm'],
   pdgeneratedinput: ['m!', 'm!'], input: ['m!'], include: ['m!'], usetikzlibrary: ['m!'],
   definecolor: ['m!', 'm!', 'm!'], pdterm: ['o!', 'm'],
+  pdbookreference: ['m!', 'm!', 'm!', 'm!'],
 };
 
 // ---------------------------------------------------------------------------
@@ -226,6 +234,35 @@ function conditionalSpan(text, from, end) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Blank, offset for offset, what scripts/generate-mega-whitepaper.mjs cuts out
+ * of a chapter before it enters the Book: the standalone abstract, the
+ * Keywords paragraph and the Reading time note. The reader never sees them,
+ * so a term used there is not an early use. Newlines survive, so every line
+ * number the lint reports still points at the source.
+ */
+function stripLikeAssembler(text) {
+  const blank = (from, to) => text.slice(0, from) + text.slice(from, to).replace(/[^\n]/g, ' ') + text.slice(to);
+  for (const match of [...text.matchAll(/\\begin\{abstract\}[\s\S]*?\\end\{abstract\}/g)]) {
+    text = blank(match.index, match.index + match[0].length);
+  }
+  for (const marker of ['\\noindent\\textbf{Keywords:}', '\\noindent\\textit{Reading time:']) {
+    for (let at = text.indexOf(marker); at >= 0; at = text.indexOf(marker, at + 1)) {
+      let end;
+      if (marker.includes('Keywords')) {
+        const rest = text.slice(at + marker.length).match(/\n\s*(?:\n|\\(?:vspace|noindent|section|begin|tableofcontents|newpage)\b)/);
+        end = rest ? at + marker.length + rest.index : text.length;
+      } else {
+        const open = at + marker.lastIndexOf('{');
+        end = groupEnd(text, open, text.length);
+        if (end < 0) continue;
+      }
+      text = blank(at, end);
+    }
+  }
+  return text;
+}
+
+/**
  * Walk the Book's sources in reading order and return the prose chunks, each a
  * span of one file: {file (repo-relative), text (the whole file), start, end,
  * kind}. kind is 'tex' or 'registry' (book/textbook.json's blurbs).
@@ -324,6 +361,7 @@ function readingOrder({ root = REPO } = {}) {
             if (!existsSync(source)) {
               warnings.push(`book/textbook.json: chapter source ${chapter.source} is missing`);
             } else {
+              files.set(source, stripLikeAssembler(read(source)));
               const body = read(source);
               const begin = body.search(/^[^%\n]*\\begin\{document\}/m);
               const beginAt = begin < 0 ? 0 : body.indexOf('\\begin{document}', begin) + '\\begin{document}'.length;
@@ -412,10 +450,12 @@ function maskChunk(chunk) {
   // \pdterm or a $ inside a \texttt or a \ref is never read as prose.
   const jumps = new Map();
   if (chunk.kind === 'registry') {
-    // Only the reader-facing strings of parts and chapters are prose.
+    // Only the reader-facing sentences of parts and chapters are prose. A
+    // title is a name ("From Spawn to Person"): it cannot define a term, so
+    // it is not scanned for one.
     out.fill(BARRIER);
     const slice = text.slice(start, end);
-    const pattern = /"(title|blurb|oneLine|question|teaser)"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+    const pattern = /"(blurb|oneLine|question|teaser)"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
     for (const match of slice.matchAll(pattern)) {
       const valueStart = start + match.index + match[0].length - match[2].length - 1;
       for (let k = 0; k < match[2].length; k += 1) {
@@ -583,6 +623,27 @@ function capitalized(term) {
   return /^[A-Z]/.test(String(term).replace(/^[^A-Za-z]+/, ''));
 }
 
+// Phrases an entry lists under other_senses: the same words in another
+// meaning. A use of the entry that starts where one of these starts is not a
+// use ("ground truth" is not the logic term "ground").
+function buildStops(entries) {
+  const rootNode = new Map();
+  entries.forEach((entry, index) => {
+    for (const phrase of entry.otherSenses ?? []) {
+      const words = tokens(phrase).map((token) => token.word).filter((word) => word !== BARRIER);
+      if (!words.length) continue;
+      let node = rootNode;
+      for (const word of words) {
+        if (!node.has(word)) node.set(word, new Map());
+        node = node.get(word);
+      }
+      if (!node.has('')) node.set('', new Set());
+      node.get('').add(index);
+    }
+  });
+  return rootNode;
+}
+
 function buildTrie(entries) {
   const rootNode = new Map();
   entries.forEach((entry, index) => {
@@ -623,6 +684,7 @@ function pdtermKeys(definition) {
  */
 function analyze({ chunks, entries }) {
   const trie = buildTrie(entries);
+  const stops = buildStops(entries);
   const needsCapital = entries.map((entry) => capitalized(entry.term));
   // The same lookup the glossary appendix makes: an entry's own keys first,
   // then their plurals, so what this reports is what the PDF prints.
@@ -650,6 +712,11 @@ function analyze({ chunks, entries }) {
     }
     const list = tokens(masked, chunk.start);
     for (let i = 0; i < list.length; i += 1) {
+      const otherSense = new Set();
+      for (let k = i, stop = stops; k < list.length && stop.has(list[k].word); k += 1) {
+        stop = stop.get(list[k].word);
+        for (const index of stop.get('') ?? []) otherSense.add(index);
+      }
       let node = trie;
       for (let k = i; k < list.length; k += 1) {
         const word = list[k].word;
@@ -658,6 +725,7 @@ function analyze({ chunks, entries }) {
         if (node.has('')) {
           for (const index of node.get('')) {
             if (needsCapital[index] && !list[i].capital) continue;
+            if (otherSense.has(index)) continue;
             uses.push({ entry: index, order, start: list[i].start, end: list[k].end, chunk });
           }
         }
