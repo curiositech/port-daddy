@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 443,
-    "distinctObjects": 408,
-    "bytes": 131468092,
-    "distinctBytes": 128791072
+    "assets": 446,
+    "distinctObjects": 411,
+    "bytes": 132454209,
+    "distinctBytes": 129777189
   },
   "assets": [
     {
@@ -217,6 +217,27 @@
       "bytes": 104245,
       "sha256": "34a9af6c9f9561b3fe663dbbc94a778aef2b19bf5c211af537061b0cd662745e",
       "key": "sha256/34/34a9af6c9f9561b3fe663dbbc94a778aef2b19bf5c211af537061b0cd662745e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-source-zlib-guard/book-p80-from-source-archive.png",
+      "bytes": 235976,
+      "sha256": "9c7b3976a6a03324be70e6c240f20ad428aac432c32fc3d49d97dcd86ea444e3",
+      "key": "sha256/9c/9c7b3976a6a03324be70e6c240f20ad428aac432c32fc3d49d97dcd86ea444e3.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/book-source-zlib-guard/zlib-guard-terminal.gif",
+      "bytes": 599927,
+      "sha256": "e2f594bb0e3448fdc80ea6af1b743b06a042acf67cc1b7637889dc9d1949ca60",
+      "key": "sha256/e2/e2f594bb0e3448fdc80ea6af1b743b06a042acf67cc1b7637889dc9d1949ca60.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": ".github/assets/book-source-zlib-guard/zlib-guard-terminal.png",
+      "bytes": 150214,
+      "sha256": "724a8607fc961273b6d50f703f649db18828be1bd72ce6cff16d1b6454b0195a",
+      "key": "sha256/72/724a8607fc961273b6d50f703f649db18828be1bd72ce6cff16d1b6454b0195a.png",
       "contentType": "image/png"
     },
     {
