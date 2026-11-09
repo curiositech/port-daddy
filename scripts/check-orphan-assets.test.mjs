@@ -189,6 +189,19 @@ describe('check-orphan-assets', () => {
     assert.ok(!o.has('website-v2/public/img/manifesto/collision-dark.webp'))
   })
 
+  test('a fragment \\input relatively from a sibling directory is not an orphan', () => {
+    // book/additions/x.tex reaches book/figures/fig-rel.tex as ../figures/fig-rel,
+    // the way TeX resolves it. Without the relative input it is an orphan.
+    put('book/figures/fig-rel.tex', '% reached from additions\n')
+    try {
+      assert.ok(orphans().has('book/figures/fig-rel.tex'))
+      put('book/additions/x.tex', '\\input{../figures/fig-rel}\n')
+      assert.ok(!orphans().has('book/figures/fig-rel.tex'))
+    } finally {
+      seed()
+    }
+  })
+
   // ── 1. a genuinely unreferenced asset IS named ──────────────────────────────
   test('adding an unreferenced asset makes the check name it', () => {
     put('book/plates/swiss/mutant-plate.jpg', PIXEL)
