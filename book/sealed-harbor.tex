@@ -1379,7 +1379,7 @@ value when the misses are perfectly correlated. If the misses are positively
 associated, it is at most $1-\beta^j$.
 
 Under\marginnote{\input{figures/spark-canary-hypergeom}\par
-\emph{Approximate operating curve, independent misses:} detection vs.\ leak size $m$, with $\frac{c}{n}(1-\beta)=0.04$. The exact fixed-count planting model samples without replacement.} uniform planting of $c$ canaries in an $n$-span corpus, a leak of $m$ spans
+\emph{Approximate operating curve, independent misses:} detection vs.\ leak size $m$, with $\frac{c}{n}(1-\beta)=0.008$ as in the worked example ($0.552$ at $m=100$). The exact fixed-count planting model samples without replacement.} uniform planting of $c$ canaries in an $n$-span corpus, a leak of $m$ spans
 chosen independently of their hidden locations
 carries $J\sim\mathrm{Hypergeom}(n,c,m)$ canaries, so
 \[
