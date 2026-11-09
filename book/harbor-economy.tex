@@ -262,7 +262,7 @@ $400$ payment and her $100$ collateral back. Returning collateral is not
 income.
 \end{pdexample}
 
-A \pdterm{float plan} is the record of that agreement: the work, the parties,
+A float plan is the record of that agreement: the work, the parties,
 and the funds each party has committed to it. Bob's reserved money sits in
 \pdterm{escrow}: the ledger holds it for the contract and releases it only on
 the contract's terms. Alice's $100$ is a \pdterm{bond}: a deposit she gets back
@@ -1614,7 +1614,7 @@ hash-timelock contracts (HTLCs) does not prove impossibility, because the asset
 and adjudication models differ.
 \end{remark}
 
-\subsection{Revocation gossip and the equivocation race}\label{sec:fh-revocation}\label{sec:revocation}
+\subsection{Revocation gossip and the race against it}\label{sec:fh-revocation}\label{sec:revocation}
 
 \ifpdbook
 The gossip mechanism itself is drawn and analysed in \pdchapref{fh}{The Federated Harbor};
@@ -2000,14 +2000,20 @@ and $U_C=0.5/3=1/6\approx0.167$, but the C-to-A quote says $U_C=0.2$. No
 single price list matches every pair, and that mismatch is the obstruction.
 In trader's terms it is a $20\%$ arbitrage loop. In the language of sheaf
 theory, with the three harbors overlapping only in pairs, the logarithms of
-the rates form a $1$-cocycle that is not a coboundary: they cannot be written
-as differences of one log-price per harbor, because they sum to
-$\log 1.2\ne0$ around the loop. This illustrates the shape; the chapter proves nothing about it.
+the rates form a $1$-cocycle that is not a \pdterm{coboundary}, the list of
+link differences that one assignment of values to the vertices (here the
+harbors) would produce. They cannot be written as differences of one
+log-price per harbor, because they sum to $\log 1.2\ne0$ around the loop. This illustrates the shape; the chapter proves nothing about it.
 Settlement and equivocation may fail the same way, with views that each check
 out but cannot be stitched into one.
 \end{pdexample}
 
-Figure~\ref{fig:audit-loop} draws the loop.
+Figure~\ref{fig:audit-loop} draws the loop. A sheaf model would attach data
+to each harbor and to each overlap of two harbors. Its
+\pdterm[restriction map]{restriction maps} take a harbor's data to the part
+that an overlap compares, and a \pdterm{global section} is one assignment of
+data to every harbor that agrees on every overlap at once, like the single
+price list the example could not find.
 
 \input{figures/fig-audit-loop}
 

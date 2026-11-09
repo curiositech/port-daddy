@@ -1,7 +1,7 @@
 % additions/stp-consolidation.tex
 % Ch5 (spawn-to-person.tex): closing subsection of \S\ref{sec:organs}, before
 % \section{Identity: the root the whole chain hangs from}. Author suffix: memory.
-\subsection{Consolidation compacts the view, never the record}\label{sec:stp-consolidation}
+\subsection{Rewriting memory compacts the view, never the record}\label{sec:stp-consolidation}
 \pdstatus{\Vision}{nothing in this subsection is enforced by the reference system}
 
 Heron's notes grow with every session, and sooner or later something merges,
@@ -169,11 +169,16 @@ al.\ found that agents carried a goal forward through ordinary files once the
 memory tool was removed, and that an LLM memory auditor reduced that
 propagation without removing it~\pdcite{das2026selfpropagation}, so P1's
 inventory must list files and compaction summaries as well as the memory tool.
+Conduct needs a condition on the consolidator itself. A consolidation is
+\pdterm{ledger-faithful} when it keeps every note that carries authority
+pointed at the ledger and consistent with it, passes on every open obligation
+with its full terms, counts one source once, and never deletes or rewrites in
+place a note that points into the ledger.
 
 \begin{pdclaim}{Design invariant}{Ledger-Faithful Consolidation}
 \label{inv:stp-ledger-faithful}
 \pdstatus{\Designed}{}
-A consolidation $\Gamma:(M,L)\mapsto M'$ is \pdterm{ledger-faithful} when:
+A consolidation $\Gamma:(M,L)\mapsto M'$ is ledger-faithful when:
 \begin{enumerate}[label=F\arabic*,leftmargin=2.2em,itemsep=2pt]
 \item \emph{No mint.} Every note asserting a commitment, closure, grant,
 revocation, outcome or debt has a nonempty $\mathsf{ptr}$ into $L$ and carries

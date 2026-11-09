@@ -74,7 +74,7 @@ Channel & Evidence & Defense \\
 Shared weights: rare sequences regurgitated & 604 of 1{,}800 GPT-2 candidates were verbatim training text \pdcite{carlini2021extracting} & ledger-charged training; deduplication \\
 Fine-tuned adapter: small, recent data & 23\% of personal data extracted, about 3\% at $\varepsilon=8$ (Lukas et al.) & per-tenant adapter; ledger \\
 Shared memory, read: exact release & 116 of 250 prompts reproduce retrieved records (Zeng et al.) & owner labels; per-tenant stores \\
-Shared memory, write: planted instruction & 98.2\% injection success from queries alone \pdcite{dong2025minja} & integrity class \\
+Shared memory, write: planted instruction & 98.2\% injection success from queries alone \pdcite{dong2025minja} & a label of who wrote each line \\
 Prompt or key-value cache: hit timing & caches shared across users at seven API providers, including OpenAI \pdcite{gu2025caching} & Design invariant~\ref{inv:sealed-label-keyed} \\
 Preference data: training route & reward model and RL memorize far less than direct fine-tuning; IPO-style learning more than RL (Pappu et al.) & reward-model route; ledger \\
 Deletion: influence left in weights & unlearning is well defined only at the algorithmic level \pdcite{thudi2021unlearning} & retrain the adapter; ledger bound \\
@@ -265,8 +265,9 @@ outcome record need not be partitioned when they carry no owner's data. An
 outcome grade has operator integrity, since the operator's oracle wrote it,
 but integrity says who wrote a record, not that it is safe to disclose: a
 grade that reveals a tenant's data keeps that tenant's label and leaves only
-by the owner's release. A tombstone, a deletion marker, retracts a
-record from an index and from a cache, but not its influence from trained
+by the owner's release. A \pdterm{tombstone}, an appended record that
+retracts an earlier record while the original stays in the log, takes that
+record out of an index and a cache, but not its influence out of trained
 weights. The same model can be reached by training runs with and without a
 given point, so unlearning is well defined only at the algorithmic level
 \pdcite{thudi2021unlearning}, and removing information from parameters does

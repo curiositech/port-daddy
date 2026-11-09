@@ -601,7 +601,7 @@ were captured faithfully and records that were kept.
 
 \subsection{The Evidence Chain}
 
-Every agent session keeps an \pdterm{evidence trail}, a sequence of timestamped notes recording its observations, decisions and progress. Notes can be added to the trail but never changed.
+Every agent session keeps an evidence trail, its timestamped notes recording observations, decisions and progress, to which notes can be added but never changed.
 
 \begin{definition}[Evidence Trail]\label{def:evidence}
 \pdstatus{\Designed}{administrative deletion is treated separately below}
@@ -632,7 +632,7 @@ No API operation edits or deletes a note. Removing a session (\texttt{pd session
 By code inspection of the session module (\texttt{lib/sessions.ts}): the note API performs only \texttt{INSERT INTO session\_notes}, and the module issues no \texttt{UPDATE} or \texttt{DELETE} against notes. Its one removal operation releases the session's active file claims, sets an active session's status to \emph{abandoned}, records archive metadata and tries to append a tombstone note; it issues no \texttt{DELETE} against \texttt{sessions}. Commit and abort set the session's status, phase and timestamps, release its file claims and may append one handoff note; neither updates nor deletes a note. So notes survive every operation the API offers.
 \end{proof}
 
-\subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
+\subsection{Cross-Daemon Proofs of Inclusion}\label{sec:merkle-forest}
 
 Where the stakes are high, or a fleet spans several daemons, the evidence trail is strengthened into a three-level \pdterm{Merkle forest}. Inside one daemon, chaining each note's hash to the previous one, with a root per session, makes tampering visible. Once there are two daemons, an auditor without database access must also be able to check, from a short proof, that a particular note belongs to a particular session.
 
@@ -1178,7 +1178,7 @@ both players see the same correct record of past actions before each round.
   \item \textbf{A discount factor $\delta$}, the weight a principal puts on the next round's payoff relative to this round's. Principals value future interactions: a development project lives over weeks; insurer relationships compound; reputation discounts (\S\ref{sec:rep-discount}) accrue. For long-lived principals we take $\delta \approx 0.9$ as a working operating point, consistent with the discount used in \S\ref{sec:youle:a6}.
 \end{itemize}
 
-\paragraph{Strategy profile (graduated trigger).}
+\paragraph{Strategy profile.}
 Under the \pdterm{graduated trigger}, a deviation is punished for a fixed number
 of rounds and cooperation then resumes. Both agents use the same public mode
 and punishment counter for each file:
