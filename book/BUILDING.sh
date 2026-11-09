@@ -14,7 +14,7 @@ case "${1:-}" in
     ;;
   *) echo "Usage: bash book/BUILDING.sh [--publication]" >&2; exit 2 ;;
 esac
-for command in node python3 xelatex; do
+for command in node python3 xelatex makeindex; do
   command -v "$command" >/dev/null || { echo "Missing build dependency: $command (see book/BUILDING.md)" >&2; exit 127; }
 done
 python3 -c 'import sys; assert sys.version_info >= (3, 10), "Python 3.10 or newer is required"'
