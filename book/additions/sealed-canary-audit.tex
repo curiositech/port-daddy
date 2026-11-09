@@ -93,7 +93,8 @@ per-tenant indexes; (3) a shared adapter; (4) a shared adapter after
 scrubbing; (5) a ledger-charged private adapter at $\varepsilon\in\{1,4,8\}$;
 (6) per-tenant adapters; (7) a reward-model route against direct preference
 learning on the same pairs; (8) a shared prefix cache against a label-keyed
-one. Attack each with retrieval prompts, likelihood ranking, sampling, a timing
+one. Section~\ref{sec:sealed-tenants} explains each of these and the attacks
+below. Attack each with retrieval prompts, likelihood ranking, sampling, a timing
 audit and query-only memory injection, each paired with a deliberately broken
 build it must catch. Record per pipeline the lower bound of Theorem~\ref{thm:sealed-canary-falsify}, the measured $\beta$
 for each canary design, the stopping counts of
