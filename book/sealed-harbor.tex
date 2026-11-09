@@ -139,30 +139,29 @@
 % detection, the leakage budget, limitations, recitation, and exercises.
 % ---------------------------------------------------------------------------
 \section{Two owners, one answer}\label{sec:sealed-problem}
-\noindent\emph{Express lane: a sealed room lets an agent compute on data its
-owner will not hand over, and the room's promise is not ``nothing leaks'' but
-``every release is explicit, gated, and bounded''; the four claims that make
-that promise provable are Property~\ref{thm:sealed-noninterference},
-Theorems~\ref{thm:sealed-conservation} and \ref{thm:sealed-power}, plus the
-controllability theorem of \pdchapref{swk}{The Single-Writer Kernel}, and the
-leakage they leave is the account of Section~\ref{sec:sealed-budget}.}
+\noindent\emph{Express lane: what can a sealed room promise when an agent
+computes on data that its owner will not hand over? It promises that every
+release is explicit, passes through a gate, and has a counted limit, which is
+less than a promise that nothing leaks. In the running example, 200 jobs that
+each return 64 bits to Erin can carry at most 12,800 bits, before timing.}
 \paragraph{The scene.}
 Derek owns sensitive financial data $D$. Erin owns a valuable agent system $M$:
 weights, prompts, skills, tools, orchestration. Both want the answer
-$y=f_M(D)$. Neither will hand over the crown jewels: Derek must not receive $M$,
+$y=f_M(D)$. Neither will hand over what they own. Derek must not receive $M$,
 Erin must not receive $D$, and the cloud operator hosting the computation must
-receive neither -- three parties, three sight-lines, one boundary that must
-seal all of them at once, drawn in Figure~\ref{fig:sealed-three-principals}.
+receive neither. Figure~\ref{fig:sealed-three-principals} draws the three
+parties and the one boundary that must keep all three apart at once.
 \input{figures/fig-sealed-three-principals}
-The technical question is what the execution environment can guarantee when
-the data owner and agent owner distrust each other. A computational contract
-specifies permitted releases; it does not settle their legal relationship.
-The proposal must protect both owners while allowing the agreed answer to
-leave. A single writer orders the accounting but cannot, by itself, confine
-the worker or decide what an answer reveals. The comparison with Ryoan and
-SCONE is collected in Section~\ref{sec:sealed-history}, including
-Table~\ref{tab:sealed-ryoan}; first work through the output the owners are
-actually trying to permit.
+The question is what the machine running the job can guarantee when the data
+owner and the agent owner distrust each other. Call that machine, with its
+controls, a sealed room: a closed computing environment that both owners'
+secrets enter and from which only agreed answers leave. It must protect both
+owners and still let the agreed answer out. A contract can list the releases
+the owners permit; their legal relationship is a separate matter. A single
+writer orders the accounting, but by itself it cannot confine the worker or
+decide what an answer reveals. Section~\ref{sec:sealed-history} compares the
+design with Ryoan and SCONE (Table~\ref{tab:sealed-ryoan}). First, look at the
+output the owners actually want to permit.
 
 \paragraph{Why blocking tainted outputs is insufficient.}
 Consider a proposed ``silicon-enforced NDA'': tag Erin's agent the moment it
@@ -172,72 +171,80 @@ why that sentence is false, and the second is to prove the sentence that
 replaces it.
 \begin{pdexample}{What ``Nothing Leaks'' Costs, in Bits}
 \setlength{\parskip}{4pt plus 1pt}
-Price the three candidate designs on the chapter's own toy release --- the one
-Property~\ref{thm:sealed-noninterference} will later check exhaustively --- and
-you can do the whole comparison in your head. For this example Derek's secret is uniform on
+Compare the three candidate designs on the chapter's own toy release, the one
+that Property~\ref{thm:sealed-noninterference} later checks exhaustively. The
+whole comparison fits in your head. For this example Derek's secret is uniform on
 $\{0,1,2,3\}$, so its entropy is $\log_2 4 = 2$ bits, and the contracted release is
 \[
 g(s)=s\bmod 2,
 \]
-which takes two values and therefore carries exactly $1$ bit
---- and, since $s$ written in binary has its parity in the low position, that
-release is literally one of the secret's two bits.
+which takes two values and therefore carries exactly $1$ bit. Written in
+binary, $s$ has its parity in the low position, so the release is one of the
+secret's two bits.
 
 Now count. An honest gate
 hands Erin $1$ of those $2$ bits: the bit Derek sold her, and no more.
 
-The leaky gate of the mutation suite, which forwards $s$ itself, hands over $2$ ---
-the whole secret, which is why the checker catches it four steps in.
+A leaky gate that forwards $s$ itself hands over $2$ bits, the whole secret,
+which is why the checker catches it four steps in.
+Section~\ref{sec:sealed-noninterference} plants exactly this gate as a
+deliberate bug.
 
-And the taint tracker of the pitch above, run \emph{soundly} at token granularity, has
-to mark the parity bit as tainted by the secret it was computed from and drop
-it, so Erin gets $0$ bits and the engagement has nothing left to deliver to
-her.
+A taint tracker of the kind pitched above, run \emph{soundly} on every token,
+must mark the parity bit as tainted, because it was computed from the secret,
+and drop it. Erin gets $0$ bits.
 
-The $0$-bit design blocks the contracted answer along with the secret; the
-other horn, the tracker that lets the parity through, cannot then certify that
-the released bit was parity of committed $s$, rather than parity of some worker-chosen $f(s)$.
+So a sound taint tracker gives Erin nothing, not even the bit she paid for. A
+tracker loosened to let the parity bit through has the opposite flaw. It
+cannot tell whether the released bit is the parity of committed $s$, Derek's
+actual record, or the parity of some other value $f(s)$ the worker computed
+from that record in order to smuggle out a different bit.
 
-Every honest design in this chapter therefore lives in the middle column, and the
-rest of the chapter is the arithmetic of how wide that column is allowed to
-get.
+Every workable design therefore releases something between nothing and
+everything, and the rest of the chapter measures how much it may release.
 \end{pdexample}
+
+To keep track of whose secrets a value may carry, the room attaches an
+\pdterm{owner label} to every value it holds. The label is the set of owners
+whose permission is still needed before that value may leave.
 
 \begin{pdclaim}{Design invariant}{Conservative Whole-Worker Labeling}
 \setlength{\parskip}{4pt plus 1pt}
 \label{hyp:sealed-taint}
-This design does not trust a token-level dependency classifier for arbitrary
-model output. Once the worker reads an owner's secret, every later worker
-emission retains that owner's confidentiality label until an authorized
-release removes it.
+Once the worker reads an owner's secret, everything the worker emits
+afterwards keeps that owner's label until an authorized release removes it.
+The design does not rely on any tool that tries to tell, token by token,
+which parts of a model's output depend on the secret.
 
-This is a conservative engineering choice, not an impossibility theorem about
-language models or information-flow analysis. The label-creep and dynamic
-monitoring literature \pdcite{denning77,rs10} explains why precision and
-permissiveness need care; it does not prove that every sound model-specific
-analysis must have this shape. A restricted model or a trusted release
-computation may justify a finer policy. The room assumes neither for its
-untrusted worker.
+This is a cautious engineering choice. The literature on label creep and
+dynamic monitoring \pdcite{denning77,rs10} explains why a tracker that is both
+precise and permissive is hard to build. A restricted model or a trusted
+release computation could justify a finer policy. The room assumes neither for
+its untrusted worker.
 \end{pdclaim}
+\pdscope{The choice is a design rule for an untrusted worker; it says nothing
+about how fine a sound analysis of model output could be.}
 
-A secret can ride out in wording, punctuation, error messages, output length,
-or timing; no regular expression, scanner, or second model can certify that
-arbitrary prose contains no secret. And an ordinary remote model API is
-\emph{itself} a trusted reader of plaintext: cryptography cannot repair
-sending Derek's data to a third party's inference endpoint.
+A secret can leave inside wording, punctuation, error messages, output length
+or timing, and no regular expression, scanner or second model can certify that
+arbitrary prose contains no secret. An ordinary remote model API also reads
+the plaintext it is sent. Sending Derek's data to a third party's inference
+endpoint hands the data to that third party, and no cryptography undoes it.
 
-The architecture therefore controls the \emph{channel}, not the token. It
-converts the question a security officer will actually ask, \emph{how do I know
-the wall has no other holes?}, into four provable claims: the gate is the only
-hole (Section~\ref{sec:sealed-noninterference}); the gate can refuse the effects covered by its
-mediation and observation model
-(Section~\ref{sec:sealed-enforceability}); what passes through it is metered by
-a conserved budget (Section~\ref{sec:sealed-conservation}); and canary
-detection has conditional power and model-based stopping estimates
-(Section~\ref{sec:sealed-detection}). Section~\ref{sec:sealed-budget} composes
-the four into a single leakage account, and
-Section~\ref{sec:sealed-limitations} states, at equal prominence, what none of
-this promises.
+The architecture therefore controls the \emph{channel} through which output
+leaves, and makes no attempt to vet each token. It turns the question a
+security officer will ask, \emph{how do I know the wall has no other holes?},
+into four claims that can be checked. The gate is the only way out
+(Section~\ref{sec:sealed-noninterference}). The gate can refuse the effects
+that its mediation and observation model covers
+(Section~\ref{sec:sealed-enforceability}). A conserved budget meters what
+passes through it (Section~\ref{sec:sealed-conservation}). And a leak is
+caught with a stated probability by a \pdterm{canary}, a decoy record planted
+in the secret data that no legitimate output contains, with a model-based
+estimate of how many outputs detection takes
+(Section~\ref{sec:sealed-detection}). Section~\ref{sec:sealed-budget} combines
+the four into one leakage account, and Section~\ref{sec:sealed-limitations}
+states what none of this promises.
 
 \section{One work order, two fences, two gates}\label{sec:sealed-design}
 
@@ -248,28 +255,31 @@ Bob's ownership of the repository grants authority over neither asset.
 Alice therefore cannot delegate access she never received. Derek and Erin
 need a separate agreement specifying what computation may use their secrets
 and which result may reach the repair team. An authorized diagnostic answer
-is evidence for a patch, not permission to export the records or model.
+can inform a patch; it gives no permission to export the records or the model.
 
-Before listing fields, try changing one concrete term. Derek approves an
-in-room diagnostic tool, but the worker asks to replace it with an external
-inference endpoint. The tool list and permitted recipients change. A broker
-checking the signed canonical work order must refuse the changed contract
-until both owners approve it; accepting the old signature would ignore the
-very permission the digest is meant to bind. A signature alone does not make
-the broker perform that check.
+That agreement is the \pdterm{work order}: the contract both owners sign
+before the job starts, fixing what the job may read, run and release. Before
+listing its fields, try changing one term. Derek approves an in-room
+diagnostic tool, but the worker asks to replace it with an external inference
+endpoint. The tool list and permitted recipients change. A broker checking the
+signed canonical work order must refuse the changed contract until both owners
+approve it; accepting the old signature would ignore the very permission the
+digest is meant to bind. A signature alone does not make the broker perform
+that check.
 
 \paragraph{The work order contract.}
-The foundation of mutual confinement between distrustful principals is the
-bilateral \emph{work order contract} $C$. In conventional enterprise workflows,
-confidentiality is negotiated ex-post through legal non-disclosure agreements:
-lawyers draft obligations, employees sign terms, and violations are litigated
-only after trade secrets have been compromised. Technical prevention and remedies answer different questions: weights copied to an
-external endpoint cannot be un-seen, and proprietary financial datasets leaked
-over an unmetered socket cannot be un-learned.
+Mutual confinement between owners who distrust each other starts from the
+work order contract $C$, which both sign. In ordinary enterprise practice,
+confidentiality rests on non-disclosure agreements. Lawyers draft
+obligations, employees sign them, and violations are litigated after the
+secret is out. A lawsuit can award a remedy; it cannot prevent the loss.
+Weights copied to an external endpoint cannot be unseen, and a financial
+dataset leaked over an unmetered socket cannot be unlearned.
 
-The parties therefore require the technical boundary before releasing secrets. Before any
-decryption key is released, both Derek (the data owner) and Erin (the model and
-skill owner) must sign an identical, canonicalized work order $C$:
+The parties therefore need the technical boundary in place first. Before any
+decryption key is released, both Derek (the data
+owner) and Erin (the model and skill owner) sign the same work order $C$,
+written in one canonical form:
 {\small\[
 \begin{aligned}
 C=\bigl\langle\, & H(\text{data manifest}),\,H(\text{agent bundle}),\,H(\text{runtime}),\,H(\text{policy}),\\
@@ -277,19 +287,29 @@ C=\bigl\langle\, & H(\text{data manifest}),\,H(\text{agent bundle}),\,H(\text{ru
 & \text{retention},\,\text{validators},\,\text{payment},\,\text{liability}\,\bigr\rangle.
 \end{aligned}
 \]}
-Read the tuple in order. The thirteen fields fall into five distinct structural
-roles: \emph{pins}, \emph{permissions}, \emph{recipients}, \emph{bounds}, and
-\emph{remedies}. Under the collision-resistance assumption on $H$, changing the canonical
-contract changes the digest the signatures authenticate. A conforming key
-broker refuses a modified contract without new matching signatures; the
-digest does not itself stop execution.
+Read the tuple in order. The thirteen fields play five roles. \emph{Pins} fix
+by digest exactly which data, agent, runtime and policy are approved.
+\emph{Permissions} say what may run, \emph{recipients} who may receive what,
+\emph{bounds} how much the job may use and release, and \emph{remedies} what
+happens after a breach. If $H$ is collision-resistant, any change to the
+canonical contract changes the digest the signatures cover. A key broker that
+follows the protocol refuses a modified contract until both owners sign again;
+the digest by itself stops nothing.
 The contract is a durable work unit in the sense of \pdchapref{swk}{The
-Single-Writer Kernel}: an immutable case file that outlives every transient
-guest process that executes it.
+Single-Writer Kernel}: a record that cannot change and that outlives every
+short-lived guest process that executes it.
 
-Table~\ref{tab:sealed-work-order-elements} details each of the thirteen elements
-of $C$, naming each intended check alongside illustrative values. A field names an
-obligation; its presence does not implement that obligation.
+Table~\ref{tab:sealed-work-order-elements} lists the thirteen elements of $C$,
+the check each is meant to drive, and an illustrative value. A field states an
+obligation; something else must enforce it. Two terms in the table need
+defining first. A \pdterm{declassification} is an owner's authorized removal
+of their label from a value, and it is the only way a value computed from a
+secret may leave the room. \pdterm[differential privacy]{Differential privacy}
+is a property of a randomized release in which adding or removing any one
+record changes the probability of each set of outputs by at most a factor
+$e^{\varepsilon}$, plus a small additive slack $\delta$. The human a record is
+about is its \pdterm{data subject}. The number $\varepsilon$, read
+\pdterm{epsilon}, is the release's privacy loss: smaller is more private.
 
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -323,7 +343,7 @@ $H(\text{runtime})$ & Pins & Measured guest enclave launch digest (SEV-SNP / TDX
 \addlinespace[2pt]
 $H(\text{policy})$ & Pins & Digest of declassification lattice rules, label propagation logic, and differential privacy noise parameters. & sha256:5b91df... \newline eps=0.5, delta=1e-6 \\
 \midrule
-$\text{function}$ & Permissions & Whitelisted top-level entrypoint symbol. Names the admitted entrypoint; does not constrain every internal subroutine by itself. & portfolio\_stress\_test \newline (portfolio\_id: str) \\
+$\text{function}$ & Permissions & Whitelisted top-level entrypoint symbol. Names the permitted entrypoint; does not constrain every internal subroutine by itself. & portfolio\_stress\_test \newline (portfolio\_id: str) \\
 \addlinespace[2pt]
 $\text{tools}$ & Permissions & Closed whitelist of in-guest tool capability handles. Direct sockets disabled; all calls route through monitor. & ["yield\_oracle", "spot"] \newline (no raw sockets) \\
 \midrule
@@ -343,8 +363,9 @@ $\text{liability}$ & Remedies & Liquidated damages, penalty covenants, and bonde
 \end{xltabular}}
 
 The illustrative status packs a 63-bit unsigned risk code and one flag into
-64 payload bits; its quantization and framing must be fixed by the schema.
-This is an output-alphabet bound, not the size of a JSON document.
+64 payload bits, and the schema must fix how values are rounded and framed.
+The 64 bits count the possible outputs, $2^{64}$ of them; they are not the
+size of a JSON document.
 
 Figure~\ref{fig:sealed-work-order-schema} illustrates how these thirteen
 fields stack within the confidential enclave boundary.
@@ -352,16 +373,18 @@ fields stack within the confidential enclave boundary.
 \input{figures/fig-sealed-work-order-schema}
 
 \paragraph{Dual-attested key release.}
-The workload boots in a confidential virtual machine and creates an ephemeral
-job key with fresh attestation evidence binding runtime, policy, worker image,
-key, nonce, and epoch. Derek and Erin \emph{independently} verify the
+The workload boots in a confidential virtual machine and creates a
+short-lived job key, together with fresh attestation evidence: a
+hardware-signed statement that binds the runtime, policy, worker image, key,
+nonce and epoch. Derek and Erin \emph{independently} verify the
 attestation; Derek's key broker releases the data key only to the approved
 measurement, and Erin's key broker releases the model and skill key under the
 same condition, the attester, verifier, and relying-party pattern of IETF RATS
-\pdcite{rats}. The job then runs with no ambient network or credentials. The intended confidentiality claim is conditional on correct attestation
-appraisal, protected execution, and complete mediation of the declared
-channels. Attestation reports a measurement; it does not prove that the
-measured code is correct or that every hardware side channel is absent.
+\pdcite{rats}. The job then runs with no ambient network or credentials.
+The confidentiality claim holds only if the attestation is appraised
+correctly, execution is protected, and every declared channel is mediated.
+\pdscope{Attestation reports which code is running; it does not show that the
+code is correct or that the hardware has no side channel.}
 
 Figure~\ref{fig:sealed-dual-attestation} draws the ceremony as a sequence:
 one attestation evidence bundle, appraised twice and independently, each
@@ -372,7 +395,8 @@ broker releasing its own key off its own appraisal alone.
 \paragraph{Two fences.}
 Erin's worker is treated as hostile even if Erin is honest, because prompt
 injection or a compromised dependency can turn a loyal agent into an
-exfiltrator, so it receives \emph{semantic handles only}:
+exfiltrator. It therefore receives only \emph{handles}, names for resources
+that the monitor resolves on its behalf:
 \begin{center}\small
 $\mathtt{read}(\text{handle},\text{range})$ \quad
 $\mathtt{infer}(\text{model handle},\text{prompt handle})$ \quad
@@ -381,36 +405,34 @@ $\mathtt{execute}(\text{tool handle},\text{args})$\\[
 $\mathtt{write}(\text{result handle},\text{bytes})$ \quad
 $\mathtt{request\_declassification}(\text{candidate handle},\text{channel})$
 \end{center}
-An attested in-guest monitor mediates labels, handles, and encrypted content; a
-Derek-controlled outer gateway mediates network, storage, timing, destination,
-and volume. Direct outbound TLS is forbidden; permitted services terminate at a
+The room has two fences. An attested in-guest monitor mediates labels,
+handles, and encrypted content; a Derek-controlled outer gateway mediates
+network, storage, timing, destination, and volume. Direct outbound TLS is forbidden; permitted services terminate at a
 policy gateway. Because a remote model API is itself a trusted reader of
 plaintext, the model runs \emph{inside} the confidential domain; an external
-inference endpoint would be a third principal the contract never admitted.
-A \emph{label} records whose permission is still needed for a release.
-For two owners, write $\{D\}$ for Derek's restriction and $\{E\}$ for Erin's.
-Combining values takes the union of their labels, called the lattice
-\emph{join}; an authorized removal is a \emph{declassification}. Removing a
-label does not erase a dependence on the secret. It records permission to
-release that dependence through a specified channel.
+inference endpoint would be a third principal the contract never named.
+For two owners, write $\{D\}$ for Derek's label and $\{E\}$ for Erin's.
+A value computed from two values carries the union of their labels, called
+their \emph{join}. Removing a label by declassification does not erase the
+value's dependence on the secret. It records permission to release that
+dependence through a specified channel.
 
 \begin{pdexample}{Four Label States, Four Locked Doors, Two Keys}
 \setlength{\parskip}{4pt plus 1pt}
-The lattice the next paragraph reaches for is small enough to count on your
-fingers, and the count \emph{is} the mechanism. Two owners, Derek and Erin,
-means two clauses, so a value inside the room sits in one of $2^2=4$ label
+The label states, ordered by inclusion, form a lattice small enough to count
+by hand, and the count shows the mechanism. Two owners, Derek and Erin, means
+two possible clauses, so a value inside the room sits in one of $2^2=4$ label
 states: $\emptyset$, $\{D\}$, $\{E\}$, $\{D,E\}$. Derek's data enters at $\{D\}$ and
 Erin's model at $\{E\}$; the instant the worker computes with both, whatever it
 produced sits at $\{D,E\}$.
 
 There are four edges up that lattice and four
-edges down it, and the asymmetry between the two fours is the design. All four
+edges down it, and the design treats the two directions differently. All four
 upward edges are free and unwitnessed, because adding somebody's restriction
 needs nobody's permission.
 
-All four downward edges are locked, and --- this is
-the part worth doing by hand --- they're locked \emph{by owner}: the two that
-drop $D$, namely
+All four downward edges are locked, and each is locked \emph{by one owner}.
+The two that drop $D$, namely
 \[
 \{D\}\to\emptyset\text{ and }\{D,E\}\to\{E\},
 \]
@@ -421,20 +443,19 @@ delegated declassification authority, and the two that drop $E$, namely
 \]
 only with Erin's.
 
-Two keys, four locks,
-two apiece. That is why the room has exactly two gates rather than one, and
-why the aggregate-feedback channel to Erin is \emph{Derek's} gate and not hers:
-the artifact she receives is one that has had Derek's clause dropped, and only
-Derek can drop it.
+Two owners hold the keys to four locks, two each. That is why the room has
+exactly two gates rather than one, and why the aggregate feedback to Erin passes through
+\emph{Derek's} gate. What she receives has had Derek's clause removed, and
+only Derek can remove it.
 \end{pdexample}
 
 Figure~\ref{fig:sealed-release-lattice} asks which owner can authorize each
 downward edge. For the checkout diagnosis, a candidate computed from both
 secrets starts at $\{D,E\}$. Erin's permission can remove $E$ for the
 contracted result to Derek; Derek's permission can remove $D$ for feedback
-to Erin. Neither operation alone authorizes sending a joint-secret artifact
-to Alice or Bob: the recipient and both owners' permissions must match the
-work order.
+to Erin. Neither removal alone authorizes sending a value that carries both
+secrets to Alice or Bob; the recipient and both owners' permissions must match
+the work order.
 
 \input{figures/fig-sealed-release-lattice}
 % Keep the exhibit caption with its figure; later margin objects start anew.
@@ -443,42 +464,42 @@ work order.
 \pdmarginanalogy{sealed-specimen-provenance}{Provenance is not correctness}{sealed-specimen}{A tag and seal suggest provenance, not correctness. Digital receipts must bind their claims cryptographically.}
 
 \paragraph{Whole-worker taint and two gates.}
-After the first secret read the entire worker state, and every later emission,
-is tainted until job destruction: decentralized labels in the Myers--Liskov
-style \pdcite{myers-liskov}, owned by mutually distrustful principals, under
-which ordinary computation can only \emph{add} restrictions. This is the same
-shape as capability attenuation in \pdchapref{anchor}{The Anchor Protocol},
-where a delegated token never carries more authority than its parent:
-ordinary delegation only shrinks authority. Declassification differs in one
-important respect: it uses separate release authority to remove a
-confidentiality restriction. It is not permission to widen a child card. Removing an owner's clause requires a
-declassification authority delegated by that owner, and the only exits are the
-two declassification gates, Derek's and Erin's, each executing a declared
-release function, with exactly three pre-authorized channels: a rich result to
-Derek; fixed-schema, aggregated or differentially private feedback to Erin; a
-padded public receipt to both.
+After the first secret read, the whole worker state and everything it later
+emits carry that secret's label until the job is destroyed. These are
+decentralized labels in the Myers--Liskov style \pdcite{myers-liskov}. Each
+clause is owned by one of several principals who distrust each other, and
+ordinary computation can only \emph{add} restrictions. Capability attenuation
+in \pdchapref{anchor}{The Anchor Protocol} has the same shape, since a
+delegated token never carries more authority than its parent. Declassification
+is different. It uses a separate release authority, delegated by the owner,
+to remove that owner's clause, and it gives no permission to widen a child
+card. The only exits are the two declassification gates, Derek's and Erin's.
+Each runs a declared release function, and there are exactly three
+pre-authorized channels: a full result to Derek; fixed-schema, aggregated or
+differentially private feedback to Erin; and a padded public receipt to both.
 
 For the checkout diagnosis, the first secret read labels the worker; it does
 not end the computation. The worker may continue reasoning and using tools
 inside the room under the work order. A request to an outside tool is itself
 an output and needs an authorized release channel. When a result is ready,
-the worker submits it to the pre-authorized slot: the gate checks the declared
-release function, recipient, schema and remaining budget before anything
-leaves. An approved release does not clear the worker's taint. Later turns
+the worker submits it to a \emph{slot}, one of the pre-authorized release
+channels. The gate checks the declared release function, recipient, schema and
+remaining budget before anything leaves. An approved release does not clear the worker's taint. Later turns
 remain subject to the same gates until the job is destroyed.
 
-Each party receives an audience-redacted signed receipt, Merkle-anchored in
-both principals' ledgers:
+Each party receives a signed receipt, with the fields that party may not see
+removed, whose hash is recorded in a Merkle tree in both owners' ledgers:
 {\small\[
 \begin{aligned}
 R=\mathrm{Sign}\bigl(\, & H(C),\,H(\text{attestation}),\,H(\text{inputs}),\,H(M),\,H(\text{output ciphertext}),\\
 & \text{labels},\,\text{declassifications},\,\text{counters},\,\text{nonce},\,\text{epoch}\,\bigr).
 \end{aligned}
 \]} The receipt proves what the
-measured system reported under a policy; it does not prove the answer is true,
-nor that no unmodeled side channel existed. Figure~\ref{fig:sealed-receipt-provenance}
-shows the fields bound into $R$ and separates the provenance of the report
-from the truth of its output.
+measured system reported under a stated policy.
+Figure~\ref{fig:sealed-receipt-provenance} shows the fields bound into $R$ and
+keeps where a report came from apart from whether its output is true.
+\pdscope{The receipt does not show that the answer is true or that no
+unmodeled side channel existed.}
 
 \input{figures/fig-sealed-receipt-provenance}
 
@@ -493,6 +514,7 @@ from the truth of its output.
 \begin{pdclaim}{Design invariant}{The Room's Side Properties}
 \setlength{\parskip}{4pt plus 1pt}
 \label{inv:sealed-side}
+\pdstatus{\Designed}{deployment obligations of the proposed room}
 Label monotonicity: no label weakens without a declassification witness.
 Complete mediation: every release has exactly one gate decision. Provenance
 closure: every release traces to committed input, model, runtime, policy, and
@@ -502,20 +524,27 @@ Replay safety: each job nonce settles at most once.
 Measurement binding: neither secret key is released for a different runtime
 or policy. Rollback detectability: accepted epochs strictly increase in both
 external ledgers.
-
-These are deployment obligations of the proposed room. The finite checks
-below cover selected abstractions; they are not evidence that all six hold
-in a running confidential-computing deployment.
 \end{pdclaim}
+\pdscope{The finite checks later in the chapter cover selected abstractions;
+they do not show that all six hold in a running confidential-computing
+deployment.}
 
 % The open-font proof needs an empty margin queue here; Suisse keeps its layout.
 \ifdefined\pdbookfontprofile
   \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
 \fi
 
-Table~\ref{tab:sealed-side-invariants} names, for each of the six, the later
-result that leans on it; complete mediation is the one link and conservation
-both cite by name, the others support the named mechanisms rather than being implicit premises of every theorem.
+Table~\ref{tab:sealed-side-invariants} lists, for each of the six
+properties, which later result depends on it. Complete mediation, meaning that
+every release passes through exactly one gate decision, is the only property
+that two later results state as an explicit assumption: the enforceability
+result of Section~\ref{sec:sealed-enforceability} and the conservation theorem
+of Section~\ref{sec:sealed-conservation}. The others support particular
+mechanisms: the gates, the signed receipt, the key-release ceremony and the
+ledger's journal. Label monotonicity is also assumed, without being named, by
+the noninterference check of Section~\ref{sec:sealed-noninterference}, which
+tests that nothing Erin sees depends on Derek's secret except through the
+gate.
 
 \begin{table}[H]\centering\footnotesize
 \caption{Complete mediation is the assumption that both enforceability and
@@ -545,19 +574,17 @@ Rollback detectability & accepted epochs strictly increase in both external ledg
 \end{pdrecitation}
 
 \paragraph{Four links, one pipeline.}
-The four claims are not four independent guarantees stacked for redundancy;
-they are four links in one pipeline, each closing a gap the others leave open.
-Enforceability asks which effects this monitor can refuse, and which
-observations it needs to make the correct decision. Noninterference proves
-that boundary, once installed, is silent except through its declared release.
-Conservation meters the cumulative cost of everything that legitimately crosses
-it, because a gate honest on every single release can still bankrupt the
-contract over many releases; an individually sound decision rule is not a
-portfolio-sound one. Detection polices for what tries to cross without going
-through the meter at all: a compromised worker, a bug, an adversary who found
-an unmediated path. These supply different evidence: a detector does not repair a failed
-confinement premise, and a conserved ledger does not validate a release
-mechanism. The resulting account and its observation assumptions are in
+The four claims form one pipeline, and each link closes a gap the others
+leave open. Enforceability asks which effects this monitor can refuse, and
+which observations it needs to decide correctly. Noninterference checks that
+the boundary, once installed, is silent except through its declared release.
+Conservation meters the total cost of everything that legitimately crosses
+it, because a gate that is honest on every single release can still exceed
+the contract's budget over many releases. Detection looks for anything that
+crosses without passing through the meter: a compromised worker, a bug, or an
+adversary who found an unmediated path. Each link supplies different
+evidence. A detector cannot make up for failed confinement, and a ledger that
+balances says nothing about whether a release mechanism is sound. The resulting account and its observation assumptions are in
 Section~\ref{sec:sealed-budget}. Table~\ref{tab:sealed-four-links} is the
 evidence schedule: each link names its claim, how the claim was verified, and
 the script that regenerates the verification.
@@ -579,8 +606,8 @@ Detection & conditional power and stopping estimates & exact power; approximate 
 
 Figure~\ref{fig:sealed-pillar-pipeline} locates the two fences and the
 separately authorized release paths. Derek's gate permits feedback to Erin;
-Erin's gate permits the result to Derek. The evidence table above connects
-the controls to their checks. The sections that follow take noninterference
+Erin's gate permits the result to Derek. Table~\ref{tab:sealed-four-links}
+connects the controls to their checks. The sections that follow take noninterference
 first because it is the promise the other three claims exist to support.
 
 \input{figures/fig-sealed-pillar-pipeline}
@@ -588,33 +615,34 @@ first because it is the promise the other three claims exist to support.
 \ifdefined\pdreflectionplate\pdreflectionplate{the-controlled-opening}\fi
 \section{Silence except through the slot}\label{sec:sealed-noninterference}
 
-\noindent\emph{Express lane: run the model twice, differing only in Derek's
-secret, under the same sequence of moves --- self-composition in the
-verification literature~\pdcite{bdr04} --- and compare what Erin observes.
-Equal-parity secrets should produce identical logs.
-Model-Checked Property~\ref{thm:sealed-noninterference} reports the bounded
-search, not an unbounded guarantee.}
+\noindent\emph{Express lane: can anything that depends on Derek's secret
+reach Erin except through the gate? Run the room twice with Derek's secret the
+only difference and compare what Erin sees; whenever the two secrets have the
+same parity, her view must be identical. A search of every schedule of up to 7
+steps found no difference, which is a check of a finite model.}
 
-\paragraph{Intuition: the voting booth.} \pdmarginanalogy{sealed-speaking-tube}{}{ch03-authorized-speaking-tube}{Like a shipboard speaking tube whose whistle stopper must be unplugged before sound can pass, communication across the clean-room boundary is silent except through the explicitly gated slot.}%
-You cannot inspect a wall for holes by staring at bricks; you inspect it by
-standing outside in two parallel worlds and asking whether anything you can see
-ever differs. If Derek's secret is $0$ in one world and $2$ in the other, and
-the gate is contracted to release only \emph{parity}, then the target is to keep
-those worlds indistinguishable to Erin under every interleaving of
-loads, reads, submissions, releases, and reports. The analogy with teeth is the
-voting booth: the turnstile clicks once per voter and the tally board shows only
-party totals; a poll-watcher outside learns no more from the declared observations than
-the aggregate reveals, no matter how long she watches or in what order
-voters arrive. That is noninterference \emph{modulo declassification} in the
-Goguen--Meseguer lineage \pdcite{goguen-meseguer-82,goguen-meseguer-84}: silence
-except through the slot, and through the slot, only what the contract says. The
-misread to preempt: the theorem does not say the slot is safe. It says the slot
-is the \emph{only} opening; whether the declared function $g$ releases too much
-is a contract question the next two sections price. In the booth's own
-vocabulary: the guarantee is about the walls and the turnstile, never about what
-the board is asked to print. A per-precinct board reporting a precinct with a
-single voter discloses that voter's ballot exactly, and no property of the
-booth prevents it. The room stayed sound; the tally was indiscreet.
+\paragraph{Intuition: the voting booth.} \pdmarginanalogy{sealed-speaking-tube}{}{ch03-authorized-speaking-tube}{Nothing that depends on Derek's secret reaches Erin except through the gated release.}%
+Looking at a wall will not show whether it has holes. Instead, imagine two
+parallel worlds and ask whether anything visible from outside ever differs.
+If Derek's secret is $0$ in one world and $2$ in the other, and the gate is
+contracted to release only \emph{parity}, then the target is to keep those
+worlds indistinguishable to Erin under every interleaving of loads, reads,
+submissions, releases, and reports. A voting booth is a close analogy. The
+turnstile clicks once per voter and the tally board shows only party totals,
+so a poll-watcher outside learns no more from what she can observe than the
+totals reveal, however long she watches and in whatever order voters arrive.
+That is noninterference \emph{modulo declassification} in the
+Goguen--Meseguer lineage \pdcite{goguen-meseguer-82,goguen-meseguer-84}.
+Noninterference means that nothing an observer sees depends on the secret;
+modulo declassification, the only dependence allowed is what the contract
+releases through the slot. A common misreading is that the property makes the
+slot safe. It says only that the slot is the \emph{only} opening. Whether the
+declared function $g$ releases too much is a question about the contract,
+which later sections put a number on. In the booth's terms, the guarantee
+covers the walls and the turnstile and says nothing about what the board is
+asked to print. A board reporting a precinct with a single voter discloses
+that voter's ballot exactly, and no property of the booth prevents it. The
+booth worked; the tally disclosed too much.
 
 \begin{pdexample}{Six Pairs, Two of Them Equal-Parity}
 \setlength{\parskip}{4pt plus 1pt}
@@ -672,36 +700,37 @@ Reverting either mutation restores the property [internal,
 \texttt{c1\_noninterference.py}].
 \end{pdclaim}
 
-The clause about committed input is a hypothesis, not a modelling convenience.
-It makes the property an instance of \emph{delimited release} \pdcite{sm03} in
-the degenerate case where delimited release collapses to noninterference;
-their own condition is that no variable used in a declassification is updated
-before it. What the hypothesis costs is stated in the boundary below and paid
-in Section~\ref{sec:sealed-budget}. The release ledger of
-\S\ref{sec:sealed-budget} answers, in Sabelfeld and Sands' later organizing
-taxonomy \pdcite{ss09}, \emph{what} is released (the $\varepsilon$-priced
-artifact), \emph{who} performs the release (the declassifier), and
-\emph{where} it happens (the gate); \emph{when} it happens is the
-release-ledger's own open question, since a room can only price the release
-it observes, not the frequency an adversary chooses to request it.
+The clause about committed input is a real hypothesis. It makes the property
+an instance of \emph{delimited release} \pdcite{sm03}, a policy that lets
+only stated expressions of the secret leave, in the special case where
+delimited release reduces to noninterference. Delimited release requires that
+no variable used in a declassification is updated before it. The boundary
+below states what the hypothesis leaves out, and
+Section~\ref{sec:sealed-budget} measures it. In Sabelfeld and Sands' later
+taxonomy \pdcite{ss09}, the release ledger of \S\ref{sec:sealed-budget}
+answers \emph{what} is released (the artifact and its $\varepsilon$ cost),
+\emph{who} releases it (the declassifier), and \emph{where} (the gate).
+\emph{When} it happens stays open for the ledger, because a room can count
+only the releases it observes, not how often an adversary chooses to ask.
 
 \paragraph{Proof idea.} \pdmarginanalogy{sealed-shadowbox}{}{ch03-two-shutter-shadowbox}{Like a two-shutter laboratory pass-through box whose interlocked doors ensure both are never open at once, noninterference prevents secret input from directly reaching the observer.}%
-There is no proof to read; there is a search to rerun. The checker builds the
-two worlds side by side, one per secret, and drives them through every
+There is no proof here, only a search anyone can rerun. The checker builds
+the two worlds side by side, one per secret, and drives them through every
 interleaving of the same action sequence to depth 7. This is
-\textbf{self-composition}, exactly as Barthe, D'Argenio and Rezk set it
-out~\pdcite{bdr04}: noninterference is a claim about \emph{pairs} of runs,
-which no ordinary invariant can state, so you compose two copies of the system
+\pdterm{self-composition}, as Barthe, D'Argenio and Rezk set it
+out~\pdcite{bdr04}. Noninterference is a claim about \emph{pairs} of runs,
+which no ordinary invariant can state, so you combine two copies of the system
 into one and state an ordinary invariant about the pair. Here a Python checker
 searches a finite model; their work uses a program logic.
 At each step the checker projects both states onto what Erin can observe and
 compares. For equal-parity secrets, any difference in the observation sequences
 is a counterexample. For differing-parity secrets, the checker rejects a
 non-gate step if the resulting logs differ and either log changed at that step;
-an earlier gate-release difference may persist unchanged. The mutation suite
-then shows the search has teeth: with the honest gate replaced by one that
-releases the raw secret, the first difference appears four steps in, on a pair
-the honest gate provably keeps identical. Figure~\ref{fig:sealed-two-worlds}
+an earlier gate-release difference may persist unchanged. Deliberately
+planted bugs, called mutations, then show that the search can fail. With the
+honest gate replaced by one that releases the raw secret, the first difference
+appears four steps in, on a pair that the honest gate keeps identical in every
+searched schedule. Figure~\ref{fig:sealed-two-worlds}
 compares Erin's observations step by step, then shows the distinguishing
 release produced by the raw-secret mutation.
 
@@ -711,38 +740,42 @@ release produced by the raw-secret mutation.
 
 
 
-\paragraph{What it buys.}
-The product's headline sentence in its provable form: \emph{every release is
-explicit, gated, and bounded}. This is the finite-model core of the chapter;
-the general theorem over unbounded state is the unwinding obligation of
-Section~\ref{sec:sealed-limitations}, for which this model is the blueprint,
-an unbounded argument still to be supplied, not a consequence of exploring seven steps.
+\paragraph{What it shows.}
+The property states the product's headline sentence in a checkable form:
+\emph{every release is explicit, gated, and bounded}. It is the finite-model
+core of the chapter. The general claim over unbounded state is the unwinding
+obligation of Section~\ref{sec:sealed-limitations}. This model shows the shape
+of that argument; the unbounded argument itself is still to be written.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-Finite depth, finite secrets: depth-7 exhaustion is a proof about the model,
-not the deployment. The guarantee is possibilistic; timing, token counts, and
-termination channels are out of model, as the design declares. The gate's
-\emph{specification} is the residual oracle: the property is that releases
-match $g$, and choosing a $g$ that leaks too much is a contract failure no
-theorem prevents. That risk is priced, not eliminated, by the next two
-sections.
+The search covers a finite model, four secrets to depth 7, and says nothing
+directly about a deployment. The guarantee is possibilistic: it concerns which
+observations can occur, not how likely they are. Timing, token counts and
+termination are outside the model, as the design declares. The property says
+that releases match $g$; choosing a $g$ that leaks too much is a contract
+failure that no property of the gate prevents. Later sections bound that risk
+without removing it.
 
 There is a second residual on the other side of the same gate. The property
 quantifies over action sequences of a model whose gate applies $g$ to committed
 input. It does not cover a worker that launders: computing $t=f(s)$ and
 submitting $t$ so that the gate honestly releases $g(t)$. That is the classical
-escape-hatch laundering attack, which the delimited-release literature names
-and rules out by enforcement \pdcite{sm03}. The proposed arbitrary-output path does not supply that enforcement. A
-trusted gate could instead compute a restricted release directly from
-committed input, as the finite model does; accepting unconstrained
-worker-computed candidates gives up that particular guarantee. The
-residual is therefore priced in Section~\ref{sec:sealed-budget}, which is the
-reason the $q\cdot b$ account exists at all. The present mutation suite cannot
-exhibit the attack, since the model's \texttt{submit} carries no payload: the
-suite tests that the gate releases $g$ and nothing else, not that the gate's
-\emph{argument} is honest. Closing that gap is a model extension listed in
-Section~\ref{sec:sealed-limitations}. And a human who reads a released parity
+\pdterm{laundering attack}, in which a secret-derived value passes through an
+honest release so that the release carries a different bit from the one the
+contract intended. The delimited-release literature names it and rules it out
+by enforcement \pdcite{sm03}. The proposed arbitrary-output path does not
+supply that enforcement. A trusted gate could instead compute a restricted
+release directly from committed input, as the finite model does; accepting
+unconstrained worker-computed candidates gives up that guarantee.
+Section~\ref{sec:sealed-budget} therefore measures this residual, and that
+measurement is the reason the $q\cdot b$ account exists. Over $q$ jobs, each
+returning $b$ freely chosen bits, a worker can carry at most $q\cdot b$ bits,
+before timing. The present
+mutations cannot exhibit the attack, because the model's \texttt{submit}
+carries no payload. They test that the gate releases $g$ and nothing else;
+they do not test that the gate's \emph{input} is honest. Closing that gap is
+a model extension listed in Section~\ref{sec:sealed-limitations}. And a human who reads a released parity
 may still remember it: the system bounds channels, not minds.
 \end{pdboundary}
 
@@ -750,19 +783,28 @@ Figure~\ref{fig:sealed-laundering-fork} makes the missing argument concrete.
 Worlds $A$ and $B$ hold secrets $0$ and $2$: the permitted parity release is
 $0$ in both. If the worker first computes $t=f(s)=\lfloor s/2\rfloor$, the
 same gate instead releases $0$ and $1$. Erin can now distinguish the worlds.
-This is an arithmetic illustration of the proposed payload extension, not a
-counterexample to the current model, whose honest gate still reads committed
-$s$. Exercise~\ref{ex:sealed-launder} asks how to model the extra register.
+This is an arithmetic illustration of the proposed payload extension. It is
+no counterexample to the current model, whose honest gate still reads
+committed $s$. Exercise~\ref{ex:sealed-launder} asks how to model the extra register.
 
 \input{figures/fig-sealed-laundering-fork}
 
 \section{What the mediated gate can enforce}\label{sec:sealed-enforceability}
 
-\noindent\emph{Express lane: exact realization of a safety policy requires
-controllability and, under partial observation, compatible decisions on
-indistinguishable histories. This section applies the kernel chapter's
-criterion to a specified event model; it does not prove that no other
-architecture can mediate finer events.}
+\noindent\emph{Express lane: which rules can the gate enforce exactly,
+blocking every violation and nothing else? A rule qualifies when it forbids
+only actions the gate can stop and the gate sees enough to know when to stop
+them. Of the agent's 8 kinds of event, the gate can veto 5.}
+
+The vocabulary is the kernel chapter's. The \emph{plant} is the set of
+histories, sequences of events, that the agent can physically produce before
+any rule is imposed; its event types form the \emph{alphabet}. A gate
+realizes a rule \emph{exactly} when it blocks every violation and nothing else. Exact realization needs two
+things. The rule must forbid only controllable actions: the gate can block a
+network send, but it cannot stop the model from reading what is already in its
+context. And the gate must observe enough to know when to block. If two
+histories look the same to the gate but the rule says block one and allow the
+other, no gate gets both right.
 
 \begin{pdexample}{Eight Events, Five Vetoes, and One Rule That Only Looks Like an Exception}
 \setlength{\parskip}{4pt plus 1pt}
@@ -781,20 +823,38 @@ three cannot be prevented at their enabled transitions. This conclusion
 uses the plant in which those transitions are enabled; it does not establish
 that their occurrence is observable [internal, \texttt{b3\_controllability.py}].
 
-Now the ninth
-policy, the one the whole room rests on: \emph{no \texttt{net\_egress} after
-\texttt{in\_context\_read} of a secret}. It \emph{mentions} an event from the
-second pile, which is what makes it look like a counterexample, but read what
-it actually has to disable and the answer is \texttt{net\_egress} and nothing
-else --- the read is permitted and merely recorded as taint. The checker also assumes the read is observed. With that assumption, the
-supervisor knows when to disable egress and realizes the rule exactly. With
-an invisible read, the same visible history can require both allowing and
-refusing egress: refusing every egress is safe but is no longer exact
-realization of the requested policy.
+Now the ninth policy, the one the room is built around: \emph{no
+\texttt{net\_egress} after \texttt{in\_context\_read} of a secret}. It
+\emph{mentions} an event from the second pile, so it looks like an
+exception. The only event it must disable is \texttt{net\_egress}; the read
+is permitted and recorded as taint. The checker also assumes
+the read is observed, so the supervisor knows when to disable egress and
+enforces the rule exactly. With an invisible read, the same visible history
+can require both allowing and refusing egress. Refusing every egress is then
+safe but is no longer exact realization of the requested policy; the next
+example traces the two histories.
 
 \emph{Now you try:} classify \emph{no
 \texttt{in\_context\_read} of a secret} the same way, in two sentences.
 (Exercise~\ref{ex:sealed-compound}.)
+\end{pdexample}
+
+\begin{pdexample}{Two Histories the Gate Cannot Tell Apart}
+\setlength{\parskip}{4pt plus 1pt}
+Keep one rule: no network send after reading a secret. In history $H_1$ the
+worker reads the public README, then sends a test log to the
+continuous-integration server. In history $H_2$ the worker reads Derek's
+records, then sends the same log. The rule allows $H_1$ and forbids $H_2$.
+
+Suppose the monitor sees which handle was read, because it labels handles.
+Then the gate's two views differ: $\mathtt{read}\{\}$ followed by a send in
+$H_1$, and $\mathtt{read}\{D\}$ followed by a send in $H_2$. The gate allows
+$H_1$ and refuses $H_2$, which is exact.
+
+Now suppose reads are invisible. The gate sees ``?, send'' both times and must
+give the same answer to both. Refusing both is safe, but $H_1$'s legitimate
+upload is lost. Allowing both lets $H_2$ leak. With the read hidden, the gate
+can be safe, but no choice is exact.
 \end{pdexample}
 
 {\sloppy The kernel chapter proved that a prefix-closed safety policy is regimentable
@@ -831,30 +891,37 @@ never emit a token that names a secret & \texttt{model\_emit\_token} & uncontrol
 \end{table}
 
 Figure~\ref{fig:sealed-controllability-quadrant} places the same five
-policies on the controllability x witnessing quadrant this book already
-uses for the general theorem, so the compound rule's trigger and its
-enforcement point can be seen to sit in different cells.
+policies on two axes, whether the gate can veto the event and whether the
+gate sees the rule's trigger, as this book already does for the general
+theorem, so the compound rule's trigger and its enforcement point can be
+seen to sit in different cells.
 
 \input{figures/fig-sealed-controllability-quadrant}
 
-The design consequence is modest and useful: place a guard before egress,
-retain the observed secret-read restriction, and mediate every release in the
-claimed observation model. Whole-worker labeling is the conservative policy
-chosen in Design invariant~\ref{hyp:sealed-taint}; the controllability theorem
-does not establish a universal impossibility of finer analysis.
+The design consequence is modest and useful. Place a guard before egress,
+keep the restriction that an observed secret read sets, and mediate every
+release in the claimed observation model. Whole-worker labeling is the
+cautious policy chosen in Design invariant~\ref{hyp:sealed-taint}; the
+controllability theorem does not rule out a finer analysis.
 
-\paragraph{What it buys.}
-The controllability check establishes that the specified gate can make the
-required decisions under its observation assumptions. The finite two-run
-check establishes the separate parity-release property to depth seven.
-Together they organize implementation obligations. Neither alone proves
-confinement, bounds all hardware observations, or closes every possible design.
-The distinction between a cooperative hook and a compulsory gate from
-\pdchapref{swk}{The Single-Writer Kernel} now matters directly: a worker that
-can bypass a hook can bypass its privacy accounting too. A confined room must
-establish mediation of its declared exits independently of the worker's
-cooperation. The assurance modes classify that dependency; neither a high
-automation level nor an evaluation-effort grade establishes it.
+\paragraph{What it shows.}
+The controllability check shows that the specified gate can make the required
+decisions under its observation assumptions. The finite two-run check shows
+the separate parity-release property to depth seven. Together they list what
+an implementation must provide.
+\pdscope{Neither check proves confinement, bounds what the hardware reveals,
+or shows that no other architecture could mediate finer events.}
+\pdchapref{swk}{The Single-Writer Kernel} distinguished a hook, which runs
+only if the worker calls it, from a gate, which the worker cannot get around.
+Here the difference is decisive. A worker that can skip a hook can also skip
+the privacy ledger the hook updates. So the room must show that every declared
+exit is mediated whether or not the worker cooperates. In the terms of the
+five assurance modes of \pdchapref{swk}{The Single-Writer Kernel}, the room's
+exits need a mode in which the worker's cooperation is not what an attacker
+must defeat: \pdassurance{Brokered}, \pdassurance{Confined} or
+\pdassurance{Attested}, not \pdassurance{Coordinated}. A high degree of
+automation or a high Common Criteria evaluation grade does not show which mode
+a mechanism has.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
@@ -866,10 +933,10 @@ states.
 When an otherwise unpreventable violation is observable, detection can
 support post-hoc audit and remedies, which \pdchapref{bonded}{The Bonded Commons} treats.
 
-And
-complete mediation, that every effect passes through the layer, is the
-deployment assumption the two remaining links inherit: it requires evidence about the workroom; an attestation measurement alone
-does not establish that the measured implementation has the property.
+Complete mediation, that every effect passes through the layer, is the
+deployment assumption the two remaining links inherit. It needs evidence
+about the workroom itself, because an attestation measurement alone does not
+show that the measured implementation mediates every effect.
 \end{pdboundary}
 
 % ---------------------------------------------------------------------------
@@ -883,35 +950,34 @@ does not establish that the measured implementation has the property.
 \section{The budget is a ledger, and the ledger conserves}\label{sec:sealed-conservation}
 
 \noindent Rogers, Roth, Ullman and Vadhan distinguish two privacy accountants
-\pdcite{rruv16}: a \textbf{privacy odometer} bounds accumulated privacy loss
-without a pre-specified ceiling; a \textbf{privacy filter} stops before a
-pre-specified budget is exceeded. This ledger supplies the latter's sum-only
-stopping rule. Its privacy interpretation requires valid private releases,
-not just consistent arithmetic.
+\pdcite{rruv16}. A \pdterm{privacy odometer} bounds accumulated privacy loss
+without a ceiling fixed in advance; a \pdterm{privacy filter} stops before a
+budget fixed in advance is exceeded. This ledger supplies the filter's
+sum-only stopping rule. Its sums mean something about privacy only if each
+release really is private.
 
-\noindent\emph{Express lane: make the privacy budget a ledger, so that one
-atomic transition appends the record and adds the spend, and conservation of
-$\sigma=\sum_\Lambda\varepsilon_i$ survives every interleaving, because the
-single writer makes every concurrent history observationally sequential; the
-statement is Theorem~\ref{thm:sealed-conservation} and the checked instance is
-Property~\ref{prop:sealed-ledger-checked}.}
+\noindent\emph{Express lane: can releases that arrive at the same time
+overspend the privacy budget? Not if one atomic step both checks the budget
+and records the spend; then the running total always equals the sum of the
+journal and never passes the cap. On a two-client instance with a budget of
+4, a deliberately torn write, which logs each cost in full but adds one less
+to the running total, lets the recorded spend reach 5.}
 
-\paragraph{The scene, resumed.} \pdmarginanalogy{sealed-sandglass-orifice}{}{ch03-sandglass-flow-orifice}{Like an hourglass whose precision orifice meters the escape of sand grain by grain, the differential privacy ledger meters information release under a strict cumulative budget.}%
-Derek's data never leaves the room; what leaves is a stream of gated releases,
-each carrying a differential-privacy cost $\varepsilon_i$. The contract says the
-total never exceeds $\varepsilon_{\max}$. But releases race: two of Erin's jobs
-invoke the gate concurrently, and the classic gap between ``is there budget?''
-and ``spend it'' is exactly where a meter drifts from its journal. The
-intuition is double-entry bookkeeping: balance and journal updated in one
-stroke, so an auditor summing the journal always reproduces the balance. The
-misread to preempt: conservation governs \emph{recorded} spend. That all spend
-is recorded is the complete-mediation invariant of
+\paragraph{The scene, resumed.} \pdmarginanalogy{sealed-sandglass-orifice}{}{ch03-sandglass-flow-orifice}{The ledger records each release's privacy cost and refuses any release that would take the total past the cap.}%
+Derek's data never leaves the room. What leaves is a stream of gated
+releases, each with a differential-privacy cost $\varepsilon_i$, and the
+contract says the total never exceeds $\varepsilon_{\max}$. Releases can
+race. Two of Erin's jobs invoke the gate at once, and in the gap between
+checking for budget and spending it, the running balance can drift from its
+journal. The remedy is double-entry bookkeeping: update the balance and the
+journal in one step, so that an auditor summing the journal always gets the
+balance. Conservation governs \emph{recorded} spend only. That all spend is
+recorded is the complete-mediation invariant of
 Section~\ref{sec:sealed-design}, which is why the enforceability link comes
 first.
 
 \paragraph{Differential privacy in one paragraph.}
-Fix which datasets count as neighbors: here they differ in one person's
-record. A randomized mechanism $A$ is $\varepsilon$-private if, for every
+Fix which datasets count as neighbors: here they differ in one record. A randomized mechanism $A$ is $\varepsilon$-private if, for every
 neighbor pair $D,D'$ and every output event $S$,
 \[
 \Pr[A(D)\in S]\le e^\varepsilon\Pr[A(D')\in S].
@@ -926,15 +992,19 @@ parity gate above is not automatically a private mechanism.
 For approximate $(\varepsilon,\delta)$ privacy the right side also has an
 additive allowance $\delta$; that parameter is not a number of leaked bits
 \pdcite{dwork2006dp}.
-Privacy costs add under basic composition. For $k$ conditionally
+Under \pdterm{basic composition}, the privacy losses of successive releases
+add. For $k$ conditionally
 $\varepsilon$-private releases with caps and horizon fixed in advance,
 advanced composition gives $(\varepsilon',\delta')$-privacy for $0<\delta'<1$, where
 \[
 \varepsilon'=\varepsilon\sqrt{2k\ln(1/\delta')}+k\varepsilon(e^{\varepsilon}-1).
 \]
-A potentially smaller $\varepsilon'$ costs a positive $\delta'$; it is not a
-stronger pure-DP guarantee. The ledger records declared costs and refuses an
-overdraw. Whether those costs describe private releases is a separate question.
+This is \pdterm{advanced composition}. A possibly smaller $\varepsilon'$
+comes with a positive $\delta'$, so it is a different guarantee from pure DP
+($\delta=0$), not a stronger one. The ledger records declared costs and
+refuses an overdraw. The reference system's ledger is called A3 below; the
+script \texttt{a3\_epsilon\_ledger.py} of Table~\ref{tab:sealed-four-links}
+checks it.
 
 \paragraph{Three requests against a budget of four.}
 Use the two-client instance below, with programs $(2,2)$ and $(1,2)$, and let
@@ -945,8 +1015,6 @@ $3+2>4$, so it is refused and the state remains $(3,(2,1))$.
 At each step, the balance equals the sum of the journal. Checking the budget,
 appending the entry, and increasing the balance are one transition; splitting
 them would allow two requests to decide against the same stale balance.
-These are declared accounting costs. The arithmetic does not show that an
-arbitrary artifact is a private release.
 
 \begin{pdclaim}{Theorem}{$\varepsilon$-Conservation}
 \label{thm:sealed-conservation}
@@ -973,39 +1041,34 @@ the kernel's single-writer serialization makes any concurrent execution
 observationally equal to some sequential interleaving.
 
 \textbf{Conditional privacy corollary.} Fix the neighboring-record relation
-above. Suppose every admitted release is $(\varepsilon_i,0)$-private conditional
+above. Suppose every allowed release is $(\varepsilon_i,0)$-private conditional
 on the prior transcript, with mechanisms and nonnegative costs selected from
 public information and previous private outputs. Suppose also that the complete observer-visible interaction is
 covered, including metadata, refusals and timing. The basic filter theorem of
 Rogers, Roth, Ullman and Vadhan \pdcite{rruv16} then supports
 $(\varepsilon_{\max},0)$-privacy: check each proposed cost \emph{before} its
 release and stop before the sum exceeds the fixed budget.
+\end{pdclaim}
+\pdscope{The accounting proof below establishes neither the conditional-DP nor
+complete-mediation premise.}
 
-The accounting proof below establishes neither the conditional-DP nor
-complete-mediation premise.
-
-\textbf{What this theorem does not say.} The equality
-$\sigma=\sum_{\Lambda}\varepsilon_i$ is bookkeeping over \emph{admitted}
-releases, and it is exact about a quantity that is deliberately syntactic: how
-much declared budget has been spent. It says nothing about what an admitted
-artifact \emph{means}.
-
-A worker that computes $t=f(s)$ and submits $t$ so the
-gate honestly releases $g(t)$ spends one $\varepsilon_i$ like any other caller,
-and the ledger balances afterwards exactly as it did before --- the semantic
-content of that release is Section~\ref{sec:sealed-budget}'s $q\cdot b$
-residual, which is priced rather than prevented, and the closest thing to a
-non-interference guarantee in this chapter is
-Property~\ref{thm:sealed-noninterference}, a separate and model-checked claim
+The equality $\sigma=\sum_{\Lambda}\varepsilon_i$ is exact about a
+deliberately syntactic quantity, how much declared budget has been spent, and
+says nothing about what an allowed artifact \emph{means}. A worker that
+computes $t=f(s)$ and submits $t$ so that the gate honestly releases $g(t)$
+spends one $\varepsilon_i$ like any other caller, and the ledger balances
+afterwards exactly as before. What that release reveals is the $q\cdot b$
+residual of Section~\ref{sec:sealed-budget}, which is bounded but not
+prevented. The nearest thing to a noninterference guarantee in this chapter
+is Property~\ref{thm:sealed-noninterference}, a separate model-checked claim
 that holds under a committed-input hypothesis this theorem never assumes.
 Accounting consistency and non-leakage are two different properties, and only
-the first of them is proved here.
-\end{pdclaim}
+the first is proved here.
 
 \paragraph{Proof.}
 Induction over the sequential interleaving. Base: $\sigma=0$ and
 $\Lambda=()$, so the equality holds and the bound holds. Step: a refused
-release changes nothing; an admitted release passed the guard
+release changes nothing; an allowed release passed the guard
 $\sigma+\varepsilon_i\le\varepsilon_{\max}$, so the bound is preserved, and it
 appends and adds in one transition, so the equality is preserved. Non-spending
 transitions touch neither component. Concurrency reduces to the sequential
@@ -1034,7 +1097,7 @@ running a private mechanism, and its recorded $\varepsilon_i$ is a number it
 declared about itself. In that regime $\sigma\le\varepsilon_{\max}$ does not
 certify differential privacy, and the $q\cdot b$ capacity account of
 Section~\ref{sec:sealed-budget}, not the ledger, is the operative bound. The
-two accounts are for two different adversaries and the chapter owns both,
+two accounts are for two different adversaries and the chapter keeps both,
 drawn side by side in Figure~\ref{fig:sealed-two-adversaries}.
 
 \input{figures/fig-sealed-two-adversaries}
@@ -1042,8 +1105,8 @@ drawn side by side in Figure~\ref{fig:sealed-two-adversaries}.
 Systems that schedule privacy budgets across concurrent jobs make the
 corresponding assumption explicit, that the analyst is trusted to implement
 the mechanism correctly \pdcite{pkube21}; this chapter declines that assumption
-about Erin's worker, which is precisely why it cannot lean on the ledger alone.
-Stating the two accounts in one currency needs the correspondence between
+about Erin's worker, which is precisely why it cannot rely on the ledger
+alone. Stating the two accounts in one unit needs the correspondence between
 $\varepsilon$ and min-entropy of Alvim et al.\ \pdcite{aacp11}, which is not
 discharged here.
 
@@ -1070,8 +1133,8 @@ logs $\varepsilon$ but adds $\varepsilon-1$, breaks it in one step and in three
 steps drives the \emph{recorded} log to \[
 \sum_\Lambda=5>\varepsilon_{\max}=4:
 \]
-the undercounting balance silently admits auditable over-spend, so atomicity
-is what makes the budget promise auditable.
+the undercounting balance silently allows an over-spend that the journal
+records, so atomicity is what makes the budget promise auditable.
 
 Reverting the mutations restores
 both invariants and the 15 states [internal, \texttt{a3\_epsilon\_ledger.py}].
@@ -1086,7 +1149,7 @@ invariants, with the step count each is caught in.
 % paragraph-decompressed preceding property needs more room than its former
 % inline form; reserve both owner and graphic, not just the text box.
 \Needspace{32\baselineskip}
-\begin{pdexample}{When the Advanced Composition Bound Starts to Pay}
+\begin{pdexample}{When the Advanced Composition Bound Becomes Smaller}
 \setlength{\parskip}{4pt plus 1pt}
 At $\delta'=10^{-6}$: for $k=32$ releases at $\varepsilon=0.1$, basic
 composition gives
@@ -1094,28 +1157,30 @@ composition gives
 32\times 0.1=3.20
 \]
 while the advanced bound gives $3.31$, so
-the advanced bound is not yet paying; at $k=128$, $\varepsilon=0.05$, basic
+the advanced bound is not yet smaller; at $k=128$, $\varepsilon=0.05$, basic
 gives $6.40$ but advanced gives $3.30$\pdprov{a3\_epsilon\_ledger.py}{20260816}{verified}.
 
-These comparisons fix the caps and horizon. A smaller advanced epsilon permits
-$\delta'=10^{-6}$; basic composition remains pure-DP. The crossing compares
-epsilon values, not uniformly stronger guarantees.
+These comparisons fix the caps and horizon. The advanced bound's smaller
+$\varepsilon$ comes with a failure probability $\delta'=10^{-6}$; basic
+composition remains pure-DP.
+The crossing compares $\varepsilon$ values, not uniformly stronger guarantees.
 
 \emph{Now you try:} at $k=8$,
 $\varepsilon=0.5$, which bound is smaller, and at $\varepsilon=0.1$, at which
-$k$ does the advanced bound first pay? (Exercise~\ref{ex:sealed-crossover}.)
+$k$ does the advanced bound first fall below the basic one?
+(Exercise~\ref{ex:sealed-crossover}.)
 Figure~\ref{fig:sealed-composition-crossover} plots both bounds against $k$
 and marks this exact crossing.
 \end{pdexample}
 
 \input{figures/fig-sealed-composition-crossover}
 
-\paragraph{What it buys.}
+\paragraph{What it shows.}
 The contract's budget line becomes an auditable invariant with the same proof
 shape as the bond-conservation result of \pdchapref{bonded}{The Bonded
-Commons}, and the mutation suite shows the invariant has teeth: both canonical
-atomicity breaks are caught with shortest traces, and the torn write's deeper
-crime, recorded over-spend past the contracted maximum, is exhibited
+Commons}. The mutations show that the check can fail: both standard ways of
+breaking atomicity are caught with shortest traces, and the torn write's worse
+failure, recorded over-spend past the contracted maximum, appears
 concretely.
 
 \begin{pdboundary}
@@ -1124,9 +1189,10 @@ Conservation governs recorded spend; that all spend is recorded is the
 complete-mediation invariant, so the enforceability link is the prerequisite,
 not a nicety.
 
-A crossover is specific to the chosen privacy parameters. And the
-theorem conserves the meter, not the meaning: choosing per-release
-$\varepsilon_i$ honestly is the mechanism's obligation, outside this ledger.
+A crossover is specific to the chosen privacy parameters. The theorem keeps
+the count right and says nothing about what each release means. Choosing each
+$\varepsilon_i$ honestly is the mechanism's obligation, outside this
+ledger.
 
 Differential privacy bounds individual influence in aggregates; it does not
 protect the whole dataset, nor Erin's model.
@@ -1136,29 +1202,31 @@ protect the whole dataset, nor Erin's model.
 
 \section{Canaries with a power curve and a clock}\label{sec:sealed-detection}
 
-\noindent\emph{Express lane: independent per-canary misses turn $k$ smuggled
-canaries into detection probability $1-\beta^k$; uniform planting turns leak
-size into a hypergeometric operating curve; and an i.i.d. Bernoulli model gives
-Wald's sequential test a stopping-time identity and a useful approximation;
-the statements are Theorems~\ref{thm:sealed-power} and \ref{thm:sealed-latency}.}
+\noindent\emph{Express lane: how likely is a leak to be caught, and how
+soon? If canaries are missed independently, a leak escapes only when every
+canary it carries is missed; if the gate's outputs are independent and
+identically distributed, Wald's formula gives the expected number of outputs
+a sequential test watches before it decides. When each canary is missed 20\%
+of the time, a leak
+carrying 3 canaries is caught with probability 0.992.}
 
 \paragraph{Intuition: dye packs and quality control.}
 Dye packs\marginnote{\input{figures/spark-canary-power}\par
 \emph{Detection power:} $1-\beta^k$ as captured canary count $k$ scales ($\beta=0.2, 0.5$).} in bank bundles: each pack fails alone with probability $\beta$, so
-grabbing $k$ dyed bundles fails to stain with probability $\beta^k$; how many
-dyed bundles a thief grabs is set by how much he takes and how densely packs
-are planted. The sequential half is quality control: each gate output is a
-Bernoulli trial, and a sequential probability ratio test accumulates evidence
-for ``is this stream leaking?'' The three links before this one
-govern what the gate is \emph{allowed} to pass; this one measures what happens
-when something tries to pass anyway. ``We have canaries'' is a mood; a security
-officer buys a number. The misread to preempt: the two theorems answer two
-different questions, and a single-shot exfiltration is the first theorem's job,
-not the second's.
+grabbing $k$ dyed bundles fails to stain with probability $\beta^k$. How many
+dyed bundles a thief grabs depends on how much he takes and how densely packs
+are planted. The sequential half is quality control. Each gate output is a
+yes-or-no trial, and a sequential probability ratio test accumulates evidence
+on whether the stream is leaking. The three links before this one govern what
+the gate is \emph{allowed} to pass; this one measures what happens when
+something tries to pass anyway. A security officer needs a number, and the
+assurance that canaries exist is not one. The two theorems answer different
+questions. A single-shot exfiltration is covered by the first, the power
+calculation, and not by the sequential test.
 
 \paragraph{What the detector observes.}
-A \emph{canary} is a deliberately planted, recognizable span whose presence
-in an observed output is evidence of a specified leak. A false negative misses
+Precisely, a canary is a deliberately planted, recognizable span whose
+presence in an observed output is evidence of a specified leak. A false negative misses
 a carried canary; a false alarm flags an innocent output. These are different
 errors. The power calculation first conditions on $k$ canaries actually being
 carried. The hypergeometric model then accounts for not knowing $k$: it is the
@@ -1229,7 +1297,7 @@ carries $K\sim\mathrm{Hypergeom}(n,c,m)$ canaries, so
 the operating curve.
 \end{pdclaim}
 
-\paragraph{One flag is evidence, not a verdict.}
+\paragraph{One flag does not decide the test.}
 For the accumulated log-likelihood $L_n$ defined above, take null flag
 probability $p_0=0.001$ and leak flag probability $p_1=0.01$. A flagged output adds
 $\ln10\approx2.303$ to $L_n$; a non-flag adds
@@ -1282,7 +1350,8 @@ Jung, Paxson, Berger and Balakrishnan used this machinery for portscan
 detection in 2004 \pdcite{jpbb04}. Their threshold random walk distinguishes
 benign from scanning hosts; their analysis explicitly separates approximate
 sample counts from attained errors. The canary gate borrows that statistical
-question, not a guarantee that real gate outputs fit its model.
+question; whether real gate outputs fit its model must be checked
+separately.
 
 % Reserve enough height for both the short derivation and its marginal portrait.
 \Needspace{14\baselineskip}
@@ -1297,6 +1366,8 @@ including any boundary overshoot. It is the approximation above, not the
 identity, that replaces that value by the boundary.
 
 \paragraph{Reported checks.}
+A4 is the detection script \texttt{a4\_canary\_sprt.py} of
+Table~\ref{tab:sealed-four-links}.
 The chapter's recorded A4 example uses $n=10^4$ records with $c=100$ canaries (density
 one percent), against a channel through which each smuggled canary evades the
 detector with probability $\beta=0.2$: a 100-span leak is
@@ -1317,11 +1388,11 @@ runs terminated [internal, \texttt{a4\_canary\_sprt.py}].
 
 \input{figures/fig-sealed-operating-curve}
 
-\paragraph{What it buys.}
+\paragraph{What it shows.}
 Once the model is validated and the errors calibrated, a contract could
-quote detection power and stopping latency under stated conditions. The exfiltration bond of
-\pdchapref{bonded}{The Bonded Commons} is scoped to funding
-detection and response, rather than pretending to cover unbounded breach
+quote detection power and stopping latency under stated conditions. The
+exfiltration bond of \pdchapref{bonded}{The Bonded Commons} is scoped to
+funding detection and response, and does not claim to cover unbounded breach
 damage.
 
 % Keep this short caveat whole; a deferred operating-curve float must not
@@ -1341,9 +1412,8 @@ deployment.
 The nominal-target stopping-time formulas are approximations,
 not certified latency or error bounds.
 
-And
-the sequential test detects \emph{statistical} leak signatures; a single-shot
-exfiltration is Theorem~\ref{thm:sealed-power}'s job.
+The sequential test detects \emph{statistical} leak signatures; a
+single-shot exfiltration is covered by Theorem~\ref{thm:sealed-power}.
 \end{pdboundary}
 
 \input{additions/sealed-canary-audit}
@@ -1353,7 +1423,7 @@ exfiltration is Theorem~\ref{thm:sealed-power}'s job.
 \begin{pdexample}{Twelve Thousand Eight Hundred Bits, and the Only Two Dials}
 \setlength{\parskip}{4pt plus 1pt}
 A work order grants Erin a $64$-bit status schema per job, over $200$ jobs.
-Multiply, and that's the account:
+Multiplying gives the account:
 \[
 200\times 64=12{,}800\text{ bits}
 \]
@@ -1361,33 +1431,34 @@ of adversarial capacity, before timing.
 
 Two things about that arithmetic are worth a second
 look, and neither needs a model. First, the account is a \emph{product}, so
-the contract writer has exactly two dials and they trade off against each
-other --- the same $12{,}800$ bits fall out of a narrower schema over a longer
-engagement --- and for an engagement with $q>0$, the only setting that drives this capacity bound to zero is $b=0$,
+the contract writer has exactly two dials, and they trade off against each
+other: a narrower schema over a longer engagement gives the same $12{,}800$
+bits. For an engagement with $q>0$, the only setting that drives this capacity bound to zero is $b=0$,
 which closes the feedback channel that was Erin's reason for signing in the
 first place. (That is what Section~\ref{sec:sealed-limitations} means when it
-says ``zero'' is available only at $b=0$; it is a price, not an impossibility.)
+says ``zero'' is available only at $b=0$. Zero is possible, but only by giving
+up the channel.)
 
-Second, and this is the uncomfortable half,
+Second, and less comfortably,
 Property~\ref{thm:sealed-noninterference} does not narrow those $12{,}800$ bits
-by a single one: it describes a different interface, whose gate computes on committed input.
-It cannot be transferred to an arbitrary worker-selected payload interface. The room
-sells a bounded account. It does not sell an innocent one.
+by a single one. It describes a different interface, whose gate computes on committed input.
+It cannot be transferred to an arbitrary worker-selected payload interface. The
+room offers a bounded account of what may leak, and no promise that the
+worker chose those bits innocently.
 
 \emph{Now you try:}
-the same work order lets each job return at one of three scheduled times ---
-what does that add to the total? (Exercise~\ref{ex:sealed-budget}.)
+the same work order lets each job return at one of three scheduled times.
+What does that add to the total? (Exercise~\ref{ex:sealed-budget}.)
 \end{pdexample}
 
-The four links compose into one information-theoretic account, and the account
-is deliberately unromantic. It is also where the chapter pays three debts it
-took on earlier: the laundering residual left open by
+The four links combine into one information-theoretic account. It settles
+three questions the chapter left open: the laundering residual left open by
 Property~\ref{thm:sealed-noninterference}'s committed-input hypothesis, the
 malicious worker for whom $\sigma\le\varepsilon_{\max}$ does not certify differential privacy,
-and the arbitrary-telemetry channel disclaimed in
-Section~\ref{sec:sealed-limitations}. All three are the same debt seen from
-three sides, and it has one price, drawn converging in
-Figure~\ref{fig:sealed-residuals-converge}.
+and the arbitrary-telemetry channel set aside in
+Section~\ref{sec:sealed-limitations}. All three are the same gap seen from
+three sides, and one bound covers it, as
+Figure~\ref{fig:sealed-residuals-converge} shows.
 
 \input{figures/fig-sealed-residuals-converge}
 % The following capacity/timing explanation must follow its exhibit, rather
@@ -1399,7 +1470,8 @@ freely chosen bits per job, a malicious worker, one that launders by computing
 $t=f(s)$ and submitting $t$ so that the gate honestly releases $g(t)$, can use that freedom to encode secret bits. The alphabet has at most $2^b$
 values, giving a $b$-bit upper bound per fixed-length output. This is a bound
 on permitted distinguishability, not a claim that every workload leaks that
-much, and it is not the committed-input noninterference theorem. Across $q$ jobs the raw capacity is $q\cdot b$ bits; choosing among
+much, and it is a different result from the committed-input noninterference
+property. Across $q$ jobs the raw capacity is $q\cdot b$ bits; choosing among
 $s$ timing slots adds up to $\log_2 s$ bits per event, which is why timing sits
 outside the possibilistic model. The $\log_2 s$ expression is a finite-alphabet
 upper bound: across at most $q$ events, at most $s^q$ slot sequences are
@@ -1407,7 +1479,7 @@ distinguishable. Predictive mitigation \pdcite{azm10} provides a framework for
 controlling timing observations; the slot count here is not a proof for an
 arbitrary scheduler.
 
-The observation model matters. Infinite timing precision can admit unbounded
+The observation model matters. Infinite timing precision can carry unbounded
 information in an idealized duration, but practical capacity also depends on
 clock resolution, noise, observation windows, and bandwidth. A bucketed-release
 design must account for aborts, missed slots, termination, and the number of
@@ -1427,7 +1499,7 @@ Figure~\ref{fig:sealed-leakage-ledger} asks which observations the contract
 has counted. Apply it to the optional checkout diagnosis: a 64-bit status to
 Erin, a richer result to Derek, and a receipt visible to both are different
 channels with different audiences. A 64-bit limit on the first channel does
-not price the others. Their alphabets, timing and failure outcomes must also
+not bound the others. Their alphabets, timing and failure outcomes must also
 be declared before anyone quotes a total bound.
 
 \input{figures/fig-sealed-leakage-ledger}
@@ -1438,22 +1510,21 @@ be declared before anyone quotes a total bound.
 None of the following is promised, and a contract that implies any of them
 overclaims.
 
-Table~\ref{tab:sealed-not-promised} lists six of them: for each, what
-mechanism is responsible for the gap, and where -- if anywhere -- the residual
-is priced.
+Table~\ref{tab:sealed-not-promised} lists six of them, with the mechanism
+responsible for each gap and where, if anywhere, the residual is bounded.
 
 \begin{table}[H]\centering\footnotesize
 \caption{Six things this design does not promise, why not, and where the
-residual is priced. A contract that implies any of these overclaims.}
+residual is bounded. A contract that implies any of these overclaims.}
 \label{tab:sealed-not-promised}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.5cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.3cm}@{}}
 \toprule
-Not promised & Why not & Residual priced by \\
+Not promised & Why not & Residual bounded by \\
 \midrule
 Zero model leakage under unlimited adaptive queries to Derek & Derek \emph{intentionally observes} evaluations of $M$; unlimited black-box access enables model extraction & out of model: bounded only by the contracted query-and-output interface \\
 Zero data leakage with arbitrary natural-language telemetry to Erin & that channel is exactly the $q\cdot b$ budget; ``zero'' needs $b=0$ & the $q\cdot b$ budget (Sec.~\ref{sec:sealed-budget}) \\
 Elimination of timing, cache, speculative, firmware, or physical channels & the noninterference guarantee is possibilistic & out of model; padded and scheduled, not closed \\
-Confidentiality through an unapproved external model or tool provider & a remote API that reads plaintext is another trusted reader & not priced: the model must run inside the confidential domain, or the guarantee does not apply \\
+Confidentiality through an unapproved external model or tool provider & a remote API that reads plaintext is another trusted reader & not bounded: the model must run inside the confidential domain, or the guarantee does not apply \\
 Correctness of the answer & the receipt proves what the measured system reported, not that it is true & out of model \\
 Literal deletion of information already observed, availability under refusal, or collusion resistance & each needs a strictly stronger threat model & not supplied by the room; additional mechanisms require their own threat models \\
 \bottomrule
@@ -1462,9 +1533,8 @@ Literal deletion of information already observed, availability under refusal, or
 
 % Keep this limitations table before the following extension/proof discussion.
 \FloatBarrier
-One more limit sits outside even that table: bounds on minds. A human who
-reads a released aggregate may still remember it; the system bounds
-channels, not memories.
+One more limit lies outside the table. A human who reads a released
+aggregate may still remember it; the system bounds channels, not memories.
 
 \paragraph{The lift.}
 Property~\ref{thm:sealed-noninterference} is exhaustive on a finite model; the
@@ -1474,11 +1544,14 @@ a transition system to three local \emph{unwinding conditions}, output
 consistency, step consistency, and local respect, each a per-transition lemma
 amenable to mechanization, and the Isabelle Archive of Formal Proofs already
 carries stateful intransitive-noninterference developments in exactly this
-lineage. The finite model is the blueprint: its local-respect check already
-holds mechanically, its declassification steps are the intransitive
-downgrader domain of Rushby's framework, and the lift consists of restating the
+lineage. A policy is \emph{intransitive} when information may pass from one
+domain to another only through a trusted \emph{downgrader}, a domain allowed
+to pass on what it received. The finite model shows the shape of that proof. Its local-respect check already
+holds mechanically, its declassification steps play the role of Rushby's
+downgrader, and the lift consists of restating the
 transition relation abstractly and discharging the three lemmas once, for all
-depths and all secrets. One precision the lift must get right from the start:
+depths and all secrets. Intransitive purge and TA-security are two formal
+definitions of noninterference with such a downgrader. One precision the lift must get right from the start:
 Rushby's soundness result for these conditions is with respect to intransitive
 purge, but van der Meyden shows the conditions are sound \emph{and complete}
 for the strictly stronger TA-security property, which additionally preserves
@@ -1487,10 +1560,11 @@ three lemmas therefore certifies TA-security, and the lift should state that
 target explicitly. Two extensions of the finite model are open alongside the
 lift: a \texttt{submit} that carries a payload, so the mutation suite can
 exhibit laundering, and a partial-observation variant of the enforceability
-check for policies that reference unmediated state. The status of every claim
-in this chapter is: the two exhaustive checks are bounded model evidence; the canary simulation values are chapter-reported, without an
-archival run receipt or calibrated error bounds supplied here. The room is a proposed confinement design whose complete-mediation
-obligation must be validated for each deployment.
+check for policies that reference unmediated state. The two exhaustive checks
+of this chapter are bounded model evidence. The canary simulation values are
+reported by the chapter, without an archival run receipt or calibrated error
+bounds supplied here. The room is a proposed confinement design whose
+complete-mediation obligation must be validated for each deployment.
 
 \pdexercisepointer*{\ref{ex:sealed-pairs}}{\ref{ex:sealed-budget}}{\pageref{ex:sealed-pairs}}
 \begin{pdrecitation}
@@ -1517,13 +1591,12 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{Enforcement is relative to a plant and observations}: this gate can refuse egress, and an observed read can tell it when to do so. Internal events declared uncontrollable cannot be disabled at that boundary; their detection needs separate evidence.
 \item \textbf{The privacy budget is a ledger that conserves}: every release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance.
 \item \textbf{Canaries have conditional power}: a leak carrying $k$ canaries escapes all their independent detections with probability $\beta^{k}$ ($0.008$ at $\beta=0.2$, $k=3$). The sequential model estimates outputs until either decision, not a guaranteed alarm deadline.
-\item The whole channel is priced before timing: \textbf{$q \cdot b$ bits} may leave through $q$ queries of $b$ bits each, and the room's guarantee is that budget, not silence.
-\item \textbf{A shared store needs labels, not a budget}: retrieval releases records exactly, so it has no finite $\varepsilon$; training can release through a ledger keyed by person, and scrubbing removes no owner's label.
+\item The whole channel is bounded before timing: \textbf{$q \cdot b$ bits} may leave through $q$ queries of $b$ bits each, and the room's guarantee is that budget, not silence.
+\item \textbf{A shared store needs labels, not a budget}: retrieval releases records exactly, so it has no finite $\varepsilon$; training can release through a ledger keyed by data subject, and scrubbing removes no owner's label.
 \end{enumerate}
 
 \section{Exercises}
 \label{sec:sealed-exercises}
-\input{additions/sealed-exercises-tenants}
 
 \pdexercisesfor{\S\ref{sec:sealed-noninterference}}{Silence except through the slot}
 
@@ -1640,14 +1713,14 @@ $\sum_\Lambda$, and show where the recorded sum exceeds the maximum.
 \begin{pdsolution}{ex:sealed-torn}
 Under the torn write each release logs $\varepsilon$ but adds $\varepsilon-1$.
 Client 0 releases 2: log 2, $\sigma=1$, $\sum_\Lambda=2$. Client 0 releases 2
-again: the guard sees $\sigma+2=3\le4$ and admits it; log 2, $\sigma=2$,
+again: the guard sees $\sigma+2=3\le4$ and allows it; log 2, $\sigma=2$,
 $\sum_\Lambda=4$. Client 1 releases 1: the guard sees $\sigma+1=3\le4$ and
-admits it; log 1, $\sigma=2$, $\sum_\Lambda=5>4$. The script prints exactly
+allows it; log 1, $\sigma=2$, $\sum_\Lambda=5>4$. The script prints exactly
 this trace:
 \begin{quote}\footnotesize\texttt{c0.release(2) [TORN: log 2, sigma +1] ->}\\
 \texttt{c0.release(2) [TORN: log 2, sigma +1] -> c1.release(1) [TORN: log 1, sigma +0]}
 \end{quote}
-The balance never breaks the bound, so the guard keeps admitting, and the
+The balance never breaks the bound, so the guard keeps allowing releases, and the
 auditable log overspends.
 \end{pdsolution}
 
@@ -1685,6 +1758,8 @@ $0.1\sqrt{2k\ln 10^{6}}+0.010517k$; at $k=34$ it is $3.42$ against basic
 $3.40$, and at $k=35$ it is $3.48$ against $3.50$, so the crossover is $k=35$
 [verified].
 \end{pdsolution}
+
+\input{additions/sealed-exercises-person-ledger}
 
 \pdexercisesfor{\S\ref{sec:sealed-detection}}{Canaries with a power curve and a clock}
 
@@ -1738,9 +1813,11 @@ compromise or a detector not dependent on that list. Conditional on an
 uncompromised list, power remains $1-\beta^k$. What no redesign
 restores is power against an adversary who holds \emph{this} job's list: with
 the canaries stripped the leak carries none and Theorem~\ref{thm:sealed-power}
-gives $1-\beta^0=0$, which is why detection is priced as a bounded bond and not
-sold as a guarantee.
+gives $1-\beta^0=0$, which is why detection is backed by a bounded bond and is
+not offered as a guarantee.
 \end{pdsolution}
+
+\input{additions/sealed-exercises-canary-audit}
 
 % Keep this compact question together; its timing qualifier is part of the task.
 \Needspace{7\baselineskip}
@@ -1758,12 +1835,14 @@ $13{,}117$ bits in total; the timing term is why scheduled release with one
 slot is the design default.
 \end{pdsolution}
 
+\input{additions/sealed-exercises-tenants}
+
 \section{History and references}
 \label{sec:sealed-history}
 
-Almost nothing in this chapter is new machinery; what is new is which pieces
-were bolted to which, and the honest accounting of what the bolted-together
-thing does not promise. It is worth saying where each piece came from.
+Almost nothing in this chapter is new machinery. What is new is how the
+pieces are combined, and the accounting of what the combination does not
+promise. This section says where each piece came from.
 
 \paragraph{The two-owner systems setting.}
 Ryoan~\pdcite{ryoan16} uses protected sandbox instances to confine
@@ -1794,7 +1873,7 @@ accounting for a persistent agent. Neither closes every side channel.}
  & Ryoan & The sealed room \\
 \midrule
 Workload shape & a request-oriented module, input seen once, no persistent state & a looping, tool-calling agent with state across steps \\
-How leakage is bounded & confinement in the enclave plus fixed-size outputs & explicit gated releases, priced by an $\varepsilon$-ledger and a $q\cdot b$ bit budget \\
+How leakage is bounded & confinement in the enclave plus fixed-size outputs & explicit gated releases, metered by an $\varepsilon$-ledger and a $q\cdot b$ bit budget \\
 Taint granularity & the whole module & the slot: every release is a declassification event \\
 Model access & the module's code is sealed; no query interface & the model runs inside the domain and is observed only through the contracted query and output interface \\
 Multi-job accounting & none; each request stands alone & the ledger sums spend across jobs and refuses the overdraw \\
@@ -1813,9 +1892,9 @@ property of a security \emph{model} rather than of any particular mechanism
 made it usable: replace the quantification over all runs with local
 \emph{unwinding} conditions you can discharge one transition at a time
 \pdcite{goguen-meseguer-84}. Rushby's 1992 report is the version this chapter
-actually leans on, because it separates transitive from intransitive policies
---- which is precisely what allows a room to have a declassifier and still have
-a theorem --- and because it fixes the three unwinding conditions, output
+relies on, because it separates transitive from intransitive policies, which
+is what allows a room to have a declassifier and still have a theorem, and
+because it fixes the three unwinding conditions, output
 consistency, step consistency and local respect, that
 Section~\ref{sec:sealed-limitations} names as the lift's proof obligation
 \pdcite{rushby}. Van der Meyden later showed those conditions are not merely
@@ -1831,17 +1910,18 @@ not obscure that it is the same move.
 
 \paragraph{Declassification, and why the room needs the word.}
 Conservative label propagation and the difficulty of tracking implicit flows
-are classical concerns, illustrated by the Dennings' certification work \pdcite{denning77}, with the modern restatement --- a
-sound purely dynamic monitor must be strictly more restrictive than a static
-analysis --- due to Russo and Sabelfeld \pdcite{rs10}. The escape hatch itself
+are classical concerns, illustrated by the Dennings' certification work
+\pdcite{denning77}. The modern restatement, that a sound purely dynamic
+monitor must be strictly more restrictive than a static analysis, is due to
+Russo and Sabelfeld \pdcite{rs10}. The escape hatch itself
 is Sabelfeld and Myers's delimited release \pdcite{sm03}, and so, importantly,
 is the laundering attack this chapter cannot rule out: they named it and closed
 it by enforcement, requiring that no variable used in a declassification be
 updated before it, which a compiler can check because the declassified
 expression is syntax. For its unrestricted worker-payload interface this chapter does not establish
-that premise, so it supplies a separate capacity account
---- that substitution, enforcement traded for a capacity account, is the
-chapter's own move and its own liability. The vocabulary for saying which
+that premise, so it supplies a separate capacity account. Trading
+enforcement for a capacity account is the chapter's own choice and its own
+liability. The vocabulary for saying which
 dimension of release a mechanism actually controls is Sabelfeld and Sands's
 \pdcite{ss09}; by their taxonomy the release ledger answers \emph{what},
 \emph{who} and \emph{where}, and leaves \emph{when} open. Owner-indexed labels
@@ -1851,26 +1931,26 @@ model \pdcite{myers-liskov}.
 
 \paragraph{The monitor, and the boundary it can hold.}
 The in-guest monitor and Derek's outer gateway are a reference monitor in
-Anderson's 1972 sense --- always invoked, tamper-resistant, small enough to be
-examined \pdcite{anderson1972} --- enforcing the sort of owner-indexed access
+Anderson's 1972 sense: always invoked, tamper-resistant, and small enough to be
+examined \pdcite{anderson1972}. They enforce the sort of owner-indexed access
 structure Lampson's \emph{Protection} gave operating systems two years later
-\pdcite{lampson1974}. What this chapter adds to that inheritance is not a
-better monitor but a sharper statement of where a monitor can be placed at all:
-the controllability result is proved in \pdchapref{swk}{The Single-Writer
-Kernel} and merely applied here, and the caveat that partial observation
+\pdcite{lampson1974}. This chapter's addition is a sharper statement of where
+a monitor can be placed at all. The controllability result is proved in
+\pdchapref{swk}{The Single-Writer Kernel} and only applied here, and the
+caveat that partial observation
 shrinks the enforceable set is Lin and Wonham's \pdcite{lin-wonham}. Ryoan's request-oriented confinement of untrusted processing modules
 \pdcite{ryoan16} supplies a concrete systems precedent. The proposed room's
 persistent state and release interface require their own argument. Its
 dual-attested key release follows the attester/verifier/relying-party pattern
 standardized by the IETF \pdcite{rats}.
 
-\paragraph{Pricing what does cross.}
+\paragraph{Metering what does cross.}
 Treating leakage as a quantity rather than a predicate is quantitative
 information flow, and the min-entropy formulation the chapter borrows its
-vocabulary from is Smith's \pdcite{smith-qif}; the bridge between that currency
+vocabulary from is Smith's \pdcite{smith-qif}. A bridge between that measure
 and differential privacy's exists, due to Alvim and colleagues
-\pdcite{aacp11}, and this chapter does not cross it, which is why it carries
-two accounts rather than one. On the privacy side, advanced composition is
+\pdcite{aacp11}; this chapter does not use it, which is why it carries two
+accounts rather than one. On the privacy side, advanced composition is
 Dwork, Rothblum and Vadhan's \pdcite{drv}; the observation that a running
 budget needs a different theorem when privacy parameters and the stopping point
 are chosen adaptively, and the odometer/filter pair that supplies it, is Rogers,
@@ -1891,9 +1971,9 @@ Four things. Design invariant~\ref{hyp:sealed-taint} chooses conservative whole-
 labels for arbitrary model output. It makes no universal impossibility claim
 about finer analyses. The four-link composition read as an \emph{evidence schedule} rather than
 as four redundant guarantees is the chapter's framing. The $q\cdot b$ account
-as the explicit price of the laundering residual --- the thing the
-noninterference theorem leaves open and delimited release would have closed by
-enforcement --- is an application of the standard finite-alphabet capacity bound. Its practical
+as an explicit bound on the laundering residual, which the noninterference
+property leaves open and delimited release would have closed by enforcement,
+is an application of the standard finite-alphabet capacity bound. Its practical
 role is to make the unrestricted output interface measurable, alongside any
 stronger claims a restricted release function can justify. And the ``clean room'' of the
 framing is borrowed from industrial and legal practice for its connotation
