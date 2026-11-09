@@ -3,23 +3,26 @@
 % conservation section, immediately before the canaries section.
 % ---------------------------------------------------------------------------
 \subsection{The ledger keyed by person}\label{sec:sealed-person-ledger}
+\pdstatus{\Designed}{specified here; the reference system's A3 ledger keeps one balance}
 
-\noindent The ledger above keeps one balance. A harbor that trains on many
-people's logs needs one balance per person, because the guarantee a person
-cares about is their own. Two logs are \textbf{person-level neighbors} when
-one removes every record of a single person, and each record carries an
-\textbf{owner label}, the set of persons whose data it carries
-(Section~\ref{sec:sealed-tenants}). Keep the chapter's state and add an
-index. Let $U$ be the set of persons, and fix an
-order $\alpha>1$ of \textbf{R\'enyi differential privacy} (RDP): a mechanism
+\noindent The ledger above keeps one balance. A harbor (the book's name for
+the governed environment in which agents work) that trains on many people's
+logs needs one balance per person, because the guarantee a person cares about
+is their own. A \pdterm{person-keyed ledger} keeps one meter per person and
+charges each meter only for the training rounds that used that person's
+records. Such a harbor usually serves several customer organizations, each a
+\pdterm{tenant} with its own agents, data and users. Two logs are
+\pdterm{person-level neighbors} when one is the other with every record of a
+single person removed. Each record carries an owner label, here the set of
+persons whose data it carries (Section~\ref{sec:sealed-tenants} gives the
+full rule). The state is the chapter's, with one index added. Let $U$ be the
+set of persons, and fix an order $\alpha>1$ of \pdterm[Renyi differential
+privacy]{R\'enyi differential privacy} (RDP): a mechanism
 is $(\alpha,\rho)$-RDP if the R\'enyi divergence of order $\alpha$ between its
 output distributions on any two neighbors, in either direction, is at most
 $\rho$ \pdcite{feldman2020renyi}. Each training round $t$ declares a
 per-person cost $\rho_t\ge0$, chosen from public information and previous
 outputs.
-
-\noindent The person-keyed ledger is \Designed{}: it is specified here and not
-implemented in the reference system's A3 ledger, which keeps one balance.
 
 \begin{pdclaim}{Theorem}{Person-Keyed Conservation}
 \setlength{\parskip}{4pt plus 1pt}
@@ -31,7 +34,7 @@ records. The round computes the participating set
 \[
 P_t=\{u\in O_t:\sigma(u)+\rho_t\le B\},
 \]
-admits only records whose owner labels lie inside $P_t$, and \emph{atomically}
+uses only records whose owner labels lie inside $P_t$, and \emph{atomically}
 appends $(t,P_t,\rho_t,\text{artifact hash},\text{policy hash})$ to $\Lambda$
 and sets $\sigma(u)\mathrel{+}=\rho_t$ for every $u\in P_t$.
 
@@ -45,7 +48,7 @@ including under concurrent invocation, by the same single-writer
 serialization as Theorem~\ref{thm:sealed-conservation}.
 
 \textbf{Conditional privacy corollary.} Fix the person-level neighboring
-relation. Suppose every admitted round is
+relation. Suppose every round is
 $(\alpha,\rho_t)$-RDP for each person in $P_t$, conditional on the prior
 transcript, with mechanisms and costs selected from public information and
 previous outputs. Suppose also that the complete observer-visible interaction
@@ -53,13 +56,41 @@ is covered, including metadata, refusals and timing. The individual privacy
 filter of Feldman and Zrnic \pdcite{feldman2020renyi} then gives every person
 $(\alpha,B)$-RDP for the whole sequence of released artifacts, hence
 $\bigl(B+\ln(1/\delta)/(\alpha-1),\,\delta\bigr)$-privacy for every
-$\delta\in(0,1)$. The accounting proof below establishes neither premise.
+$\delta\in(0,1)$.
 \end{pdclaim}
+\pdscope{The accounting proof below establishes neither premise of the
+corollary.}
+
+\begin{pdexample}{Four Meters, Three Rounds}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. Take the budget $B=0.25$. Alice, Bob and Wren
+have logs from the start. Round~1 costs $\rho_1=0.15$; all three can afford
+it, so $P_1=\{\text{Alice},\text{Bob},\text{Wren}\}$ and each of their
+meters reads $0.15$. Pike's first logs then arrive, and his meter starts
+at~$0$.
+
+Round~2 costs $0.10$, and everyone can afford it. Alice, Bob and Wren reach
+$0.15+0.10=0.25$, exactly $B$, and Pike reaches $0.10$.
+
+Round~3 costs $0.10$. Alice, Bob and Wren would reach $0.35>0.25$, so they are
+out and $P_3=\{\text{Pike}\}$. A support thread labelled
+$\{\text{Alice},\text{Pike}\}$ is now excluded, because Alice is out, even
+though Pike is in; a record labelled $\{\text{Pike}\}$ is used. Pike ends
+at $0.20$.
+
+The journal holds three entries: round~1 for Alice, Bob and Wren at $0.15$;
+round~2 for all four at $0.10$; round~3 for Pike alone at $0.10$. Each meter
+equals the sum of the entries that name that person: Alice
+$0.15+0.10=0.25$, Pike $0.10+0.10=0.20$.
+
+Now suppose Bob appears unresolved as two identities in two tenants. He then
+has two meters, each capped at $0.25$, and can be charged $0.50$ in total.
+\end{pdexample}
 
 \paragraph{Proof.}
 Induction over the sequential interleaving, one coordinate per person. Base:
 $\sigma\equiv0$ and $\Lambda=()$, so every sum is empty and every bound holds.
-Step: an admitted round appends one entry with set $P_t$ and cost $\rho_t$.
+Step: a round appends one entry with set $P_t$ and cost $\rho_t$.
 For $u\in P_t$ both sides of the equality grow by $\rho_t$, and the guard
 $\sigma(u)+\rho_t\le B$ preserves the bound. For $u\notin P_t$ neither side
 changes. Non-spending transitions touch neither component. Concurrency reduces
@@ -84,14 +115,14 @@ Section~\ref{sec:sealed-conservation} warns: ``Fully adaptive advanced
 accounting would require a separately justified filter, such as Whitehouse et
 al.'s \pdcite{wrrw23}, which matches advanced-composition rates and leading constants under
 its stopping rule. That approximate-DP filter is not implemented by A3's
-sum-only ledger.'' The warning stands for a ledger kept in $\varepsilon$. In
-R\'enyi currency the sum-only rule is itself a valid filter under full
-adaptivity: if adaptively chosen costs satisfy $\sum_t\rho_t\le B$ almost
+sum-only ledger.'' The warning stands for a ledger kept in $\varepsilon$.
+Measured in R\'enyi terms, the sum-only rule is itself a valid filter under
+full adaptivity: if adaptively chosen costs satisfy $\sum_t\rho_t\le B$ almost
 surely, the composition is $(\alpha,B)$-RDP \pdcite{feldman2020renyi}.
 Feldman and Zrnic report that the $(\varepsilon,\delta)$ filter this implies
 is as tight as advanced composition obtained through concentrated
-differential privacy. A3's ledger needs a change of currency, not a change of
-shape.
+differential privacy. A3's ledger keeps its structure and needs only to
+count in $\rho$ instead of $\varepsilon$.
 
 \paragraph{Whose key.}
 The guarantee holds for the key the ledger indexes. A person who appears
@@ -101,7 +132,7 @@ Table~\ref{tab:sealed-tenant-policy} keeps third parties out of training.
 
 \begin{pdexample}{A Lifetime Budget of One Quarter}
 \setlength{\parskip}{4pt plus 1pt}
-Zero-concentrated privacy with parameter $\rho$ means $(\alpha,\alpha\rho)$-RDP
+\pdterm{Zero-concentrated privacy} with parameter $\rho$ means $(\alpha,\alpha\rho)$-RDP
 for every $\alpha>1$, and for it the filter's rule is $\sum_t\rho_t\le\rho_{\max}$,
 whatever the order \pdcite{feldman2020renyi}. Give each person
 $\rho_{\max}=0.25$ and train in rounds of $\rho_t=0.025$: a person joins
@@ -128,8 +159,8 @@ Gboard's production language models, trained with private federated learning,
 report $\rho$ between $0.2$ and $2$ at the device level, and with tighter
 privacy-loss-distribution accounting quote $\varepsilon\approx4.49$ at
 $\delta=10^{-10}$ for $\rho=0.25$ \pdcite{xu2023gboard}. The difference
-$5.05-4.49=0.56$ is the price of the simple conversion, not a different
-guarantee.
+$5.05-4.49=0.56$ comes from the simpler conversion; the guarantee itself is
+the same.
 
 \emph{Now you try:} rounds of $0.04$ against the same budget, at
 $\delta=10^{-6}$ (Exercise~\ref{ex:sealed-person-budget}).
