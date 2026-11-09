@@ -23,6 +23,8 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import { dirname, extname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { loadGlossary, renderGlossary } from './generate-book-glossary.mjs';
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const textbookPath = resolve(repoRoot, 'book/textbook.json');
 const defaultOutDir = '.cache/whitepaper-build/coordination-papers-mega-volume';
@@ -1496,6 +1498,13 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
   writeFileSync(resolve(out, 'mega-volume-map.tex'), renderTextbookMap(textbook), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-solutions.tex'), renderSolutions(chaptersWithExercises), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-mechanized.tex'), renderMechanizedClaims(loadCorpus()), 'utf8');
+  // The glossary appendix, from book/glossary/*.json (one file per chapter).
+  // A malformed glossary fails generation here, not twenty minutes into TeX.
+  const glossary = loadGlossary();
+  if (glossary.errors.length) {
+    throw new Error(`book/glossary is malformed:\n${glossary.errors.map((line) => `  ${line}`).join('\n')}`);
+  }
+  writeFileSync(resolve(out, 'mega-volume-glossary.tex'), renderGlossary(glossary.entries), 'utf8');
   writeFileSync(
     resolve(out, 'mega-volume-generation.json'),
     `${JSON.stringify({
@@ -1504,6 +1513,7 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
       sources: textbook.chapters.map((paper) => paper.source),
       edition: textbook.edition,
       chaptersWithExercises: chaptersWithExercises.map((chapter) => chapter.prefix),
+      glossaryEntries: glossary.entries.length,
       order: textbook.chapters.map(({ number, id, prefix, title, part, role, discharges, formerNumeral }) => ({
         number, id, prefix, title, part, role, ...(discharges ? { discharges } : {}), formerNumeral,
         strippedApparatus: preparedById.get(id).stripped,
@@ -1512,7 +1522,7 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
     'utf8',
   );
 
-  console.log(`generated ${textbook.chapters.length} chapters in ${textbook.parts.length} parts, ${canonicalReferences.length} collated references, and ${chaptersWithExercises.length} chapter(s) with exercises in ${out}`);
+  console.log(`generated ${textbook.chapters.length} chapters in ${textbook.parts.length} parts, ${canonicalReferences.length} collated references, ${chaptersWithExercises.length} chapter(s) with exercises and ${glossary.entries.length} glossary entries in ${out}`);
 }
 
 function main(argv) {
