@@ -17,7 +17,7 @@ Channel & \textbf{What crosses / direction} & \textbf{What it does not do} \\
 \midrule
 witness & signed epoch roots $R_A{}^{(e)},R_B{}^{(e)}$ plus equivocation evidence; both ways & authorize work: correlation is not authorization \\
 capability & $B$-bound attenuated card $C^{\prime}$ from $C_A$, with $C^{\prime}\subseteq C_A$; A to B & widen scope or lifetime at any hop \\
-revocation & anti-entropy delta of revoked ids; B to A & promise a finite deadline under partition \\
+revocation & anti-entropy delta of revoked ids; A to B (and back, as reconciliation) & promise a finite deadline under partition \\
 settlement & bond at A against damage measured at B; both ways & bound custody unconditionally: the bound needs the settlement gate \\
 \bottomrule
 \end{tabularx}
