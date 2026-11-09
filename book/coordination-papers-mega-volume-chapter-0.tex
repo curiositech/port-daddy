@@ -159,8 +159,8 @@ until it expires or is handed on.
 \begin{definition}[Autonomous Agent]\label{def:agent}
 An \textbf{agent} chooses a proposed action $a_t\in\mathcal A$ after an
 observation history $h_t\in\mathcal H$. Its policy
-$\pi_\theta(a_t\mid h_t)$ specifies the probability of that choice;
-$\theta$ denotes its parameters or rules. A deterministic policy assigns
+$\pi_\psi(a_t\mid h_t)$ specifies the probability of that choice;
+$\psi$ denotes its parameters or rules. A deterministic policy assigns
 probability one to its chosen action. The surrounding \pdterm{harness} runs the
 policy, invokes tools and returns observations.
 \end{definition}
@@ -273,7 +273,7 @@ Such an agent cannot recompute its best course of action from scratch at every m
 \pdmarginanalogy{prereq-flywheel-governor}{}{ch01-flywheel-governor}{Like a centrifugal flywheel governor throttling steam to stabilize rotational speed, practical rationality stabilizes an agent's intentions against transient sensor noise.}%
 Four functions organize this account of intention:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
-  \item \textbf{Drive Means-End Reasoning:} An intention to achieve goal $\phi$ commits the agent to work out sub-plans and spend computation on $\phi$ until it is satisfied.
+  \item \textbf{Drive Means-End Reasoning:} An intention to achieve goal $\phi$ commits the agent to work out sub-plans and devote computation to $\phi$ until it is satisfied.
   \item \textbf{Filter on New Options:} Once an intention $\phi$ is adopted, options inconsistent with $\phi$ (given current beliefs $\mathcal{B}$) are ruled out without weighing their costs and benefits.
   \item \textbf{Stability and Commitment:} Intentions resist reconsideration unless something relevant changes in the environment or in the agent's beliefs, so the agent is not paralyzed by spending all its time reconsidering.
   \item \textbf{Coordination:} Other agents can plan around an agent's declared commitments, to the extent that those commitments are reliable or enforced.
@@ -291,10 +291,10 @@ possible. This is an idealized model of reasoning; it does not claim that an
 interpreter stores every world or that a language model performs deduction.
 
 For a small example let $W=\{w_7,w_8\}$, where the subscript is the repository
-revision, and let $B_a\subseteq W$ be agent $a$'s nonempty set of possibilities.
-Write $\operatorname{Bel}_a\phi$ when proposition $\phi$ holds in every world
-in $B_a$. If $B_a=W$, the agent does not believe the revision is~7. It also does
-not believe it is~8. If a trusted read narrows $B_a$ to $\{w_7\}$, it believes
+revision, and let $\mathcal B_i\subseteq W$ be agent $i$'s nonempty set of possibilities.
+Write $\operatorname{Bel}_i\phi$ when proposition $\phi$ holds in every world
+in $\mathcal B_i$. If $\mathcal B_i=W$, the agent does not believe the revision is~7. It also does
+not believe it is~8. If a trusted read narrows $\mathcal B_i$ to $\{w_7\}$, it believes
 revision~7 in this model. An out-of-date read can make that belief false of the current
 repository. This distinction between a modeled belief and an authoritative
 observation returns in Chapters~3 and~4.
@@ -386,19 +386,19 @@ The choice follows from the supplied costs and settles no legal or ethical
 priority; the chosen violation still needs an explanation and a record.
 \end{pdexample}
 
-In institutional multi-agent systems, norms bind agents from outside; deontic logic, the logic of obligation and permission, studies them. For this example, represent a norm by the six-tuple $N = \langle \mathrm{id}, \mathrm{Type}, \phi_{\text{act}}, \phi_{\text{tgt}}, d, \mathrm{Sanction} \rangle$, where $\mathrm{Type} \in \{\mathcal{O}, \mathcal{F}, \mathcal{P}\}$ (Obligation, Prohibition, Permission), $\phi_{\text{act}}$ is the activation context, $\phi_{\text{tgt}}$ is the target state, $d$ is the deadline, and $\mathrm{Sanction}$ is the penalty for violation.
+In institutional multi-agent systems, norms bind agents from outside; deontic logic, the logic of obligation and permission, studies them. For this example, represent a norm by the six-tuple $\nu = \langle \mathrm{id}, \mathrm{Type}, \phi_{\text{act}}, \phi_{\text{tgt}}, t_{\text{due}}, \mathrm{Sanction} \rangle$, where $\mathrm{Type} \in \{\mathsf{O}, \mathsf{F}, \mathsf{P}\}$ (Obligation, Prohibition, Permission), $\phi_{\text{act}}$ is the activation context, $\phi_{\text{tgt}}$ is the target state, $t_{\text{due}}$ is the deadline, and $\mathrm{Sanction}$ is the penalty for violation.
 
 An implementation may store general norms in an \pdterm{Abstract Norm Base}
 ($ANB$) and instantiate them in a \pdterm{Norm Instance Base} ($NIB$).
 For a finite decision example, let $\mathcal N$ be the active norm set and let
-$\emptyset\ne\Omega\subseteq 2^{\mathcal N}$ be a finite family of subsets that
+$\emptyset\ne\mathcal C\subseteq 2^{\mathcal N}$ be a finite family of subsets that
 are feasible under the stated action constraints and conflict-free under the
-stated norm-conflict relation. Give each norm a stipulated finite nonnegative
-sanction cost $c(n)$ for omission. One possible \pdterm{worst-case sanction-cost}
+stated norm-conflict relation. Give each norm $\nu$ a stipulated finite nonnegative
+sanction cost $S(\nu)$ for omission. One possible \pdterm{worst-case sanction-cost}
 rule is
 \begin{equation}
-S^*\in\arg\min_{S\in\Omega}
-\max\bigl(\{c(n):n\in\mathcal N\setminus S\}\cup\{0\}\bigr).
+M^*\in\arg\min_{M\in\mathcal C}
+\max\bigl(\{S(\nu):\nu\in\mathcal N\setminus M\}\cup\{0\}\bigr).
 \end{equation}
 Here $\mathcal N$ is finite; including $0$ makes the maximum zero when no norm
 is omitted. The rule minimizes the largest sanction left unmet. It keeps no
@@ -435,7 +435,7 @@ messages, sends messages, creates actors and chooses its next behavior.
 In the actor model, asynchronous delivery separates the sender's progress from the receiver's
 processing~\pdcite{hewitt1973actor,agha1986actors}. In Hoare's synchronous
 Communicating Sequential Processes (CSP),
-a send $c!v$ and a corresponding receive $c?x$ form one communication event:
+a send $\mathit{ch}!\mathit{val}$ and a corresponding receive $\mathit{ch}?\mathit{var}$ form one communication event:
 the first participant to arrive waits for its partner. Guarded alternatives
 permit a process to choose among available communications~\pdcite{hoare1978csp}.
 Buffered variants and concrete implementations need their own queue contracts.
@@ -568,7 +568,7 @@ channels, must account for both observations. Chapter 3 develops this problem fo
 \end{pdexample}
 
 Let $w_0,w_1$ denote these two states. Write $w R_i w'$ when agent $i$ cannot
-distinguish the states using its allowed observations. The assertion $K_i\phi$
+distinguish the states using its allowed observations. The assertion $\mathsf{K}_i\phi$
 means that proposition $\phi$ holds in every state accessible from the current
 one by $R_i$. Before the exit-code observation, both states are accessible;
 after it, only the matching state remains. Unlike the belief example with
@@ -597,7 +597,7 @@ Suppose Derek owns confidential checkout records that the diagnosis needs. He ma
 Observation models help separate three engineering obligations:
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Recorded effects:} Whoever oversees the agents needs authentic receipts for the events it claims to observe. Recording a tool-call request is not a complete observation of every effect of its subprocess.
-  \item \textbf{Indistinguishability:} To model secrecy of a proposition $\phi$ at a world, require accessible alternatives with $\phi$ true and false, yielding $\neg K_i\phi\land\neg K_i\neg\phi$. Hidden files alone do not prove this if another observation reveals the same fact.
+  \item \textbf{Indistinguishability:} To model secrecy of a proposition $\phi$ at a world, require accessible alternatives with $\phi$ true and false, yielding $\neg \mathsf{K}_i\phi\land\neg \mathsf{K}_i\neg\phi$. Hidden files alone do not prove this if another observation reveals the same fact.
   \item \textbf{Confinement:} A \pdterm{sandbox}, an isolated environment that limits what a process can reach, controls the host channels it names. Proving \pdterm{noninterference}, that secret inputs make no difference to what an observer sees, requires relating those channels to the observation model. BBL's camera geometry explains the idea and proves nothing about operating-system confidentiality.
 \end{itemize}
 
@@ -612,7 +612,7 @@ More generally, normalize honest utility to zero, let an undetected deviation
 gain $G\ge0$, and let detection remove that gain and impose $S\ge0$ with
 probability $p>0$. For a risk-neutral agent,
 \begin{equation}
-\Delta U=(1-p)G-pS\le0
+U_{\mathrm{dev}}=(1-p)G-pS\le0
 \quad\Longleftrightarrow\quad
 S\ge\frac{(1-p)G}{p}.
 \end{equation}
@@ -635,16 +635,16 @@ accepting. The payoffs are stipulated for illustration.
 When agents have independent objective functions, coordination cannot assume altruism. Shoham and Leyton-Brown~\pdcite{shoham2009multiagent} systematized the algorithmic and game-theoretic foundations of multi-agent systems:
 
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
-  \item \textbf{Normal-Form Games and Nash Equilibrium:}\enspace Let $N=\{1,\ldots,n\}$ index players, $A_i$ be player $i$'s action set, $S_i$ its mixed strategies (probability distributions over actions), and $u_i$ its expected payoff. Write $s_{-i}$ for the other players' strategies. A strategy profile $s^* = (s_1^*, \dots, s_n^*)$ is a Nash equilibrium if no agent can unilaterally deviate and increase its expected payoff:
+  \item \textbf{Normal-Form Games and Nash Equilibrium:}\enspace Let $N=\{1,\ldots,n\}$ index players, $\mathcal A_i$ be player $i$'s action set, $\Delta(\mathcal A_i)$ its mixed strategies (probability distributions over actions), and $u_i$ its expected payoff. Write $\sigma_{-i}$ for the other players' strategies. A strategy profile $\sigma^* = (\sigma_1^*, \dots, \sigma_n^*)$ is a Nash equilibrium if no agent can unilaterally deviate and increase its expected payoff:
   \begin{equation}
-  \forall i \in N, \quad \forall s_i \in S_i, \quad u_i(s_i^*, s_{-i}^*) \;\ge\; u_i(s_i, s_{-i}^*)
+  \forall i \in N, \quad \forall \sigma_i \in \Delta(\mathcal A_i), \quad u_i(\sigma_i^*, \sigma_{-i}^*) \;\ge\; u_i(\sigma_i, \sigma_{-i}^*)
   \end{equation}
 
-  \item \textbf{Mechanism Design and the Revelation Principle:}\enspace A mechanism specifies allocations and transfers. The revelation principle says that an outcome implementable in dominant strategies, or in Bayes--Nash equilibrium, has a direct mechanism with truthful reporting in the corresponding equilibrium sense. It does not say that every desired outcome is implementable. Here $\theta_i$ is a private type, $\hat\theta_i$ a report, $k$ the allocation rule, $v_i$ the value of an allocation to type $\theta_i$, and $p_i$ the payment charged to $i$. Quasi-linear utility is value minus payment. Dominant-strategy truthfulness requires, for every $i$, $\theta_i$, $\hat\theta_i$ and $\hat\theta_{-i}$,
+  \item \textbf{Mechanism Design and the Revelation Principle:}\enspace A mechanism specifies allocations and transfers. The revelation principle says that an outcome implementable in dominant strategies, or in Bayes--Nash equilibrium, has a direct mechanism with truthful reporting in the corresponding equilibrium sense. It does not say that every desired outcome is implementable. Here $\theta_i$ is a private type, $\hat\theta_i$ a report, $k$ the allocation rule, $v_i$ the value of an allocation to type $\theta_i$, and $\mathrm{pay}_i$ the payment charged to $i$. Quasi-linear utility is value minus payment. Dominant-strategy truthfulness requires, for every $i$, $\theta_i$, $\hat\theta_i$ and $\hat\theta_{-i}$,
   \begin{align}
-  v_i(k(\theta_i,\hat\theta_{-i});\theta_i)-p_i(\theta_i,\hat\theta_{-i})
+  v_i(k(\theta_i,\hat\theta_{-i});\theta_i)-\mathrm{pay}_i(\theta_i,\hat\theta_{-i})
   &\ge v_i(k(\hat\theta_i,\hat\theta_{-i});\theta_i)\nonumber\\
-  &\quad-p_i(\hat\theta_i,\hat\theta_{-i}).
+  &\quad-\mathrm{pay}_i(\hat\theta_i,\hat\theta_{-i}).
   \end{align}
   Bayesian incentive compatibility instead compares the corresponding expected utilities over other types under the stated prior.
 
@@ -656,7 +656,7 @@ Assume quasi-linear private values, a report-independent feasible set $\mathcal 
 $\hat\theta_j$, and let $k^*(\hat\theta)$ maximize the sum of reported values.
 With a fixed tie rule, the Clarke pivot payment is~\pdcite{vickrey1961counterspeculation,clarke1971multipart,groves1973incentives}
   \begin{equation}
-  p_i(\hat\theta)=\max_{k\in\mathcal K}\sum_{j\ne i}\hat v_j(k)
+  \mathrm{pay}_i(\hat\theta)=\max_{k\in\mathcal K}\sum_{j\ne i}\hat v_j(k)
   -\sum_{j\ne i}\hat v_j(k^*(\hat\theta)).
   \end{equation}
   Truthful reporting is \emph{weakly} dominant: the agent's utility is total reported welfare with its own value reported truthfully, minus a term independent of its report. A truthful report selects a welfare maximizer; another report cannot improve it. Equality is possible. In a second-price auction, value 10 and highest rival bid 5 give utility 5 when bidding either 9 or 10.
@@ -711,22 +711,22 @@ profile shows that majority ranking need not be transitive. Arrow's theorem
 its conditions.
 \end{pdexample}
 
-Let $A$ be a finite set of alternatives and $N = \{1, \dots, n\}$ be the set of voting agents. Each agent $i$ has a strict preference ordering $\succ_i \in \mathcal{L}(A)$. A \pdterm[social welfare function]{Social Welfare Function} (SWF) is a mapping:
+Let $\mathcal X$ be a finite set of alternatives and $N = \{1, \dots, n\}$ be the set of voting agents. Each agent $i$ has a strict preference ordering $\succ_i \in \mathcal{L}(\mathcal X)$. A \pdterm[social welfare function]{Social Welfare Function} (SWF) is a mapping:
 \begin{equation}
-F: \mathcal{L}(A)^n \;\to\; \mathcal{L}(A)
+F: \mathcal{L}(\mathcal X)^n \;\to\; \mathcal{L}(\mathcal X)
 \end{equation}
 that maps a profile of individual rankings $(\succ_1, \dots, \succ_n)$ into a collective ranking $\succ$.
 
 In 1951, Kenneth Arrow proved that a social welfare function on an unrestricted domain cannot satisfy the following criteria together with non-dictatorship~\pdcite{arrow1951social}:
 
 \begin{theorem}[Arrow's Impossibility Theorem (1951)]\label{thm:arrow}
-If $|A| \ge 3$, any Social Welfare Function $F: \mathcal{L}(A)^n \to \mathcal{L}(A)$ that satisfies:
+If $|\mathcal X| \ge 3$, any Social Welfare Function $F: \mathcal{L}(\mathcal X)^n \to \mathcal{L}(\mathcal X)$ that satisfies:
 \begin{enumerate}[leftmargin=1.5em,itemsep=1.5pt]
   \item \textbf{Unrestricted Domain (U):} $F$ is defined for all logically possible preference profiles.
   \item \textbf{Weak Pareto (P):} If $\forall i \in N, x \succ_i y$, then $x \succ y$.
   \item \textbf{Independence of Irrelevant Alternatives (IIA):} For any two alternatives $x, y$, the collective ranking between $x$ and $y$ depends solely on individual preferences between $x$ and $y$.
 \end{enumerate}
-is necessarily a \textbf{Dictatorship (D)}: $\exists i \in N$ such that $\forall x, y \in A, \; x \succ_i y \implies x \succ y$.
+is necessarily a \textbf{Dictatorship (D)}: $\exists i \in N$ such that $\forall x, y \in \mathcal X, \; x \succ_i y \implies x \succ y$.
 \end{theorem}
 
 \begin{figure}[tp]
@@ -783,11 +783,11 @@ Q = X W_Q, \quad K = X W_K, \quad V = X W_V
 \end{equation}
 Softmax is applied separately to each score row. A causal mask excludes future positions in autoregressive use. Multiple heads each apply their own weight matrices and combine their outputs; the following expression describes one head:
 \begin{equation}\label{eq:attention-formula}
-\mathrm{Attention}(Q, K, V) \;=\; \mathrm{softmax}\left( \frac{Q K^T}{\sqrt{d_k}} \right) V
+\mathrm{Attention}(Q, K, V) \;=\; \mathrm{softmax}\left( \frac{Q K^\top}{\sqrt{d_k}} \right) V
 \end{equation}
 
 \subsubsection{The Quadratic Cost of Attention}
-The matrix product $Q K^T$ forms an $L \times L$ attention matrix representing the pairwise affinity between every token in the sequence. For dense attention that materializes the score matrix, the asymptotic costs are:
+The matrix product $Q K^\top$ forms an $L \times L$ attention matrix representing the pairwise affinity between every token in the sequence. For dense attention that materializes the score matrix, the asymptotic costs are:
 \begin{equation}
 \mathrm{Compute} \;=\; O(L^2 \cdot d), \qquad \mathrm{Memory} \;=\; O(L^2 + L \cdot d)
 \end{equation}
@@ -795,7 +795,7 @@ While FlashAttention~\pdcite{dao2022flashattention} uses GPU SRAM tiling to avoi
 
 \subsubsection{The Key-Value (KV) Cache and Memory Bandwidth Bottlenecks}
 Consider a dense causal decoder generating one token at a time,
-$x_t\sim P_\theta(x_t\mid x_{<t})$. Recomputing dense attention over every
+$x_t\sim P_\psi(x_t\mid x_{<t})$. Recomputing dense attention over every
 entire prefix of lengths $1,\ldots,L$ costs $\sum_{t=1}^L O(t^2)=O(L^3)$
 attention work for fixed model dimensions. Recomputing the keys and values
 alone would instead have quadratic aggregate cost. A \pdterm{KV cache}
@@ -821,12 +821,12 @@ A fleet of 8 concurrent agent workers requires $\approx 335.5\text{ GB}$ of high
 \subsubsection{Compute-Bound Prefill vs. Memory-Bound Decoding}
 GPU execution depends on \pdterm{arithmetic intensity}, the ratio of floating-point operations (FLOPs) to bytes moved to and from memory:
 \begin{equation}
-I \;=\; \frac{\text{FLOPs}}{\text{Bytes Transferred}}
+\mathrm{Intensity} \;=\; \frac{\text{FLOPs}}{\text{Bytes Transferred}}
 \end{equation}
 Prefill and decoding often have different bottlenecks:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Prefill:} Processing many prompt tokens uses matrix multiplications and can achieve high arithmetic intensity. Whether it is compute-bound depends on batch size, sequence length, hardware and the attention implementation.
-  \item \textbf{Decoding:} Single-sequence dense decoding often spends substantial bandwidth reading weights and the KV cache. A dense 70-billion-parameter model stored at two bytes per parameter has 140~GB of weights before sharding or compression. Batching, quantization, sparse architectures and speculative decoding change the balance.
+  \item \textbf{Decoding:} Single-sequence dense decoding often uses much of the memory bandwidth to read weights and the KV cache. A dense 70-billion-parameter model stored at two bytes per parameter has 140~GB of weights before sharding or compression. Batching, quantization, sparse architectures and speculative decoding change the balance.
 \end{enumerate}
 Long contexts therefore have a measurable memory and compute cost. The cache formula provides a capacity estimate for the stated configuration; latency and throughput require measurements of the actual inference system.
 
@@ -853,14 +853,14 @@ Preference training can improve observed behavior, but its objective does not pr
 For finite logits $z$ (the model's raw score for each candidate token) and
 temperature $T>0$, softmax assigns
 \begin{equation}
-P(w_i\mid x_{<t})=\frac{\exp(z_i/T)}{\sum_j\exp(z_j/T)}.
+P(y_i\mid x_{<t})=\frac{\exp(z_i/T)}{\sum_j\exp(z_j/T)}.
 \end{equation}
-Greedy decoding at $T=0$ is a separate argmax rule with a specified tie policy. For nucleus sampling, order tokens so $P(w_1)\ge\cdots\ge P(w_m)$, fix a tie order, and let $0<p\le1$. Following \href{https://arxiv.org/abs/1904.09751}{Holtzman et al.'s nucleus rule}, retain the shortest prefix reaching probability $p$ and renormalize:
+Greedy decoding at $T=0$ is a separate argmax rule with a specified tie policy. For nucleus sampling, order tokens so $P(y_1)\ge\cdots\ge P(y_m)$, fix a tie order, and let $0<\rho\le1$. Following \href{https://arxiv.org/abs/1904.09751}{Holtzman et al.'s nucleus rule}, retain the shortest prefix reaching probability $\rho$ and renormalize:
 \begin{equation}
-k_p=\min\left\{k:\sum_{j=1}^{k}P(w_j)\ge p\right\},\qquad
-V^{(p)}=\{w_1,\ldots,w_{k_p}\}.
+k_\rho=\min\left\{k:\sum_{j=1}^{k}P(y_j)\ge \rho\right\},\qquad
+\mathcal V^{(\rho)}=\{y_1,\ldots,y_{k_\rho}\}.
 \end{equation}
-With probabilities $(0.95,0.05)$ and $p=0.9$, the nucleus is $\{w_1\}$. Truncation, action masks and tool validation can exclude unsafe actions even when token generation is stochastic.
+With probabilities $(0.95,0.05)$ and $\rho=0.9$, the nucleus is $\{y_1\}$. Truncation, action masks and tool validation can exclude unsafe actions even when token generation is stochastic.
 
 \begin{pdexample}{Two steps of conditional risk}
 Suppose a run survives its first step with probability 0.9 and, conditional on
@@ -871,13 +871,13 @@ bounds on each conditional survival probability.
 \end{pdexample}
 
 \begin{theorem}[Survival under conditional failure hazards]\label{thm:non-determinism}
-Let $S_t$ mean that execution has remained safe through step $t$, with $S_0$ certain. Assume that after every reachable safe history before step $t$, the probability that the \emph{admitted effect} violates the invariant is at least $\epsilon_t\in[0,1]$. Then
+Let $\mathrm{Safe}_t$ mean that execution has remained safe through step $t$, with $\mathrm{Safe}_0$ certain. Assume that after every reachable safe history before step $t$, the probability that the \emph{admitted effect} violates the invariant is at least $\epsilon_t\in[0,1]$. Then
 \begin{equation}
-\Pr(S_N)\le\prod_{t=1}^{N}(1-\epsilon_t).
+\Pr(\mathrm{Safe}_H)\le\prod_{t=1}^{H}(1-\epsilon_t).
 \end{equation}
-If one constant $\epsilon>0$ lower-bounds every $\epsilon_t$, then $\Pr(S_N)\le(1-\epsilon)^N\to0$. No independence assumption is required.
+If one constant $\epsilon>0$ lower-bounds every $\epsilon_t$, then $\Pr(\mathrm{Safe}_H)\le(1-\epsilon)^H\to0$. No independence assumption is required.
 \end{theorem}
-\noindent\textit{Proof idea.} Bound survival at the next step conditional on having survived so far. Averaging the history-wise bound gives $\Pr(S_t\mid S_{t-1})\le1-\epsilon_t$. Multiply these conditional probabilities. If any $S_t$ already has probability zero, the conclusion is immediate.\hfill$\square$
+\noindent\textit{Proof idea.} Bound survival at the next step conditional on having survived so far. Averaging the history-wise bound gives $\Pr(\mathrm{Safe}_t\mid \mathrm{Safe}_{t-1})\le1-\epsilon_t$. Multiply these conditional probabilities. If any $\mathrm{Safe}_t$ already has probability zero, the conclusion is immediate.\hfill$\square$
 
 The theorem shows how risk that keeps getting through the admission check accumulates: if every step lets an unsafe effect through with at least a fixed probability, the chance of staying safe shrinks geometrically with the number of steps. The hazard bound must be measured or otherwise justified; a positive sampling temperature does not imply it, and a policy restricted to safe actions has zero hazard. Hazards that shrink fast enough need not force failure: with $\epsilon_t=2^{-t-2}$ the hazards total at most $1/4$, so the union bound leaves survival probability at least $3/4$.
 \pdscope{The theorem does not show that every model must eventually fail, and an unsafe token a model proposes is not an unsafe effect unless the check lets it through.}
@@ -1000,10 +1000,10 @@ appropriate calibrated conditional probabilities; arbitrary confidence scores
 do not acquire that meaning by multiplication.
 
 A \pdterm{process reward model} (PRM) supplies scores for intermediate steps.
-For input $x$, let $\tau=(c_1,\ldots,c_T)$ be a candidate chain and let each
+For input $x$, let $\tau=(\tau_1,\ldots,\tau_H)$ be a candidate chain and let each
 prefix-dependent score lie in $[0,1]$. One possible ranking heuristic is:
 \begin{equation}
-\mathrm{Score}(\tau) \;=\; \prod_{t=1}^T \mathrm{PRM}(c_t \mid c_{<t}, x)
+\mathrm{Score}(\tau) \;=\; \prod_{t=1}^H \mathrm{PRM}(\tau_t \mid \tau_{<t}, x)
 \end{equation}
 A search policy may backtrack when this score falls below a chosen threshold. Whether that policy finds better repairs is an empirical question about the scorer, candidates and task. The accepted patch still needs the checkout job's specified verification.
 
@@ -1029,7 +1029,7 @@ The \href{https://modelcontextprotocol.io/specification/2025-11-25/server/tools}
   \item \textbf{Prompts:} Reusable prompt templates parameterizing multi-step workflows.
 \end{enumerate}
 
-\subsection{Context Economics and Progressive Skill Disclosure}
+\subsection{Context Use and Progressive Skill Disclosure}
 
 In a coding harness a skill is a packaged set of instructions and scripts. \pdterm[progressive disclosure]{Progressive disclosure} keeps only an index of skills in the context window and loads a skill's detailed instructions when it is needed. Its benefit depends on how often each skill is actually loaded:
 \begin{enumerate}[leftmargin=1.8em,itemsep=3pt]
@@ -1037,7 +1037,7 @@ In a coding harness a skill is a packaged set of instructions and scripts. \pdte
   \item \textbf{Instructions:} A selected skill supplies operational guidance, parameters and recovery rules. Its context cost is the number of instruction tokens actually loaded.
   \item \textbf{References and execution:} The harness reads relevant reference excerpts or runs a script without loading all its source into the model. Tool arguments, outputs and errors still consume context. Executing a script is not a zero-token interaction.
 \end{enumerate}
-If the index costs $b_0$ tokens and asset $i$ costs $b_i$ when loaded with probability $p_i$, one loading round has expected cost $b_0+\sum_i p_i b_i$. This follows by linearity of expectation without requiring independence. It gives no exponential saving unless a measured access distribution justifies one.
+If the index costs $\ell_0$ tokens and asset $i$ costs $\ell_i$ when loaded with probability $\alpha_i$, one loading round has expected cost $\ell_0+\sum_i \alpha_i \ell_i$. This follows by linearity of expectation without requiring independence. It gives no exponential saving unless a measured access distribution justifies one.
 
 \begin{figure}[tp]
   \centering
@@ -1063,11 +1063,11 @@ point such as just before a tool call, can act as part of such a supervisor
 only if the model's assumptions about what it controls and observes hold for
 every path by which effects actually happen.
 
-Let unconstrained agent execution be modeled as a discrete-event generator $G = \langle X, \Sigma, \delta, x_0, X_m \rangle$, where $X$ is the state set, $x_0$ the initial state, $\delta$ the partial state-transition function, $X_m$ the marked completion states, and events $\Sigma = \Sigma_c \cup \Sigma_u$ are partitioned into \pdterm[controllable event]{controllable events} $\Sigma_c$, steps that pass a point where the runtime can refuse them before they take effect (tool invocations, file writes, network requests), and \pdterm[uncontrollable event]{uncontrollable events} $\Sigma_u$, steps that complete before any such point (model token generation, host hardware interrupts, external process termination). A trace is a finite event sequence. $L(G)$ contains the possible traces; $\mathcal P(\Sigma)$ denotes event subsets. A supervisor $S:L(G)\to\mathcal P(\Sigma)$ selects enabled events after each trace under full observation, always allowing uncontrollable events. If $K$ contains the safe traces and is prefix-closed (every initial segment of a safe trace is safe), the desired controlled language satisfies:
+Let unconstrained agent execution be modeled as a discrete-event generator $\mathcal G = \langle \mathcal Q, \Sigma, \delta, q_0, \mathcal Q_m \rangle$, where $\mathcal Q$ is the state set, $q_0$ the initial state, $\delta$ the partial state-transition function, $\mathcal Q_m$ the marked completion states, and events $\Sigma = \Sigma_c \cup \Sigma_u$ are partitioned into \pdterm[controllable event]{controllable events} $\Sigma_c$, steps that pass a point where the runtime can refuse them before they take effect (tool invocations, file writes, network requests), and \pdterm[uncontrollable event]{uncontrollable events} $\Sigma_u$, steps that complete before any such point (model token generation, host hardware interrupts, external process termination). A trace is a finite event sequence. $\mathrm{Lang}(\mathcal G)$ contains the possible traces; $\mathcal P(\Sigma)$ denotes event subsets. A supervisor $\Gamma:\mathrm{Lang}(\mathcal G)\to\mathcal P(\Sigma)$ selects enabled events after each trace under full observation, always allowing uncontrollable events. If $E$ contains the safe traces and is prefix-closed (every initial segment of a safe trace is safe), the desired controlled language satisfies:
 \begin{equation}
-L(S / G) \;\subseteq\; K \;\subseteq\; L(G)
+\mathrm{Lang}(\Gamma / \mathcal G) \;\subseteq\; E \;\subseteq\; \mathrm{Lang}(\mathcal G)
 \end{equation}
-The inclusion is a design requirement that a hook does not meet automatically. For full observation, enforcing exactly $K$ requires \pdterm{controllability}, the property that no uncontrollable event possible after a trace in $K$ leads out of $K$: $K\Sigma_u\cap L(G)\subseteq K$.
+The inclusion is a design requirement that a hook does not meet automatically. For full observation, enforcing exactly $E$ requires \pdterm{controllability}, the property that no uncontrollable event possible after a trace in $E$ leads out of $E$: $E\Sigma_u\cap \mathrm{Lang}(\mathcal G)\subseteq E$.
 
 In words, a safety rule can be enforced exactly only if no event the supervisor cannot block can carry a run from an allowed state into a forbidden one. The supervisor can refuse a file write, but not a crash, a model's next token or a process exit, so the set of allowed runs must already include whatever those events can do next. If the supervisor also cannot see some events, a further condition applies, and finishing the job adds the requirement that the supervisor never block every way forward. Not every safe set of runs can be produced exactly; sometimes the only safe choice is to block more than the rule asks, and sometimes there is no safe choice at all.
 
@@ -1139,7 +1139,7 @@ threshold is assumed here.
 \end{description}
 
 
-\section{Multi-Agent Swarm Topologies, Coordination, and Multi-Agent Economics}\label{sec:prereq-swarms}
+\section{Multi-Agent Swarm Topologies and Coordination}\label{sec:prereq-swarms}
 
 Adding workers changes who needs which observations. A \pdterm{role} is a job described without reference to who holds it: what must be delivered, which tools come with it and what the holder may do. Direct messages, shared records and boundaries between roles have different costs; none is universally preferable. The repair case lets us ask which records must be common and which decisions can remain local.
 
@@ -1151,10 +1151,10 @@ Communication cost depends on who publishes, who consumes each update, and what 
 In stigmergic coordination, the shared environment carries the messages:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Marks in shared state:} Agents leave lasting, machine-readable marks in shared records, such as file locks, reservations on functions, activity counters and append-only notes.
-  \item \textbf{Reading the marks later:} When Agent~$A$ claims or edits a function, it writes a record to the kernel's shared store. When Agent~$B$ later inspects the repository, it sees $A$'s record and plans around the contested file.
+  \item \textbf{Reading the marks later:} When one agent claims or edits a function, it writes a record to the kernel's shared store. When a second agent later inspects the repository, it sees the first agent's record and plans around the contested file.
 \end{enumerate}
 
-Four workers each sending an update to the other three produce 12 deliveries. Publishing to a shared record uses four writes, but reading all peers' updates still requires 12 reads. In general, if $N$ agents each send one update to all peers, there are $N(N-1)$ deliveries. Publishing each update once to shared storage uses $N$ writes, but if every agent then reads every update, the reads still number $N(N-1)$. Total traffic is linear only under a bounded-read or suitably aggregated subscription policy. Shared traces decouple execution in time; they do not remove the cost of distributing information.
+Four workers each sending an update to the other three produce 12 deliveries. Publishing to a shared record uses four writes, but reading all peers' updates still requires 12 reads. In general, if $n$ agents each send one update to all peers, there are $n(n-1)$ deliveries. Publishing each update once to shared storage uses $n$ writes, but if every agent then reads every update, the reads still number $n(n-1)$. Total traffic is linear only under a bounded-read or suitably aggregated subscription policy. Shared traces decouple execution in time; they do not remove the cost of distributing information.
 
 \subsection{Conway's Law in Multi-Agent Swarms and Role-Based SOPs}
 
@@ -1170,15 +1170,15 @@ For agent swarms, Conway's observation suggests a design hypothesis rather than 
 
 \subsection{Six Sigma Defect Minimization in Agent Swarms}
 
-Patel et al.~\pdcite{patel2026sixsigma} propose task decomposition, redundant micro-agent sampling, and consensus with dynamic sample counts. Their reliability calculation relies on independence of the sampled errors. For odd $n$, independent votes with common error probability $q<1/2$ yield the binary-majority error
+Patel et al.~\pdcite{patel2026sixsigma} propose task decomposition, redundant micro-agent sampling, and consensus with dynamic sample counts. Their reliability calculation relies on independence of the sampled errors. For odd $n$, independent votes with common error probability $\eta<1/2$ yield the binary-majority error
 \begin{equation}
-P_{\mathrm{maj}}=\sum_{j=(n+1)/2}^{n}{n\choose j}q^j(1-q)^{n-j}.
+P_{\mathrm{maj}}=\sum_{j=(n+1)/2}^{n}{n\choose j}\eta^j(1-\eta)^{n-j}.
 \end{equation}
-For $n=5$ and $q=0.05$, this is $0.001158125$, about $0.116\%$. Perfectly correlated errors instead leave error probability $q$, regardless of $n$. The calculation applies to yes-or-no votes, not to grouping open-ended answers by meaning.
+For $n=5$ and $\eta=0.05$, this is $0.001158125$, about $0.116\%$. Perfectly correlated errors instead leave error probability $\eta$, regardless of $n$. The calculation applies to yes-or-no votes, not to grouping open-ended answers by meaning.
 
-For a sequential pipeline, define $d_k$ as the conditional probability that stage $k$ fails given that all preceding stages passed. Then the chain rule gives
+For a sequential pipeline of $H$ stages, define $r_k$ as the conditional probability that stage $k$ fails given that all preceding stages passed. Then the chain rule gives
 \begin{equation}
-\Pr(\text{all stages pass})=\prod_{k=1}^{K}(1-d_k).
+\Pr(\text{all stages pass})=\prod_{k=1}^{H}(1-r_k).
 \end{equation}
 Multiplying unconditional stage error rates instead would require the stages to fail independently. Where the admission rule can be checked mechanically, a deterministic check is useful, but a test pass shows only the tested condition, and agreement among voters does not make their answer correct.
 

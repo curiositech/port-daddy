@@ -12,7 +12,7 @@
   \node[pd title,text width=4.0cm,align=center] at (3.0,1.65) {Sandbox boundary};
   \node[pd focus state,text width=4.0cm,align=center] (gate) at (3.0,-2.2) {Egress mediator\\Destination, budget and content checks};
   \node[pd protocol state,text width=4.0cm,align=center] (dest) at (3.0,-4.4) {Authorized destination};
-  \node[pd breach state,text width=2.9cm,align=center] (deny) at (8.0,-2.2) {Refused\\No admitted egress};
+  \node[pd breach state,text width=2.9cm,align=center] (deny) at (8.0,-2.2) {Refused\\No traffic leaves};
   \draw[pd arrow] (agent) -- (gate);
   \draw[pd ready arrow] (gate) -- (dest);
   \draw[pd breach arrow] (gate) -- (deny);

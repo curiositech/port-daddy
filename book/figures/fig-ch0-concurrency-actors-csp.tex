@@ -27,8 +27,8 @@
   \draw[pd thin arrow] (\xzero,{-\dy-.95})--(\xe,{-\dy-.95});
   \node[pd label,anchor=north east] at (\xe,{-\dy-1.05}) {time};
   \node[pd title,anchor=west] at (0,{\py+.7}) {Synchronous CSP rendezvous};
-  \node[pd label,anchor=east] at (1.75,\py) {process $P_1$};
-  \node[pd label,anchor=east] at (1.75,{\py-\dy}) {process $P_2$};
+  \node[pd label,anchor=east,text width=1.75cm,align=right] at (1.75,\py) {sender process};
+  \node[pd label,anchor=east,text width=1.75cm,align=right] at (1.75,{\py-\dy}) {receiver process};
   \def\arrSx{4.0}\def\arrRx{5.35}\def\rvx{6.65}
   \foreach \y/\arr in {\py/\arrSx,{\py-\dy}/\arrRx}{
     \draw[pd protocol rule] (\xzero,\y)--(\arr,\y);

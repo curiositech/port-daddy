@@ -215,9 +215,11 @@ An \pdterm{agent} is a program,
 usually built around a language model, that observes its task and proposes
 actions; the workers above are agents. A \pdterm{harbor} is the governed environment the agents work in,
 run by a \pdterm{daemon}, a background service that holds the shared record and
-decides, for each change an agent proposes, whether that change goes ahead.
-That decision is \pdterm{admission}, and to admit a change means only to let it
-pass this check and go ahead. The shared record includes a
+makes the check in the write path described above: for each change an agent
+proposes, it decides whether the change goes ahead. That check is
+\pdterm{admission}, and to admit a change is to let it pass the check and go
+ahead. In this book \emph{admit} and \emph{admission} always carry this sense.
+The shared record includes a
 \pdterm{ledger}, the authoritative account of who holds which resources, who
 owes what and what has been paid. A \pdterm{grant} states what its holder may
 do, to which resources and until when; the daemon signs each grant as a
