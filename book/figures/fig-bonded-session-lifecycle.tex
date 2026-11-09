@@ -1,5 +1,5 @@
 % Reader question: which state variable changes during recovery?
-% Source: sec:tlaplus excerpt, not a complete executable BondedCommons.tla file.
+% Source: sec:tlaplus lifecycle design model, stated in prose; no model checker runs it.
 % Distinguish session status from queue status; Crash changes heartbeat only.
 \begin{figure}[H]
 \centering
@@ -20,7 +20,7 @@
   \node[pd state,minimum width=2.3cm] (abandoned) at (5.25,2.15) {abandoned};
   \draw[pd arrow] (active.south)--(abandoned.north);
   \node[pd tag,anchor=west] at (5.4,3.15) {Reap: timeout};
-  \node[pd artifact,minimum width=2.3cm] (deleted) at (9.25,2.15) {NULL};
+  \node[pd artifact,minimum width=2.3cm] (deleted) at (9.25,2.15) {deleted};
   \draw[pd breach arrow] (abandoned.east)--(deleted.west);
   \node[pd label,anchor=south] at (7.25,2.3) {Dismiss};
   \draw[pd hairline] (0,.95)--(10.6,.95);
@@ -41,10 +41,10 @@
      for an active registered session. Tick advances the timeout clock.};
 \end{tikzpicture}
 \caption{Session and queue states are different carriers in the
-Section~\ref{sec:tlaplus} excerpt. Crash changes no session status;
+lifecycle model of Section~\ref{sec:tlaplus}. Crash changes no session status;
 Salvage changes only the queue. Reap updates both records atomically.
-Dismiss requires a pending queue entry and deletes it and the session.
-Settlement recipients and an eventual-recovery fairness
-condition are not supplied by this excerpt. [internal; specification excerpt]}
+Dismiss requires a pending queue entry, deletes it and the session, and
+deregisters the agent. Settlement recipients and an eventual-recovery fairness
+condition are not supplied by this model. [design model; not model-checked]}
 \label{fig:bonded-session-lifecycle}
 \end{figure}
