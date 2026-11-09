@@ -1142,6 +1142,42 @@ alone. Stating the two accounts in one unit needs the correspondence between
 $\varepsilon$ and min-entropy of Alvim et al.\ \pdcite{aacp11}, which is not
 discharged here.
 
+\paragraph{One ledger, two units.}
+The two accounts can share one ledger, provided neither is ever converted
+into the other. Which account a release belongs to depends on the interface
+that produced it, not on the worker's intent. A release that the gate
+computes itself from committed input, by a declared private mechanism,
+carries a privacy cost in $\varepsilon$. A release whose content the worker
+chooses carries up to $b$ chosen bits, and any cost declared for it
+certifies nothing. The single atomic ledger keeps a balance in each unit.
+
+\begin{pdclaim}{Design invariant}{One Ledger, Two Units}
+\setlength{\parskip}{4pt plus 1pt}
+\label{inv:sealed-two-units}
+\pdstatus{\Designed}{A3 checks only the $\varepsilon$ balance}
+Every journal entry records which interface produced its release. A release
+the gate computes, with a cost $\varepsilon_i$ taken from a fixed public
+menu, is allowed only if $\sigma+\varepsilon_i\le\varepsilon_{\max}$. A
+release of at most $b$ worker-chosen bits on a channel whose count is $q$ is
+allowed only if the journal holds fewer than $q$ worker-chosen entries for
+that channel. Each check and its journal entry form one atomic transition,
+and a refused release changes nothing. No transition turns bits into
+$\varepsilon$ or $\varepsilon$ into bits.
+\end{pdclaim}
+\pdscope{The invariant keeps both counts right. It establishes neither the
+private-mechanism premise behind the $\varepsilon$ balance nor the padding
+hypotheses behind the bit count.}
+
+The induction that proves Theorem~\ref{thm:sealed-conservation}, run once
+for each balance, shows that every reachable state has $\sigma$ equal to the
+sum of the gate-computed costs and at most $\varepsilon_{\max}$, and at most
+$q$ worker-chosen entries on each channel, hence at most $q\cdot b$
+worker-chosen bits there. The conditional privacy corollary then applies to
+the first balance, and Theorem~\ref{thm:sealed-capacity} to the second.
+Figure~\ref{fig:sealed-two-adversaries} draws the two accounts by the
+worker's disposition; the ledger sorts by interface, so an honest worker that
+submits chosen bits is charged in bits all the same.
+
 \begin{pdclaim}{Model-checked property}{The Ledger's Invariants on the Two-Client Instance}
 \label{prop:sealed-ledger-checked}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1782,7 +1818,7 @@ The chapter's main ideas, in the order the rest of the book relies on them:
 \item \textbf{Two fences, two gates}: the work order fixes what may enter, the slot fixes what may leave, and the model in between is treated as an opaque function of both.
 \item \textbf{Noninterference is checked by running the world twice} (self-composition, in the verification literature's word): identical except for the secret, the two runs must agree on everything that leaves through the slot, modulo the declassification the gate performs. The finite clean-room model passes this check to depth seven.
 \item \textbf{Enforcement is relative to a plant and observations}: this gate can refuse egress, and an observed read can tell it when to do so. Internal events declared uncontrollable cannot be disabled at that boundary; their detection needs separate evidence.
-\item \textbf{The privacy budget is a ledger that conserves}: every release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance.
+\item \textbf{The privacy budget is a ledger that conserves}: every gate-computed release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance. Worker-chosen releases are counted in bits against $q\cdot b$ in the same ledger, and the two units are never converted.
 \item \textbf{Canaries have conditional power}: a leak carrying $j$ canaries escapes with probability $\beta^{j}$ if their misses are independent ($0.008$ at $\beta=0.2$, $j=3$), and with probability $\beta$ whatever $j$ if the misses move together, as a deliberate exfiltrator's do. The sequential model estimates outputs until either decision, not a guaranteed alarm deadline.
 \item Erin's payload channel is bounded before timing: \textbf{$q \cdot b$ bits} may leave through $q$ releases of $b$ bits each, and the room's guarantee for that channel is that budget, not silence. The receipt and the other fields Erin can observe are separate channels with their own count.
 \item \textbf{A shared store needs labels, not a budget}: retrieval releases records exactly, so it has no finite $\varepsilon$; training can release through a ledger keyed by data subject, and scrubbing removes no owner's label.
