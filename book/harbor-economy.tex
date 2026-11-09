@@ -2056,11 +2056,12 @@ it~\pdcite{hellerstein2010,ameloot2013,hellerstein2020}. The name stands for
 consistency as logical monotonicity.
 
 \paragraph{Revocation is monotone.} The set of cards a harbor refuses only
-grows. A revocation is never withdrawn, and an entry is dropped from the log
-only after its card has expired, when the card is refused anyway
-(\pdchapref{anchor}{The Anchor Protocol}). Merging two revocation logs is set
-union, which is commutative, associative and idempotent. The log is therefore
-a grow-only set, the simplest \pdterm{conflict-free replicated data type}
+grows. A revocation is never withdrawn; an entry leaves the log only after its
+card has expired, when the card is refused anyway
+(\pdchapref{anchor}{The Anchor Protocol}). Leaving those expired entries
+aside, the log only grows, and merging two logs is set union, which is
+commutative, associative and idempotent. The log is therefore a grow-only set,
+the simplest \pdterm{conflict-free replicated data type}
 (CRDT): copies updated independently and merged in any order reach the same
 state once they hold the same events~\pdcite{shapiro2011crdt}. Every harbor
 that eventually receives every event ends with the same log, in whatever
@@ -3066,7 +3067,7 @@ Build a small model of three harbors whose revocation logs are grow-only sets
   convergence result it proves.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-calm-gset-model}
-Fix harbors $A$, $B$ and $C$ joined in a path $A$--$B$--$C$. Each log is a
+Fix harbors $A$, $B$ and $C$ on a path, with $B$ linked to both others. Each log is a
 finite set of signed events with globally unique IDs, and an exchange replaces
 both logs by their union. If every event issued is eventually carried across
 every link, all three logs end equal to the set of all issued events. What
@@ -3628,7 +3629,7 @@ Transactions on Software Engineering} SE-12(1):96--109, 1986.
 Experiences and Conjectures in Distributed Logic.'' \emph{SIGMOD Record}
 39(1):5--19, 2010.
 
-\bibitem{ameloot2013} T. J. Ameloot, F. Neven \& J. Van den Bussche.
+\bibitem{ameloot2013} T. Ameloot, F. Neven \& J. Van den Bussche.
 ``Relational Transducers for Declarative Networking.'' \emph{Journal of the
 ACM} 60(2):15, 2013.
 
