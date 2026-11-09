@@ -141,7 +141,10 @@
   "tab-fh-witness-log": 600,
   "fig-he-two-bucket-settlement": 1121,
   "fig-legible-halving-tree": 1131,
-  "fig-sealed-release-lattice": 1151
+  "fig-sealed-release-lattice": 1151,
+  "fig-audit-modes": 1221,
+  "fig-audit-person": 1231,
+  "fig-audit-loop": 1241
  },
  "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other.",
  "_new_figure_pages": "Keys 601/611/621/631 are reserved image slots for new 2026-09-27 figures; each pNNN.jpg is rendered from its true Book page (65/186/187/229), while FIGS[].bookPage records that page. Existing keys and saved region notes are unchanged.",
@@ -1620,5 +1623,26 @@
   "fig-swk-taint-automaton",
   "legible-swarm-zoom-advantage"
  ],
- "_snapshot_note": "snapshots maps immutable review image slots to their true PDF page and source SHA. Old images and region-note filenames remain unchanged; slot numbers are not Book pages."
+ "_snapshot_note": "snapshots maps immutable review image slots to their true PDF page and source SHA. Old images and region-note filenames remain unchanged; slot numbers are not Book pages.",
+ "_provisional_pages": {
+  "note": "Provisional pins for figures new in the plain-language rewrite (2026-11-09). Each pNNN.jpg (slot-1, slot, slot+1) is rendered at 120 dpi from that PR's publication build, not from the accepted Book PDF, which does not contain these figures yet. Re-bind them with refresh_figure_desk_pages.py when Erich accepts the next print.",
+  "sourceSha256": "363b47bf538b7b704ee080a0559118f636178fab93907742280112bbb0ebf273",
+  "figures": {
+   "fig-audit-modes": {
+    "slot": 1221,
+    "pdfPage": 141,
+    "folio": "113"
+   },
+   "fig-audit-person": {
+    "slot": 1231,
+    "pdfPage": 466,
+    "folio": "438"
+   },
+   "fig-audit-loop": {
+    "slot": 1241,
+    "pdfPage": 630,
+    "folio": "602"
+   }
+  }
+ }
 }
