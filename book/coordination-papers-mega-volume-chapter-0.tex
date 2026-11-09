@@ -685,9 +685,14 @@ when $v$ exceeds $c$ by at least 25. A repair worth 60 that costs 45 would gain
 15 credits, but Bob names $48.3$ and Alice $55$, and the trade is lost.
 Expected gain falls to $9\cdot100/64\approx14.1$ credits, 84\% of the 16.7
 available, and for these distributions no rule meeting (a), (b) and (d) does
-better. VCG keeps (a) to (c) by charging Bob Alice's cost and paying Alice
-Bob's value, which leaves a deficit of $v-c$ on every trade; someone must
-subsidize it. A market for agent work must choose which property to give up.
+better. For VCG, count a trade as worth $v$ to Bob and $-c$ to Alice, and no
+trade as 0 to both. When $v>c$, the item-3 payment charges Bob
+$\max(-c,0)-(-c)=c$ and Alice $\max(v,0)-v=0$, so Alice is paid nothing, ends
+at $-c$, and (b) fails. The usual variant takes each side's maximum over the
+outcomes possible without it, here no trade alone. Bob still pays
+$0-(-c)=c$; Alice pays $0-v=-v$, so she receives $v$. That keeps (a) to (c),
+but every trade leaves a deficit of $v-c$ that someone must subsidize. A market
+for agent work must choose which property to give up.
 \end{pdexample}
 
 \subsection{Social Choice Theory and Arrow's Impossibility Theorem}

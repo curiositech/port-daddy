@@ -179,7 +179,7 @@
       "role": "proves",
       "discharges": "harbor-economy",
       "formerNumeral": "VII",
-      "oneLine": "Machines run by owners who do not trust each other can pass each other signed records, but not the power to approve actions on each other's systems. The chapter works out which information can spread from machine to machine, which decisions still need one designated approver, and how a permission issued on one machine becomes a new, narrower permission issued by the other.",
+      "oneLine": "Machines run by owners who do not trust each other can pass each other signed records, but not the power to approve actions on each other's systems. The chapter works out which information can spread from machine to machine, which decisions still need one designated approver, and why the receiving machine must issue its own permission for its own resources instead of narrowing the sender's.",
       "question": "What can cross a trust boundary without moving the authority itself?",
       "teaser": "Alice's agent has permission to write at home. That permission does not automatically apply to Bob's database. Follow the proposed transfer, revocation, and settlement protocols to see what each owner must accept and what neither can decide for the other.",
       "epigraph": {
