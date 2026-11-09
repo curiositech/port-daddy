@@ -1,0 +1,5 @@
+[
+  {"term": "absent effect", "sort": "absent effect", "definition": "An effect an agent cannot cause at all, because no device, path or credential for it exists in the agent's environment."},
+  {"term": "gated effect", "sort": "gated effect", "definition": "An effect an agent can cause only along a path that passes through a gate the harbor owns, so the harbor's guarantees apply to it."},
+  {"term": "residual effect", "sort": "residual effect", "definition": "An effect an agent can cause along a path that goes around the harbor's gate; it needs a bound on how much it can carry or an explicit exclusion from the guarantee."}
+]

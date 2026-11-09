@@ -27,10 +27,12 @@
 
 \section{Implementation boundary}\label{app:volume-status}
 
-The book's argument is broader than the running product. This appendix keeps the
-two from borrowing authority from one another. A mechanism receives the grade of
-its weakest necessary part; a verified library does not make every caller safe,
-and an available route does not prove that every effect passes through it.
+The book argues for more than the product does today. This appendix says, for
+each mechanism, which parts run now and which exist only as a design or a
+proof, so that neither is read as the other. A mechanism gets the grade of its
+weakest necessary part. A verified library does not make every program that
+calls it safe, and offering a checked route does not show that every effect
+takes it.
 
 \subsection{Five assurance modes}
 \pdchapref{swk}{The Single-Writer Kernel} defines the five assurance modes
@@ -40,81 +42,128 @@ repeats them for reference.
 % trim -- more than half the 4.5in measure) to a run-in head: bold term, same
 % line as its text, small hanging indent in em.
 \begin{description}[leftmargin=1.4em,itemsep=3pt]
-  \item[Observed] The act may occur elsewhere; the system retains best-effort
-  evidence after the fact.
+  \item[Observed] The act may happen outside the system; the system keeps
+  best-effort evidence after the fact.
   \item[Coordinated] Cooperative clients register claims, roles, commitments,
   and messages before acting.
-  \item[Brokered] A selected credential or effect channel passes through a
-  daemon-owned broker.
-  \item[Confined] The process is restricted by operating-system primitives and
-  cannot reach the protected effect through an ambient path.
-  \item[Attested] A measured environment conditions key release or acceptance
-  on a verifiable runtime identity.
+  \item[Brokered] A chosen credential or effect channel passes through a broker
+  that the daemon owns.
+  \item[Confined] Operating-system controls leave the process no path to the
+  protected effect other than the paths it was given.
+  \item[Attested] A measured environment releases a key, or accepts a request,
+  only for a runtime whose identity it can verify.
 \end{description}
 
-These modes are not a maturity staircase, and the rungs are not evenly spaced or
-even totally ordered --- Brokered and Confined defeat different adversaries
-rather than the same adversary harder. What each rung names is what an adversary
-would have to defeat for a claim about that mechanism to be false: nothing at
-Observed, a client's willingness to declare at Coordinated, a daemon-owned
-broker at Brokered, the operating system at Confined, a measured environment and
-a conditional key release at Attested.
+The modes are not stages of maturity. They are not evenly spaced, and they do
+not even form one order, because Brokered and Confined stop different
+attackers. Each mode names what an attacker would have to defeat to make a
+claim about the mechanism false. At Observed that is nothing; at Coordinated,
+a client's willingness to register first; at Brokered, a broker the daemon
+owns; at Confined, the operating system; at Attested, a measured environment
+and a key released only to it.
 
-These categories answer a runtime question: what carries this particular
-claim? Automation levels instead describe the allocation of work between
-person and machine, while evaluation assurance describes the scrutiny a
-security claim receives. Chapter~1 develops that comparison. A system can
-have more automation without a stronger admission boundary, or more evaluation
-without a different allocation of decisions.
+\begin{pdexample}{One Write, Five Modes}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. Heron, the agent repairing the checkout test,
+wants to write to the staging database without going through the daemon. It
+has found the database password in an environment variable. Run that one
+attempt through each mode and ask whether the claim ``every write to staging
+was checked'' survives.
+
+\emph{Observed.} The write succeeds. The operator sees it later, in the
+database's own log.
+
+\emph{Coordinated.} The write succeeds. Heron never registers it, and nothing
+in a protocol for cooperative clients makes it register.
+
+\emph{Brokered.} The write succeeds. The broker holds the daemon's credential,
+but the leaked password is a second credential that never passes through the
+broker.
+
+\emph{Confined.} The write fails. The operating system gives Heron's process no
+network path to the database except the one through the broker, so the
+password has nowhere to go.
+
+\emph{Attested.} The write fails. The database accepts writes only from an
+environment whose measurement it has verified, and Heron's process does not
+run in one.
+
+The claim survives in the last two modes, for different reasons. Revoking the
+leaked password would have made the Brokered claim hold. It would change
+nothing at Confined, which never depended on Heron lacking a password.
+\end{pdexample}
+
+The modes describe one claim at run time by what it rests on. Automation
+levels describe how work is divided between a person and a machine, and
+evaluation assurance levels describe how closely a security claim was
+examined. Chapter~1 compares the three. A system can be more automated without
+a stronger guard on its effects, and more thoroughly evaluated without
+dividing its decisions differently.
 
 \subsection{What exists now}
 
-\paragraph{Local transaction authority --- \BuiltWeak.}
-The daemon runs a single-writer SQLite/WAL path for sessions, claims, messaging,
-commitments, and selected coordination state. Regression tests exercise those
-paths. Durability remains typed by failure class, schema sequencing is not the
-strongest design described in \pdchapref{swk}{The Single-Writer Kernel}, and filesystem or network effects
-outside mediated paths remain outside the transaction.
+\paragraph{Local transactions.}
+\pdstatus{\BuiltWeak}{}
+The daemon writes sessions, claims, messages, commitments and some other
+coordination state through one SQLite writer in write-ahead-log mode, and
+regression tests exercise those paths. Durability guarantees still depend on
+the kind of failure; a process crash and a power loss are covered differently.
+Schema
+changes do not yet follow the strongest design in \pdchapref{swk}{The
+Single-Writer Kernel}, and file or network effects that bypass the daemon's
+checked paths are outside the transaction.
 
-\paragraph{Legible projections --- \BuiltWeak.}
-The product derives operator projections from event and coordination records and
-retains routes back to underlying artifacts. No implementation can eliminate the
-information floor proved in \pdchapref{ls}{The Legible Swarm}; coverage, omission, and review latency
-must still be measured for each surface.
+\paragraph{Operator views.}
+\pdstatus{\BuiltWeak}{}
+The product builds the operator's summary views from the event and
+coordination records, and each item links back to the records it came from.
+No view can beat the minimum-information limit proved in \pdchapref{ls}{The
+Legible Swarm}, so each view's coverage, what it leaves out, and how long a
+reviewer takes to see an event still have to be measured.
 
-\paragraph{Durable work and obligation records --- \BuiltWeak.}
-Commitments, deadlines, messages, outcomes, and recovery evidence persist beyond
-one process. A universally portable execution capsule and provider-independent
-semantic restoration remain \Designed{}.
+\paragraph{Durable work records.}
+\pdstatus{\BuiltWeak}{}
+Commitments, deadlines, messages, outcomes and recovery evidence survive the
+end of a process. Two parts are designed, not built: a package that lets a job
+resume unchanged on any machine, and a way to restore a job's working state
+that does not depend on one model provider.
 
-\paragraph{Authentication and attenuation --- \Closed{} for the protocol model, \Partial{} for the code.}
-ProVerif closes the recorded proof-of-possession and every-hop attenuation
-queries at the model boundary. The Kani harnesses over the deployed Rust crate
-are bounded: no panic in the parser on 32-byte inputs with the cryptography
-stubbed, no panic in the comparator, and two concrete vectors for the subset
-check. Runtime callers still owe conformance: the verified primitive must be the
-primitive that every protected effect actually checks.
+\paragraph{Authentication and attenuation.}
+\pdstatus{\BuiltWeak}{protocol model proved; code checked on bounded inputs}
+ProVerif, an automatic protocol verifier, proves the recorded
+proof-of-possession and every-hop attenuation queries for the protocol model.
+The Kani checks of the deployed Rust crate are bounded: the parser does not
+panic on 32-byte inputs with the cryptography stubbed out, the comparator does
+not panic, and two concrete vectors pass the subset check. The code that calls
+the primitive must still be shown to conform, which means showing that every
+protected effect is actually checked by the verified primitive.
 
-\paragraph{Sealed execution --- \Designed.}
-The sealed room of \pdchapref{sealed}{The Sealed Harbor} is a design with
-model-checked properties. Noninterference modulo declassification and the
-release ledger's invariants are exhaustive on their finite models;
-$\varepsilon$-conservation, canary power, and Wald latency are theorems over
-the stated models. No shipping harbor yet runs a work order inside two fences
-with a metered slot: the attestation, the gate, and the ledger remain
-\Designed{}, and the \emph{Confined} mode they would supply is not yet
-available to any caller.
+\paragraph{Sealed execution.}
+\pdstatus{\Designed}{properties model-checked}
+The sealed room of \pdchapref{sealed}{The Sealed Harbor} is a design whose
+properties have been model-checked. Noninterference modulo declassification
+and the invariants of the release ledger are checked exhaustively on finite
+models; $\varepsilon$-conservation, canary power and Wald latency are theorems
+over the stated models. No harbor, meaning a daemon and its database governing
+a group of agents, yet runs a work order inside the two fences (a monitor
+inside the guest and a gateway outside it) with one metered release slot. The
+attestation, the gate and the ledger are designed, not built, so the
+\emph{Confined} mode they would supply is not yet available to any caller.
 
-\paragraph{Escrow and settlement --- mixed.}
-Ledger and conservation slices are \BuiltWeak{}. Cross-authority custody,
-adjudication, and 2-of-3 settlement remain \Designed{} and conditional on a
-non-bypassable custody interface.
+\paragraph{Escrow and settlement.}
+\pdstatus{\BuiltWeak}{custody and settlement designed only}
+The ledger and its conservation checks are partly built. Custody across
+authorities, adjudication and 2-of-3 settlement are designed, not built, and
+each depends on a custody interface that no party can bypass.
 
-\paragraph{Relay federation --- \BuiltWeak.}
-The current Relay carries authenticated events over outbound HTTPS and SSE. It
-does not replicate daemon databases, impose global order, authorize local
-effects, supply end-to-end secrecy by itself, or establish the witness-log and
-settlement institutions described in \pdchapref{fh}{The Federated Harbor}.
+\paragraph{Relay federation.}
+\pdstatus{\BuiltWeak}{}
+The current Relay carries authenticated events between harbors over outbound
+HTTPS and server-sent events.
+\pdscope{The Relay does not copy daemon databases, put events in one global
+order, authorize local effects, keep messages secret end to end on its own, or
+provide the witness logs and settlement rules of \pdchapref{fh}{The Federated
+Harbor}.}
 \input{additions/app-isolation}
 
 % The book's one Overfull \vbox (2.96pt) sits inside this generated table
