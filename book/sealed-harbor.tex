@@ -2147,9 +2147,12 @@ not obscure that it is the same move.
 \paragraph{Declassification, and why the room needs the word.}
 Conservative label propagation and the difficulty of tracking implicit flows
 are classical concerns, illustrated by the Dennings' certification work
-\pdcite{denning77}. The modern restatement, that a sound purely dynamic
-monitor must be strictly more restrictive than a static analysis, is due to
-Russo and Sabelfeld \pdcite{rs10}. The escape hatch itself
+\pdcite{denning77}. Russo and Sabelfeld proved that no sound, purely
+dynamic monitor accepts every program that a classical flow-sensitive static
+analysis certifies \pdcite{rs10}. The comparison does not run one way only,
+since such a monitor still accepts some runs that the static analysis rejects,
+for instance when an insecure branch is not taken. Neither approach is the
+more permissive in general. The escape hatch itself
 is Sabelfeld and Myers's delimited release \pdcite{sm03}, and so
 is the laundering attack this chapter cannot rule out: they named it and closed
 it by enforcement, requiring that no variable used in a declassification be
