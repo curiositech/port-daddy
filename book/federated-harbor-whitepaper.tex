@@ -157,7 +157,7 @@
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} federated identity, capability delegation, cross-realm authorization, mechanism design, distributed trust, certificate transparency, atomic settlement, mutual suspicion.
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 45 minutes end-to-end. \pdchapref{anchor}{The Anchor Protocol} and \pdchapref{bonded}{The Bonded Commons} (Owens 2026) supply the cryptographic and economic primitives this chapter extends. Either of those can be read first or in parallel; this chapter is the federation half.}
+\noindent\textit{Reading time: approximately 45 minutes end-to-end. \pdchapref{anchor}{The Anchor Protocol} and \pdchapref{bonded}{The Bonded Commons} supply the cryptographic and economic primitives this chapter extends. Either of those can be read first or in parallel; this chapter is the federation half.}
 \vspace{0.6cm}
 % ─── Series locator box ───────────────────────────────────────────────────────
 % Page furniture, not a conceptual figure: no chapter hue, the house neutral
@@ -243,7 +243,7 @@ offer and into the grant that results.
 
 \section{The Federated Authority}\label{sec:fh-authority}
 % ═════════════════════════════════════════════════════════════════════════════
-In \pdchapref{bonded}{The Bonded Commons}, one daemon on one machine ran the shared bond pool. It could suggest who should act when, but a suggestion only sticks if every agent, knowing only what it was told, does no better by ignoring it, and the daemon's local rules cannot guarantee that~\pdcite{owens2026bonded}. Federation makes this harder: there are several owners, each learns of events late, and their interests may conflict, so any model of the federation must include all three.
+In \pdchapref{bonded}{The Bonded Commons}, one daemon on one machine ran the shared bond pool. It could suggest who should act when, but a suggestion only sticks if every agent, knowing only what it was told, does no better by ignoring it, and the daemon's local rules cannot guarantee that. Federation makes this harder: there are several owners, each learns of events late, and their interests may conflict, so any model of the federation must include all three.
 The federation has four parts: two independently governed harbors; the witness log, where each harbor posts once per epoch (a numbered reporting period) a signed fingerprint of its card records, called its epoch root; and an escrow that holds bond money. Table~\ref{tab:fh-topology} shows the four channels that run between them. The escrow can take no more than its agreed fee only if its payment system can pay no one but the two parties and the capped fee, settles each bond once, and cannot be bypassed by its operator (\S\ref{sec:fh-escrow}). Every protocol in the rest of the chapter belongs to one of these parts.
 \input{figures/tab-fh-topology}
 \subsection{Sovereignty as a property \mbox{characterization}}\label{sec:fh-sovereignty}
@@ -391,7 +391,7 @@ The protocols do not close the following.
 damage with its own local grants, and any card a receiver derived from the
 compromised issuer stays exposed until the receiver invalidates it.
 
-\paragraph{Sybil at the federation layer.} An attacker who can pay the joining cost $m$ times can run $m$ federated harbors. What decides the matter is the ratio of the attacker's joining cost to an honest harbor's; \S\ref{sec:fh-admission} discusses it and gives no tight bound.
+\paragraph{Sybil at the federation layer.} An attacker who can pay the joining cost several times can run that many federated harbors. What decides the matter is the ratio of the attacker's joining cost to an honest harbor's; \S\ref{sec:fh-admission} discusses it and gives no tight bound.
 
 \paragraph{Cartel formation across harbors.} Bonded's folk-theorem cartel-resistance argument relied on the daemon as a correlation device inside one machine. Across harbors, cartels can form offline and present a unified front to the witness log; the witness log records that all harbors agreed, which is consistent with both honest agreement and cartel collusion. \S\ref{sec:fh-limitations} states what remains to be done.
 
@@ -530,7 +530,7 @@ Two pieces are added on top of the Anchor mechanism: (a) per-epoch roots $R_X^{(
 \begin{pdexample}{Ideal Doubling Is Not Expected Completion}
 In the stated push model, each informed harbor contacts one peer per round.
 Starting from one informed harbor, even an ideal sequence with no duplicate
-contacts informs at most $2^k$ harbors after $k$ rounds. Eight harbors thus
+contacts at most doubles the informed count each round. Eight harbors thus
 need at least three rounds; sixty-four need at least six. These are best-case
 lower bounds; the expected number of rounds is larger.
 
@@ -582,12 +582,12 @@ A bond can be sized to cover losses inside an operator-declared window, but an u
 
 \subsection{Conflict resolution across harbors}\label{sec:fh-revocation-conflict}
 
-The interesting case is disagreement. Harbor $A$ has revoked card $c$; harbor $B$ has not yet seen the revocation; an agent presents $c$ at $B$ for an action that affects $A$'s database. Three candidate resolution rules from the proposal~\pdcite{owens2026proposal}, evaluated:
+The interesting case is disagreement. Harbor $A$ has revoked card $c$; harbor $B$ has not yet seen the revocation; an agent presents $c$ at $B$ for an action that affects $A$'s database. Three candidate resolution rules, evaluated:
 
 \begin{enumerate}[nosep]
 \item \textbf{Pessimistic (anyone-revokes-is-revoked).} Treat a card as revoked if any harbor says it is revoked. This protects against an issuer that refuses to revoke its own bad card, but it is easy to abuse. An attacker who can slip fake revocation notices into the gossip between harbors can get valid cards refused everywhere, so honest work keeps getting blocked.
 \item \textbf{Authoritative (only-issuer-revokes).} Only $A$ can revoke $A$'s cards. This is the rule we adopt. Under the service-level assumptions of Design Invariant~\ref{cor:fh-window}, the attacker's window is bounded by the operator's declared limits; without them, exposure has no finite maximum.
-\item \textbf{Epoch-bounded (revocation propagates within $\Delta$ epochs and inconsistency is a contract violation).} A refinement of (2) for the case where one harbor falls persistently behind. We treat this as a degraded mode of (2) rather than a separate rule.
+\item \textbf{Epoch-bounded (revocation propagates within a fixed number of epochs and inconsistency is a contract violation).} A refinement of (2) for the case where one harbor falls persistently behind. We treat this as a degraded mode of (2) rather than a separate rule.
 \end{enumerate}
 
 We adopt rule (2). The pessimistic rule lets anyone block honest work, and
@@ -635,11 +635,11 @@ A link is a \pdterm{compared link} when its two endpoints reconcile it
 directly, a \pdterm{relayed link} when both endpoints' reports reach the
 auditor although the endpoints never reconcile it, and a \pdterm{severed link}
 when no report from it reaches the auditor. Compared and relayed links are
-\emph{visible}; write $K_c$ for the visible links that carry coordinate $c$.
+\emph{visible}; write $K_j$ for the visible links that carry coordinate $j$.
 Take four relays $0,1,2,3$ in a ring, each reporting one number (its log head) for one shared coordinate. The links
 $0\!-\!1$, $1\!-\!2$ and $2\!-\!3$ are compared and agree; the link $3\!-\!0$ is
 not reconciled directly, but both its endpoints' reports reach the auditor, so all four
-links are visible and $K_c$ is the whole ring. Relay $0$ equivocates: the head
+links are visible and $K_j$ is the whole ring. Relay $0$ equivocates: the head
 it shows across $3\!-\!0$ differs by $s=3$ from the one it shows relay $1$.
 
 The
@@ -676,7 +676,7 @@ adversary's alibi by hand.
 \emph{As a ring with a dark link:} keep the ring and
 the lie on $3\!-\!0$ but sever $1\!-\!2$. Now $g_K=(0,0,3)$ on three visible
 links and $x=(0,0,3,3)$ reproduces it exactly: $r=0$ again. The loop is still
-there in the full graph $G_c$ of links carrying $c$; it is gone from the visible graph $K_c$, and the residual sees only $K_c$.
+there in the full graph $G_j$ of links carrying $j$; it is gone from the visible graph $K_j$, and the residual sees only $K_j$.
 This is the residual's visibility clause, checkable in four numbers.
 A direct checker instead groups authenticated reports by sender, shared
 coordinate and claim context (such as the same snapshot or prefix). If the
@@ -706,15 +706,15 @@ collection of signed logs ordered by extension has no such arithmetic. We
 therefore choose which numbers each witness reports and which of them each
 channel compares. The result is a \pdterm{cellular sheaf} $\mathcal F$: a vector
 space at every vertex and edge of a graph, plus maps saying how a vertex's
-numbers are compared along each of its edges,\footnote{A standalone, submission-form version of the results folded into this subsection is \emph{The Cohomology of Equivocation} (research paper~7)~\cite{owens2026sheaf}; the harness and the sweeps cited here are its artifacts, regenerated at seed 20260816.} here on the gossip graph $G=(V,E)$ of witnesses. Witness $v$ holds a \pdterm{stalk} $\mathbb{R}^{d_v}$, the vector of numbers encoding its log state; edge $e=\{u,v\}$ holds $\mathbb{R}^{|S_e|}$, the shared prefix coordinates $S_e$ that both endpoints report; and each restriction map $\rho_{v,e}$ selects from witness $v$'s state the coordinates that edge $e$ compares. Here $S_e$ is always the first $|S_e|$ coordinates, so we call these maps \pdterm{prefix restrictions}. With real numbers throughout, the coboundary $\delta$, its adjoint $\delta^*$, and the predicted edge differences $(\delta x)_e=\rho_{u,e}x_u-\rho_{v,e}x_v$
-are all defined. The measured vector $g_e$ comes instead from the reports made
+numbers are compared along each of its edges, here on the gossip graph $G=(V,E)$ of witnesses. Witness $v$ holds a \pdterm{stalk} $\mathbb{R}^{d_v}$, the vector of numbers encoding its log state; edge $f=\{u,v\}$ holds $\mathbb{R}^{|S_f|}$, the shared prefix coordinates $S_f$ that both endpoints report; and each restriction map $\rho_{v,f}$ selects from witness $v$'s state the coordinates that edge $f$ compares. Here $S_f$ is always the first $|S_f|$ coordinates, so we call these maps \pdterm{prefix restrictions}. With real numbers throughout, the coboundary $\delta$, its adjoint $\delta^*$, and the predicted edge differences $(\delta x)_f=\rho_{u,f}x_u-\rho_{v,f}x_v$
+are all defined. The measured vector $g_f$ comes instead from the reports made
 on that channel. An equivocator may report different values to different
 neighbors, so $g$ need not equal $\delta x$ for any single assignment $x$; if
 we built the input by applying $\delta$ to one stored state per vertex, the
 residual would be zero by construction. The theorem below is about this vector encoding, not about signed logs directly.
 
-Detection depends on which edges the auditor can see, using the three tiers of the ring example. On a compared edge the auditor holds a direct cross-check and needs no loop arithmetic; on a relayed edge both endpoints' reports reach it by gossip; from a severed edge nothing reaches it. Write $K$ for the compared-plus-relayed, or \emph{visible}, edge set, and for each shared coordinate $c$ write $K_c := (V, \{e \in K : c \in S_e\})$ for the visible coordinate subgraph. Whether a cycle lies in $K_c$ or only in the full coordinate subgraph $G_c$ changes the theorem: a cycle through a severed edge constrains nothing, because the completion may give the severed edge any value.
-Here a global section is one assignment of values to every witness that explains all visible edges at once. The \pdterm{cycle space} of $K_c$ is the set of edge vectors orthogonal to every coboundary on $K_c$; on a ring it is spanned by the vector that goes once around. Write $\Pi_K$ for the orthogonal projection onto these visible cycle spaces, and $\varepsilon_K$ for a vector of offsets on the visible edges, such as the changes one liar makes to its reports.
+Detection depends on which edges the auditor can see, using the three tiers of the ring example. On a compared edge the auditor holds a direct cross-check and needs no loop arithmetic; on a relayed edge both endpoints' reports reach it by gossip; from a severed edge nothing reaches it. Write $K$ for the compared-plus-relayed, or \emph{visible}, edge set, and for each shared coordinate $j$ write $K_j := (V, \{f \in K : j \in S_f\})$ for the visible coordinate subgraph. Whether a cycle lies in $K_j$ or only in the full coordinate subgraph $G_j$ changes the theorem: a cycle through a severed edge constrains nothing, because the completion may give the severed edge any value.
+Here a global section is one assignment of values to every witness that explains all visible edges at once. The \pdterm{cycle space} of $K_j$ is the set of edge vectors orthogonal to every coboundary on $K_j$; on a ring it is spanned by the vector that goes once around. Write $\Pi_K$ for the orthogonal projection onto these visible cycle spaces, and $\varepsilon_K$ for a vector of offsets on the visible edges, such as the changes one liar makes to its reports.
 
 \input{figures/fig-fh-visible-topology}
 
@@ -728,12 +728,12 @@ Assume prefix restrictions, the three-tier visibility model above, and a \textbf
 The detection statistic is the least-squares \emph{completion residual}
 \begin{equation}
 r \;=\; \min_x \bigl\| \, g_K - (\delta x)\big|_K \, \bigr\|_2
-\;=\; \Bigl( \textstyle\sum_c \bigl\| \mathrm{Proj}_{\mathrm{cycle}(K_c)}\, g^c \bigr\|^2 \Bigr)^{1/2},
+\;=\; \Bigl( \textstyle\sum_j \bigl\| \mathrm{Proj}_{\mathrm{cycle}(K_j)}\, g^j \bigr\|^2 \Bigr)^{1/2},
 \end{equation}
 the distance to the visible coboundary image. Severed blocks impose no rows
 and are excluded from both the detector and its comparators.
 For a nonzero lie supported on one uncompared visible coordinate edge, the
-residual is positive if and only if that edge lies on a cycle of $K_c$, with
+residual is positive if and only if that edge lies on a cycle of $K_j$, with
 the required endpoint reports relayed to the auditor. A bridge or a severed edge
 has no such certificate.
 
@@ -847,9 +847,9 @@ repairs. Every additive correction that makes the visible data consistent has
 norm at least $r$, and some correction has norm exactly $r$ when corrections
 may touch every visible edge. Restricting the correction to one sender, or to
 a chosen set of edges, can make the least correction larger or rule it out.
-Topology enters through electrical network theory. A lie on edge $e$ hides in
+Topology enters through electrical network theory. A lie on edge $f$ hides in
 proportion to how well the rest of the visible graph can explain it away,
-which is the effective resistance $R^{K_c}_{\mathrm{eff}}(e)$ measured in the
+which is the effective resistance $R^{K_j}_{\mathrm{eff}}(f)$ measured in the
 visible coordinate subgraph. On a bridge $R_{\mathrm{eff}}=1$ and the lie
 hides completely; on a long cycle $R_{\mathrm{eff}}\to1$ and the certified
 fraction $\sqrt{1-R_{\mathrm{eff}}}$ decays like $1/\sqrt n$. Severing a link
@@ -859,10 +859,10 @@ which is the visibility clause in numerical form.
 Recall that $\Pi_K$ removes all edge differences explainable by vertex
 values. An offset vector $o$
 lists the altered reports attributed to a chosen sender $q$; the linear map
-$A_q$ places those changes on visible edges. Thus $B_q=\Pi_K A_q$ keeps
-only the observable part. $A_q$ and $B_q$ are matrices, not harbors, and the support
-$S$ in the theorem is a set of edges, not the staging harbor. A vector in the kernel $\ker B_q$, the offsets that
-$B_q$ sends to zero, causes no alarm, so the bound concerns $o_\perp$, the part
+$\Lambda_q$ places those changes on visible edges. Thus $\Omega_q=\Pi_K \Lambda_q$ keeps
+only the observable part. The support $U$ in the theorem is a set of edges.
+A vector in the kernel $\ker \Omega_q$, the offsets that
+$\Omega_q$ sends to zero, causes no alarm, so the bound concerns $o_\perp$, the part
 perpendicular to that invisible subspace.
 The largest and smallest positive singular values measure the largest and
 smallest amplification on that observable subspace. These definitions
@@ -880,25 +880,25 @@ Every additive correction $\varepsilon_K$ for which
 $g_K-\varepsilon_K\in\operatorname{im}\delta_K$ satisfies
 $\|\varepsilon_K\|\ge r$. Equality is attained by the orthogonal residual
 when every visible edge is available for correction. Thus $r$ is the exact
-\emph{unrestricted} correction norm. For a prescribed support $S$, the
-minimum over corrections supported in $S$ is only bounded below by $r$;
+\emph{unrestricted} correction norm. For a prescribed support $U$, the
+minimum over corrections supported in $U$ is only bounded below by $r$;
 that constrained set may be empty.
 
 For a single equivocator $q$ with offset vector $o$ and visible-lie
-operator $A_q$, put $B_q=\Pi_K A_q$, where $\Pi_K$ projects onto the visible
-cycle space. If $B_q\ne0$, then
-$\sigma^{+}_{\min}(B_q)\|o_\perp\|\le r\le\|B_q\|_{\mathrm{op}}\|o_\perp\|$,
-where $o_\perp$ is the component of $o$ orthogonal to $\ker B_q$.
-If $B_q=0$, every such offset is invisible and $r=0$.
+operator $\Lambda_q$, put $\Omega_q=\Pi_K \Lambda_q$, where $\Pi_K$ projects onto the visible
+cycle space. If $\Omega_q\ne0$, then
+$\sigma^{+}_{\min}(\Omega_q)\|o_\perp\|\le r\le\|\Omega_q\|_{\mathrm{op}}\|o_\perp\|$,
+where $o_\perp$ is the component of $o$ orthogonal to $\ker \Omega_q$.
+If $\Omega_q=0$, every such offset is invisible and $r=0$.
 
 
 For a single-edge
-lie of size $s$ in coordinate $c$,
+lie of size $s$ in coordinate $j$,
 \[
-r=|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)},\qquad\text{on } C_n:\ |s|/\sqrt n,
+r=|s|\sqrt{1-R^{K_j}_{\mathrm{eff}}(f)},\qquad\text{on } C_n:\ |s|/\sqrt n,
 \]
-with the effective resistance taken in the visible subgraph $K_c$, not in
-$G_c$.
+with the effective resistance taken in the visible subgraph $K_j$, not in
+$G_j$.
 \end{pdclaim}
 \begin{proof}[Proof sketch]
 \setlength{\parskip}{4pt plus 1pt}
@@ -913,14 +913,14 @@ in that class only. Restricting the feasible corrections cannot lower an
 infimum. Honest data
 is a coboundary, so $r=0$.
 
-For the operator bounds, $B_qo=B_qo_\perp$;
+For the operator bounds, $\Omega_qo=\Omega_qo_\perp$;
 the smallest positive and largest singular values give the two inequalities.
-The projection can erase offsets that $A_q$ itself does not erase, so its
-kernel cannot be omitted. For one lie of size $s$ on $e$, $g_K$ is $s$ times
+The projection can erase offsets that $\Lambda_q$ itself does not erase, so its
+kernel cannot be omitted. For one lie of size $s$ on $f$, $g_K$ is $s$ times
 the edge indicator, and the squared norm of its projection off the coboundary
 image is $s^2$ times one minus the edge's effective resistance, the standard
 identity between the cycle-space projection of an edge and
-$1-R_{\mathrm{eff}}(e)$; on $C_n$ every edge has $R_{\mathrm{eff}}=(n-1)/n$.
+$1-R_{\mathrm{eff}}(f)$; on $C_n$ every edge has $R_{\mathrm{eff}}=(n-1)/n$.
 \end{proof}
 
 \begin{pdexample}{Which Lies the Kernel Hides: One Triangle}
@@ -928,21 +928,21 @@ $1-R_{\mathrm{eff}}(e)$; on $C_n$ every edge has $R_{\mathrm{eff}}=(n-1)/n$.
 This is a constructed example. Three harbors, Pike (the sender $q$), Heron
 and Wren, form a triangle with edges Pike$\to$Heron, Heron$\to$Wren and
 Wren$\to$Pike, and each edge records head minus tail. Pike tells Heron its
-value plus $a$ and tells Wren its value plus $b$. Pike is the tail of its edge
+value plus $s_1$ and tells Wren its value plus $s_2$. Pike is the tail of its edge
 to Heron and the head of its edge from Wren, so the offsets on Pike's two edges
-are $o=(-a,+b)$. The triangle's cycle space is spanned by $(1,1,1)$, so
+are $o=(-s_1,+s_2)$. The triangle's cycle space is spanned by $(1,1,1)$, so
 \[
-B_q o=\tfrac{b-a}{3}\,(1,1,1),\qquad r=\frac{|a-b|}{\sqrt3}.
+\Omega_q o=\tfrac{s_2-s_1}{3}\,(1,1,1),\qquad r=\frac{|s_1-s_2|}{\sqrt3}.
 \]
-\emph{A consistent lie}, $a=b=3$, gives $r=0$: Pike has simply reported a
+\emph{A consistent lie}, $s_1=s_2=3$, gives $r=0$: Pike has simply reported a
 different value to everyone, and no loop test can object. \emph{A split view},
-$a=3$ and $b=0$, gives $r=3/\sqrt3\approx1.73$, matching the single-edge
+$s_1=3$ and $s_2=0$, gives $r=3/\sqrt3\approx1.73$, matching the single-edge
 formula $3\sqrt{1-2/3}$ with $R_{\mathrm{eff}}=2/3$ on $C_3$.
 
-The kernel of $B_q$ is the line $a=b$, exactly the consistent lies. $B_q$ has
+The kernel of $\Omega_q$ is the line $s_1=s_2$, exactly the consistent lies. $\Omega_q$ has
 one nonzero singular value, $\sqrt{2/3}\approx0.816$, so the theorem's two
 bounds coincide: $r$ is $0.816$ times the length of the visible part of $o$,
-which is $|a-b|/\sqrt2$. For $a=3$, $b=0$ that is $0.816\times2.12\approx1.73$ again.
+which is $|s_1-s_2|/\sqrt2$. For $s_1=3$, $s_2=0$ that is $0.816\times2.12\approx1.73$ again.
 \end{pdexample}
 
 \begin{pdexample}{A Minimum Repair Need Not Be One Sender's Lie}
@@ -997,10 +997,10 @@ about the gap: a cycle may have several equal-magnitude residual entries.
 \label{thm:radius-cost}
 Because the visible coboundary splits per shared coordinate into graph
 incidence operators, $r$ is one sparse least-squares problem that decomposes
-into at most $L$ scalar graph-Laplacian systems, where $L$ is the number
-of registered scalar coordinates. For numerical accuracy $\epsilon\in(0,1)$,
+into at most $J$ scalar graph-Laplacian systems, where $J$ is the number
+of registered scalar coordinates. For numerical accuracy $\tau\in(0,1)$,
 the corresponding solver complexity has the form
-$\widetilde O(|E|\cdot L\log(1/\epsilon))$ with symmetric diagonally dominant
+$\widetilde O(|E|\cdot J\log(1/\tau))$ with symmetric diagonally dominant
 solvers~\pdcite{spielman-teng}.
 
 Bach's \#P-hardness of sheaf
@@ -1016,7 +1016,7 @@ random graphs; the lower bound is tight under the adversarial offset
 ($r/\|o_\perp\|=\sigma^{+}_{\min}=0.4082=1/\sqrt6$); a uniform kernel lie of
 norm $5$ gives $r=2\times10^{-14}$, a consistent alternative state rather than a
 split view, invisible in principle and correctly not flagged, and on a cycle of
-$K_c$ the uniform offsets are the only such directions, every kernel direction
+$K_j$ the uniform offsets are the only such directions, every kernel direction
 lying in the uniform span to $5\times10^{-16}$. Localization $200/200$ on the
 two-cycles topology and $128/128$ on severed expanders; the noise boundary:
 at least $95\%$ localization up to a noise-to-lie ratio of $0.1$, $76.5\%$ at
@@ -1089,15 +1089,15 @@ deleted, or one witness is pinned both ways, the receipts
 contradict each other, and those receipts are the proof.
 
 In symbols, write the values as the \pdterm{one-hot} vectors
-$e_{\mathsf{ret}}=(1,0)$ and $e_{\mathsf{del}}=(0,1)$, in which exactly one
+$\mathbf{1}_{\mathsf{ret}}=(1,0)$ and $\mathbf{1}_{\mathsf{del}}=(0,1)$, in which exactly one
 entry is one, and let each edge record head minus tail. An agreement receipt is
 the zero difference, which forces a whole connected component to share one
 value without saying which. A disagreement receipt
-$e_{\mathsf{del}}-e_{\mathsf{ret}}=(-1,1)$ fixes its tail to $\mathsf{ret}$ and
+$\mathbf{1}_{\mathsf{del}}-\mathbf{1}_{\mathsf{ret}}=(-1,1)$ fixes its tail to $\mathsf{ret}$ and
 its head to $\mathsf{del}$, and these forced endpoint values are its pins.
 
 \begin{pdexample}{A contradiction with zero cycle residual}
-The path $0\to1\to2$ reports $e_{\mathsf{del}}-e_{\mathsf{ret}}$ on each edge. Vertex $1$ must then be
+The path $0\to1\to2$ reports $\mathbf{1}_{\mathsf{del}}-\mathbf{1}_{\mathsf{ret}}$ on each edge. Vertex $1$ must then be
 both $\mathsf{del}$ and $\mathsf{ret}$, a contradiction. With edge costs $2$ and $3$, the two receipts
 give a certificate of cost $5$. Unrestricted real potentials can nevertheless
 fit this path exactly, so its cycle residual is zero. Only the restriction to
@@ -1112,7 +1112,7 @@ independently of the production checker. Neither authenticates the producer.
 \label{thm:categorical-certificate}
 Fix a nonempty finite fact domain and accepted one-hot edge differences for
 one fact and snapshot. A zero edge requires equal endpoint values. A nonzero
-difference $e_b-e_a$ pins its tail to $a$ and its head to $b$. A categorical
+difference $\mathbf{1}_{y'}-\mathbf{1}_{y}$ pins its tail to $y$ and its head to $y'$. A categorical
 assignment exists exactly when every component of the zero-edge graph has
 pins of at most one value. Otherwise two incompatible pins, their source
 edges, and a zero-edge path form a checkable contradiction certificate.
@@ -1146,7 +1146,7 @@ identification. On an oriented four-cycle, an error $(1,0,0,0)$ and an error
 $(0,1,0,0)$ have the same cycle projection: each contributes total circulation
 one. Both alarm, but the residual cannot tell which edge changed.
 
-A companion research paper (Paper~8 of the Harbor Research Program) states the general rule for a typed linear observation model. An
+The same reasoning gives a general rule for a typed linear observation model, which we state with a proof sketch. An
 \pdterm{edge group} contains all coordinates of one channel; the size of an
 error's support counts the channels it touches, whatever their dimension or
 the error's size. Let $M$ map allowed vertex features to edge features, and define the
@@ -1173,7 +1173,7 @@ $d_{\mathcal F}=2$: any single bad link is detected ($2>1$) but cannot always be
 named ($2$ is not greater than $2$). A $+1$ error on link~1 and a $+1$ error on
 link~2 both add $1$ to the loop total, and the auditor cannot tell them apart.
 
-As a complete graph ($K_4$, six links), the minimum cut is $3$, so one bad link
+As a complete graph on four harbors (six links), the minimum cut is $3$, so one bad link
 can be named ($3>2$). Each link lies on exactly two of the four triangles, and
 no two links share the same pair, so the two triangles whose totals turn
 nonzero identify the link. Error-correcting codes follow the same rule:
@@ -1263,7 +1263,7 @@ extends to funds in transit between harbors.
 \begin{pdexample}{One Bond across Two Harbors}
 \setlength{\parskip}{4pt plus 1pt}
 \pdbondrecipientexample
-A \$100 bond posted at $A$ has buckets $(P,E,C,R)=(100,0,0,0)$. The transfer
+A \$100 bond posted at $A$ has buckets (posted, in escrow, cleared, refunded) $=(100,0,0,0)$. The transfer
 locks it in escrow, $(0,100,0,0)$.
 
 Clearance at $B$ pays \$90 to the
@@ -1272,7 +1272,7 @@ is $(0,0,100,0)$ with recipient total $90+10$.
 
 A partial clearance paying \$80
 and returning \$20 to $A$ has the same status row, with recipient total $80+20$;
-it does not have both $C=80$ and $R=20$.
+it does not record \$80 as cleared and \$20 as refunded.
 
 Refusal of the whole bond instead gives
 $(0,0,0,100)$.
@@ -1284,23 +1284,25 @@ The status partition and the recipient sum each need checking
 \begin{pdclaim}{Design invariant}{Cross-Harbor Bucket Partition}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:fh-cross-cons}
-For each funded bond $b$ of amount $a_b>0$, let $P_b,E_b,C_b,R_b\in\{0,a_b\}$
+For each funded bond $b$ of amount $\beta_b>0$, let $\mathsf{post}_b,\mathsf{esc}_b,\mathsf{clr}_b,\mathsf{ref}_b\in\{0,\beta_b\}$
 be whole-bond \pdterm[lifecycle account]{lifecycle accounts}: posted, in escrow, resolved by clearance,
 and resolved by refusal/full refund.
 
 They record the status of the entire bond,
 not the balances of individual recipients. Valid transitions preserve
 \[
-P_b+E_b+C_b+R_b=a_b
-\quad\text{and}\quad
-\bigl|\{Z\in\{P_b,E_b,C_b,R_b\}:Z=a_b\}\bigr|=1.
+\begin{gathered}
+\mathsf{post}_b+\mathsf{esc}_b+\mathsf{clr}_b+\mathsf{ref}_b=\beta_b
+\quad\text{and}\\
+\bigl|\{Z\in\{\mathsf{post}_b,\mathsf{esc}_b,\mathsf{clr}_b,\mathsf{ref}_b\}:Z=\beta_b\}\bigr|=1.
+\end{gathered}
 \]
-Summing over bonds gives $\sum_b(P_b+E_b+C_b+R_b)=\sum_b a_b$.
+Summing over bonds gives $\sum_b(\mathsf{post}_b+\mathsf{esc}_b+\mathsf{clr}_b+\mathsf{ref}_b)=\sum_b \beta_b$.
 
 
 A separate recipient subledger must record nonnegative beneficiary payment,
-source remainder, and fee summing to $a_b$ on clearance. In particular a source
-remainder inside a clearance is not a second lifecycle entry in $R_b$.
+source remainder, and fee summing to $\beta_b$ on clearance. In particular a source
+remainder inside a clearance is not a second lifecycle entry in $\mathsf{ref}_b$.
 External top-ups create separately funded bonds; the one-hot status model alone
 does not prove that actual recipient transfers conserve money.
 \end{pdclaim}
@@ -1661,7 +1663,7 @@ The following questions remain open. Figure~\ref{fig:fh-threat-bands} separates 
 \subsection{The multi-principal correlated-equilibrium extension}\label{sec:fh-lim-correlated}
 \pdstatus{\Vision}{open problem}
 
-A correlated equilibrium works like a traffic light: a mediator privately tells each player what to do, and each obeys because, given only its own instruction, obeying pays at least as well as anything else. \pdchapref{bonded}{The Bonded Commons} reads its daemon as such a mediator under stated conditions, without claiming that every local interaction is an equilibrium~\pdcite{owens2026bonded}. Across harbors, two models must be kept apart:
+A correlated equilibrium works like a traffic light: a mediator privately tells each player what to do, and each obeys because, given only its own instruction, obeying pays at least as well as anything else. \pdchapref{bonded}{The Bonded Commons} reads its daemon as such a mediator under stated conditions, without claiming that every local interaction is an equilibrium. Across harbors, two models must be kept apart:
 
 \begin{itemize}[nosep]
 \item A joint mediator uses witnessed state to recommend cross-harbor actions. Its distribution, each participant's observations, and the gains from deviation must be specified and checked.
@@ -1781,7 +1783,7 @@ The rollback configuration tests whether a restored database can resurrect a rev
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-consistency-radius-run}
-Read \path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, section \texttt{[0]} (function \texttt{section0}). By hand, using $r=|s|\sqrt{1-R_{\mathrm{eff}}(e)}$ and $R_{\mathrm{eff}}=(n-1)/n$ on $C_n$, confirm the two numbers the script's closed-form check pins for $C_6$ and $P_6$ at lie magnitude $3.0$. Then state what the script's \texttt{check(\ldots)} call actually asserts for each case, and to what tolerance.
+Read \path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, section \texttt{[0]} (function \texttt{section0}). By hand, using $r=|s|\sqrt{1-R_{\mathrm{eff}}(f)}$ and $R_{\mathrm{eff}}=(n-1)/n$ on $C_n$, confirm the two numbers the script's closed-form check pins for $C_6$ and $P_6$ at lie magnitude $3.0$. Then state what the script's \texttt{check(\ldots)} call actually asserts for each case, and to what tolerance.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-consistency-radius-run}
 By hand: $C_6$ has $R_{\mathrm{eff}}=5/6$, so $r=3\sqrt{1-5/6}=3/\sqrt6=1.224745$ [verified]. $P_6$'s relayed edge is a bridge (a path has no route between an edge's endpoints other than the edge itself), so $R_{\mathrm{eff}}=1$ and $r=3\sqrt{1-1}=0$ exactly [verified].
@@ -1790,7 +1792,7 @@ The script's own printed lines (\path{skills/harbor-results/scripts/sheaf_consis
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-two-liar-boundary}
-Theorem~\ref{thm:sheaf-equivocation} assumes a \emph{single} equivocator and says outright that this is not decoration. Two colluding reporters sit on the same visible cycle $K_c$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over global sections and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence, if any, could still catch the coalition.
+Theorem~\ref{thm:sheaf-equivocation} assumes a \emph{single} equivocator and says outright that this is not decoration. Two colluding reporters sit on the same visible cycle $K_j$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over global sections and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence, if any, could still catch the coalition.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-two-liar-boundary}
 $r$ is defined as the \emph{best-fit} residual: the smallest disagreement left over after choosing the global section $x$ and the free severed blocks $g_{\mathrm{sev}}$ that explain as much of the observed data as any choice can. It is not a per-liar quantity; it is a property of the whole observed cochain $g_K$. If two equivocators on a common cycle choose offsets $o_1$ and $o_2$ such that $o_1+o_2$ happens to be a coboundary (the \emph{sum} of their two lies looks exactly like one consistent change of state), then the best-fit global section can absorb $o_1+o_2$ entirely, leaving a near-zero residual, exactly the way a lone liar's offset is absorbed when it lies off a visible cycle (the bridge case of the six-path example). Nothing in the definition of $r$ requires the offsets to be individually small for their \emph{sum} to be small or zero; it requires only that the sum land in the image of $\delta$, the space the completion can always explain away. This is why a one-edge example cannot establish completeness for arbitrary multiple offsets: the one-edge detection guarantee cannot be applied separately and then
@@ -1798,11 +1800,11 @@ added. Soundness remains: $r>0$ still certifies incompatibility of the encoded
 data. Completeness for arbitrary coordinated errors was never supplied; even
 one sender can choose several offsets that cancel in projection.
 
-The compendium's own sweep states the shape of this exactly: a solo equivocator on an 8-cycle is bounded below at $r\ge|s|/\sqrt8$, while a coordinating coalition of two on the same cycle drives the same statistic to $r\approx6\times10^{-15}$, numerically the silence of a true coboundary rather than a small but detectable residual [internal, \texttt{sheaf\_consistency\_radius.py}]. What could still catch the coalition is exactly what $r$ is not: per-report attribution rather than a single scalar. Signature-level forensics can ask whether the \emph{same} reporter's two prefixes are individually self-consistent (an equivocator still signs two incompatible things even if the aggregate looks clean); cross-checking against a third, independent visible cycle through only one of the two colluders can isolate that one's contribution if such a cycle exists; and widening $K$ (comparing more edges directly rather than relying on relayed reports) shrinks the coalition's room to choose a cancelling pair in the first place. None of this is a proof that coalitions are caught in general; \S\ref{sec:fh-lim-cartel} names the cross-harbor cartel question as open for exactly this reason, and this exercise is that same boundary stated at the level of one theorem rather than the whole federation.
+The script's own sweep states the shape of this exactly: a solo equivocator on an 8-cycle is bounded below at $r\ge|s|/\sqrt8$, while a coordinating coalition of two on the same cycle drives the same statistic to $r\approx6\times10^{-15}$, numerically the silence of a true coboundary rather than a small but detectable residual [internal, \texttt{sheaf\_consistency\_radius.py}]. What could still catch the coalition is exactly what $r$ is not: per-report attribution rather than a single scalar. Signature-level forensics can ask whether the \emph{same} reporter's two prefixes are individually self-consistent (an equivocator still signs two incompatible things even if the aggregate looks clean); cross-checking against a third, independent visible cycle through only one of the two colluders can isolate that one's contribution if such a cycle exists; and widening $K$ (comparing more edges directly rather than relying on relayed reports) shrinks the coalition's room to choose a cancelling pair in the first place. None of this is a proof that coalitions are caught in general; \S\ref{sec:fh-lim-cartel} names the cross-harbor cartel question as open for exactly this reason, and this exercise is that same boundary stated at the level of one theorem rather than the whole federation.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-categorical-versus-linear}
-A path $0\to1\to2$ reports $e_{\mathsf{del}}-e_{\mathsf{ret}}$ on both edges, with receipt costs two
+A path $0\to1\to2$ reports $\mathbf{1}_{\mathsf{del}}-\mathbf{1}_{\mathsf{ret}}$ on both edges, with receipt costs two
 and three. State the value forced at vertex $1$ by each receipt. Find a
 least-cost contradiction certificate. Then explain why a real-valued
 least-squares fit on this path has zero residual, and why an observed zero
@@ -1861,14 +1863,14 @@ An HTLC's atomicity rests on a single objective, third-party-checkable bit: does
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-cartel-formation}
-\S\ref{sec:fh-lim-cartel} observes that the witness log cannot distinguish unanimous honest agreement from unanimous collusion. Using the one-shot deterrence inequality $p\cdot d\cdot L>G$ (audit probability, detection probability, loss on detection, collusive gain), state what would have to be true of a federation-layer audit mechanism for that inequality to be satisfiable against a cartel that controls a majority, but not all, of the witnesses in scope, and say plainly why no structural mechanism closes the case where the cartel controls \emph{every} oracle and witness.
+\S\ref{sec:fh-lim-cartel} observes that the witness log cannot distinguish unanimous honest agreement from unanimous collusion. Using the one-shot deterrence inequality $p_{\mathrm{aud}}\cdot p_{\mathrm{det}}\cdot L>\Gamma$ (audit probability, detection probability, loss on detection, collusive gain), state what would have to be true of a federation-layer audit mechanism for that inequality to be satisfiable against a cartel that controls a majority, but not all, of the witnesses in scope, and say plainly why no structural mechanism closes the case where the cartel controls \emph{every} oracle and witness.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-cartel-formation}
-For $p\cdot d\cdot L>G$ to be satisfiable against a majority-but-not-total cartel, the audit mechanism needs an independent source of $p$ and $d$ that the cartel does not itself control: cross-harbor adversarial audits sampled from outside the colluding set, witness diversification so that a majority of witnesses being compromised still leaves an honest witness able to observe and attest to the true state, and principal-wide collateral so that $L$ scales with what the colluding \emph{principals} (not just their harbor identities) have at stake, per \S\ref{sec:fh-lim-cartel}'s list. Any lost continuation value belongs on the loss side $L$, while $G$ is the
+For $p_{\mathrm{aud}}\cdot p_{\mathrm{det}}\cdot L>\Gamma$ to be satisfiable against a majority-but-not-total cartel, the audit mechanism needs an independent source of $p_{\mathrm{aud}}$ and $p_{\mathrm{det}}$ that the cartel does not itself control: cross-harbor adversarial audits sampled from outside the colluding set, witness diversification so that a majority of witnesses being compromised still leaves an honest witness able to observe and attest to the true state, and principal-wide collateral so that $L$ scales with what the colluding \emph{principals} (not just their harbor identities) have at stake, per \S\ref{sec:fh-lim-cartel}'s list. Any lost continuation value belongs on the loss side $L$, while $\Gamma$ is the
 gain from the deviation. Concavity alone supplies neither a quantitative loss
 nor a cap on that gain; both require an explicit payoff and re-entry model. All of this requires that at least one witness and one audit path lie genuinely outside the cartel's control. The mechanism works only because an outside observer exists.
 
-That is exactly why no structural mechanism closes the all-witnesses case: if the cartel controls every oracle and witness in scope, there is no outside observer left to supply $p$ or $d$ at all, and the inequality has no independent terms to be satisfied with. Every audit-based mechanism in the literature meets the same limit. The discussion of concentrated control in \S\ref{sec:fh-failure-modes} is the operational form of the same fact: the fewer independent witnesses a federation actually has, the closer it sits to the all-controlled boundary where no deterrence inequality can help.
+That is exactly why no structural mechanism closes the all-witnesses case: if the cartel controls every oracle and witness in scope, there is no outside observer left to supply $p_{\mathrm{aud}}$ or $p_{\mathrm{det}}$ at all, and the inequality has no independent terms to be satisfied with. Every audit-based mechanism in the literature meets the same limit. The discussion of concentrated control in \S\ref{sec:fh-failure-modes} is the operational form of the same fact: the fewer independent witnesses a federation actually has, the closer it sits to the all-controlled boundary where no deterrence inequality can help.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-cold-start-admission}
@@ -1876,10 +1878,10 @@ That is exactly why no structural mechanism closes the all-witnesses case: if th
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-cold-start-admission}
 Start with what is observed. In a complete enrollment log for a stated time
-window, let $n_s$ count successful enrollments sponsored by $s$, with one
-recorded sponsor per enrollment, and let $n=\sum_s n_s$. For $n>0$, the
-sponsor shares $n_s/n$ and their Herfindahl index $\sum_s(n_s/n)^2$ measure
-concentration among \emph{successful} sponsorships. For $n=0$, these quantities
+window, let $n_X$ count successful enrollments sponsored by harbor $X$, with one
+recorded sponsor per enrollment, and let $n_{\mathrm{all}}=\sum_X n_X$. For $n_{\mathrm{all}}>0$, the
+sponsor shares $n_X/n_{\mathrm{all}}$ and their Herfindahl index $\sum_X(n_X/n_{\mathrm{all}})^2$ measure
+concentration among \emph{successful} sponsorships. For $n_{\mathrm{all}}=0$, these quantities
 are undefined. They do not measure how many applicants were turned away.
 For example, the same log of ten enrollments is consistent with ten requests
 and no refusals, or with a thousand requests and 990 refusals. The enrollment
@@ -1969,21 +1971,6 @@ The remaining work is substantial: runtime custody enforcement, deployment confo
 \bibliographystyle{plain}
 \pdprintsolutions
 \begin{thebibliography}{99}
-
-\bibitem{owens2026bonded}
-Erich Owens.
-\newblock The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems.
-\newblock Curiositech LLC Technical White Paper, May 2026.
-
-\bibitem{owens2026proposal}
-Erich Owens.
-\newblock The Federated Harbor: Proposal and Annotated Bibliography.
-\newblock Curiositech LLC working document, May 2026.
-
-\bibitem{owens2026sheaf}
-Erich Owens.
-\newblock The Cohomology of Equivocation: Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency.
-\newblock The Harbor Research Program, Paper 7, August 2026.
 
 \bibitem{birgisson2014macaroons}
 Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
@@ -2176,7 +2163,7 @@ Gabriele Farina.
 
 \section{Verification Status}\label{app:fh-mech}
 
-\paragraph{Artifact registry.} The shared verification-status table in \pdchapref{bonded}{The Bonded Commons}~\pdcite{owens2026bonded} carries the items that are shared across the series; this appendix lists only the items specific to the Federated Harbor.
+\paragraph{Artifact registry.} The shared verification-status table in \pdchapref{bonded}{The Bonded Commons} carries the items that are shared across the series; this appendix lists only the items specific to the Federated Harbor.
 
 \renewcommand{\arraystretch}{1.15}
 {\small
