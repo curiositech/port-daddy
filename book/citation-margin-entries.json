@@ -916,5 +916,23 @@
     "original": "K. Rohloff \\& S. Lafortune. ``PSPACE-Completeness of Modular\nSupervisory Control Problems.'' \\emph{Discrete Event Dynamic Systems} 15:145--167,\n2005. \\url{https://web.njit.edu/~rohloff/papers/2005/Rohloff_Lafortune_Disc693-03.pdf}",
     "margin": "Rohloff and Lafortune 2005. \\emph{PSPACE-Completeness of Modular Supervisory Control Problems}. \\url{https://web.njit.edu/~rohloff/papers/2005/Rohloff_Lafortune_Disc693-03.pdf}",
     "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+  },
+  {
+    "key": "grayreuter1992",
+    "original": "Jim Gray and Andreas Reuter.\n\\newblock \\textit{Transaction Processing: Concepts and Techniques}.\n\\newblock Morgan Kaufmann, 1992.\n\\newblock (Atomicity/consistency vs.\\ durability, the ground for I1a/I1b.)",
+    "margin": "J. Gray and A. Reuter. \\emph{Transaction Processing: Concepts and Techniques}. Morgan Kaufmann, 1992.",
+    "reason": "Third pass: the long annotation moves out of the margin so Figure 1.3's and Table 1.3's captions stay beside their exhibits; author list shortened, title and online source kept."
+  },
+  {
+    "key": "sqlitewal",
+    "original": "D. Richard Hipp et al.\n\\newblock SQLite Write-Ahead Logging.\n\\newblock SQLite Documentation, 2010.\n\\newblock \\url{https://www.sqlite.org/wal.html}\n\\newblock (Under \\texttt{synchronous=NORMAL}, ``transactions are no longer durable and might rollback following a power failure or hard reset.'')",
+    "margin": "D. R. Hipp et al. \\emph{SQLite Write-Ahead Logging}. SQLite documentation, 2010. \\url{https://www.sqlite.org/wal.html}",
+    "reason": "Third pass: the long annotation moves out of the margin so Figure 1.3's and Table 1.3's captions stay beside their exhibits; author list shortened, title and online source kept."
+  },
+  {
+    "key": "sqlitepragma",
+    "original": "D. Richard Hipp et al.\n\\newblock Pragma Statements Supported by SQLite.\n\\newblock SQLite Documentation, accessed November 2026.\n\\newblock \\url{https://www.sqlite.org/pragma.html}\n\\newblock (The entry for \\texttt{PRAGMA synchronous}.)",
+    "margin": "D. R. Hipp et al. \\emph{Pragma Statements Supported by SQLite} (\\texttt{synchronous}). SQLite documentation, 2026. \\url{https://www.sqlite.org/pragma.html}",
+    "reason": "Third pass: the long annotation moves out of the margin so Figure 1.3's and Table 1.3's captions stay beside their exhibits; author list shortened, title and online source kept."
   }
 ]

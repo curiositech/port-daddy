@@ -279,6 +279,12 @@ class Reading:
     name: str
     text: str
     page_index: list[int]  # parallel to text: index into the page list
+    # True for a reading with every space removed. On a tightly justified
+    # line the extractor can see no word gaps at all ("puts every write"
+    # comes out "putseverywrite"), so each reading is also searched with
+    # spaces stripped from both sides. Without it a `before` on such a line
+    # would pass unseen, and an `after` there would fail although it prints.
+    stripped: bool = False
 
     def pages_at(self, start: int, end: int) -> list[int]:
         return sorted(set(self.page_index[start:end]))
@@ -343,8 +349,9 @@ def read_pdf(path: Path) -> list[Page]:
 
 
 def readings(pages: list[Page]) -> list[Reading]:
-    """Six readings: the content stream, the body column and the margin
-    column, each with line-end hyphens rejoined and kept. Pages join with a
+    """Twelve readings: the content stream, the body column and the margin
+    column, each with line-end hyphens rejoined and kept, and each of those
+    again with every space removed. Pages join with a
     line break, so in the body reading a phrase -- or a word hyphenated --
     across a page turn still reads as one."""
     result = []
@@ -365,7 +372,15 @@ def readings(pages: list[Page]) -> list[Reading]:
                 page_index.append(cursor)
             label = f"{order}, hyphens {'kept' if keep else 'rejoined'}"
             result.append(Reading(label, text, page_index))
+            kept = [i for i, c in enumerate(text) if c != " "]
+            result.append(Reading(label + ", spaces stripped",
+                                  "".join(text[i] for i in kept),
+                                  [page_index[i] for i in kept], stripped=True))
     return result
+
+
+def _for(reading: Reading, text: str) -> str:
+    return text.replace(" ", "") if reading.stripped else text
 
 
 # ---------------------------------------------------------------------------
@@ -427,16 +442,18 @@ def check(rows: list[dict], texts: list[Reading]) -> list[Finding]:
         if before:
             survivors: set[int] = set()
             for reading in texts:
-                covered = occurrences(reading.text, after) if after else []
-                for start, end in occurrences(reading.text, before):
+                covered = occurrences(reading.text, _for(reading, after)) if after else []
+                for start, end in occurrences(reading.text, _for(reading, before)):
                     if any(a <= start and end <= b for a, b in covered):
                         continue
                     survivors.update(reading.pages_at(start, end))
             if survivors:
                 findings.append(Finding(row, "before survives", row["before"], sorted(survivors)))
-        if after and not any(after in reading.text for reading in texts):
+        if after and not any(_for(reading, after) in reading.text for reading in texts):
             best, pages = "", []
             for reading in texts:
+                if reading.stripped:
+                    continue
                 prefix, where = nearest_prefix(reading, after)
                 if len(prefix) > len(best):
                     best, pages = prefix, where
@@ -450,7 +467,8 @@ def vacuous_rows(rows: list[dict], baseline: list[Reading]) -> list[dict]:
     nothing: it was chosen wrongly, or extraction never yields it (listing
     text is the usual case)."""
     return [row for row in rows
-            if row["before"] and not any(needle(row["before"]) in reading.text for reading in baseline)]
+            if row["before"] and not any(_for(reading, needle(row["before"])) in reading.text
+                                         for reading in baseline)]
 
 
 def report(findings: list[Finding], rows: list[dict], pages: list[Page], pdf: Path,
