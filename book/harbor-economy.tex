@@ -1703,7 +1703,7 @@ This is one
 illustrated execution; a different schedule or partition produces a different
 window.
 
-Conjecture~\ref{conj:eq-bound} says
+Conjecture~\ref{conj:he-revocation-bond} says
 the bond Alice posted on $\kappa$ must exceed whatever $a_2$ could spend at $B$ inside
 that window, or a well-capitalized Bob could rationally race the gossip.
 
@@ -1722,22 +1722,39 @@ supplies an expectation within that model, not an adversarial deadline.}
 Detection-after-the-fact deters only if the slashed bond exceeds the value
 extractable during the detection window. This is the analogue of the
 Cleanup Lower Bound of \pdchapref{bonded}{The Bonded Commons} (a cleanup bond must cover the
-worst-case cost of the damage it underwrites), and we state it as a target:
+worst-case cost of the damage it underwrites). Federation has two such
+windows, with different bonds posted by different parties, so we state two
+targets. The first concerns a revoked card and the bond its principal posts.
 
-\begin{conjecture}[Equivocation Lower Bound]\label{conj:eq-bound}
-For a deployment that advertises a finite freshness window $T$, the witness bond
-must dominate the maximum value spendable against a revoked-but-not-yet-observed
-capability over $T$. If partitions are unbounded, no finite bond covers the worst
-case; the system must instead fail closed on stale roots or cap spend independently.
+\begin{conjecture}[Revocation-Window Bond]\label{conj:he-revocation-bond}
+For a deployment that advertises a finite freshness window $T$, running from a
+card's revocation at its home harbor to enforcement at every harbor that
+accepts it, the bond the card's principal posts must be at least the most that
+can be spent against the revoked card within $T$.
+\end{conjecture}
+
+\noindent If partitions are unbounded, there is no finite $T$ and no finite
+bond covers the worst case; the system must instead fail closed on stale roots
+or cap spend independently.
+
+The second concerns a harbor that equivocates. Its contradictory roots
+become evidence only when both reach one honest auditor, and that delay, not
+the gossip delay for a revocation, is the window its witness bond must cover.
+
+\begin{conjecture}[Equivocation Bond]\label{conj:he-equivocation-bond}
+For a deployment in which both of an equivocating harbor's contradictory roots
+reach an honest auditor within a known delay, the witness bond that harbor
+posts must be at least the most it can gain, before that delay ends, by showing
+different peers different histories.
 \end{conjecture}
 
 \ifpdbook
 The threat bands in \pdchapref{fh}{The Federated Harbor} show how the window
-that Conjecture~\ref{conj:eq-bound} must cover depends on the connectivity each
+that Conjecture~\ref{conj:he-revocation-bond} must cover depends on the connectivity each
 band assumes.
 \else
 Figure~\ref{fig:fh-threat-bands} shows how the window that
-Conjecture~\ref{conj:eq-bound} must cover depends on the connectivity each band
+Conjecture~\ref{conj:he-revocation-bond} must cover depends on the connectivity each band
 assumes.
 
 \input{figures/fig-fh-threat-bands}
@@ -2831,25 +2848,26 @@ infinite rather than merely large.
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-revocation-window-trace}
 Trace a revoked capability through \ifpdbook the revocation-gossip figure in \pdchapref{fh}{The Federated Harbor}\else Figure~\ref{fig:fh-revocation}\fi: at which
   harbor, and at what time, can it still be spent? That window is what
-  Conjecture~\ref{conj:eq-bound} must cover.
+  Conjecture~\ref{conj:he-revocation-bond} must cover.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-revocation-window-trace}
 Alice revokes at her home harbor at $t=0$; Harbor~$B$, which rented the
 affected agent, has not yet heard, so for $[0,\Delta]$ its filter is stale and
 the card is still spendable there. At $t=\Delta$ gossip reaches $B$ and it stops
 accepting the card; Harbor~$C$, two hops out, remains exposed until $t=2\Delta$.
-The window Conjecture~\ref{conj:eq-bound} must cover is per-harbor, running from
+The window Conjecture~\ref{conj:he-revocation-bond} must cover is per-harbor, running from
 $t_0$ to that harbor's own \emph{enforcement}, not merely to its first gossip
 receipt, since receiving the revocation event and actually enforcing it are two
 different events with their own local latency.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:he-equivocation-lower-bound}
-State and (attempt to) prove the Equivocation Lower Bound for a
-  three-harbor mesh under a fixed gossip period $\Delta$ and a single equivocating
-  witness.
+For a three-harbor mesh with a fixed gossip period $\Delta$ and a single
+  equivocating harbor, give a lower bound on the time before any honest party
+  holds both contradictory roots. That delay is the window
+  Conjecture~\ref{conj:he-equivocation-bond} asks the witness bond to cover.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-equivocation-lower-bound}
-A witness that equivocates sends root $X$ to $B$ and root $Y$ to $C$ for the
+A harbor that equivocates sends root $X$ to $B$ and root $Y$ to $C$ for the
 same epoch; nobody can detect this until evidence from both views reaches one
 honest process, and until then each view is individually consistent with
 ordinary delay. On the three-node complete mesh with exchanges every $\Delta$,
