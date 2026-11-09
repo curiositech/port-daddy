@@ -1,16 +1,16 @@
 % Brief (tikz-diagram-craft), register row ch4-48.
 % Reader question: as each reader's critical set grows, how far does the
-%   floor of one joint digest that serves both readers inside a single shared
-%   m-open budget exceed the sum of the two single-reader floors?
-% Claim (Theorem "Joint-Digest Floor under a Shared Opening Budget"): the
-%   ratio Floor(N,2k,m)/(2 Floor(N,k,m)) is always above 1 and grows without
+%   lower bound of one joint digest that serves both readers inside a single
+%   shared m-open budget exceed the sum of the two single-reader bounds?
+% Claim (Theorem "Joint-Digest Lower Bound under a Shared Opening Budget"):
+%   the ratio Gamma = LB(N,2k,m)/(2 LB(N,k,m)) is always above 1 and grows without
 %   bound across valid instances; at N=60,m=8 it runs 1.029 to 1.224 over
 %   k=1..4, and at N=60,m=20 it reaches 1.392 by k=10.
 % Evidence: ratio(60,k,8) for k=1..4 = 1.029,1.067,1.122,1.224; and
 %   ratio(60,10,20)=1.392 [verified, closed form, this pass].
 % Must distinguish: the two review-budget curves (m=8, m=20); that neither
 %   curve ever returns to the naive-doubling ratio of 1.
-% Grammar chosen: measured-quantity plot, joint-floor ratio against k, two
+% Grammar chosen: measured-quantity plot, joint-bound ratio against k, two
 %   review-budget curves (m=8, m=20), a naive-doubling guide at ratio=1.
 % Grammar rejected: a bar chart at the named k values would state the
 %   numbers without showing the trend is monotone and unbounded in k, which
@@ -23,7 +23,7 @@
 \begin{tikzpicture}[pd figure]
 \begin{axis}[
   width=\linewidth, height=0.62\linewidth,
-  xlabel={critical-set size $k$}, ylabel={joint floor / ($2\times$ single floor)},
+  xlabel={critical-set size $k$}, ylabel={joint bound / ($2\times$ single bound)},
   xmin=0.5, xmax=10.5, ymin=0.98, ymax=1.46,
   xtick={1,2,3,4,5,6,7,8,9,10}, ytick={1.0,1.1,1.2,1.3,1.4},
   axis lines=left, axis line style={pd hairline},
@@ -35,7 +35,7 @@
 ]
 % pd guide, not densely dotted,line width=.45pt: `densely dotted` derives its
 % on-length from the line width at key-processing time, and .45pt is under
-% the 150dpi/1.0x device's one-pixel floor (T9, built Book: 0.448pt = 0.93px,
+% the 150dpi/1.0x device's one-pixel minimum (T9, built Book: 0.448pt = 0.93px,
 % the exact defect pd-figure-language.tex's own "THE GUIDE DASH, IN ABSOLUTE
 % POINTS" note measured and fixed for `pd guide`). `pd guide` states the same
 % "this line is not a drawn edge" distinction in the absolute, pixel-safe
@@ -69,6 +69,6 @@
 \node[pd direct label,text=hhink,anchor=south east] at (axis cs:9.72,1.392) {\scriptsize $k{=}10{:}~1.392$};
 \end{axis}
 \end{tikzpicture}
-\caption{Joint-digest floor at $N=60$ under one shared $m$-open budget, divided by the sum of two single-reader floors. Both curves stay above $1$: $1.224$ at $m=8,k=4$; $1.392$ at $m=20,k=10$. Analytic values.}
+\caption{Joint-digest lower bound at $N=60$ under one shared $m$-open budget, divided by the sum of two single-reader lower bounds. Both curves stay above $1$: $1.224$ at $m=8,k=4$; $1.392$ at $m=20,k=10$. Analytic values.}
 \label{fig:split-penalty}
 \end{figure}

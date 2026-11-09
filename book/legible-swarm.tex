@@ -869,8 +869,8 @@ serves them as an $M/M/1$ queue at rate $\mu_{\mathrm{spec}}$, the pooled
 alternative as an $M/M/c$ queue of generalists at rate $\mu_{\mathrm{pool}}$ each
 with utilization $\rho=\lambda_F/(c\,\mu_{\mathrm{pool}})<1$ and
 first-come-first-served exponential service. Assume $\lambda_F>0$,
-$\mu_{\mathrm{spec}}>\lambda_F$, $w>0$, and $A\ge0$, so both queues are
-stable and the comparison is defined. The objective is \emph{mean} cost: $w$
+$\mu_{\mathrm{spec}}>\lambda_F$, $c_{\mathrm{wait}}>0$, and $A\ge0$, so both queues are
+stable and the comparison is defined. The objective is \emph{mean} cost: $c_{\mathrm{wait}}$
 is cost per request-hour and $A$ is the accountability benefit per hour of
 operating the sole-owner arrangement. Let
 $C(c,\rho)$ be the \textbf{Erlang-C} delay probability (\textbf{Erlang
@@ -883,14 +883,14 @@ all $c$ servers busy and must wait, the quantity that makes a pool a pool}).
 Under the queueing-specialization setup, sole ownership weakly dominates the pool
 if and only if the skill premium clears
 \begin{equation}\label{eq:specboundary}
-\frac{\mu_{\mathrm{spec}}}{\mu_{\mathrm{pool}}} \;\ge\; g_A(\rho,c)
+\frac{\mu_{\mathrm{spec}}}{\mu_{\mathrm{pool}}} \;\ge\; \gamma_A(\rho,c)
 \;=\; c\rho \;+\; \frac{1}{\,1 + \dfrac{C(c,\rho)}{c(1-\rho)}
-      + \dfrac{A\,\mu_{\mathrm{pool}}}{w\,\lambda_F}\,}.
+      + \dfrac{A\,\mu_{\mathrm{pool}}}{c_{\mathrm{wait}}\,\lambda_F}\,}.
 \end{equation}
 \end{pdclaim}
 
 \noindent\Verified. A tempting shortcut is
-$\tilde g = 1+(c-1)\lambda_F/(c\mu_{\mathrm{pool}}-\lambda_F)
+$\tilde\gamma = 1+(c-1)\lambda_F/(c\mu_{\mathrm{pool}}-\lambda_F)
 = 1+(c-1)\rho/(1-\rho)$, from a naive
 $M/M/1$-versus-$M/M/c$ response-time comparison. A sweep against simulation
 \emph{falsifies} that shortcut in both directions. Equation~\ref{eq:specboundary}
@@ -903,12 +903,12 @@ unsafe side as well as the safe one. Figure~\ref{fig:specialization} shades both
 At $A=0$ (response time only, with no value placed on accountability) the boundary
 reduces to
 \begin{equation}\label{eq:specboundary0}
-g(\rho,c) \;=\; c\rho \;+\; \frac{c(1-\rho)}{c(1-\rho)+C(c,\rho)}.
+\gamma(\rho,c) \;=\; c\rho \;+\; \frac{c(1-\rho)}{c(1-\rho)+C(c,\rho)}.
 \end{equation}
-Three properties fix its shape: $g(\rho,1)=1$ (a specialist against a single
-generalist needs no premium at all), $g\to c$ as $\rho\to1$ (the boundary
+Three properties fix its shape: $\gamma(\rho,1)=1$ (a specialist against a single
+generalist needs no premium at all), $\gamma\to c$ as $\rho\to1$ (the boundary
 \emph{saturates} at the capacity ratio; it never diverges), and for two generalists
-it is the closed form $g(\rho,2)=1+2\rho-\rho^2$. Below the boundary, sole
+it is the closed form $\gamma(\rho,2)=1+2\rho-\rho^2$. Below the boundary, sole
 ownership gives strict single-writer accountability at the cost of longer waits;
 Eq.~\ref{eq:specboundary} states that cost explicitly, so it can be budgeted
 instead of hidden.
@@ -922,9 +922,9 @@ The result is two lines of algebra on textbook
 formulas, which is the right way to first believe it. Sole ownership wins iff
 \[
 \begin{gathered}
-w\lambda_F(W_{\mathrm{solo}}-W_{\mathrm{pool}}) \le A,\\
+c_{\mathrm{wait}}\lambda_F(W_{\mathrm{solo}}-W_{\mathrm{pool}}) \le A,\\
 \text{ i.e.\ }1/(\mu_{\mathrm{spec}}-\lambda_F)
- \le W_{\mathrm{pool}} + A/(w\lambda_F);
+ \le W_{\mathrm{pool}} + A/(c_{\mathrm{wait}}\lambda_F);
 \end{gathered}
 \]
 invert,
@@ -944,7 +944,7 @@ the second term of Eq.~\ref{eq:specboundary0} is
 \[
 \begin{aligned}
 (1-\rho^2)/\bigl((1-\rho^2)+\rho^2\bigr) &= 1-\rho^2 \text{ and}\\
-g(\rho,2)&=1+2\rho-\rho^2,
+\gamma(\rho,2)&=1+2\rho-\rho^2,
 \end{aligned}
 \]
 checkable in three lines with no queueing theory at all.
@@ -955,10 +955,10 @@ $\mu_{\mathrm{spec}} = 3/\text{hr}$; the alternative is three generalists at
 $\mu_{\mathrm{pool}} = 1.2/\text{hr}$ each.
 
 Then $\rho = 2/3.6 = 0.556$ and the
-skill premium is $r = 3/1.2 = 2.5$. Erlang-C at $(c,\rho)=(3,0.556)$ is $0.300$, so
+skill premium is $r_{\mathrm{sk}} = 3/1.2 = 2.5$. Erlang-C at $(c,\rho)=(3,0.556)$ is $0.300$, so
 \[
 \begin{aligned}
-g &= 3(0.556)\\
+\gamma &= 3(0.556)\\
 &\quad{}+ 3(0.444)/\bigl(3(0.444)+0.300\bigr)\\
 &= 1.667 + 0.816 = 2.483.
 \end{aligned}
@@ -978,7 +978,7 @@ a margin of about
 
 The naive threshold would return
 \[
-\tilde g = 1 + 2(2)/(3.6-2) = 3.5
+\tilde\gamma = 1 + 2(2)/(3.6-2) = 3.5
 \]
 and send the work to the pool. That is the
 right-hand error lens of Figure~\ref{fig:specialization}. These are model
@@ -988,24 +988,24 @@ calculations, not measured roadmap performance.
 $\mu_{\mathrm{spec}} = 2.8/\text{hr}$ still be worth it on response time alone?
 (The premium is $2.8/1.2 = 2.33 < 2.483$ --- no, and $W_{\mathrm{solo}} = 1.25$ hr
 confirms it. The boundary is genuinely tight here; note that a positive
-accountability value $A$ lowers $g_A$ below $g$ and can tip the decision back to the sole owner.)
+accountability value $A$ lowers $\gamma_A$ below $\gamma$ and can tip the decision back to the sole owner.)
 \end{pdexample}
 
 \begin{pdexample}{Where the Exact and Naive Thresholds Cross}
 \setlength{\parskip}{4pt plus 1pt}
 At the round number $\rho=0.5$:
 \[
-g(0.5,2)=1+2(0.5)-0.5^2=1.75
+\gamma(0.5,2)=1+2(0.5)-0.5^2=1.75
 \]
 [verified, closed form].\footnote{Worked numbers carry a tag throughout: [verified] marks a stated check or a calculation anyone can rerun; [internal] marks a chapter derivation or a project-reported script run.}
 
-The naive $\tilde g(\rho,2)=1+\rho/(1-\rho)$ gives
+The naive $\tilde\gamma(\rho,2)=1+\rho/(1-\rho)$ gives
 \[
-\tilde g(0.5,2)=2.00
+\tilde\gamma(0.5,2)=2.00
 \]
 at the same point --- already a visible gap.
 
-Setting $g=\tilde g$ and clearing denominators leaves
+Setting $\gamma=\tilde\gamma$ and clearing denominators leaves
 \[
 \rho(\rho^2-3\rho+1)=0,
 \]
@@ -1013,7 +1013,7 @@ whose root in $(0,1)$ is
 \[
 \rho=(3-\sqrt5)/2\approx0.382
 \]
-[verified, closed form]: below it $\tilde g$ over-certifies \mbox{specialization} (false-certify), above it $\tilde g$ over-rejects (false-reject), so the naive form errs in \emph{both} directions.
+[verified, closed form]: below it $\tilde\gamma$ over-certifies \mbox{specialization} (false-certify), above it $\tilde\gamma$ over-rejects (false-reject), so the naive form errs in \emph{both} directions.
 
 \emph{Now you try:} run the falsification sweep behind this crossing (Exercise~\ref{ex:ls-b8-specialization-run}).
 \end{pdexample}
@@ -1052,7 +1052,7 @@ W_\infty=\frac{\xi}{\eta(\xi+\eta)},
 the residual downtime a request meets when it arrives during an outage. No
 skill premium removes it, so past a point the honest fix for a slow sole role is
 a better handoff and not a better owner. The second is that the ceiling can
-bind absolutely: writing $K=W_{\mathrm{pool}}+A/(w\lambda_F)$ for the
+bind absolutely: writing $K=W_{\mathrm{pool}}+A/(c_{\mathrm{wait}}\lambda_F)$ for the
 response-time threshold in hours,
 pooling wins at \emph{every} skill premium once $\xi/\eta$, the owner's failure
 rate over its replacement rate, clears the \pdterm{succession price}
@@ -1111,15 +1111,15 @@ worry is real. What is not obvious, and matters here, is that it lands on
 \emph{both} sides of Eq.~\ref{eq:specboundary} at once.
 
 Service time and waiting time must be kept separate. Put
-$a=\lambda_F/\mu_{\mathrm{pool}}=c\rho$,
-$r=\mu_{\mathrm{spec}}/\mu_{\mathrm{pool}}>a$, and
+$\nu=\lambda_F/\mu_{\mathrm{pool}}=c\rho$,
+$r_{\mathrm{sk}}=\mu_{\mathrm{spec}}/\mu_{\mathrm{pool}}>\nu$, and
 $\kappa_j=(1+c_{s,j}^2)/2$ for each service distribution. With Poisson arrivals
 and finite second moments, Pollaczek--Khinchine gives the specialist's mean
 \emph{sojourn} time exactly, while a variability-scaled Erlang-C approximation
 \pdcite{allen1990} gives the pool's:
 \begin{align}
  \mu_{\mathrm{pool}} W_{\mathrm{spec}}
-   &= \frac{1}{r}+\kappa_{\mathrm{spec}}\frac{a}{r(r-a)},\\
+   &= \frac{1}{r_{\mathrm{sk}}}+\kappa_{\mathrm{spec}}\frac{\nu}{r_{\mathrm{sk}}(r_{\mathrm{sk}}-\nu)},\\
  \mu_{\mathrm{pool}} W_{\mathrm{pool}}
    &\approx 1+\kappa_{\mathrm{pool}}
        \frac{C(c,\rho)}{c(1-\rho)}.
@@ -1128,7 +1128,7 @@ Only the second term in each expression is waiting. Multiplying the whole
 sojourn time by $\kappa$ would also multiply service time, which variance at a
 fixed mean does not do. The comparison is therefore
 $\mu_{\mathrm{pool}}W_{\mathrm{spec}}\le
- \mu_{\mathrm{pool}}W_{\mathrm{pool}}+A\mu_{\mathrm{pool}}/(w\lambda_F)$;
+ \mu_{\mathrm{pool}}W_{\mathrm{pool}}+A\mu_{\mathrm{pool}}/(c_{\mathrm{wait}}\lambda_F)$;
 it cannot in general be reduced to replacing $A$ by $A/\kappa$.
 
 \begin{pdexample}{A Variance-Sensitive Specialization Boundary}
@@ -1140,9 +1140,9 @@ approximation, not an error bound.
 
 Even equal variability on both sides can move
 the crossing when $A=0$: for $c=2$, $\rho=1/2$, and $C=1/3$, the exponential
-\mbox{threshold} is $r=1.75$; setting both $\kappa_j=2$ gives an approximate threshold
+\mbox{threshold} is $r_{\mathrm{sk}}=1.75$; setting both $\kappa_j=2$ gives an approximate threshold
 \[
-r=(8+\sqrt{124})/10\approx1.914.
+r_{\mathrm{sk}}=(8+\sqrt{124})/10\approx1.914.
 \]
 \end{pdexample}
 
@@ -1280,22 +1280,22 @@ feasible debit range.
 \begin{pdexample}{The Threshold and the Tuning Band, by Hand}
 \setlength{\parskip}{4pt plus 1pt}
 Suppose signal $u$ gives benefit $u$ and is upheld with probability $u$. An
-unupheld escalation costs $\delta w$. Take the linear case $b(u)=V(u)=u$. Setting
-$u-\delta w(1-u)=0$ gives $u^\star=\delta w/(1+\delta w)$.
-At $\delta=0.05,w=1$:\marginnote{\input{figures/spark-escalation-threshold}\par
-\emph{Escalation threshold:} $u^\star(\delta)=\tfrac{\delta w}{1+\delta w}$ ($w=1$).}%
+unupheld escalation costs $\theta w$. Take the linear case $U(u)=V(u)=u$. Setting
+$u-\theta w(1-u)=0$ gives $u^\star=\theta w/(1+\theta w)$.
+At $\theta=0.05,w=1$:\marginnote{\input{figures/spark-escalation-threshold}\par
+\emph{Escalation threshold:} $u^\star(\theta)=\tfrac{\theta w}{1+\theta w}$ ($w=1$).}%
 \[
-u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476
+u^\star=\theta w/(1+\theta w)=0.05/1.05=0.0476
 \]
-[verified, closed form] --- the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\delta,w)$ points the script confirms against bisection to machine precision.
+[verified, closed form] --- the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\theta,w)$ points the script confirms against bisection to machine precision.
 
-Now let a missed bad item cost $C_{\mathrm{miss}}=100$, an inspection $c_{\mathrm{att}}=1$, and a needless interruption $C_{\mathrm{fa}}=5$. The operator wants an escalation once its probability of being genuine exceeds $u_{\mathrm{crit}}=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(C_{\mathrm{miss}}+C_{\mathrm{fa}})=6/105\approx0.057$. Assume signals $u$ are spread uniformly on $[0,1]$ and $V(u)=u$ is that probability. With $x=1-u^\star$ the escalated share, each item's expected alarm cost is $c_{\mathrm{att}}x+C_{\mathrm{fa}}x^2/2$, which must not exceed the attention budget $A$ (unrelated to the accountability benefit $A$ of Eq.~\ref{eq:specboundary}). Silenced genuine warnings cost $C_{\mathrm{miss}}(u^\star-u_{\mathrm{crit}})$ when $u^\star>u_{\mathrm{crit}}$, and the miss budget allows $1$. At $w=1$, $\delta=u^\star/(1-u^\star)$. At $A=3.3$, $2.5x^2+x=3.3$ gives $x=0.9662$, so $\delta_{\min}=0.0338/0.9662=0.035$; the miss limit $100(u^\star-0.0571)\le1$ gives $u^\star\le0.0671$ and $\delta_{\max}=0.0671/0.9329=0.072$:
+Now let a missed bad item cost $C_{\mathrm{miss}}=100$, an inspection $c_{\mathrm{att}}=1$, and a needless interruption $C_{\mathrm{fa}}=5$. The operator wants an escalation once its probability of being genuine exceeds $u_{\mathrm{crit}}=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(C_{\mathrm{miss}}+C_{\mathrm{fa}})=6/105\approx0.057$. Assume signals $u$ are spread uniformly on $[0,1]$ and $V(u)=u$ is that probability. With $x_{\mathrm{esc}}=1-u^\star$ the escalated share, each item's expected alarm cost is $c_{\mathrm{att}}x_{\mathrm{esc}}+C_{\mathrm{fa}}x_{\mathrm{esc}}^2/2$, which must not exceed the attention budget $A_{\mathrm{att}}$. Silenced genuine warnings cost $C_{\mathrm{miss}}(u^\star-u_{\mathrm{crit}})$ when $u^\star>u_{\mathrm{crit}}$, and the miss budget allows $1$. At $w=1$, $\theta=u^\star/(1-u^\star)$. At $A_{\mathrm{att}}=3.3$, $2.5x_{\mathrm{esc}}^2+x_{\mathrm{esc}}=3.3$ gives $x_{\mathrm{esc}}=0.9662$, so $\theta_{\min}=0.0338/0.9662=0.035$; the miss limit $100(u^\star-0.0571)\le1$ gives $u^\star\le0.0671$ and $\theta_{\max}=0.0671/0.9329=0.072$:
 \[
-[\delta_{\min},\delta_{\max}]=[0.0350,0.0720].
+[\theta_{\min},\theta_{\max}]=[0.0350,0.0720].
 \]
-At $A=2.0$, $2.5x^2+x=2$ gives $x=0.7165$ and $\delta_{\min}=0.2835/0.7165=0.396>\delta_{\max}$, so the interval is \emph{empty} [verified closed forms, grid-confirmed].
+At $A_{\mathrm{att}}=2.0$, $2.5x_{\mathrm{esc}}^2+x_{\mathrm{esc}}=2$ gives $x_{\mathrm{esc}}=0.7165$ and $\theta_{\min}=0.2835/0.7165=0.396>\theta_{\max}$, so the interval is \emph{empty} [verified closed forms, grid-confirmed].
 
-An empty band means the fix is capacity or evidence quality; no choice of $\delta$ will do.
+An empty band means the fix is capacity or evidence quality; no choice of $\theta$ will do.
 
 \emph{Now you try:} run the script and confirm both bands (Exercise~\ref{ex:ls-b7-escalation-run}).
 \end{pdexample}
@@ -1306,27 +1306,27 @@ the numerical choices that made the example easy to compute.
 \begin{pdclaim}{Theorem}{The Escalation Threshold and Its Tuning Band}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:escalation-threshold}
-Let $w>0$, $\delta\ge0$, and let $b,V$ be continuous on $[0,1]$, with $b$
+Let $w>0$, $\theta\ge0$, and let $U,V$ be continuous on $[0,1]$, with $U$
 strictly increasing and $V:[0,1]\to[0,1]$ nondecreasing. An agent with signal
-$u$ receives expected benefit $b(u)$ before the false-escalation debit; $V(u)$ is the
+$u$ receives expected benefit $U(u)$ before the false-escalation debit; $V(u)$ is the
 probability its escalation is upheld. Its expected payoff
-$\Pi_\delta(u)=b(u)-\delta w\,(1-V(u))$ is strictly increasing. If
-$\Pi_\delta(0)<0<\Pi_\delta(1)$, there is a unique interior zero $u^\star$.
+$\Pi_\theta(u)=U(u)-\theta w\,(1-V(u))$ is strictly increasing. If
+$\Pi_\theta(0)<0<\Pi_\theta(1)$, there is a unique interior zero $u^\star$.
 Choosing escalation at indifference gives the rule $u\ge u^\star$.
 
-Increasing $\delta$ can only shrink the escalation set. If alarm load is
-nonincreasing and miss loss nondecreasing in $\delta$, the debits meeting both
+Increasing $\theta$ can only shrink the escalation set. If alarm load is
+nonincreasing and miss loss nondecreasing in $\theta$, the debits meeting both
 limits form an interval, possibly empty or unbounded. If both aggregate
 functions are continuous, that \mbox{interval} is closed; a finite
-$[\delta_{\min},\delta_{\max}]$ also requires a finite upper boundary.
+$[\theta_{\min},\theta_{\max}]$ also requires a finite upper boundary.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-Strict increase follows from strictly increasing $b$ plus nondecreasing
-$\delta wV$. Continuity and the two endpoint inequalities give existence by
+Strict increase follows from strictly increasing $U$ plus nondecreasing
+$\theta wV$. Continuity and the two endpoint inequalities give existence by
 the intermediate value theorem.
 
-For each fixed $u$, increasing $\delta$
+For each fixed $u$, increasing $\theta$
 cannot increase payoff, so the escalation sets are nested.
 
 The two aggregate
@@ -1338,10 +1338,10 @@ continuity, so closed endpoints do not follow from monotonicity alone.
 
 \begin{pdexample}{Pike's 4:05 Escalation}
 \setlength{\parskip}{4pt plus 1pt}
-This is a constructed example in the linear model above, with $\delta=0.05$
+This is a constructed example in the linear model above, with $\theta=0.05$
 and $w=1$, so $u^\star=0.05/1.05\approx0.048$. The debit is charged to the
 agent's standing: an escalation ruled false lowers the weight its later
-escalations receive by $\delta$, and $w$ converts that weight into the units
+escalations receive by $\theta$, and $w$ converts that weight into the units
 of the benefit.
 
 At 4:05 p.m.\ Pike is unsure about migration ordering. If Pike's evidence gives
@@ -1349,12 +1349,12 @@ $u=0.03$, escalating yields $0.03-0.05\times0.97\approx-0.019$, so Pike stays
 quiet. At $u=0.10$ it yields $0.10-0.05\times0.90=+0.055$, so Pike escalates.
 
 Now the two limits, with the costs and assumptions of the tuning-band example
-above. The attention budget $A$ caps the expected cost, per item, of the alarms
+above. The attention budget $A_{\mathrm{att}}$ caps the expected cost, per item, of the alarms
 Alice handles: $c_{\mathrm{att}}=1$ for each escalation she attends to and
 $C_{\mathrm{fa}}=5$ more for each she rules false; a genuine warning that stays
-silent costs $C_{\mathrm{miss}}=100$. The solves there give, at $A=3.3$,
-allowed debits from $0.035$ to $0.072$, and $\delta=0.05$ lies inside. At
-$A=2.0$ the alarm limit demands $\delta\ge0.396$ while the miss limit allows at
+silent costs $C_{\mathrm{miss}}=100$. The solves there give, at $A_{\mathrm{att}}=3.3$,
+allowed debits from $0.035$ to $0.072$, and $\theta=0.05$ lies inside. At
+$A_{\mathrm{att}}=2.0$ the alarm limit demands $\theta\ge0.396$ while the miss limit allows at
 most $0.072$, so no debit works; the fix is more reviewers or better evidence.
 \end{pdexample}
 \pdexercisepointer*{\ref{ex:ls-adversarial-review-corollary}}{\ref{ex:ls-b7-escalation-run}}{\pageref{ex:ls-adversarial-review-corollary}}
@@ -1368,7 +1368,7 @@ most $0.072$, so no debit works; the fix is more reviewers or better evidence.
 The connection to Spence is the cost difference between types: the nominal
 debit is the same, but an alarm with higher $V(u)$ is dismissed less often.
 Strictly increasing benefit and nondecreasing validation jointly give the
-threshold; validation monotonicity alone does not. Calibrating $\delta$ for a
+threshold; validation monotonicity alone does not. Calibrating $\theta$ for a
 deployment requires measured validation rates: the frequency with which the
 operator upholds an escalation at each signal level, with uncertainty and
 provenance recorded alongside the fitted curve.
@@ -1431,7 +1431,7 @@ how well does the evidence distinguish dangerous from safe actions, and where
 should the inspection threshold sit? The first question is answered by the
 \pdterm{sensitivity}, written $d'$: how far apart the evidence scores of
 dangerous and safe actions lie. For equal-variance Gaussian evidence,
-$d'=(\mu_{\mathrm{danger}}-\mu_{\mathrm{safe}})/\sigma$, the
+$d'=(\mu_{\mathrm{danger}}-\mu_{\mathrm{safe}})/\sigma_{\mathrm{ev}}$, the
 separation of the means in common standard-deviation units. Holding these
 distributions fixed, moving the threshold changes misses and false alarms;
 it does not change $d'$.
@@ -1491,7 +1491,7 @@ $\mathbb{E}[\text{zooms}(\beta)]$ is the inspection probability. The objective i
    \;+\; c_{\mathrm{att}}\,\mathbb{E}[\text{zooms}(\beta)] \,\Big].
 \end{equation}
 
-The forced-zoom policy $p(r,s,v)$, the probability that the daemon makes the
+The forced-zoom policy $p_{\mathrm{zoom}}(r,s,v)$, the probability that the daemon makes the
 operator open an action before it proceeds, given the agent's reputation $r$, the
 action's stakes $s$ and its reversibility $v$, is calibrated against this loss after specifying
 the score distributions that determine $P_{\text{miss}}$ and $P_{\text{fa}}$.
@@ -1523,7 +1523,7 @@ harm of zero review, but it does not always rule zero review out. If inspection
 costs more than the expected harm it prevents, zero review can minimize this
 objective, as the formatting example shows.
 
-We would like the forced-zoom policy $p$ to rise
+We would like the forced-zoom policy $p_{\mathrm{zoom}}$ to rise
 with stakes, to rise as reversibility falls, and to fall as reputation rises.
 The attention objective above does not guarantee this; it follows only from a
 model linking $r$, $s$ and $v$ to the distributions of evidence scores, so it
@@ -2131,11 +2131,11 @@ a sixteen-item set: each negative answer removes a whole branch.
 \label{thm:zoom-advantage}
 Let a flagged set of $F$ items contain an unknown set $P$ of $1\le k\le F$
 positives. Assume a noiseless group oracle of unit query cost reports exactly
-whether $S\cap P=\emptyset$.
+whether $J\cap P=\emptyset$ for a queried group $J$.
 Adaptive halving (query
 the flagged set; discard any group that tests negative; report any positive
 singleton; otherwise split the group into halves of sizes
-$\lfloor|S|/2\rfloor,\lceil|S|/2\rceil$ and recurse on both) identifies $P$
+$\lfloor|J|/2\rfloor,\lceil|J|/2\rceil$ and recurse on both) identifies $P$
 exactly, using a total number of group queries
 \[
 Q \;\le\; 2k\left\lceil\log_2(F/k)\right\rceil + 4k
@@ -2157,42 +2157,42 @@ which exceeds $1$ exactly on $0<d<1/12$ and equals $1$ at $d=1/12$.
 Every group the algorithm queries is a node of the halving tree $T$ of $[F]$: the
 root is the full flagged set, each internal node's children are its two halves,
 leaves are singletons. A node of size $s$ has children of size at most
-$\lceil s/2\rceil$, so every node at depth $d$ has size at most
-$\lceil F/2^d\rceil$, $T$ has depth $D\le\lceil\log_2 F\rceil$, and $T$ has exactly
+$\lceil s/2\rceil$, so every node at depth $\ell$ has size at most
+$\lceil F/2^\ell\rceil$, $T$ has depth $\ell_{\max}\le\lceil\log_2 F\rceil$, and $T$ has exactly
 $2F-1$ nodes, which gives the unconditional bound.
 
 Call a node \emph{positive} if its group meets $P$. The algorithm splits exactly
 the positive non-singleton nodes it visits, and every queried node is either the
-root or a child of a split node; writing $S^{+}$ for the number of positive
-non-singleton nodes of $T$, $Q\le 1+2S^{+}$. The nodes at any fixed depth are
+root or a child of a split node; writing $n^{+}$ for the number of positive
+non-singleton nodes of $T$, $Q\le 1+2n^{+}$. The nodes at any fixed depth are
 pairwise disjoint subsets of $[F]$, so each positive item lies in at most one of
-them, and at most $\min(k,2^d)$ nodes at depth $d$ are positive. Charge the
-positive nodes in two regimes. At the top of the tree, $d\le\lfloor\log_2 k\rfloor$,
+them, and at most $\min(k,2^\ell)$ nodes at depth $\ell$ are positive. Charge the
+positive nodes in two regimes. At the top of the tree, $\ell\le\lfloor\log_2 k\rfloor$,
 charge each positive node to its level: at most
-$\sum_{d=0}^{\lfloor\log_2 k\rfloor}2^d\le 2k-1$ in total. Below the fan-out,
-$d>\lfloor\log_2 k\rfloor$, charge each positive node to one positive item it
+$\sum_{\ell=0}^{\lfloor\log_2 k\rfloor}2^\ell\le 2k-1$ in total. Below the fan-out,
+$\ell>\lfloor\log_2 k\rfloor$, charge each positive node to one positive item it
 contains; by disjointness within a level each of the $k$ positives absorbs at most
-one charge per level, and non-singleton nodes exist only at depths $d\le D-1$, so
+one charge per level, and non-singleton nodes exist only at depths $\ell\le \ell_{\max}-1$, so
 the number of charging levels is
-$D-1-\lfloor\log_2 k\rfloor<(\log_2 F+1)-1-(\log_2 k-1)=\log_2(F/k)+1$; an integer
+$\ell_{\max}-1-\lfloor\log_2 k\rfloor<(\log_2 F+1)-1-(\log_2 k-1)=\log_2(F/k)+1$; an integer
 strictly below $\log_2(F/k)+1$ is at most $\lceil\log_2(F/k)\rceil$, so these
 levels contribute at most $k\lceil\log_2(F/k)\rceil$ charges. Summing,
-$S^{+}\le k\lceil\log_2(F/k)\rceil+2k-1$ and
+$n^{+}\le k\lceil\log_2(F/k)\rceil+2k-1$ and
 $Q\le 2k\lceil\log_2(F/k)\rceil+4k-1$. Correctness is immediate: a discarded group
 is certified free of positives, every positive survives discarding at every level,
 and each is eventually isolated and reported.
 
-For tightness take $F=2^a$, $k=2^b$, $b\le a$, positives at positions
-$\{iF/k:0\le i<k\}$. Every node at depth $d\le b$ contains a positive, so all
-$2^{b+1}-1=2k-1$ nodes down to depth $b$ are queried; below depth $b$ exactly $k$
-nodes per level are positive, each is split at levels $b,\dots,a-1$, and each split
-queries two children; the total is $(2k-1)+2k(a-b)=2k\log_2(F/k)+2k-1$. The
+For tightness take $F=2^{n_F}$, $k=2^{n_k}$, $n_k\le n_F$, positives at positions
+$\{iF/k:0\le i<k\}$. Every node at depth $\ell\le n_k$ contains a positive, so all
+$2^{n_k+1}-1=2k-1$ nodes down to depth $n_k$ are queried; below depth $n_k$ exactly $k$
+nodes per level are positive, each is split at levels $n_k,\dots,n_F-1$, and each split
+queries two children; the total is $(2k-1)+2k(n_F-n_k)=2k\log_2(F/k)+2k-1$. The
 density form follows by dividing $F$ by the bound. On
-$2^{-m}\le d<2^{-(m-1)}$, its denominator is the linear function
-$d(2m+4)$; the ratio is therefore hyperbolic on each such interval.
-For $m\ge5$ the denominator is below $1$ throughout the interval;
-for $m=4$ it equals $12d$, crossing $1$ at $d=1/12$;
-for $m\le3$ it exceeds $1$ throughout the interval. The endpoint $d=1$
+$2^{-j}\le d<2^{-(j-1)}$, its denominator is the linear function
+$d(2j+4)$; the ratio is therefore hyperbolic on each such interval.
+For $j\ge5$ the denominator is below $1$ throughout the interval;
+for $j=4$ it equals $12d$, crossing $1$ at $d=1/12$;
+for $j\le3$ it exceeds $1$ throughout the interval. The endpoint $d=1$
 also has denominator $4$. Thus the certificate exceeds $1$ exactly when
 $d<1/12$.
 \end{proof}
@@ -2300,7 +2300,7 @@ the formula past that line produces a spurious uptick near
 $\delta/p\to1$, a domain-of-validity error and not a feature of the frontier.
 
 Theorem~\ref{thm:zoom-advantage} assumes a reliable group query at unit cost;
-correlated or noisy group checks, and group costs growing with $|S|$, change the
+correlated or noisy group checks, and group costs growing with $|J|$, change the
 accounting. Plain halving is a factor of about two from Hwang's optimum by design:
 the theorem bounds the deployed algorithm, not the best one.
 
@@ -2353,8 +2353,8 @@ and who consumes the answer.
 \textbf{Loss} & \textbf{Input space / what is optimized over} & \textbf{Objective and loss metric} & \textbf{Target consumer} \\
 \midrule
 Directory candidate fit \newline (\S\ref{sec:relevance})
-& a (candidate, query) pair $(c,q)$; optimized over the live candidate set
-& \emph{Maximize} $\mathrm{fit}(c,q)=\mathrm{clamp}(z(c,q),0,1)$,
+& a (candidate, query) pair $(x,q)$; optimized over the live candidate set
+& \emph{Maximize} $\mathrm{fit}(x,q)=\mathrm{clamp}(z(x,q),0,1)$,
 Eq.~\ref{eq:fit}. Wrongness is measured in \emph{mis-routing}: a capable
 candidate ranked below an incapable one
 & the routing agent, choosing who to ask \\
@@ -2414,14 +2414,14 @@ gap; the layers above it are.
 A flat registry answers ``does an OAuth specialist exist?'' It does not answer ``of
 the fifty live agents, who should I ask about \emph{this} OAuth bug, given who
 touched these files an hour ago and who wrote the design note?'' That is a
-\emph{ranking} problem. The \pdterm{discovery ranker} scores each candidate $c$
+\emph{ranking} problem. The \pdterm{discovery ranker} scores each candidate $x$
 against a query $q$ as a clamped weighted sum of normalized sub-scores:
 \begin{align}\label{eq:fit}
-z(c,q) ={}& w_f\,\mathrm{file}(c,q) + w_n\,\mathrm{note}(c,q)
-  + w_i\,\mathrm{ident}(c,q) \nonumber\\
- &+ w_s\,\mathrm{skill}(c,q) + w_e\,\mathrm{epis}(c,q)
-  - w_\ell\,\mathrm{load}(c), \nonumber\\
-\mathrm{fit}(c,q) ={}& \mathrm{clamp}\!\bigl(z(c,q),0,1\bigr).
+z(x,q) ={}& w_f\,\mathrm{file}(x,q) + w_n\,\mathrm{note}(x,q)
+  + w_i\,\mathrm{ident}(x,q) \nonumber\\
+ &+ w_s\,\mathrm{skill}(x,q) + w_e\,\mathrm{epis}(x,q)
+  - w_\ell\,\mathrm{load}(x), \nonumber\\
+\mathrm{fit}(x,q) ={}& \mathrm{clamp}\!\bigl(z(x,q),0,1\bigr).
 \end{align}
 Table~\ref{tab:fit-signals} is the whole signal inventory.
 
@@ -2599,9 +2599,9 @@ the router's, gives the useful converse: different objectives can share a
 ranking when their strict preferences never oppose each other. This is
 \textbf{comonotonicity}, the concept used in Yaari's rank-dependent utility
 and Schmeidler's Choquet expected utility~\pdcite{yaari1987,schmeidler1989}.
-For priority scores $u$ and $v$, both oriented so larger means higher
+For priority scores $h_1$ and $h_2$, both oriented so larger means higher
 priority, the condition is
-$(u(x)-u(y))(v(x)-v(y))\geq 0$ for every pair. A negative product is a
+$(h_1(x)-h_1(y))(h_2(x)-h_2(y))\geq 0$ for every pair. A negative product is a
 strict reversal; a zero product may be a tie and is not a contradiction.
 Thus compatible orders can have different ties: they need a common
 refinement, not identical numerical scores or identical indifference
@@ -2612,10 +2612,10 @@ concept, not the utility representation theorems of those authors.
 \begin{pdclaim}{Theorem}{Comonotone Characterization}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:comonotone}
-Let $X$ be a finite item set and suppose each reader's optimal selections at
+Let $\mathcal X$ be a finite item set and suppose each reader's optimal selections at
 every budget $m$ are the top-$m$ sets of a total preorder of item priorities.
 
-A scalar head $h:X\to\mathbb R$ \emph{serves} a reader if its first $m$ items,
+A scalar head $h:\mathcal X\to\mathbb R$ \emph{serves} a reader if its first $m$ items,
 under one fixed tie-breaking order, are optimal for every $m$.
 
 A single head serves both readers iff their priority orders are comonotone:
@@ -2733,13 +2733,13 @@ constant preserves this product's ordering. An uncalibrated score alone does
 not determine the Bayes threshold; its posterior interpretation must be
 established separately.
 
-For a finite batch with additive expected losses and at most $k$ equal-cost
+For a finite batch with additive expected losses and at most $n_{\mathrm{slot}}$ equal-cost
 inspection slots, define the benefit of inspecting item $i$ by
 \[
   b_i=C_{\mathrm{miss},i}a_i-c_{\mathrm{att},i}
        -C_{\mathrm{fa},i}(1-a_i).
 \]
-Under the same inspection model, an optimal allocation selects up to $k$
+Under the same inspection model, an optimal allocation selects up to $n_{\mathrm{slot}}$
 items with the largest positive $b_i$. Items with zero benefit may be included
 without changing expected loss. This allocation assumes that inspecting one
 item does not change another item's costs or evidence. Unequal resource
@@ -2753,7 +2753,7 @@ to obtain $(C_{\mathrm{miss}}(x)+C_{\mathrm{fa}})a(x)\ge
 c_{\mathrm{att}}+C_{\mathrm{fa}}$.
 
 For the batch, the expected loss without inspection is fixed, and inspecting
-a set $A$ reduces it by $\sum_{i\in A}b_i$. A negative-benefit inspection can
+a set of items reduces it by the sum of their benefits $b_i$. A negative-benefit inspection can
 be removed; replacing a selected lower-benefit item by an unselected
 higher-benefit item improves the objective. Repeated exchanges give the
 stated allocation. No independence between item outcomes is needed for this
@@ -2819,7 +2819,7 @@ in a calibrated posterior. A recency weight alone is not a probability.
 \item \textbf{Compute loss and benefit.} Display expected passing loss
 $C_{\mathrm{miss}}a$ and compute the inspection benefit
 $b=C_{\mathrm{miss}}a-c_{\mathrm{att}}-C_{\mathrm{fa}}(1-a)$.
-\item \textbf{Allocate.} For at most $k$ equal-resource inspection slots,
+\item \textbf{Allocate.} For at most $n_{\mathrm{slot}}$ equal-resource inspection slots,
 select the largest positive benefits. With unequal resource requirements,
 solve the corresponding constrained allocation problem.
 \item \textbf{Apply declared overrides.} Mandatory review or distress-lane
@@ -2974,7 +2974,7 @@ unavoidable; a shared store or a larger budget can change it.
 \label{thm:split-digest}
 Let a trace contain two unit-size records, $E=\{e_{\mathrm{work}},e_{\mathrm{audit}}\}$. Restrict summaries to retained records $D\subseteq E$ with $|D|\le1$; the feasible summaries are exactly $\emptyset$, $\{e_{\mathrm{work}}\}$, and $\{e_{\mathrm{audit}}\}$.
 
-The work record gives a next-action bit $W\in\{0,1\}$. The full trace and any summary retaining that record predict $W$ with probability one; a summary omitting it predicts each bit with probability $1/2$. Define continuation loss by base-two relative entropy:
+The work record gives a next-action bit $X_{\mathrm{next}}\in\{0,1\}$. The full trace and any summary retaining that record predict $X_{\mathrm{next}}$ with probability one; a summary omitting it predicts each bit with probability $1/2$. Define continuation loss by base-two relative entropy:
 \[
 L_{\mathrm{succ}}(D)=\mathrm{KL}_2(P_{\mathrm{next}}(\cdot\mid E)\|P_{\mathrm{next}}(\cdot\mid D))
 =\mathbf1\{e_{\mathrm{work}}\notin D\}.
@@ -3001,32 +3001,32 @@ List the three feasible choices. Their losses $(L_{\mathrm{succ}},L_{\mathrm{op}
 \label{thm:split-penalty}
 For integers $N,m,k$ with $k\ge1$ and $2k\le m<N$, let
 \[
-F(q)=\mathrm{Floor}(N,q,m)
- =\log_2\!\frac{\binom Nq}{\binom mq}
- =\sum_{j=0}^{q-1}\log_2\!\frac{N-j}{m-j}.
+\Lambda(n)=\mathrm{LB}(N,n,m)
+ =\log_2\!\frac{\binom Nn}{\binom mn}
+ =\sum_{j=0}^{n-1}\log_2\!\frac{N-j}{m-j}.
 \]
 A joint zero-miss digest that must cover every possible union of two disjoint
 critical $k$-sets, using at most $m$ opens in total, has the worst-case bit
-lower bound $F(2k)$ from Theorem~\ref{thm:lowerbound}.
+lower bound $\Lambda(2k)$ from Theorem~\ref{thm:lowerbound}.
 
 This bound satisfies
 \[
-R(N,k,m)=\frac{F(2k)}{2F(k)}>1.
+\Gamma(N,k,m)=\frac{\Lambda(2k)}{2\Lambda(k)}>1.
 \]
 Indeed, $a_j=\log_2((N-j)/(m-j))$ is positive and strictly increasing in $j$
 because $N>m$. Thus $a_{j+k}>a_j$ for $0\le j<k$, so the last $k$ summands
-of $F(2k)$ exceed the first $k$: $F(2k)>2F(k)>0$.
+of $\Lambda(2k)$ exceed the first $k$: $\Lambda(2k)>2\Lambda(k)>0$.
 
 The ratio is unbounded across valid instances, not along a fixed finite
 $(N,m)$ slice. For $N=2k+1$ and $m=2k$, binomial cancellation gives
 \[
-F(2k)=\log_2(2k+1),\qquad
-F(k)=\log_2\!\frac{2k+1}{k+1}\longrightarrow1.
+\Lambda(2k)=\log_2(2k+1),\qquad
+\Lambda(k)=\log_2\!\frac{2k+1}{k+1}\longrightarrow1.
 \]
-Consequently $R(2k+1,k,2k)\to\infty$ as $k\to\infty$.
+Consequently $\Gamma(2k+1,k,2k)\to\infty$ as $k\to\infty$.
 \end{pdclaim}
 
-Read the ratio $R(N,k,m)$, which is unrelated to the rate $R(\delta,f)$, with care. Each of the two separate readers may open $m$
+Read the ratio $\Gamma(N,k,m)$ with care. Each of the two separate readers may open $m$
 items, $2m$ in all; the joint digest may open only $m$. What the theorem
 shows: one digest that must serve two readers with disjoint critical sets
 inside one reader's opening budget needs more bits than the two
@@ -3035,8 +3035,8 @@ not from serving two readers with one digest. At an equal total budget the
 order reverses. A joint review set of $2m$ items made of two disjoint
 $m$-item halves contains at least $\binom mk^2$ of the possible $2k$-sets,
 strictly more when $k\ge1$, and $\binom N{2k}\le\binom Nk^2$. So whenever
-$2m\le N$, the joint lower bound with $2m$ opens, $\mathrm{Floor}(N,2k,2m)$, is
-strictly below $2F(k)$; when $2m>N$ the joint reader can open everything and
+$2m\le N$, the joint lower bound with $2m$ opens, $\mathrm{LB}(N,2k,2m)$, is
+strictly below $2\Lambda(k)$; when $2m>N$ the joint reader can open everything and
 needs no bits at all.
 \pdscope{These are lower bounds on message length; nothing here says a real encoder reaches them.}
 
@@ -3044,36 +3044,36 @@ needs no bits at all.
 \setlength{\parskip}{4pt plus 1pt}
 At $N=60$, $k=2$, $m=8$, one reader's lower bound is
 \[
-F(2)=\log_2\!\frac{\binom{60}{2}}{\binom82}
+\Lambda(2)=\log_2\!\frac{\binom{60}{2}}{\binom82}
 \approx5.9822\text{ bits}.
 \]
 
 For a joint digest covering both disjoint critical sets with eight opens in
 total, the lower bound is
 \[
-F(4)=\log_2\!\frac{\binom{60}{4}}{\binom84}
+\Lambda(4)=\log_2\!\frac{\binom{60}{4}}{\binom84}
 \approx12.7662\text{ bits}.
 \]
 
 The sum of the two single-reader lower bounds is
 \[
-2F(2)\approx11.9644 \text{ bits},
+2\Lambda(2)\approx11.9644 \text{ bits},
 \]
 with eight opens allowed per reader. Hence the ratio plotted in Figure~\ref{fig:split-penalty} is
 \[
-R(60,2,8)\approx1.0670:
+\Gamma(60,2,8)\approx1.0670:
 \]
 the joint lower bound is about $6.70\%$ above that sum.
 
 The ratio to just one reader's lower bound is instead
 \[
-F(4)/F(2)\approx2.1340.
+\Lambda(4)/\Lambda(2)\approx2.1340.
 \]
 
 Give the joint digest the same sixteen opens the two separate readers have
 between them, and its lower bound drops below their sum:
 \[
-\mathrm{Floor}(60,4,16)=\log_2\!\frac{\binom{60}{4}}{\binom{16}{4}}
+\mathrm{LB}(60,4,16)=\log_2\!\frac{\binom{60}{4}}{\binom{16}{4}}
 =\log_2\frac{487635}{1820}\approx8.0657\text{ bits}<11.9644.
 \]
 
@@ -3110,8 +3110,8 @@ kernel-recorded source for every line it emits. What can be proved of it is
 syntactic (schema conformance, provenance closure, absence of authority); whether
 its digests are faithful is an empirical question requiring independently graded audits.
 The deterrence rate of \pdchapref{stp}{From Spawn to Person}, the audit rate
-$\rho^\star=G/(dB)$ at which cheating stops paying for a party with gain $G$,
-detection probability $d$ and bond $B$, applies only when an accountable
+at which cheating stops paying (the party's gain divided by the product of the
+detection probability and the bond), applies only when an accountable
 party really has that gain and actually forfeits the bond on detection.
 A local model without that payoff mechanism is not made truthful by the formula.
 
@@ -3143,37 +3143,37 @@ For example, with two unit-size pages and requests $A,B,A,C,A$, least-recently-u
 
 \begin{pdclaim}{Theorem}{Classical File-Caching Bound Applied to Context Records}
 \label{thm:paging}
-Consider immutable files of positive integer size and fixed nonnegative retrieval cost. Let the online cache have capacity $k$, the offline comparator capacity $h$, and $1\le h\le k$. Every requested file must fit in the comparator's cache. Both caches begin empty; requesting an absent file loads it and incurs its retrieval cost.
+Consider immutable files of positive integer size and fixed nonnegative retrieval cost. Let the online cache have capacity $k_{\mathrm{on}}$, the offline comparator capacity $k_{\mathrm{off}}$, and $1\le k_{\mathrm{off}}\le k_{\mathrm{on}}$. Every requested file must fit in the comparator's cache. Both caches begin empty; requesting an absent file loads it and incurs its retrieval cost.
 
 Young's \textsc{Landlord} algorithm satisfies
 \[
-\mathrm{Cost}_{\mathrm{Landlord},k}(\sigma)
-\le \frac{k}{k-h+1}\,\mathrm{OPT}_h(\sigma)
+\mathrm{Cost}_{\mathrm{Landlord},k_{\mathrm{on}}}(\sigma_{\mathrm{req}})
+\le \frac{k_{\mathrm{on}}}{k_{\mathrm{on}}-k_{\mathrm{off}}+1}\,\mathrm{OPT}_{k_{\mathrm{off}}}(\sigma_{\mathrm{req}})
 \]
-for every request sequence $\sigma$~\pdcite{young2002landlord}. The parameter $h$ is comparator capacity, not the number of pinned records. In the unit-size, unit-cost paging case, least-recently-used eviction is a specialization of this guarantee~\pdcite{sleatortarjan1985,young2002landlord}.
+for every request sequence $\sigma_{\mathrm{req}}$~\pdcite{young2002landlord}. The parameter $k_{\mathrm{off}}$ is comparator capacity, not the number of pinned records. In the unit-size, unit-cost paging case, least-recently-used eviction is a specialization of this guarantee~\pdcite{sleatortarjan1985,young2002landlord}.
 \end{pdclaim}
 
-This is a classical result, not a new theorem about language-model quality. Its proof charges online retrievals to comparator retrievals through a nonnegative potential: a comparator retrieval raises the potential by at most $k$ times its cost, and an online retrieval lowers it by at least $(k-h+1)$ times its cost. Summing over the sequence yields the ratio. The cited proof specifies the algorithm's credit updates; arbitrary ``recency plus importance'' eviction does not inherit it.
+This is a classical result, not a new theorem about language-model quality. Its proof charges online retrievals to comparator retrievals through a nonnegative potential: a comparator retrieval raises the potential by at most $k_{\mathrm{on}}$ times its cost, and an online retrieval lowers it by at least $(k_{\mathrm{on}}-k_{\mathrm{off}}+1)$ times its cost. Summing over the sequence yields the ratio. The cited proof specifies the algorithm's credit updates; arbitrary ``recency plus importance'' eviction does not inherit it.
 
-A fixed protected set can be handled explicitly. In the unit-page case, suppose the same $p<h$ pages stay pinned in both caches, and charge their common initial loading cost separately. Remove requests to those pages and run the algorithm on the remaining sequence. The capacities become $k-p$ and $h-p$, so the unpinned retrieval costs satisfy
+A fixed protected set can be handled explicitly. In the unit-page case, suppose the same $n_{\mathrm{pin}}<k_{\mathrm{off}}$ pages stay pinned in both caches, and charge their common initial loading cost separately. Remove requests to those pages and run the algorithm on the remaining sequence. The capacities become $k_{\mathrm{on}}-n_{\mathrm{pin}}$ and $k_{\mathrm{off}}-n_{\mathrm{pin}}$, so the unpinned retrieval costs satisfy
 \[
-\mathrm{Cost}_{k-p}\le\frac{k-p}{(k-p)-(h-p)+1}\mathrm{OPT}_{h-p}
-=\frac{k-p}{k-h+1}\mathrm{OPT}_{h-p}.
+\mathrm{Cost}_{k_{\mathrm{on}}-n_{\mathrm{pin}}}\le\frac{k_{\mathrm{on}}-n_{\mathrm{pin}}}{(k_{\mathrm{on}}-n_{\mathrm{pin}})-(k_{\mathrm{off}}-n_{\mathrm{pin}})+1}\mathrm{OPT}_{k_{\mathrm{off}}-n_{\mathrm{pin}}}
+=\frac{k_{\mathrm{on}}-n_{\mathrm{pin}}}{k_{\mathrm{on}}-k_{\mathrm{off}}+1}\mathrm{OPT}_{k_{\mathrm{off}}-n_{\mathrm{pin}}}.
 \]
 This comparison requires the same fixed pins on both sides. It says nothing about how to choose the right pins, and changing or forged pins require another analysis.
 
 \begin{pdboundary}
-Context records must have explicit sizes, retrieval costs, and version identities before the cache theorem applies. A stale record served as current is a correctness error, not merely a cache miss. The repository's corruption experiment explores an additional allowance $\psi N c_{\mathrm{refetch}}$, where $N$ is the number of consultations, $\psi$ their corruption rate, and $c_{\mathrm{refetch}}$ a chosen repair-cost ceiling. Its finite sweep in \texttt{b9\_context\_paging.py} does not prove that allowance for all corruption patterns. In particular, repair-on-touch and the effect of one corruption on later evictions need a separate coupling argument. No common error budget for summary coverage and paging follows merely from giving both parameters the name $\psi$.
+Context records must have explicit sizes, retrieval costs, and version identities before the cache theorem applies. A stale record served as current is a correctness error, not merely a cache miss. The repository's corruption experiment explores an additional allowance $\psi N_{\mathrm{cons}} c_{\mathrm{refetch}}$, where $N_{\mathrm{cons}}$ is the number of consultations, $\psi$ their corruption rate, and $c_{\mathrm{refetch}}$ a chosen repair-cost ceiling. Its finite sweep in \texttt{b9\_context\_paging.py} does not prove that allowance for all corruption patterns. In particular, repair-on-touch and the effect of one corruption on later evictions need a separate coupling argument. No common error budget for summary coverage and paging follows merely from giving both parameters the name $\psi$.
 
 Online algorithms with predictions study related questions about advice quality; competitive caching with learned advice~\pdcite{lykouris2018} is a useful starting point. Its guarantees must be imported with their own algorithm and error model, not transferred by analogy.
 \end{pdboundary}
 
 \begin{pdexample}{Reading the Cache Ratio}
-Take an online cache of $k=8$ pages and an offline comparator of $h=4$ pages, with no pins. The classical factor is $8/(8-4+1)=1.6$. Under the theorem's assumptions, \textsc{Landlord}'s retrieval cost is at most $1.6$ times the best cost with four pages. Comparing both with eight pages instead gives factor $8$: granting the comparator more memory makes the comparison harder.
+Take an online cache of $k_{\mathrm{on}}=8$ pages and an offline comparator of $k_{\mathrm{off}}=4$ pages, with no pins. The classical factor is $8/(8-4+1)=1.6$. Under the theorem's assumptions, \textsc{Landlord}'s retrieval cost is at most $1.6$ times the best cost with four pages. Comparing both with eight pages instead gives factor $8$: granting the comparator more memory makes the comparison harder.
 
 If two common pages are fixed and pinned in both caches, the remaining capacities are six and two. The unpinned factor becomes $6/(6-2+1)=1.2$, against the much smaller two-page comparator. This does not prove that pinning improved the total cost; it changed the comparator too.
 
-\emph{Now you try:} compute the unpinned factors at $h=k$ and $h=1$ in Exercise~\ref{ex:ls-paging-ratio-hand}, and state the comparator in words before doing the division.
+\emph{Now you try:} compute the unpinned factors at $k_{\mathrm{off}}=k_{\mathrm{on}}$ and $k_{\mathrm{off}}=1$ in Exercise~\ref{ex:ls-paging-ratio-hand}, and state the comparator in words before doing the division.
 \end{pdexample}
 
 The most counterintuitive instance is \emph{forgetting as compaction}.
@@ -3254,7 +3254,7 @@ reputation requires the additional continuity developed in
 \begin{pdrecitation}
 \item Why derive both digest and compaction from artifacts rather than earlier summaries?
 \item Name the four context-degradation failures and a remedy for each.
-\item Evaluate $k/(k-h+1)$ at $h=k$. Why is this the hardest comparator?
+\item Evaluate $k_{\mathrm{on}}/(k_{\mathrm{on}}-k_{\mathrm{off}}+1)$ at $k_{\mathrm{off}}=k_{\mathrm{on}}$. Why is this the hardest comparator?
 \end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -3363,7 +3363,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{Consent changes the schedule, not the participants.} Under consented serialization the same three edits become one commit log with a grant record each, naming actor, claim, artifact and reason.
 \item \textbf{Legibility-with-zoom.} A digest is a lens, never a replacement: every claim in it resolves to an artifact, and a digest whose claims resolve to nothing is a facade, however green.
 \item \textbf{The authority half.} The daemon gates or escalates on every act under a grant the operator gave once; the override is a single edge from operator to daemon, and the escalation threshold has a tuning band, not a point.
-\item \textbf{Specialization has a boundary.} A pooled queue beats sole ownership only when utilization and the skill premium put the operator on one side of the queueing boundary; the worked point $(\rho,r)=(0.556,\,2.5)$ clears a boundary of $2.483$ and so falls, barely, on sole ownership's side, while the same pool against a $2.8/\text{hr}$ specialist ($r=2.33$) falls on the pool's.
+\item \textbf{Specialization has a boundary.} A pooled queue beats sole ownership only when utilization and the skill premium put the operator on one side of the queueing boundary; the worked point $(\rho,r_{\mathrm{sk}})=(0.556,\,2.5)$ clears a boundary of $2.483$ and so falls, barely, on sole ownership's side, while the same pool against a $2.8/\text{hr}$ specialist ($r_{\mathrm{sk}}=2.33$) falls on the pool's.
 \item \textbf{Reading can become the bottleneck.} The zero-miss message
 lower bound depends on both the critical set and the number of permitted opens. At
 $N=60,m=8$, the lower bounds for two and four critical items are $5.98$ and
@@ -3552,7 +3552,7 @@ The route: with death at rate $\xi$ and succession at rate $\eta$ the sole
 owner's mean wait decreases in skill to an infimum
 $W_\infty=\xi/(\eta(\xi+\eta))$, the residual downtime a request meets when it
 arrives during an outage, which it never attains, so no amount of skill removes
-downtime below $W_\infty$. Writing $K=A/(w\lambda)+W_{\mathrm{pool}}$ for the
+downtime below $W_\infty$. Writing $K=A/(c_{\mathrm{wait}}\lambda_F)+W_{\mathrm{pool}}$ for the
 pool's cost line, pooling dominates at \emph{every} skill premium iff $W_\infty$
 has reached that line, $W_\infty\ge K$, which rearranges to
 $\xi/\eta\ge D^\star=\eta K/(1-\eta K)$. Whether that threshold sits above or
@@ -3567,20 +3567,20 @@ The threshold $D^\star$ is defined only when $\eta K<1$. If $\eta K\ge1$, the lo
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b8-specialization-run}
 Run \texttt{b8\_specialization.py} with \texttt{python3} from the
 \path{skills/harbor-results/scripts/} directory. Read off
-(a) the table entry for $g(\rho{=}0.5,c{=}2)$ and (b) the $\rho$ at which the exact
-boundary $g$ and the naive $\tilde g$ cross. Reproduce both by hand from
+(a) the table entry for $\gamma(\rho{=}0.5,c{=}2)$ and (b) the $\rho$ at which the exact
+boundary $\gamma$ and the naive $\tilde\gamma$ cross. Reproduce both by hand from
 Eq.~\ref{eq:specboundary0} before checking the script's line.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b8-specialization-run}
-By hand: $g(\rho,2)=1+2\rho-\rho^2$, so $g(0.5,2)=1+1-0.25=1.75$ [verified, closed form]. The crossing solves $g(\rho,2)=\tilde g(\rho,2)=1+\rho/(1-\rho)$; clearing denominators gives $\rho(\rho^2-3\rho+1)=0$, and the root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]. The script's output line is exactly this: \texttt{[PASS] c=2 crossing of g\textasciitilde{} and g at rho=(3-sqrt5)/2\ \ rho=0.38197, g=g\textasciitilde{}=1.61803}, and its charted table reports \texttt{rho=0.5\ \ c=2:\ \ 1.750\ [2.000]} for the exact and naive values side by side [internal, \texttt{b8\_specialization.py}]. The naive $\tilde g$ overstates the boundary here and selects the wrong arrangement for the roadmap-owner example of Eq.~\ref{eq:specboundary0}.
+By hand: $\gamma(\rho,2)=1+2\rho-\rho^2$, so $\gamma(0.5,2)=1+1-0.25=1.75$ [verified, closed form]. The crossing solves $\gamma(\rho,2)=\tilde\gamma(\rho,2)=1+\rho/(1-\rho)$; clearing denominators gives $\rho(\rho^2-3\rho+1)=0$, and the root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]. The script's output line is exactly this: \texttt{[PASS] c=2 crossing of g\textasciitilde{} and g at rho=(3-sqrt5)/2\ \ rho=0.38197, g=g\textasciitilde{}=1.61803}, and its charted table reports \texttt{rho=0.5\ \ c=2:\ \ 1.750\ [2.000]} for the exact and naive values side by side [internal, \texttt{b8\_specialization.py}]. The naive $\tilde\gamma$ overstates the boundary here and selects the wrong arrangement for the roadmap-owner example of Eq.~\ref{eq:specboundary0}.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b7-escalation-run}
 Run \texttt{python3 skills/harbor-results/scripts/b7\_escalation\_band.py} and read
-off the feasible debit band $[\delta_{\min},\delta_{\max}]$ at $A=3.3$ and at
-$A=2.0$. Confirm $u^\star(0.05)$ by hand first.
+off the feasible debit band $[\theta_{\min},\theta_{\max}]$ at $A_{\mathrm{att}}=3.3$ and at
+$A_{\mathrm{att}}=2.0$. Confirm $u^\star(0.05)$ by hand first.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b7-escalation-run}
-By hand, at $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\delta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w\allowbreak/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = \mbox{0.071975} -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = \mbox{0.071975} -> band EMPTY} [internal, \texttt{b7\allowbreak\_escalation\allowbreak\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A=3.3$ against an empty feasible set at $A=2.0$ because $\delta_{\min}>\delta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A$ or lower $C_{\mathrm{miss}}$), never forcing a $\delta$ that does not exist.
+By hand, at $\theta=0.05,w=1$: $u^\star=\theta w/(1+\theta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\theta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w\allowbreak/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = \mbox{0.071975} -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = \mbox{0.071975} -> band EMPTY} [internal, \texttt{b7\allowbreak\_escalation\allowbreak\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A_{\mathrm{att}}=3.3$ against an empty feasible set at $A_{\mathrm{att}}=2.0$ because $\theta_{\min}>\theta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A_{\mathrm{att}}$ or lower $C_{\mathrm{miss}}$), never forcing a $\theta$ that does not exist.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:operator}}{The operator as a modeled entity}
@@ -3611,10 +3611,10 @@ mis-serves an operator who is, in fact, perfectly calibrated.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-global-trust-knob}
 Use the formatting and migration classes in Table~\ref{tab:sdt-numbers}.
-Suppose a single knob imposes the same randomized inspection probability $q$
+Suppose a single knob imposes the same randomized inspection probability $q_{\mathrm{insp}}$
 on both, independent of the item. Formatting loss is
-$(1-q)0.005+q(1.199)$, minimized at $q=0$; migration loss is
-$(1-q)100+q(1)$, minimized at $q=1$. No common $q$ attains both class minima.
+$(1-q_{\mathrm{insp}})0.005+q_{\mathrm{insp}}(1.199)$, minimized at $q_{\mathrm{insp}}=0$; migration loss is
+$(1-q_{\mathrm{insp}})100+q_{\mathrm{insp}}(1)$, minimized at $q_{\mathrm{insp}}=1$. No common $q_{\mathrm{insp}}$ attains both class minima.
 A pooled rate can hide that difference. This counterexample assumes the knob
 really imposes a common probability; a common interface setting that implements
 different class thresholds need not have the same defect.
@@ -3634,7 +3634,7 @@ Pareto-optimal in both operator-seconds and token cost, or does a cheaper digest
 always cost more operator seconds?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-pareto-digest}
-Model each digest policy $d$ by (token cost $T(d)$, human time $H(d)$, expected decision loss $L(d)$) and compare nondominated policies. A Pareto frontier exists for a finite policy set, but there is no universal inverse relation: removing redundant context can lower both token cost and operator time; beyond that free-compression frontier, preserving evidence often trades tokens for review effort or a higher error rate. Optimize under a loss or safety constraint, e.g.\ $\min \alpha T+\beta H+L$ subject to zero omission of hard obligations, and report the frontier empirically rather than claiming one universal digest optimum.
+Model each digest policy by its token cost, human time and expected decision loss, and compare nondominated policies. A Pareto frontier exists for a finite policy set, but there is no universal inverse relation: removing redundant context can lower both token cost and operator time; beyond that free-compression frontier, preserving evidence often trades tokens for review effort or a higher error rate. Optimize under a loss or safety constraint, e.g.\ minimize a weighted sum of token cost, human time and decision loss subject to zero omission of hard obligations, and report the frontier empirically rather than claiming one universal digest optimum.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-freeze-probe-study}
 Does required skill-retention practice
@@ -3701,7 +3701,7 @@ By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form].
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-noisy-zoom-oracle}
 Theorem~\ref{thm:zoom-advantage}'s group query is exact: it reports whether
-$S\cap P=\emptyset$ and is never wrong. A real group query is a linter, a batched
+$J\cap P=\emptyset$ and is never wrong. A real group query is a linter, a batched
 test run or a diff scan, and those have false negatives --- a group that does
 contain a critical item can come back clean. This is the worst direction for the
 algorithm to fail in, because a negative group is \emph{discarded}: one false
@@ -3713,12 +3713,12 @@ bounds the probability of losing any given positive, state the query cost it
 adds, and then say what the scheme does \emph{not} fix.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-noisy-zoom-oracle}
-For $0<\alpha<1$, accept ``clean'' only when $r$ independent queries
+For $0<\alpha<1$, accept ``clean'' only when $n_{\mathrm{rep}}$ independent queries
 on the same group all report clean; stop as soon as any query reports dirty.
-A positive group is wrongly discarded with probability at most $\alpha^r$.
-For $0<\eta<1$, choosing
-$r=\lceil\log(1/\eta)/\log(1/\alpha)\rceil$ gives per-group error at most
-$\eta$; at $\alpha=0.1$, three calls give $10^{-3}$. A dirty verdict needs
+A positive group is wrongly discarded with probability at most $\alpha^{n_{\mathrm{rep}}}$.
+For $0<\varepsilon_{\mathrm{grp}}<1$, choosing
+$n_{\mathrm{rep}}=\lceil\log(1/\varepsilon_{\mathrm{grp}})/\log(1/\alpha)\rceil$ gives per-group error at most
+$\varepsilon_{\mathrm{grp}}$; at $\alpha=0.1$, three calls give $10^{-3}$. A dirty verdict needs
 no confirmation because false positives are excluded by hypothesis.
 The noisy recursion visits a subset of the groups visited by the noiseless
 algorithm: an erroneous clean verdict can prune that tree but cannot add nodes.
@@ -3728,17 +3728,17 @@ Q_0=2k\lceil\log_2(F/k)\rceil+4k,
 \]
 the repetition scheme therefore uses at most $rQ_0$ oracle calls. For a fixed
 repetition count, this bound retains its sparsity dependence; whether it beats
-flat inspection also depends on $r$ and the required reliability.
+flat inspection also depends on $n_{\mathrm{rep}}$ and the required reliability.
 
 Three limitations remain. First, per-group error is not the probability of
 losing a positive anywhere in the tree. A union bound over the at most $Q_0$
 visited groups gives
 \[
-\Pr(\text{any positive is lost})\le Q_0\alpha^r.
+\Pr(\text{any positive is lost})\le Q_0\alpha^{n_{\mathrm{rep}}}.
 \]
-Thus, for $0<\varepsilon<1$, choosing
-$r=\lceil\log(Q_0/\varepsilon)/\log(1/\alpha)\rceil$ suffices for a whole-run
-failure bound of $\varepsilon$, and hence for each individual positive as well.
+Thus, for $0<\varepsilon_{\mathrm{run}}<1$, choosing
+$n_{\mathrm{rep}}=\lceil\log(Q_0/\varepsilon_{\mathrm{run}})/\log(1/\alpha)\rceil$ suffices for a whole-run
+failure bound of $\varepsilon_{\mathrm{run}}$, and hence for each individual positive as well.
 The $4k$ term must be retained when $k$ is near $F$. If $k$ is unknown, use
 the theorem's $k$-free bound $2F-1$ in place of $Q_0$ for this choice.
 At $\alpha=0$, one call per group is exact; at $\alpha=1$, the assumed error
@@ -3773,7 +3773,7 @@ on a domain containing both high-fit/low-risk and low-fit/high-risk items, so
 one ranker cannot serve both jobs. Discovery minimizes routing loss (or
 maximizes capability fit). The attention head minimizes total expected loss
 including inspection costs. Under Theorem~\ref{thm:regret-head}'s additive,
-no-cross-effect assumptions, at most $k$ equal-resource slots go to the largest
+no-cross-effect assumptions, at most $n_{\mathrm{slot}}$ equal-resource slots go to the largest
 positive inspection benefits $b_i$. Unequal inspection times require a
 constrained allocation. Benefit-per-second ranking alone is not generally
 optimal for indivisible inspections: benefits $(3,4)$, times $(2,3)$ seconds,
@@ -3891,7 +3891,7 @@ Optimal token-budget allocation across a DAG of orchestrator/worker/
 reviewer agents under a total budget.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-dag-token-budget}
-Budget allocation over a precedence DAG is a knapsack/resource-allocation problem and is NP-hard in general. First reserve a minimum viable budget for each mandatory node and any predecessor needed to make its output exist. Allocate the remainder by estimated marginal outcome value per token while respecting precedence, and recompute after each result. This marginal-value-per-token rule is a heuristic here, with no stated approximation guarantee. The classical $(1-1/e)$ bound applies to maximum-marginal-gain greedy for a normalized, nonnegative, monotone submodular function with only a cardinality constraint; it does not cover arbitrary precedence, unequal token costs, or additional constraints. In the separate additive $0$--$1$ knapsack special case, with integer costs, budget $B$, and no precedence constraints, the standard dynamic program takes $O(nB)$ time for $n$ items. General precedence and value interactions require a separately analyzed algorithm. A reviewer's tokens have near-zero value until the worker artifact it reviews exists.
+Budget allocation over a precedence DAG is a knapsack/resource-allocation problem and is NP-hard in general. First reserve a minimum viable budget for each mandatory node and any predecessor needed to make its output exist. Allocate the remainder by estimated marginal outcome value per token while respecting precedence, and recompute after each result. This marginal-value-per-token rule is a heuristic here, with no stated approximation guarantee. The classical $(1-1/e)$ bound applies to maximum-marginal-gain greedy for a normalized, nonnegative, monotone submodular function with only a cardinality constraint; it does not cover arbitrary precedence, unequal token costs, or additional constraints. In the separate additive $0$--$1$ knapsack special case, with integer costs, budget $B_{\mathrm{tok}}$, and no precedence constraints, the standard dynamic program takes $O(nB_{\mathrm{tok}})$ time for $n$ items. General precedence and value interactions require a separately analyzed algorithm. A reviewer's tokens have near-zero value until the worker artifact it reviews exists.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-a7-split-floor-run}
 Run \texttt{python3 skills/harbor-results/scripts/a7\_experiment.py} and read off the
@@ -3914,12 +3914,12 @@ sampling tolerance, not every possible encoder. The counting argument
 proves the lower bound; the sweep checks the tested implementations against it.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-paging-ratio-hand}
-Compute the Landlord competitiveness ratio $k/(k-h+1)$ at $k=8,h=8$ and at
-$k=8,h=1$. Which end of the range recovers the classical, unaugmented
+Compute the Landlord competitiveness ratio $k_{\mathrm{on}}/(k_{\mathrm{on}}-k_{\mathrm{off}}+1)$ at $k_{\mathrm{on}}=8,k_{\mathrm{off}}=8$ and at
+$k_{\mathrm{on}}=8,k_{\mathrm{off}}=1$. Which end of the range recovers the classical, unaugmented
 Sleator--Tarjan bound?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-paging-ratio-hand}
-At $h=k=8$: $k/(k-h+1)=8/1=8.0$, recovering the classical unaugmented result that a cache of size $k$ is $k$-competitive against an offline optimum given the very same cache size --- the hardest comparator, no resource augmentation. At $h=1$: $k/(k-h+1)=8/8=1.0$, the fully resource-augmented regime, where online's cache $k$ so outsizes the comparator's $h=1$ that the ratio collapses to $1$. The chapter's own $k=8,h=4$ instance, at $1.6$, sits at the midpoint, measured against a comparator with half of online's verified capacity.
+At $k_{\mathrm{off}}=k_{\mathrm{on}}=8$: $k_{\mathrm{on}}/(k_{\mathrm{on}}-k_{\mathrm{off}}+1)=8/1=8.0$, recovering the classical unaugmented result that a cache of size $k_{\mathrm{on}}$ is $k_{\mathrm{on}}$-competitive against an offline optimum given the very same cache size --- the hardest comparator, no resource augmentation. At $k_{\mathrm{off}}=1$: $k_{\mathrm{on}}/(k_{\mathrm{on}}-k_{\mathrm{off}}+1)=8/8=1.0$, the fully resource-augmented regime, where online's cache $k_{\mathrm{on}}$ so outsizes the comparator's $k_{\mathrm{off}}=1$ that the ratio collapses to $1$. The chapter's own $k_{\mathrm{on}}=8,k_{\mathrm{off}}=4$ instance, at $1.6$, sits at the midpoint, measured against a comparator with half of online's verified capacity.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:consent-canon}}{Reconciling the canon: roles, consent, and local knowledge}
@@ -4160,7 +4160,7 @@ homework dressed up.
 \toprule
 \textbf{Open problem} & \textbf{Difficulty} & \textbf{Couples to} \\
 \midrule
-Forced-zoom rate $p(r,s,v)$ & $\star\star\star$ & reputation-to-risk calibration (\S\ref{sec:operator}) \\
+Forced-zoom rate $p_{\mathrm{zoom}}(r,s,v)$ & $\star\star\star$ & reputation-to-risk calibration (\S\ref{sec:operator}) \\
 Operator-attention vs.\ token-COGS Pareto frontier (Ex.~\ref{ex:ls-pareto-digest}) & $\star\star\star$ & \S\ref{sec:tokens} \\
 Compaction-quality scalar as an attestation invariant (Ex.~\ref{ex:ls-replay-metric-soundness}) & $\star\star$ & honest attestation \\
 Completionist verification of the unverifiable (Ex.~\ref{ex:ls-honest-fallback-ladder}) & $\star\star$ & Invariant~\ref{def:completionist} \\
