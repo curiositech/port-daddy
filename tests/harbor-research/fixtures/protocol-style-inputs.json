@@ -4,10 +4,10 @@
   "reviewed_source_head": "856b3ccb156ae243e9e438cb1f8787a6d087f953",
   "changes_reviewed": {
     "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged.",
-    "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence.",
+    "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence. Chapter 1 landmark title now reads 'Proposals, Effects and Recovery' (plain-language rewrite drops the bedrock metaphor); protocol environments unchanged.",
     "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance.",
     "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged.",
-    "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter structure unchanged.",
+    "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter one-line summaries regenerated from book/textbook.json after the plain-language rewrite; chapter structure and protocol environments unchanged.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
     "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required."
   },
@@ -29,8 +29,8 @@
     },
     {
       "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
-      "sha256": "eb6dec45aa21972b01e4a789c81cfd046cba70bdeee7ebadabf0347c68073e40",
-      "bytes": 13599
+      "sha256": "4d084a4c3d46465dd8bcab5f7614a1146e7b43d8e969a6ccefe86dc6ed8f0806",
+      "bytes": 13591
     },
     {
       "path": "book/figures/lucide/workflow.pdf",
@@ -79,8 +79,8 @@
     },
     {
       "path": "book/figures/pd-textbook-map.tex",
-      "sha256": "fe1ff66b3df3d9d16bd75fa8dcd0f5805dc1271d37822c994b999b534930a144",
-      "bytes": 13844
+      "sha256": "c85adae043273c9aeb569dd5069d98e73accc3a4af4cadfdbfd3d92eea57a7aa",
+      "bytes": 14772
     }
   ],
   "source_relocation": "Canonical book/ relocation: source-path comments, generated locator header, and fixture import roots updated; no new rendered acceptance claimed. Historical checkpoint hashes remain unchanged."

@@ -34,7 +34,8 @@ RECORDS = [
     ('agent-transactions-whitepaper.tex', 'batch3-ch07-repair-kit',
      'ch07-cleanup-repair-kit',
      '03effe4ecc1807830daa6303d62359618334f6faeab681d439905337ff3ab1fa',
-     'Like repairing a damaged fitting, cleanup consumes work', 'cleanup cost per breach event'),
+     'Like repairing a damaged fitting, cleanup consumes work',
+     'cleanup cost, the human and compute cost to detect, assess and recover from one breach'),
 ]
 
 

@@ -47,15 +47,15 @@ def check_nomint(text):
                          "The copy-full mutant", "A counterexample to local grant budgets alone", r"\emph{Now you try:}",
                          "The discipline is older", "Same enemy"])
     require_displays(text, ["0.9+0.81+0.729=2.439>1", r"0.9^3=0.729\le 1"])
-    for required in ["except at witness", "$4{,}000$", "$0$ violations [internal,",
-                     "$8.2\\times$", "Debiting each transferred balance is what supplies conservation", r"\pdcite{levien-advogato}",
+    for required in ["that total can grow only when a new outcome is checked", "$4{,}000$",
+                     "$0$ violations [internal,", "$1+8\\times0.9=8.2$", "Debiting each transferred balance is what supplies conservation", r"\pdcite{levien-advogato}",
                      r"\ref{ex:stp-nomint-sweep}"]:
         if required not in " ".join(text.split()):
             raise AssertionError("No-mint premise or provenance changed: " + required)
 
 
 def check_trade(text):
-    require_groups(text, ["The following particular double auction", "Any mechanism satisfying",
+    require_groups(text, ["This particular double auction", "Any mechanism satisfying",
                          "Take Bob's value", "Integrating over the whole square",
                          "Efficient trade is possible", "Counting opportunities",
                          "These are properties"])
@@ -66,14 +66,32 @@ def check_trade(text):
                            r"7/32\approx21.9\%", r"7/16=43.75\%",
                            r"M^{-2}\int_0^{M/4}x(M-x)\,dx=5M/192",
                            r"5/32=15.625\%"])
-    for required in ["drawn independently and uniformly", "not evidence for this illustrative distribution",
-                     "does not identify which property the whole harbor market must sacrifice",
+    for required in ["drawn independently and uniformly",
+                     "the distribution itself is constructed for illustration",
                      "has Bob bid and Alice ask, respectively", r"\emph{all draws}",
                      r"\emph{efficient opportunities}", "not a universal inefficiency percentage",
                      "not measurements of the harbor market", "[internal; algebra shown]",
                      r"\pdcite{chatterjee1983}"]:
         if required not in " ".join(text.split()):
             raise AssertionError("Trade scope, denominator or provenance changed: " + required)
+
+
+def ms_scope(source):
+    """The scope line that follows the bilateral-trade theorem.
+
+    The plain-language rewrite moved the example's sentence about which
+    property the whole market must give up into this one Scope line, which
+    directly follows the example and the theorem it illustrates."""
+    start = source.index(r"\label{thm:ms}")
+    scope = source.index(r"\pdscope{", source.index(r"\end{pdclaim}", start))
+    return " ".join(source[scope:source.index("}\n", scope)].split())
+
+
+def check_ms_scope(text):
+    for required in ["does not prove that the harbor mechanism is incentive compatible",
+                     "or say which of the four properties the full market gives up"]:
+        if required not in text:
+            raise AssertionError("Market-wide trade scope changed: " + required)
 
 
 def grant_example(source):
@@ -89,7 +107,7 @@ def check_grant(text):
                    "migration change is outside the subtree",
                    "force-push is outside the grant",
                    "no permission to execute them",
-                   "Its scope must include the acceptance-preservation rule, not merely a path glob",
+                   "Its scope must include the acceptance-preservation rule as well as a path pattern",
                    r"\textsc{stakes-ceiling}\ s_{\max}",
                    r"\textsc{reversibility-floor}\ v_{\min}",
                    r"\textsc{ttl},\ \textsc{revocable}",
@@ -106,6 +124,7 @@ class DecompressedBlocks(unittest.TestCase):
 
     def test_trade_keeps_three_denominators_and_model_scope_distinct(self):
         check_trade(example(TRADE.read_text(), "Efficient Trade That the Mechanism Still Refuses"))
+        check_ms_scope(ms_scope(TRADE.read_text()))
 
     def test_alice_grant_and_observable_consequences_are_separate(self):
         check_grant(grant_example(SWARM.read_text()))
@@ -136,7 +155,8 @@ class DecompressedBlocks(unittest.TestCase):
 
     def test_audit_depth_keeps_two_pools_and_exercise_separate(self):
         text = example(SPAWN.read_text(), "Diversity and Audit Depth")
-        require_groups(text, ["Take $G_0", "With a heterogeneous pool", "For $C=1$", r"\emph{Now you try:}"])
+        require_groups(text, ["Walk a corrupt grade worth $G_0", "With a heterogeneous pool", "For $C=1$",
+                              r"\emph{Now you try:}"])
         require_displays(text, [r"\lceil \log 400/\log 1.25 \rceil = 27",
                                r"\lceil \log 50/\log 1.25\rceil = 18"])
         self.assertIn("they are not measured audit performance", " ".join(text.split()))
@@ -170,6 +190,8 @@ class DecompressedBlocks(unittest.TestCase):
             (check_trade, trade, "7/16=43.75", "7/32=43.75"),
             (check_trade, trade, "drawn independently and uniformly", "drawn uniformly"),
             (check_trade, trade, "not measurements of the harbor market", "measurements of the harbor market"),
+            (check_ms_scope, ms_scope(TRADE.read_text()), "or say which of the four properties",
+             "and says which of the four properties"),
         ]:
             with self.subTest(old=old):
                 self.assertIn(old, text)
