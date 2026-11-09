@@ -151,6 +151,10 @@ class Ledger(unittest.TestCase):
         [loaded] = self.load("- {id: a-1, item: i, file: book/ch.tex, before: old words, after: null, source: s}\n")
         self.assertEqual((loaded["before"], loaded["after"]), ("old words", ""))
 
+    def test_an_optional_note_is_accepted_and_never_checked(self):
+        [loaded] = self.load("- {id: a-1, item: i, file: book/ch.tex, before: x, after: y, source: s, note: why}\n")
+        self.assertEqual(loaded["after"], "y")
+
     def test_a_row_with_both_sides_null_is_rejected(self):
         with self.assertRaises(cc.LedgerError) as caught:
             self.load("- {id: a-1, item: i, file: book/ch.tex, before: null, after: null, source: s}\n")

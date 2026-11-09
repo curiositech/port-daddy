@@ -68,6 +68,8 @@ DEFAULT_LEDGER = REPO_ROOT / "book" / "corrections.yaml"
 
 FIELDS = ("id", "item", "file", "before", "after", "source")
 
+# Optional free-text context for a reviewer; never checked against the PDF.
+OPTIONAL_FIELDS = ("note",)
 # A ledger string that carries TeX can never match extracted text. For an
 # `after` that is a loud failure; for a `before` it is a silent pass -- the
 # old wording "is gone" because the needle was never findable -- which is the
@@ -135,7 +137,7 @@ def load_rows(path: Path, repo_root: Path = REPO_ROOT) -> list[dict]:
         row_id = raw.get("id")
         if isinstance(row_id, str) and row_id.strip():
             where = f"{path.name} row {index} ({row_id})"
-        unknown = sorted(set(raw) - set(FIELDS))
+        unknown = sorted(set(raw) - set(FIELDS) - set(OPTIONAL_FIELDS))
         if unknown:
             problems.append(f"{where}: unknown field(s) {', '.join(map(str, unknown))}")
         row: dict = {}

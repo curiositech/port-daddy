@@ -157,8 +157,8 @@ class DecompressedBlocks(unittest.TestCase):
         text = example(SPAWN.read_text(), "Diversity and Audit Depth")
         require_groups(text, ["Walk a corrupt grade worth $G_0", "With a heterogeneous pool", "For $C=1$",
                               r"\emph{Now you try:}"])
-        require_displays(text, [r"\lceil \log 400/\log 1.25 \rceil = 27",
-                               r"\lceil \log 50/\log 1.25\rceil = 18"])
+        require_displays(text, [r"\lceil \log 40/\log 1.25 \rceil = 17",
+                               r"\lceil \log 5/\log 1.25\rceil = 8"])
         self.assertIn("they are not measured audit performance", " ".join(text.split()))
 
     def test_amortization_distinguishes_discrete_sum_and_integral(self):

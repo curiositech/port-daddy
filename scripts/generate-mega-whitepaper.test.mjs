@@ -341,6 +341,16 @@ const knownUnreferencedFragments = [
   'book/figures/fig-bc-graduated-trigger.tex',
   'book/figures/fig-bc-oracle-audit-rate.tex',
   'book/figures/tab-bc-settlement-rule.tex',
+  // Retired by the third pass (Wave 1): both plot a joint digest held to one
+  // reader's opening budget against two readers who each have it, which teaches
+  // the reversed moral; the chapter now states the equal-budget pooling gain.
+  // Kept on disk because tests/harbor-research read them.
+  'book/figures/legible-swarm-readpoverty.tex',
+  'book/figures/legible-swarm-split-penalty.tex',
+  // Cut with Chapter 8's consistency-radius material in the third pass
+  // (Wave 1); the radius theorems now live only in the paper twin.
+  'book/figures/fig-fh-visible-topology.tex',
+  'book/figures/spark-fh-cycle-radius.tex',
 ];
 const stagedUnreferencedFragments = JSON.parse(
   readFileSync(resolve('book/figure-staging.json'), 'utf8'),

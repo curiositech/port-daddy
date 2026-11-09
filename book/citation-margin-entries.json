@@ -121,9 +121,9 @@
   },
   {
     "key": "mega002",
-    "original": "Butler W. Lampson.\n\\newblock Protection.\n\\newblock \\textit{ACM SIGOPS Operating Systems Review}, 8(1):18--24, 1974.",
-    "margin": "B. W. Lampson. ``Protection.'' \\emph{ACM SIGOPS OS Review} 8(1):18--24, 1974.",
-    "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator."
+    "original": "Butler W. Lampson. Protection. Reprinted in \\emph{ACM SIGOPS Operating\nSystems Review}, 8(1):18--24, January 1974; first published in \\emph{Proc.\\ 5th Princeton\nConference on Information Sciences and Systems}, Princeton, 1971.",
+    "margin": "B. W. Lampson. ``Protection.'' \\emph{Proc.\\ 5th Princeton Conf.\\ on Information Sciences and Systems}, 1971; reprinted in \\emph{ACM SIGOPS OS Review} 8(1):18--24, 1974.",
+    "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator. Third pass: Protection is dated to its 1971 first publication, with the 1974 reprint."
   },
   {
     "key": "mega003",

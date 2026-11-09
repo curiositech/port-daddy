@@ -60,6 +60,12 @@
    "page": null,
    "pageNote": null,
    "row": "§8 CardRevocation.tla rollback config fails by design"
+  },
+  "4|§4|r1-information-floor-5-98-bits": {
+   "id": "undrawn-ls-information-lower-bound",
+   "page": null,
+   "pageNote": "the readpoverty figure that drew this was retired in the third pass (it taught the reversed moral); a replacement plot of the lower bound is undrawn",
+   "row": "§4 R1 information floor: 5.98 bits at N=60, k=2, m=8"
   }
  }
 }

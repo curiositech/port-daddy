@@ -225,7 +225,7 @@ figures_data = [
     {
         "id": "Figure 0.13",
         "title": "Dynamic Epistemic Observation Cones in Big Brother Logic",
-        "section": "Section 0.1.7 · Epistemic Logic · Charrier et al. (2014) BBL",
+        "section": "Section 0.1.7 · Epistemic Logic · Gasquet, Goranko and Schwarzentruber (2014) BBL",
         "raster": "figures/fig-ch0-bbl-diagram.jpg",
         "tex": "figures/fig-ch0-bbl-vision-cones.tex",
         "notes_raster": [
