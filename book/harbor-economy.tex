@@ -276,9 +276,10 @@ and which evidence authorizes each transfer. We then check conservation, whether
 incentives and the obligations that arise when the counterparties have
 separate administrators. Each operator's agents run inside a harbor: the
 governed environment in which one program, the daemon, checks and records
-every change. The local bond ledger is implemented; the complete
-market, its reputation system and its cross-operator guarantees are designed
-but not built (Appendix~\ref{app:impl}).
+every change. The local bond ledger is implemented. The rest of the market is
+not built: the rental and licensing contracts are designed, while the
+reputation estimator and cross-operator attestation still lack a specification
+for their critical parts (Appendix~\ref{app:impl}).
 
 \subsection{What the record must identify}
 Bob may hire Alice for her past results or rent her Heron specialist, denoted
@@ -1215,7 +1216,7 @@ reputation history against. The market thesis depends on solving it.
 describe the federation boundary as one that neither party controls while
 resting on a single trusted root. Either cross-operator attestation gets built,
 or the market's scope shrinks to federation among \emph{semi-trusted}
-operators. We take building it as the designed target and flag every claim
+operators. We take building it as the goal and flag every claim
 that depends on it.}
 
 \pdexercisepointer*{\ref{ex:he-sybil-no-mechanism}}{\ref{ex:he-principal-binding}}{\pageref{ex:he-sybil-no-mechanism}}
@@ -1872,8 +1873,9 @@ produce the first settled outcomes and so the first reputation data. Phase~2 imp
 work history for partial credit, so new agents are not frozen out. Phase~3 switches to
 charging the demand side once a liquidity threshold (not a calendar date) is met.
 Figure~\ref{fig:he-cold-start} draws the schedule against realized liquidity:
-the supplier price turns positive when liquidity crosses the threshold
-$\lambda^\star$, whatever the date.
+charging starts when liquidity crosses the threshold $\lambda^\star$, whatever
+the date. Here $\lambda^\star$ is a level of liquidity, not the job arrival
+rate $\lambda$ of \S\ref{sec:three-sides}.
 
 \input{figures/fig-he-cold-start}
 
@@ -3235,12 +3237,12 @@ Outcome ledger (subsystem 3 --- reputation keys here) & \BuiltWeak{} & commitmen
   neutral grading and reputation binding do not ship \\
 Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls}, lookup
   credentials, and a bounded newcomer pool ship; full write gating does not ship \\
-Cross-operator attestation & \Designed{}/\Vision{} & no spec for the critical part \\
+Cross-operator attestation & \Vision{} & no spec for the critical part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
 Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
   \ifpdbook \pdchapref{fh}{The Federated Harbor}, \S\ref{fh:sec:fh-xfer-ceremony}\else Protocol~\ref{prot:xfer}\fi \\
-Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Designed{}/\Vision{} &
-  no estimator shipped \\
+Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Vision{} &
+  no estimator specified or shipped \\
 Multi-dimensional reputation, neutral judges & \Vision{} & no axis-aggregation spec \\
 Labor / rental / licensing contracts & \Designed{} & rental and licensing unshipped \\
 Skill licensing (metered $+$ clawback $+$ Merkle proof) & \Designed{} &
