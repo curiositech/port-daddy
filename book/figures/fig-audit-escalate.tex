@@ -1,0 +1,68 @@
+% Reader question: when a conflict needs a decision above the people involved,
+% when is there exactly one place to send it? Claim: escalation has a next hop
+% only when the principals above the conflicting object form one line; a
+% diamond (two parents for one scope) leaves no next hop. Evidence: the
+% chapter's unity-of-command theorem and its exercise: Bob holds the charter
+% and delegates to Alice and to tests/; in the diamond he also delegates to
+% Carol, and Alice and Carol each delegate payments/. Must distinguish: the
+% one-line case (a forced route upward) from the diamond (two incomparable
+% parents); principals from objects. Grammar: a before/after pair of
+% delegation graphs with identical node positions, the right panel adding
+% Carol and her edge; rejected: one graph annotated with both cases (the
+% reader has to subtract) and an org chart without objects (the conflict sits
+% on an object, not on a person). Five-second test: "left, the conflict climbs
+% Alice then Bob; right, it could go to Alice or Carol, so it has nowhere to
+% go."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  who/.style={pd state,minimum width=1.15cm},
+  object/.style={pd artifact,minimum width=1.2cm,font=\pdfiglabelmono},
+  owns/.style={pd arrow,shorten <=2pt,shorten >=2pt},
+  goesup/.style={pd focus arrow,shorten <=3pt,shorten >=3pt},
+  nohop/.style={pd breach arrow,shorten <=3pt,shorten >=3pt},
+  query/.style={pd breach label,font=\pdfiglabelbold}]
+  % Both panels share one grid: Bob (2.6,3.5); Alice (.8,1.85), Carol
+  % (2.6,1.85), tests/ (4.55,1.85); payments/ (1.7,0). Only Carol and her edges
+  % are new on the right. The escalation route runs just inside the
+  % delegation edges it climbs, so it never crosses them.
+  % ---- left: one line of authority ------------------------------------------
+  \node[pd title,anchor=west] at (0,4.30) {One line:\ escalate to Bob};
+  \node[who] (bobL) at (2.6,3.5) {Bob};
+  \node[who] (aliceL) at (.8,1.85) {Alice};
+  \node[object] (testsL) at (4.55,1.85) {tests/};
+  \node[object] (payL) at (1.7,0) {payments/};
+  \draw[owns] (bobL) -- (aliceL);
+  \draw[owns] (bobL) -- (testsL);
+  \draw[owns] (aliceL) -- (payL);
+  \draw[goesup] (payL.north) to[bend right=14] (aliceL.south east);
+  \draw[goesup] (aliceL.north east) to[bend right=12] (bobL.south);
+  \node[pd focus label,anchor=west] at (2.05,1.0) {conflict goes up};
+  % ---- divider ---------------------------------------------------------------
+  \draw[pd hairline] (5.45,-.40) -- (5.45,4.50);
+  % ---- right: a diamond, no next hop ---------------------------------------
+  \begin{scope}[xshift=5.75cm]
+    \node[pd title,anchor=west] at (0,4.30) {Two lines:\ no next hop};
+    \node[who] (bobR) at (2.6,3.5) {Bob};
+    \node[who] (aliceR) at (.8,1.85) {Alice};
+    \node[pd focus outline,minimum width=1.15cm] (carolR) at (2.6,1.85) {Carol};
+    \node[object] (testsR) at (4.55,1.85) {tests/};
+    \node[object] (payR) at (1.7,0) {payments/};
+    \draw[owns] (bobR) -- (aliceR);
+    \draw[owns] (bobR) -- (carolR);
+    \draw[owns] (bobR) -- (testsR);
+    \draw[owns] (aliceR) -- (payR);
+    \draw[owns] (carolR) -- (payR);
+    \draw[nohop] (payR.north) -- (aliceR.south east);
+    \draw[nohop] (payR.north) -- (carolR.south west);
+    \node[query] at (1.7,1.85) {?};
+    \node[pd label,anchor=north,text width=4.6cm] at (1.7,-.45)
+      {Alice and Carol both delegated \texttt{payments/}};
+  \end{scope}
+\end{tikzpicture}
+\caption{Escalation has a next hop only when the people above the conflict
+form one line. Fix the diamond by giving \texttt{payments/} one parent,
+splitting it, or fixing a tie-break order. [constructed example]}
+\label{fig:audit-escalate}
+\end{figure}
