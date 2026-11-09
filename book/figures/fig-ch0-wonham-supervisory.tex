@@ -43,7 +43,8 @@
 \bottomrule
 \end{tabularx}}
 \par\smallskip
-{\pdfiglabelitalic\raggedright Containment requires implementability: permitted prefixes
-must admit their uncontrollable continuations. Partial observation adds a
-condition; an arbitrary safe target need not satisfy $L(S/G)=K$.\par}
+{\pdfiglabelitalic\raggedright A supervisor can block a write but not a crash, a token
+or an exit, so every state those events can reach must already be safe. If it
+cannot see some events, a further condition applies; sometimes the only safe
+choice is to block more than the rule asks.\par}
 \end{minipage}

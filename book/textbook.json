@@ -14,7 +14,7 @@
       "numeral": "I",
       "title": "Ground Truth",
       "color": "pdcobalt",
-      "blurb": "The first three chapters examine a local writer, delegated permissions, and a confined execution environment. They distinguish what the software prevents from what it can only detect, and what remains a design proposal.",
+      "blurb": "The first three chapters examine one program that makes every change to a machine's coordination database, permissions passed from one agent to another, and a sealed environment that limits what an agent can reach. They separate what the software prevents from what it can only detect, and both from what is still only a design.",
       "chapters": [
         "single-writer-kernel",
         "anchor-protocol",
@@ -26,7 +26,7 @@
       "numeral": "II",
       "title": "The Cost of Seeing",
       "color": "pdteal",
-      "blurb": "An operator cannot read every action a fleet produces. This part studies what a summary must retain, when the operator needs the underlying evidence, and how information theory bounds the cost of supervision.",
+      "blurb": "An operator cannot read every action a fleet of agents produces. This part studies what a summary must keep, when the operator needs the underlying evidence, and how information theory bounds the cost of supervision.",
       "chapters": [
         "legible-swarm"
       ]
@@ -63,7 +63,7 @@
       "source": "book/single-writer-kernel.tex",
       "role": "builds",
       "formerNumeral": "II",
-      "oneLine": "One writer orders changes to a local database; the chapter specifies which failures that record can survive.",
+      "oneLine": "A single program makes every change to a local database, one at a time; the chapter states which failures that record survives.",
       "question": "Where can a rule be made real?",
       "teaser": "Two agents ask for the same resource. Which request succeeds, and what happens if the writer crashes before replying? A local database can settle the first question. The second depends on when it commits and which kind of failure follows.",
       "epigraph": {
@@ -80,7 +80,7 @@
       "role": "proves",
       "discharges": "single-writer-kernel",
       "formerNumeral": "V",
-      "oneLine": "Delegated capability only narrows: every child is a subset of its parent, at every hop, and the verifier checks the whole chain.",
+      "oneLine": "When an agent passes a permission on, the new permission can never be broader than the one it came from, at every step, and the checker verifies the whole chain.",
       "question": "How may authority travel without silently growing?",
       "teaser": "A reviewer may read a repository but may not deploy it. If that reviewer delegates another task, the new agent must inherit the same limit. Follow the signed permission chain and the checks that prevent a later delegate from gaining authority.",
       "epigraph": {
@@ -97,7 +97,7 @@
       "role": "proves",
       "discharges": "single-writer-kernel",
       "formerNumeral": "",
-      "oneLine": "A confined work order has explicit release gates and a shared leakage budget, under the model's stated channel assumptions.",
+      "oneLine": "A job run in a sealed environment can release results only through named checks, and all its releases together may disclose only a fixed amount of information, under the model's stated assumptions about channels.",
       "question": "What can a sealed agent leak, and how would we know?",
       "teaser": "Derek wants an answer from Erin's agent without giving Erin his data. Erin wants to supply the agent without giving Derek its internals. The answer itself reveals something, so their contract must specify which releases are allowed and how much they may disclose.",
       "epigraph": {
@@ -113,7 +113,7 @@
       "source": "book/legible-swarm.tex",
       "role": "builds",
       "formerNumeral": "I",
-      "oneLine": "Useful supervision requires summaries that preserve the operator's decisions and link back to inspectable evidence.",
+      "oneLine": "Useful supervision needs summaries that keep what the operator must decide on and link back to evidence the operator can inspect.",
       "question": "What must remain visible, and what does seeing cost?",
       "teaser": "Six agents finish their tasks and leave five pull requests. You have time to review one. What must a summary tell you so you choose the right one, and what evidence should open when you need to check it?",
       "epigraph": {
@@ -129,7 +129,7 @@
       "source": "book/spawn-to-person.tex",
       "role": "builds",
       "formerNumeral": "III",
-      "oneLine": "Continuity turns an anonymous spawn into a ledger position with a witnessed record; reputation is what that record is worth.",
+      "oneLine": "An AI worker process starts, does a job and exits. Continuity links each replacement process, through a checked succession record, to one continuing account in a shared ledger, which shows what the worker owes, what it may do, which of its results an independent checker confirmed and which earlier processes it descends from. Reputation is what that record of confirmed results is worth to the next buyer.",
       "question": "What remains long enough to owe anything?",
       "teaser": "Alice wants to hire Heron again after a successful job. But Heron has exited, and tomorrow's process could reuse the name without inheriting its record. What must survive the restart so Alice can recognize the same accountable participant?",
       "epigraph": {
@@ -145,7 +145,7 @@
       "source": "book/harbor-economy.tex",
       "role": "builds",
       "formerNumeral": "IV",
-      "oneLine": "Labor, rented assets, and licensed skills expose different risks but settle through a shared ledger that conserves each native unit.",
+      "oneLine": "Labor, rented assets and licensed skills carry different risks, but all of them settle through one shared ledger in which no transfer creates or destroys any unit of payment.",
       "question": "What makes cooperation rational without making loss unbounded?",
       "teaser": "Bob hires Alice's fleet and licenses Carol's skill for the same job. They need different evidence of performance, yet their payments and collateral must settle together. The chapter works through that transaction and the losses its rules can bound.",
       "epigraph": {
@@ -162,7 +162,7 @@
       "role": "proves",
       "discharges": "harbor-economy",
       "formerNumeral": "VI",
-      "oneLine": "Bonds, witnesses, audits and appeals turn residual uncertainty into an institution; the ledger's conservation law is mechanically checked.",
+      "oneLine": "Some doubt about an agent's work remains even after access checks. The chapter handles it with shared rules: providers post deposits (bonds), signed records show who did what, audits sample the results, and either side can appeal a verdict. A model checker confirms, on a bounded model, that the deposit ledger never creates or loses money.",
       "question": "Who may decide, on what evidence, with what consequence?",
       "teaser": "A disputed job leaves two questions: which evidence should decide the outcome, and whose bond may pay for it? The chapter separates admission, attribution, and settlement, then checks the ledger rules under explicit assumptions.",
       "epigraph": {
@@ -179,7 +179,7 @@
       "role": "proves",
       "discharges": "harbor-economy",
       "formerNumeral": "VII",
-      "oneLine": "Mutually distrustful machines relay evidence, not sovereignty: what may gossip, what needs an authority point, and how a grant crosses a boundary.",
+      "oneLine": "Machines run by owners who do not trust each other can pass each other signed records, but not the power to approve actions on each other's systems. The chapter works out which information can spread from machine to machine, which decisions still need one designated approver, and why the receiving machine must issue its own permission for its own resources instead of narrowing the sender's.",
       "question": "What can cross a trust boundary without moving the authority itself?",
       "teaser": "Alice's agent has permission to write at home. That permission does not automatically apply to Bob's database. Follow the proposed transfer, revocation, and settlement protocols to see what each owner must accept and what neither can decide for the other.",
       "epigraph": {
