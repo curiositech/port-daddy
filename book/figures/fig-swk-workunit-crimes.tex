@@ -63,8 +63,8 @@
   \foreach \a/\b in {b1/b2,e1/e2,e2/e3,e3/e4,v1/v2,v2/v3,v3/v4,s1/s2,s2/s3,s3/s4,s4/s5,s5/s6,s6/s7}
     {\draw[pd thin arrow] (\a) -- (\b);}
   % what each run breaks, under its last step
-  \foreach \n/\t in {a1/{escalated\\delegation (I4)},b2/{double\\settlement (I2)},e4/{stale write\\(I1, I5)},
-                     v4/{hollow\\``verified'' (I3)},s7/{wrong-principal\\payout (I6)}}
+  \foreach \n/\t in {a1/{escalated\\delegation (W4)},b2/{double\\settlement (W2)},e4/{stale write\\(W1, W5)},
+                     v4/{hollow\\``verified'' (W3)},s7/{wrong-principal\\payout (W6)}}
     {\node[pd label,text=pderror!85!pdink,anchor=north,align=center,text width=1.9cm] at ($(\n.south)+(0,-2pt)$) {\t};}
 \end{tikzpicture}
 \caption{What each guard of the work-unit machine prevents. Each column switches

@@ -906,7 +906,7 @@ reduces to
 \gamma(\rho,c) \;=\; c\rho \;+\; \frac{c(1-\rho)}{c(1-\rho)+C(c,\rho)}.
 \end{equation}
 Three properties fix its shape: $\gamma(\rho,1)=1$ (a specialist against a single
-generalist needs no premium at all), $\gamma\to c$ as $\rho\to1$ (the boundary
+generalist needs no skill advantage at all), $\gamma\to c$ as $\rho\to1$ (the boundary
 \emph{saturates} at the capacity ratio; it never diverges), and for two generalists
 it is the closed form $\gamma(\rho,2)=1+2\rho-\rho^2$. Below the boundary, sole
 ownership gives strict single-writer accountability at the cost of longer waits;
@@ -965,7 +965,7 @@ skill advantage is $r_{\mathrm{sk}} = 3/1.2 = 2.5$. Erlang-C at $(c,\rho)=(3,0.5
 \]
 
 The
-premium $2.5$ clears it, barely, so the sole owner wins:
+advantage $2.5$ clears it, barely, so the sole owner wins:
 \[
 \begin{aligned}
 W_{\mathrm{solo}} &= 1/(3-2) = 1.000 \text{ hr against}\\
@@ -986,7 +986,7 @@ calculations, not measured roadmap performance.
 
 \emph{Now you try:} at the same three-agent pool, would a specialist at
 $\mu_{\mathrm{spec}} = 2.8/\text{hr}$ still be worth it on response time alone?
-(The premium is $2.8/1.2 = 2.33 < 2.483$, so no, and $W_{\mathrm{solo}} = 1.25$ hr
+(The advantage is $2.8/1.2 = 2.33 < 2.483$, so no, and $W_{\mathrm{solo}} = 1.25$ hr
 confirms it. The boundary is genuinely tight here; note that a positive
 accountability value $A$ lowers $\gamma_A$ below $\gamma$ and can tip the decision back to the sole owner.)
 \end{pdexample}
@@ -1035,7 +1035,7 @@ whole discipline exists for is the one where they do: they crash, are reaped,
 quit, or are reassigned, and a successor spins up. That case has a
 closed-form answer, derived in \pdchapref{he}{The Harbor Economy} rather than
 here because it is a condition on what a succession plan costs, an economic
-statement. The economy chapter states it as its succession-price theorem%
+statement. The economy chapter states it as its succession-threshold theorem%
 \ifpdbook
 \ (Thm.~\ref{he:thm:succession-price})%
 \fi
@@ -3729,7 +3729,7 @@ Writing the theorem's full bound as
 \[
 Q_0=2k\lceil\log_2(F/k)\rceil+4k,
 \]
-the repetition scheme therefore uses at most $rQ_0$ oracle calls. For a fixed
+the repetition scheme therefore uses at most $n_{\mathrm{rep}}Q_0$ oracle calls. For a fixed
 repetition count, this bound retains its sparsity dependence; whether it beats
 flat inspection also depends on $n_{\mathrm{rep}}$ and the required reliability.
 
