@@ -261,8 +261,9 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   title: TEXTBOOK.edition.title,
   subtitle: `${TEXTBOOK.edition.subtitle}, unified by one claim: ${TEXTBOOK.edition.claim}`,
   pdfPath: `/whitepaper/${TEXTBOOK.edition.pdf}`,
-  downloadUrl:
-    'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+  // The deployed Book, which deploy-website-v2.yml sets in Suisse from the
+  // merged source (ADR-0145). The committed PDF on GitHub can lag it.
+  downloadUrl: `/whitepaper/${TEXTBOOK.edition.pdf}`,
   date: TEXTBOOK.edition.date,
   pages: 817,
   sizeKb: 16134,
