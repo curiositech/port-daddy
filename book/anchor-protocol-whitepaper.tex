@@ -597,7 +597,7 @@ Trace one obligation, \emph{no hop may widen rights}, down the stack.
 \texttt{is\_subset(mid, root)} and \texttt{is\_subset(final, mid)}. ProVerif
 reports the query \emph{the escalating chain is never accepted} as true. The
 result holds only if the model's \texttt{is\_subset}, the rule saying which
-capability is contained in which, matches the real one.
+capability is contained in which, matches the rule the code applies.
 
 (2)~Source. The Rust counterpart is \texttt{verify\_capability\_subset}, which
 the FFI export \texttt{harbor\_verify\_caps\_subset\_json} calls after parsing
