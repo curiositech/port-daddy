@@ -278,5 +278,7 @@ in the margin at first use; later short citations link back to those entries.\pa
   \IfBooleanTF{#1}{\pdbackmattersubsection*{#3}\pdbackmatteraddcontentsline{toc}{subsection}{#3}}%
     {\IfNoValueTF{#2}{\pdbackmattersubsection{#3}}{\pdbackmattersubsection[#2]{#3}}}}
 \input{coordination-papers-mega-volume-appendices.tex}
+% The index of defined terms comes last (defined in the preamble).
+\pdprintbookindex
 \endgroup
 \end{document}

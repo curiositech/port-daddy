@@ -166,6 +166,16 @@
 \usepackage{enumitem}
 \usepackage{refcount}
 \usepackage{eso-pic}   % full-bleed jacket plate behind the title page
+% The index of defined terms. Every entry comes from \pdterm (figures/
+% pd-pedagogy.tex), the one defining occurrence of a term. imakeidx loads
+% before hyperref so the page numbers link. noautomatic: XeTeX runs with
+% -output-directory, where imakeidx's own \write18 call would look for the
+% .idx in the source directory; latexmk runs makeindex in the build directory
+% instead, and scripts/build-whitepapers.sh's plain-engine fallback does the
+% same between passes.
+\usepackage[noautomatic]{imakeidx}
+\makeindex[columns=2,columnsep=1.6em]
+\indexsetup{level=\section*,firstpagestyle=fancy,othercode=\small\raggedright}
 \usepackage[backref=page]{hyperref}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 % Regime figures in the chapters (the sealed room's composition crossover and
@@ -485,6 +495,19 @@
   \fancyhead[LE,RO]{\small\color{hhgray}\thepage}%
   \fancyhead[RE,LO]{\small\itshape\color{hhgray} #1}%
   \fancyfoot[C]{\footnotesize\color{hhgray}\pdeditiontitle}}
+% The index is the Book's last leaf, after the image credits. It prints only
+% when the previous pass defined a term (\pdtermsdefinedlastpass, from the
+% .aux): an unused \makeindex would otherwise print an empty Index page.
+% Issued inside the root's backmatter group, whose starred \section adds the
+% contents entry, so imakeidx's own intoc stays off.
+\newcommand{\pdprintbookindex}{%
+  \ifnum\pdtermsdefinedlastpass>0
+    \clearpage
+    \pdbackmatterheaders{Index}%
+    \phantomsection\label{book:index}%
+    \printindex
+    \clearpage
+  \fi}
 
 % ---- Chapters, parts, and the front-matter map ----------------------------
 % Chapter numbers are Arabic and come from book/textbook.json via the

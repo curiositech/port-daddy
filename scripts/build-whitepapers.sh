@@ -22,8 +22,9 @@
 #   scripts/build-whitepapers.sh --changed-since <git-ref>      # build papers whose imported TeX changed
 #   scripts/build-whitepapers.sh coordination-papers-mega-volume-maritime  # a switchable, unbuilt edition, on demand
 #
-# Requires: latexmk + pdflatex, plus xelatex for the Book (TeX Live). No bibtex/biber — all papers embed
-# \begin{thebibliography}.
+# Requires: latexmk + pdflatex, plus xelatex and makeindex for the Book (TeX Live). No bibtex/biber —
+# all papers embed \begin{thebibliography}. The Book's index of defined terms is the one external
+# step: latexmk runs makeindex itself; the plain-engine fallback calls run_makeindex between passes.
 #
 # Engine, and why this script never asks for tectonic. tectonic is the figure
 # toolchain's reference engine (skills/harbor-chartwork/scripts/compile_fragment.sh)
@@ -210,14 +211,35 @@ tex_log_converged() {
   [ -s "$1" ] && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed|PD-MARGIN-CONVERGENCE: pending|Margin positions changed|Rerun to get outlines right|rerunfilecheck Warning: File .* has changed|There were undefined references|Citation .* undefined|Reference .* undefined' "$1"
 }
 
+# The Book's index (imakeidx, noautomatic) is sorted by makeindex between
+# passes, in the build directory where the engine wrote the .idx. latexmk does
+# the same on its own. Echo 1 when the .ind changed, so the caller runs the
+# engine again before accepting the pass: the index it just printed was stale.
+run_makeindex() {
+  local outdir="$1" base="$2" before after
+  [ -f "$outdir/$base.idx" ] || { echo 0; return 0; }
+  command -v makeindex >/dev/null 2>&1 || {
+    echo "error: $base writes an index but makeindex is not installed (TeX Live provides it)" >&2
+    return 127
+  }
+  before="$(cksum < "$outdir/$base.ind" 2>/dev/null || true)"
+  (cd "$outdir" && makeindex -q "$base.idx") >&2 || {
+    echo "error: makeindex failed on $outdir/$base.idx; see $outdir/$base.ilg" >&2
+    return 1
+  }
+  after="$(cksum < "$outdir/$base.ind")"
+  if [ "$before" = "$after" ]; then echo 0; else echo 1; fi
+}
+
 # Keep the manual path bounded like latexmk, and refuse to copy an unsettled PDF.
 run_tex_passes() {
-  local engine="$1" roottex="$2" outdir="$3" base="$4" pass
+  local engine="$1" roottex="$2" outdir="$3" base="$4" pass index_changed
   for pass in 1 2 3 4 5 6 7 8; do
     echo "$engine fallback pass $pass/8"
     "$engine" -interaction=nonstopmode -halt-on-error -file-line-error -recorder \
       -output-directory="$outdir" "$roottex" || return $?
-    if [ "$pass" -ge 2 ] && tex_log_converged "$outdir/$base.log"; then
+    index_changed="$(run_makeindex "$outdir" "$base")" || return $?
+    if [ "$pass" -ge 2 ] && [ "$index_changed" = 0 ] && tex_log_converged "$outdir/$base.log"; then
       return 0
     fi
   done
