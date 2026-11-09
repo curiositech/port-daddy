@@ -1652,6 +1652,11 @@ Federated revocation uses anti-entropy gossip, in which peers repeatedly
 compare and exchange what they know
 (\textbf{Demers et al.}~1987~\pdcite{demers1987}), and a cuckoo filter: a compact
 probabilistic revocation index with no false negatives and tunable false positives.
+The filter is only a local index. What gossip carries is the append-only log
+of signed revocation events, and each harbor rebuilds its own filter from the
+events it holds: two cuckoo filters cannot be merged, because a fingerprint
+taken from one may find no free slot in the other
+(\pdchapref{anchor}{The Anchor Protocol}).
 A harbor that signs two contradictory epoch roots for the same epoch commits
 \pdterm{equivocation}: it shows different peers different histories.
 Expected dissemination takes $\Theta(\log m)$ rounds, where $m$ is the number
@@ -1660,13 +1665,17 @@ reliable-round overlay under the stated randomized peer-selection model.
 This is an asymptotic expectation, not an exact constant or a partition-tolerant deadline.
 
 \begin{protocol}[Federated revocation gossip]\label{prot:gossip}
-\textbf{State:} each harbor $X$ keeps a revocation filter $F_X$ and a current epoch
+\textbf{State:} each harbor $X$ keeps an append-only log of signed revocation
+events, a cuckoo filter $F_X$ built from that log, and a current epoch
 root $R_X^{(e)}$ published to a shared witness log.
 \begin{enumerate}[leftmargin=2.0em,itemsep=1pt,topsep=2pt]
   \item \emph{Revoke.} An operator revokes card $\kappa$ at its home harbor $A$:
-    $F_A \leftarrow F_A \cup \{\kappa\}$; $A$ advances to $R_A^{(e+1)}$ and publishes it.
-  \item \emph{Gossip.} Every $\Delta$, each harbor picks a peer and exchanges filter
-    deltas (anti-entropy). A card present in either filter becomes present in both.
+    $A$ appends the signed event to its log and inserts $\kappa$ into $F_A$; $A$
+    advances to $R_A^{(e+1)}$ and publishes it.
+  \item \emph{Gossip.} Every $\Delta$, each harbor picks a peer, and the two
+    exchange the log events that one holds and the other lacks (anti-entropy).
+    Each checks the signatures on what it receives, appends the events to its own
+    log and inserts their cards into its own filter. Filters are never sent.
   \item \emph{Audit.} Any third party compares each harbor's published roots in the
     witness log; a harbor that publishes two contradictory roots for one epoch is
     \emph{equivocating}. Verification is constant work once both signed roots are
@@ -1684,11 +1693,11 @@ unbounded partition there is no finite global-learning bound.
 \setlength{\parskip}{4pt plus 1pt}
 Alice revokes $a_2$'s card $\kappa$ at
 $t=0$ (say she discovers it was misbehaving). Harbor~$B$, which rented $a_2$, has not
-yet heard: for the interval $[0,\Delta]$, $B$'s filter is stale and $\kappa$ is still
+yet heard: for the interval $[0,\Delta]$, $B$'s log and filter are stale and $\kappa$ is still
 spendable there.
 
-At $t=\Delta$ gossip reaches $B$, which adds $\kappa$ to $F_B$ and
-refuses further use. Harbor~$C$, two hops away, learns at $t=2\Delta$.
+At $t=\Delta$ gossip delivers the revocation event to $B$, which appends it,
+inserts $\kappa$ into $F_B$ and refuses further use. Harbor~$C$, two hops away, learns at $t=2\Delta$.
 
 This is one
 illustrated execution; a different schedule or partition produces a different
@@ -2831,7 +2840,7 @@ the card is still spendable there. At $t=\Delta$ gossip reaches $B$ and it stops
 accepting the card; Harbor~$C$, two hops out, remains exposed until $t=2\Delta$.
 The window Conjecture~\ref{conj:eq-bound} must cover is per-harbor, running from
 $t_0$ to that harbor's own \emph{enforcement}, not merely to its first gossip
-receipt, since receiving a filter update and actually enforcing it are two
+receipt, since receiving the revocation event and actually enforcing it are two
 different events with their own local latency.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:he-equivocation-lower-bound}
@@ -3187,7 +3196,7 @@ Settlement across distrust & Atomic swaps~\pdcite{herlihy2018};
   cross-chain deals~\pdcite{hls2022} &
   Bounded (not trustless) escrow for \emph{non-fungible} bonds sized by reputation \\
 Revocation & PKI revocation lists; Certificate Transparency~\pdcite{laurie2014} &
-  Gossip-converged filters with a named attacker window the bond must cover \\
+  Gossip-converged revocation logs, filters rebuilt locally, with a named attacker window the bond must cover \\
 Reputation revocation & Sagas compensation~\pdcite{sagas1987} &
   Tombstone propagation; no conserved quantity to compensate \\
 Grading / IC signal & Folk theorems~\pdcite{aps1990} &
