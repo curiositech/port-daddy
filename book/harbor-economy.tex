@@ -371,7 +371,7 @@ $a_2$, or send the job to a pool of interchangeable agents?
 disappears: the specialist wins when its skill premium (its service rate
 divided by a pool worker's) reaches a threshold $g_A(\rho,c)$ that depends on
 how busy the pool is ($\rho$) and how many workers it has ($c$). Real
-specialists do disappear: sessions die, containers are reaped, providers
+specialists are mortal: sessions die, containers are reaped, providers
 leave. So we now add failure and replacement to the model. The specialist
 fails at rate $\xi$, and a successor takes over after an $\mathrm{Exp}(\eta)$
 spin-up (context transfer, warm-up, credential rebinding). Work resumes where
@@ -523,7 +523,7 @@ $\xi$ and $\eta$ and evidence for the queueing assumptions.
 \end{pdboundary}
 
 \pitfall[Charge the right side]{Two-sided-market theory's central result is that the \emph{price
-structure}, meaning who subsidizes whom, matters more than the price level. Mis-count
+structure}, meaning who subsidizes whom, is the lever; it matters more than the price level. Mis-count
 the sides and you mis-structure the subsidy: you charge the side you should be
 \emph{paying} to show up. \S\ref{sec:cold-start} returns to this for cold start.}
 
@@ -560,7 +560,7 @@ reputation, even when the same person sells all three services.
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The float plan: agreeing before reserving funds}\label{sec:float-plan}
 
-\pdmarginanalogy{he-dockyard-cargo-sling}{}{ch06-dockyard-cargo-sling}{A float plan bundles labor, rented tools, and licensed skills into one settlement.}%
+\pdmarginanalogy{he-dockyard-cargo-sling}{}{ch06-dockyard-cargo-sling}{Like a woven dockyard cargo sling lifting wooden crates together in a single hoist, a float plan bundles labor, rented tools, and licensed skills into one settlement.}%
 Every side settles through the same float plan.
 
 \begin{pdexample}{A reduced contract, settled partly}
@@ -662,6 +662,7 @@ debits a project wallet into an escrow row before spawn, refunds on clean exit, 
 slashes on breach, splitting the slash between the wallet and a commons pool. It
 guards two invariants:
 
+\pdmarginanalogy{he-grain-tally-board}{}{ch06-grain-tally-board}{Like a dockmaster's pegged tally board tracking every sack unloaded from a hold, the bond ledger matches every debit with a credit, so no unit is created or lost.}%
 \begin{pdclaim}{Design invariant}{Conservation}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:conservation}\pdprovedon{prop:conservation}
@@ -1130,7 +1131,9 @@ sweep, covers scale.
 % ═══════════════════════════════════════════════════════════════════════════════
 
 Everything above assumes that a counterparty's identity is real. That
-assumption is the market's main unsolved dependency. Inside one harbor, the
+assumption is the market's main unsolved dependency. It works like the
+keystone of an arch: bonds, caps and reputation all rest on it, and the market
+does not yet have it. Inside one harbor, the
 design makes the daemon the only program that can write the identity table, so
 no agent can pose as another; today this is only partly enforced (see the
 definition below). That protects an operator from her own agents. A market is
@@ -1199,8 +1202,8 @@ infrastructure spanning strangers.
 operator owns; it explicitly does \emph{not} claim to defend against a hostile
 operator, and it is not a cross-party PKI. The market, by contrast, is
 \emph{defined} by mutually-distrusting operators trading across a boundary neither
-controls. Saying that the single-operator root also serves the
-cross-operator market does not make it so. Across the boundary, the counterparty's daemon
+controls. You cannot make the single-operator root the foundation of the
+cross-operator market by assertion. Across the boundary, the counterparty's daemon
 \emph{is} the adversary that local identity declares out of scope. The witness log
 gives \emph{log integrity}, not \emph{identity binding}: it does not answer ``who
 vouches that Harbor~$B$'s signing keys map to a real, distinct principal, rather
@@ -1394,8 +1397,8 @@ the full market gives up.}
 
 
 Figure~\ref{fig:he-ms-wedge} draws the whole $(v,c)$ square. The worked point
-$(v,c)=(70,60)$ sits inside the shaded band the mechanism refuses, a band that
-holds $7/32$ of all draws.
+$(v,c)=(70,60)$ sits inside the shaded band the mechanism refuses. The band
+holds $7/32$ of all draws, so the lost trades are no rare corner of the square.
 
 \input{figures/fig-he-ms-wedge}
 
@@ -1490,7 +1493,8 @@ authorization. Neither construction removes the need to enforce the grant at
 the effect boundary.}
 
 \pitfall[Proof scope does not transfer]{The federation claims do not inherit
-the formal verification of the authorization chain. That chain has bounded
+the formal verification of the authorization chain; do not let them borrow its
+halo. That chain has bounded
 symbolic and Rust evidence in \pdchapref{anchor}{The Anchor Protocol}. The \emph{federation} claims are design arguments and an
 unexecuted lifecycle sketch: the cross-harbor listing omits a complete
 initial state and transition relation, and has no model-checker run.
@@ -3163,7 +3167,7 @@ Purchased assurance & Delegated computation~\pdcite{goldwasser2008}; AI-safety
 % ═══════════════════════════════════════════════════════════════════════════════
 
 The tools of \pdchapref{ls}{The Legible Swarm} make one operator's swarm
-legible and accountable. When operators trade with each other, the \emph{same} ledger that
+legible and accountable. When operators sail out to trade with each other, the \emph{same} ledger that
 kept one operator's swarm honest becomes the market that lets fleets who don't trust
 each other work together: three sides, one bond, hosted trust. We have not papered
 over the cost of that claim. The identity mechanism the market relies on,
@@ -3181,7 +3185,8 @@ loses value. Two pieces are partly built: identities that agents cannot forge
 inside one harbor, and the record of each job's outcome. Two are not built: a
 reputation score, and a way for one harbor to verify identities issued by
 another. A market priced on reputation needs all of them, so the chapter
-labels every claim that depends on the missing pieces.
+labels every claim that depends on the missing pieces. A market that
+overstates the guarantee it rests on is built on sand.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \appendix
