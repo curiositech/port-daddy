@@ -342,7 +342,7 @@ stores. The grades come from the chapter's own status table (\S\ref{app:status})
 \textbf{Subsystem} & \textbf{Contract held for the layer above} & \textbf{Maturity} \\
 \midrule
 transactional store & one writer, one durable file; every other subsystem is a set of tables written through the same commit history & \Built \\
-resource / exclusion & at most one compatible holder per conflict domain; leases expire and are swept lazily (home: \texttt{claims}) & \Built \\
+resource / exclusion & at most one compatible holder per conflict domain; leases expire and are swept lazily (home: \texttt{claims}) & \Built{} (exact keys); \BuiltWeak{} (file regions) \\
 actor continuity & a stable actor identity across sessions, mechanically present but asserted by the actor, not proven & \BuiltWeak\ self-asserted \\
 message carriage & an ordered, cursor-addressable, durable envelope delivered at least once (home: \texttt{messages}) & \Built \\
 obligation \& enforcement & no \emph{done} without a receipt the daemon can re-check; the policy monitor detects and cannot always prevent (home: \texttt{commitments}) & \BuiltWeak \\
@@ -641,12 +641,15 @@ distinguishes \textbf{whole-file}, \textbf{line-range}, and \textbf{symbol-path}
 claims, each keyed by the file path together with, respectively, nothing, a
 line interval, or a syntactic symbol identifier. These three kinds support a
 ``reserve regions, not whole files'' coordination policy and semantic-conflict
-prediction over a syntax-aware symbol index. In the storage layer they are
-simply exclusion at three granularities, listed in Table~\ref{tab:swk-claim-granularity}.
+prediction over a syntax-aware symbol index. In the design they are
+exclusion at three granularities, listed in Table~\ref{tab:swk-claim-granularity}.
+The reference implementation reports an overlap between file claims to the
+claimant and records both, so for files it detects conflicts and does not
+exclude them (I2 in Table~\ref{tab:invariants}).
 \begin{table}[H]
 \centering
-\caption{The three claim granularities: what varies is the key, not the
-exclusion primitive underneath it. [internal]}
+\caption{The three claim granularities: in the design, what varies is the key,
+not the exclusion primitive underneath it. [internal]}
 \label{tab:swk-claim-granularity}
 \small
 \renewcommand{\arraystretch}{1.2}
@@ -708,8 +711,10 @@ function acquire(key, requester, ttl):
 \end{figure}
 The listing shows the exact-key claim protocol. Its uniqueness constraint
 does not check overlapping line ranges, and the listing has no fencing epoch.
-The next result therefore states the assumptions of a stronger protocol that
-covers both.
+The reference implementation's claims on files and their line ranges do run an
+overlap check, but an overlap comes back to the claimant as a warning and both
+claims are recorded. The next result therefore states the assumptions of a
+stronger protocol that covers both.
 
 \pdstatus{\Designed}{fencing (I2b): no per-resource epoch is kept and no effect broker checks one; exact-key exclusion is built}
 The second half of the theorem below uses a \pdterm{fencing token}, an idea
@@ -2184,7 +2189,7 @@ Theorem~\ref{thm:exclusion}; I7--I9 carry the regimentation/detection correction
 \midrule
 I1a & Process-crash durability & WAL + OS page cache & \Built \\
 I1b & Power-loss durability & (needs full synchronization) & \NotGuar \\
-I2 & Mutual exclusion (1 holder/key) & uniqueness constraint + busy-wait & \Built \\
+I2 & Mutual exclusion (1 holder per conflict domain) & uniqueness constraint + busy-wait (exact keys); overlap check that warns (file regions) & \Built{} for exact keys; \BuiltWeak{} for file regions (overlap reported, both claims kept) \\
 I2b & Fencing of a stale holder at the effect gate & per-resource epoch checked by an effect broker & \Designed{} (no epoch is kept or checked) \\
 I3 & Idempotence of re-claim/re-release & upsert / delete-if-exists & \Built \\
 I4 & Liveness reclamation (TTL sweep) & lazy expiry on read + ticks & \Built \\
@@ -2879,8 +2884,9 @@ what it explicitly does \emph{not} provide, so higher layers do not assume too m
 
 \subsection{What the storage layer provides to the coordination layer}
 \begin{itemize}[leftmargin=1.4em]
-  \item \textbf{Atomic, idempotent, time-to-live'd claims} (I2--I4) over ports,
-  file-regions, symbols, and named locks; the coordination layer's typed
+  \item \textbf{Atomic, idempotent, time-to-live'd claims} (I2--I4): exclusive
+  over ports and named locks, and advisory over file regions and symbols, where
+  an overlap is reported and both claims are kept; the coordination layer's typed
   ownership reduces to claim and release.
   \item \textbf{A durable, versioned, history-cursored publish/subscribe bus}, a
   tuple space, and decaying stigmergic markers. The coordination layer's speech
