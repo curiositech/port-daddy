@@ -484,10 +484,11 @@ class ReconciliationIsHonest(unittest.TestCase):
 
     def test_a_judged_figure_not_in_the_book_is_listed_not_dropped(self):
         r = self._findings()["reconciliation"]
-        # these three are drawn by the pixel-judgment branch and are not on main
+        # three are drawn by the pixel-judgment branch and are not on main;
+        # legible-swarm-readpoverty was retired from the Book in the third pass
         self.assertEqual(sorted(r["judgedOnly"]),
                          ["fig-bc-graduated-trigger", "fig-bc-oracle-audit-rate",
-                          "tab-bc-settlement-rule"])
+                          "legible-swarm-readpoverty", "tab-bc-settlement-rule"])
 
     def test_render_drift_is_reported_rather_than_applied(self):
         # the pinned render page must NOT have been silently replaced by the

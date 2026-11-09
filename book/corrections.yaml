@@ -10,7 +10,8 @@
 #
 # Rows are a top-level YAML sequence, appended below this header. Every field
 # is required and every value is a string, except that one of `before` and
-# `after` may be null:
+# `after` may be null. An optional `note` gives a reviewer context and is never
+# checked:
 #
 #   - id: ls-1                          # unique across the file
 #     item: "Blocker 6: ANS authorship" # the agenda item the row closes
@@ -37,3 +38,1692 @@
 # rejoins words hyphenated across lines (and also tries the hyphen kept, for
 # compound words), expands ligatures, and maps smart quotes and every dash to
 # their ASCII forms, on both the page text and these strings.
+
+# --- front (third pass, Wave 1) ---
+- id: front-1
+  item: "Blocker 1: Big Brother Logic attribution"
+  file: book/coordination-papers-mega-volume-chapter-0.tex
+  before: "Charrier et al. study an observation model"
+  after: "a logic of agents whose cameras sit at fixed points"
+  source: "https://aamas.csc.liv.ac.uk/AAMAS/aamas2014/proceedings/forms/contents.htm (AAMAS 2014 table of contents, p. 325); pp. 325-332 per https://core.ac.uk/download/50533109.pdf"
+- id: front-2
+  item: "Blocker 1: the section title promises Dynamic Epistemic Logic and presents none"
+  file: book/coordination-papers-mega-volume-chapter-0.tex
+  before: "called Big Brother Logic, using cameras and fields of view"
+  after: "Dynamic epistemic logic studies that step"
+  source: "https://researchr.org/publication/BatlagMS98 (TARK 1998, ed. Gilboa, Morgan Kaufmann, pp. 43-56); https://ir.cwi.nl/pub/4497 (CWI report SEN-R9922)"
+- id: front-3
+  item: "MCP revision: cite the current specification and draw the stateless inference for Design invariant 0.3.5"
+  file: book/coordination-papers-mega-volume-chapter-0.tex
+  before: "specification 2025-11-25"
+  after: "This revision made the protocol stateless"
+  source: "https://modelcontextprotocol.io/specification/2026-07-28/index.md (Base Protocol: Stateless, self-contained requests); https://modelcontextprotocol.io/specification/2026-07-28/server/tools.md (Stateful Tools); https://blog.modelcontextprotocol.io/posts/2026-07-28/"
+- id: front-4
+  item: "Ch. 0 benchmark labels: AgentBench and HELM are not multi-agent formal verification; cite SWE-bench"
+  file: book/coordination-papers-mega-volume-chapter-0.tex
+  before: "Multi-Agent Formal Verification and Benchmarking"
+  after: "Agents that write software are also scored"
+  source: "https://arxiv.org/abs/2310.06770 (Jimenez et al., ICLR 2024; 2,294 tasks, 12 repositories); evaluation rule from https://ar5iv.labs.arxiv.org/html/2310.06770 sections 2.2-2.3"
+- id: front-5
+  item: "Ch. 0 benchmark labels: cite the process-reward-model paper for the product score"
+  file: book/coordination-papers-mega-volume-chapter-0.tex
+  before: "One possible ranking heuristic is"
+  after: "rank whole solutions by the product of the step scores"
+  source: "https://proceedings.iclr.cc/paper_files/paper/2024/hash/aca97732e30bcf1303bc22ac3924fd16-Abstract-Conference.html; product rule in section 2.6 of https://ar5iv.labs.arxiv.org/html/2305.20050"
+- id: front-6
+  item: "Contents promise: why generative models cannot act as their own kernel (argument was missing)"
+  file: book/coordination-papers-mega-volume-chapter-0.tex
+  before: "cannot carry every record. Chapters"
+  after: "the model that proposes a tool call is also asked"
+  source: "derivation: math-front/no_self_kernel.py; https://apps.dtic.mil/sti/pdfs/AD0758206.pdf (Anderson 1972, ESD-TR-73-51 Vol. I, section 3.2.2)"
+- id: front-7
+  item: "Abstract repeats the preface's opening failures"
+  file: book/coordination-papers-mega-volume.tex
+  before: "Two workers can agree on a task and still overwrite"
+  after: "make coordinated work by autonomous programs inspectable"
+  source: "editorial: the preface's first paragraph already opens with these failures"
+
+# --- swk (third pass, Wave 1) ---
+- id: swk-1
+  item: "Ch. 1 repairs: Thm 1.10.3 needs the real SQLite hypothesis"
+  file: book/single-writer-kernel.tex
+  before: "transactions never enable"
+  after: "the one SQLite actually needs"
+  source: "https://sqlite.org/isolation.html"
+- id: swk-2
+  item: "Ch. 1 repairs: Thm 1.10.3 needs a timed sequential specification"
+  file: book/single-writer-kernel.tex
+  before: "operations are linearizable with commit as the"
+  after: "with respect to the timed claims object"
+  source: "derivation: math-swk/timed_claims_check.py"
+- id: swk-3
+  item: "Ch. 1 repairs: name buffered durable linearizability"
+  file: book/single-writer-kernel.tex
+  before: "must preserve completed operations across recovery"
+  after: "lets a crash lose recent completed operations"
+  source: "https://www.cs.rochester.edu/u/scott/papers/2016_DISC_persistence.pdf"
+- id: swk-4
+  item: "Ch. 1 repairs: Thm 1.10.3 carried to the Review"
+  file: book/single-writer-kernel.tex
+  before: "Serializability and linearizability follow from that discipline"
+  after: "linearizability against a timed specification of leases"
+  source: "derivation: math-swk/timed_claims_check.py"
+- id: swk-5
+  item: "Ch. 1 repairs: drop the SO_PEERCRED caveat (second transport)"
+  file: book/single-writer-kernel.tex
+  before: "it resembles and is named after"
+  after: "a variable the tool does not read"
+  source: "code: cli/utils/current-context.ts, cli/utils/actor-credential.ts, lib/ipc-auth.ts"
+- id: swk-6
+  item: "Ch. 1 repairs: name the in-scope identity threat (threat table)"
+  file: book/single-writer-kernel.tex
+  before: "which is a real weakness in authentication"
+  after: "Identity confusion is in scope here"
+  source: "code: cli/utils/current-context.ts resolveContextSlot; cli/utils/actor-credential.ts"
+- id: swk-7
+  item: "Ch. 1 repairs: drop the SO_PEERCRED caveat (status limits)"
+  file: book/single-writer-kernel.tex
+  before: "peer-credential check is a software handshake"
+  after: "a buggy agent can act under another"
+  source: "code: cli/utils/current-context.ts, cli/utils/actor-credential.ts"
+- id: swk-8
+  item: "Ch. 1 repairs: different-uid row keeps its grade with a true reason"
+  file: book/single-writer-kernel.tex
+  before: "specifies hardening that would, but does not ship"
+  after: "loopback TCP port for its dashboard"
+  source: "code: server.ts (tcpServer shares app.routing; on unless PORT_DADDY_NO_TCP=1)"
+- id: swk-9
+  item: "Ch. 1 repairs: give fencing a grade"
+  file: book/single-writer-kernel.tex
+  before: "asynchronous handlers against each other"
+  after: "Fencing of a stale holder"
+  source: "code: no epoch in lib/locks.ts, lib/services.ts, lib/sessions.ts, lib/claim-forest.ts"
+- id: swk-10
+  item: "Ch. 1 repairs: fencing paragraph names the paused-client race"
+  file: book/single-writer-kernel.tex
+  before: "the problem here is much smaller"
+  after: "What is smaller is everything around it"
+  source: "code: no epoch in lib/locks.ts, lib/services.ts, lib/sessions.ts, lib/claim-forest.ts"
+- id: swk-11
+  item: "Ch. 1 repairs: add a mediated today? column to Table 1.8"
+  file: book/single-writer-kernel.tex
+  before: "The daemon holds the remote credential"
+  after: "mediates every occurrence of the event today"
+  source: "book/single-writer-kernel.tex sec:enforcement-gap; cli/utils/git-shim.ts"
+- id: swk-12
+  item: "Ch. 1 repairs: fix the sentence equating single-writer with serializability"
+  file: book/single-writer-kernel.tex
+  before: "consequences of one architectural choice"
+  after: "puts every write transaction in one commit order"
+  source: "book/coordination-papers-mega-volume-chapter-0.tex Theorem 0.7.1(2)"
+- id: swk-13
+  item: "Ch. 1 repairs: fix I2 for line-range claims"
+  file: book/single-writer-kernel.tex
+  before: "simply exclusion at three granularities"
+  after: "detects conflicts and does not exclude them"
+  source: "code: lib/sessions.ts claimFiles (advisory, conflicts are warnings); lib/symbol-claims.ts"
+- id: swk-14
+  item: "Ch. 1 repairs: fix zero background threads (figure)"
+  file: book/figures/fig-swk-claim-lifecycle.tex
+  before: "Zero background threads"
+  after: "No sweeper of its own"
+  source: "code: server.ts cleanupStale on setInterval(config.cleanup.interval_ms); lib/services.ts cleanup"
+- id: swk-15
+  item: "Ch. 1 repairs: fix zero background threads (ticket lock)"
+  file: book/single-writer-kernel.tex
+  before: "no background timer or polling thread"
+  after: "with no timer of its own"
+  source: "code: server.ts cleanupStale on setInterval(config.cleanup.interval_ms)"
+- id: swk-16
+  item: "O8: Dastani, Sardina and Yazdanpanah framing"
+  file: book/single-writer-kernel.tex
+  before: "it happens. Dastani, Sardina and Yazdanpanah"
+  after: "bridge from norms to supervisory control is not new"
+  source: "https://research.utwente.nl/en/publications/norm-enforcement-as-supervisory-control/"
+- id: swk-17
+  item: "A2 check: Enforced read as a maturity grade (Table 1.15)"
+  file: book/single-writer-kernel.tex
+  before: "Regimentation vs. enforcement boundary"
+  after: "Regimentation vs. detection boundary"
+  source: "book/single-writer-kernel.tex tab:honestkey and tab:invariants (I7 already reads detected)"
+- id: swk-18
+  item: "A3 weld list: Ch. 1 work unit inherited by Chs. 5-7"
+  file: book/single-writer-kernel.tex
+  before: "settlement inherit the same object"
+  after: "do not yet build them on this machine"
+  source: "grep: work unit has 0 hits in harbor-economy.tex and agent-transactions-whitepaper.tex"
+- id: swk-19
+  item: "Ch. 1 repairs: identity threat carried to the lock listing's introduction"
+  file: book/single-writer-kernel.tex
+  before: "looks like from two terminals"
+  after: "acts as one minted actor"
+  source: "code: cli/commands/locks.ts, cli/utils/actor-credential.ts (one slot, one persisted credential)"
+- id: swk-20
+  item: "Coordinator: Lampson's Protection cited as 1971, reprinted 1974 (key lampson1971)"
+  file: book/single-writer-kernel.tex
+  before: "Lampson 1974, Protection"
+  after: "5th Princeton Conference on Information Sciences and Systems"
+  source: "book/sealed-harbor.tex (p3-sealed) lampson1971 entry, copied verbatim"
+- id: swk-21
+  item: "R1 minor: outdated SQLite pragma.html quotation in section 1.4"
+  file: book/single-writer-kernel.tex
+  before: "commits might lose durability following a power loss"
+  after: "Transactions are durable across application crashes regardless"
+  source: "https://www.sqlite.org/pragma.html; https://www.sqlite.org/wal.html"
+- id: swk-22
+  item: "R1 minor: the FLP 'formal' sentence"
+  file: book/single-writer-kernel.tex
+  before: "We make that argument formal"
+  after: "the chapter draws nothing formal from it"
+  source: "https://groups.csail.mit.edu/tds/papers/Lynch/jacm85.pdf"
+- id: swk-23
+  item: "R1 minor: the FLP pointer in the fencing paragraph"
+  file: book/single-writer-kernel.tex
+  before: "makes the argument by way of"
+  after: "says why Fischer, Lynch and Paterson"
+  source: "https://groups.csail.mit.edu/tds/papers/Lynch/jacm85.pdf"
+- id: swk-24
+  item: "R1 minor: cite Basin et al. 2013"
+  file: book/single-writer-kernel.tex
+  before: "systems and properties. What this section adds"
+  after: "can control from those it can only observe"
+  source: "https://doi.org/10.1145/2487222.2487225 (record: https://ftp.math.utah.edu/pub/tex/bib/idx/tissec/16/1/3-3.html)"
+- id: swk-25
+  item: "R1 minor: cite Ligatti et al. 2005"
+  file: book/single-writer-kernel.tex
+  before: "systems and properties. What this section adds"
+  after: "insert actions can enforce policies that one able only"
+  source: "https://dblp.org/rec/bibtex/journals/ijisec/LigattiBW05; https://collaborate.princeton.edu/en/publications/edit-automata-enforcement-mechanisms-for-run-time-security-polici/"
+- id: swk-26
+  item: "R1 minor: Rao-Georgeff versus Cohen-Levesque"
+  file: book/single-writer-kernel.tex
+  before: "with both single-minded and open-minded strategies"
+  after: "may be dropped are Rao and Georgeff"
+  source: "https://jmvidal.cse.sc.edu/library/rao91a.pdf; https://bibtex.github.io/KR-1991-RaoG.html"
+- id: swk-27
+  item: "R1 minor: Bayer-Haber-Stornetta (section 1.8)"
+  file: book/single-writer-kernel.tex
+  before: "which predates blockchains and builds on"
+  after: "a linear chain of hashes that predates blockchains"
+  source: "https://link.springer.com/doi/10.1007/978-1-4613-9323-8_24; https://www.math.columbia.edu/~bayer/papers/Timestamp_BHS93.pdf"
+- id: swk-28
+  item: "R1 minor: Bayer-Haber-Stornetta (related work)"
+  file: book/single-writer-kernel.tex
+  before: "construction of Haber and Stornetta"
+  after: "refinement is Bayer, Haber and Stornetta"
+  source: "https://link.springer.com/doi/10.1007/978-1-4613-9323-8_24"
+- id: swk-29
+  item: "R1 minor: Helland 2012"
+  file: book/single-writer-kernel.tex
+  before: "delivery across an unreliable channel is impossible"
+  after: "case for idempotent processing"
+  source: "https://hrs-staff.dev.isr.umich.edu/docs/commacm/communications201205-dl.pdf (CACM 55(5), May 2012, p. 56)"
+
+# --- anchor (third pass, Wave 1) ---
+- id: anchor-1
+  item: "Blocker 2: Fig. 2.4 verifies every hop under the daemon key"
+  file: book/figures/fig-anchor-handshake-ladder.tex
+  before: "the Harbor accepts the chain under"
+  after: "Each card names its subject and"
+  source: "repo: analyses/harbor_card_v7_multihop_fixed.pv (check_sign(d1, a_pk, ..), check_sign(d2, b_pk, ..)); Algorithm 3 pk_current walk"
+- id: anchor-2
+  item: "Blocker 2: two-hop example (admin on a* -> sub on ab -> pub on ab) moved beside Fig. 2.4"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "The root covers both requests"
+  after: "All three signatures pass, because the daemon"
+  source: "repo: core/harbor-card-rs/src/lib.rs test root_only_subset_check_misses_a_decoded_second_hop_escalation; derivation: math-anchor/order.py [2]"
+- id: anchor-3
+  item: "Blocker 2: card names its subject key (offline-attenuation invariant)"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "with its own short-lived private key"
+  after: "the one whose public half"
+  source: "repo: Algorithm 3 AuthenticatedSubjectKey; Fig. 2.4"
+- id: anchor-4
+  item: "Blocker 2: key-hierarchy invariant says how the models check each link"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "v6 and v7 assume it"
+  after: "given rather than read from the parent card"
+  source: "repo: analyses/harbor_card_v3_delegation.pv, _v5, _v6, _v7 (signer keys passed as process parameters)"
+- id: anchor-5
+  item: "Blocker 4: Everest framing (not a model of decoupled verification)"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "Following the practice of AWS"
+  after: "This chapter does less"
+  source: "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SNAPL.2017.1 ; https://link.springer.com/chapter/10.1007/978-3-319-96142-2_26"
+- id: anchor-6
+  item: "Blocker 4: Everest venue is SNAPL 2017"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "Replacement of HTTPS. In Logic in Computer Science"
+  after: "Summit on Advances in Programming Languages"
+  source: "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SNAPL.2017.1"
+- id: anchor-7
+  item: "Ch. 2 repairs: define the capability order once, as a partial order"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "because subset is transitive"
+  after: "Every comparison of authority in this chapter uses one order"
+  source: "derivation: math-anchor/order.py"
+- id: anchor-8
+  item: "Ch. 2 repairs: capability order carried to the v5 model"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "because subset is transitive"
+  after: "The two values stand for the rights sets"
+  source: "derivation: math-anchor/order.py [4]"
+- id: anchor-9
+  item: "Ch. 2 repairs: fix Decode in Alg. 2.4"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "agent_parent, harbor, cap_parent"
+  after: "reads only a root card, whose fields are"
+  source: "repo: Algorithms 1-2 Decode returns (a, h, j, cap); Encode_delegation shape in Algorithm 3"
+- id: anchor-10
+  item: "Ch. 2 repairs: revocation id per link, jti_i = H(sigma_i)"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "The pseudocode below shows only signature checking"
+  after: "Every link also has its own revocation identifier"
+  source: "https://docs.rs/biscuit-auth/6.0.0/src/biscuit_auth/token/mod.rs.html"
+- id: anchor-11
+  item: "Ch. 2 repairs: revocation invariant checks every link's id"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "A revoked ancestor must make every chain"
+  after: "a revoked ancestor makes every chain below it fail"
+  source: "derivation: per-link ids (Algorithm 3 VerifyChain)"
+- id: anchor-12
+  item: "Ch. 2 repairs: proof of possession at presentation (cites DPoP, SPIFFE)"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "remainder of its TTL. Re-checking per request"
+  after: "Under proof of possession, every card names one"
+  source: "https://rfc-editor.org/rfc/rfc9449.html ; https://spiffe.io/docs/latest/spiffe-specs/jwt-svid/"
+- id: anchor-13
+  item: "Ch. 2 repairs: cite DPoP"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "remainder of its TTL. Re-checking per request"
+  after: "DPoP standard binds tokens to a client key"
+  source: "https://rfc-editor.org/rfc/rfc9449.html"
+- id: anchor-14
+  item: "Ch. 2 repairs: cite SPIFFE"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "remainder of its TTL. Re-checking per request"
+  after: "a signed identity document carried as a JWT"
+  source: "https://spiffe.io/docs/latest/spiffe-specs/jwt-svid/"
+- id: anchor-15
+  item: "Ch. 2 repairs: cite SO_PEERPIDFD"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "reuses its PID. In the opening trace"
+  after: "Linux has offered such a binding since version 6.5"
+  source: "https://lwn.net/Articles/936418/"
+- id: anchor-16
+  item: "Ch. 2 repairs: cite Hardy"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "1966 statement. The design rule"
+  after: "confused deputy is the classic case for it"
+  source: "https://pdos.csail.mit.edu/6.1810/2004/readings/hardy88confused.pdf"
+- id: anchor-17
+  item: "Ch. 2 repairs: cite Biscuit"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "The pseudocode below shows only signature checking"
+  after: "Neither macaroons nor Biscuit"
+  source: "https://github.com/eclipse-biscuit/biscuit ; https://hackage-content-origin.haskell.org/package/biscuit-haskell-0.3.0.1/docs/Auth-Biscuit.html"
+- id: anchor-18
+  item: "Ch. 2 repairs: the secrecy queries are tautologies"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "this close to failing and still be sound"
+  after: "So the secrecy query is a tautology of the model"
+  source: "repo: analyses/harbor_card_v1_refined.pv, analyses/harbor_card_v2_asymmetric.pv (no public output of the key, no inverting destructor)"
+- id: anchor-19
+  item: "Ch. 2 repairs: the secrecy queries are tautologies (Table 2.4)"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "this close to failing and still be sound"
+  after: "is a tautology of its model, which never sends"
+  source: "repo: analyses/harbor_card_v1_refined.pv"
+- id: anchor-20
+  item: "Ch. 2 repairs: chain-replay.pv called closed against App. B"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "chain authenticity TRUE; 17-case runtime conformance"
+  after: "so it does not prove a replayed chain is refused"
+  source: "repo: book/corpus.json anchor-delegation-chain-replay-proverif evidencePolicy; proofs/anchor/delegation/chain-replay.pv"
+- id: anchor-21
+  item: "Exercises: Ex. 2.2 not answerable from the chapter"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "and what does the run log"
+  after: "comments promise replay protection"
+  source: "repo: proofs/anchor/delegation/chain-replay.pv (printed as a verbatim excerpt)"
+- id: anchor-22
+  item: "Exercises: Ex. 2.7 not answerable from the chapter"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "State the attack in words: who forges what"
+  after: "State the attack in words: who signs what"
+  source: "repo: analyses/harbor_card_v6_multihop_attack.pv (printed as a verbatim excerpt)"
+- id: anchor-23
+  item: "Exercises: Ex. 2.8 not answerable from the chapter"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "Name the one modeling change that closes the attack"
+  after: "What must that line become to close the attack"
+  source: "repo: diff analyses/harbor_card_v6_multihop_attack.pv analyses/harbor_card_v7_multihop_fixed.pv"
+- id: anchor-24
+  item: "Exercises: Ex. 2.9 not answerable from the chapter"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "what does the naive discharge verifier in v2 accept"
+  after: "true verdict shows that folding"
+  source: "repo: analyses/macaroon_discharge_v1.pv, analyses/macaroon_discharge_v2_naive_unsound.pv"
+- id: anchor-25
+  item: "Exercises: Solution 2.9 credited v1's binding alone"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "the entire gap in v2 is that"
+  after: "does not show that the binding alone closes"
+  source: "repo: diff analyses/macaroon_discharge_v1.pv analyses/macaroon_discharge_v2_naive_unsound.pv (v1 also gives each grant its own caveat key)"
+- id: anchor-26
+  item: "R2 follow-up 1: NbH 2.B.1 argued non-vacuity from verify_generic, which no process calls"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "written into the model on purpose so"
+  after: "Now count the processes that call"
+  source: "repo: analyses/harbor_card_v1_refined.pv (no process calls verify_generic); proofs/anchor/token-verify/algconfusion.pv (VerifierNaive runs; query false)"
+- id: anchor-27
+  item: "R2 follow-up 1: Fig. 2.3 tagged with v1_refined.pv, which has no naive verifier"
+  file: book/figures/fig-anchor-alg-confusion.tex
+  before: "rejects the same tampered token. [verified, v1_refined.pv]"
+  after: "the mechanized check is algconfusion.pv"
+  source: "repo: proofs/anchor/token-verify/algconfusion.pv"
+- id: anchor-28
+  item: "R2 follow-up 2: status table rows marked Closed against the legend (authentication correspondence regraded Partial)"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "The twelve rows carry six"
+  after: "no runtime conformance suite maps them"
+  source: "repo: tests/unit/harbor-tokens.test.js (empirical unit tests); no runtime-conformance file for harbor_card_v*.pv"
+- id: anchor-29
+  item: "R2 follow-up 2: algorithm-confusion row names its runtime conformance suite"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "The twelve rows carry six"
+  after: "7 attack cases against the daemon"
+  source: "repo: tests/unit/runtime-conformance/algorithm-pinning.test.js (7 cases, pass)"
+- id: anchor-30
+  item: "R2 follow-up 2: cuckoo pollution row regraded Partial (no model)"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "The twelve rows carry six"
+  after: "for a library the revocation check does not yet use"
+  source: "repo: tests/unit/cuckoo-pollution-property.test.js; lib/cuckoo-filter.ts"
+- id: anchor-31
+  item: "R2 follow-up 2: status table caption counts"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "The twelve rows carry six"
+  after: "The twelve rows carry four"
+  source: "derivation: count of markers in Table A.1 (4 Closed, 7 Partial, 1 Open)"
+- id: anchor-32
+  item: "R2 follow-up 3: Prop. 2.3.1 uses one cap variable"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "It does not show freedom from replay, attenuation"
+  after: "No model in this chapter proves authentication and attenuation together"
+  source: "repo: analyses/harbor_card_v3_delegation.pv, _v5, _v7 (queries)"
+- id: anchor-33
+  item: "R2 follow-up 3: Prop. 2.3.1 covers a capability passed on unchanged"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "The delegation query covers a single hop."
+  after: "The same variable cap appears in all three events"
+  source: "repo: analyses/harbor_card_v3_delegation.pv"
+- id: anchor-34
+  item: "R2 follow-up 3: Review idea 7 retells Prop. 2.3.1"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "authentication correspondence for the modeled phase"
+  after: "authentication correspondence for a capability passed on unchanged"
+  source: "repo: analyses/harbor_card_v3_delegation.pv"
+- id: anchor-35
+  item: "R2 follow-up 4: the daemon does not run the Rust verify()"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "Rust verify function first checks that the card"
+  after: "The daemon does not run this Rust function"
+  source: "repo: core/harbor-card-rs/src/lib.rs (two extern C exports); lib/arbiter.ts; lib/harbor-tokens.ts (jwtVerify, algorithms EdDSA)"
+- id: anchor-36
+  item: "R2 follow-up 4: artifact-availability paragraph"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "runtime components are deployed inside the Port Daddy daemon binary"
+  after: "calls only the two functions listed at the end"
+  source: "repo: lib/arbiter.ts lib.func bindings"
+- id: anchor-37
+  item: "R2 follow-up 4: Kani harnesses call the crate's functions, not production ones"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "harnesses call the production functions with no stubs"
+  after: "own functions with no stubs"
+  source: "repo: core/harbor-card-rs/src/kani_claims.rs"
+- id: anchor-38
+  item: "R2 follow-up 4: verification-stack row put conformance at the FFI boundary"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "refused at the FFI boundary"
+  after: "refused by the running TypeScript code the suite calls"
+  source: "repo: tests/unit/runtime-conformance/*.test.js import lib/harbor-tokens.js and lib/delegation-chain.js"
+- id: anchor-39
+  item: "R2 follow-up 4: Table 2.4 No-panic parsing deployed"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "decoded lifetime and capability checks use production functions"
+  after: "No (not exported)"
+  source: "repo: core/harbor-card-rs/src/lib.rs (verify is not an extern C export)"
+- id: anchor-40
+  item: "R2 follow-up 5: Ch. 2 epoch renamed revocation counter"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "its current epoch, a number that increases"
+  after: "its current revocation counter"
+  source: "repo: book/glossary/front.json (epoch = lease epoch)"
+- id: anchor-41
+  item: "R2 follow-up 5: CardRevocation.tla status row"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "filter, gossip and epoch below are specified"
+  after: "an external counter that a restore cannot roll back"
+  source: "repo: proofs/relay/CardRevocation.tla (Accept requires cardEpoch[c] = epoch)"
+- id: anchor-42
+  item: "R2 follow-up 6: attenuation checked at one hop plus a fixed two-delegation pair"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "for the enriched order"
+  after: "attenuation soundness at one hop plus a fixed"
+  source: "repo: analyses/harbor_card_v5_attenuation.pv, _v6, _v7"
+- id: anchor-43
+  item: "R2 follow-up 6: threat-closure row separates attenuation depth from authenticity depth"
+  file: book/anchor-protocol-whitepaper.tex
+  before: "for the enriched order"
+  after: "chain authenticity at depth 3"
+  source: "repo: proofs/anchor/delegation/chain-replay.pv (depth 3, no capabilities)"
+
+# --- sealed (third pass, Wave 1) ---
+- id: sealed-1
+  item: "Blocker 5: exfiltration bond 'Not set' (Ch. 3 side), detection section"
+  file: book/sealed-harbor.tex
+  before: "is scoped to funding detection and response"
+  after: "This chapter does not size a bond against a leak"
+  source: "book/agent-transactions-whitepaper.tex sec:pricing:threats, Table tab:threat-bonds row 'Data exfiltration & Not set'; agenda A1 #5"
+- id: sealed-2
+  item: "Blocker 5: exfiltration bond, enforceability boundary"
+  file: book/sealed-harbor.tex
+  before: "audit and remedies, which"
+  after: "treats remedies backed by bonds and decides by threat class"
+  source: "book/agent-transactions-whitepaper.tex sec:pricing:threats; agenda A1 #5"
+- id: sealed-3
+  item: "Blocker 5: exfiltration bond, canary-secrecy solution"
+  file: book/sealed-harbor.tex
+  before: "detection is backed by a bounded bond"
+  after: "any bond posted against a leak can only be bounded"
+  source: "book/agent-transactions-whitepaper.tex sec:pricing:threats; agenda A1 #5"
+- id: sealed-4
+  item: "Correction 23: canary power under dependent misses, Review"
+  file: book/sealed-harbor.tex
+  before: "escapes all their independent detections with probability"
+  after: "as a deliberate exfiltrator's do"
+  source: "derivation: math-sealed/canary_dependence.py; https://projecteuclid.org/euclid.aoms/1177698701"
+- id: sealed-5
+  item: "Correction 23: canary power, express lane and new paragraph on correlated misses"
+  file: book/sealed-harbor.tex
+  before: "carrying 3 canaries is caught with probability 0.992."
+  after: "When misses move together"
+  source: "derivation: math-sealed/canary_dependence.py"
+- id: sealed-6
+  item: "Correction 23: canary power, boundary's simulated power"
+  file: book/sealed-harbor.tex
+  before: "drops reported simulated power from"
+  after: "drops reported simulated power with independent misses"
+  source: "derivation: math-sealed/canary_dependence.py"
+- id: sealed-7
+  item: "Correction 23: canary power, Theorem Power under dependence"
+  file: book/sealed-harbor.tex
+  before: null
+  after: "Without independence the detection probability is at least"
+  source: "derivation: math-sealed/canary_dependence.py; https://projecteuclid.org/euclid.aoms/1177698701"
+  note: "pure addition to the theorem; the independent statement is kept"
+- id: sealed-8
+  item: "Correction 23: canary power, operating-curve figure"
+  file: book/figures/fig-sealed-operating-curve.tex
+  before: null
+  after: "hold detection at 80"
+  source: "derivation: math-sealed/canary_dependence.py"
+  note: "caption addition and a dashed 1-beta line; no printed words removed"
+- id: sealed-9
+  item: "Correction 23: canary power, solution to the five-canary exercise"
+  file: book/sealed-harbor.tex
+  before: null
+  after: "If the five misses are perfectly correlated"
+  source: "derivation: math-sealed/canary_dependence.py"
+  note: "pure addition; the independent value is kept"
+- id: sealed-10
+  item: "Ch. 3 repairs: define q"
+  file: book/sealed-harbor.tex
+  before: "The whole channel is bounded before timing"
+  after: "Erin's payload channel is bounded before timing"
+  source: "R Errors Ch. 3 pp. 254-259 (q never defined); agenda A2 Ch. 3 repairs"
+- id: sealed-11
+  item: "Ch. 3 repairs: define q, work-order table value"
+  file: book/sealed-harbor.tex
+  before: "q=1 exit"
+  after: "the number of releases on it that the work order allows"
+  source: "agenda A2 Ch. 3 repairs"
+- id: sealed-12
+  item: "Ch. 3 repairs: status box (four toy checkers built, room only specified)"
+  file: book/sealed-harbor.tex
+  before: "The reference system's ledger is called A3"
+  after: "Nothing in this chapter's room has been built"
+  source: "repo: skills/harbor-results/scripts/{c1_noninterference,b3_controllability,a3_epsilon_ledger,a4_canary_sprt}.py; no room code in lib/ or core/"
+- id: sealed-13
+  item: "Ch. 3 repairs: status box carried to the subject-keyed ledger's margin tag"
+  file: book/additions/sealed-person-ledger.tex
+  before: "the reference system's A3 ledger keeps one balance"
+  after: "the A3 toy model keeps one balance"
+  source: "repo: skills/harbor-results/scripts/a3_epsilon_ledger.py"
+- id: sealed-14
+  item: "Ch. 3 repairs: two-currency ledger (printed as 'two units' under the money-words rule)"
+  file: book/sealed-harbor.tex
+  before: null
+  after: "One Ledger, Two Units"
+  source: "derivation: math-sealed/two_currency_ledger.py"
+  note: "pure addition: a design invariant and its paragraph in the conservation section"
+- id: sealed-15
+  item: "Ch. 3 repairs: two-currency ledger, Review"
+  file: book/sealed-harbor.tex
+  before: "every release debits"
+  after: "the two units are never converted"
+  source: "derivation: math-sealed/two_currency_ledger.py"
+- id: sealed-16
+  item: "Ch. 3 repairs: capacity proposition with tightness"
+  file: book/sealed-harbor.tex
+  before: null
+  after: "Capacity of a Worker-Chosen Channel"
+  source: "derivation: math-sealed/capacity.py"
+  note: "pure addition: Theorem thm:sealed-capacity with proof"
+- id: sealed-17
+  item: "Ch. 3 repairs: Kemmerer shared-resource matrix"
+  file: book/sealed-harbor.tex
+  before: null
+  after: "Every field the worker can steer is a channel"
+  source: "https://sites.cs.ucsb.edu/~sherwood/cs290/papers/covert-kemmerer.pdf (ACM TOCS 1(3):256-277, Aug. 1983)"
+  note: "pure addition: Table tab:sealed-shared-resources and its paragraph"
+- id: sealed-18
+  item: "Ch. 3 repairs: receipt fields are an uncounted Simmons subliminal channel"
+  file: book/sealed-harbor.tex
+  before: null
+  after: "The receipt carries one to Erin"
+  source: "https://www.doi.org/10.1007/978-1-4684-4730-9_5 (Simmons, Advances in Cryptology: Proc. Crypto 83, Plenum 1984); pages 51-67 per https://en.wikipedia.org/wiki/Subliminal_channel"
+  note: "pure addition"
+- id: sealed-20
+  item: "Solutions: Solution 3.1 'roughly quadruples' (4 to 8 secrets is 6x)"
+  file: book/sealed-harbor.tex
+  before: "doubling the secret count roughly quadruples both counts"
+  after: "multiplies the different-parity count by exactly 4"
+  source: "derivation: math-sealed/parity_pairs.py"
+- id: sealed-21
+  item: "Ch. 3 minor: Lampson's Protection is 1971 (reprinted 1974)"
+  file: book/sealed-harbor.tex
+  before: "gave operating systems two years later"
+  after: "had given operating systems a year earlier"
+  source: "https://www.bwlampson.site/08-Protection/Abstract.html (Proc. 5th Princeton Conf. on Information Sciences and Systems, 1971; reprinted ACM OSR 8(1):18-24, Jan. 1974)"
+- id: sealed-22
+  item: "Ch. 3 minor: Lampson's Protection, bibliography entry"
+  file: book/sealed-harbor.tex
+  before: null
+  after: "first published in"
+  source: "https://www.bwlampson.site/08-Protection/Abstract.html"
+  note: "the entry now lists the 1974 reprint and the 1971 original; key lampson1971, margin short form 'Lampson 1971' after pd-cite-shortforms is regenerated"
+- id: sealed-23
+  item: "Ch. 3 minor: Russo-Sabelfeld proved a limit on dynamic monitors, not 'strictly more restrictive'"
+  file: book/sealed-harbor.tex
+  before: "must be strictly more restrictive than a static analysis"
+  after: "Neither approach is the more permissive in general"
+  source: "https://www.cse.chalmers.se/~andrei/csf10.pdf (abstract and Theorem 1; Section IV example of a monitor accepting a run the type system rejects)"
+- id: sealed-24
+  item: "Ch. 3 minor: Property 3.3.2 is delimited release with one escape hatch, not the degenerate case"
+  file: book/sealed-harbor.tex
+  before: "in the special case where delimited release reduces to noninterference"
+  after: "It is not the degenerate case with no escape hatch"
+  source: "https://apps.dtic.mil/sti/pdfs/AD1022058.pdf (Sabelfeld and Myers, Definition 2; Proposition 2: without declassify the two properties coincide)"
+- id: sealed-25
+  item: "Ch. 3 minor: hypergeometric margin sparkline used (c/n)(1-beta)=0.04 against the example's 0.008"
+  file: book/sealed-harbor.tex
+  before: null
+  after: "as in the worked example"
+  source: "derivation: math-sealed/hypergeom_spark.py"
+  note: "the old caption's only changed text was math (0.04 to 0.008); the sparkline in book/figures/spark-canary-hypergeom.tex now plots 0.008 over m in [0,800] with end label .998"
+
+# --- ls (third pass, Wave 1) ---
+- id: ls-1
+  item: "Blocker 6: ANS authorship"
+  file: book/legible-swarm.tex
+  before: "Ren et al. 2025, Agent Name Service"
+  after: "Huang et al. 2025, Agent Name Service"
+  source: "https://arxiv.org/abs/2505.10609v1"
+- id: ls-2
+  item: "Blocker 6: ANS authorship"
+  file: book/legible-swarm.tex
+  before: "Agent Name Service (Ren et al.)"
+  after: "Agent Name Service (Huang et al.)"
+  source: "https://arxiv.org/abs/2505.10609v1"
+- id: ls-3
+  item: "Blocker 6: ANS authorship"
+  file: book/legible-swarm.tex
+  before: "V. Ren et al."
+  after: "Ken Huang, Vineeth Sai Narajala, Idan Habler"
+  source: "https://arxiv.org/abs/2505.10609v1"
+- id: ls-4
+  item: "Blocker 7: Schneider cited for a tautology"
+  file: book/legible-swarm.tex
+  before: "enforce exactly the safety properties"
+  after: "every policy such a monitor can enforce is a safety property"
+  source: "https://www.scilit.net/publications/7eb12f38aa09810261e7fc46a0babac5 (Schneider, ACM TISSEC 3(1):30-50, 2000); https://personal.utdallas.edu/~hamlen/cc4em.pdf (Hamlen, Morrisett, Schneider, ACM TOPLAS 28(1):175-205, 2006)"
+- id: ls-5
+  item: "Blocker 7: Schneider cited for a tautology"
+  file: book/legible-swarm.tex
+  before: "make that committed violation unhappen"
+  after: "proved the result this invariant needs"
+  source: "https://www.scilit.net/publications/7eb12f38aa09810261e7fc46a0babac5"
+- id: ls-6
+  item: "Blocker 7: Schneider cited for a tautology"
+  file: book/legible-swarm.tex
+  before: "By the reference-monitor result below"
+  after: "Neither theorem concerns a monitor placed after a commit"
+  source: "https://personal.utdallas.edu/~hamlen/cc4em.pdf"
+- id: ls-7
+  item: "Thm 4.8.2, the joint-digest bound: pooling-gain inequality"
+  file: book/legible-swarm.tex
+  before: "Joint-Digest Lower Bound under a Shared Opening Budget"
+  after: "At an equal opening budget, the joint digest's lower bound"
+  source: "derivation: math-ls/pooling_gain.py"
+- id: ls-8
+  item: "Thm 4.8.2, the joint-digest bound: pooling-gain inequality"
+  file: book/legible-swarm.tex
+  before: "the joint lower bound is about"
+  after: "Pooling the store and the budget lowers the bound"
+  source: "derivation: math-ls/pooling_gain.py"
+- id: ls-9
+  item: "Thm 4.8.2: remove Fig. 4.12 (readpoverty)"
+  file: book/figures/legible-swarm-readpoverty.tex
+  before: "Separate readers may each open eight items"
+  after: "one joint digest given both readers' opens"
+  source: "derivation: math-ls/pooling_gain.py"
+- id: ls-10
+  item: "Thm 4.8.2: remove Fig. 4.17 (split penalty)"
+  file: book/figures/legible-swarm-split-penalty.tex
+  before: "divided by the sum of two single-reader lower bounds"
+  after: "The heads stay separate and the store stays single"
+  source: "derivation: math-ls/pooling_gain.py"
+- id: ls-11
+  item: "Thm 4.8.2: carried to related work"
+  file: book/legible-swarm.tex
+  before: "different total opening budgets and must be read that way"
+  after: "compares lower bounds at an equal opening budget"
+  source: "derivation: math-ls/pooling_gain.py"
+- id: ls-12
+  item: "Thm 4.8.2: carried to the Review"
+  file: book/legible-swarm.tex
+  before: "The counting comparison sets different coverage budgets side by side"
+  after: "one shared digest for two readers has a lower"
+  source: "derivation: math-ls/pooling_gain.py"
+- id: ls-13
+  item: "Ch. 4 repair: log-likelihood-ratio sentence in the proof of Thm 4.6.4"
+  file: book/legible-swarm.tex
+  before: "could otherwise be used to move further along the ray"
+  after: "Every feasible coupling is therefore positively informative"
+  source: "derivation: math-ls/pinned_llr.py"
+- id: ls-14
+  item: "Ch. 4 repair: Rödl achievability for fixed k and m as N grows"
+  file: book/legible-swarm.tex
+  before: "nothing here says a real encoder reaches them"
+  after: "the theorem's bound is asymptotically exact"
+  source: "https://scilit.com/publications/2fdac95eb5a66521cef1579e4367a507 (Rödl, Eur. J. Combin. 6(1):69-78, 1985); derivation: math-ls/rodl_cover.py"
+- id: ls-15
+  item: "Ch. 4 repair: Hwang's splitting in Thm 4.6.5, composition window recomputed"
+  file: book/legible-swarm.tex
+  before: "before the second stage is guaranteed to beat reading the flags"
+  after: "belongs to plain halving, not to adaptive inspection"
+  source: "https://arxiv.org/pdf/1301.7023 (Thm 2.3, Hwang's bound log2 C(N,K)+K; Hwang, JASA 67(339):605-608, 1972); derivation: math-ls/hwang_gbs.py"
+- id: ls-16
+  item: "Ch. 4 repair: Hwang's splitting in Thm 4.6.5 (no deployed procedure)"
+  file: book/legible-swarm.tex
+  before: "the exact procedure the digest architecture runs"
+  after: "the procedure the chapter's harness scripts run"
+  source: "book/legible-swarm.tex Appendix table tab:honest-state has no group-query zoom row"
+- id: ls-17
+  item: "Ch. 4 repair: Hwang's splitting in Thm 4.6.5"
+  file: book/legible-swarm.tex
+  before: "the theorem bounds the deployed algorithm, not the best one"
+  after: "part (b) bounds Hwang's, which does"
+  source: "derivation: math-ls/hwang_gbs.py"
+- id: ls-18
+  item: "Ch. 4 repair: Hwang's splitting carried to the zoom-advantage figure"
+  file: book/figures/legible-swarm-zoom-advantage.tex
+  before: "A sufficient certificate, not a measured performance curve"
+  after: "Two sufficient certificates, not measured performance curves"
+  source: "derivation: math-ls/hwang_gbs.py"
+- id: ls-19
+  item: "Ch. 4 repair: define the aggregates in Thm 4.4.8"
+  file: book/legible-swarm.tex
+  before: "If alarm load is nonincreasing and miss loss nondecreasing"
+  after: "The two aggregates are the alarm load"
+  source: "derivation: math-ls/escalation_aggregates.py"
+- id: ls-20
+  item: "Ch. 4 repair: inspection threshold derived once"
+  file: book/legible-swarm.tex
+  before: "of being genuine exceeds"
+  after: "reaches the inspection threshold for these costs"
+  source: "derivation: math-ls/escalation_aggregates.py"
+- id: ls-21
+  item: "Ch. 4 repair: the SDT decomposition, stated once"
+  file: book/legible-swarm.tex
+  before: "inspect above it, otherwise permit the action. A miss"
+  after: "The chapter's mechanisms then divide the work"
+  source: "derivation: math-ls/sdt_lr.py"
+- id: ls-22
+  item: "Ch. 4 repair: inspection threshold in likelihood-ratio form, derived once"
+  file: book/legible-swarm.tex
+  before: "inspect above it, otherwise permit the action. A miss"
+  after: "It is the posterior threshold of Theorem"
+  source: "derivation: math-ls/sdt_lr.py"
+- id: ls-23
+  item: "Ch. 4 repair: task-restricted decision-sufficiency (zero covering loss is not Blackwell sufficiency)"
+  file: book/legible-swarm.tex
+  before: "a summary must still say which distinctions"
+  after: "The definition is restricted to one task on purpose"
+  source: "https://celebratio.org/Blackwell_DH/bibf/17/26 (Blackwell, Ann. Math. Stat. 24(2):265-272, 1953)"
+- id: ls-24
+  item: "Ch. 4 repair: stakes(x) and reversibility(x) as daemon-computed functions; one name for irreversibility"
+  file: book/legible-swarm.tex
+  before: "stakes × irrev × anomaly"
+  after: "the daemon computes both from the effect itself"
+  source: "derivation: definition; consistent with the split-ranker example values (irreversibility 0.1, 0.9, 0.1 = 1 - reversibility)"
+- id: ls-25
+  item: "Ch. 4 repair: Hobbes, promulgation versus accountability"
+  file: book/legible-swarm.tex
+  before: "can never breach it and need not be inspectable"
+  after: "What he denied was accountability"
+  source: "https://www.gutenberg.org/cache/epub/3207/pg3207.txt (Leviathan ch. 26 'Law Made, If Not Also Made Known, Is No Law'; ch. 18 rights 2, 4 and 5)"
+- id: ls-26
+  item: "Ch. 4 repair: Hobbes, sovereignty by acquisition"
+  file: book/legible-swarm.tex
+  before: "They covenant, through the rule of the road"
+  after: "The agents are the multitude, but they never covenant"
+  source: "https://standardebooks.org/ebooks/thomas-hobbes/leviathan/text/chapter-20 (Leviathan ch. 20)"
+- id: ls-27
+  item: "Ch. 4 repair: Hobbes, carried to related work"
+  file: book/legible-swarm.tex
+  before: "inverts Hobbes' opaque sovereign"
+  after: "inverts Hobbes' unaccountable sovereign"
+  source: "https://www.gutenberg.org/cache/epub/3207/pg3207.txt (Leviathan ch. 18)"
+- id: ls-28
+  item: "Exercises: Ex. 4.8 duplicates Ex. 4.49 (the later copy removed)"
+  file: book/legible-swarm.tex
+  before: "The ranker as a political authority"
+  after: "The ranker-as-political-authority regress"
+  source: "review R, Pedagogy 9: Ex. 4.8 = Ex. 4.49; ex:ls-ranker-counter-surface kept, ex:ls-ranker-political-organ removed"
+- id: ls-29
+  item: "Ex. 4.2 misquotes Hobbes ('need not be malicious' is not in Leviathan)"
+  file: book/legible-swarm.tex
+  before: "Hobbes says the actors"
+  after: "no more than his own conservation requireth"
+  source: "https://www.gutenberg.org/cache/epub/3207/pg3207.txt (Leviathan ch. 13, 'From Diffidence Warre'; the phrase 'need not be malicious' has no hit in the full text)"
+- id: ls-30
+  item: "Hobbes: 'exactly one inalienable right' (Leviathan ch. 21 lists several)"
+  file: book/legible-swarm.tex
+  before: "exactly one inalienable right"
+  after: "several liberties that no covenant can transfer"
+  source: "https://www.gutenberg.org/cache/epub/3207/pg3207.txt (Leviathan ch. 21, 'Subjects Liberty' passages after 'cannot by Covenant be transferred')"
+- id: ls-31
+  item: "Revocable consent is Locke's trust, not an amendment to Hobbes"
+  file: book/legible-swarm.tex
+  before: "amended by the liberal consent tradition"
+  after: "Its revocable consent is not an amendment to him"
+  source: "https://www.gutenberg.org/cache/epub/7370/pg7370.txt (Second Treatise, Sect. 149); https://www.gutenberg.org/cache/epub/3207/pg3207.txt (Leviathan ch. 18, right 1)"
+- id: ls-32
+  item: "Revocable consent is Locke's trust (consent section and margin caption)"
+  file: book/legible-swarm.tex
+  before: "but makes the operator's consent scoped and revocable"
+  after: "Revocable authority is Locke's"
+  source: "https://www.gutenberg.org/cache/epub/7370/pg7370.txt (Second Treatise, Sect. 149)"
+- id: ls-33
+  item: "Hosted-trust weld: Ch. 6 prices no consent grant"
+  file: book/legible-swarm.tex
+  before: "sets the price of that sale"
+  after: "does not price the grant itself"
+  source: "book/harbor-economy.tex sec:hosted-trust ('Paying for evidence and settlement'): evidence, adjudication and payment costs kept separate; no consent-grant price anywhere in the Book (grep)"
+- id: ls-34
+  item: "Hosted-trust weld: bridge item"
+  file: book/legible-swarm.tex
+  before: "The consent grant as a priceable object"
+  after: "no chapter yet prices the grant"
+  source: "book/harbor-economy.tex sec:hosted-trust; assembled Book carries label he:sec:hosted-trust"
+
+# --- stp (third pass, Wave 1) ---
+- id: stp-1
+  item: "Blocker 8: audit-tower depth is to the bribe price (17 levels), not to u = 1 (27)"
+  file: book/spawn-to-person.tex
+  before: "below one unit; the tower needs"
+  after: "below the bribe price; the tower needs"
+  source: "derivation: math-stp/tower.py"
+- id: stp-2
+  item: "Blocker 8: G0 = 400 presented as a counterexample to Becker deterrence (rho* = 10 > 1)"
+  file: book/spawn-to-person.tex
+  before: "before the geometric phase takes over for"
+  after: "This grade is a counterexample to deterrence"
+  source: "derivation: math-stp/tower.py"
+- id: stp-3
+  item: "Blocker 8: margin spark retelling"
+  file: book/spawn-to-person.tex
+  before: "All three traces stop below one unit"
+  after: "All three traces stop below the bribe price"
+  source: "derivation: math-stp/tower.py"
+- id: stp-4
+  item: "Blocker 8: bond-capital ratio C=1 vs C=8 is 43/17, not about two"
+  file: book/spawn-to-person.tex
+  before: "monoculture costs roughly twice the bond capital"
+  after: "monoculture costs about two and a half times"
+  source: "derivation: math-stp/tower.py"
+- id: stp-5
+  item: "Blocker 8: Figure rate-the-raters target moved to the bribe price"
+  file: book/figures/fig-stp-rate-the-raters.tex
+  before: "first below one at"
+  after: "first below the bribe price"
+  source: "derivation: math-stp/tower.py"
+- id: stp-6
+  item: "Blocker 8: name the keep-gain settlement convention"
+  file: book/spawn-to-person.tex
+  before: "and note that the detector term"
+  after: "that also claws the gain back needs a lower rate"
+  source: "book/harbor-economy.tex (Theorem Becker Deterrence for the Panel and its keep-gain/claw-back pitfall); derivation: math-stp/tower.py"
+- id: stp-7
+  item: "Blocker 8: Tower Contraction theorem says it bounds residual damage"
+  file: book/spawn-to-person.tex
+  before: null
+  after: "The recurrence bounds residual damage"
+  note: "pure addition inside the theorem; no printed text was removed"
+  source: "derivation: math-stp/tower.py"
+- id: stp-8
+  item: "Ch. 5 repairs: retitle section 5.10 as a deterrence condition"
+  file: book/spawn-to-person.tex
+  before: "The grading oracle’s incentive-compatibility"
+  after: "The grading oracle’s deterrence condition"
+  note: "apostrophe is U+2019 as typeset"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (R Errors Ch. 5: section titled incentive-compatibility contains no IC argument)"
+- id: stp-9
+  item: "Ch. 5 repairs: no-mint with per-(source, child) budgets, sum <= 1"
+  file: book/spawn-to-person.tex
+  before: "In probability terms, the total is"
+  after: "The budget is kept per pair"
+  source: "derivation: math-stp/nomint_beta.py"
+- id: stp-10
+  item: "Ch. 5 repairs: no-mint defining sentence"
+  file: book/spawn-to-person.tex
+  before: "credit passed to successors is debited in full"
+  after: "together come to at most its balance"
+  source: "derivation: math-stp/nomint_beta.py"
+- id: stp-11
+  item: "Ch. 5 repairs: continuity witness schema and a signer per death mode"
+  file: book/spawn-to-person.tex
+  before: "signs a permitted succession to"
+  after: "What a succession record holds"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (R Errors Ch. 5: who signs a succession when the predecessor is dead; kappa has no schema)"
+- id: stp-12
+  item: "Ch. 5 repairs: beta-Bernoulli estimator (Josang-Ismail 2002); Exercise 5.23 answerable"
+  file: book/spawn-to-person.tex
+  before: "A binary protected acceptance test can update"
+  after: "the beta reputation system of"
+  source: "https://mn.uio.no/ifi/english/people/aca/josang/publications/ji2002-bled.pdf; derivation: math-stp/nomint_beta.py"
+- id: stp-13
+  item: "Ch. 5 repairs: promote the scope lemma"
+  file: book/spawn-to-person.tex
+  before: "Set prices separately for each combination of owner"
+  after: "Scope of prices and sanctions"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (R Simplify Ch. 5: promote the scope lemma)"
+- id: stp-14
+  item: "Ch. 5 repairs: add Butler's circularity objection"
+  file: book/spawn-to-person.tex
+  before: null
+  after: "Butler pressed a second objection"
+  note: "pure addition; no printed text was removed"
+  source: "https://anglicanhistory.org/butler/analogy/dissertation1.html (Butler, Of Personal Identity, Dissertation I of The Analogy of Religion, 1736)"
+- id: stp-15
+  item: "Ch. 5 repairs: credit Grice 1941 for the overlapping chain"
+  file: book/spawn-to-person.tex
+  before: null
+  after: "Reid's objection had an answer before Parfit"
+  note: "pure addition; apostrophe is U+2019 as typeset"
+  source: "https://moglen.law.columbia.edu/twiki/pub/LawContempSoc/KalliopeKefallinosFirstPaper/Grice.pdf (JSTOR front page: Mind n.s. 50(200):330-350, Oct 1941); https://stafforini.com/works/grice-1941-personal-identity/"
+- id: stp-16
+  item: "Ch. 5 repairs: one owner for sagas (Ch. 6); tombstone is not saga-style compensation"
+  file: book/spawn-to-person.tex
+  before: "is a saga-style compensation"
+  after: "only in form: you do not mutate the ledger"
+  source: "book/harbor-economy.tex Theorem prop:no-saga (Compensation Does Not Erase Reliance)"
+- id: stp-17
+  item: "Ch. 5 repairs: tombstone figure loses the compensation wording"
+  file: book/figures/fig-stp-tombstone.tex
+  before: "is a later compensating fact"
+  after: "is a later retracting fact"
+  source: "book/harbor-economy.tex Theorem prop:no-saga"
+- id: stp-18
+  item: "Exercises: Exercise 5.13 no longer answered by Table 5.2"
+  file: book/spawn-to-person.tex
+  before: "what is recoverable and what is fundamentally lost"
+  after: "Design that test for one provider and one task"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (R Pedagogy: 5.13 is answered by Table 5.2)"
+- id: stp-19
+  item: "review-synthesis-27: probation theorem's sign premise stated where the impatient entrant is raised"
+  file: book/spawn-to-person.tex
+  before: null
+  after: "Such an entrant may also be the less patient party"
+  note: "pure addition; the theorem itself already carried the cap and the deterrence-tight exchange"
+  source: "derivation: math-stp/probation.py"
+
+# --- he (third pass, Wave 1) ---
+- id: he-1
+  item: "Blocker 11: Table 6.5 'verified as model'"
+  file: book/harbor-economy.tex
+  before: "verified as model"
+  after: "modelled only: no executable"
+  source: "book/federated-harbor-whitepaper.tex:508 ('ProVerif query sketch only; no executable model'); agenda A1 #11"
+- id: he-2
+  item: "Blocker 11: appendix summary retelling"
+  file: book/harbor-economy.tex
+  before: "model-verified. The chain that market"
+  after: "has been run as an executable model"
+  source: "book/federated-harbor-whitepaper.tex:508"
+- id: he-3
+  item: "Licence meter worked example (NbH: one trade, one settlement)"
+  file: book/harbor-economy.tex
+  before: "files the skill actually touched"
+  after: "It does not depend on how many files the skill opened"
+  source: "derivation: math-he/licence_settlement.py; Property prop:he-meter-steering"
+- id: he-4
+  item: "Licence meter, opening example"
+  file: book/harbor-economy.tex
+  before: "Bob receives the unused"
+  after: "Carol earns her flat"
+  source: "derivation: math-he/licence_settlement.py"
+- id: he-5
+  item: "Licence meter, two-bucket settlement figure caption"
+  file: book/figures/fig-he-two-bucket-settlement.tex
+  before: "Success meters"
+  after: "Success releases Carol's flat"
+  source: "derivation: math-he/licence_settlement.py"
+- id: he-6
+  item: "Licence meter, licence-split subsection opening"
+  file: book/additions/he-licence-split.tex
+  before: "That count stays in the example as a cap"
+  after: "paid Carol a flat fee on green settlement"
+  source: "derivation: math-he/licence_settlement.py"
+- id: he-7
+  item: "Correction 25: conflict enumeration bound becomes a sweep-line bound"
+  file: book/harbor-economy.tex
+  before: "enumerator that sorts and removes duplicates"
+  after: "A sweep line visits each key's interval endpoints"
+  source: "derivation: math-he/sweep_line.py"
+- id: he-8
+  item: "Correction 25: STP citation for the negative-cycle test"
+  file: book/harbor-economy.tex
+  before: "listing them all must visit every overlapping pair"
+  after: "The deadline system is a simple temporal problem"
+  source: "https://ftp.cs.ucla.edu/pub/stat_ser/r113-L-reprint.pdf (Dechter, Meiri & Pearl, Artificial Intelligence 49:61-95, 1991, Theorem 3.1)"
+- id: he-9
+  item: "Ch. 6 repairs: AGV misdescribed"
+  file: book/harbor-economy.tex
+  before: "generally offers expected rather than ex-post balance"
+  after: "keeps efficiency instead"
+  source: "https://www.di.ens.fr/~aspremon/Claude/PDFs/dAsp79c.pdf (d'Aspremont & Gerard-Varet, J. Public Econ. 11(1):25-45, 1979, Theorem 6); https://econpapers.repec.org/RePEc:eee:pubeco:v:11:y:1979:i:1:p:25-45"
+- id: he-10
+  item: "Ch. 6 repairs: Myerson-Satterthwaite corner answered (posted price)"
+  file: book/harbor-economy.tex
+  before: null
+  after: "A posted price keeps three of the four properties"
+  note: "addition; the two pinned scope lines around it are unchanged"
+  source: "derivation: math-he/ms_posted_price.py; https://www.cs.princeton.edu/courses/archive/spr08/cos444/papers/myerson_satterthwaite83.pdf (Sec. 4)"
+- id: he-11
+  item: "Ch. 6 repairs: Myerson-Satterthwaite corner, conclusion"
+  file: book/harbor-economy.tex
+  before: "this chapter has not shown which property"
+  after: "the chapter's posted prices keep incentive compatibility"
+  source: "derivation: math-he/ms_posted_price.py"
+- id: he-12
+  item: "Ch. 6 repairs: Myerson-Satterthwaite appendix note"
+  file: book/harbor-economy.tex
+  before: "hence makes no stronger allocation claim"
+  after: "it is cited, not proved, here"
+  source: "derivation: math-he/ms_posted_price.py"
+- id: he-13
+  item: "Ch. 6 repairs: Protocol 6.8.1 merges cuckoo filters; exchange event-log deltas"
+  file: book/harbor-economy.tex
+  before: "A card present in either filter becomes present in both"
+  after: "Filters are never sent"
+  source: "book/anchor-protocol-whitepaper.tex:393-407 and book/federated-harbor-whitepaper.tex:604 (filters cannot be merged; logs are gossiped)"
+- id: he-14
+  item: "Ch. 6 repairs: filter merge, related-work table row"
+  file: book/harbor-economy.tex
+  before: "Gossip-converged filters with a named attacker window"
+  after: "Gossip-converged revocation logs, filters rebuilt locally"
+  source: "book/federated-harbor-whitepaper.tex:604"
+- id: he-15
+  item: "Ch. 6 repairs: Conjecture 6.8.1 bundles three objects; separated"
+  file: book/harbor-economy.tex
+  before: "Equivocation Lower Bound"
+  after: "Revocation-Window Bond"
+  source: "review R, Errors Ch. 6 (pp. 505-506, 527): https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: he-16
+  item: "Ch. 6 repairs: Conjecture 6.8.1, the equivocation bond stated separately"
+  file: book/harbor-economy.tex
+  before: "maximum value spendable against a"
+  after: "so we state two targets"
+  source: "review R, Errors Ch. 6: https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: he-17
+  item: "Ch. 6 repairs: Conjecture 6.8.1, exercise asks for what its solution computes"
+  file: book/harbor-economy.tex
+  before: "State and (attempt to) prove"
+  after: "give a lower bound on the time before any honest party"
+  source: "review R, Errors Ch. 6: https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: he-18
+  item: "Ch. 6 repairs: cite Eckhardt-Lee and Littlewood-Miller (correlated reviewers)"
+  file: book/harbor-economy.tex
+  before: null
+  after: "The model comes from software reliability"
+  note: "pure addition; no printed text was removed"
+  source: "https://manuscript.isc.ac/Inventory/49/1237395.htm (Eckhardt & Lee, IEEE TSE SE-11(12):1511-1517, 1985); https://ntrs.nasa.gov/citations/19900036555 and https://manuscript.isc.ac/Inventory/49/1554663.htm (Littlewood & Miller, IEEE TSE 15(12):1596-1614, 1989)"
+- id: he-19
+  item: "Ch. 6 repairs: cite Knight-Leveson"
+  file: book/harbor-economy.tex
+  before: null
+  after: "Leveson tested independence directly"
+  note: "pure addition; no printed text was removed"
+  source: "https://www.kth.se/social/files/564df871f2765419e306178d/KnightLeveson.pdf (IEEE TSE 12(1):96-109, 1986; 'the null hypothesis was rejected')"
+- id: he-20
+  item: "Ch. 6 repairs: cite Dickens et al. 1989 for the forfeiture-fee incentive"
+  file: book/harbor-economy.tex
+  before: null
+  after: "raise the same objection to bonding workers"
+  note: "pure addition; no printed text was removed"
+  source: "https://scholar.harvard.edu/sites/scholar.harvard.edu/files/lkatz/files/employee_crime_and_the_monitoring_puzzle.pdf (J. Labor Econ. 7(3):331-347, 1989, pp. 338-339); https://ideas.repec.org/a/ucp/jlabec/v7y1989i3p331-47.html"
+- id: he-21
+  item: "Ch. 6 repairs: cite Becker-Stigler 1974 for bonded judges"
+  file: book/harbor-economy.tex
+  before: "Judges may post bonds, but disagreement"
+  after: "as Becker and Stigler proposed for law enforcers"
+  source: "https://laws21.classes.ryansafner.com/readings/Becker-Stigler-1974.pdf (J. Legal Stud. 3(1):1-18, 1974, pp. 9-10); https://econpapers.repec.org/RePEc:ucp:jlstud:v:3:y:1974:i:1:p:1-18"
+- id: he-22
+  item: "Ch. 6 repairs: name the information problems"
+  file: book/harbor-economy.tex
+  before: null
+  after: "Each of these information problems has a standard name"
+  note: "pure addition; no printed text was removed"
+  source: "review R, Ch. 6 verdict ('moral hazard on fleet effort; adverse selection on the asset's type; a lemons/experience-good problem on the skill'): https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: he-23
+  item: "Ch. 6 repairs: replace the sheaf analogy with CALM/CRDT (section title)"
+  file: book/harbor-economy.tex
+  before: "A gluing analogy for the open federation problem"
+  after: "Which federated records need no coordination"
+  source: "https://bibbase.org/network/publication/hellerstein-thedeclarativeimperativeexperiencesandconjecturesindistributedlogic-2010 (SIGMOD Record 39(1):5-19, 2010); https://arxiv.org/abs/1901.01930v2 and https://researchr.org/publication/HellersteinA20/bibtex (CACM 63(9):72-81, 2020); https://documentserver.uhasselt.be/handle/1942/16415 (J. ACM 60(2):15, 2013)"
+- id: he-24
+  item: "Ch. 6 repairs: sheaf analogy removed (formalization-target conjecture)"
+  file: book/harbor-economy.tex
+  before: "Formalization target, not established result"
+  after: "Leaving those expired entries aside, the log only grows"
+  source: "https://asc.di.fct.unl.pt/~nmp/pubs/sss-2011.bib (Shapiro et al., SSS 2011, LNCS 6976:386-400)"
+- id: he-25
+  item: "Ch. 6 repairs: sheaf analogy removed (loop figure caption)"
+  file: book/figures/fig-audit-loop.tex
+  before: "all the chapter's sheaf vocabulary is pointing at"
+  after: "so no single price list fits all three quotes"
+  source: "review R, Ch. 6: https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+
+# --- bonded (third pass, Wave 1) ---
+- id: bonded-1
+  item: "Blocker 9: Table 7.9 EasyCrypt 'discharged'"
+  file: book/agent-transactions-whitepaper.tex
+  before: "version not in scope"
+  after: "EasyCrypt has never checked the file"
+  source: "proofs/bonded/merkle/binding.ec (three admit. at lines 346, 371, 397); proofs/bonded/merkle/binding.run.log (EasyCrypt not installed, no -check run); book/corpus.json bonded-merkle-binding-easycrypt (no CI job)"
+- id: bonded-2
+  item: "Blocker 9: define PROM"
+  file: book/agent-transactions-whitepaper.tex
+  before: "Merkle binding in EasyCrypt"
+  after: "programmable random oracle model"
+  source: "proofs/bonded/merkle/binding.ec lines 23-26 ('The PROM (programmable random oracle model) library')"
+- id: bonded-3
+  item: "Blocker 5: exfiltration bond row 'Not set'"
+  file: book/agent-transactions-whitepaper.tex
+  before: "Separate confidentiality controls"
+  after: "Fund detection and response only"
+  source: "derivation: math-bonded/exfil_bond.py"
+- id: bonded-4
+  item: "Blocker 5: exfiltration bond derivation"
+  file: book/agent-transactions-whitepaper.tex
+  before: "This pricing proposal sets no bond for exfiltration"
+  after: "Small leaks are where the bound stops being practical"
+  source: "derivation: math-bonded/exfil_bond.py"
+- id: bonded-5
+  item: "Blocker 5: threat-band table caption"
+  file: book/agent-transactions-whitepaper.tex
+  before: "Illustrative bond bands as a percentage of the claim ceiling"
+  after: "lower bound set by detection power"
+  source: "derivation: math-bonded/exfil_bond.py"
+- id: bonded-6
+  item: "Thm 7.7.2: subgame perfection, bond in the statement"
+  file: book/agent-transactions-whitepaper.tex
+  before: "cooperative truthful signaling is a Nash equilibrium"
+  after: "Let the players be two principals"
+  source: "derivation: math-bonded/frontier.py"
+- id: bonded-7
+  item: "Thm 7.7.2: section title"
+  file: book/agent-transactions-whitepaper.tex
+  before: "Truthful Claim Signaling as Nash Equilibrium"
+  after: "The bond in the stage game"
+  source: "derivation: math-bonded/frontier.py"
+- id: bonded-8
+  item: "Thm 7.7.2: players are principals"
+  file: book/agent-transactions-whitepaper.tex
+  before: "working on a shared project, deciding per round"
+  after: "The players are the principals, not their agents"
+  source: "review R p. 573 minor; book/agent-transactions-whitepaper.tex sec:attribution-survives"
+- id: bonded-9
+  item: "Thm 7.7.2: forfeiture convention fixed (every false claim forfeits)"
+  file: book/agent-transactions-whitepaper.tex
+  before: "At a working discount factor"
+  after: "made as punishment is still a false claim"
+  source: "derivation: math-bonded/frontier.py (convention B; convention A's 0.2013 not used)"
+- id: bonded-10
+  item: "Thm 7.7.2: frontier values"
+  file: book/agent-transactions-whitepaper.tex
+  before: "The three-round threshold is about"
+  after: "lowers the threshold to about"
+  source: "derivation: math-bonded/frontier.py"
+- id: bonded-11
+  item: "Ch. 7 repairs: printed TLA+ would not run; print Conservation.tla"
+  file: book/agent-transactions-whitepaper.tex
+  before: "Notes never shrink for active sessions"
+  after: "It uses different names from the theorem"
+  source: "proofs/bonded/conservation/Conservation.tla, Conservation.cfg, Conservation.run.log"
+- id: bonded-12
+  item: "Ch. 7 repairs: money as integers, not floats with 1e-6 tolerance"
+  file: book/agent-transactions-whitepaper.tex
+  before: "not logical slack"
+  after: "Those tests check conservation up to rounding"
+  source: "lib/bonds.ts (balance_usd REAL, bond_usd REAL); tests/unit/bonds.test.js and bonds-conservation-property.test.js (toBeCloseTo(..., 6))"
+- id: bonded-13
+  item: "Ch. 7 repairs: integer accounting state"
+  file: book/agent-transactions-whitepaper.tex
+  before: "Conserving their total is a separate obligation"
+  after: "counts money in integer minor units"
+  source: "proofs/bonded/conservation/Conservation.tla (Naturals)"
+- id: bonded-14
+  item: "Exercise 7.14 unanswerable from the chapter"
+  file: book/agent-transactions-whitepaper.tex
+  before: "from the spec text alone"
+  after: "from the listing alone"
+  source: "review R Ex. 7.14; Listing alg:bonded-conservation now printed"
+- id: bonded-15
+  item: "Ch. 7 repairs: replace the Merkle forest with one CT-style log"
+  file: book/agent-transactions-whitepaper.tex
+  before: "one tree per epoch"
+  after: "Proving that the log only grew"
+  source: "https://www.rfc-editor.org/rfc/rfc6962 (consistency proofs between tree heads of one log; already cited as laurie2013ct)"
+- id: bonded-16
+  item: "Ch. 7 repairs: Merkle forest, Review retelling"
+  file: book/agent-transactions-whitepaper.tex
+  before: "harbor tree whose root the daemon signs"
+  after: "whose checkpoints the daemon signs"
+  source: "RFC 6962"
+- id: bonded-17
+  item: "Ch. 7 repairs: Merkle forest, inclusion figure"
+  file: book/figures/fig-bonded-merkle-forest.tex
+  before: "Signed harbor root"
+  after: "log of 10,000 sessions"
+  source: "RFC 6962"
+- id: bonded-18
+  item: "Ch. 7 repairs: Merkle forest, key-custody table"
+  file: book/figures/fig-bonded-key-custody.tex
+  before: "Roll back the Merkle forest"
+  after: "Roll back the harbor log"
+  source: "RFC 6962"
+- id: bonded-19
+  item: "Ch. 7 repairs: Merkle forest, glossary"
+  file: book/glossary/bonded.json
+  before: "make up the forest"
+  after: "whose leaves are the roots of completed sessions"
+  source: "RFC 6962"
+- id: bonded-20
+  item: "Ch. 7 repairs: correlating device sees only public signals"
+  file: book/agent-transactions-whitepaper.tex
+  before: "daemon supplies the information structure of a correlating"
+  after: "supplies only public signals"
+  source: "derivation: math-bonded/public_signal.py; Definition def:advisory (every edge reported to both endpoints)"
+- id: bonded-21
+  item: "Ch. 7 repairs: correlating device, mediator paragraph"
+  file: book/agent-transactions-whitepaper.tex
+  before: "It observes the global claim graph and emits"
+  after: "A public device can only randomize among"
+  source: "derivation: math-bonded/public_signal.py"
+- id: bonded-22
+  item: "Ch. 7 repairs: the 'Sen theorem' is Hayek's knowledge problem"
+  file: book/agent-transactions-whitepaper.tex
+  before: "A Sen-Inspired Design Warning"
+  after: "Exclusive file locks meet the problem directly"
+  source: "https://en.wikipedia.org/wiki/The_Use_of_Knowledge_in_Society (Hayek 1945, AER 35(4):519-530)"
+- id: bonded-23
+  item: "Ch. 7 repairs: Hayek, Related Work"
+  file: book/agent-transactions-whitepaper.tex
+  before: "proves an incompatibility under an"
+  after: "Our locking example is an"
+  source: "Hayek 1945, AER 35(4):519-530"
+- id: bonded-24
+  item: "Ch. 7 repairs: Hayek, Recall box"
+  file: book/agent-transactions-whitepaper.tex
+  before: "Name the two conditions of Sen"
+  after: "what does the lock manager not know"
+  source: "Hayek 1945"
+- id: bonded-25
+  item: "Ch. 7 repairs: minimal liberalism glossary entry removed"
+  file: book/glossary/bonded.json
+  before: "condition that at least two individuals each have"
+  after: "whose state the daemon signs as checkpoints"
+  source: "glossary follows the removed pdterm"
+- id: bonded-26
+  item: "Ch. 7 repairs: Holmstrom's point as a named Property"
+  file: book/agent-transactions-whitepaper.tex
+  before: "What an internal transfer cannot do is"
+  after: "combined wealth by exactly"
+  source: "Holmstrom 1982, Bell J. Econ. 13(2):324-340 (already cited)"
+- id: bonded-27
+  item: "Ch. 7 repairs: cite Kleros and Augur for appeals"
+  file: book/agent-transactions-whitepaper.tex
+  before: "the appeal bond is forfeit"
+  after: "Deployed appeal systems escalate the stakes instead"
+  source: "https://kleros.io/yellowpaper.pdf (Kleros Long Paper v2.0.2, 2021); https://ar5iv.labs.arxiv.org/html/1501.01042 (Augur v2.0, arXiv:1501.01042); derivation: math-bonded/appeal_escalation.py"
+- id: bonded-28
+  item: "Ch. 7 repairs: cut Chapter 1 ticket-lock duplicate"
+  file: book/agent-transactions-whitepaper.tex
+  before: "status TEXT DEFAULT"
+  after: "Fair order at the exclusive writer"
+  source: "book/single-writer-kernel.tex sec:op1"
+- id: bonded-29
+  item: "Ch. 7 repairs: cut Chapter 2 attenuation duplicate"
+  file: book/agent-transactions-whitepaper.tex
+  before: "compiled to a shared library and called"
+  after: "This chapter uses only the result and adds one premise"
+  source: "book/anchor-protocol-whitepaper.tex sec:delegation"
+- id: bonded-30
+  item: "Ch. 7 repairs: cut Chapter 1 regimentation duplicate"
+  file: book/agent-transactions-whitepaper.tex
+  before: "There are two ways to make"
+  after: "draws the boundary between the two"
+  source: "book/single-writer-kernel.tex sec:controllability"
+- id: bonded-31
+  item: "Ch. 7 repairs: cut Chapter 5 Option B duplicate"
+  file: book/agent-transactions-whitepaper.tex
+  before: "Cheap to run, fast to return"
+  after: "whose labels also calibrate the other two"
+  source: "book/spawn-to-person.tex sec:oracle (Option B)"
+- id: bonded-32
+  item: "Ch. 7 repairs: cut Chapter 5 Sybil duplicate"
+  file: book/agent-transactions-whitepaper.tex
+  before: "This is a Sybil attack, in which one party"
+  after: "the whitewashing and Sybil attacks of"
+  source: "book/spawn-to-person.tex sec:identity"
+- id: bonded-33
+  item: "Solution 7.1: lifetime narrowing is Chapter 2's rule"
+  file: book/agent-transactions-whitepaper.tex
+  before: "and TTL is one such dimension"
+  after: "and TTL is not an operation"
+  source: "book/agent-transactions-whitepaper.tex (Anchor attenuation relation imported by thm:scope)"
+- id: bonded-34
+  item: "Solution 7.11: compare limit with limit"
+  file: book/agent-transactions-whitepaper.tex
+  before: "close to but distinct from the chapter"
+  after: "because it uses the simulation"
+  source: "derivation: math-bonded/cartel_limits.py"
+- id: bonded-35
+  item: "Solution 7.13: revision-history leak"
+  file: book/agent-transactions-whitepaper.tex
+  before: "now carries both figures"
+  after: "carries both figures for this row"
+  source: "review R Solutions minors"
+- id: bonded-36
+  item: "Solution 7.16: name Frieze-Grimmett, Pittel, Karp et al."
+  file: book/agent-transactions-whitepaper.tex
+  before: "Identify the specific theorem from Demers"
+  after: "Pittel sharpened the error term"
+  source: "https://dblp.org/rec/bibtex/journals/dam/FriezeG85; https://scilit.com/publications/31365a45883fd504502039faadf6b6ed (Pittel 1987, doi 10.1137/0147013); https://data.zhenzhi.com/details/1/912267482 (Karp et al. FOCS 2000 pp. 565-574); https://arxiv.org/pdf/2003.10762 (credits Frieze-Grimmett and Pittel for the push bound)"
+- id: bonded-37
+  item: "Thm 7.7.2: figure caption retelling"
+  file: book/figures/fig-bc-delta-threshold.tex
+  before: "correct observations. The square"
+  after: "correct observations and no bond"
+  source: "derivation: math-bonded/frontier.py"
+- id: bonded-38
+  item: "Ch. 7 repairs: lifecycle figure follows the prose model"
+  file: book/figures/fig-bonded-session-lifecycle.tex
+  before: "supplied by this excerpt"
+  after: "supplied by this model"
+  source: "review R pp. 597-600"
+- id: bonded-39
+  item: "Ch. 7 repairs: Conservation bounds in Table 7.9"
+  file: book/agent-transactions-whitepaper.tex
+  before: "generated), invariant holds"
+  after: "at most 6 minted"
+  source: "proofs/bonded/conservation/Conservation.cfg"
+- id: bonded-40
+  item: "Ch. 7 repairs: integer money, Conclusion retelling"
+  file: book/agent-transactions-whitepaper.tex
+  before: "makes the economic invariant checkable in operation"
+  after: "meets it only up to rounding"
+  source: "lib/bonds.ts REAL columns"
+- id: bonded-41
+  item: "Table 7.9: delegation chain replay row breaks the legend (coordinator, from Chapter 2)"
+  file: book/agent-transactions-whitepaper.tex
+  before: "closed chain authenticity TRUE"
+  after: "replay rejection not proved"
+  source: "proofs/anchor/delegation/chain-replay.pv:110-112 (non-injective query event ==> event); book/anchor-protocol-whitepaper.tex Table 2.6 row on the p3-anchor branch"
+- id: bonded-42
+  item: "Table 7.9: cuckoo-filter pollution row is Partial (coordinator, from Chapter 2)"
+  file: book/agent-transactions-whitepaper.tex
+  before: "closed FP rate within"
+  after: "for a library the revocation check does not yet use"
+  source: "book/anchor-protocol-whitepaper.tex:441-442 ('library, which the revocation check does not yet use'); Chapter 2 regrade on the p3-anchor branch"
+
+# --- fh (third pass, Wave 1) ---
+- id: fh-1
+  item: "Blocker 10: transfer ceremony ships the bearer card"
+  file: book/federated-harbor-whitepaper.tex
+  before: "constructs an envelope binding the card"
+  after: "carries an attestation of the card, never the card"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (review, Ch. 8 errors); book/anchor-protocol-whitepaper.tex (Harbor Cards are bearer credentials)"
+- id: fh-2
+  item: "Blocker 10: acknowledgment returns the card identifier, not the card"
+  file: book/federated-harbor-whitepaper.tex
+  before: "The acknowledgment is sent back to"
+  after: "returns the new card's identifier, not the card"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: fh-3
+  item: "Blocker 10: recipient and transfer id inside the signed envelope"
+  file: book/federated-harbor-whitepaper.tex
+  before: "A transfer identifier, consumed atomically at"
+  after: "The recipient field stops the offer being replayed at a third harbor"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: fh-4
+  item: "Blocker 10: one meaning of epoch (per-harbor numbering)"
+  file: book/federated-harbor-whitepaper.tex
+  before: "an escrow that holds bond money. Table"
+  after: "Each harbor numbers its own epochs"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (e+1/e+2 implied a global counter)"
+- id: fh-5
+  item: "Blocker 10: transfer figure carried the card in the offer"
+  file: book/figures/fig-fh-xfer-ceremony.tex
+  before: "cross the boundary. The displayed subset relation"
+  after: "neither carries the bearer card"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: fh-6
+  item: "Blocker 10: retelling in the Review of key ideas"
+  file: book/federated-harbor-whitepaper.tex
+  before: "Attenuation preserves inclusion within a shared resource universe"
+  after: "The card stays home; a signed attestation crosses"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: fh-7
+  item: "Ch. 8 repairs: one transfer invariant"
+  file: book/federated-harbor-whitepaper.tex
+  before: "nothing in the four-message ceremony"
+  after: "obey one invariant once the mapping is written into it"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (C'_B within att_B(map_A->B(att_A(C_A))))"
+- id: fh-8
+  item: "Ch. 8 repairs: the epoch fix refuses every outstanding card; dbEpoch plus availability"
+  file: book/federated-harbor-whitepaper.tex
+  before: "The whole fix is one counter that a restore cannot roll back"
+  after: "The fix is too strong"
+  source: "derivation: math-fh/revocation_model.py"
+- id: fh-9
+  item: "Ch. 8 repairs: dbEpoch carried to the Review of key ideas"
+  file: book/federated-harbor-whitepaper.tex
+  before: "The mitigating model uses an external epoch"
+  after: "refuses every outstanding card after any revocation"
+  source: "derivation: math-fh/revocation_model.py"
+- id: fh-10
+  item: "Ch. 8 repairs: rollback search is not the baseline's 13-state space"
+  file: book/federated-harbor-whitepaper.tex
+  before: "the same 13-state search space now contains"
+  after: "the search now contains the four-transition trace"
+  source: "book/figures/session-fh-rollback.tex (23 distinct states at the violation)"
+- id: fh-11
+  item: "Ch. 8 repairs: witness-log uniqueness replaced by fork consistency"
+  file: book/federated-harbor-whitepaper.tex
+  before: "Per-harbor latest-root binding"
+  after: "They promise fork consistency instead"
+  source: "https://bibbase.org/network/publication/mazires-shasha-buildingsecurefilesystemsoutofbyzantinestorage-2002; https://www.usenix.org/conference/osdi-04/secure-untrusted-data-repository-sundr; https://researchr.org/publication/HaeberlenKD07"
+- id: fh-12
+  item: "Ch. 8 repairs: fork consistency carried to Table (witness-log properties)"
+  file: book/figures/tab-fh-witness-log.tex
+  before: "a harbor silently publishing two roots for one epoch"
+  after: "two diverging histories later merging without the split being provable"
+  source: "https://www.usenix.org/conference/osdi-04/secure-untrusted-data-repository-sundr"
+- id: fh-13
+  item: "Ch. 8 repairs: fork consistency carried to the Review of key ideas"
+  file: book/federated-harbor-whitepaper.tex
+  before: "at most one signed root per harbor per epoch"
+  after: "fork consistency across instances"
+  source: "https://bibbase.org/network/publication/mazires-shasha-buildingsecurefilesystemsoutofbyzantinestorage-2002"
+- id: fh-14
+  item: "Ch. 8 repairs: gossip theorem separates push from push-pull and cites Pittel and Karp et al., not Demers"
+  file: book/federated-harbor-whitepaper.tex
+  before: "The first item is the standard asymptotic result for epidemic gossip"
+  after: "Two variants of that model must be kept apart"
+  source: "https://scilit.com/publications/31365a45883fd504502039faadf6b6ed (Pittel, SIAM J. Appl. Math. 47(1):213-223, 1987); https://arxiv.org/pdf/1011.1868 (bib entry: Karp et al., FOCS 2000, pp. 565-574); derivation: math-fh/gossip.py"
+- id: fh-15
+  item: "Ch. 8 repairs: worked gossip example adds the push-pull expectation"
+  file: book/federated-harbor-whitepaper.tex
+  before: "The calculation needs a stated model"
+  after: "the pair exchange what they hold"
+  source: "derivation: math-fh/gossip.py (m=3: push 7/3, push-pull 3/2)"
+- id: fh-16
+  item: "Ch. 8 repairs: status table cites Pittel and Karp et al. for dissemination"
+  file: book/federated-harbor-whitepaper.tex
+  before: "Conditional epidemic model"
+  after: "Conditional push or push"
+  source: "https://www.cs.mcgill.ca/~amehra13/Presentations/podc_2015.pdf (push-pull (1+o(1)) log3 n, Karp et al. 2000)"
+- id: fh-17
+  item: "Ch. 8 repairs: custodian, adjudicator and arbiter separated"
+  file: book/federated-harbor-whitepaper.tex
+  before: "it weighs the witness-logged evidence and co-signs"
+  after: "Settlement trusts three roles"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (roles conflated across the settlement section and the worked-example figure)"
+- id: fh-18
+  item: "Ch. 8 repairs: settlement is hub-and-spoke by design"
+  file: book/federated-harbor-whitepaper.tex
+  before: "compared by gossip. The federation is not a market"
+  after: "Settlement is the one deliberate hub"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: fh-19
+  item: "Ch. 8 repairs: settlement exercised by a three-party case (whitelist and roots named)"
+  file: book/federated-harbor-whitepaper.tex
+  before: "and checks the agreed adjudicator's ruling"
+  after: "Three parties now meet in one settlement"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (two-party protocol exercised by Acme, Staging, Beta)"
+- id: fh-20
+  item: "Ch. 8 repairs: escrow whitelist names listed beneficiaries, not B alone"
+  file: book/federated-harbor-whitepaper.tex
+  before: "pay the listed beneficiary"
+  after: "pay the beneficiaries listed in the bond's signed terms"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: fh-21
+  item: "Ch. 8 repairs: worked-example figure no longer has escrow adjudicate"
+  file: book/figures/fig-fh-worked-example.tex
+  before: "Escrow adjudicates under the signed acceptance policy"
+  after: "the escrow, as custodian, pays the cleanup cost to Beta"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: fh-22
+  item: "Ch. 8 repairs: Listing 8.4 verifies nothing; say so"
+  file: book/federated-harbor-whitepaper.tex
+  before: "Conservation specification (sketch)"
+  after: "The listing verifies nothing"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (BucketPartition is a typing tautology)"
+- id: fh-23
+  item: "Ch. 8 repairs: vacuity caveat for federated.pv"
+  file: book/federated-harbor-whitepaper.tex
+  before: "query does not encode the intended reconstructed root"
+  after: "it would still report true if all four shares were published"
+  source: "proofs/bonded/federated/federated.pv (account_root is a free private name never output or bound to combine4)"
+- id: fh-24
+  item: "Ch. 8 repairs: 4 x 5 table of protocols against authorities (addition; before is the adjacent text the table now follows)"
+  file: book/federated-harbor-whitepaper.tex
+  before: "staying valid. Operations that cross harbors"
+  after: "makes the same check for all four protocols"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (transfer / revocation / settlement / joining against the five exclusive authorities)"
+- id: fh-25
+  item: "Correction 24: cycle checks witness inconsistency only; whole-star change has zero syndrome"
+  file: book/federated-harbor-whitepaper.tex
+  before: "the single-equivocator hypothesis is needed"
+  after: "cycle checks witness inconsistency, not dishonesty"
+  source: "derivation: math-fh/edge_locate.py (whole-star shift: zero residual on 40 graphs)"
+- id: fh-26
+  item: "Correction 24: edge errors locatable iff edge connectivity is at least 2k+1"
+  file: book/federated-harbor-whitepaper.tex
+  before: "In the scalar connected-graph case"
+  after: "Locating an error is harder than detecting it"
+  source: "derivation: math-fh/edge_locate.py (163 graphs, 319 cases, 0 mismatches)"
+- id: fh-27
+  item: "Correction 24: bind statements to subject, proposition and epoch before attribution"
+  file: book/federated-harbor-whitepaper.tex
+  before: "A direct checker instead groups authenticated reports by sender"
+  after: "bind each signed report to its subject"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: fh-28
+  item: "Ch. 8 repairs: sheaf material cut to about four pages, led by the equal-evidence result"
+  file: book/federated-harbor-whitepaper.tex
+  before: "Soundness and Achievability of the Completion Residual"
+  after: "The loop test earns its place only where links exchange differences"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (17 pp to 4; lead with the equal-evidence result)"
+- id: fh-29
+  item: "Ch. 8 repairs: sheaf cut carried to the Review of key ideas"
+  file: book/federated-harbor-whitepaper.tex
+  before: "The residual is an exact unrestricted repair cost"
+  after: "A loop test witnesses inconsistency, not dishonesty"
+  source: "derivation: math-fh/edge_locate.py"
+- id: fh-30
+  item: "Exercises: Check-rated exercise on the transfer offer (addition; before is the heading text it now follows)"
+  file: book/federated-harbor-whitepaper.tex
+  before: "Capability Transfer Alice's card"
+  after: "List the fields of message"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (Ch. 8 has no Check tier)"
+- id: fh-31
+  item: "Exercises: Check-rated three-party settlement exercise"
+  file: book/federated-harbor-whitepaper.tex
+  before: "Cross-Harbor Settlement Formal Model"
+  after: "whom the bond's terms do not list"
+  source: "derivation: math-fh/settlement3.py"
+- id: fh-32
+  item: "Exercises: Solution 8.10 used the Herfindahl index undefined"
+  file: book/federated-harbor-whitepaper.tex
+  before: "and their Herfindahl index"
+  after: "the sum of the squared shares"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (Solutions minors: 8.10 uses the Herfindahl index undefined)"
+
+# --- app (third pass, Wave 1) ---
+- id: app-1
+  item: "Blocker 12: Appendix C identifiers resolve nowhere (airlock experiments)"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "The airlock experiments show why the deciding"
+  after: "The deciding assumption is therefore that every channel"
+  source: "repo: book/additions/swk-control-game.tex (thm:swk-control-game); derivation: math-app/refcheck.py"
+- id: app-2
+  item: "Blocker 12: Appendix C companion-paper ids replaced by a concordance"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "R9, R10, R11"
+  after: "This appendix is a concordance"
+  source: "derivation: math-app/refcheck.py (47 refs, 0 unresolved)"
+- id: app-3
+  item: "Blocker 12: 'the regret rule' resolves nowhere"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "The regret rule decides when to intervene"
+  after: "The regret head decides when to inspect"
+  source: "repo: book/legible-swarm.tex thm:regret-head"
+- id: app-4
+  item: "Blocker 12: the two-reader result conflated two theorems"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "The two-reader result shows why one"
+  after: "one ranking or one record cannot serve"
+  source: "repo: book/legible-swarm.tex thm:split-ranker, thm:split-digest"
+- id: app-5
+  item: "Blocker 12: item 5 misdescribes no-mint"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "a replacement inherits no more than its predecessor had"
+  after: "so splitting a record never creates credit"
+  source: "repo: book/spawn-to-person.tex sec:parfit-lineage-map, thm:resurrection-soundness (scope rule)"
+- id: app-6
+  item: "Blocker 12: item 5 uses 'launder' for Chapter 5's whitewashing"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "launder a bad record by restarting"
+  after: "Replacing an agent is a different escape"
+  source: "repo: book/spawn-to-person.tex thm:necessity, prop:reality"
+- id: app-7
+  item: "Blocker 12: item 7 credits Chapter 7 with Chapter 3's canaries"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "Audit sampling and canaries borrow the"
+  after: "An incentive result changes what a rational player prefers"
+  source: "repo: grep of book/agent-transactions-whitepaper.tex (0 canary hits)"
+- id: app-8
+  item: "Blocker 12: item 2 overstated the narrowing proof"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "The cryptographic models prove this narrowing property as stated"
+  after: "Longer chains rest on the per-hop subset argument"
+  source: "repo: book/anchor-protocol-whitepaper.tex thm:attn-sound and its multi-hop paragraph"
+- id: app-9
+  item: "Blocker 12: C.2 claimed the manifest records five things per result"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "The machine-readable manifest records those five things"
+  after: "The concordance above records them for each"
+  source: "repo: book/corpus.json (no assumption or limit fields)"
+- id: app-10
+  item: "Blocker 12: Table A.12 ownership rows are wrong"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "Audit tower and grader escalation"
+  after: "Audit tower and the grading oracle"
+  source: "derivation: math-app/ownership_grep.py"
+- id: app-11
+  item: "Blocker 12: Table A.12 ownership rows are wrong"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "epoch root, equivocation residual"
+  after: "epoch root, completion residual"
+  source: "derivation: math-app/ownership_grep.py; repo: book/federated-harbor-whitepaper.tex (completion residual)"
+- id: app-12
+  item: "Blocker 12: Table A.12 caption and intro"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "Each shared primitive is defined once"
+  after: "Its term is defined where a reader first meets it"
+  source: "repo: \\pdterm{witness log} in book/spawn-to-person.tex, \\pdterm{epoch root} in book/harbor-economy.tex"
+- id: app-13
+  item: "A.2 credits Chapter 2 with proof-of-possession and every-hop attenuation"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "proof-of-possession and every-hop attenuation queries"
+  after: "No proof of possession is built"
+  source: "repo: book/anchor-protocol-whitepaper.tex (bearer credentials, thm:attn-sound, v6/v7 multihop)"
+- id: app-14
+  item: "A.2 counts three Kani harnesses; there are six"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "two concrete vectors pass the subset check"
+  after: "Six Kani harnesses check the deployed Rust crate"
+  source: "repo: core/harbor-card-rs/src/lib.rs, core/harbor-card-rs/src/kani_claims.rs, .github/workflows/proofs.yml"
+- id: app-15
+  item: "App. B: adverse finding in relay_e2e_secrecy.pv unmentioned"
+  file: book/corpus.json
+  before: "This is the committed, expected shape"
+  after: "so the model does not exclude replay"
+  source: "repo: analyses/relay_e2e_secrecy_results.txt (inj-event query false, event query true)"
+- id: app-16
+  item: "App. B: guidance_envelope_v0.pv certifies an undescribed mechanism"
+  file: book/corpus.json
+  before: "a mismatch restricts that authority to C0"
+  after: "No chapter of the Book describes"
+  source: "repo: proofs/coordination/guidance_envelope_v0.pv and _results.txt; lib/agent-harbor/guidance-verifier.ts"
+- id: app-17
+  item: "App. B: proof_verify_logic_only counted as wired"
+  file: book/corpus.json
+  before: "job; neither real cryptography"
+  after: "A wired row that no pull request runs"
+  source: "repo: .github/workflows/proofs.yml kani-harbor-card-parser (if: workflow_dispatch)"
+- id: app-18
+  item: "Closed defined three ways; one sense in the appendices"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "A machine has checked a proof of exactly"
+  after: "The appendices use the word in no other sense"
+  source: "repo: book/coordination-papers-mega-volume.tex front-matter key (Closed = model verified and runtime conformance test passes)"
+- id: app-19
+  item: "Closed defined three ways; one sense in the appendices"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "question without closing it"
+  after: "question without answering it"
+  source: "repo: book/coordination-papers-mega-volume.tex front-matter key"
+- id: app-20
+  item: "Closed defined three ways; one sense in the appendices"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: "used to close a commitment"
+  after: "whether a commitment is met"
+  source: "repo: book/coordination-papers-mega-volume.tex front-matter key"

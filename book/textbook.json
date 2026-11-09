@@ -164,7 +164,7 @@
       "formerNumeral": "VI",
       "oneLine": "Some doubt about an agent's work remains even after access checks. The chapter handles it with shared rules: providers post deposits, signed records show who did what, audits sample the results, and either side can appeal a verdict. A model checker confirms, on a bounded model, that the deposit ledger never creates or loses money.",
       "question": "Who may decide, on what evidence, with what consequence?",
-      "teaser": "A disputed job leaves two questions: which evidence should decide the outcome, and whose deposit may pay for it? The chapter separates admission, attribution, and payment, then checks the ledger rules under explicit assumptions.",
+      "teaser": "A disputed job leaves two questions: which evidence should decide the outcome, and whose deposit may pay for it? The chapter treats the evidence, the attribution and the payment as separate steps, then checks the ledger rules under explicit assumptions.",
       "epigraph": {
         "text": "The power to constrain an adversary may depend on the power to bind oneself.",
         "source": "Thomas C. Schelling, The Strategy of Conflict, 1960"

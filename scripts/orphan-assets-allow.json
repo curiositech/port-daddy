@@ -86,6 +86,22 @@
     {
       "path": "book/figures/fig-swk-workunit-crimes.tex",
       "reason": "Staged figure source listed in book/figure-staging.json: workunit crime taxonomy diagram awaiting chapter integration."
+    },
+    {
+      "path": "book/figures/legible-swarm-readpoverty.tex",
+      "reason": "Retired by the third pass (Wave 1): it plots a joint digest held to one reader's budget against two full-budget readers, which teaches the reversed moral. Kept on disk because tests/harbor-research read it; Erich decides deletion."
+    },
+    {
+      "path": "book/figures/legible-swarm-split-penalty.tex",
+      "reason": "Retired by the third pass (Wave 1) with the readpoverty figure, for the same reversed moral. Kept on disk because tests/harbor-research read it; Erich decides deletion."
+    },
+    {
+      "path": "book/figures/fig-fh-visible-topology.tex",
+      "reason": "Cut with Chapter 8's consistency-radius material in the third pass (Wave 1); the radius theorems now live only in the paper twin docs/harbor-research/tex/paper7.tex."
+    },
+    {
+      "path": "book/figures/spark-fh-cycle-radius.tex",
+      "reason": "Cut with Chapter 8's consistency-radius material in the third pass (Wave 1); the radius theorems now live only in the paper twin docs/harbor-research/tex/paper7.tex."
     }
   ]
 }

@@ -506,7 +506,6 @@ def shape_add_rows(adds: list[dict], figs: list[dict], pins: dict) -> tuple[list
     # either side is a loud failure, not a silent drop.
     FULFILLED = [
         ("stigmergic decay", "fig-swk-marker-decay"),
-        ("R1 information floor", "legible-swarm-readpoverty"),
         ("B6 probation cliff", "fig-stp-probation-cliff"),
         ("R12 copy-fork attack", "fig-stp-nomint-lineage"),
         ("R6 consistency radius", "fig-fh-cycle-vs-cut"),

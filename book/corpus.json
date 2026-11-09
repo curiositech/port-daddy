@@ -394,7 +394,7 @@
     {
       "id": "bonded-federated-escrow-proverif",
       "kind": "protocol-model",
-      "authority": "product-runtime",
+      "authority": "design-claim",
       "status": "current",
       "paths": [
         "proofs/bonded/federated/federated.pv"
@@ -412,7 +412,7 @@
     {
       "id": "bonded-pairing-passkey-proverif",
       "kind": "protocol-model",
-      "authority": "product-runtime",
+      "authority": "design-claim",
       "status": "current",
       "paths": [
         "proofs/bonded/pairing/passkey-pair.pv"

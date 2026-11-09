@@ -115,10 +115,11 @@ class WorkedExampleChecks(unittest.TestCase):
         self.assertLess(7/(1-Q(3,5)), 20)
 
     def test_audit_depth_uses_the_stated_two_regimes(self):
-        # Exact rationals prevent a floating-point near-one decision.
-        for cliques, expected_linear, expected_total in ((8,0,27),(2,15,36),(1,35,53)):
+        # Exact rationals prevent a floating-point near-boundary decision.
+        # The walk stops at the bribe price beta = rho*d*B = 10 (third pass).
+        for cliques, expected_linear, expected_total in ((8,0,17),(2,15,26),(1,35,43)):
             value, levels, linear = Q(400), 0, 0
-            while value >= 1:
+            while value >= 10:
                 if value > cliques*50:
                     value -= cliques*10
                     linear += 1
@@ -126,11 +127,11 @@ class WorkedExampleChecks(unittest.TestCase):
                     value *= Q(4,5)
                 levels += 1
             self.assertEqual((linear,levels), (expected_linear,expected_total))
-            self.assertEqual(levels*50, {8:1350,2:1800,1:2650}[cliques])
+            self.assertEqual(levels*50, {8:850,2:1300,1:2150}[cliques])
 
     def test_sparkline_uses_all_three_exact_domains(self):
         source = (ROOT / "book/figures/spark-stp-audit-depth.tex").read_text()
-        for signature in ("8/0/27", "2/15/36", "1/35/53"):
+        for signature in ("8/0/17", "2/15/26", "1/35/43"):
             self.assertIn(signature, source)
         self.assertIn("domain=0:\\L,samples=\\L+1", source)
         self.assertIn("domain=\\L:\\N,samples=\\N-\\L+1", source)

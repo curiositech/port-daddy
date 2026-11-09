@@ -78,8 +78,7 @@
           "labels": [
             "thm:split-digest",
             "thm:split-ranker",
-            "thm:comonotone",
-            "thm:split-penalty"
+            "thm:comonotone"
           ],
           "sections": [
             "S7.3 Discovery/Relevance (sec:relevance), \"No universal monotone identification of the two heads\" -- stated as an instance of paper1's comonotone characterization",
@@ -949,7 +948,7 @@
       "id": "prop:claim-signaling-ic",
       "kind": "proposition",
       "title": "Claim-signaling incentive compatibility (mechanized discount-factor thresholds)",
-      "one_breath": "In the corrected claim-signaling stage game, a grim trigger is subgame-perfect iff delta >= 1/3 and a three-round graduated trigger iff delta exceeds the unique real root delta* = 0.3425080314 of 2*delta^3+2*delta^2+2*delta-1=0, both mechanically checked by Z3 and TLA+/Apalache.",
+      "one_breath": "In the claim-signaling stage game with expected forfeiture p_f*b on every false claim, the three-round graduated trigger is subgame-perfect for delta above the root of (2+p_f b)(d^3+d^2+d)-(1-p_f b)=0 (0.3425080314 with no bond, 0.1673 at p_f b=0.5) and grim trigger for delta >= (1-p_f b)/3; the zero-bond case is checked by Z3 and TLA+/Apalache.",
       "standalone": {
         "file": "docs/harbor-research/tex/paper3.tex",
         "labels": [],
@@ -2059,6 +2058,16 @@
       "id": "lem:stp-scope",
       "file": "book/spawn-to-person.tex",
       "reason": "Wave 1 correction (November 2026): the scope lemma promoted to a labelled result at review request; chapter-native; not yet folded into a research-program entry."
+    },
+    {
+      "id": "prop:third-party-forfeiture",
+      "file": "book/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native Property (Third-Party Forfeiture: Holmstrom's budget-breaker point for a colluding pair); no paperN.tex restates it; added in the third pass, Wave 1."
+    },
+    {
+      "id": "thm:pooling-gain",
+      "file": "book/legible-swarm.tex",
+      "reason": "Wave 1 correction (November 2026): the equal-budget pooling-gain inequality F(N,2k,m) <= 2F(N,k,m/2) replaces the split-penalty theorem, whose moral was reversed; the paper2.tex twin still states the old result and will be redone after the Book."
     }
   ]
 }
