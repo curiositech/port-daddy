@@ -143,6 +143,20 @@ computes on data that its owner will not hand over? It promises that every
 release is explicit, passes through a gate, and has a counted limit, which is
 less than a promise that nothing leaks. In the running example, 200 jobs that
 each return 64 bits to Erin can carry at most 12,800 bits, before timing.}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+Nothing in this chapter's room has been built. What exists are four toy
+checkers, small Python scripts that each search or compute over a small model:
+the two-run search, the controllability check, the ledger check and the leak
+detector's arithmetic (Table~\ref{tab:sealed-four-links}).
+
+The confidential virtual machine, the two release gates, the privacy ledger,
+the leak detector and the in-guest monitor that forms the inner fence are
+specified here and not implemented. The sandbox that would hold the inner
+fence has not been chosen.
+\end{pdboundary}
+
 \paragraph{The scene.}
 Derek owns sensitive financial data $D$. Erin owns a valuable agent system $M$:
 weights, prompts, skills, tools, orchestration. Both want the answer
