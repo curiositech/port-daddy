@@ -1,0 +1,97 @@
+[
+ {
+  "term": "commons authority",
+  "sort": "commons authority",
+  "definition": "A persistent service that every participant in a multi-agent system relies on for shared rules about who may take part and with which permissions, how each act is recorded against whoever made it, and how money moves when work is settled."
+ },
+ {
+  "term": "salvage parent",
+  "sort": "salvage parent",
+  "definition": "The crashed or abandoned session whose work a successor session continues, named in the successor's first note."
+ },
+ {
+  "term": "correlated equilibrium",
+  "sort": "correlated equilibrium",
+  "definition": "A joint distribution of private recommendations from a mediator such that every player, knowing only its own recommendation, prefers to follow it."
+ },
+ {
+  "term": "evidence trail",
+  "sort": "evidence trail",
+  "definition": "A session's sequence of timestamped notes recording its observations, decisions and progress, to which notes can be added but never changed."
+ },
+ {
+  "term": "Merkle forest",
+  "sort": "merkle forest",
+  "definition": "The three-level evidence structure in which each session's hash-chained notes form a tree, each epoch's session roots form a harbor tree whose root the daemon signs, and the harbor trees, one per epoch, make up the forest."
+ },
+ {
+  "term": "inclusion proof",
+  "sort": "inclusion proof",
+  "definition": "The short list of sibling hashes, with a signed root, that lets anyone check that one note belongs to a recorded session."
+ },
+ {
+  "term": "minimal liberalism",
+  "sort": "minimal liberalism",
+  "definition": "Sen's condition that at least two individuals each have a pair of outcomes over which their own preference decides the social choice."
+ },
+ {
+  "term": "conflict graph",
+  "sort": "conflict graph",
+  "definition": "The graph whose vertices are active sessions and whose edges join sessions that hold overlapping file claims."
+ },
+ {
+  "term": "appeal bond",
+  "sort": "appeal bond",
+  "definition": "Collateral, a fixed fraction of the disputed amount, that an agent posts to challenge a settlement and forfeits if the appeal fails."
+ },
+ {
+  "term": "resurrection set",
+  "sort": "resurrection set",
+  "definition": "The queue of agents declared dead whose work is waiting for a successor."
+ },
+ {
+  "term": "context triple",
+  "sort": "context triple",
+  "definition": "What a successor receives when it takes over a dead agent's work: the task's purpose, the evidence trail and the file claims."
+ },
+ {
+  "term": "perfect public monitoring",
+  "sort": "perfect public monitoring",
+  "definition": "The assumption that, before each round of a repeated game, every player sees the same correct record of all past actions."
+ },
+ {
+  "term": "graduated trigger",
+  "sort": "graduated trigger",
+  "definition": "A repeated-game strategy that punishes a deviation for a fixed number of rounds and then returns to cooperation."
+ },
+ {
+  "term": "cleanup cost",
+  "sort": "cleanup cost",
+  "definition": "The human and compute cost of detecting, assessing and recovering from one breach."
+ },
+ {
+  "term": "Bonded Advisor",
+  "sort": "bonded advisor",
+  "definition": "An agent that proposes bond sizes for other agents' work and is itself bonded on the accuracy of its proposals."
+ },
+ {
+  "term": "claim ceiling",
+  "sort": "claim ceiling",
+  "definition": "The most that will be paid out on a claim under a bond or an insurer's quote."
+ },
+ {
+  "term": "expressive act",
+  "sort": "expressive act",
+  "definition": "A coordination act whose effect is to tell other participants something, such as a signal, a request or a proposal."
+ },
+ {
+  "term": "monetary supply",
+  "sort": "monetary supply",
+  "definition": "The total of a project's wallet, escrow and commons-pool balances, which only a top-up can change."
+ },
+ {
+  "term": "budget breaker",
+  "sort": "budget breaker",
+  "definition": "An outside party that absorbs or collects the difference so that a team's own transfers need not balance."
+ }
+]
