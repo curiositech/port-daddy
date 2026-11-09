@@ -53,7 +53,11 @@ describe('reproducible whitepaper source scoping', () => {
     // 33 since the research-agenda additions: the chapter now inputs six
     // book/additions/stp-*.tex files (memory consolidation, skill attribution,
     // incentive transmission, and their three exercise sets).
-    expect(sources).toHaveLength(33);
+    // 34 since the plain-language audit: the introduction inputs
+    // figures/fig-audit-person.tex, one of the six audit figures, which is
+    // this chapter's own drawing although its name does not carry stp-.
+    expect(sources).toHaveLength(34);
+    expect(sources).toContain('book/figures/fig-audit-person.tex');
     for (const addition of [
       'book/additions/stp-consolidation.tex',
       'book/additions/stp-skill-attribution.tex',
@@ -84,9 +88,11 @@ describe('reproducible whitepaper source scoping', () => {
     // Every non-root input is either an stp figure, an stp addition, one of the shared
     // figures/pd-*.tex files (palette, textbook map, hyperlinks, figure
     // language), or a shared table fragment figures/tab-*.tex that more than
-    // one chapter inputs (the keystone split is drawn once for chapters 5 and 6).
+    // one chapter inputs (the keystone split is drawn once for chapters 5 and 6),
+    // or the one audit figure named above. No other chapter's audit figure.
     expect(sources.slice(1).every((source) =>
       source.includes('/figures/fig-stp-')
+        || source === 'book/figures/fig-audit-person.tex'
         || source.includes('/figures/spark-stp-')
         || /\/additions\/stp-[a-z-]+\.tex$/.test(source)
         || /\/figures\/pd-[a-z-]+\.tex$/.test(source)
