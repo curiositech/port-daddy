@@ -534,7 +534,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17. Evidence is recorded in three .tlc.log artifacts per CI run, not a checked-in transcript. CardRevocation_rollback.cfg is the negative control: restoring an older database must produce a counterexample to RevocationFinal. The baseline and epoch configurations are checked separately; these bounded models do not establish that every deployment survives rollback.",
+      "evidencePolicy": "CI pins tla2tools.jar as v1.8.0; it reports TLC 2026.11.06.222357. Evidence is in four .tlc.log artifacts per CI run, not a checked-in transcript. Two negative controls: restoring an older database must violate RevocationFinal (rollback.cfg), and the card-epoch rule must violate Availability while RevocationFinal holds on every state (epoch.cfg, run with -continue). Baseline and dbepoch must hold both. These bounded models do not establish that every deployment survives rollback.",
       "ci": {
         "status": "wired",
         "job": [
@@ -682,7 +682,7 @@
       ],
       "method": "Kani",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "One decoded grant over four operations and eight literal/prefix patterns; pub/sub requests over six concrete channels, arbitrary i64 times and optional u64 ceilings; unwind 16. Local Kani 0.67.0 passed the production matcher assertions and three acceptance/rejection covers; CI reruns. Authentication is assumed; rate/payload enforcement and arbitrary strings are outside scope.",
+      "evidencePolicy": "One decoded grant over four operations and ten literal/prefix patterns, including ** and a**; pub/sub requests over eight concrete channels, including the names * and a*; arbitrary i64 times and optional u64 ceilings; unwind 16. CI runs Kani 0.67.0 and requires the production matcher assertions and three acceptance/rejection covers. Authentication is assumed; rate/payload enforcement and arbitrary strings are outside scope.",
       "ci": {
         "status": "wired",
         "job": [
@@ -701,7 +701,7 @@
       ],
       "method": "Kani",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "Two-hop structured subset: one grant per root, child and leaf, four operations, eight literal/prefix patterns, arbitrary optional u64 rate/payload ceilings; unwind 16. Local Kani 0.67.0 passed transitivity, ceiling assertions and five covers; removing ceiling attenuation falsified the rate-preservation assertion. CI reruns. No signed-chain verifier or arbitrary-depth claim.",
+      "evidencePolicy": "Two-hop structured subset: one grant per root, child and leaf, four operations, ten literal/prefix patterns including ** and a**, optional u64 ceilings; unwind 16. Asserts transitivity, ceiling preservation, and that an accepted subset grants no request its parent refuses over eight channels; five covers. CI requires counterexamples when ceiling attenuation is removed and when the replaced pattern-cover rule is restored. No signed-chain verifier or arbitrary-depth claim.",
       "ci": {
         "status": "wired",
         "job": [
