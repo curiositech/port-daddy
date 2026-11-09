@@ -3210,7 +3210,8 @@ which mechanisms are shipped in the reference implementation, which are specifie
 with a proof or a written protocol, and which are still proposed. The single-line
 summary: the conserving bond ledger and the continuity subsystem (episodic
 memory) are \Built{}, the checkpoint is \BuiltWeak{}, and much of the protocol
-stack is \Designed{} and model-verified. The chain that market prices depend
+stack is \Designed{}; no cross-harbor part of it has been run as an
+executable model. The chain that market prices depend
 on (cross-operator identity, then the outcome ledger, then reputation) ranges
 from \BuiltWeak{} to \Vision{}. Today the harbor economy has local labor
 settlement and proposed rental and licensing contracts.
@@ -3264,7 +3265,8 @@ Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls
   credentials, and a bounded newcomer pool ship; full write gating does not ship \\
 Cross-operator attestation & \Vision{} & no spec for the critical part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
-Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
+Cross-harbor capability transfer (attenuation) & \Designed{} & modelled only:
+  no executable cross-harbor model, never run;
   \ifpdbook \pdchapref{fh}{The Federated Harbor}, \S\ref{fh:sec:fh-xfer-ceremony}\else Protocol~\ref{prot:xfer}\fi \\
 Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Vision{} &
   no estimator specified or shipped \\
