@@ -482,7 +482,9 @@ ITEMS: list[Item] = [
             Check(
                 "book/legible-swarm.tex",
                 "Oversight Head must carry an explicit \\Vision (not-yet-built) tag",
-                present=r"Oversight Head \(\$R_2\$, \\Vision\)",
+                # Since the plain-language rewrite the grade sits in a
+                # \pdstatus tag directly after the item title.
+                present=r"Oversight Head \(\$R_2\$\):\}\s*\\pdstatus\{\\Vision\}",
             ),
             Check(
                 "book/legible-swarm.tex",
@@ -507,7 +509,9 @@ ITEMS: list[Item] = [
                 "book/spawn-to-person.tex",
                 "pitfall box must not claim OP-4 is solved/instant",
                 absent=r"is now solved via[\s\S]{0,20}Event-Sourced Neural Rehydration|turning[^.]*instantly",
-                present=r"\\DESIGNED, not \\BUILT",
+                # Since the plain-language rewrite the capsule's grade is the
+                # checkpoint subsection's \pdstatus note, in plain words.
+                present=r"\\pdstatus\{\\BuiltWeak\}\{restart forwards a summary; the task capsule is specified, not built\}",
             ),
             Check(
                 "book/spawn-to-person.tex",

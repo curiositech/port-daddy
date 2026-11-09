@@ -14,7 +14,11 @@ NOTE=r'\pdsourceaside{Worked checks: \texttt{b5\_engine\_substitution.py}, seed 
 # price assumptions, not consequences of attestation. The stated .50/.20
 # payoffs and -.30 swap gain are hand-checked; source, seed, status, body
 # and explicit-price/caveat mutations remain guarded.
-BODY_SHA='61f63beffe9c3f0b80f5245d3d1acd57cbfdbff4a5f0101eca632786bee1d424'
+# Re-reviewed 2026-11-09 after the plain-language rewrite: the body now names
+# what theta, c and mu stand for and spells out Delta c = 0.3 and
+# Delta theta = 0.6 before using them. Every number, display and the
+# attested-price caveat are unchanged (B* = 0.3/0.6 = 0.5; flip = -0.3).
+BODY_SHA='6c30cc499b437280718909b4b40b73e72389ada8d2c542095e1121d99fa0446a'
 
 
 def validate(source):

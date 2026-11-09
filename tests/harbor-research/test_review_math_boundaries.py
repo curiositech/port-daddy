@@ -149,9 +149,12 @@ class ReviewMathBoundaries(unittest.TestCase):
                 r'fn proof_verify_logic_only\b', source)
             # The book presents the decoded-policy listing and states the
             # separate parser bound in prose; a duplicate parser listing is
-            # neither required nor authoritative.
+            # neither required nor authoritative. Since the plain-language
+            # rewrite the bound is stated once, in the memory-safety design
+            # invariant, as the parser harness's loop-unrolling limit.
             chapter_bounds = re.findall(
-                r'32-byte\s+parser\s+harness\s+has\s+unwind\s+bound\s+(\d+)',
+                r'checks\s+the\s+card\s+parser\s+on\s+every\s+token\s+of\s+exactly\s+32\s+bytes'
+                r'[^.]*?unrolling\s+each\s+loop\s+at\s+most\s+(\d+)\s+times',
                 chapter)
             policy_bounds = re.findall(r'\bunwind\s+(\d+)\b', evidence_policy)
             self.assertEqual(source_bounds, ['128'])
@@ -163,11 +166,11 @@ class ReviewMathBoundaries(unittest.TestCase):
         # fail. These controls keep this wording repair from weakening the gate.
         for name, source, chapter, evidence_policy in (
             ('source drift', rust.replace('#[kani::unwind(128)]', '#[kani::unwind(64)]'), tex, policy),
-            ('chapter drift', rust, tex.replace('parser harness has unwind bound 128',
-                                                'parser harness has unwind bound 64'), policy),
+            ('chapter drift', rust, tex.replace('unrolling each loop at most 128 times',
+                                                'unrolling each loop at most 64 times'), policy),
             ('registry drift', rust, tex, policy.replace('unwind 128', 'unwind 64')),
-            ('missing chapter bound', rust, tex.replace('parser harness has unwind bound 128',
-                                                        'parser harness has a bounded unwind'), policy),
+            ('missing chapter bound', rust, tex.replace('unrolling each loop at most 128 times',
+                                                        'unrolling each loop a bounded number of times'), policy),
         ):
             with self.subTest(control=name):
                 with self.assertRaises(AssertionError):

@@ -33,7 +33,7 @@ def marks(source):
 
 def prose_contract(source):
     text = ' '.join(source.split())
-    for phrase in ('per reviewer for a fixed flaw', 'planned budget, not realized payout',
+    for phrase in ('per reviewer, for a fixed flaw', 'planned budget, not realized payout',
                    'duplicate reports settle', 'mutually independent',
                    'detection-and-truthful-report events', 'a conditional lower',
                    'weak best response', 'with no false sanctions or other payoff effects',

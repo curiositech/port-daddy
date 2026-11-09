@@ -12,7 +12,7 @@ STP = ROOT / "book/spawn-to-person.tex"
 TARGETS = {
     LS: {"ex:queue-boundary": "Sole Ownership at the Queue Boundary",
          "ex:digest-review-budget": "Digest Bits and File Opens"},
-    STP: {"ex:newcomer-floor": "Sanctions at the Newcomer Floor",
+    STP: {"ex:newcomer-floor": "Sanctions at the Newcomer Score",
           "ex:maturation-cost": "The Cost of Starting Over",
           "ex:binding-probation": "Probation under a Binding Cap",
           "ex:audit-depth": "Diversity and Audit Depth"},
@@ -33,7 +33,7 @@ class WorkedExampleChecks(unittest.TestCase):
         expected = {
             "ls:ex:queue-boundary": ("4.4.2", "Sole Ownership at the Queue Boundary"),
             "ls:ex:digest-review-budget": ("4.6.3", "Digest Bits and File Opens"),
-            "stp:ex:newcomer-floor": ("5.6.2", "Sanctions at the Newcomer Floor"),
+            "stp:ex:newcomer-floor": ("5.6.2", "Sanctions at the Newcomer Score"),
             "stp:ex:maturation-cost": ("5.6.4", "The Cost of Starting Over"),
             "stp:ex:binding-probation": ("5.6.6", "Probation under a Binding Cap"),
             "stp:ex:audit-depth": ("5.11.2", "Diversity and Audit Depth"),
