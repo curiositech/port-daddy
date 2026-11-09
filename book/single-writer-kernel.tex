@@ -299,9 +299,10 @@ solving it. Distribution across machines belongs to the economy layer; a
 consensus protocol inside the local storage layer would be in the wrong layer.}
 A local writer avoids the agreement protocol required by a replicated
 system~\pdcite{kleppmann2017}. The conditional theorem in
-\S\ref{sec:invariants} states the resulting guarantee: when every read and write is routed through the sole daemon
-connection and responses follow commit, transactions are \emph{serializable} and
-claim/lock operations are \emph{linearizable}. Linearizability is what lets the
+\S\ref{sec:invariants} states the resulting guarantee: when every read and write goes
+through the sole daemon connection one request at a time and responses follow commit,
+transactions are \emph{serializable} and claim/lock operations are \emph{linearizable}
+against a stated specification of leases that expire. Linearizability is what lets the
 coordination layer treat ``who holds this'' as one authoritative record. Serializable
 means the result matches some sequential transaction order. Linearizable adds
 real-time order: a claim completed before another request began must appear
@@ -2381,26 +2382,73 @@ theorem's six hypotheses are the assumptions both guarantees need.
 
 \input{figures/fig-swk-consistency-model}
 
+Linearizability is always relative to a \pdterm{sequential specification}:
+a statement of what each operation returns, and how it changes the state, when
+operations run one at a time~\pdcite{herlihywing1990}. A claim needs a
+specification with time in it, because a lease expires while no one is calling,
+and the daemon removes an expired row only when some sweep runs.
+
+\begin{definition}[Timed claims object]\label{def:swk-timed-claims}
+\setlength{\parskip}{4pt plus 1pt}
+For exact-key claims and locks, the state is a set of leases, at most one per
+key, each recording a key $k$, a holder $h$ and an expiry time $x$. Every
+operation carries the time $t$ that its transaction reads from the daemon's
+clock.
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+  \item \texttt{acquire}$(k,r,d)$: if $k$ has no lease, or its lease has holder
+  $r$, the lease on $k$ becomes $(k,r,t+d)$ and the result is \emph{granted};
+  otherwise the state is unchanged and the result is \emph{denied}, naming $h$.
+  \item \texttt{release}$(k,r)$: removes the lease on $k$ if its holder is $r$,
+  and returns success either way.
+  \item \texttt{holder}$(k)$: returns the lease on $k$ as stored, if there is
+  one, including a lease whose expiry has passed.
+  \item \texttt{sweep}: removes every lease whose expiry $x$ is earlier than
+  $t$, on one key or on all of them. The daemon runs it, either at the start of
+  a request's transaction or as a cleanup transaction of its own; it returns
+  nothing to a client.
+\end{itemize}
+\end{definition}
+
+Listing~\ref{alg:acquire}'s stale-holder branch is a sweep of one key followed
+by an acquire. An expired lease that no sweep has reached still blocks an
+acquire and still answers a read, and the specification records that.
+Because $t$ is whatever the transaction
+read, a wall clock that steps (\S\ref{sec:adjacency}) changes how long a lease
+lasts. It does not change whether a history meets the specification.
+
 \begin{theorem}[Conditional consistency model]\label{thm:consistency}
 \setlength{\parskip}{4pt plus 1pt}
-Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), transactions never enable \texttt{read\_uncommitted}, each successful response is sent only after commit, no out-of-band writer mutates the tables, and the observed execution is crash-free. Each claim/lock operation's state checks and mutation belong to that same transaction.
+Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), the daemon runs each request's statements on its connection to completion before it starts the next request's, each successful response is sent only after commit, no out-of-band writer mutates the tables, and the observed execution is crash-free. Each claim/lock operation's state checks, any sweep it begins with, and its mutation belong to one transaction, which reads the clock once.
 
 Then committed transactions have an equivalent serial order, and the externally observed
-claim/lock operations are linearizable with commit as the linearization point.
+claim/lock operations are linearizable with respect to the timed claims object of
+Definition~\ref{def:swk-timed-claims}, with commit as the linearization point.
 \end{theorem}
+
+The second hypothesis is the one SQLite actually needs. SQLite isolates
+separate connections from one another, but ``there is no isolation between
+operations that occur within the same database connection,'' and whether a
+read still running sees that connection's own later writes is
+undefined~\pdcite{sqliteisolation}. A daemon with one connection therefore
+gets isolation only by never interleaving two requests' statements on it. A
+synchronous driver on one thread provides that for any request whose
+statements run without yielding to other work in between.
 
 \begin{proof}[Proof sketch]
 \setlength{\parskip}{4pt plus 1pt}
-Under the stated configuration there is one stream of write transactions, totally
-ordered by commit, and reads observe a consistent snapshot. For linearizability
-(Herlihy \& Wing~\pdcite{herlihywing1990}) we need a
-single point per operation, between its invocation and response, at which it
-appears to take effect, with these points consistent with real time.
+There is one connection, and by the second hypothesis no request's statements
+run between another request's, so each transaction reads the state that the
+earlier commits left. Commit order is therefore a serial order. For
+linearizability (Herlihy \& Wing~\pdcite{herlihywing1990}) we need a single
+point per operation, between its invocation and response, at which it appears
+to take effect, with these points consistent with real time and with the
+results the specification gives.
 
-The commit of
-each claim/lock operation is exactly such a point: it is atomic
-(Theorem~\ref{thm:exclusion}), it lies between the client's request and the
-daemon's response.
+Take each operation's commit. It lies between the client's request and the
+daemon's response. The transaction evaluates the specification's cases on the
+state at that point, with the time it read, so it returns the result the
+specification gives there. A sweep the daemon runs as its own transaction is
+placed at its commit in the same way.
 
 Non-overlapping operations respect real-time order because a
 later invocation occurs after the earlier response and therefore after its commit;
@@ -2421,16 +2469,24 @@ Crash recovery is a different obligation. Under WAL with
 \mbox{already} been told succeeded (Property~\ref{prop:durability}). Deleting that
 \mbox{acknowledged} operation from the history is not a valid repair of the proof.
 
-A durable-linearizability claim~\pdcite{izraelevitz2016} must preserve completed
-operations across recovery and handle pending operations consistently.
+Izraelevitz, Mendes and Scott name the two conditions a crash-tolerant version
+could aim at~\pdcite{izraelevitz2016}. \pdterm{Durable linearizability} keeps
+every completed operation across a crash. The weaker
+\pdterm{buffered durable linearizability} lets a crash lose recent completed operations, provided that
+what survives is a consistent cut of the history before the crash: no
+operation survives without every operation that happened before it. WAL with
+\texttt{synchronous=NORMAL} can offer at most the weaker condition, since it may
+lose the last commits. Showing that it offers even that would need SQLite's
+recovery to keep a prefix of the commit order, and OP-10's crash tests are where
+that would be checked.
 
 \texttt{synchronous=FULL} supplies a per-commit WAL sync, assuming the storage
 stack honors it; it does not by itself prove the application's recovery protocol,
 identity epochs, or all response paths correct.
 
 This theorem covers crash-free
-histories only. OP-10 remains open, and no end-to-end durable-linearizability
-proof is claimed for the deployed kernel.
+histories only. OP-10 remains open, and no proof of either durable condition is
+claimed for the deployed kernel.
 \end{pdboundary}
 
 \keyidea[Bypassing the daemon breaks ordering]{This is why the kernel needs no agreement protocol inside one fault domain.
@@ -2816,7 +2872,8 @@ what it explicitly does \emph{not} provide, so higher layers do not assume too m
   higher-layer assumption.
   \item \textbf{The cryptographic authorization chain}, which carries the
   coordination layer's coordination lineage inside it.
-  \item \textbf{Linearizable claim/lock semantics} (Theorem~\ref{thm:consistency}),
+  \item \textbf{Linearizable claim/lock semantics} (Theorem~\ref{thm:consistency},
+  against the timed claims object of Definition~\ref{def:swk-timed-claims}),
   the property that lets the coordination layer treat ``who holds this'' as the
   authoritative answer.
 \end{itemize}
@@ -2850,8 +2907,10 @@ The chapter's main results, in the order the rest of the book relies on them:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item One writer, one file. Every mutation reaches the daemon and is committed in one
-  order; the reply follows the commit. Serializability and linearizability follow
-  from that discipline plus five named assumptions; no agreement protocol is needed.
+  order; the reply follows the commit. Serializability, and linearizability against
+  a timed specification of leases, follow from that discipline plus five named
+  assumptions; no agreement protocol is needed. Across a power loss the most WAL
+  with \texttt{synchronous=NORMAL} can offer is buffered durable linearizability.
 \item Durability is split by fault class. Acknowledged commits survive a process
   crash under the stated storage assumptions; a power loss can lose recent commits
   under the default synchronous setting. The setting is the
@@ -3150,7 +3209,7 @@ One candidate: a contested work unit never settles (\texttt{settle} is guarded o
 List the routing, transaction, response, and failure assumptions of Theorem~\ref{thm:consistency}. Which one fails first if an out-of-band SQLite writer is introduced? Does the theorem require synchronized clocks?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-linearizability-assumptions}
-One daemon connection handles every claim and lock read and write; no \texttt{read\_uncommitted}; checks and mutations share a transaction; respond only after commit; no out-of-band writer; a crash-free observed history. An external writer violates the single-writer and no-bypass conditions. A read-only connection needs its own API and snapshot analysis. Synchronized clocks are unnecessary: non-overlapping invocation/response intervals constrain the order.
+One daemon connection handles every claim and lock read and write; no two requests' statements interleave on it; checks, any opening sweep, and mutations share one transaction that reads the clock once; respond only after commit; no out-of-band writer; a crash-free observed history. An external writer violates the single-writer and no-bypass conditions. A read-only connection needs its own API and snapshot analysis. Synchronized clocks are unnecessary: non-overlapping invocation/response intervals constrain the order, and the daemon's clock enters only as the time each transaction read.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-linearization}
 Construct a three-operation claim history and give a valid linearization. If two calls overlap, show why more than one linearization may still respect real time.
@@ -3688,6 +3747,13 @@ D. Richard Hipp et al.
 \newblock SQLite Documentation, 2010.
 \newblock \url{https://www.sqlite.org/wal.html}
 \newblock (\texttt{synchronous=NORMAL} ``commits might lose durability following a power loss.'')
+
+\bibitem{sqliteisolation}
+D. Richard Hipp et al.
+\newblock Isolation In SQLite.
+\newblock SQLite Documentation, 2022.
+\newblock \url{https://sqlite.org/isolation.html}
+\newblock (``There is no isolation between operations that occur within the same database connection.'')
 
 \bibitem{kleppmann2017}
 Martin Kleppmann.
