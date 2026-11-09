@@ -198,7 +198,65 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
   }
 
   /**
-   * Claim a port for a service
+   * Turn a claim's `expires` option into the absolute deadline stored in
+   * `services.expires_at`.
+   *
+   * Why this exists: `expires_at` is compared against `Date.now()` by
+   * `cleanup()` and `release({ expired: true })`, so it must always hold epoch
+   * milliseconds. Writing the raw option instead (a `'1m'` string, or a bare
+   * duration like `60000`) stores a value that either never expires, because
+   * SQLite orders TEXT above every INTEGER, or expired decades ago. Both the
+   * new-claim and the re-claim paths go through this one function so they
+   * cannot disagree.
+   *
+   * @param expires - The caller's option: a duration string such as `'30m'` or
+   *   `'2h30m'`, a duration in milliseconds, or null/undefined for no expiry.
+   * @param now - The claim's timestamp, so the deadline is relative to the
+   *   same instant recorded as `last_seen`.
+   * @returns `now` plus the parsed duration, or null when there is no option or
+   *   it does not parse.
+   */
+  function computeExpiresAt(expires: string | number | null | undefined, now: number): number | null {
+    if (!expires) return null;
+    const ttl = parseExpires(expires);
+    return ttl !== null ? now + ttl : null;
+  }
+
+  /**
+   * Delete one service row, its endpoints and its semantic-index entry.
+   *
+   * Design intent: a service is gone only when all three are gone. `cleanup()`
+   * uses this for dead-PID rows and `claim()` uses it for an expired row it is
+   * about to replace, so a reclaimed identity never inherits a stale tunnel or
+   * custom endpoint from the claim that lapsed.
+   *
+   * @param id - The normalized service identity.
+   * @returns Nothing; a missing row is a no-op.
+   */
+  function dropService(id: string): void {
+    stmts.deleteAllEndpoints.run(id);
+    stmts.deleteById.run(id);
+    semanticIndex?.unindex(id);
+  }
+
+  /**
+   * Claim a port for a service.
+   *
+   * Design: claim is idempotent while a claim is live (the Book's I3). A
+   * re-claim of a row whose `expires_at` is still in the future, or exactly
+   * now, returns the same port and refreshes `last_seen`, plus any of `pid`,
+   * `cmd`, `expires` or `metadata` the caller passed. A row whose deadline has
+   * passed is treated as free (I4, TTL reclamation): it is deleted as
+   * `cleanup()` would delete it, and the call proceeds as a fresh claim. The
+   * motivation is the window between a deadline and the next cleanup tick,
+   * where reusing the dead row would keep its past deadline and let that tick
+   * delete a service that had just been claimed again.
+   *
+   * @param id - Semantic identity (`project:stack:context`); wildcards are refused.
+   * @param options - Preferred port, range, process details, `expires` duration,
+   *   restart policy, health URL, pairing, metadata, and ports the OS already holds.
+   * @returns `{ success, id, port, status, existing, message }`, where `existing`
+   *   is true only when a live row was reused; or `{ success: false, error }`.
    */
   function claim(id: string, options: ClaimOptions = {}) {
     const parsed = parseIdentity(id);
@@ -225,17 +283,25 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
       systemPorts = new Set<number>()
     } = options;
 
+    const expiresAt = computeExpiresAt(expires, now);
+
     // Check for existing service
-    const existing = stmts.getById.get(parsed.normalized) as ServiceRow | undefined;
+    let existing = stmts.getById.get(parsed.normalized) as ServiceRow | undefined;
+
+    // An expired row is free, swept or not. Same predicate as deleteExpired.
+    if (existing && existing.expires_at !== null && existing.expires_at < now) {
+      dropService(parsed.normalized);
+      existing = undefined;
+    }
 
     if (existing) {
       // Update last_seen and return existing port
       stmts.updateLastSeen.run(now, parsed.normalized);
 
       // Update optional fields if provided
-      if (cmd || pid || expires || metadata) {
+      if (cmd || pid || expiresAt !== null || metadata) {
         stmts.update.run(
-          null, pid, cmd, null, now, expires, null, metadata ? JSON.stringify(metadata) : null,
+          null, pid, cmd, null, now, expiresAt, null, metadata ? JSON.stringify(metadata) : null,
           parsed.normalized
         );
       }
@@ -283,13 +349,6 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
       } catch (err) {
         return { success: false, error: (err as Error).message };
       }
-    }
-
-    // Calculate expiration
-    let expiresAt: number | null = null;
-    if (expires) {
-      const parsed2 = parseExpires(expires);
-      expiresAt = parsed2 !== null ? now + parsed2 : null;
     }
 
     // Insert new service
@@ -603,9 +662,7 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
 
     for (const svc of running) {
       if (svc.pid && !isPidAlive(svc.pid)) {
-        stmts.deleteAllEndpoints.run(svc.id);
-        stmts.deleteById.run(svc.id);
-        semanticIndex?.unindex(svc.id);
+        dropService(svc.id);
         cleaned++;
       }
     }

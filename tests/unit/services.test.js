@@ -12,7 +12,7 @@
  * Total: 45+ tests across 7 categories
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createTestDb, createMockLogger } from '../setup-unit.js';
 import { createServices } from '../../lib/services.js';
 
@@ -180,6 +180,127 @@ describe('Services Module - Claim Operations (15 tests)', () => {
     expect(svc.cmd).toBe('npm run dev');
     expect(svc.cwd).toBe('/home/user/project');
   });
+});
+
+// Re-claiming an identity that already has a row. Two properties the Book's
+// Chapter 1 relies on: I3 (claim is idempotent while the row is live) and I4
+// (an expired claim is reclaimable). The clock is pinned so "expired" means a
+// deadline in the past with no cleanup() tick in between, which is the window
+// where claim() used to reuse the dead row.
+describe('Services Module - Re-claim against expiry (I3, I4)', () => {
+  const T0 = 1_000_000_000_000;
+  const ID = 'app:api:main';
+  let db, services, now, nowSpy;
+
+  const row = (id) => db.prepare(
+    'SELECT port, created_at, expires_at, typeof(expires_at) AS expires_type FROM services WHERE id = ?'
+  ).get(id);
+  const envs = (id) => db.prepare('SELECT env FROM endpoints WHERE service_id = ? ORDER BY env')
+    .all(id).map((r) => r.env);
+
+  beforeEach(() => {
+    now = T0;
+    nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    db = createTestDb();
+    services = createServices(db);
+  });
+
+  afterEach(() => {
+    nowSpy.mockRestore();
+  });
+
+  it('re-claim after expiry gets a fresh row with a future integer expires_at', () => {
+    services.claim(ID, { expires: '1m' });
+    services.setEndpoint(ID, 'tunnel', 'https://stale.example');
+    now += 2 * 60_000; // past the deadline; cleanup() has not run
+
+    const result = services.claim(ID, { expires: '5m' });
+
+    expect(result.success).toBe(true);
+    expect(result.existing).toBe(false);
+    expect(result.message).not.toContain('reusing');
+    const r = row(ID);
+    expect(r.created_at).toBe(now);
+    expect(r.expires_type).toBe('integer');
+    expect(r.expires_at).toBe(now + 5 * 60_000);
+    // The dead row's endpoints went with it; only the fresh local URL remains.
+    expect(envs(ID)).toEqual(['local']);
+    // The next cleanup tick leaves the new claim alone.
+    expect(services.cleanup().cleaned).toBe(0);
+    expect(services.get(ID).success).toBe(true);
+  });
+
+  it('re-claim after expiry without an expires option is not swept by the next cleanup', () => {
+    services.claim(ID, { expires: '1m' });
+    now += 2 * 60_000;
+
+    const result = services.claim(ID);
+
+    expect(result.success).toBe(true);
+    expect(result.existing).toBe(false);
+    // A fresh claim with no expires option has no deadline, so the old one
+    // cannot leak through and get the new claim deleted.
+    expect(row(ID).expires_at).toBeNull();
+    expect(services.cleanup().cleaned).toBe(0);
+    expect(services.get(ID).success).toBe(true);
+  });
+
+  it("re-claim of a live row with expires='1m' stores an integer deadline", () => {
+    services.claim(ID); // no TTL
+    now += 1_000;
+
+    const result = services.claim(ID, { expires: '1m' });
+
+    expect(result.existing).toBe(true);
+    const r = row(ID);
+    expect(r.expires_type).toBe('integer');
+    expect(r.expires_at).toBe(now + 60_000);
+    // The renewed deadline is real: two minutes on, cleanup sweeps it.
+    now += 2 * 60_000;
+    expect(services.cleanup().cleaned).toBe(1);
+    expect(services.get(ID).success).toBe(false);
+  });
+
+  it('re-claim of a live row with a numeric expires stores now + ms, not the raw duration', () => {
+    services.claim(ID);
+    now += 1_000;
+
+    services.claim(ID, { expires: 60_000 });
+
+    const r = row(ID);
+    expect(r.expires_type).toBe('integer');
+    expect(r.expires_at).toBe(now + 60_000);
+    expect(services.cleanup().cleaned).toBe(0);
+  });
+
+  it('re-claim of a live row still reuses it (I3) and renews its deadline from now', () => {
+    const first = services.claim(ID, { expires: '10m' });
+    services.setEndpoint(ID, 'tunnel', 'https://live.example');
+    now += 5 * 60_000; // halfway through the TTL
+
+    // No expires option: same row, same port, deadline untouched.
+    const plain = services.claim(ID);
+    expect(plain).toMatchObject({
+      success: true, existing: true, port: first.port, message: 'reusing existing service',
+    });
+    expect(row(ID).expires_at).toBe(T0 + 10 * 60_000);
+
+    // With an expires option: still the same row, deadline moved to now + 10m.
+    const renewed = services.claim(ID, { expires: '10m' });
+    expect(renewed).toMatchObject({ success: true, existing: true, port: first.port });
+    const r = row(ID);
+    expect(r.created_at).toBe(T0);
+    expect(r.expires_type).toBe('integer');
+    expect(r.expires_at).toBe(now + 10 * 60_000);
+    expect(envs(ID)).toEqual(['local', 'tunnel']);
+
+    // At exactly the deadline the row is still live, matching cleanup(),
+    // which sweeps only expires_at < now.
+    now = r.expires_at;
+    expect(services.claim(ID)).toMatchObject({ existing: true, port: first.port });
+    expect(db.prepare('SELECT COUNT(*) AS n FROM services').get().n).toBe(1);
+  });
+
 });
 
 describe('Services Module - Release Operations (10 tests)', () => {
