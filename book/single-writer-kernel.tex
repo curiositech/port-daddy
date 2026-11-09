@@ -310,8 +310,11 @@ that order; the three-request port example will return in the claim-history
 exercise.
 \paragraph{Reading a mechanism's status.}
 A theorem states its assumptions; an implementation grade says whether the
-reference artifact realizes them. \Built{} means implemented, \BuiltWeak{}
-means partial, \Designed{} means specified, and \Vision{} means proposed.
+reference artifact realizes them. \Built{} means shipped and exercised by tests in the reference
+implementation, \BuiltWeak{} means shipped but materially weaker than its name
+suggests, \Designed{} means specified with a proof or a written protocol but
+not yet shipped, and \Vision{} means a stated direction whose critical part
+has no specification yet.
 Appendix~\ref{app:status} gives the full key and artifact map. In the body,
 keep two questions separate: which failures a record survives, and which
 transitions a gate can prevent. The next sections work through both.
@@ -2226,8 +2229,8 @@ The checker that explores the machine is short enough to run while reading. Its
 output below is the evidence behind the state count and the shortest-crime table:
 with every guard on, no reachable state violates an invariant; with any one guard
 off, the checker finds the violating run and prints it. The claim below labels
-its six invariants I1--I6; these labels are local to this model and are not the
-I1--I12 labels of Table~\ref{tab:invariants}.
+its six invariants W1--W6, so that they cannot be read as the
+I1--I12 of Table~\ref{tab:invariants}.
 
 \begingroup
 \pdsessionwordwraptrue
@@ -2249,17 +2252,17 @@ admit-receipt, verify (guarded on policy $\wedge$ receipt), contest, settle (gua
 owner-funded $\wedge$ verified $\wedge$ receipted).
 
 \textbf{Invariants.}
-I1, every admitted effect carried the current role epoch at admit time;
+W1, every admitted effect carried the current role epoch at admit time;
 
-I2, each idempotency key settles at most once;
+W2, each idempotency key settles at most once;
 
-I3, a verified completion has an acceptance policy and an admitted verifier receipt;
+W3, a verified completion has an acceptance policy and an admitted verifier receipt;
 
-I4, no delegated grant is more permissive than its immediate parent;
+W4, no delegated grant is more permissive than its immediate parent;
 
-I5, role reassignment invalidates stale epochs at the effect boundary;
+W5, role reassignment invalidates stale epochs at the effect boundary;
 
-I6, every settlement is funded by the owning principal and references a receipt.
+W6, every settlement is funded by the owning principal and references a receipt.
 
 \textbf{Result.} On the two-principal instance (one work unit, one exclusive role with
 fencing epochs, a root grant with one delegation, one idempotency key, at most two effects),
@@ -2270,7 +2273,7 @@ restores safety [internal, \texttt{c0\_workunit.py}].
 
 \pdscope{Exhaustive here means every reachable state of this bounded specification, not every execution of the implementation.}
 
-I2's guarantee is what the literature calls \pdterm{effectively-once} processing:
+W2's guarantee is what the literature calls \pdterm{effectively-once} processing:
 duplicates are removed at the boundary, by an idempotency key plus a unique
 receipt row. The network itself cannot promise more, since true exactly-once
 delivery across an unreliable channel is impossible~\pdcite{helland2007distributed}.
@@ -2293,14 +2296,14 @@ reconstruct by hand.
 execution; reassign the role, so the epoch becomes~1 and the old holder retains token~0;
 now the old holder submits an effect with token~0. With the epoch guard on, that last
 transition does not exist, so the state is unreachable; with the guard off, the effect
-lands carrying yesterday's epoch and I1 fails. This is exactly the ``paused holder wakes
+lands carrying yesterday's epoch and W1 fails. This is exactly the ``paused holder wakes
 after expiry'' scenario the fenced-lease theorem (Theorem~\ref{thm:exclusion}) exists to
 exclude, and it is the shortest possible: no shorter history contains both a reassignment
 and a subsequent effect.
 
 \emph{The double settlement in two steps:} run the external
 operation under key $k_1$, then run it again. With the idempotency guard off the second run
-settles the same key twice and I2 fails; no history of length one can settle anything twice.
+settles the same key twice and W2 fails; no history of length one can settle anything twice.
 
 \emph{Now you try:} the escalated delegation takes one step. Which transition is it, and
 which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
@@ -2316,11 +2319,11 @@ which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
 \toprule
 \textbf{Guard disabled} & \textbf{Crime} & \textbf{Steps} & \textbf{Invariant broken} \\
 \midrule
-epoch check at admit-effect & the stale write & 4 & I1, I5 \\
-at-most-once per idempotency key & the double settlement & 2 & I2 \\
-policy $\wedge$ receipt at verify & the hollow ``verified'' & 4 & I3 \\
-scope $\subseteq$ parent at delegate & the escalated delegation & 1 & I4 \\
-owner-funded $\wedge$ verified $\wedge$ receipted at settle & the wrong-principal payout & 7 & I6 \\
+epoch check at admit-effect & the stale write & 4 & W1, W5 \\
+at-most-once per idempotency key & the double settlement & 2 & W2 \\
+policy $\wedge$ receipt at verify & the hollow ``verified'' & 4 & W3 \\
+scope $\subseteq$ parent at delegate & the escalated delegation & 1 & W4 \\
+owner-funded $\wedge$ verified $\wedge$ receipted at settle & the wrong-principal payout & 7 & W6 \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -2333,10 +2336,10 @@ production, which is the point of asking a machine rather than an author to find
 \paragraph{What it gives.}
 Several earlier results reappear here as properties of one concrete object.
 Table~\ref{tab:invariants} states the kernel's invariants as claims about subsystems; the work
-unit is where related obligations meet. The machine's I1 and I5 concern
-current epochs; I2 concerns at-most-once settlement per key; I3 requires both
-an acceptance policy and a verifier receipt; I4 checks delegation narrowing;
-and I6 binds settlement to its owner and receipt.
+unit is where related obligations meet. The machine's W1 and W5 concern
+current epochs; W2 concerns at-most-once settlement per key; W3 requires both
+an acceptance policy and a verifier receipt; W4 checks delegation narrowing;
+and W6 binds settlement to its owner and receipt.
 The model illustrates how the mechanisms compose; it does not prove all
 properties of those subsystems. The continuity chapter's checkpoint and the market chapters'
 settlement inherit the same object, which is why the book can name the work unit as its
@@ -3371,14 +3374,14 @@ OP-11 & Cross-subsystem atomicity by default & \Open & One local transaction (\S
 \end{table}
 
 \begin{description}[leftmargin=2.2em,style=nextline]
-\item[$\bigstar$ OP-1 --- Fair exclusion without a scheduler.] Status: \Open. Add
+\item[$\bigstar$ OP-1: Fair exclusion without a scheduler.] Status: \Open. Add
 bounded-wait to claims and locks while keeping the single-writer,
 no-background-scheduler simplicity. \S\ref{sec:resource} specifies a reactive
 ticket-lock that would do it for cooperatively released claims and leaves the lazy
 TTL-sweep path, the one that matters when an agent dies, unfair. Nothing of it
 ships. Is a FIFO wait-list of time-to-live'd reservations enough once the sweep is
 included?
-\item[$\bigstar$ OP-2 --- Regimentation vs.\ enforcement boundary.] Status: \Closed{} under the stated models.
+\item[$\bigstar$ OP-2: Regimentation vs.\ enforcement boundary.] Status: \Closed{} under the stated models.
 Theorem~\ref{thm:decidability} supplies a synchronous database-guard
 construction. Theorem~\ref{thm:regimentation-controllability} gives the exact
 realization condition under full observation: a prefix-closed safety language
@@ -3387,12 +3390,12 @@ an effect; post-commit monitoring alone cannot prevent that effect
 (Theorem~\ref{thm:schneider}). Concrete boundaries still require an explicit
 plant, event alphabet, observation model, and admission protocol.
 
-\item[$\bigstar$ OP-3 --- Cross-runtime soundness.] Status: \Open. A seeded differential
+\item[$\bigstar$ OP-3: Cross-runtime soundness.] Status: \Open. A seeded differential
 fuzz, running $10^6$ concurrent operations against both the test and deployment SQLite
 bindings and checking that the resulting states hash to the same value, is specified
 (\S\ref{sec:invariants}) and does not run in the pipeline today. Even once it does
 it is a test, not a proof: name the divergence class it would miss.
-\item[$\bigstar$ OP-4 --- Checkpoint that restores work.] Status: \Open, and still the most
+\item[$\bigstar$ OP-4: Checkpoint that restores work.] Status: \Open, and still the most
 important unbuilt thing at this layer. It is two problems wearing one number. They
 have different difficulties, different owners and, most important for anyone
 deciding what to build, different odds of ever being closed, so the table names
@@ -3409,22 +3412,22 @@ state, never the state. Whether the reconstruction is close enough to count as
 restoring work, and against what test, is the question, and no formal result in
 this book establishes it. Closing 4a would not close 4b, and a reader who sees
 event-sourced rehydration ship should not read it as OP-4 discharged.
-\item[$\bigstar$ OP-5 --- Oracle completeness.] Status: \Open. State-machine assertions
+\item[$\bigstar$ OP-5: Oracle completeness.] Status: \Open. State-machine assertions
 (\S\ref{sec:enforcement}, \Designed) would add delta oracles and AST assertions to
 Listing~\ref{alg:close}'s four shipped kinds. Two kinds are not a completeness
 result, and neither kind has yet been shown to resist gaming in the sense of
 Goodhart's law, which is what the vocabulary exists to prevent.
-\item[$\bigstar$ OP-6 --- Tamper-evidence on the read path.] Status: \Open. Where should
+\item[$\bigstar$ OP-6: Tamper-evidence on the read path.] Status: \Open. Where should
 hash-chain verification gate? A sampling/checkpoint regime with a provable
 detection-probability bound (couples to \S\ref{sec:merkle}).
-\item[$\bigstar$ OP-7 --- Schema evolution without a sequencer.] Status: \Partial. An
+\item[$\bigstar$ OP-7: Schema evolution without a sequencer.] Status: \Partial. An
 ordered boot ledger with post-apply schema verification ships
 (\S\ref{sec:substrate}); the \texttt{user\_version} sequencer over declared
 migrations does not, and modules still self-initialize. Can any useful remnant of
 ``any module, any order'' survive safe renames, backfills, and down-migrations?
-\item[$\bigstar$ OP-8 --- Stigmergic decay calibration.] Status: \Open. The right per-kind
+\item[$\bigstar$ OP-8: Stigmergic decay calibration.] Status: \Open. The right per-kind
 decay, so coordination markers neither rot, lingering after they go stale, nor evaporate before other agents act on them.
-\item[$\bigstar$ OP-9 --- Same-machine adversary.] Status: \Open. \S\ref{sec:merkle}
+\item[$\bigstar$ OP-9: Same-machine adversary.] Status: \Open. \S\ref{sec:merkle}
 specifies the hardening (spawns in \texttt{bwrap}/\texttt{unshare} sandboxes
 under ephemeral UIDs, plus the kernel-verified peer credential
 \texttt{SO\_PEERCRED} / \texttt{LOCAL\_PEERCRED} read on each connection), and
@@ -3439,7 +3442,7 @@ on a shared host depends on the cooperation of every other \pdterm{tenant}, each
 a customer organization the host serves with its own agents, data and users.
 Its grade is \pdassurance{Observed}. That grade marks the difference between a boundary the
 kernel enforces and one the other tenants are choosing to respect.
-\item[$\bigstar$ OP-10 --- Per-write-path durability.] Status: \Open. Typed durability
+\item[$\bigstar$ OP-10: Per-write-path durability.] Status: \Open. Typed durability
 selection (\S\ref{sec:durability}, \Designed) would route a money-bearing
 transaction through a connection configured with \texttt{synchronous=FULL}
 before it begins and acknowledge only its successful commit. A
@@ -3448,7 +3451,7 @@ per-write selector is deployed, so the default remains I1b-exposed under
 Property~\ref{prop:durability}.
 The harder half is the interface that stops a new write path from defaulting into
 the fast lane silently.
-\item[$\bigstar$ OP-11 --- Cross-subsystem atomicity by default.] Status: \Open{} but cheap:
+\item[$\bigstar$ OP-11: Cross-subsystem atomicity by default.] Status: \Open{} but cheap:
 a defect that can be fixed now. Wrap multi-subsystem operations in one local
 transaction at the interface boundary, eliminating the undefined partial-failure
 semantics of \S\ref{sec:atomicity}.

@@ -444,7 +444,7 @@ ITEMS: list[Item] = [
                 "book/single-writer-kernel.tex",
                 "the master Open Problems list must not claim OP-1 is closed/solved",
                 absent=r"\$\\bigstar\$\s*OP-1[^.\n]*\]\s*Status:\s*\\Closed",
-                present=r"\$\\bigstar\$ OP-1 --- Fair exclusion without a scheduler\.\] Status: \\Open",
+                present=r"\$\\bigstar\$ OP-1: Fair exclusion without a scheduler\.\] Status: \\Open",
             ),
             Check(
                 "book/single-writer-kernel.tex",

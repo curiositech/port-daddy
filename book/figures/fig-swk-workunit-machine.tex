@@ -87,11 +87,11 @@
 \toprule
  & guard & crime once it is removed & steps \\
 \midrule
-1 & admit-effect: current epoch only & the stale write (I1, I5) & 4 \\
-2 & external-op: at most once per key & the double settlement (I2) & 2 \\
-3 & verify: policy $\wedge$ receipt & the hollow ``verified'' (I3) & 4 \\
-4 & delegate: scope $\subseteq$ parent & the escalated delegation (I4) & 1 \\
-5 & settle: owner-funded $\wedge$ verified $\wedge$ receipted & the wrong-principal payout (I6) & 7 \\
+1 & admit-effect: current epoch only & the stale write (W1, W5) & 4 \\
+2 & external-op: at most once per key & the double settlement (W2) & 2 \\
+3 & verify: policy $\wedge$ receipt & the hollow ``verified'' (W3) & 4 \\
+4 & delegate: scope $\subseteq$ parent & the escalated delegation (W4) & 1 \\
+5 & settle: owner-funded $\wedge$ verified $\wedge$ receipted & the wrong-principal payout (W6) & 7 \\
 \bottomrule
 \end{tabularx}}
 \caption{Five guards protect the work-unit lifecycle. In the two-principal

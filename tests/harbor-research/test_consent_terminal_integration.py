@@ -18,7 +18,7 @@ GUARDS = {
 }
 RECORDS = [
     ('book/figures/session-swk-lock-demo.tex', 'lstlisting.1.2', 'd55f61ed0ee474be81c6f253a7dd738027f559aa48c53ad34d4bb6906b6d3b5f'),
-    ('book/figures/session-swk-workunit-check.tex', 'lstlisting.1.4', '9cc95cf084c02d7415e67097e9e2a156720c97e3bed9fd5f139afb123a9509d3'),
+    ('book/figures/session-swk-workunit-check.tex', 'lstlisting.1.4', '3af69deb006a0894c428bb9f76da92570203833d0e9a58ff1c14701abc88e9f3'),
     ('book/figures/session-anchor-v6-attack.tex', 'lstlisting.2.appendix.13', '09ec7ca7dd387a8cea0328342ede788ce4d991218389919c04095b4276a45e23'),
     ('book/figures/session-bc-delta30.tex', 'lstlisting.7.1', 'cc19261fc732c24f9bd80da70b2ce001775a84674dd84d5317180b930ffb5b02'),
     ('book/figures/session-fh-rollback.tex', 'lstlisting.8.1', 'bd837108cbdebb30afc4ff9332b87a6d6023bb6b4be2b8b3d3195831d03a5be2'),

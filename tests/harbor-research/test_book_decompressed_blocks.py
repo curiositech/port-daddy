@@ -109,7 +109,7 @@ def check_grant(text):
                    "no permission to execute them",
                    "Its scope must include the acceptance-preservation rule as well as a path pattern",
                    r"\textsc{stakes-ceiling}\ s_{\max}",
-                   r"\textsc{reversibility-floor}\ v_{\min}",
+                   r"\textsc{min-reversibility}\ v_{\min}",
                    r"\textsc{ttl},\ \textsc{revocable}",
                    "preserving the original checkout acceptance test, for two hours",
                    "neither unrelated changes nor deployment"]:

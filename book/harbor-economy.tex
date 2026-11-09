@@ -4,8 +4,8 @@
 %   Standalone paper : docs/harbor-research/tex/paper6.tex (S(lang), S(succession))
 %   Chapter          : book/harbor-economy.tex (this
 %                       file; the deontic detection theorem and its frontier in
-%                       sec:deontic-decision, the succession price in sec:three-sides)
-%   Index ids        : R15 (succession price), R17
+%                       sec:deontic-decision, the succession threshold in sec:three-sides)
+%   Index ids        : R15 (succession threshold), R17
 %   Check            : python3 scripts/harbor-research/check_library_index.py
 %                      python3 scripts/harbor-research/check_propagated_corrections.py
 %                      python3 scripts/harbor-research/check_citations.py
@@ -252,7 +252,7 @@ skill. These are three promises about one repair, with different payees and
 different ways to fail. This is a constructed example; no deployment ran it.
 
 \begin{pdexample}{One repair, two sources of funds}
-Bob reserves $400$\,\textsc{cr} for Alice's labor, $50$ for Dana's lease,
+Bob reserves $400$ credits (\textsc{cr}) for Alice's labor, $50$ for Dana's lease,
 and at most $10$ for Carol's skill: $460$ in payment funds. Alice separately
 posts $100$ in performance collateral. The contract therefore holds $560$,
 not $460$ and not a $560$ bounty.
@@ -368,7 +368,7 @@ need separate terms.
 \paragraph{When the specialist can fail.} Should Bob rent Alice's specialist
 $a_2$, or send the job to a pool of interchangeable agents?
 \pdchapref{ls}{The Legible Swarm} answered this for a specialist who never
-disappears: the specialist wins when its skill premium (its service rate
+disappears: the specialist wins when its skill advantage (its service rate
 divided by a pool worker's) reaches a threshold $g_A(\rho_{\mathrm{pool}},c)$ that depends on
 how busy the pool is ($\rho_{\mathrm{pool}}$) and how many workers it has ($c$). Real
 specialists are mortal: sessions die, containers are reaped, providers
@@ -409,8 +409,8 @@ $W_{\mathrm{bd}}$ against a $c$-server pool's \mbox{Erlang-C} wait $W_{\mathrm{p
 plus a per-task hire-and-monitor overhead $A/(w\lambda)$; call the sum $K$.
 
 The
-pool wins at \emph{every} skill premium once $\xi/\eta$ reaches the
-succession price, the threshold \[
+pool wins at \emph{every} skill advantage once $\xi/\eta$ reaches the
+succession threshold, the threshold \[
 D^\star=\eta K/(1-\eta K)\quad(\eta K<1):
 \] no amount of skill in $a_2$ makes up for a ratio of failure rate to
 replacement rate above $D^\star$.
@@ -509,7 +509,7 @@ draws the true and naive curves together against the pool's own cost line.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-The specialization boundary and the succession price compare mean costs only,
+The specialization boundary and the succession threshold compare mean costs only,
 no tail percentiles or service-level quantiles, under first-come-first-served
 and exponential everything; $A$ and $w$ are policy weights the theorems
 constrain but do not pick.
@@ -2364,7 +2364,7 @@ The chapter's main results, in the order later chapters use them:
 \item \textbf{One market for three kinds of trade.} The chapter distinguishes three contract types: labor, agent rental, and skill licensing. They share an escrow abstraction; operators, buyers, and insurers are participant roles, not a competing classification of those markets.
 \item \textbf{The succession rule sets a threshold.} When $\eta K<1$, the dimensionless ratio $D^{\ast}=\eta K/(1-\eta K)$
 marks where the specialist's residual-downtime limit $W_\infty$ reaches the pool's cost
-line. At or above it the pool beats every finite skill premium; below it,
+line. At or above it the pool beats every finite skill advantage; below it,
 the full response-time comparison still matters.
 \item \textbf{The ledger and admission gate have different status.} The ledger is built; the running-state gate remains partial. The required admission invariant permits a worker to become \emph{running} only at the committed transition where the wallet is debited and the escrow row exists; a signed plan alone lets no worker run, and abort leaves all three traces unchanged.
 \item \textbf{Conservation is exact; conversion is explicit.} In native units $\Delta W+\Delta E+\Delta C=0$ exactly, while the no-unfunded-start design additionally requires the atomic admission gate; once amounts are converted, fee, slippage and risk become explicit terms and the total is no longer zero by construction.

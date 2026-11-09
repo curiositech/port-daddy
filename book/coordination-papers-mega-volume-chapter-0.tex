@@ -177,7 +177,7 @@ evidence it retains and the failures its storage survives. A \pdterm{state invar
 is a property required before and after each admitted transition, such as
 at most one current holder of a particular lease.
 \end{definition}
-Here \emph{kernel} does not mean the operating-system kernel. In Chapter~1 the
+Here \emph{kernel} does not mean the operating-system kernel. In \pdchaplink{swk}{Chapter~1} the
 kernel is the daemon and its database. Isolating the host and controlling
 actuators outside the database need further mechanisms. A log written after an
 unrestricted file write records that the write happened but cannot refuse it,
@@ -298,7 +298,7 @@ in $\mathcal B_i$. If $\mathcal B_i=W$, the agent does not believe the revision 
 not believe it is~8. If a trusted read narrows $\mathcal B_i$ to $\{w_7\}$, it believes
 revision~7 in this model. An out-of-date read can make that belief false of the current
 repository. This distinction between a modeled belief and an authoritative
-observation returns in Chapters~3 and~4.
+observation returns in Chapters~\pdchaplink{sealed}{3} and~\pdchaplink{ls}{4}.
 
 \subsubsection{Compatibility and commitment}
 An intention should still be checked against what is feasible. Rao and
@@ -554,7 +554,7 @@ Reid G. Smith's (1980) \pdterm{Contract Net Protocol} (CNP)~\pdcite{smith1980cnp
 The winning bid names a contractor. Execution still needs a grant and a
 reservation of the resource; acceptance still needs the specified artifact and
 its evidence. A signed test receipt shows which key signed which run, not that
-the code is correct. Chapter~6 gives these events separate ledger entries.
+the code is correct. \pdchaplink{he}{Chapter~6} gives these events separate ledger entries.
 \pdscope{The dispatch mechanism and the \pdterm[claim (on work)]{claim} mechanism (a claim is a record announcing that a worker intends to work on something) listed in the implementation appendix do not implement bidding or escrow settlement.}
 
 \subsection{Dynamic Epistemic Logic and Big Brother Logic}
@@ -619,7 +619,7 @@ S\ge\frac{(1-p)G}{p}.
 \end{equation}
 Here detection includes both being audited and the audit recognizing the
 violation; the sanction must be enforceable~\pdcite{becker1968}. If the gain
-survives detection, the payoff is instead $G-pS$. Chapters~5--7 use this
+survives detection, the payoff is instead $G-pS$. Chapters~\pdchaplink{stp}{5}--\pdchaplink{bonded}{7} use this
 separation between money reserved, evidence obtained and consequences applied.
 A repeated-game equilibrium needs a monitoring model, continuation strategies
 and discounting in addition to this one-shot calculation.
@@ -758,7 +758,7 @@ just a lock's implementation.
 Ostrom's studies of common-pool resources describe institutions that organize
 shared use through boundaries, locally appropriate rules, monitoring, sanctions
 and dispute resolution~\pdcite{ostrom1990governing}. These studies raise
-design questions; they prove nothing about software. Chapter~7 applies the
+design questions; they prove nothing about software. \pdchaplink{bonded}{Chapter~7} applies the
 principles to its market of bonded providers, whose economic model must
 still justify which actions are observed, which remedies are credible and how
 a decision may be challenged.
@@ -1293,7 +1293,7 @@ shorter routes for readers who already know some of these mechanisms.
 
 \subsection{Admit the current repair}
 Both proposals refer to revision~7. If the first replaces it, the second must
-be checked against the new state before it can act. Chapter~1 builds that
+be checked against the new state before it can act. \pdchaplink{swk}{Chapter~1} builds that
 admission check and its recovery. Its database guarantee covers database
 changes; making a file write and its receipt recover together needs a separate
 protocol for the actuator. Queuing the final writes does not check what they
@@ -1310,7 +1310,7 @@ Bob can permit Alice to read the checkout repository, run tests and make the
 specified repair without permitting deployment or unrelated migrations. When
 Alice hands part of that grant to one of her workers, the worker receives
 nothing wider than Alice holds; this narrowing at each hand-off is
-\pdterm{attenuation}. Chapter~2 defines the chain of signed grants, the checker
+\pdterm{attenuation}. \pdchaplink{anchor}{Chapter~2} defines the chain of signed grants, the checker
 and the conditions for \pdterm{revocation}, withdrawing a capability card
 before it expires so that a verifier that has received the withdrawal refuses
 the card. A signature shows who issued a grant; the
@@ -1325,7 +1325,7 @@ copy of a broader earlier grant is a separate risk.
 
 \subsection{Release an answer without releasing the inputs}
 Suppose diagnosis also needs Derek's confidential checkout records and Erin's
-private model. Bob's repository ownership gives him neither input. Chapter~3
+private model. Bob's repository ownership gives him neither input. \pdchaplink{sealed}{Chapter~3}
 specifies a separate release check for each owner and the observations the
 confinement model covers. A permitted answer need not reveal the records, but
 that holds only for the channels the model includes; an exit code, timing
@@ -1340,7 +1340,7 @@ signal or host path outside the model can break it.
 \subsection{Inspect the evidence that matters}
 Drake deletes the failing test; Wren supplies a genuine fix bundled with an
 unrelated migration; Heron supplies an acceptable contribution. A green status
-can hide these differences. Chapter~4 studies \pdterm{legibility}, the
+can hide these differences. \pdchaplink{ls}{Chapter~4} studies \pdterm{legibility}, the
 operator's ability to tell, in the time she has, what the swarm did and why,
 and to check each statement against its evidence. It asks what Alice must
 inspect and what a \pdterm{digest}, a short summary written for one reader in
@@ -1357,7 +1357,7 @@ artifact is retained and accessible; it cannot reconstruct omitted evidence.
 \subsection{Keep the obligation when the worker exits}
 Heron is initially just a process label. If it restarts, Alice must still know
 which contribution it made, what remains owed and which authority expired.
-Chapter~5 defines the continuing participant and its link to a responsible
+\pdchaplink{stp}{Chapter~5} defines the continuing participant and its link to a responsible
 \pdterm{principal}, the person or organization on whose behalf it acts. A record
 of outcomes can survive without a snapshot of the running process; resuming
 the exact internal execution is a stronger requirement.
@@ -1370,7 +1370,7 @@ the exact internal execution is a stronger requirement.
 
 \subsection{Account for the purchase}
 Once Bob buys the repair, a price does not specify every consequence of
-failure. Chapter~6 writes the contract's payment reserve, collateral, evidence
+failure. \pdchaplink{he}{Chapter~6} writes the contract's payment reserve, collateral, evidence
 and settlement rules separately. Its worked ledger includes labor, a leased
 runtime and a metered skill. Each transfer has a named source and destination;
 a conserved ledger alone does not prove satisfactory work or truthful reports.
@@ -1384,7 +1384,7 @@ a conserved ledger alone does not prove satisfactory work or truthful reports.
 \subsection{Decide a disputed outcome}
 Suppose Heron's heartbeat stops while a contribution is under review. Silence
 raises a recovery question; it does not prove breach or authorize a penalty.
-Chapter~7 separates recovering the work, deciding which evidence counts,
+\pdchaplink{bonded}{Chapter~7} separates recovering the work, deciding which evidence counts,
 judging the dispute and settling payment. Its deterrence results require stated payoffs, detection and
 credible remedies, while its finite checks concern explicitly bounded models.
 
@@ -1396,7 +1396,7 @@ credible remedies, while its finite checks concern explicitly bounded models.
 
 \subsection{Present the repair to another operator}
 A staging machine run by another operator can examine the repair's receipts
-without handing over control of its own resources. Chapter~8 studies a
+without handing over control of its own resources. \pdchaplink{fh}{Chapter~8} studies a
 \pdterm{federation}, a group of harbors with different owners that exchange
 capability cards, revocations and payments while none of them rules the
 others. It requires the receiving machine to authorize any effect on its own
@@ -1515,7 +1515,7 @@ methods without certifying the host mechanisms developed next.
     Alice needs to refuse a repair based on an out-of-date revision and to
     recover the unfinished repair after its workers exit. We now know why the
     proposal, the admitted effect and the retained obligation are different
-    things. Chapter~1 gives each of them concrete state changes and storage
+    things. \pdchaplink{swk}{Chapter~1} gives each of them concrete state changes and storage
     rules, and separates a database commit from a change to a file outside
     the database.}%
 }

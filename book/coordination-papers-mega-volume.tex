@@ -28,6 +28,10 @@
 
 \begin{document}
 \hypersetup{pageanchor=false}
+% The cover, imprint, frontispiece and epigraphs are physical pages i--iv, so
+% their PDF page labels must be roman too; arabic labels 1--4 would collide
+% with Chapter 0's folios.
+\renewcommand{\thepage}{\roman{page}}
 \begin{titlepage}
 \pagecolor{hhpaper}\color{hhink}
 \ifpdswiss
@@ -231,7 +235,7 @@ daemon and its database are this book's implementation of the kernel.
 On a first reading, follow the chapter sequence and the running example, a
 constructed checkout repair that Chapter~0 introduces and later chapters
 revisit. Each chapter adds a contract that the next chapter needs. For a selective
-reading, find your row in the route table on these two pages, then read each claim's assumptions and evidence label. If the notation is unfamiliar, start with the worked
+reading, find your row in the route table on these two pages, then read each claim's assumptions and evidence label; page~\pageref{book:reading-key} explains every grade and label. If the notation is unfamiliar, start with the worked
 example and return to the formal statement. After a break, restart from the
 chapter question and the last example.
 Worked numbers name their evidence. \textsf{[verified]} refers to the stated
@@ -246,6 +250,63 @@ exercise and solution links to the other.\par
 Cross-references are live: chapter titles, numbered results, figures, tables,
 and contents entries lead to their destinations. Full source entries appear
 in the margin at first use; later short citations link back to those entries.\par}
+
+% How to read the margin: one page collecting the keys the chapters already
+% define (the Chapter 6 maturity key, the preface's evidence tags, the
+% verification-table markers and Appendix A's assurance modes). Added after the
+% 2026-11-09 UX and appeal reviews, which both ranked a single key first.
+\clearpage
+\phantomsection\label{book:reading-key}%
+\pdfbookmark[0]{How to Read the Margin}{book.readingkey}%
+{\pddisplayface\Huge\bfseries How to Read the Margin\par}
+\vspace{12pt}
+\noindent Every consequential claim in this book carries a grade, every worked
+number names its evidence, and every mechanism says what an attacker would have
+to defeat. This page collects those keys. Each one is defined again where a
+chapter first uses it.
+
+\medskip\noindent{\pdtextface\bfseries Implementation grades.} A grade sits in
+the margin beside the claim it grades, or in a table cell, with a short note on
+what it covers. It grades the claim, not the chapter.\par\smallskip
+{\renewcommand{\arraystretch}{1.25}%
+\begin{tabularx}{\linewidth}{@{}p{2.6cm}X@{}}
+\Built & shipped and exercised by tests in the reference implementation\\
+\BuiltWeak & shipped, but materially weaker than its name suggests\\
+\Designed & specified, with a proof or a written protocol, but not yet shipped\\
+\Vision & a stated direction whose critical part has no specification yet\\
+\NotGuar & the reference implementation does not provide the property in the
+stated configuration\\
+\end{tabularx}}
+
+\medskip\noindent{\pdtextface\bfseries Evidence on worked numbers.}\par\smallskip
+{\renewcommand{\arraystretch}{1.25}%
+\begin{tabularx}{\linewidth}{@{}p{2.6cm}X@{}}
+\textsf{[verified]} & the stated check or reproducible calculation\\
+\textsf{[verified arithmetic]} & the calculation only\\
+\textsf{[internal]} & a chapter derivation or a project-reported run\\
+\end{tabularx}}\par\smallskip
+\noindent None of these tags alone establishes deployed behavior.
+
+\medskip\noindent{\pdtextface\bfseries Markers in verification tables.}\par\smallskip
+{\renewcommand{\arraystretch}{1.25}%
+\begin{tabularx}{\linewidth}{@{}p{2.6cm}X@{}}
+\Closed & the model is verified and its runtime conformance test passes\\
+\Partial & the design is verified; the runtime is tested empirically, not proved\\
+\Open & known, and not yet mechanized\\
+\end{tabularx}}
+
+\medskip\noindent{\pdtextface\bfseries What an attacker must defeat.} Chapter~1
+grades each mechanism by what an attacker would have to defeat to make a claim
+about it false. There are five such modes, and they do not form a single order.
+Appendix~\ref{app:volume-status} lists them, with what runs today for each mechanism.
+
+\medskip\noindent{\pdtextface\bfseries Other marks.}
+A word set in bold is being defined; the glossary lists every definition with
+its page. \textbf{Scope.} says what the claim beside it does not show.
+\emph{Where this stops} marks the limit of a section's result. A margin analogy
+gives an everyday picture of a mechanism beside the plain statement, which
+carries the argument. A source's full entry appears in the margin at first use;
+later short citations link back to it.
 
 \cleartoleftpage
 \input{figures/fig-book-reader-map}
