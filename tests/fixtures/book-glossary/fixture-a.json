@@ -1,0 +1,17 @@
+[
+  {
+    "term": "single-writer kernel",
+    "sort": "single-writer kernel",
+    "definition": "The coordinating service that owns the one write path to the shared record, so every change it admits is ordered and checked in one place."
+  },
+  {
+    "term": "work unit",
+    "sort": "work unit",
+    "definition": "The durable case file for one task: who authorized it, what it was allowed to touch, what it produced and what it still owes."
+  },
+  {
+    "term": "vector clock",
+    "sort": "vector clock",
+    "definition": "A list of per-writer counters that records which updates a copy has seen, so two copies can tell whether one change happened before another."
+  }
+]

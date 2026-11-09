@@ -25,8 +25,8 @@ bash book/BUILDING.sh
 
 The resulting PDF is
 `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf`.
-Generated chapter assembly, the index, logs, solution streams and input
-recorder files are in `.cache/whitepaper-build/coordination-papers-mega-volume/`.
+Generated chapter assembly, the glossary, the index, logs, solution streams and
+input recorder files are in `.cache/whitepaper-build/coordination-papers-mega-volume/`.
 
 The launcher verifies every distributed source against `SOURCE-MANIFEST.json`
 before building. To edit your own copy, first verify the received files with

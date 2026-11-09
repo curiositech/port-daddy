@@ -25,7 +25,8 @@ EPOCH = 1700000000
 TEXLIVE = "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
 RECEIPT = Path("website-v2/public/whitepaper/coordination-papers-mega-volume-source.json")
 HELPERS = ("LICENSE", "scripts/build-whitepapers.sh", "scripts/generate-mega-whitepaper.mjs",
-           "scripts/prepare-book-fonts.py", "scripts/build-book-source.py")
+           "scripts/generate-book-glossary.mjs", "scripts/prepare-book-fonts.py",
+           "scripts/build-book-source.py")
 REQUIRED = ("book/BUILDING.md", "book/BUILDING.sh", "book/textbook.json", "book/corpus.json",
             "book/coordination-papers-mega-volume.tex", "book/fonts/manifest.json")
 EXTENSIONS = {".tex", ".json", ".md", ".jpg", ".jpeg", ".png", ".pdf", ".svg",
