@@ -614,7 +614,7 @@ No finite worst-case freshness bound holds under an unbounded partition.
 \section{How we know it is correct}\label{sec:correct}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Following the practice of AWS (s2n-tls~\pdcite{aws2022s2n}) and Microsoft (Project Everest~\pdcite{bhargavan2017everest}), we verify the \textit{protocol design} separately from the \textit{implementation}. There are three layers (Table~\ref{tab:anchor-verification-stack}). At the top, ProVerif analyses the protocol's messages \emph{symbolically}, treating the cryptography as perfect. In the middle, \pdterm{Kani}, a verification tool for Rust, checks the source by \pdterm{bounded model checking}: instead of running a function on a few test inputs, it considers every input within stated limits and reports any input that breaks an assertion. At the bottom, conformance tests run known attacks against the deployed binary. Each layer proves part of a claim and hands the rest down as a requirement on the layer below; each layer's evidence comes back up. The whole is sound only if the model matches the source and the source matches the running binary.
+Some projects that verify production cryptography check the implementation code itself. AWS reruns proofs about parts of the C code of s2n-tls~\pdcite{aws2022s2n} on every change~\pdcite{chudnov2018continuous}. Project Everest writes and proves its TLS components in one language, F*, and compiles them to C and assembly, so its proofs are about the code it ships, not about a separate model~\pdcite{bhargavan2017everest}. This chapter does less. It verifies the \textit{protocol design} separately from the \textit{implementation}, and a person, not a tool, asserts that the two match. There are three layers (Table~\ref{tab:anchor-verification-stack}). At the top, ProVerif analyses the protocol's messages \emph{symbolically}, treating the cryptography as perfect. In the middle, \pdterm{Kani}, a verification tool for Rust, checks the source by \pdterm{bounded model checking}: instead of running a function on a few test inputs, it considers every input within stated limits and reports any input that breaks an assertion. At the bottom, conformance tests run known attacks against the deployed binary. Each layer proves part of a claim and hands the rest down as a requirement on the layer below; each layer's evidence comes back up. The whole is sound only if the model matches the source and the source matches the running binary.
 
 \begin{pdexample}{One Obligation through Three Layers}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1439,7 +1439,14 @@ AWS Automated Reasoning Group.
 \bibitem{bhargavan2017everest}
 Karthikeyan Bhargavan, Barry Bond, Antoine Delignat-Lavaud, Cédric Fournet, Chris Hawblitzel, et al.
 \newblock Everest: Towards a Verified, Drop-in Replacement of HTTPS.
-\newblock In \textit{Logic in Computer Science (LICS)}, 2017.
+\newblock In \textit{2nd Summit on Advances in Programming Languages (SNAPL 2017)}, LIPIcs 71, pages 1:1--1:12, 2017.
+\newblock \url{https://doi.org/10.4230/LIPIcs.SNAPL.2017.1}
+
+\bibitem{chudnov2018continuous}
+Andrey Chudnov, Nathan Collins, Byron Cook, Joey Dodds, Brian Huffman, Colm MacC\'arthaigh, Stephen Magill, Eric Mertens, Eric Mullen, Serdar Tasiran, Aaron Tomb, and Eddy Westbrook.
+\newblock Continuous Formal Verification of Amazon s2n.
+\newblock In \textit{Computer Aided Verification (CAV 2018)}, LNCS 10982, pages 430--446, 2018.
+\newblock \url{https://doi.org/10.1007/978-3-319-96142-2_26}
 
 \bibitem{brumley2011remote}
 Billy Bob Brumley and Nicola Tuveri.
