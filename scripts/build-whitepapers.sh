@@ -145,7 +145,8 @@ paper_sources() {
       # so a deleted or newly added input still invalidates selection and epoch.
       printf '%s\n' "$srcdir" "scripts/build-whitepapers.sh" \
         "scripts/generate-mega-whitepaper.mjs" "scripts/generate-book-glossary.mjs" \
-        "scripts/lint/check-welds.mjs" "scripts/prepare-book-fonts.py"
+        "scripts/lint/check-welds.mjs" "scripts/prepare-book-fonts.py" \
+        "scripts/harbor-research/render_status_tables.py"
       find "$srcdir" -type f ! -name '*.aux' ! -name '*.log' ! -name '*.out' \
         ! -name '*.toc' ! -name '*.fls' ! -name '*.fdb_latexmk' ! -name '*.synctex.gz' | sort
       return
@@ -253,6 +254,9 @@ build_one() {
   local base="${roottex%.tex}"
   local outdir="$BUILD_DIR/$base"
   mkdir -p "$outdir"
+  # Computed before generation: the generator prints this date in the Book's
+  # build identifier (figures/pd-buildid.tex), and TeX pins its own clock to it.
+  local epoch; epoch="$(paper_epoch "$srcdir" "$roottex")"
 
   case "$roottex" in
     coordination-papers-mega-volume.tex|coordination-papers-mega-volume-maritime.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
@@ -274,7 +278,15 @@ build_one() {
           echo "::error::Node.js is required to generate the collected-volume body and bibliography" >&2
           return 1
         }
-        node scripts/generate-mega-whitepaper.mjs "$shared_outdir" || return 1
+        SOURCE_DATE_EPOCH="$epoch" node scripts/generate-mega-whitepaper.mjs "$shared_outdir" || return 1
+        # One status table per chapter, from book/corpus.json, for a chapter to
+        # \pdgeneratedinput as mega-volume-status-<prefix>.tex in place of a
+        # hand-written one (scripts/harbor-research/render_status_tables.py).
+        command -v python3 >/dev/null 2>&1 || {
+          echo "::error::Python 3 is required to render the Book's status tables" >&2
+          return 1
+        }
+        python3 scripts/harbor-research/render_status_tables.py --all --out-dir "$shared_outdir" || return 1
       fi
       # Reference licensed fonts in place; never copy them into public/.
       if command -v python3 >/dev/null 2>&1; then
@@ -283,7 +295,6 @@ build_one() {
       ;;
   esac
 
-  local epoch; epoch="$(paper_epoch "$srcdir" "$roottex")"
   echo "::group::build $roottex  (SOURCE_DATE_EPOCH=$epoch)"
   (
     cd "$srcdir"

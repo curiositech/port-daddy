@@ -76,3 +76,70 @@ PDF; the full site provides the accepted PDF separately.
 The build itself does not execute the research program's simulations or proof
 checkers. The included corpus registry documents their provenance; a successful
 Book compile verifies typesetting, not those mathematical or empirical results.
+
+## Build identifier
+
+`\pdbuildid` prints which build a PDF is: the short commit, the font profile
+and the date, for example `dfce4990d · open-proof · 9 November 2026`. It is
+defined in `book/figures/pd-buildid.tex` from three parts:
+
+- `\pdbuildcommit`: HEAD of the repository, with `+modified` when a Book
+  input has uncommitted changes. An extracted source archive has no Git and
+  prints `source` and the first twelve digits of its `SOURCE-MANIFEST.json`
+  digest instead. Setting `PD_BOOK_COMMIT` overrides both.
+- `\pdbuilddate`: the UTC date of `SOURCE_DATE_EPOCH`, which
+  `scripts/build-whitepapers.sh` computes per build from the Book's sources and
+  this archive fixes at 1700000000.
+- `\pdbuildfontprofile`: `open-proof` or `suisse`, as
+  `scripts/prepare-book-fonts.py` selected.
+
+The generator writes the first two into
+`.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-build-id.tex`.
+A commit identifier changes when a branch is rebased even if no input did, so
+compare consumed input hashes, not the printed commit, when deciding whether
+an accepted PDF still matches its sources.
+
+## Cross-chapter pointers
+
+`\weld{label}{keyword}` (`book/figures/pd-weld.tex`) points from one chapter to
+a numbered section of another. It prints `§N, p. P` when the target is three or
+more pages away and `§N` when it is nearer; a pointer that printed its page on
+the previous pass keeps it down to two pages, so the build converges. In a
+chapter an unprefixed label is the chapter's own and `<prefix>:<label>` is
+another chapter's, as for `\ref`; Chapter 0's sections are `prereq:<label>`.
+The volume appendices cannot be reached from a chapter.
+
+The keyword prints nothing. `scripts/lint/check-welds.mjs` checks that every
+weld's label names a numbered section of the assembled Book and that the
+section's text contains the keyword. The generator runs the same check, so a
+broken weld fails the build before TeX starts, and writes the chapter-by-chapter
+dependency matrix the welds define to `mega-volume-welds.json`. In the
+repository, `node scripts/lint/check-welds.mjs --matrix PATH` writes it on its
+own.
+
+## Status tables from the manifest
+
+During the build, `scripts/harbor-research/render_status_tables.py` writes one
+table per chapter, `mega-volume-status-<prefix>.tex`, into the generated-input
+directory. Each lists every artifact in `book/corpus.json` that the chapter
+names, with the manifest's status in the Book's markers (`\Closed`,
+`\SpecOnly`, `\Partial`, `\Open`). A chapter includes one with
+`\pdgeneratedinput{../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-status-<prefix>.tex}{status table}`.
+To render one table on its own:
+`python3 scripts/harbor-research/render_status_tables.py --chapter bonded`.
+
+In the repository, `scripts/harbor-research/check_status_consistency.py`
+reports every artifact a chapter names whose printed status word disagrees
+with the manifest. It is report-only (exit 0) until the hand-written tables
+are replaced; `--strict` makes a disagreement fail.
+
+## The corrections ledger
+
+`book/corrections.yaml` holds one row per correction that changes printed
+text: `id`, `item`, `file`, `before`, `after` and `source`. In the repository,
+`scripts/harbor-research/check_corrections.py BOOK.pdf` reads the built PDF
+and fails when a row's `before` still prints or its `after` does not, naming
+the row and the page. Either side may be `null` (a pure addition or removal),
+but not both. With `--baseline-pdf` and a Book built from the base branch, it
+also lists as "vacuous" every `before` that the old Book never printed either.
+`scripts/harbor-research/run_pdf_checks.py` runs it on every PDF it checks.

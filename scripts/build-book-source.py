@@ -28,6 +28,7 @@ TEXLIVE = "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa
 RECEIPT = Path("website-v2/public/whitepaper/coordination-papers-mega-volume-source.json")
 HELPERS = ("LICENSE", "scripts/build-whitepapers.sh", "scripts/generate-mega-whitepaper.mjs",
            "scripts/generate-book-glossary.mjs", "scripts/lint/check-welds.mjs",
+           "scripts/harbor-research/render_status_tables.py",
            "scripts/prepare-book-fonts.py", "scripts/build-book-source.py")
 REQUIRED = ("book/BUILDING.md", "book/BUILDING.sh", "book/textbook.json", "book/corpus.json",
             "book/coordination-papers-mega-volume.tex", "book/fonts/manifest.json")
