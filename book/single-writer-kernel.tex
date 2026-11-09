@@ -1482,11 +1482,19 @@ push from observing an internal model event after it has happened. Neither
 theorem says every safe protocol must decide inside a local database
 transaction; the external permit described after
 Theorem~\ref{thm:decidability} can also stop an effect before it happens.
+
+The bridge from norms to supervisory control is not new here.
 Dastani, Sardina and Yazdanpanah~\pdcite{dastani2017normenforcement} model three
 norm-enforcement mechanisms of normative multi-agent systems as supervisory
 control of discrete-event systems, which gives those mechanisms a
 formal-language semantics and lets enforcers be synthesized automatically for
-some classes of systems and properties.
+some classes of systems and properties. What this section adds is the
+application to an agent runtime, whose controllable events are the effects that
+cross the daemon's boundary and whose uncontrollable ones complete inside the
+model, worked through in Table~\ref{tab:policy-classification} and the hand
+synthesis below. It also uses Lin and Wonham's partial-observation condition
+(Theorem~\ref{thm:observability-regimentation}) to show that a compound rule
+needs its trigger witnessed at that boundary.
 
 
 
