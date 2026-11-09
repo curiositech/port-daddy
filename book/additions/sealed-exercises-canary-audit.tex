@@ -1,0 +1,19 @@
+\pdexercisesfor{\S\ref{sec:sealed-canary-audit}}{Canaries that audit a declaration}
+
+\begin{pdexercise}[kind=Check,rating=2]{ex:sealed-canary-refute}
+A pipeline declares pure $\varepsilon=1$ ($\delta=0$). An auditor plants
+canaries as in Theorem~\ref{thm:sealed-canary-falsify}, makes 200 guesses, and
+gets 160 right. Is the declaration refuted at the 5\% level? What if 155 are
+right? What does a failure to refute establish?
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-canary-refute}
+Each guess is right with probability at most $e/(1+e)=0.7311$. The binomial
+$\mathrm{Bin}(200,0.7311)$ has mean $146.21$ and standard deviation
+$\sqrt{200\times0.7311\times0.2689}=6.271$. For 160 right, the continuity-corrected
+normal approximation gives $z=(159.5-146.21)/6.271=2.12$ and a tail of about
+$0.017$; the exact binomial tail is $0.015$. Both are below $0.05$, so the
+declaration is refuted. For 155 right, $z=(154.5-146.21)/6.271=1.32$, a tail
+of about $0.093$ (exact $0.091$), so it is not refuted. A failure to refute is
+a lower bound that did not reach the declaration; it does not certify that the
+pipeline is $1$-private.
+\end{pdsolution}

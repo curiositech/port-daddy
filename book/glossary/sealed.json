@@ -1,0 +1,112 @@
+[
+ {
+  "term": "owner label",
+  "sort": "owner label",
+  "definition": "The set of owners whose permission is still needed before a value, record or log line may leave or be shown to anyone new."
+ },
+ {
+  "term": "canary",
+  "sort": "canary",
+  "definition": "A decoy record planted in secret data that no legitimate output contains, so that finding it in an output is evidence of a leak."
+ },
+ {
+  "term": "work order",
+  "sort": "work order",
+  "definition": "The contract both owners sign before a sealed job starts, fixing by digest what the job may read, run and release, to whom, and within what limits."
+ },
+ {
+  "term": "declassification",
+  "sort": "declassification",
+  "definition": "An owner's authorized removal of their label from a value, the only way a value computed from a secret may leave the room."
+ },
+ {
+  "term": "differential privacy",
+  "sort": "differential privacy",
+  "definition": "A property of a randomized release: adding or removing any one record changes the probability of any set of outputs by at most a factor e^epsilon, plus a small additive slack delta."
+ },
+ {
+  "term": "data subject",
+  "sort": "data subject",
+  "definition": "A human that data is about: the user who typed a record, or anyone the record names."
+ },
+ {
+  "term": "epsilon",
+  "sort": "epsilon",
+  "definition": "The privacy-loss parameter of differential privacy; the factor e^epsilon bounds how much one data subject's record can change the odds of any output, so smaller is more private."
+ },
+ {
+  "term": "self-composition",
+  "sort": "self-composition",
+  "definition": "Checking a property about pairs of runs by combining two copies of a system into one and stating an ordinary invariant about the pair."
+ },
+ {
+  "term": "laundering attack",
+  "sort": "laundering attack",
+  "definition": "Passing a secret-derived value through an honest release so that the release carries a different piece of the secret than the contract intended."
+ },
+ {
+  "term": "privacy odometer",
+  "sort": "privacy odometer",
+  "definition": "A privacy accountant that bounds the privacy loss accumulated so far without a ceiling fixed in advance."
+ },
+ {
+  "term": "privacy filter",
+  "sort": "privacy filter",
+  "definition": "A privacy accountant that stops releases before a budget fixed in advance would be exceeded."
+ },
+ {
+  "term": "basic composition",
+  "sort": "basic composition",
+  "definition": "The rule that the privacy losses of successive differentially private releases add."
+ },
+ {
+  "term": "advanced composition",
+  "sort": "advanced composition",
+  "definition": "A bound on the total privacy loss of k releases that can be smaller than their sum, at the cost of a positive slack delta."
+ },
+ {
+  "term": "subject-keyed ledger",
+  "sort": "subject-keyed ledger",
+  "definition": "A privacy ledger that keeps one meter per data subject and charges each meter for every training round that could read that subject's records."
+ },
+ {
+  "term": "tenant",
+  "sort": "tenant",
+  "definition": "One customer organization served by a shared harbor, such as a company, a clinic or a household, with its own agents, data and users."
+ },
+ {
+  "term": "subject-level neighbors",
+  "sort": "subject-level neighbors",
+  "definition": "Two logs that differ only in that one of them lacks every record of a single data subject."
+ },
+ {
+  "term": "Rényi differential privacy",
+  "sort": "Renyi differential privacy",
+  "definition": "A variant of differential privacy that bounds the Rényi divergence of a given order between a mechanism's outputs on any two neighboring inputs."
+ },
+ {
+  "term": "zero-concentrated privacy",
+  "sort": "zero-concentrated privacy",
+  "definition": "A variant of differential privacy with one parameter rho that implies Rényi differential privacy of every order alpha with loss alpha times rho, so costs simply add."
+ },
+ {
+  "term": "adapter",
+  "sort": "adapter",
+  "definition": "A small set of fine-tuned weights added to a shared model, for example one per tenant."
+ },
+ {
+  "term": "membership inference",
+  "sort": "membership inference",
+  "definition": "An attack that decides whether a given record was in a model's training data."
+ },
+ {
+  "term": "integrity class",
+  "sort": "integrity class",
+  "definition": "A tag on each log line saying who wrote it (the operator, the owner, or a third party), which decides whether other agents may read it as instructions."
+ },
+ {
+  "term": "contextual integrity",
+  "sort": "contextual integrity",
+  "definition": "Nissenbaum's account of privacy: information flows carry norms of appropriateness and distribution tied to their context, and privacy is violated when either is breached."
+ }
+]

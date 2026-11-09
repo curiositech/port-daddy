@@ -1,39 +1,38 @@
 % ---------------------------------------------------------------------------
 % Research-agenda addition (tenants). Inserted by the lead immediately before
 % the Limitations and boundaries section. Bibliography and exercises live in
-% sealed-bib-tenants.tex and sealed-exercises-tenants.tex.
+% sealed-bib-tenants.tex and the three sealed-exercises-*.tex files.
 % ---------------------------------------------------------------------------
 \section{Many tenants, one harbor}\label{sec:sealed-tenants}
 
-\noindent\emph{Express lane: Retrieval hands back stored records word for word,
-so it has no finite $\varepsilon$, and only labels can decide what a shared store
-may hold. Training can release data in a measured way, through the
-person-keyed ledger of Section~\ref{sec:sealed-person-ledger}. Scrubbing changes no
-label, and a scrubber that removes text by fixed rules has no finite
-$\varepsilon$ either, unless its output never depends on whose records are
-present (Theorem~\ref{thm:sealed-no-scrubber}).}
+\noindent\emph{Express lane: what may a harbor shared by many tenants do with
+their logs? A shared store hands records back word for word, so only owner
+labels can decide what it may hold; training can release data in measured
+amounts through the subject-keyed ledger; and scrubbing names out of a line
+removes none of its owners. Storing only embeddings does not anonymize
+either; one attack recovered 92\% of 32-token inputs exactly from them.}
 
 \paragraph{The scene, widened.}
 The room so far has two owners; a harbor that sells agents serves many. A
-\textbf{tenant} is a customer account: a company, a clinic, a household. A
-\textbf{person} is anyone whose data a record carries: the user who typed it,
-and anyone the text names. Every log line is a candidate input to something
-that outlives the job: a memory store, a retrieval index, an \textbf{adapter}
-(a small set of fine-tuned weights) for one tenant, a model trained on
-everyone, a cache. The privacy unit is the
-person, not the tenant and not the line. McMahan et al.\ define user-level
+tenant is a customer account: a company, a clinic, a household. A
+data subject is anyone whose data a record carries: the user who typed it,
+and anyone the text names. Every log line is a candidate
+input to something that outlives the job: a memory store, a retrieval index,
+an adapter for one tenant, a
+model trained on everyone, a cache. The privacy unit is the
+data subject, not the tenant and not the line. McMahan et al.\ define user-level
 neighbors this way: two datasets are neighbors when one adds or removes all
 the examples of a single user \pdcite{mcmahan2017userdp}.
 
 \paragraph{Retrieval is an exact release.}
 A memory store or retrieval index returns stored records, verbatim or nearly
 so, to whoever's query ranks them highest. Take a log $D$ that contains one of
-person $u$'s records and its neighbor $D'$ without it. A retrieval that
+data subject $u$'s records and its neighbor $D'$ without it. A retrieval that
 returns that record under $D$ defines an event of probability one under $D$
 and zero under $D'$. Section~\ref{sec:sealed-conservation} has already drawn
 the conclusion: reporting the bit exactly fails every finite epsilon bound.
-The ledger cannot meter a shared store at all; its admission rule must be a
-label rule, decided before the record is written.
+The ledger cannot meter a shared store at all; its rule for what may enter
+must be a label rule, decided before the record is written.
 
 Storing only embeddings does not anonymize: an iterative inversion recovered
 92\% of 32-token inputs exactly from their embeddings, and 89\% of full names
@@ -46,7 +45,7 @@ channel for an exact one.
 \paragraph{Training is a release to every future reader.}
 A model trained on logs is read by everyone it serves, so training is a shared
 destination unless the adapter serves one owner. Fine-tuning data is small and
-recently seen, which is where \textbf{membership inference}, deciding whether
+recently seen, which is where \pdterm{membership inference}, deciding whether
 a given record was trained on, works. Attacks that barely beat chance on
 pretraining data, with an area under the ROC curve (AUC, where 0.5 is chance)
 below 0.6 in most domains \pdcite{duan2024mia}, reach 0.96 against a
@@ -83,15 +82,16 @@ Deletion: influence left in weights & unlearning is well defined only at the alg
 \end{tabularx}
 \end{table}
 
-\paragraph{The flow rule (\Designed{}).}
-Every log line $\ell$ carries an \textbf{owner label} $L(\ell)$, the set of
-persons and tenants whose permission a release needs, and an \textbf{integrity
-class} $I(\ell)\in\{\text{operator},\text{owner-authored},\text{third-party}\}$.
-Design invariant~\ref{hyp:sealed-taint} fixes the owner label conservatively:
+\paragraph{The flow rule.}
+\pdstatus{\Designed}{}
+Every log line $\ell$ carries an owner label $L(\ell)$, the set of data subjects
+and tenants whose permission a release needs, and an \pdterm{integrity class}
+$I(\ell)\in\{\text{operator},\text{owner-authored},\text{third-party}\}$
+that records who wrote it. Under Design invariant~\ref{hyp:sealed-taint},
 every line the worker writes after reading $u$'s data carries $u$, whether or
 not a detector finds anything of $u$'s in it. A destination $d$ has readers
-$R(d)$ and a use: \emph{directive} if it is read as demonstrations or
-instructions, data otherwise. The rule has three parts.
+$R(d)$ and a use, \emph{directive} if it is read as demonstrations or
+instructions and data otherwise. The rule has three parts.
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \emph{Confidentiality.} $\ell$ may enter $d$ only if every owner in
@@ -99,9 +99,9 @@ instructions, data otherwise. The rule has three parts.
   declassified $\ell$ for $d$. A line with several owners takes the most
   restrictive authorization, as in the lattice join of
   Section~\ref{sec:sealed-design}.
-\item \emph{Training.} A training destination may instead admit $\ell$ through
+\item \emph{Training.} A training destination may instead accept $\ell$ through
   a private mechanism whose cost is charged to every owner in $L(\ell)$ on the
-  person-keyed ledger.
+  subject-keyed ledger.
 \item \emph{Integrity.} If any principal other than $\ell$'s author reads $d$
   with directive use, $I(\ell)$ must be operator.
 \end{enumerate}
@@ -119,7 +119,7 @@ content.
 \caption{Where a log line may go, by data class, under the flow rule.
 \emph{yes}: allowed; \emph{release}: only with the owner's declassification
 for that destination, such as a consent or a data-use declaration;
-\emph{ledger}: only through a private mechanism charged on the person-keyed
+\emph{ledger}: only through a private mechanism charged on the subject-keyed
 ledger; \emph{handle}: an opaque reference, never the value; \emph{no}:
 forbidden. The cache column names the key scope. A ledger-charged synthetic
 derivative enters as the first row. A proposed policy, not a measured one.}
@@ -129,22 +129,25 @@ derivative enters as the first row. A proposed policy, not a measured one.}
 Data class & Tenant memory & Shared memory & Tenant adapter & Shared training & Cache \\
 \midrule
 Public (empty label) & yes & yes & yes & yes & shared \\
-Tenant-confidential, no person & yes & release & yes & ledger, tenant as unit & tenant key \\
-The requesting person's data & release, person scope & no & release if one person, else ledger & ledger & person key \\
-Third parties named in content & the discloser's & no & no & no & person key \\
-Special category: health, finance & release, time-limited & no & no & no & person key \\
+Tenant-confidential, no subject & yes & release & yes & ledger, tenant as unit & tenant key \\
+The requester's own data & release, subject scope & no & release if one subject, else ledger & ledger & subject key \\
+Third parties named in content & the discloser's & no & no & no & subject key \\
+Special category: health, finance & release, time-limited & no & no & no & subject key \\
 Secrets and credentials & handle & no & no & no & no \\
 Untrusted third-party content & data use only & no & no & no & tenant key \\
-Model inferences about a person & release, visible to that person & no & no & no & person key \\
+Model inferences about a subject & release, visible to that subject & no & no & no & subject key \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The integrity part is new to this chapter, whose labels so far protect
-confidentiality only. It answers the write side of a shared store: the
-injection rows of Table~\ref{tab:sealed-tenant-channels} need no special access, and an
-instruction a model stored in long-term memory compromised later sessions
-again \pdcite{greshake2023indirect}.
+The third part of the rule is new. The chapter's labels so far protect only
+confidentiality, who may read a value; integrity asks whose text a model may
+treat as instructions. A shared store can be attacked by writing to it.
+Table~\ref{tab:sealed-tenant-channels} cites a memory-injection attack that
+succeeded 98.2\% of the time from ordinary queries alone, and an instruction a model saved to its long-term memory went on to
+compromise later sessions \pdcite{greshake2023indirect}. So only
+operator-written lines may be read as instructions by anyone other than their
+author.
 
 Third parties named in content are kept out of training. A private fact is
 often shared within a group that has no bounded size
@@ -154,15 +157,13 @@ name.
 \begin{pdclaim}{Design invariant}{Label-Keyed Caches and Stores}
 \setlength{\parskip}{4pt plus 1pt}
 \label{inv:sealed-label-keyed}
+\pdstatus{\Vision}{no reference-system component implements it}
 Every stored or cached artifact computed from a log line inherits that line's
 owner label: memory records, index chunks, embeddings, prefix and key-value
 cache entries, and cached responses. A lookup may hit an entry only if the
 entry's label authorizes the requesting principal. Whether a lookup hits is
 itself an output, as a request to an outside tool is
 (Section~\ref{sec:sealed-design}).
-
-This is a \Vision{} obligation of a multi-tenant harbor; no reference-system
-component implements it.
 \end{pdclaim}
 
 The cache clause is not hypothetical. A statistical timing audit found prompt
@@ -175,12 +176,11 @@ that difficulty.
 \begin{pdclaim}{Design invariant}{Scrubbing Is Not Declassification}
 \setlength{\parskip}{4pt plus 1pt}
 \label{inv:sealed-scrub-not-declass}
+\pdstatus{\Vision}{no reference-system component implements it}
 Removing or masking the personal information that a detector finds in a line
 removes no owner from $L(\ell)$. A scrubbed line keeps its data class and its
 row of Table~\ref{tab:sealed-tenant-policy}. Scrubbing is defense in depth,
 not a release.
-
-This is a \Vision{} obligation; no reference-system component implements it.
 \end{pdclaim}
 
 The evidence agrees. In a study of fine-tuned GPT-2 models, scrubbing drove
@@ -193,8 +193,8 @@ structural reason is the next result.
 \begin{pdclaim}{Theorem}{No Scrubber Guarantee Without a Mechanism}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sealed-no-scrubber}
-Fix the person-level neighboring relation: logs $D$ and $D'$ are neighbors
-when $D'$ removes every record of one person from $D$. Let $S$ be a
+Fix the subject-level neighboring relation: logs $D$ and $D'$ are neighbors
+when $D'$ removes every record of one data subject from $D$. Let $S$ be a
 deterministic map from logs to logs. If some neighbors $D,D'$ have
 $S(D)\ne S(D')$, then $S$ is not $\varepsilon$-private for any finite
 $\varepsilon$.
@@ -222,8 +222,7 @@ with it \pdcite{yue2022synthetic}.
 \paragraph{Appropriateness is a separate question.}
 Labels and $\varepsilon$ say who may read and how much may leak. The
 \emph{release} cells of Table~\ref{tab:sealed-tenant-policy} also need a norm
-of appropriateness. Nissenbaum's \textbf{contextual
-integrity} supplies one: information flows carry context-relative norms of
+of appropriateness. Nissenbaum's \pdterm{contextual integrity} supplies one: information flows carry context-relative norms of
 two kinds, of appropriateness and of distribution, and contextual integrity
 is violated when either is breached \pdcite{nissenbaum2004ci}. A patient's
 symptom told to a clinic's intake agent may enter that patient's own memory
@@ -233,6 +232,28 @@ meeting-summary tasks built on such norms, GPT-4 revealed the secret in 39\%
 of cases although instructed to preserve privacy, and chain-of-thought
 prompting did not reduce the leakage \pdcite{mireshghallah2023confaide}. The
 gate enforces the norm; the model only proposes.
+
+\begin{pdexample}{One Log Line, Five Destinations}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. A clinic's intake agent logs the line
+``Patient reports chest pain since Tuesday; his sister has the same
+condition.'' Its owner label is
+$\{\text{clinic},\text{patient},\text{sister}\}$. The line is
+special-category health data and it names a third party, so two rows of
+Table~\ref{tab:sealed-tenant-policy} apply, and at each destination the
+stricter cell decides.
+
+Tenant memory: only with a release, in the patient's own scope and for a
+limited time; under the \emph{discloser's} cell, the patient's release covers
+his sister's mention only inside his own scope. Shared memory: no. The clinic's adapter: no. Shared training:
+no. Cache: only under a key for the patient.
+
+Billing analytics inside the same clinic fails the appropriateness norm, even
+though the tenant matches. Masking ``his sister'' changes nothing, because by
+Design invariant~\ref{inv:sealed-scrub-not-declass} the line keeps its data
+class and its rows. And because the line is not operator-written, no other
+agent may read it as an instruction.
+\end{pdexample}
 
 \paragraph{Persistent agents keep per-owner memory.}
 \pdchapref{stp}{From Spawn to Person} gives agents durable memory and
@@ -244,19 +265,19 @@ outcome record need not be partitioned when they carry no owner's data. An
 outcome grade has operator integrity, since the operator's oracle wrote it,
 but integrity says who wrote a record, not that it is safe to disclose: a
 grade that reveals a tenant's data keeps that tenant's label and leaves only
-by the owner's release. A tombstone retracts a
+by the owner's release. A tombstone, a deletion marker, retracts a
 record from an index and from a cache, but not its influence from trained
 weights. The same model can be reached by training runs with and without a
 given point, so unlearning is well defined only at the algorithmic level
 \pdcite{thudi2021unlearning}, and removing information from parameters does
 not by itself guarantee what the model generates \pdcite{cooper2024unlearning}.
-For an adapter, deletion means retraining without the person, which
+For an adapter, deletion means retraining without the data subject, which
 per-tenant adapters make cheap, or relying on the bound the ledger charged.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-Labels decide admission; they do not detect a record mislabeled when it was
-written. The integrity class blocks directive use of third-party content; it
+Labels decide what may enter a destination; they do not detect a record
+mislabeled when it was written. The integrity class blocks directive use of third-party content; it
 does not stop false facts planted as data.
 
 Timing inside one authorized scope remains open, as in
