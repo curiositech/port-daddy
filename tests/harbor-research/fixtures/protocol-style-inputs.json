@@ -4,7 +4,7 @@
   "reviewed_source_head": "856b3ccb156ae243e9e438cb1f8787a6d087f953",
   "changes_reviewed": {
     "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged. Loads makeidx and opens the index of defined terms (printed as the Book's last leaf); protocol environments unchanged.",
-    "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence. Chapter 1 landmark title now reads 'Proposals, Effects and Recovery' (plain-language rewrite drops the bedrock metaphor); protocol environments unchanged.",
+    "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence. Chapter 1 landmark title now reads 'Proposals, Effects and Recovery' (plain-language rewrite drops the bedrock metaphor); protocol environments unchanged. Landmark 04's pull-quote says 'entry rule', so 'admission' keeps its single write-path meaning.",
     "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance.",
     "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged. \\pdterm now labels each definition and enters it in the index; \\pdstatus prints its grade and note as a margin tag beside the heading or claim; the glossary appendix's entry layout is defined here; protocol environments unchanged.",
     "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter one-line summaries regenerated from book/textbook.json after the plain-language rewrite; chapter structure and protocol environments unchanged. Regenerated again after the define-before-use pass rephrased chapter blurbs; chapter structure and protocol environments unchanged.",
@@ -29,8 +29,8 @@
     },
     {
       "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
-      "sha256": "4d084a4c3d46465dd8bcab5f7614a1146e7b43d8e969a6ccefe86dc6ed8f0806",
-      "bytes": 13591
+      "sha256": "8b77d40be44ad483c77809de84e5e2c7296407d32f81792d12b78c946d36f3e4",
+      "bytes": 13587
     },
     {
       "path": "book/figures/lucide/workflow.pdf",
