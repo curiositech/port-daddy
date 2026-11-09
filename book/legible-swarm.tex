@@ -510,8 +510,13 @@ social-contract tradition, and that two routes so far apart arrive at a compatib
 object is some evidence the object is the right one. It also hands the
 accompanying chapters a concrete object. A \emph{hosted-trust} offering
 transfers a grant: its promise, ``we make this fleet legible to you, under this
-scope'', sells a consent grant to a third party, and
-\pdchapref{he}{The Harbor Economy} sets the price of that sale. For that reason
+scope'', hands a consent grant to a third party. Paying for such a service is
+taken up in \pdchapref{he}{The Harbor Economy}%
+\ifpdbook
+\ (\S\ref{he:sec:hosted-trust})%
+\fi
+, which keeps its evidence, adjudication and payment costs separate and does not
+price the grant itself. For that reason
 \S\ref{sec:bridge} lists consent among the things this layer provides upward.
 
 \begin{protocol}{Consent-grant lifecycle}
@@ -4254,9 +4259,14 @@ reputation layer is the \emph{scorer}. The split ranker
 (Thm.~\ref{thm:split-ranker}) and the costly-escalation signal (\S\ref{sec:gates})
 supply the candidate generation and trust signals the reputation head consumes.
 \pdstatus{\BuiltWeak}{durable commitments, oracle-bound closure and overdue detection ship; neutral grading and reputation updates do not}
-\item \textbf{The consent grant as a priceable object.} A hosted-trust offering is
-the transfer of a consent grant (Invariant~\ref{def:consent}) to a third party, which the
-pricing model in \pdchapref{he}{The Harbor Economy} must specify.
+\item \textbf{The consent grant as a transferable object.} A hosted-trust offering is
+the transfer of a consent grant (Invariant~\ref{def:consent}) to a third party.
+\pdchapref{he}{The Harbor Economy}%
+\ifpdbook
+\ (\S\ref{he:sec:hosted-trust})%
+\fi
+{} separates the evidence, adjudication and payment costs of such a service; no
+chapter yet prices the grant.
 \item \textbf{Operator-attention economics.} The loss in
 \S\ref{sec:operator} offers a model for costing inspection and errors when
 supervising a rented fleet. Estimating those costs and checking the inspection
