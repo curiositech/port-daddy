@@ -1,0 +1,33 @@
+# book/corrections.yaml -- one row per correction that changes printed text.
+#
+# A correction lands in a chapter source, but the reader only ever sees the
+# rendered page. scripts/harbor-research/check_corrections.py therefore reads
+# this file against a BUILT Book PDF and fails if any `before` string still
+# prints or any `after` string does not. It prints the failing row and the
+# page. run_pdf_checks.py runs it on every PDF it checks, so it runs wherever
+# the other page checks run (whitepaper-build.yml's cover-band job, and the
+# local acceptance of a candidate Book). See book/BUILDING.md.
+#
+# Rows are a top-level YAML sequence, appended below this header. Every field
+# is required and every value is a string:
+#
+#   - id: ls-1                          # unique across the file
+#     item: "Blocker 6: ANS authorship" # the agenda item the row closes
+#     file: book/legible-swarm.tex      # repo-relative; the file must exist
+#     before: "Ren et al."              # printed before the fix; must not print now
+#     after: "Huang, Narajala, Habler"  # must print now
+#     source: "https://arxiv.org/abs/2505.10609"  # a URL, or "derivation: <script>"
+#
+# A pure deletion leaves `after` empty (""); a pure insertion leaves `before`
+# empty. One of the two must be non-empty. When `after` contains `before`
+# (a correction that only adds words), a `before` that prints inside the new
+# `after` text does not count as surviving.
+#
+# Choosing strings that survive PDF text extraction:
+#   - 3 to 10 plain words, exactly as they print;
+#   - no TeX: no backslash, braces, dollar signs or ties (~);
+#   - no math, and no word likely to be hyphenated at a line end.
+# Matching is case-sensitive. The checker folds whitespace and line breaks,
+# rejoins words hyphenated across lines (and also tries the hyphen kept, for
+# compound words), expands ligatures, and maps smart quotes and every dash to
+# their ASCII forms, on both the page text and these strings.

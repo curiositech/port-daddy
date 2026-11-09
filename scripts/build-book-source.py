@@ -32,7 +32,8 @@ HELPERS = ("LICENSE", "scripts/build-whitepapers.sh", "scripts/generate-mega-whi
 REQUIRED = ("book/BUILDING.md", "book/BUILDING.sh", "book/textbook.json", "book/corpus.json",
             "book/coordination-papers-mega-volume.tex", "book/fonts/manifest.json")
 EXTENSIONS = {".tex", ".json", ".md", ".jpg", ".jpeg", ".png", ".pdf", ".svg",
-              ".otf", ".ttf", ".csv", ".py", ".sh", ".txt", ".html", ".sty", ".cls", ".bib"}
+              ".otf", ".ttf", ".csv", ".py", ".sh", ".txt", ".html", ".sty", ".cls", ".bib",
+              ".yaml"}
 BUILD = {"texliveImage": TEXLIVE, "nodeMajor": 22, "pythonMinimum": "3.10",
          "sourceDateEpoch": EPOCH, "defaultFontProfile": "open-proof",
          "entrypoint": "book/BUILDING.sh",
