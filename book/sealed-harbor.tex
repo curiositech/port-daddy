@@ -515,7 +515,9 @@ R=\mathrm{Sign}\bigl(\, & H(C),\,H(\text{attestation}),\,H(\text{inputs}),\,H(M)
 & \text{labels},\,\text{declassifications},\,\text{counters},\,\text{nonce},\,\text{epoch}\,\bigr).
 \end{aligned}
 \]} The receipt proves what the
-measured system reported under a stated policy.
+measured system reported under a stated policy. Because it reaches Erin, any
+field of it that the worker can steer is also a channel to her;
+Section~\ref{sec:sealed-budget} counts it with the others.
 Figure~\ref{fig:sealed-receipt-provenance} shows the fields bound into $R$ and
 keeps where a report came from apart from whether its output is true.
 \pdscope{The receipt does not show that the answer is true or that no
@@ -1559,7 +1561,59 @@ outside the possibilistic model. The $\log_2 w$ expression is a finite-alphabet
 upper bound: across $q$ releases, at most $w^q$ slot sequences are
 distinguishable. Predictive mitigation \pdcite{azm10} provides a framework for
 controlling timing observations; the slot count here is not a proof for an
-arbitrary scheduler.
+arbitrary scheduler. Theorem~\ref{thm:sealed-capacity} states the account
+precisely and shows that it is tight.
+
+\begin{pdclaim}{Theorem}{Capacity of a Worker-Chosen Channel}
+\setlength{\parskip}{4pt plus 1pt}
+\label{thm:sealed-capacity}
+Treat Derek's data $D$ as a random variable with any distribution. Suppose
+that all Erin observes on one release channel is the sequence
+$Y=(Y_1,\dots,Y_q)$ of its $q$ payloads, each exactly $b$ bits long, with
+the number of releases, their times and every failure fixed or padded. The
+worker may choose each payload by any rule, randomized or adaptive, that uses
+$D$, its earlier payloads and inputs Erin sends, and Erin may choose those
+inputs from her own coin flips and the payloads she has seen. Then:
+
+(i) the mutual information between $D$ and Erin's view, the average number
+of bits the view tells her about $D$, is at most $q\cdot b$;
+
+(ii) Erin's chance of guessing $D$ exactly in one try is at most
+$2^{q\cdot b}$ times what it was before the releases;
+
+(iii) both bounds are attained. If $D$ contains $q\cdot b$ bits that are
+uniform and independent of the rest of $D$, a worker that copies them into
+the payloads reaches equality in (i) and in (ii).
+
+If each release may also pick one of $w$ release times, all three parts hold
+with $b+\log_2 w$ in place of $b$.
+\end{pdclaim}
+\pdscope{The theorem counts one declared channel under its padding
+hypotheses. Every other row of Table~\ref{tab:sealed-shared-resources} is a
+separate channel with its own count.}
+
+\paragraph{Proof.}
+Erin's coin flips are independent of $D$, so it is enough to fix them and
+average at the end. With them fixed, her inputs are functions of the payloads
+already released, so her whole view is fixed by $Y$, which takes at most
+$2^{q\cdot b}$ values. For (i), the mutual information between $D$ and $Y$ is
+at most the entropy of $Y$, and a variable with at most $2^{q\cdot b}$ values
+has entropy at most $q\cdot b$ bits. For (ii), let $\pi$ be the largest
+probability of any single value of $D$, the best one-try chance before the
+releases. After the releases, the best guess for each value of $Y$ is right
+together with that value with probability at most $\pi$, since that joint
+probability is at most the probability of the guessed value itself. Summing
+over the at most $2^{q\cdot b}$ values of $Y$ gives at most $2^{q\cdot b}\pi$.
+For (iii), copying makes $Y$ equal to the uniform bits, whose entropy is
+$q\cdot b$. The best guess after the view reads those bits from $Y$ and takes
+the likeliest value of the rest of $D$, so it is right $2^{q\cdot b}$ times
+as often as the best guess before. Release times multiply each payload's
+alphabet by $w$. How the worker chose its payloads never enters the count,
+which is why adaptivity changes nothing. \qed
+
+Entropy alone does not give (iii). If one value of $D$ has probability one
+half, no worker reaches equality in (i) or (ii) once $q\cdot b\ge2$, however
+large the entropy of $D$ is.
 
 The observation model matters. Infinite timing precision can carry unbounded
 information in an idealized duration, but practical capacity also depends on
@@ -1585,6 +1639,61 @@ not bound the others. Their alphabets, timing and failure outcomes must also
 be declared before anyone quotes a total bound.
 
 \input{figures/fig-sealed-leakage-ledger}
+
+\paragraph{Every field the worker can steer is a channel.}
+Theorem~\ref{thm:sealed-capacity} counts one channel. Kemmerer's
+\pdterm{shared-resource matrix} finds the others \pdcite{kemmerer83}: list
+every attribute of the system that more than one party can see or change,
+then mark which operations change it and who can read it. An attribute that a
+sender can change and a receiver can read is a channel between them, whatever
+the designer meant it for. Table~\ref{tab:sealed-shared-resources} applies
+the method to the room as specified, with the worker as the sender. The
+method is only as complete as its list of attributes.
+
+\begin{table}[H]\centering\footnotesize
+\caption{A shared-resource matrix for the room as specified, with the worker
+as sender. A row is a channel when the worker can change the attribute and
+another party can read it. An attribute missing from the list is a channel
+nobody counted.}
+\label{tab:sealed-shared-resources}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}p{0.27\textwidth}@{}}
+\toprule
+Attribute & The worker changes it by & Read by & Account \\
+\midrule
+Payload on Erin's feedback channel & choosing the candidate it submits & Erin; Derek's gate & counted: $q\cdot b$ (Theorem~\ref{thm:sealed-capacity}) \\
+Result to Derek & writing the result & Derek & Erin's gate; bounded only by the contracted interface \\
+Time of each release & choosing when to submit & Erin, Derek, host & counted at $\log_2 w$ per release when slots are fixed \\
+How many releases occur, and whether a job fails & submitting or failing & Erin, Derek, host & uncounted unless the count is fixed and failures are padded \\
+Receipt counters, labels and list of declassifications & the calls it makes & Erin, Derek & uncounted: a hidden channel in the receipt \\
+Receipt hash of Derek's encrypted result & choosing the result's bytes & Erin, Derek & uncounted unless the gate chooses fresh encryption randomness \\
+Declared costs $\varepsilon_i$ & declaring the cost & Erin, Derek & uncounted unless costs come from a fixed public menu \\
+Nonce and epoch & nothing, if the gate chooses them & Erin, Derek & no channel \\
+Exit status and resource use & how it runs & Derek's gateway, host & out of model \\
+Storage writes & what it writes, and when & Derek's gateway, host & contents mediated; size and timing out of model \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The matrix finds a channel that the $q\cdot b$ account leaves out. The
+receipt goes to Erin, and several of its fields record what the worker did:
+the counters, the labels and the list of declassifications. The worker steers
+them by choosing its calls. It can also steer the hash of Derek's encrypted
+result if it can predict that hash, for instance under deterministic
+encryption. Trying variants of the result until the hash shows a chosen
+$k$-bit pattern costs about $2^k$ tries per release. A cost $\varepsilon_i$
+that the worker declares from the real numbers has no finite alphabet at all.
+Simmons named this kind of channel. In his prisoners' problem a warden reads
+every message two prisoners exchange and passes it only if it looks
+innocent, and the prisoners hide a second message in choices that the
+authentication of the first leaves free. The hidden message is a
+\pdterm{subliminal channel} \pdcite{simmons84}. The receipt carries one to
+Erin, and the $q\cdot b$ account does not count it. The repair belongs in the
+specification: build the receipt only from fields the gate or the contract
+fixes, pad each counter to its contracted maximum, let the gate choose the
+encryption randomness and take costs from a fixed public menu. Otherwise the
+steerable bits of every receipt must be counted in the budget like any other
+payload.
 
 \pdexercisepointerone{\ref{ex:sealed-budget}}{\pageref{ex:sealed-budget}}
 
@@ -2041,7 +2150,10 @@ information flow, and the min-entropy formulation the chapter borrows its
 vocabulary from is Smith's \pdcite{smith-qif}. A bridge between that measure
 and differential privacy's exists, due to Alvim and colleagues
 \pdcite{aacp11}; this chapter does not use it, which is why it carries two
-accounts rather than one. On the privacy side, advanced composition is
+accounts rather than one. The list of channels in
+Table~\ref{tab:sealed-shared-resources} follows Kemmerer's method for
+finding storage and timing channels \pdcite{kemmerer83}, and the receipt's
+hidden channel is the subliminal channel of Simmons \pdcite{simmons84}. On the privacy side, advanced composition is
 Dwork, Rothblum and Vadhan's \pdcite{drv}; the observation that a running
 budget needs a different theorem when privacy parameters and the stopping point
 are chosen adaptively, and the odometer and filter that supply it, are Rogers,
@@ -2131,6 +2243,13 @@ ratio test. \emph{Annals of Mathematical Statistics}, 19(3):326--339, 1948.
 
 \bibitem{epw67} J.~D. Esary, F.~Proschan, and D.~W. Walkup. Association of random variables, with
 applications. \emph{Annals of Mathematical Statistics}, 38(5):1466--1474, 1967.
+
+\bibitem{kemmerer83} R.~A. Kemmerer. Shared resource matrix methodology: an approach to identifying
+storage and timing channels. \emph{ACM Transactions on Computer Systems}, 1(3):256--277, 1983.
+
+\bibitem{simmons84} G.~J. Simmons. The prisoners' problem and the subliminal channel. In
+D.~Chaum, editor, \emph{Advances in Cryptology: Proceedings of Crypto 83}, pages 51--67. Plenum
+Press, New York, 1984.
 
 \bibitem{denning77} D.~E. Denning and P.~J. Denning. Certification of programs for secure
 information flow. \emph{Communications of the ACM}, 20(7):504--513, 1977.
