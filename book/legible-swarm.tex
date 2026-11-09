@@ -1299,7 +1299,7 @@ u^\star=\theta w/(1+\theta w)=0.05/1.05=0.0476
 \]
 [verified, closed form]. This is the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\theta,w)$ points the script confirms against bisection to machine precision.
 
-Now let a missed bad item cost $C_{\mathrm{miss}}=100$, an inspection $c_{\mathrm{att}}=1$, and a needless interruption $C_{\mathrm{fa}}=5$. The operator wants an escalation once its probability of being genuine exceeds $u_{\mathrm{crit}}=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(C_{\mathrm{miss}}+C_{\mathrm{fa}})=6/105\approx0.057$. Assume signals $u$ are spread uniformly on $[0,1]$ and $V(u)=u$ is that probability. With $x_{\mathrm{esc}}=1-u^\star$ the escalated share, each item's expected alarm cost is $c_{\mathrm{att}}x_{\mathrm{esc}}+C_{\mathrm{fa}}x_{\mathrm{esc}}^2/2$, which must not exceed the attention budget $A_{\mathrm{att}}$. Silenced genuine warnings cost $C_{\mathrm{miss}}(u^\star-u_{\mathrm{crit}})$ when $u^\star>u_{\mathrm{crit}}$, and the miss budget allows $1$. At $w=1$, $\theta=u^\star/(1-u^\star)$. At $A_{\mathrm{att}}=3.3$, $2.5x_{\mathrm{esc}}^2+x_{\mathrm{esc}}=3.3$ gives $x_{\mathrm{esc}}=0.9662$, so $\theta_{\min}=0.0338/0.9662=0.035$; the miss limit $100(u^\star-0.0571)\le1$ gives $u^\star\le0.0671$ and $\theta_{\max}=0.0671/0.9329=0.072$:
+Now let a missed bad item cost $C_{\mathrm{miss}}=100$, an inspection $c_{\mathrm{att}}=1$, and a needless interruption $C_{\mathrm{fa}}=5$. The operator wants an escalation once its probability of being genuine reaches the inspection threshold for these costs, $u_{\mathrm{crit}}\approx0.057$, which Example~\ref{ex:inspection-bar} works out and Theorem~\ref{thm:regret-head} derives. Assume signals $u$ are spread uniformly on $[0,1]$ and $V(u)=u$ is that probability. In the theorem below, an escalation at $u$ costs $c_{\mathrm{esc}}(u)=c_{\mathrm{att}}+C_{\mathrm{fa}}(1-u)$, attention plus the chance of a needless interruption, and a silence costs $c_{\mathrm{sil}}(u)=C_{\mathrm{miss}}$ when $u\ge u_{\mathrm{crit}}$ and nothing below it. With $x_{\mathrm{esc}}=1-u^\star$ the escalated share, the alarm load is $c_{\mathrm{att}}x_{\mathrm{esc}}+C_{\mathrm{fa}}x_{\mathrm{esc}}^2/2$, which must not exceed the attention budget $A_{\mathrm{att}}$. The miss loss is $C_{\mathrm{miss}}(u^\star-u_{\mathrm{crit}})$ when $u^\star>u_{\mathrm{crit}}$, and the miss budget is $A_{\mathrm{miss}}=1$. At $w=1$, $\theta=u^\star/(1-u^\star)$. At $A_{\mathrm{att}}=3.3$, $2.5x_{\mathrm{esc}}^2+x_{\mathrm{esc}}=3.3$ gives $x_{\mathrm{esc}}=0.9662$, so $\theta_{\min}=0.0338/0.9662=0.035$; the miss limit $100(u^\star-0.0571)\le1$ gives $u^\star\le0.0671$ and $\theta_{\max}=0.0671/0.9329=0.072$:
 \[
 [\theta_{\min},\theta_{\max}]=[0.0350,0.0720].
 \]
@@ -1324,10 +1324,18 @@ $\Pi_\theta(u)=U(u)-\theta w\,(1-V(u))$ is strictly increasing. If
 $\Pi_\theta(0)<0<\Pi_\theta(1)$, there is a unique interior zero $u^\star$.
 Choosing escalation at indifference gives the rule $u\ge u^\star$.
 
-Increasing $\theta$ can only shrink the escalation set. If alarm load is
-nonincreasing and miss loss nondecreasing in $\theta$, the debits meeting both
-limits form an interval, possibly empty or unbounded. If both aggregate
-functions are continuous, that \mbox{interval} is closed; a finite
+Increasing $\theta$ can only shrink the escalation set
+$\mathrm{Esc}_\theta=\{u:\Pi_\theta(u)\ge0\}$. Draw the signal $u$ from a fixed
+distribution on $[0,1]$. Let $c_{\mathrm{esc}}(u)\ge0$ be the operator's expected
+cost of handling an escalation at signal $u$, and $c_{\mathrm{sil}}(u)\ge0$ the
+expected cost of a silence there. The two aggregates are the \emph{alarm load}
+$L_{\mathrm{A}}(\theta)=\mathbb E\bigl[c_{\mathrm{esc}}(u)\,\mathbf 1\{u\in\mathrm{Esc}_\theta\}\bigr]$
+and the \emph{miss loss}
+$L_{\mathrm{M}}(\theta)=\mathbb E\bigl[c_{\mathrm{sil}}(u)\,\mathbf 1\{u\notin\mathrm{Esc}_\theta\}\bigr]$,
+and the two limits are an attention budget, $L_{\mathrm{A}}(\theta)\le A_{\mathrm{att}}$,
+and a miss budget, $L_{\mathrm{M}}(\theta)\le A_{\mathrm{miss}}$. The debits meeting
+both limits form an interval, possibly empty or unbounded. If both aggregates
+are continuous in $\theta$, that \mbox{interval} is closed; a finite
 $[\theta_{\min},\theta_{\max}]$ also requires a finite upper boundary.
 \end{pdclaim}
 \begin{proof}
@@ -1339,10 +1347,13 @@ the intermediate value theorem.
 For each fixed $u$, increasing $\theta$
 cannot increase payoff, so the escalation sets are nested.
 
-The two aggregate
-constraints therefore intersect as an interval; continuity makes their
-sublevel sets closed. A point mass at the threshold can break aggregate
-continuity, so closed endpoints do not follow from monotonicity alone.
+Because the sets are nested and both cost functions are nonnegative, alarm
+load is nonincreasing and miss loss nondecreasing in $\theta$. The debits within
+the attention budget therefore form an interval unbounded above, those within the
+miss budget an interval starting at $0$, and their intersection is an interval;
+continuity makes both sublevel sets closed. A point mass of the signal
+distribution at the threshold can break that continuity, so closed endpoints
+do not follow from monotonicity alone.
 \end{proof}
 \pdscope{The validation rule is held fixed; an operator who also changes it in response to the agents' behavior needs a joint equilibrium analysis.}
 
@@ -1958,10 +1969,10 @@ a digest needs $B^\star$ bits to be useful. It counts only what the zero-miss
 guarantee needs; cheaper digests are fine the moment misses are tolerated, and
 the two-constraint rate below measures exactly that saving.
 
-\paragraph{When the bound is reached.} A fixed-length zero-miss digest with $M$
-messages is a family of $M$ review sets of size $m$ such that every possible
+\paragraph{When the bound is reached.} A fixed-length zero-miss digest is a
+family of review sets of size $m$, one per message, such that every possible
 critical $k$-set lies inside at least one of them. Write $\mathrm{Cov}(N,m,k)$
-for the smallest such $M$, the covering number of design theory. The counting
+for the size of the smallest such family, the covering number of design theory. The counting
 argument gives $\mathrm{Cov}(N,m,k)\ge\binom Nk/\binom mk$, and at small $N$ the
 gap is real: four artifacts with two critical and three opens need three review
 sets, not two, because any two triples drawn from four items share a pair. For
@@ -2733,6 +2744,7 @@ with the harm inspection would avert.
 
 \begin{pdexample}{The Inspection Bar, at the Chapter's Running Costs}
 \setlength{\parskip}{4pt plus 1pt}
+\label{ex:inspection-bar}
 For a constructed review class, let missing a bad proposal cost $100$,
 inspection cost $1$, and interrupting a good proposal cost an additional $5$.
 Assume inspection averts the bad outcome completely. At danger probability $a$,
