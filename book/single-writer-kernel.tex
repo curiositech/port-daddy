@@ -549,9 +549,12 @@ Gray and Reuter~\pdcite{grayreuter1992} draw the canonical line between
 store corrupt) and \emph{durability} (the ``D'' in ACID: a committed transaction
 survives subsequent failures). Under SQLite's WAL with the \emph{normal}
 synchronization level, the log is \emph{not} fsync'd on every commit; it is
-synced at checkpoint~\pdcite{sqlitewal}. Per SQLite's own documentation, in WAL mode
-the normal level means ``commits might lose durability following a power loss or
-hard reset,'' though the database remains uncorrupted. So the durability
+synced at checkpoint~\pdcite{sqlitewal}. SQLite's documentation of the setting
+states both halves of the claim: ``A transaction committed in WAL mode with
+synchronous=NORMAL might roll back following a power loss or system crash.
+Transactions are durable across application crashes regardless of the synchronous
+setting or journal mode''~\pdcite{sqlitepragma}. The same page says WAL mode stays
+consistent under this setting, so the database is not corrupted. So the durability
 claim has two parts.
 \begin{property}[Durability by fault class]\label{prop:durability}
 \setlength{\parskip}{4pt plus 1pt}
@@ -3791,7 +3794,14 @@ D. Richard Hipp et al.
 \newblock SQLite Write-Ahead Logging.
 \newblock SQLite Documentation, 2010.
 \newblock \url{https://www.sqlite.org/wal.html}
-\newblock (\texttt{synchronous=NORMAL} ``commits might lose durability following a power loss.'')
+\newblock (Under \texttt{synchronous=NORMAL}, ``transactions are no longer durable and might rollback following a power failure or hard reset.'')
+
+\bibitem{sqlitepragma}
+D. Richard Hipp et al.
+\newblock Pragma Statements Supported by SQLite.
+\newblock SQLite Documentation, accessed November 2026.
+\newblock \url{https://www.sqlite.org/pragma.html}
+\newblock (The entry for \texttt{PRAGMA synchronous}.)
 
 \bibitem{sqliteisolation}
 D. Richard Hipp et al.
