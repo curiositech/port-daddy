@@ -8,7 +8,7 @@
  {"term": "continuity witness", "sort": "continuity witness", "definition": "The chain of signed succession records that links every process that has run as a person back to the first, bound to one accountable principal; written kappa in Definition 5.2.2."},
  {"term": "capability jail", "sort": "capability jail", "definition": "A per-agent tool allowlist and scoped filesystem that bounds what an agent is technically able to do."},
  {"term": "body-lease", "sort": "body-lease", "definition": "The live process, with a heartbeat, that holds an agent's work during one run; a respawn replaces it while the durable identity remains."},
- {"term": "no-mint", "sort": "no-mint", "definition": "The rule that credit passed to successors is debited in full from the source while each successor receives a discounted share, so splitting or copying a record never creates credit."},
+ {"term": "no-mint", "sort": "no-mint", "definition": "The rule that the shares a source passes to its successors sum to at most its balance, each share is debited in full from the source, and each successor receives a discounted share, so splitting or copying a record never creates credit."},
  {"term": "load receipt", "sort": "load receipt", "definition": "A proposed record the daemon writes when it hands notes to a successor, naming the successor and the digests of the notes actually given to it."},
  {"term": "tombstone", "sort": "tombstone", "definition": "An appended record that retracts an earlier record, such as an outcome later found invalid, while the original stays in the log."},
  {"term": "consolidation", "sort": "consolidation", "definition": "A background rewrite of an agent's stored memory into fewer, more general entries."},
@@ -23,5 +23,6 @@
  {"term": "clique", "sort": "clique", "definition": "In the audit-tower model, a group of auditors that one bribe can buy together; separate cliques must be bribed separately."},
  {"term": "honeypot tasks", "sort": "honeypot tasks", "definition": "Audit tasks with independently established answers, designed to look like ordinary work, used to catch dishonest grading."},
  {"term": "verifiable random function", "sort": "verifiable random function", "definition": "A cryptographic random draw whose fairness anyone can check afterwards, used here to select audits."},
+ {"term": "keep-gain convention", "sort": "keep-gain convention", "definition": "The settlement rule under which a caught cheat forfeits its bond but keeps the gain from cheating; the usual statement of Becker's deterrence condition assumes it."},
  {"term": "exposure ladder", "sort": "exposure ladder", "definition": "The ordered levels of contact an agent can have with a skill in one run: listed, loaded, file read, script run."}
 ]
