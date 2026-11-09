@@ -162,6 +162,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Cache TLA+ tools
+        # Keyed on the pinned version: a warm cache means this job never
+        # touches GitHub's release CDN. Bump with the URL below.
+        uses: actions/cache@v4
+        with:
+          path: ~/tla/tla2tools.jar
+          key: pinned-tla2tools-v1.8.0
+
       - name: Download TLA+ tools
         run: |
           set -euo pipefail
@@ -176,8 +184,12 @@ jobs:
           # on one TCP connection is not reporting on the proof, it is
           # reporting on GitHub's CDN. --retry-all-errors is the flag that
           # matters: plain --retry ignores a reset mid-transfer.
-          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o "${HOME}/tla/tla2tools.jar" \
-            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          # Fetched through the shared script: it refuses an error page saved
+          # as the jar, which is how a CDN 504 used to surface here as
+          # "Could not find or load main class tlc2.TLC".
+          "${GITHUB_WORKSPACE}/scripts/ci/fetch-pinned-tool.sh" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar \
+            "${HOME}/tla/tla2tools.jar" jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
       - name: Run claim_signaling under TLC
@@ -290,6 +302,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Cache Apalache
+        # Keyed on the pinned version, like the TLA+ tools above.
+        uses: actions/cache@v4
+        with:
+          path: ~/pinned/apalache.tgz
+          key: pinned-apalache-v0.57.0
+
       - name: Download Apalache
         run: |
           set -euo pipefail
@@ -297,9 +316,10 @@ jobs:
           # Pinned to v0.57.0 — the version this artifact was validated
           # against locally on macOS Darwin 26.1 / OpenJDK 26 on 2026-05-20.
           # SMT/Z3 is bundled. ~130 MB.
-          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o /tmp/apalache.tgz \
-            https://github.com/apalache-mc/apalache/releases/download/v0.57.0/apalache.tgz
-          tar -xzf /tmp/apalache.tgz -C "${HOME}/apalache"
+          "${GITHUB_WORKSPACE}/scripts/ci/fetch-pinned-tool.sh" \
+            https://github.com/apalache-mc/apalache/releases/download/v0.57.0/apalache.tgz \
+            "${HOME}/pinned/apalache.tgz" tgz
+          tar -xzf "${HOME}/pinned/apalache.tgz" -C "${HOME}/apalache"
           echo "${HOME}/apalache/apalache/bin" >> "$GITHUB_PATH"
 
       - name: Verify Apalache install
@@ -357,12 +377,24 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Cache TLA+ tools
+        # Keyed on the pinned version: a warm cache means this job never
+        # touches GitHub's release CDN. Bump with the URL below.
+        uses: actions/cache@v4
+        with:
+          path: ~/tla/tla2tools.jar
+          key: pinned-tla2tools-v1.8.0
+
       - name: Download TLA+ tools
         run: |
           set -euo pipefail
           mkdir -p "${HOME}/tla"
-          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o "${HOME}/tla/tla2tools.jar" \
-            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          # Fetched through the shared script: it refuses an error page saved
+          # as the jar, which is how a CDN 504 used to surface here as
+          # "Could not find or load main class tlc2.TLC".
+          "${GITHUB_WORKSPACE}/scripts/ci/fetch-pinned-tool.sh" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar \
+            "${HOME}/tla/tla2tools.jar" jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
       - name: Run Conservation under TLC
@@ -696,12 +728,24 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Cache TLA+ tools
+        # Keyed on the pinned version: a warm cache means this job never
+        # touches GitHub's release CDN. Bump with the URL below.
+        uses: actions/cache@v4
+        with:
+          path: ~/tla/tla2tools.jar
+          key: pinned-tla2tools-v1.8.0
+
       - name: Download TLA+ tools
         run: |
           set -euo pipefail
           mkdir -p "${HOME}/tla"
-          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o "${HOME}/tla/tla2tools.jar" \
-            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          # Fetched through the shared script: it refuses an error page saved
+          # as the jar, which is how a CDN 504 used to surface here as
+          # "Could not find or load main class tlc2.TLC".
+          "${GITHUB_WORKSPACE}/scripts/ci/fetch-pinned-tool.sh" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar \
+            "${HOME}/tla/tla2tools.jar" jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
       - name: Run CardRevocation under TLC (baseline, epoch mitigation, rollback attack)
@@ -780,12 +824,24 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Cache TLA+ tools
+        # Keyed on the pinned version: a warm cache means this job never
+        # touches GitHub's release CDN. Bump with the URL below.
+        uses: actions/cache@v4
+        with:
+          path: ~/tla/tla2tools.jar
+          key: pinned-tla2tools-v1.8.0
+
       - name: Download TLA+ tools
         run: |
           set -euo pipefail
           mkdir -p "${HOME}/tla"
-          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o "${HOME}/tla/tla2tools.jar" \
-            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          # Fetched through the shared script: it refuses an error page saved
+          # as the jar, which is how a CDN 504 used to surface here as
+          # "Could not find or load main class tlc2.TLC".
+          "${GITHUB_WORKSPACE}/scripts/ci/fetch-pinned-tool.sh" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar \
+            "${HOME}/tla/tla2tools.jar" jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
       - name: Run WebhookDelivery under TLC (fixed daemon, negative control)
