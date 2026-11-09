@@ -345,6 +345,8 @@ name back to the first, with that chain bound to one accountable owner, the
 principal. Whether a later process is the same person depends on $\kappa$ and
 that owner, not on whether it holds the same role: Heron can move from
 implementing to reviewing without getting a clean history.
+Section~\ref{sec:parfit-lineage-map} fixes the fields of each record and who
+signs it.
 
 The three subsystems of \S\ref{sec:organs} support $\kappa$: memory,
 task-state recovery, and the outcome ledger, each tied to an authenticated
@@ -533,12 +535,39 @@ one level. This subsection writes the map down and names the three places
 where it breaks.
 
 \pdwrapanalogy[r][0.42\textwidth]{stp-splice-continuity}{The Overlapping Strand}{ch05-continuity-rope-splice}{Like the overlapping strands of a wire rope splice, continuity can persist across successive connections without one strand spanning the whole history.}%
-A small chain makes the engineering relation concrete. Suppose incarnation $x$ signs a permitted succession to $y$, and $y$ signs one to $z$. The direct-successor relation contains $(x,y)$ and $(y,z)$, but need not contain $(x,z)$: direct succession is one step. Its transitive closure, written $\mathsf{succ}^{*}$, records reachability along validated links, including $x$ to $z$. This is the mathematical operation we borrow for lineage. Psychological continuity has richer conditions, including the right causal connections; it is not defined here by signatures.
+A small chain makes the engineering relation concrete. Suppose a validated succession record links incarnation $x$ to $y$, and another links $y$ to $z$. The direct-successor relation contains $(x,y)$ and $(y,z)$, but need not contain $(x,z)$: direct succession is one step. Its transitive closure, written $\mathsf{succ}^{*}$, records reachability along validated links, including $x$ to $z$. This is the mathematical operation we borrow for lineage. Psychological continuity has richer conditions, including the right causal connections; it is not defined here by signatures.
 
 \begin{pdclaim}{Design invariant}{Accountable Lineage Uses Validated Succession}
 \label{inv:parfit-lineage}
 Record each authorized direct succession and use reachability along those records to reconstruct an incarnation's lineage. A shared lineage does not confer duplicate authority, erase a principal's sanctions, or allocate inherited credit: those require the separate rules below. The relation $\mathsf{succ}^{*}$ is directed ancestry, not an equivalence relation asserting that every descendant is the same person.
 \end{pdclaim}
+
+\paragraph{What a succession record holds.}
+\pdstatus{\Designed}{a record format, not built}
+The continuity witness $\kappa$ of Definition~\ref{def:person} is a list of
+succession records, each holding the hash of the one before it. A record names
+the person's account, the predecessor and successor incarnations, the
+principal, the cause of the succession, the hash of the previous record (empty
+for the first) and the daemon's sequence number. Who signs it depends on how
+the predecessor ended:
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+  \item \emph{Handoff.} The predecessor is alive and hands over, as when Alice
+  moves Heron to review or a process restarts because its context is full. The
+  predecessor and the daemon both sign.
+  \item \emph{Crash.} The predecessor cannot sign. The daemon signs alone, and
+  only after the predecessor's body-lease has expired; the record cites that
+  expiry. Heron's first successor was recorded this way.
+  \item \emph{Fork.} One predecessor has several successors. The daemon signs
+  one record per branch, and each record carries the share of credit its
+  branch receives under the allocation rule below.
+  \item \emph{Provider migration.} The old harbor's daemon may be gone. The
+  principal signs, and the receiving daemon countersigns once it has checked
+  the lineage, clause~(i) of Property~\ref{thm:resurrection-soundness}. Across
+  operators that check needs the attestation of \S\ref{sec:keystone}, which is
+  not built.
+\end{itemize}
+Because a daemon signs every record, a copied agent key alone signs nothing
+the ledger accepts.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
