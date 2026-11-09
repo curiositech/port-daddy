@@ -131,7 +131,7 @@
       ],
       "method": "ProVerif",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte -- this run found the committed transcript had drifted from the current .pv source (an earlier hs256/alg-header framing vs. the current generic hmac + Revoker process); the truth value of both queries is unchanged ('true'), only ProVerif's internal fresh-variable numbering shifted as a result. Regenerated to match the current source.",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte. This run found the committed transcript had drifted from the current .pv source (an earlier hs256/alg-header framing vs. the current generic hmac + Revoker process); the truth value of both queries is unchanged ('true'), only ProVerif's internal fresh-variable numbering shifted as a result. Regenerated to match the current source.",
       "ci": {
         "status": "wired",
         "job": [
@@ -185,7 +185,7 @@
       ],
       "method": "ProVerif",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; proves ONE-HOP delegation soundness only -- see harbor-card-v6/v7 for the multi-hop finding this model does not cover",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; proves ONE-HOP delegation soundness only; see harbor-card-v6/v7 for the multi-hop finding this model does not cover",
       "ci": {
         "status": "wired",
         "job": [
@@ -239,7 +239,7 @@
       ],
       "method": "ProVerif",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; red-team probe -- proves a naive final<=root verifier ACCEPTS a non-monotonic multi-hop escalation (write->read->write). Refutes the Phase-3 claim in docs/reports/FORMAL_VERIFICATION_ANCHOR_V3.md; superseded by harbor-card-v7",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; red-team probe that proves a naive final<=root verifier ACCEPTS a non-monotonic multi-hop escalation (write->read->write). Refutes the Phase-3 claim in docs/reports/FORMAL_VERIFICATION_ANCHOR_V3.md; superseded by harbor-card-v7",
       "ci": {
         "status": "wired",
         "job": [
@@ -257,7 +257,7 @@
       ],
       "method": "ProVerif",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; the fix for harbor-card-v6 -- a per-hop each<=parent verifier rejects the same escalation",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; the fix for harbor-card-v6: a per-hop each<=parent verifier rejects the same escalation",
       "ci": {
         "status": "wired",
         "job": [
@@ -311,7 +311,7 @@
       ],
       "method": "ProVerif",
       "owner": "apps/relay",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; the injective (replay-free) SubAccepts<=PubSent correspondence is reported false with the weaker non-injective correspondence proved true instead -- this is the committed, expected shape of this model's evidence, not new drift",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; the injective (replay-free) SubAccepts<=PubSent correspondence is reported false with the weaker non-injective correspondence proved true instead. This is the committed, expected shape of this model's evidence, not new drift",
       "ci": {
         "status": "wired",
         "job": [
@@ -383,7 +383,7 @@
       ],
       "method": "ProVerif",
       "owner": "core/kernel/pd-anchor",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; a single model with two queries -- the alg-pinned verifier authenticates (true) and the naive header-trusting verifier is forgeable (false) -- so it is its own positive/negative control pair without matching the *_vuln*/*naive_unsound* filename glob",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; a single model with two queries (the alg-pinned verifier authenticates, true; the naive header-trusting verifier is forgeable, false), so it is its own positive/negative control pair without matching the *_vuln*/*naive_unsound* filename glob",
       "ci": {
         "status": "wired",
         "job": [
@@ -512,7 +512,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "negative control: CI asserts the invariant NoUnilateralDeviationPositive is violated at delta=0.30 and that the printed counterexample's trace-state count matches the committed proofs/economics/claim_signaling_delta30.run.log snapshot (6 states); this is the trace cited by the ex:bonded-tla-two-deltas solution in agent-transactions-whitepaper.tex",
+      "evidencePolicy": "negative control: CI asserts the invariant NoUnilateralDeviationPositive is violated at delta=0.30 and that the printed counterexample's trace-state count matches the committed proofs/economics/claim_signaling_delta30.run.log snapshot (6 states); the solution to the Chapter 7 exercise that checks delta=0.30 and delta=0.35 cites this trace",
       "ci": {
         "status": "wired",
         "job": [
@@ -553,7 +553,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "CI artifact per run (two .tlc.log files); no prior checked-in snapshot -- this model never ran before wave-p1/proof-estate. WebhookDelivery_vuln.cfg (Dedup=FALSE) is a negative control asserted to violate AtMostOnce",
+      "evidencePolicy": "CI artifact per run (two .tlc.log files); no prior checked-in snapshot, because this model never ran before wave-p1/proof-estate. WebhookDelivery_vuln.cfg (Dedup=FALSE) is a negative control asserted to violate AtMostOnce",
       "ci": {
         "status": "wired",
         "job": [
@@ -589,10 +589,10 @@
       ],
       "method": "EasyCrypt",
       "owner": "core/kernel",
-      "evidencePolicy": "EasyCrypt is not installed anywhere in this estate's CI; 3 `admit.` tactics remain undischarged (see binding.ec around lines 346, 371, 397 -- hashLeafE's algebraic combination). binding.run.log documents a manual proof-sketch review, not a machine-checked result.",
+      "evidencePolicy": "EasyCrypt is not installed anywhere in this estate's CI; 3 `admit.` tactics remain undischarged (see binding.ec around lines 346, 371, 397, in hashLeafE's algebraic combination). binding.run.log documents a manual proof-sketch review, not a machine-checked result.",
       "ci": {
         "status": "retired",
-        "reason": "EasyCrypt toolchain not installed; 3 undischarged `admit.` tactics remain (binding.ec lines ~346/371/397) -- discharging them and adding an EasyCrypt CI job is tracked as future work, not done in wave-p1/proof-estate"
+        "reason": "EasyCrypt toolchain not installed; 3 undischarged `admit.` tactics remain (binding.ec lines ~346/371/397); discharging them and adding an EasyCrypt CI job is tracked as future work, not done in wave-p1/proof-estate"
       }
     },
     {
@@ -722,7 +722,7 @@
       "evidencePolicy": "a skill scaffold with open TODO queries (capability containment, revocation effectiveness, non-equivocation are all unfinished); not a claim about a real Port Daddy protocol and has no committed evidence file",
       "ci": {
         "status": "retired",
-        "reason": "skill teaching template, not a protocol claim about this repository; deliberately outside scripts/proofs/run-proverif.py's two scan roots (analyses/, proofs/**) -- see that script's module docstring"
+        "reason": "skill teaching template, not a protocol claim about this repository; deliberately outside scripts/proofs/run-proverif.py's two scan roots (analyses/, proofs/**); see that script's module docstring"
       }
     },
     {
