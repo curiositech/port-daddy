@@ -241,7 +241,7 @@ grant; its identifier and version belong in the offer and resulting grant.
 \section{The Federated Authority}\label{sec:fh-authority}
 % ═════════════════════════════════════════════════════════════════════════════
 The Bonded Commons chapter defined a \emph{commons authority} with sovereign scope inside a single machine. Its daemon can recommend compatible actions, but a correlated equilibrium requires the specified information structure and obedience inequalities~\pdcite{owens2026bonded}. Local enforcement does not establish those incentive conditions. Federation adds separate authorities, delayed observations, and potentially conflicting interests; each must enter the model.
-The federation design has four elements (Table~\ref{tab:fh-topology}): two sovereign harbors, a witnessed epoch-root log, and a settlement escrow. The escrow is structurally bounded only under the custody assumptions in \S\ref{sec:fh-escrow}. Every primitive in the rest of the chapter attaches to one of these elements.
+The federation design has four elements: two sovereign harbors, a witnessed epoch-root log, and a settlement escrow. Table~\ref{tab:fh-topology} shows the four rails that connect them. The escrow is structurally bounded only under the custody assumptions in \S\ref{sec:fh-escrow}. Every primitive in the rest of the chapter attaches to one of these elements.
 \input{figures/tab-fh-topology}
 \subsection{Harbor sovereignty as a property \mbox{characterization}}\label{sec:fh-sovereignty}
 In Bonded, the Admissible KMS was characterized by a list of properties rather than by a specific construction (per-machine signing key, per-machine SQLite, etc.) so that the argument carried over to any concrete instantiation. We adopt the same posture here.
@@ -485,7 +485,7 @@ threats are deferred to other primitives. Specifically:
 \item \textbf{Deferred:} revocation latency (handled in \S\ref{sec:fh-revocation}); settlement disputes (handled in \S\ref{sec:fh-settlement}); admission of unbonded new harbors (handled in \S\ref{sec:fh-admission}).
 \end{itemize}
 
-\pdmarginanalogy{fh-customs-seal}{}{ch08-transit-customs-seal}{Like a tamper-evident customs seal clamped over cargo in transit through foreign territory, capability grants traverse intermediary relay harbors without disclosing confidential payloads.}%
+\pdmarginanalogy{fh-customs-seal}{}{ch08-transit-customs-seal}{Like a tamper-evident seal on a cargo door: if anyone alters $A$'s signed offer on its way to $B$, the signature check shows it. The seal hides nothing; anyone who handles the offer can read it.}%
 We are explicit that the ceremony does not close every threat in one step. Federation is a layered defense; this is one layer.
 
 \subsection{Mechanization status}\label{sec:fh-xfer-mech}
@@ -567,7 +567,7 @@ The distinction determines the exposure bound. A bond can be priced against an o
 The interesting case is disagreement. Harbor $A$ has revoked card $c$; harbor $B$ has not yet seen the revocation; an agent presents $c$ at $B$ for an action that affects $A$'s database. Three candidate resolution rules from the proposal~\pdcite{owens2026proposal}, evaluated:
 
 \begin{enumerate}[nosep]
-\item \textbf{Pessimistic (anyone-revokes-is-revoked).} The card is revoked iff any harbor has revoked it. Defended against by an attacker who would gain by injecting spurious revocations into the gossip mesh; rejects too many honest cards in equilibrium.
+\item \textbf{Pessimistic (anyone-revokes-is-revoked).} The card is revoked iff any harbor has revoked it. Vulnerable to an attacker who would gain by injecting spurious revocations into the gossip mesh; it also rejects too many honest cards.
 \item \textbf{Authoritative (only-issuer-revokes).} Only $A$ can revoke $A$'s cards. This is the rule we adopt. Under the service-level assumptions of Design Invariant~\ref{cor:fh-window}, it gives an operator-priced attacker window; without them, exposure has no finite structural maximum.
 \item \textbf{Epoch-bounded (revocation propagates within $\Delta$ epochs and inconsistency is a contract violation).} A refinement of (2) for the case where one harbor falls persistently behind. We treat this as a degraded mode of (2) rather than a separate rule.
 \end{enumerate}
@@ -1038,23 +1038,23 @@ can therefore expose a split that even the exact categorical edge-only test
 does not retain enough information to see.
 
 For Bob's repair, register the fact ``original regression test retained''
-with values $A$ (retained) and $B$ (deleted), under one work item and snapshot.
+with values $\mathsf{ret}$ (retained) and $\mathsf{del}$ (deleted), under one work item and snapshot.
 Two authenticated claims from Heron about that same fact and snapshot can be
 compared directly. Different snapshots are not a contradiction, and an absent
 receipt is missing evidence, not the value zero.
 
 For the edge-only calculation, suppose this registered fact has exactly those
-two values, $A$ and $B$. Encode them
-as the \emph{one-hot} vectors $e_A=(1,0)$ and $e_B=(0,1)$: exactly one entry
+two values, $\mathsf{ret}$ and $\mathsf{del}$. Encode them
+as the \emph{one-hot} vectors $e_{\mathsf{ret}}=(1,0)$ and $e_{\mathsf{del}}=(0,1)$: exactly one entry
 is one. In this paragraph an edge records head minus tail. A receipt
-$e_B-e_A=(-1,1)$ therefore fixes its tail to $A$ and its head to $B$; we call
+$e_{\mathsf{del}}-e_{\mathsf{ret}}=(-1,1)$ therefore fixes its tail to $\mathsf{ret}$ and its head to $\mathsf{del}$; we call
 those forced endpoint values \emph{pins}. A zero difference says only that
-its endpoints agree, not whether both said $A$ or both said $B$. Connected
+its endpoints agree, not whether both said $\mathsf{ret}$ or both said $\mathsf{del}$. Connected
 zero-difference edges consequently force a whole component to share one value.
 
 \begin{pdexample}{A contradiction with zero cycle residual}
-The path $0\to1\to2$ reports $e_B-e_A$ on each edge. Vertex $1$ must then be
-both $B$ and $A$, a contradiction. With edge costs $2$ and $3$, the two receipts
+The path $0\to1\to2$ reports $e_{\mathsf{del}}-e_{\mathsf{ret}}$ on each edge. Vertex $1$ must then be
+both $\mathsf{del}$ and $\mathsf{ret}$, a contradiction. With edge costs $2$ and $3$, the two receipts
 give a certificate of cost $5$. Unrestricted real potentials can nevertheless
 fit this path exactly, so its cycle residual is zero. The finite-domain
 constraint, rather than an extra topological measurement, exposes the failure.
@@ -1640,7 +1640,7 @@ regression alone. No such bound or completed sweep is claimed here.
 
 \subsection{Cost of per-write durability}\label{sec:fh-lim-overhead}
 
-The cryptographic assertions and per-write durability checkpoints this layer inherits from Anchor carry a measurable I/O cost. They are designed for high-stakes coordination, where an audit trail is worth more than throughput, and not for bulk data movement or latency-critical paths. This chapter does not measure that overhead at the federation layer and does not establish where the crossover sits. \Open.
+The cryptographic assertions and per-write durability checkpoints this layer inherits from Anchor carry a measurable I/O cost. They are designed for high-stakes coordination, where an audit trail is worth more than throughput, and not for bulk data movement or latency-critical paths. This chapter does not measure that overhead at the federation layer and does not establish where the crossover sits.
 
 \subsection{What the design permits a reader to do}\label{sec:fh-lim-reader}
 For a proposed cross-harbor job, identify the destination's grant, the
@@ -1657,7 +1657,7 @@ decision or proves the complete federation deployed.
 \section*{Review of the key ideas}
 \addcontentsline{toc}{section}{Review of the key ideas}
 
-What this chapter leaves coupled, in the order the rest of the book will lean on it:
+What this chapter leaves coupled:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \textbf{Two machines, no shared daemon.} A federated authority admits a foreign act only through a witness log each side can check; admissibility is a design invariant of the log, not a property of the peer.
@@ -1666,7 +1666,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{A one-edge perturbation alarms exactly on a visible coordinate cycle.} For a perturbation of size $3$, the residual is $1.2247$ on $C_6$ and zero on $P_6$. This concerns the edge encoding; authenticated endpoint claims can be compared directly on either graph.
 \item \textbf{The residual is an exact unrestricted repair cost.} It is only a lower bound when corrections must obey a prescribed support. Attribution needs additional support assumptions, and multiple offsets can cancel even when one agent supplies them. The equal-information direct checker misses none of the residual's alarms in the stated noise-free model.
 \item \textbf{Cross-harbor settlement has separate accounting obligations.} One funded bond occupies one lifecycle account; recipient transfers require their own conservation rule and non-bypassable custody. The partition alone proves neither implementation conformance nor containment of a harbor failure.
-\item \textbf{Admission is a ceremony with a record}: a harbor joins a federation by exchanging epoch roots, and the record is what a later dispute reads.
+\item \textbf{Admission is a sponsored ceremony with a record}: a new harbor joins when an existing harbor posts a bond on its behalf, works under probation while that bond is at risk, and graduates only after its own coverage is funded. The witness-logged enrollment record is what a later dispute reads.
 \item \textbf{The rollback configuration fails by design.} Restoring a revocation database can resurrect a revoked card. The mitigating model uses an external epoch that the restore cannot roll back; its finite TLC check does not prove deployed recovery behavior.
 \end{enumerate}
 
@@ -1726,19 +1726,19 @@ The compendium's own sweep states the shape of this exactly: a solo equivocator 
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-categorical-versus-linear}
-A path $0\to1\to2$ reports $e_B-e_A$ on both edges, with receipt costs two
+A path $0\to1\to2$ reports $e_{\mathsf{del}}-e_{\mathsf{ret}}$ on both edges, with receipt costs two
 and three. State the value forced at vertex $1$ by each receipt. Find a
 least-cost contradiction certificate. Then explain why a real-valued
 least-squares fit on this path has zero residual, and why an observed zero
 edge would not reveal its endpoints' shared categorical value.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-categorical-versus-linear}
-The first receipt pins vertex $1$ to $B$ and the second to $A$. Their cost-five
+The first receipt pins vertex $1$ to $\mathsf{del}$ and the second to $\mathsf{ret}$. Their cost-five
 pair is infeasible; either receipt alone is feasible, so no cheaper subset
 certifies the contradiction. Real potentials can fit arbitrary differences
 on a path because there is no cycle constraint. One-hot vertex potentials
 cannot satisfy these incompatible pins. A zero edge only enforces equality,
-so both-$A$ and both-$B$ remain possible without other pins or raw claims.
+so both-$\mathsf{ret}$ and both-$\mathsf{del}$ remain possible without other pins or raw claims.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:fh-formal}}{Formal Model}
@@ -1867,7 +1867,7 @@ This chapter describes federation as ``not a consensus protocol'' (\S\ref{sec:fh
 \begin{pdsolution}{ex:fh-synthesis}
 The design does not require one global total order over every harbor's events: each harbor maintains its own epoch history, and cross-witnessing can expose inconsistent signed views when those views meet. Accounting nevertheless needs an authoritative custody record and atomic, amount-preserving terminal transitions for each bond. The Cross-Harbor Bucket Partition (Design Invariant~\ref{prop:fh-cross-cons}) states that obligation; its prose sketch is not an executable model-checking result. The available TLC transcript verifies the separate single-machine Conservation model at its finite configuration. Neither that transcript nor the cross-harbor partition proves deployment-level agreement or custody enforcement. An eventual cross-harbor model must specify the communication, failure, and atomicity assumptions under which those transitions can actually be implemented.
 
-Calling the Federated Harbor ``a project institution, not merely two machines sharing a repository'' means this chapter's claim is broader than any one protocol: an authoritative event/work-unit graph, per-principal policy, local effect mediators, causal messages, evidence, roles, and explicit governance over conflicts, of which the transfer ceremony, revocation mesh, and settlement escrow are three essential pieces, not the whole structure. A roadmap or a stated intention is versioned forecast, not truth, and a contradiction detector (the witness log's equivocation check) produces evidence for a \emph{named principal or role} to decide against, rather than deciding by itself. The chapter's proposed division --- consensus only where it is cheap and structurally necessary (the small authoritative metadata core: epoch roots, admission records), federation everywhere else (the actual work artifacts) --- is the concrete answer to the framing question of \S\ref{sec:fh-intro}: two machines needed more than a shared repository, and what they needed is exactly the institution this chapter specifies one layer of.
+Calling the Federated Harbor ``a project institution, not merely two machines sharing a repository'' means this chapter's claim is broader than any one protocol: an authoritative event/work-unit graph, per-principal policy, local effect mediators, causal messages, evidence, roles, and explicit governance over conflicts, of which the transfer ceremony, revocation mesh, and settlement escrow are three essential pieces, not the whole structure. A roadmap or a stated intention is versioned forecast, not truth, and a contradiction detector (the witness log's equivocation check) produces evidence for a \emph{named principal or role} to decide against, rather than deciding by itself. The chapter uses no consensus protocol anywhere: each harbor publishes its own epoch roots, and the witness log records and cross-checks those roots and the admission records without any vote, while the work artifacts stay with their owners. That division answers the two-machine problem posed at the opening of \pdchapref{fh}{The Federated Harbor}: two machines needed more than a shared repository, and this chapter specifies one layer of the institution they needed.
 \end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
