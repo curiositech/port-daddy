@@ -139,17 +139,11 @@
 % detection, the leakage budget, limitations, recitation, and exercises.
 % ---------------------------------------------------------------------------
 \section{Two owners, one answer}\label{sec:sealed-problem}
-\noindent\emph{Express lane: a sealed room lets an agent compute on data that
-its owner will not hand over. The room does not promise that nothing leaks. It
-promises that every release is explicit, passes through a gate, and has a
-counted limit. Four results support that promise: the gate is the only way out
-(a bounded model check, Property~\ref{thm:sealed-noninterference}); the gate
-can block what it is meant to block, such as network sends after a secret read
-(the controllability theorem of \pdchapref{swk}{The Single-Writer Kernel}); a
-ledger caps the total declared privacy cost
-(Theorem~\ref{thm:sealed-conservation}); and planted decoy records catch leaks
-with a stated probability (Theorem~\ref{thm:sealed-power}).
-Section~\ref{sec:sealed-budget} adds up what can still leak.}
+\noindent\emph{Express lane: what can a sealed room promise when an agent
+computes on data that its owner will not hand over? It promises that every
+release is explicit, passes through a gate, and has a counted limit, which is
+less than a promise that nothing leaks. In the running example, 200 jobs that
+each return 64 bits to Erin can carry at most 12,800 bits, before timing.}
 \paragraph{The scene.}
 Derek owns sensitive financial data $D$. Erin owns a valuable agent system $M$:
 weights, prompts, skills, tools, orchestration. Both want the answer
