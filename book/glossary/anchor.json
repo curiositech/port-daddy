@@ -1,0 +1,3 @@
+[
+  {"term": "gossip", "sort": "gossip", "definition": "As a verb: a daemon periodically sends what it knows to a few other daemons, which pass it on in turn, until every daemon has it. As an adjective (gossip protocol, gossip mesh): a set of daemons that spreads information this way, or the rules they follow to do it."}
+]
