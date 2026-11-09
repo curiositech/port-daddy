@@ -323,7 +323,7 @@ The five witness-log requirements above have the same shape as the five required
 \subsection{What the federation is not}\label{sec:fh-not}
 Three things the federation is not, stated once so that the rest of the chapter need not keep refuting them.
 The federation is \emph{not} a consensus protocol. No one agrees on a global order of events. Each harbor's epoch roots only ever extend its own history, each root is published to the shared log, and equivocation can be detected. None of this needs harbors to agree on an order, and the earlier chapters' designs avoid that overhead on purpose.
-The federation is \emph{not} a hub-and-spoke network built around a privileged central coordinator. The witness log can be copied: a few log instances that witness one another are enough, and any harbor can read from any of them. The risk is that one well-funded operator captures the federation by becoming everyone's only witness. \S\ref{sec:fh-failure-modes} discusses it; the design's answer is to keep several independent witnesses, compared by gossip.
+The federation is \emph{not} a hub-and-spoke network built around a privileged central coordinator. The witness log can be copied: a few log instances that witness one another are enough, and any harbor can read from any of them. The risk is that one well-funded operator captures the federation by becoming everyone's only witness. \S\ref{sec:fh-failure-modes} discusses it; the design's answer is to keep several independent witnesses, compared by gossip. Settlement is the one deliberate hub: each bond has a single custodian (\S\ref{sec:fh-escrow}).
 The federation is \emph{not} a market in identities that anyone may enter. A new harbor enters through the joining ceremony of \S\ref{sec:fh-admission}, which needs a bond of its own or a sponsor among the existing harbors. Entry is therefore by invitation, and in exchange a Sybil attack (one attacker running many identities)~\pdcite{douceur2002sybil} costs the attacker as much per identity as honest entry costs.
 Figure~\ref{fig:fh-sovereignty-fence} returns to Alice's refused database
 request: a card can be valid at its source and still be unacceptable at its
@@ -1226,7 +1226,12 @@ more evidence, or refuse to decide, without inventing guilt or certainty.
 
 The third protocol settles bonds across harbors. A bond is posted at $A$ to
 cover damage caused by an $A$-side agent working at $B$. When damage occurs,
-the bond must pay the damaged party at $B$. Neither harbor gains authority over
+the bond must pay the damaged party at $B$. The damaged party, the harbor that
+hosts the damaged resource and the harbors that hold the evidence need not be
+the same; the worked example of \S\ref{sec:fh-worked-example} involves three
+harbors. Settlement is hub-and-spoke by design: every bond routes through one
+custodian, and that custodian's single terminal transition is what makes the
+outcome atomic. Witnessing and revocation need no such hub. Neither harbor gains authority over
 the other, but the protocol uses a third-party custody service, and that
 service must be unable to make any payment outside a fixed set of allowed
 moves. The property below states that assumption; it does not make the
@@ -1237,11 +1242,11 @@ service trustless.
 \subsection{The bounded escrow}\label{sec:fh-escrow}
 \pdstatus{\Designed}{design sketch; no deployed custody mechanism or executed model}
 
-The escrow is that third party. Its \emph{custody ledger}, the record that actually moves the bond money, must offer exactly two final moves: \emph{clear} (pay the listed beneficiary $B$ and the fee recipient up to its cap, and refund the rest to $A$) or \emph{refuse} (return the bond to $A$). A signed policy alone is only evidence. The escrow must be unable to do any of the following, and it is unable
+The escrow is that third party. Its \emph{custody ledger}, the record that actually moves the bond money, must offer exactly two final moves: \emph{clear} (pay the beneficiaries listed in the bond's signed terms and the fee recipient up to its cap, and refund the rest to $A$) or \emph{refuse} (return the bond to $A$). A signed policy alone is only evidence. The escrow must be unable to do any of the following, and it is unable
 only if it cannot bypass the ledger's interface or change its code and keys:
 
 \begin{itemize}[nosep]
-\item Redirect funds to anyone other than $A$, $B$, or the agreed fee recipient within its cap.
+\item Redirect funds to anyone other than $A$, the listed beneficiaries, or the agreed fee recipient within its cap.
 \item Equivocate about its clearing decision (publish ``cleared'' to one party and ``refused'' to another).
 \item Leave a bond unresolved beyond the agreed expiry policy.
 \item Extract more than a pre-agreed fee $\phi$ which is capped at issuance.
@@ -1267,7 +1272,7 @@ eventually runs; a list of allowed recipients supplies neither.
 \begin{pdclaim}{Design invariant}{Conditional Escrow Extraction Bound}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:fh-escrow-bound}
-Assume the custody ledger (i) allows payment only to $A$, $B$ and the specified fee recipient, (ii) caps the fee output at $\phi$, (iii) executes exactly one terminal transition atomically, and (iv) keeps signing and transfer authority outside the escrow operator's bypassable control.
+Assume the custody ledger (i) allows payment only to $A$, the beneficiaries listed in the bond's signed terms and the specified fee recipient, (ii) caps the fee output at $\phi$, (iii) executes exactly one terminal transition atomically, and (iv) keeps signing and transfer authority outside the escrow operator's bypassable control.
 
 Then no allowed transition pays the escrow more than $\phi$.
 \end{pdclaim}
@@ -1276,7 +1281,9 @@ The bound follows by case analysis over the two allowed terminal transitions. Wi
 
 The escrow is a trusted third party whose possible moves are limited. It is not trustless in the sense of a hash time-locked contract (HTLC)~\pdcite{herlihy2018atomic}, which releases a payment only if a secret appears before a deadline. Whether trustless settlement is possible for bonds like these, which are not interchangeable and whose size depends on reputation, is open (\S\ref{sec:fh-limitations}).
 
-\paragraph{A candidate instantiation of assumption (iv).} One concrete way to remove the escrow operator's \emph{unilateral} control over transfer authority is a 2-of-3 threshold-signature scheme: harbor $A$, harbor $B$, and a federation arbiter each hold one key, and no transfer executes without two of the three signatures. In the ordinary case $A$ and $B$ agree on the outcome, co-sign the release themselves, and the arbiter never touches custody. The arbiter's key exists only to break a dispute: it weighs the witness-logged evidence and co-signs with whichever party it rules for. This is a plausible way to meet assumption (iv). It leaves Design Invariant~\ref{thm:fh-escrow-bound} conditional, because the arbiter is still a trusted third opinion: we have not analyzed an arbiter colluding with one principal or specified how arbiter selection resists capture, and the underlying payment mechanism (an on-chain threshold contract, a custodial payment hold, or anything else) brings assumptions this chapter does not model. We list 2-of-3 multisig as a candidate design, not a closed result (\S\ref{sec:fh-lim-trustless}, Appendix~\ref{app:fh-mech}).
+\paragraph{Three trusted roles.} Settlement trusts three roles, and the protocol keeps them apart even when one organization fills two of them. The \emph{custodian}, here the escrow, holds the bond and can make only the two terminal moves. The \emph{adjudicator}, named in the bond's signed terms, decides whether a claim is proved under the contract and how much it entitles each listed beneficiary to. The \emph{arbiter} exists only in the 2-of-3 arrangement below. It decides nothing about the claim; it co-signs a release only when the release matches the adjudicator's signed ruling and the bond's terms.
+
+\paragraph{A candidate instantiation of assumption (iv).} One concrete way to remove the escrow operator's \emph{unilateral} control over transfer authority is a 2-of-3 threshold-signature scheme: harbor $A$, harbor $B$, and a federation arbiter each hold one key, and no transfer executes without two of the three signatures. In the ordinary case $A$ and $B$ agree on the outcome, co-sign the release themselves, and the arbiter never touches custody. The arbiter's key exists only to break a deadlock between them. It does not weigh the evidence again; it co-signs whichever proposed release matches the adjudicator's signed ruling. This is a plausible way to meet assumption (iv). It leaves Design Invariant~\ref{thm:fh-escrow-bound} conditional, because the arbiter is still a trusted third party: we have not analyzed an arbiter colluding with one principal or specified how arbiter selection resists capture, and the underlying payment mechanism (an on-chain threshold contract, a custodial payment hold, or anything else) brings assumptions this chapter does not model. We list 2-of-3 multisig as a candidate design, not a closed result (\S\ref{sec:fh-lim-trustless}, Appendix~\ref{app:fh-mech}).
 
 \subsection{Cross-harbor conservation}\label{sec:fh-cross-conservation}
 
@@ -1347,12 +1354,12 @@ Figure~\ref{fig:fh-settle-protocol} shows the three-step protocol:
 \input{figures/fig-fh-settle-protocol}
 
 \begin{enumerate}[nosep]
-\item \textbf{Bond post.} Alice's harbor $A$ mints a work card for agent $\alpha$, which then works at $B$. A bond of $b_\alpha$ dollars is posted at $A$ and locked in the escrow. The bond's amount and TTL are signed into both $A$'s and $B$'s witness-log roots so the federation knows the bond exists.
-\item \textbf{Damage claim.} Damage detected at $B$ (acceptance criteria fail, or invariant violation). Bob's harbor signs claim $\mathsf{cl}_B = (R_B^{(e_B)}, \mathrm{evidence})$ where the evidence is a Merkle inclusion proof against $R_B^{(e_B)}$. The claim is sent to the escrow.
-\item \textbf{Verification and clearance.} Escrow verifies inclusion of the submitted records in $R_B^{(e_B)}$, then
-checks the verdict of the contract's authorized adjudicator against the
-acceptance preconditions signed at step 1. Inclusion alone supplies neither
-causation nor a verdict. The custody transition produces one of two outcomes: \emph{clear} (pay $B$ out of bond, refund remainder to $A$) or \emph{refuse} (return bond to $A$, log reason). Both outcomes are recorded in the witness log.
+\item \textbf{Bond post.} Alice's harbor $A$ mints a work card for agent $\alpha$, which then works at $B$. A bond of $b_\alpha$ dollars is posted at $A$ and locked in the escrow. The bond's signed terms give its amount and TTL, the beneficiaries, the adjudicator and the harbors expected to hold evidence. They are recorded under $A$'s root and under the root of each harbor they name, so the federation knows the bond exists.
+\item \textbf{Damage claim.} Damage detected at $B$ (acceptance criteria fail, or invariant violation). Bob's harbor signs claim $\mathsf{cl}_B = (R_B^{(e_B)}, \mathrm{evidence})$ where the evidence is a Merkle inclusion proof against $R_B^{(e_B)}$. When the evidence lies in several harbors, the claim carries each one's root and an inclusion proof against it. The claim is sent to the escrow.
+\item \textbf{Verification and clearance.} The escrow, as custodian, verifies inclusion of the submitted records in each named root, then
+checks the ruling of the adjudicator named at step 1 against the
+acceptance preconditions signed there. Inclusion alone supplies neither
+causation nor a verdict. The custody transition produces one of two outcomes: \emph{clear} (pay the listed beneficiaries out of the bond, refund the remainder to $A$) or \emph{refuse} (return bond to $A$, log reason). Both outcomes are recorded in the witness log.
 \end{enumerate}
 
 The designed transition is atomic in the bucket-partition sense: a bond moves once from in-escrow to either cleared or refunded. This property depends on the custody-ledger assumptions of Design Invariant~\ref{thm:fh-escrow-bound}; witness records alone cannot make two external transfers atomic.
@@ -1472,23 +1479,24 @@ The migration runs cleanly. Two hours later, well after the agent has moved on, 
 $D_B$ (Beta's harbor) verifies the failure against its local invariants and produces a damage claim:
 
 \[
-\mathsf{cl}_B = (R_B^{(e_B)}, \mathrm{evidence}),
+\mathsf{cl}_B = (R_S^{(e_S)}, R_B^{(e_B)}, \mathrm{evidence}),
 \]
 
-where the evidence binds the failed test receipt, exact work item, base and
-result snapshots, and the acceptance policy. Merkle inclusion authenticates
-those records; causation and whether \texttt{float64} was promised remain
+where the evidence binds the migration records and the base and result
+snapshots, which sit under the staging root $R_S^{(e_S)}$, and the failed test
+receipt, exact work item and acceptance policy, which sit under Beta's root
+$R_B^{(e_B)}$. Merkle inclusion authenticates those records; causation and whether \texttt{float64} was promised remain
 questions for the agreed adjudication rule. The claim is sent to the escrow.
 
 \subsection{Step 3: Settlement}\label{sec:fh-ex-settle}
 
-Acme posted a bond when Controller-7 was authorized to run the migration. The bond is held in the federation escrow with a lifetime (TTL) of 24 hours, long enough for downstream consequences to surface and short enough not to lock collateral indefinitely.
+Acme posted a bond when Controller-7 was authorized to run the migration. The bond is held in the federation escrow with a lifetime (TTL) of 24 hours, long enough for downstream consequences to surface and short enough not to lock collateral indefinitely. Its signed terms list Beta as the beneficiary, name an adjudicator, and name the staging and Beta harbors as holders of evidence; they are recorded under the roots of all three harbors. Three parties now meet in one settlement: Acme posted, the staging harbor holds the migration records, and Beta claims.
 
-The escrow verifies $\mathsf{cl}_B$: it checks the inclusion proof against $R_B^{(e_B)}$ in the witness log, matches the claim against the acceptance preconditions signed at bond-post time (which named the staging schema as a covered surface), and checks the agreed adjudicator's ruling. For this branch assume the
+The escrow, as custodian, verifies $\mathsf{cl}_B$: it checks the two inclusion proofs against $R_S^{(e_S)}$ and $R_B^{(e_B)}$ in the witness log, matches the claim against the acceptance preconditions signed at bond-post time (which named the staging schema as a covered surface), and checks the ruling of the adjudicator those terms named. For this branch assume the
 contract explicitly required \texttt{float64} and the bound evidence
 establishes the unauthorized type change. The ruling authorizes \emph{clear}.
 Had that requirement been absent, a failed integration test alone would not
-justify the same ruling. Acme's bond is debited; Beta receives the cleanup-cost portion; the remainder is refunded to Acme. The settlement record is written to the witness log.
+justify the same ruling. Acme's bond is debited; Beta receives the cleanup-cost portion; the remainder is refunded to Acme. The settlement record is written to the witness log. Had the claim asked for payment to a party the terms did not list, the custodian would have had no move that makes it.
 
 \subsection{Step 4: Revocation propagation}\label{sec:fh-ex-revocation}
 
@@ -1773,7 +1781,7 @@ What to carry away from this chapter:
 \item \textbf{Revocation propagation has a conditional expectation.} Reliable rounds on a complete network with uniform peer choice give expected logarithmic dissemination. It supplies neither a deterministic delivery deadline nor a finite deadline during a partition.
 \item \textbf{A one-edge perturbation alarms exactly on a visible coordinate cycle.} For a perturbation of size $3$, the residual is $1.2247$ on $C_6$ and zero on $P_6$. This concerns the edge encoding; authenticated endpoint claims can be compared directly on either graph.
 \item \textbf{The residual is an exact unrestricted repair cost.} It is only a lower bound when corrections must obey a prescribed support. Attribution needs additional support assumptions, and multiple offsets can cancel even when one agent supplies them. The equal-information direct checker misses none of the residual's alarms in the stated noise-free model.
-\item \textbf{Cross-harbor settlement has separate accounting obligations.} One funded bond occupies one lifecycle account; recipient transfers require their own conservation rule and non-bypassable custody. The partition alone shows neither that an implementation conforms nor that a harbor failure stays contained.
+\item \textbf{Cross-harbor settlement has separate accounting obligations and three separate roles.} A custodian holds each bond, an adjudicator named in its terms rules on claims, and an arbiter, where there is one, only checks that a release matches the ruling. One funded bond occupies one lifecycle account; recipient transfers require their own conservation rule and non-bypassable custody. The partition alone shows neither that an implementation conforms nor that a harbor failure stays contained.
 \item \textbf{Joining is a sponsored ceremony with a record.} A new harbor joins when an existing harbor posts a bond on its behalf; it works under probation while that bond is at risk and graduates only after its own coverage is funded. The witness-logged enrollment record is what a later dispute reads.
 \item \textbf{The rollback configuration fails by design.} Restoring a revocation database can resurrect a revoked card. The committed mitigation makes each card match an external epoch, which keeps finality but refuses every outstanding card after any revocation. The repair compares the database's \texttt{dbEpoch} with the newest published epoch instead and adds an availability property; it is a design requirement, and the finite TLC check covers only the stricter rule.
 \end{enumerate}
@@ -1792,7 +1800,7 @@ The proof sketch's step, ``each attenuation is a subset operation in the Anchor 
 
 In this case minting $C_B'$ is \textbf{token exchange and new authorization at $B$}, not attenuation of $C_A$. A correct $D_B$ must additionally establish: (a) \emph{$A$-side input eligibility}: a signed semantic/resource mapping saying that $C_A$'s authority over $A$'s test database is the kind of thing that may be exchanged at all, recorded with its dependency on $A$'s issuing epoch root $R_A^{(e_A)}$ so a later revocation of $C_A$ is traceable to $C_B'$; and (b) \emph{$B$-side local authorization}: $D_B$'s own policy minting a new child grant over its staging database, under $D_B$'s sovereignty (Design Invariant~\ref{def:fh-sovereignty}, items 1 and 4), rather than treating $\mathrm{att}_B$ as if it were narrowing $A$'s grant.
 
-A second gap comes with this one and should be named rather than assumed solved. Bob's harbor observing a failed acceptance check, or an inclusion proof against $R_B^{(e_B)}$, does not by itself establish that Alice's agent \emph{caused} the failure (\S\ref{sec:fh-settle-proto}'s damage-claim step). Settlement evidence must bind the exact work-unit, the base and result trees, the mediated effects, the acceptance policy in force, and the verifier that checked it; semantic causation (``$\alpha$'s write is why the check failed'') remains a claim for the adjudicator named in \S\ref{sec:fh-escrow}'s 2-of-3 instantiation to weigh, not something the inclusion proof settles on its own. Theorem~\ref{lem:fh-att} still holds in the case its proof sketch covers; this exercise marks where that case ends.
+A second gap comes with this one and should be named rather than assumed solved. Bob's harbor observing a failed acceptance check, or an inclusion proof against $R_B^{(e_B)}$, does not by itself establish that Alice's agent \emph{caused} the failure (\S\ref{sec:fh-settle-proto}'s damage-claim step). Settlement evidence must bind the exact work-unit, the base and result trees, the mediated effects, the acceptance policy in force, and the verifier that checked it; semantic causation (``$\alpha$'s write is why the check failed'') remains a claim for the adjudicator named in the bond's terms (\S\ref{sec:fh-escrow}) to weigh, not something the inclusion proof settles on its own. Theorem~\ref{lem:fh-att} still holds in the case its proof sketch covers; this exercise marks where that case ends.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:fh-revocation}}{Federated Revocation}
@@ -1889,7 +1897,7 @@ Fresh roots do not establish mutual receipt, common knowledge, or obedience. A p
 \S\ref{sec:fh-lim-trustless} leaves open whether trustless settlement is possible for the Federated Harbor's non-fungible, adjudication-dependent bonds. HTLCs solve the fungible case using a shared hash preimage. Explain, from the definition of an HTLC's atomicity condition, why that construction does not transfer to a bond whose ``did the damage occur'' predicate is subjective, and sketch what an impossibility argument for the general case would need to assume.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-trustless-settlement}
-An HTLC's atomicity rests on a single objective, third-party-checkable bit: does a preimage of a fixed hash appear on-chain before a deadline. Both parties' payoffs are a deterministic function of that one bit, so the same contract executes identically for anyone who can read the chain. The Federated Harbor's damage predicate (\S\ref{sec:fh-settle-proto}'s claim step) is not a single objective bit revealed by one party: whether $\alpha$'s action at $B$ actually caused the acceptance-criteria failure is a semantic, evidence-weighing judgment over a work-unit's base and result trees, exactly the causation gap Exercise~\ref{ex:fh-xfer-attenuation}'s solution names. A deterministic trustless contract must settle identically whenever its on-ledger inputs are identical; if two possible worlds produce the same signed evidence trail but differ in whether $\alpha$ was actually at fault, no deterministic on-ledger rule can be correct in both worlds at once. An impossibility argument would take this shape: it would assume two worlds with identical observable transcripts and provably different ground truth, and show that every candidate deterministic settlement rule is wrong in at least one of them. Progress, as \S\ref{sec:fh-lim-trustless} and \S\ref{sec:fh-escrow}'s 2-of-3 candidate both note, means adding something outside pure on-ledger determinism (an oracle, a trusted execution environment, an optimistic dispute window, or a bonded human or arbiter adjudicator), each of which brings back a trust assumption. This chapter gives neither the construction nor the impossibility proof; it gives the escrow's conditional bound (Design Invariant~\ref{thm:fh-escrow-bound}) as the honest fallback while the question stays open.
+An HTLC's atomicity rests on a single objective, third-party-checkable bit: does a preimage of a fixed hash appear on-chain before a deadline. Both parties' payoffs are a deterministic function of that one bit, so the same contract executes identically for anyone who can read the chain. The Federated Harbor's damage predicate (\S\ref{sec:fh-settle-proto}'s claim step) is not a single objective bit revealed by one party: whether $\alpha$'s action at $B$ actually caused the acceptance-criteria failure is a semantic, evidence-weighing judgment over a work-unit's base and result trees, exactly the causation gap Exercise~\ref{ex:fh-xfer-attenuation}'s solution names. A deterministic trustless contract must settle identically whenever its on-ledger inputs are identical; if two possible worlds produce the same signed evidence trail but differ in whether $\alpha$ was actually at fault, no deterministic on-ledger rule can be correct in both worlds at once. An impossibility argument would take this shape: it would assume two worlds with identical observable transcripts and provably different ground truth, and show that every candidate deterministic settlement rule is wrong in at least one of them. Progress, as \S\ref{sec:fh-lim-trustless} and \S\ref{sec:fh-escrow}'s 2-of-3 candidate both note, means adding something outside pure on-ledger determinism (an oracle, a trusted execution environment, an optimistic dispute window, or a bonded human adjudicator), each of which brings back a trust assumption. This chapter gives neither the construction nor the impossibility proof; it gives the escrow's conditional bound (Design Invariant~\ref{thm:fh-escrow-bound}) as the honest fallback while the question stays open.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-cartel-formation}
