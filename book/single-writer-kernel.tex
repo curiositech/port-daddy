@@ -2523,7 +2523,7 @@ lasts. It does not change whether a history meets the specification.
 
 \begin{theorem}[Conditional consistency model]\label{thm:consistency}
 \setlength{\parskip}{4pt plus 1pt}
-Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), the daemon runs each request's statements on its connection to completion before it starts the next request's, each successful response is sent only after commit, no out-of-band writer mutates the tables, and the observed execution is crash-free. Each claim/lock operation's state checks and mutation belong to one transaction, which reads the clock once and may begin with a sweep.
+Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), the daemon runs each request's statements on its connection to completion before it starts the next request's, each successful response is sent only after commit, no out-of-band writer mutates the tables, and the observed execution is crash-free. Each claim/lock operation's state checks and mutation belong to one transaction, which may begin with a sweep; that transaction reads the daemon's clock itself, once, after it begins, and judges every expiry it checks or sets by that reading.
 
 Then committed transactions have an equivalent serial order, and the externally observed
 claim/lock operations are linearizable with respect to the timed claims object of
@@ -2538,6 +2538,13 @@ undefined~\pdcite{sqliteisolation}. A daemon with one connection therefore
 gets isolation only by never interleaving two requests' statements on it. A
 synchronous driver on one thread provides that for any request whose
 statements run without yielding to other work in between.
+
+The clock read belongs inside the transaction for the same reason. A lease's
+expiry is part of the state the transaction checks, so the time must be the
+one at which the transaction acts. A time read when the request arrived would
+judge expiry at an earlier moment: a lease that expired while the request
+waited its turn would still deny it, and the result would not be the one the
+specification gives at the commit point.
 
 \begin{proof}[Proof sketch]
 \setlength{\parskip}{4pt plus 1pt}
@@ -3331,7 +3338,7 @@ One candidate: a contested work unit never settles (\texttt{settle} is guarded o
 List the routing, transaction, response, and failure assumptions of Theorem~\ref{thm:consistency}. Which one fails first if an out-of-band SQLite writer is introduced? Does the theorem require synchronized clocks?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-linearizability-assumptions}
-One daemon connection handles every claim and lock read and write; no two requests' statements interleave on it; checks and mutations share one transaction, which reads the clock once and may open with a sweep; respond only after commit; no out-of-band writer; a crash-free observed history. An external writer violates the single-writer and no-bypass conditions. A read-only connection needs its own API and snapshot analysis. Synchronized clocks are unnecessary: non-overlapping invocation/response intervals constrain the order, and the daemon's clock enters only as the time each transaction read.
+One daemon connection handles every claim and lock read and write; no two requests' statements interleave on it; checks and mutations share one transaction, which reads the clock itself, once, after it begins, and may open with a sweep; respond only after commit; no out-of-band writer; a crash-free observed history. An external writer violates the single-writer and no-bypass conditions. A read-only connection needs its own API and snapshot analysis. Synchronized clocks are unnecessary: non-overlapping invocation/response intervals constrain the order, and the daemon's clock enters only as the time each transaction read.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-linearization}
 Construct a three-operation claim history and give a valid linearization. If two calls overlap, show why more than one linearization may still respect real time.
