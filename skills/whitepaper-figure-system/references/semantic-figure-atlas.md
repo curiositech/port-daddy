@@ -95,7 +95,7 @@ the claim. Radial "organs" and sand-dollar rings are forbidden unless radial ord
 
 ## Volume I: The Legible Swarm
 
-Canonical root: `book/legible-swarm.tex` (17 figures).
+Canonical root: `book/legible-swarm.tex` (19 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -121,10 +121,12 @@ Canonical root: `book/legible-swarm.tex` (17 figures).
 | `I/fig:inception-canary` | When a blinded, ground-truth-known defect is replayed to the operator, does the response tighten or loosen the daemon's trust in them? | protocol/decision flow, three ordered steps into a single two-way adjudication gate, each outcome badged with its trust effect | the two adjudication outcomes (rubber-stamp failure vs vigilant detection) and their opposite effects on operator autonomy lease; replay with known ground truth, never live PR | two-state trust-score time series (unmeasured hypothesis); silent third option |
 | `I/fig:zoom-advantage` | For which flagged-set densities does the stated query bound certify an advantage over flat inspection? | log-density plot of the reciprocal ceiling-aware bound, with separate empirical points | adv(d)=1/[d(2 ceil(log2(1/d))+4)]; smooth hyperbolic segments with jumps at inverse powers of two; certified crossing at1/12; guarantee and measured harness mean labelled separately | staircase interpolation; an invented empirical speedup curve; treating a sufficient guarantee boundary as an exact algorithm crossover |
 | `I/fig:legible-halving-tree` | How can one negative group query avoid opening an entire clean subtree? | small fully countable adaptive binary-splitting tree | constructed F=16 with item2 positive; nine queried nodes; negative eight-item branch pruned after one query; noiseless unit-cost oracle assumption | a partial tree whose displayed query count cannot be checked; measuring saved files as zero-cost knowledge; confusing this trace with a sampled benchmark |
+| `I/fig:audit-blame` | Who is to blame when two directions clash, and how does the deletion filter decide? | interval bars on one broken minutes axis, three rows (both / without Alice / without Bob) | Alice must migrate on [0,120]; Bob's freeze on [0,4320]; overlap [0,120] edged as the conflict; each deletion removes the conflict; blame set {Alice,Bob}; Bob owns the database | Venn diagram of sets; table of checker calls with no time; an unbroken axis that squashes 120 into 4320 |
+| `I/fig:audit-escalate` | When does a conflict have exactly one next hop? | before/after pair of delegation graphs with identical node positions | Bob to Alice to payments/, Bob to tests/; added Carol to payments/ gives two incomparable parents; escalation route up the one line; two candidate hops marked unresolved | one annotated graph for both cases; an org chart without objects |
 
 ## Volume II: The Single-Writer Kernel
 
-Canonical root: `book/single-writer-kernel.tex` (10 graphical figures, 2 recorded terminal
+Canonical root: `book/single-writer-kernel.tex` (11 graphical figures, 2 recorded terminal
 sessions set as listings, and 2 algorithm exhibits). The seven-organs, communication-organ and
 deontic-split exhibits are tables in the chapter (round 4, 2026-09-06); the bouncer sketch and the
 dual-runtime mirror were cut with a written rationale in the figure triage.
@@ -162,10 +164,11 @@ dual-runtime mirror were cut with a written rationale in the figure triage.
 | `II/fig:swk-rehydration-pipeline` | What does event-sourced replay actually restore, and what does it explicitly not restore? | four-step rehydration pipeline with dashed exclusion boundary below the last step | durable inputs restored (commit pin, truncated message log, open claims/commitments); model inference state explicitly excluded/not restored (OP-4 open half) | before/after full state comparison suggesting faithful inference restoration; omitting the non-restored inference state exclusion box |
 | `II/fig:swk-taint-automaton` | How can "no egress after reading a secret" be enforced when the read itself cannot be refused? | two-state policy automaton (ok, tainted) with aligned controllable/uncontrollable event table | uncontrollable read enabled in both ok and tainted states; controllable net_egress enabled in ok, disabled in tainted; gate the channel, never the token | flowchart showing read intercepted or blocked; omitting the distinction between controllable and uncontrollable alphabet |
 | `II/fig:swk-ticket-lock-delta` | What would change about the claim lifecycle if a ticket queue existed, and where would it still fail? | two paired panels (cooperative release vs TTL sweep) on shared state vocabulary | delta on shipped machine; cooperative release grants FIFO to queue head; lazy TTL sweep skips queue and stays open (OP-1 open); bounded wait holds on one exit, fails on other | redrawing full three-state lifecycle with redundant unchanged states; claiming ticket queue covers lazy eviction |
+| `II/fig:audit-modes` | For one write, what must an attacker defeat under each assurance mode? | five identical route small multiples, middle slot varying, with a two-sentence column per mode | Observed log and Coordinated sign-in sheet beside the write; broker, OS wall with one door, key vault on it; per-mode must-defeat; no order between rows | ladder or staircase implying a total order; bare table hiding where the mechanism sits |
 
 ## Volume III: From Spawn to Person
 
-Canonical root: `book/spawn-to-person.tex` (13 figures).
+Canonical root: `book/spawn-to-person.tex` (14 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -185,10 +188,11 @@ Canonical root: `book/spawn-to-person.tex` (13 figures).
 
 | `III/fig:stp-audit-amortization` | Is a constant audit rate the cheapest way to sustain deterrence over time, and by how much do alternatives save? | xy plot comparing three spend schedules over horizon T with T=200 marked | asymptotic classes: flat Theta(T), logarithmic Theta(log T), bounded O(1); model A cheaper than model B at T=200 despite model B's eventual convergence | bar chart at T=200 alone; prose table hiding curve geometry; claiming bounded total implies cheaper at every finite horizon |
 | `III/fig:stp-resurrection-soundness` | Which migration safeguard prevents each shortest failure witness? | aligned safeguard-to-witness evidence matrix | principal-scoped sanction premise separate from three migration clauses; continuity link, engine-attested outcome and obligation settlement; shortest model witnesses 1, 2, 2, 2; 747 states and depth 7 as bounded evidence | unconditional engine swap; collapsing global premise into a migration action; general software correctness from zero bounded-model violations |
+| `III/fig:audit-person` | What persists when the processes doing the work exit? | lifeline row over one ledger band | three PIDs with exit crosses; signed succession records; each process's write landing in an account field; fields confirmed / may / lineage / owes | agent portrait; chained process boxes with no separate record |
 
 ## Volume IV: The Harbor Economy
 
-Canonical root: `book/harbor-economy.tex` (15 figures).
+Canonical root: `book/harbor-economy.tex` (16 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -212,6 +216,7 @@ Canonical root: `book/harbor-economy.tex` (15 figures).
 | `IV/fig:he-deterrence-convention` | Does it matter which slashing convention you use when quoting the audit rate needed for deterrence? | paired critical-audit-rate threshold curves on shared payoff parameters | keep-gain convention requires rho*=0.25; claw-back convention requires rho*=0.20 at identical G=10, d=0.8, B=50; formula difference rho*=G/(dB) vs rho*=G/(dB+G) | single unlabelled deterrence frontier; presenting audit rates without convention definition; conflating gross and net gain |
 | `IV/fig:he-rater-ladder` | Why does asking "who judges the judges" not go on forever in this design? | descending rank ladder with strict downward appeals terminating at rank 0 | appeal strictly moves down one rank at a time from rank K; rank 0 is an exogenously protected oracle/human root; finite termination guarantee | infinite recursive spiral; peer evaluation loop; ungrounded appeal graph; symmetric rater network |
 | `IV/fig:he-skill-lineage` | How does a versioned skill bind to its parent while maintaining an independent evaluation root? | two-column versioned lineage card flow with ancestor hash, discounted prior, and fresh evidence | v2 binds to v1 parent via parent hash; v1 history discounted by predeclared gamma=0.4 (8 prior); combined with fresh v2 observations (5); distinct evaluation roots | erasing v1 history upon upgrade; pooling raw observations without discounting; unversioned skill mutation |
+| `IV/fig:audit-loop` | How can every pair agree and the whole still fail? | three-node directed cycle with a rate on each edge and the product inside | A to B x2, B to C x3, C to A x0.2; product 1.2 not 1; pairwise balance stated | a 3x3 rate table; sheaf notation the chapter does not define |
 
 **The last five rows are compiled by nothing, and the atlas keeps them anyway.**
 They sit inside the `\else` branch of an `\ifpdbook` in `harbor-economy.tex`:
