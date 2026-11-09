@@ -30,7 +30,7 @@ describe('Coordination Papers implementation-status contract', () => {
     expect(monitorTests).toContain('finds an open commitment past its due_at');
 
     // The grade and its upper boundary must remain explicit in both companions.
-    expect(kernelPaper).toContain('A \\BuiltWeak{}\nsubstrate now ships: durable commitments');
+    expect(kernelPaper).toContain('A \\BuiltWeak{}\nversion of it now ships: durable commitments');
     expect(kernelPaper).toContain(
       'Neutral graded outcome events,\nsanctions, identity binding, and reputation updates remain absent.',
     );
