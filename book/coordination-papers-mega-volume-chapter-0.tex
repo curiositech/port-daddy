@@ -60,6 +60,8 @@
   \pdbookreference{kwon2023vllm}{320}{W.~Kwon, Z.~Li, S.~Zhuang, Y.~Sheng, L.~Zheng, C.~H. Yu, J.~E. Gonzalez, H.~Zhang, and I.~Stoica. \newblock \emph{Efficient Memory Management for Large Language Model Serving with PagedAttention}. \newblock In \emph{Proc. 29th ACM Symposium on Operating Systems Principles (SOSP)}, pages 611--626, 2023.}{Kwon et al. 2023}
   \pdbookreference{liang2022helm}{321}{P.~Liang, R.~Bommasani, T.~Lee, D.~Tsipras, D.~Soylu, M.~Yasunaga, Y.~Zhang, D.~Narayanan, Y.~Wu, A.~Kumar, et al. \newblock \emph{Holistic Evaluation of Language Models}. \newblock \emph{Transactions on Machine Learning Research (TMLR)}, 2023.}{Liang et al. 2023}
   \pdbookreference{liu2023agentbench}{322}{X.~Liu, H.~Yu, H.~Zhang, Y.~Xu, X.~Lei, H.~Lai, Y.~Gu, H.~Ding, K.~Men, K.~Yang, et al. \newblock \emph{AgentBench: Evaluating LLMs as Agents}. \newblock In \emph{Proc. International Conference on Learning Representations (ICLR)}, 2024.}{Liu et al. 2024}
+  \pdbookreference{jimenez2024swebench}{334}{C.~E. Jimenez, J.~Yang, A.~Wettig, S.~Yao, K.~Pei, O.~Press, and K.~Narasimhan. \newblock \emph{SWE-bench: Can Language Models Resolve Real-World GitHub Issues?} \newblock In \emph{Proc. International Conference on Learning Representations (ICLR)}, 2024. arXiv:2310.06770. \newblock \href{https://arxiv.org/abs/2310.06770}{Primary record}.}{Jimenez et al. 2024}
+  \pdbookreference{lightman2024verify}{335}{H.~Lightman, V.~Kosaraju, Y.~Burda, H.~Edwards, B.~Baker, T.~Lee, J.~Leike, J.~Schulman, I.~Sutskever, and K.~Cobbe. \newblock \emph{Let's Verify Step by Step}. \newblock In \emph{Proc. International Conference on Learning Representations (ICLR)}, 2024. arXiv:2305.20050. \newblock \href{https://proceedings.iclr.cc/paper_files/paper/2024/hash/aca97732e30bcf1303bc22ac3924fd16-Abstract-Conference.html}{Primary record}.}{Lightman et al. 2024}
   \pdbookreference{ouyang2022instruct}{323}{L.~Ouyang, J.~Wu, X.~Jiang, D.~Almeida, C.~L. Wainwright, P.~Mishkin, C.~Zhang, S.~Agarwal, K.~Slama, A.~Ray, et al. \newblock \emph{Training language models to follow instructions with human feedback}. \newblock In \emph{Proc. 36th Conference on Neural Information Processing Systems (NeurIPS)}, 2022.}{Ouyang et al. 2022}
   \pdbookreference{rafailov2023dpo}{324}{R.~Rafailov, A.~Sharma, E.~Mitchell, S.~Ermon, C.~D. Manning, and C.~Finn. \newblock \emph{Direct Preference Optimization: Your Language Model is Secretly a Reward Model}. \newblock In \emph{Proc. 37th Conference on Neural Information Processing Systems (NeurIPS)}, 2023.}{Rafailov et al. 2023}
   \pdbookreference{vaswani2017attention}{325}{A.~Vaswani, N.~Shazeer, N.~Parmar, J.~Uszkoreit, L.~Jones, A.~N. Gomez, L.~Kaiser, and I.~Polosukhin. \newblock \emph{Attention Is All You Need}. \newblock In \emph{Proc. 31st Conference on Neural Information Processing Systems (NeurIPS)}, pages 5998--6008, 2017.}{Vaswani et al. 2017}
@@ -1019,18 +1021,20 @@ do not acquire that meaning by multiplication.
 
 A \pdterm{process reward model} (PRM) supplies scores for intermediate steps.
 For input $x$, let $\tau=(\tau_1,\ldots,\tau_H)$ be a candidate chain and let each
-prefix-dependent score lie in $[0,1]$. One possible ranking heuristic is:
+prefix-dependent score lie in $[0,1]$. Lightman et al.\ rank whole solutions
+by the product of the step scores~\pdcite{lightman2024verify}:
 \begin{equation}
 \mathrm{Score}(\tau) \;=\; \prod_{t=1}^H \mathrm{PRM}(\tau_t \mid \tau_{<t}, x)
 \end{equation}
 A search policy may backtrack when this score falls below a chosen threshold. Whether that policy finds better repairs is an empirical question about the scorer, candidates and task. The accepted patch still needs the checkout job's specified verification.
 
-\subsection{Multi-Agent Formal Verification and Benchmarking}
+\subsection{Benchmarks and Formal Checks}
 
-Evaluating agents that write software needs interactive test environments run in sandboxes, beyond fixed question sets such as HumanEval:
+A fixed question set such as HumanEval scores one answer at a time. Agents that write software are also scored in interactive environments run in sandboxes. The entries below score different things:
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{SWE-bench~\pdcite{jimenez2024swebench}:} 2,294 tasks drawn from real GitHub issues in 12 Python repositories. A model edits the repository, and the task counts as resolved when the patch applies and the task's tests pass, including at least one test that the original fix made pass. A pass shows what those tests check.
   \item \textbf{AgentBench~\pdcite{liu2023agentbench}:} A multi-dimensional benchmark evaluating LLMs as autonomous agents across eight interactive environments, including operating-system tasks, databases, web browsing, digital card games and lateral-thinking puzzles. It does not by itself evaluate a coordinated swarm.
-  \item \textbf{HELM (Holistic Evaluation of Language Models)~\pdcite{liang2022helm}:} Standardized multi-metric evaluation across accuracy, calibration, robustness, fairness, and toxicity.
+  \item \textbf{HELM (Holistic Evaluation of Language Models)~\pdcite{liang2022helm}:} Standardized multi-metric evaluation of language models, not agents, on fixed scenarios, across accuracy, calibration, robustness, fairness and toxicity among other metrics.
   \item \textbf{FormalJudge~\pdcite{zhou2026formaljudge}:} Zhou et al. translate natural-language requirements into atomic constraints and use Dafny specifications with Z3 to assess compliance. Their agent-oversight benchmarks report improved detection. A proof concerns the encoded specification; correctness of its translation and of its connection to observed behavior remains a separate obligation.
 \end{itemize}
 
