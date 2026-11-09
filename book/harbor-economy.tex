@@ -2580,9 +2580,9 @@ as against the jail's \emph{capability} --- needs a decision procedure once two
 accepted norms might disagree. Take the conflict witness worked by hand above
 (fact \texttt{agent\_deployed}; Horn rule to \texttt{prod\_access}; an obligation
 and a forbiddance on \texttt{write\_prod} overlapping on $[5,10]$), and add one
-\emph{disjunctive} obligation $O(\ell_1\vee\ell_2)$ over two fresh literals
-with the added rules $\ell_1\to O(\texttt{assert\_x0},\{\texttt{x0}\},[0,1])$
-and $\ell_2\to F(\texttt{assert\_x0},\{\texttt{x0}\},[0,1])$.
+\emph{disjunctive} obligation $\mathsf O(\ell_1\vee\ell_2)$ over two fresh literals
+with the added rules $\ell_1\to \mathsf O(\texttt{assert\_x0},\{\texttt{x0}\},[0,1])$
+and $\ell_2\to \mathsf F(\texttt{assert\_x0},\{\texttt{x0}\},[0,1])$.
 These two rules concern a different action from \texttt{write\_prod}.
 Try the three nonempty discharge selections ($\ell_1$ alone, $\ell_2$ alone,
 both) by hand. Does any selection make the \texttt{write\_prod} conflict go
@@ -2603,7 +2603,7 @@ $[5,10]$; the same script's Horn-propagation-ablated mutant gives
 conflicting instances in the script's $3000$-policy sweep [verified,
 \path{b4_deontic_fragment.py}].
 
-The added disjunction $O(\ell_1\vee\ell_2)$ uses the two rules specified in
+The added disjunction $\mathsf O(\ell_1\vee\ell_2)$ uses the two rules specified in
 the exercise. Selecting $\ell_1$ alone or $\ell_2$ alone leaves the checker's report unchanged
 (\texttt{conflict=True, of=[(0, 1)]} in both cases) --- the pre-existing
 \texttt{write\_prod} clash does not depend on the new obligation at all, verified
