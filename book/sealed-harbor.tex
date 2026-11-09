@@ -110,7 +110,7 @@
 % ─── Title ──────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[
+  {\Large\textsc{Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}}\\[
 0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Sealed Harbor:}}\\[0.2cm]
@@ -744,7 +744,7 @@ release produced by the raw-secret mutation.
 
 
 \paragraph{What it shows.} \pdmarginanalogy{sealed-shadowbox}{}{ch03-two-shutter-shadowbox}{Like a two-shutter laboratory pass-through box whose interlocked doors ensure both are never open at once, noninterference prevents secret input from directly reaching the observer.}%
-The property states the product's headline sentence in a checkable form:
+The property states the chapter's headline promise in a checkable form:
 \emph{every release is explicit, gated, and bounded}. It is the finite-model
 core of the chapter. The general claim over unbounded state is the unwinding
 obligation of Section~\ref{sec:sealed-limitations}. This model is its
@@ -779,8 +779,7 @@ before timing. The present
 mutations cannot exhibit the attack, because the model's \texttt{submit}
 carries no payload. They test that the gate releases $g$ and nothing else;
 they do not test that the gate's \emph{input} is honest. Closing that gap is
-a model extension listed in Section~\ref{sec:sealed-limitations}. And a human who reads a released parity
-may still remember it: the system bounds channels, not minds.
+a model extension listed in Section~\ref{sec:sealed-limitations}.
 \end{pdboundary}
 
 Figure~\ref{fig:sealed-laundering-fork} makes the missing argument concrete.
@@ -1111,7 +1110,7 @@ drawn side by side in Figure~\ref{fig:sealed-two-adversaries}.
 Systems that schedule privacy budgets across concurrent jobs make the
 corresponding assumption explicit, that the analyst is trusted to implement
 the mechanism correctly \pdcite{pkube21}; this chapter declines that assumption
-about Erin's worker, which is precisely why it cannot rely on the ledger
+about Erin's worker, which is why it cannot rely on the ledger
 alone. Stating the two accounts in one unit needs the correspondence between
 $\varepsilon$ and min-entropy of Alvim et al.\ \pdcite{aacp11}, which is not
 discharged here.
@@ -1184,7 +1183,7 @@ and marks this exact crossing.
 \paragraph{What it shows.}
 The contract's budget line becomes an auditable invariant with the same proof
 shape as the bond-conservation result of \pdchapref{bonded}{The Bonded
-Commons}. The mutations show that the invariant has teeth and the check can
+Commons}. The mutations show that the check can
 fail: both standard ways of breaking atomicity are caught with shortest
 traces, and the torn write's deeper crime, recorded over-spend past the
 contracted maximum, appears concretely.
@@ -1192,8 +1191,7 @@ contracted maximum, appears concretely.
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
 Conservation governs recorded spend; that all spend is recorded is the
-complete-mediation invariant, so the enforceability link is the prerequisite,
-not a nicety.
+complete-mediation invariant, so the enforceability link must hold first.
 
 A crossover is specific to the chosen privacy parameters. The theorem keeps
 the count right and says nothing about what each release means. Choosing each
@@ -1557,7 +1555,7 @@ holds mechanically, its declassification steps play the role of Rushby's
 downgrader, and the lift consists of restating the
 transition relation abstractly and discharging the three lemmas once, for all
 depths and all secrets. Intransitive purge and TA-security are two formal
-definitions of noninterference with such a downgrader. One precision the lift must get right from the start:
+definitions of noninterference with such a downgrader. The lift must get one detail right from the start.
 Rushby's soundness result for these conditions is with respect to intransitive
 purge, but van der Meyden shows the conditions are sound \emph{and complete}
 for the strictly stronger TA-security property, which additionally preserves
@@ -1587,7 +1585,7 @@ complete-mediation obligation must be validated for each deployment.
 
 \section*{Review of the key ideas}
 \addcontentsline{toc}{section}{Review of the key ideas}
-What this chapter leaves coupled, in the order the rest of the book will lean on it:
+The chapter's main ideas, in the order the rest of the book relies on them:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item A \textbf{sealed room} lets an agent compute on data it may not export: the data owner and the model owner each get their guarantee from a fence they can inspect, not from trust in the other.
@@ -1920,7 +1918,7 @@ are classical concerns, illustrated by the Dennings' certification work
 \pdcite{denning77}. The modern restatement, that a sound purely dynamic
 monitor must be strictly more restrictive than a static analysis, is due to
 Russo and Sabelfeld \pdcite{rs10}. The escape hatch itself
-is Sabelfeld and Myers's delimited release \pdcite{sm03}, and so, importantly,
+is Sabelfeld and Myers's delimited release \pdcite{sm03}, and so
 is the laundering attack this chapter cannot rule out: they named it and closed
 it by enforcement, requiring that no variable used in a declassification be
 updated before it, which a compiler can check because the declassified
@@ -1959,7 +1957,7 @@ and differential privacy's exists, due to Alvim and colleagues
 accounts rather than one. On the privacy side, advanced composition is
 Dwork, Rothblum and Vadhan's \pdcite{drv}; the observation that a running
 budget needs a different theorem when privacy parameters and the stopping point
-are chosen adaptively, and the odometer/filter pair that supplies it, is Rogers,
+are chosen adaptively, and the odometer and filter that supply it, are Rogers,
 Roth, Ullman and Vadhan's \pdcite{rruv16}; the fully adaptive filter that
 matches advanced-composition rates and leading constants is Whitehouse and colleagues'
 \pdcite{wrrw23}. That production budget schedulers assume a trusted analyst,

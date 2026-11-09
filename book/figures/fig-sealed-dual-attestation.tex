@@ -89,7 +89,7 @@
 \# & binds & value \\
 \midrule
 1 & the quote request & a digest of the booting measurement: runtime, policy, worker image \\
-2 & $a$, the attestation evidence & runtime, policy, worker image, key, nonce, epoch --- signed by the hardware root of trust \\
+2 & $a$, the attestation evidence & runtime, policy, worker image, key, nonce and epoch, signed by the hardware root of trust \\
 3 & the forwarded evidence & $a$, relayed unchanged to the verifier \\
 4 & Derek's appraisal & $a$ checked against Derek's approved measurement \\
 5 & Erin's appraisal & $a$ checked against Erin's approved measurement, independently of message 4 \\
