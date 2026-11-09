@@ -1033,7 +1033,7 @@ in the next subsection, and posted bonds (\S\ref{sec:economic}).
 \begin{table}[H]
 \centering
 \caption{Recovery consequences differ for process loss, service outage and deletion
-of the only retained record. Dismiss below is an action of the TLA$^{+}$
+of the only retained record. Dismiss below is an action of the lifecycle
 model (\S\ref{sec:tlaplus}) that deletes a queued session's record; merely
 removing a queue entry need not delete data.}
 \label{tab:moral}
@@ -1816,172 +1816,40 @@ elapsed-time baselines at a measured cost in missed problems and false alarms.
 \section{Formal Model}\label{sec:tlaplus}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The following TLA$^{+}$~\pdcite{lamport2002specifying} excerpt describes a
-coordination lifecycle. It is not the executable specification of the whole
-architecture: initialization, the complete transition relation, financial
-recipients, and monitoring rules are omitted. The bounded accounting artifact
-is identified separately in Appendix~\ref{app:mech}.
+Two models stand behind this chapter's lifecycle and money claims, and only
+one of them is checked. The session lifecycle below is a design model, stated
+in words and drawn in Figure~\ref{fig:bonded-session-lifecycle}; no model
+checker has run it. The money ledger has a checked
+TLA$^{+}$~\pdcite{lamport2002specifying} model, \texttt{Conservation.tla},
+printed in \S\ref{sec:conservation} with its bounds and a dictionary to the
+chapter's names.
 
-Read the state machine as five English sentences before reading any syntax. An agent may not \texttt{Begin} without posting positive escrow. \texttt{ClaimFile} requires an active, registered session; it records an advisory claim without excluding another claimant. \texttt{Commit} clears a session's claims and locks together. A \texttt{Reap} demotes an unresponsive agent to \texttt{abandoned} and queues it for \texttt{Salvage}. Notes grow monotonically while a session is active; destructive \texttt{Dismiss} is outside that property. The excerpt below expresses these lifecycle rules; a complete executable specification would still need the omitted initialization and transition definitions.
+\subsection{The Session Lifecycle}
 
-\subsection{State and Actions}
+Read the state machine as five English sentences. An agent may not \texttt{Begin} without posting positive escrow. \texttt{ClaimFile} requires an active, registered session; it records an advisory claim without excluding another claimant. \texttt{Commit} clears a session's claims and locks together. A \texttt{Reap} demotes an agent whose last heartbeat is older than the silence threshold to \texttt{abandoned} and queues it for \texttt{Salvage}. \texttt{Dismiss} removes a pending queue entry, deletes the session it names and deregisters the agent, so no later action reads the deleted record.
 
 Figure~\ref{fig:bonded-session-lifecycle} separates the session status from the recovery queue. A crash changes the heartbeat; Reap later abandons and queues the session. Salvage marks the queue entry for a successor, while Dismiss deletes the retained session.
 
 \input{figures/fig-bonded-session-lifecycle}
 
-\Needspace{19\baselineskip}
-\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: State Variables}]
----- MODULE BondedCommons ----
-EXTENDS Naturals, Sequences, FiniteSets
-
-CONSTANTS Agents, Files, Locks, DeadThreshold
-
-VARIABLES
-  registered,   \* Set of active agent IDs
-  sessions,     \* Agent -> {status, notes, claims, escrow}
-  fileClaims,   \* File -> set of claiming agents
-  heldLocks,    \* Lock -> {owner, expiry} or NULL
-  salvageQueue, \* Set of {agent, status}
-  heartbeats,   \* Agent -> last heartbeat time
-  clock         \* Monotonic clock
-
-vars == <<registered, sessions, fileClaims, heldLocks,
-          salvageQueue, heartbeats, clock>>
-\end{lstlisting}
-
-\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: Core Actions}]
-Begin(a, escrow) ==
-  /\ a \notin registered
-  /\ escrow > 0    \* Must post collateral
-  /\ registered' = registered \cup {a}
-  /\ sessions' = [sessions EXCEPT ![a] =
-       [status |-> "active", notes |-> <<>>,
-        claims |-> {}, escrow |-> escrow]]
-  /\ heartbeats' = [heartbeats EXCEPT ![a] = clock]
-  /\ UNCHANGED <<fileClaims, heldLocks,
-                  salvageQueue, clock>>
-
-ClaimFile(a, f) ==
-  /\ a \in registered
-  /\ sessions[a].status = "active"
-  \* Advisory: always succeeds, reports conflicts
-  /\ fileClaims' = [fileClaims EXCEPT ![f] =
-       fileClaims[f] \cup {a}]
-  /\ UNCHANGED <<registered, sessions, heldLocks,
-                  salvageQueue, heartbeats, clock>>
-
-Commit(a) ==
-  /\ a \in registered
-  /\ sessions[a].status = "active"
-  /\ sessions' = [sessions EXCEPT ![a] =
-       [sessions[a] EXCEPT !.status = "settled",
-                           !.escrow = 0]]
-  \* Release all claims and locks
-  /\ fileClaims' = [f \in Files |->
-       fileClaims[f] \ {a}]
-  /\ heldLocks' = [l \in Locks |->
-       IF heldLocks[l] # NULL /\ heldLocks[l].owner = a
-       THEN NULL ELSE heldLocks[l]]
-  /\ UNCHANGED <<registered, salvageQueue,
-                  heartbeats, clock>>
-
-Crash(a) ==
-  /\ a \in registered
-  /\ sessions[a].status = "active"
-  /\ heartbeats' = [heartbeats EXCEPT ![a] = 0]
-  /\ UNCHANGED <<registered, sessions, fileClaims,
-                  heldLocks, salvageQueue, clock>>
-
-Reap ==
-  /\ \E a \in registered :
-     /\ sessions[a].status = "active"
-     /\ clock - heartbeats[a] >= DeadThreshold
-     /\ sessions' = [sessions EXCEPT ![a] =
-          [sessions[a] EXCEPT !.status = "abandoned"]]
-     /\ salvageQueue' = salvageQueue \cup
-          {[agent |-> a, status |-> "pending"]}
-     /\ fileClaims' = [f \in Files |->
-          fileClaims[f] \ {a}]
-     /\ UNCHANGED <<registered, heldLocks,
-                     heartbeats, clock>>
-
-Salvage(successor, dead) ==
-  /\ successor \in registered
-  /\ sessions[successor].status = "active"
-  /\ [agent |-> dead, status |-> "pending"]
-       \in salvageQueue
-  /\ salvageQueue' = (salvageQueue \
-       {[agent |-> dead, status |-> "pending"]})
-       \cup {[agent |-> dead,
-              status |-> "resurrecting"]}
-  /\ UNCHANGED <<registered, sessions, fileClaims,
-                  heldLocks, heartbeats, clock>>
-
-Dismiss(dead) ==
-  \* Irrecoverable information loss
-  /\ [agent |-> dead, status |-> "pending"]
-       \in salvageQueue
-  /\ salvageQueue' = salvageQueue \
-       {[agent |-> dead, status |-> "pending"]}
-  /\ sessions' = [sessions EXCEPT ![dead] = NULL]
-  /\ UNCHANGED <<registered, fileClaims, heldLocks,
-                  heartbeats, clock>>
-
-Tick == /\ clock' = clock + 1
-        /\ UNCHANGED <<registered, sessions, fileClaims,
-             heldLocks, salvageQueue, heartbeats>>
-\end{lstlisting}
-
-\subsection{Properties}
-
-\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: Safety and Liveness Properties}]
-\* SAFETY: Every active session has positive escrow
-EscrowInvariant ==
-  \A a \in registered :
-    sessions[a] # NULL /\ sessions[a].status = "active"
-    => sessions[a].escrow > 0
-
-\* SAFETY: Notes never shrink for active sessions
-NoteMonotonicity ==
-  \A a \in registered :
-    sessions[a] # NULL /\ sessions[a].status = "active"
-    => Len(sessions'[a].notes) >= Len(sessions[a].notes)
-
-\* LIVENESS: Dead agents are eventually salvaged
-\* or dismissed (under fairness)
-CrashRecovery ==
-  \A a \in Agents :
-    [agent |-> a, status |-> "pending"] \in salvageQueue
-    ~> [agent |-> a, status |-> "pending"]
-         \notin salvageQueue
-
-Spec == Init /\ [][Next]_vars
-        /\ WF_vars(Reap) /\ WF_vars(Tick)
-
-====
-\end{lstlisting}
-
-Read liveness separately from the escrow invariant. A trace may keep
-choosing \texttt{Tick} after a dead agent is queued, never choosing
-\texttt{Salvage} or \texttt{Dismiss}. Weak fairness of \texttt{Reap} and
-\texttt{Tick} alone does not exclude it. Eventual recovery needs an enabled
-recovery action and fairness for its selection. Also, \texttt{Dismiss}
-deletes the retained session in this excerpt: its note monotonicity covers
-active sessions, not this explicit destructive action. The implementation's
-removal (\texttt{pd session rm}) archives instead
-(Theorem~\ref{lem:integrity}), so Dismiss models a stronger, destructive
-action than the API offers.
-
-\textbf{Key invariant}: \texttt{EscrowInvariant} requires every active session
-in this abstract model to carry a positive escrow value. The \texttt{Begin}
-action establishes that condition.
-\pdscope{The invariant is about the model: that the value is backed by funds, that the runtime enforces it, and that unchecked processes cannot act are separate implementation obligations.}
+The lifecycle should have two properties of different kinds. The safety
+property is that every active session carries positive escrow:
+\texttt{Begin} establishes it, and no action lowers an active session's
+escrow, since \texttt{Commit} zeroes the escrow only as it settles the
+session. The liveness property is that every queued dead agent is eventually
+salvaged or dismissed. Weak fairness for the reaper and the clock does not
+give it: a run may keep advancing the clock after a dead agent is queued and
+never choose \texttt{Salvage} or \texttt{Dismiss}. Eventual recovery needs an
+enabled recovery action and fairness for its selection. \texttt{Dismiss} also
+deletes the retained session. The implementation's removal
+(\texttt{pd session rm}) archives instead (Theorem~\ref{lem:integrity}), so
+Dismiss models a stronger, destructive action than the API offers.
+\pdscope{These are properties of a design model: that the escrow value is backed by funds, that the runtime enforces the rules, and that unchecked processes cannot act are separate implementation obligations.}
 
 \subsection{The Conservation Theorem}\label{sec:conservation}
 
 \pdmarginanalogy{bonded-escrow-box}{}{ch07-dual-control-escrow-box}{Like a dual-control iron escrow chest requiring two separate keys to unlock, escrowed funds cannot be released unilaterally until criteria and verification agree.}%
-The local bond-accounting subsystem tracks three monetary buckets per project: the \textbf{wallet}, \textbf{escrow}, and the \textbf{commons pool}. Conserving their total is a separate obligation from the TLA$^{+}$ model's rule that a session needs positive escrow to begin, and this accounting argument does not show that the runtime implements the model.
+The local bond-accounting subsystem tracks three monetary buckets per project: the \textbf{wallet}, \textbf{escrow}, and the \textbf{commons pool}. Money is counted in integer minor units (cents, for example), so every amount is a non-negative integer and the identity below is exact. Conserving the total is a separate obligation from the lifecycle's rule that a session needs positive escrow to begin, and this accounting argument does not show that the runtime implements the model.
 Positive escrow at the start and conservation across transfers are independent:
 a system can satisfy either while violating the other.
 
@@ -2005,7 +1873,7 @@ S_Q=8+0+2=10
 \begin{definition}[Accounting State]\label{def:acct-state}
 \pdstatus{\Designed}{an accounting model that separates conserved balances from lifecycle status}
 \setlength{\parskip}{4pt plus 1pt}
-For project $Q$, the accounting state is the triple $(W_Q, E_Q, C_Q) \in \mathbb{R}_{\geq 0}^{3}$, where $W_Q$ is wallet balance, $E_Q$ is the sum of bond amounts in states $\{\textit{escrowed},\, \textit{running},\, \textit{exiting}\}$, and $C_Q$ is the commons pool balance.
+For project $Q$, the accounting state is the triple $(W_Q, E_Q, C_Q) \in \mathbb{Z}_{\geq 0}^{3}$, in integer minor units, where $W_Q$ is wallet balance, $E_Q$ is the sum of bond amounts in states $\{\textit{escrowed},\, \textit{running},\, \textit{exiting}\}$, and $C_Q$ is the commons pool balance.
 
 The \pdterm{monetary supply} is $S_Q := W_Q + E_Q + C_Q$.
 \end{definition}
@@ -2031,7 +1899,7 @@ Each operation commits in a single SQLite transaction (\texttt{db.transaction}).
   \item $\mathrm{escrow}(b)$: $W_Q\mathrel{-}=b$, $E_Q\mathrel{+}=b$. $S_Q$ invariant.
   \item $\mathrm{markRunning}(\mathit{id})$: state transition within $E_Q$'s contributing set. No monetary movement. $S_Q$ invariant.
   \item $\mathrm{refund}(\mathit{id})$: $W_Q\mathrel{+}=b_{\mathit{id}}$; row state $\to\,\textit{refunded}$. Net $E_Q\mathrel{-}=b$, $W_Q\mathrel{+}=b$. $S_Q$ invariant.
-  \item $\mathrm{slash}(\mathit{id}, \zeta)$ with $\zeta\in[0, b_{\mathit{id}}]$: $W_Q\mathrel{+}=b_{\mathit{id}}-\zeta$, $C_Q\mathrel{+}=\zeta$, row $\to\,\textit{slashed}$. Net $-b + (b-\zeta) + \zeta = 0$. $S_Q$ invariant.
+  \item $\mathrm{slash}(\mathit{id}, \zeta)$ with an integer $\zeta$, $0\le\zeta\le b_{\mathit{id}}$: $W_Q\mathrel{+}=b_{\mathit{id}}-\zeta$, $C_Q\mathrel{+}=\zeta$, row $\to\,\textit{slashed}$. Net $-b + (b-\zeta) + \zeta = 0$. $S_Q$ invariant.
 \end{itemize}
 By induction on $|\omega|$, $S_Q$ equals $S_Q^{0}$ plus the sum of $\mathrm{topUp}$ arguments in $\omega$. \qed
 \end{proof}
@@ -2040,8 +1908,173 @@ Figure~\ref{fig:bonded-conservation-ledger} draws the three buckets and five ope
 
 \input{figures/fig-bonded-conservation-ledger}
 
-\paragraph{Property verification.} The conservation invariant is asserted after every operation in the bonds test suite. The committed suite includes a deterministic 200-operation sequence and
-100 generated sequences of 30--200 operations; after each operation, $|W_Q + E_Q + C_Q - S_Q^{\text{expected}}| < 10^{-6}$ holds deterministically; the $10^{-6}$ tolerance is IEEE-754 floating-point slack, not logical slack.
+\paragraph{The checked model.} Listing~\ref{lst:bonded-conservation} is the
+committed model, \path{proofs/bonded/conservation/Conservation.tla}, with its
+header comment omitted. It uses different names from the theorem, and
+Table~\ref{tab:bonded-conservation-dictionary} gives the correspondence. The
+model keeps a balance per agent where the theorem keeps buckets per project,
+starts from zero and mints the opening wallet, and has one operation the
+theorem lacks: \texttt{Payout} moves escrow to another agent's free balance,
+which also conserves the total. Its amounts are natural numbers, the integer
+money the theorem assumes. TLC checks it in the bounded configuration of
+\texttt{Conservation.cfg}: three agents, every amount from $1$ to $3$, and at
+most $6$ minted in a run. It finds $1{,}716$ distinct reachable states, to
+depth $9$, and the invariants \texttt{Conservation}, \texttt{NoNegative} and
+\texttt{Safety} hold in all of them. The run covers those bounds only; the
+theorem for every sequence rests on the induction above.
+
+\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: the checked ledger model, \texttt{Conservation.tla}, header comment omitted}, label={lst:bonded-conservation}]
+--------------------------- MODULE Conservation ---------------------------
+EXTENDS Naturals, FiniteSets, Sequences, TLC
+
+CONSTANTS Agents,             \* finite set of agents
+          MaxBalance,         \* max per-agent balance (test bound)
+          MaxMint             \* max lifetime mint (test bound)
+
+ASSUME Cardinality(Agents) > 0
+ASSUME MaxBalance \in Nat /\ MaxBalance > 0
+ASSUME MaxMint \in Nat /\ MaxMint > 0
+
+VARIABLES
+    free,        \* [Agents -> Nat]: free balance per agent
+    escrow,      \* [Agents -> Nat]: escrowed balance per agent
+    burned,      \* Nat: lifetime slash-to-zero across all agents
+    minted       \* Nat: lifetime mint across all agents
+
+vars == << free, escrow, burned, minted >>
+
+Sum(f, S) ==
+  LET RECURSIVE SumRec(_,_)
+      SumRec(g, T) ==
+        IF T = {} THEN 0
+        ELSE LET x == CHOOSE x \in T : TRUE IN g[x] + SumRec(g, T \ {x})
+  IN SumRec(f, S)
+
+TotalFree    == Sum(free, Agents)
+TotalEscrow  == Sum(escrow, Agents)
+
+----------------------------------------------------------------------------
+(* Initial state: every agent at zero, nothing minted yet. *)
+Init ==
+  /\ free   = [a \in Agents |-> 0]
+  /\ escrow = [a \in Agents |-> 0]
+  /\ burned = 0
+  /\ minted = 0
+
+----------------------------------------------------------------------------
+(* Mint: external top-up to agent a. Bounded by MaxMint to keep TLC finite. *)
+Mint(a, amt) ==
+  /\ amt \in 1..MaxBalance
+  /\ minted + amt <= MaxMint
+  /\ free' = [free EXCEPT ![a] = @ + amt]
+  /\ minted' = minted + amt
+  /\ UNCHANGED << escrow, burned >>
+
+(* Stake: move from free to escrow within agent a. *)
+Stake(a, amt) ==
+  /\ amt \in 1..MaxBalance
+  /\ free[a] >= amt
+  /\ free' = [free EXCEPT ![a] = @ - amt]
+  /\ escrow' = [escrow EXCEPT ![a] = @ + amt]
+  /\ UNCHANGED << burned, minted >>
+
+(* Refund: move from escrow to free within agent a. *)
+Refund(a, amt) ==
+  /\ amt \in 1..MaxBalance
+  /\ escrow[a] >= amt
+  /\ escrow' = [escrow EXCEPT ![a] = @ - amt]
+  /\ free' = [free EXCEPT ![a] = @ + amt]
+  /\ UNCHANGED << burned, minted >>
+
+(* Slash: destroy the entire escrow of agent a (move to Burned). *)
+Slash(a) ==
+  /\ escrow[a] > 0
+  /\ burned' = burned + escrow[a]
+  /\ escrow' = [escrow EXCEPT ![a] = 0]
+  /\ UNCHANGED << free, minted >>
+
+(* PartialSlash: destroy `slash` of agent a's escrow, refund `keep`. *)
+PartialSlash(a, slash, keep) ==
+  /\ slash \in 1..MaxBalance
+  /\ keep \in 0..MaxBalance
+  /\ escrow[a] >= slash + keep
+  /\ burned' = burned + slash
+  /\ free' = [free EXCEPT ![a] = @ + keep]
+  /\ escrow' = [escrow EXCEPT ![a] = @ - slash - keep]
+  /\ UNCHANGED << minted >>
+
+(* Payout: move from escrow of agent a to free of agent b (advisor fee,
+   counterparty restitution, etc.). *)
+Payout(a, b, amt) ==
+  /\ a # b
+  /\ amt \in 1..MaxBalance
+  /\ escrow[a] >= amt
+  /\ escrow' = [escrow EXCEPT ![a] = @ - amt]
+  /\ free' = [free EXCEPT ![b] = @ + amt]
+  /\ UNCHANGED << burned, minted >>
+
+----------------------------------------------------------------------------
+Next ==
+  \/ \E a \in Agents, amt \in 1..MaxBalance : Mint(a, amt)
+  \/ \E a \in Agents, amt \in 1..MaxBalance : Stake(a, amt)
+  \/ \E a \in Agents, amt \in 1..MaxBalance : Refund(a, amt)
+  \/ \E a \in Agents : Slash(a)
+  \/ \E a \in Agents, s \in 1..MaxBalance, k \in 0..MaxBalance : PartialSlash(a, s, k)
+  \/ \E a, b \in Agents, amt \in 1..MaxBalance : Payout(a, b, amt)
+
+Spec == Init /\ [][Next]_vars
+
+----------------------------------------------------------------------------
+(* The Conservation Theorem.
+   At every reachable state: TotalFree + TotalEscrow + Burned = Minted.
+   In words: nothing appears or disappears except via Mint (in) and
+   Burned tracks every slash-out, with Free + Escrow holding the rest. *)
+Conservation == TotalFree + TotalEscrow + burned = minted
+
+(* No-Overdraft as a simpler local invariant we get for free. *)
+NoNegative ==
+  /\ \A a \in Agents : free[a] >= 0
+  /\ \A a \in Agents : escrow[a] >= 0
+  /\ burned >= 0
+  /\ minted >= 0
+
+(* Safety ties them together. *)
+Safety == Conservation /\ NoNegative
+============================================================================
+\end{lstlisting}
+
+\begin{table}[H]
+\centering\small
+\caption{The theorem's names and the checked model's. Money in both is a whole number of units.}
+\label{tab:bonded-conservation-dictionary}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Theorem~\ref{thm:conservation}} & \textbf{\texttt{Conservation.tla}} \\
+\midrule
+wallet $W_Q$ & \texttt{TotalFree}, the sum of \texttt{free} \\
+escrow $E_Q$ & \texttt{TotalEscrow}, the sum of \texttt{escrow} \\
+commons pool $C_Q$ & \texttt{burned} \\
+supply $S_Q$ & \texttt{minted} \\
+$\mathrm{topUp}(\mathit{amt})$ & \texttt{Mint(a, amt)} \\
+$\mathrm{escrow}(b)$ & \texttt{Stake(a, amt)} with \texttt{amt} $=b$ \\
+$\mathrm{markRunning}(\mathit{id})$ & none; no money moves \\
+$\mathrm{refund}(\mathit{id})$ & \texttt{Refund(a, amt)} with \texttt{amt} $=b$ \\
+$\mathrm{slash}(\mathit{id},\zeta)$, $\zeta\ge1$ & \texttt{PartialSlash(a, slash, keep)} with $\zeta$ and $b-\zeta$ \\
+$\mathrm{slash}(\mathit{id},0)$ & \texttt{Refund} \\
+none & \texttt{Slash(a)}, \texttt{Payout} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The implementation.} The ledger in \texttt{lib/bonds.ts} does not
+yet count money this way. It stores dollar amounts as SQLite \texttt{REAL}, a
+binary floating-point type. Its tests compare the three-bucket total with the
+expected supply to six decimal places after every operation, over a
+deterministic 200-operation sequence and 100 generated sequences of 30--200
+operations. Those tests check conservation up to rounding, not the exact
+identity the theorem states. Exact conservation needs integer minor units and
+exact-equality tests; until the ledger has them, the theorem and the
+TLA$^{+}$ model describe the intended ledger, not the running one.
 
 \begin{pdclaim}{Theorem}{No Overdraft under Concurrent Escrow}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2101,7 +2134,7 @@ Holmström's theorem does not supply a general prohibition on compensation.
 \pdexercisepointer*{\ref{ex:bonded-conservation-states}}{\ref{ex:bonded-conservation-weaken}}{\pageref{ex:bonded-conservation-states}}
 
 \begin{pdrecitation}
-\item What does \texttt{EscrowInvariant} guarantee? Which action establishes it?
+\item Which lifecycle action guarantees that every active session carries positive escrow?
 \item State the three-bucket identity. Which operation may change the total?
 \item Why must \texttt{Reap} wait after a missed heartbeat? Which variable decides?
 \end{pdrecitation}
@@ -2287,7 +2320,7 @@ The ideas below are the ones later chapters use, in the order they use them:
 \item \textbf{Structural scope limitation is a theorem}, not a policy: accepted operations stay within the root grant when every relevant effect
 passes through the verifier. Checks have a runtime cost; an unmediated write
 is outside that guarantee.
-\item \textbf{The record is tamper-evident.} Notes are hash-chained, each session's notes are gathered into a tree, and each period's session roots go into a harbor tree whose root the daemon signs (the Merkle forest). The design requires six properties; only the first is proved here, and the other five are design invariants. Notes can only be added. A proof that checks out must mean the note really was recorded, unless the daemon's key or SHA-256 is broken. A daemon must not be able to publish two different roots for the same period without contradicting its own earlier signature, which the witness log exposes, or forking its identity. Every signal must trace back to one signing principal. A reader must be able to replay events to correct for a revocation that arrived late. Revoking a signal must add an event instead of deleting one. Separately, a bounded model check shows that the money ledger creates or loses no credits except by top-up. Property tests show that two simultaneous escrow requests cannot overdraw a wallet, provided the balance check and the debit happen in one transaction.
+\item \textbf{The record is tamper-evident.} Notes are hash-chained, each session's notes are gathered into a tree, and each period's session roots go into a harbor tree whose root the daemon signs (the Merkle forest). The design requires six properties; only the first is proved here, and the other five are design invariants. Notes can only be added. A proof that checks out must mean the note really was recorded, unless the daemon's key or SHA-256 is broken. A daemon must not be able to publish two different roots for the same period without contradicting its own earlier signature, which the witness log exposes, or forking its identity. Every signal must trace back to one signing principal. A reader must be able to replay events to correct for a revocation that arrived late. Revoking a signal must add an event instead of deleting one. Separately, a bounded model check of the ledger's TLA$^{+}$ model shows that it creates or loses no credits except by top-up; the running ledger still stores money as floating point. Property tests show that two simultaneous escrow requests cannot overdraw a wallet, provided the balance check and the debit happen in one transaction.
 \item \textbf{Exclusive locks can backfire.} If Wren locks a file just in case and Pike turns out to need it, the lock can block an outcome both of them prefer. Advisory claims block nothing; they guarantee that every overlap between registered claims is reported. An appeal can reverse a settlement only by adding a counter-record, never by rewriting one.
 \item \textbf{A crash is a social event.} Recovery is continuation of the record by whoever next holds the role, not resurrection of the process.
 \item \textbf{Intent is irrelevant to settlement}; the bond pays on the evidence, whatever the agent meant.
@@ -2476,8 +2509,8 @@ These are two different numbers, and the difference is the exercise. TLC \emph{g
 The invariant named in \texttt{Conservation.cfg}'s \texttt{INVARIANTS} block that gives the module its name is \texttt{Conservation}, defined as \texttt{TotalFree + TotalEscrow + burned = minted}, the free-form statement of Theorem~\ref{thm:conservation} at the granularity of individual mint/stake/slash/refund/payout operations rather than the three-bucket accounting state. The same run also checks \texttt{NoNegative} (no balance ever goes negative) and \texttt{Safety} (their conjunction); the log's ``No error has been found'' covers all three across every one of the $1{,}716$ reachable states, to search depth $9$.
 \end{pdsolution}
 
-\begin{pdexercise}[kind=Open,rating=3]{ex:bonded-conservation-weaken}
-Suppose \texttt{Conservation.tla}'s \texttt{Mint} action were changed to credit \texttt{free} without also incrementing \texttt{minted}; that is, \texttt{free' = [free EXCEPT ![a] = @ + amt]} stays, but \texttt{minted' = minted + amt} is replaced by \texttt{minted' = minted}. Predict, from the spec text alone, what a TLC run would show. Which of the checked invariants catches it, which does not, and how deep is the shortest counterexample?
+\begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-conservation-weaken}
+Suppose the \texttt{Mint} action of Listing~\ref{lst:bonded-conservation} were changed to credit \texttt{free} without also incrementing \texttt{minted}; that is, \texttt{free' = [free EXCEPT ![a] = @ + amt]} stays, but \texttt{minted' = minted + amt} is replaced by \texttt{minted' = minted}. Predict, from the listing alone, what a TLC run would show. Which of the checked invariants catches it, which does not, and how deep is the shortest counterexample?
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-conservation-weaken}
 No run is needed to predict this: it follows from the definitions already in the spec. \texttt{Conservation} asserts $\mathit{TotalFree} + \mathit{TotalEscrow} + \mathit{burned} = \mathit{minted}$. Immediately after \texttt{Init} (all four quantities zero, satisfying the invariant trivially), the very first enabled \texttt{Mint}$(a, \mathit{amt})$ step increases $\mathit{TotalFree}$ by $\mathit{amt}$ while leaving $\mathit{minted}$ at $0$ under the stated weakening, so the left side becomes $\mathit{amt} > 0$ while the right side stays $0$. \texttt{Conservation} fails at depth~$1$, the shallowest possible counterexample, one step past the initial state, with no need to explore further.
@@ -2532,7 +2565,7 @@ effect additionally requires complete capture and principal binding; it says not
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-Six further pieces of the design build on these three layers. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant checkable in operation, beyond a property asserted of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the append-only record the rest of the architecture depends on. The federated custody design (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and bases identity on passkeys, so ordinary actions need no passphrase. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) divides coordination acts into five classes, because acts with different losses and participation costs may need different prices. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
+Six further pieces of the design build on these three layers. The Conservation Theorem (\S\ref{sec:conservation}) states the economic invariant exactly for integer money, and a bounded model check covers the printed TLA$^{+}$ model; the running ledger, which still uses floating point, meets it only up to rounding. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the append-only record the rest of the architecture depends on. The federated custody design (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and bases identity on passkeys, so ordinary actions need no passphrase. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) divides coordination acts into five classes, because acts with different losses and participation costs may need different prices. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
 
 Advisory claims leave room for negotiation when agents know more about
 their needs than the allocator. Their benefit depends on the conflict and
@@ -2791,7 +2824,7 @@ runtime appear as different rows; completing the first does not complete the sec
 Coordination channel isolation (\S\ref{sec:merkle-forest}) & ProVerif (Dolev-Yao) & \Closed\ 3 properties TRUE & \texttt{isolation\allowbreak.pv} \\
 Passkey device pairing & ProVerif & \Closed\ 3 properties TRUE & \texttt{passkey-pair.pv} \\
 Federated security (\S\ref{sec:federated-sovereign}) & ProVerif query audit & \Partial\ queried private constant is not the reconstructed root; intended claim unproved & \texttt{federated.pv} \\
-Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 1{,}716 reachable states (26{,}818 generated), invariant holds & \texttt{Conservation.tla} \\
+Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 1{,}716 reachable states (26{,}818 generated) with 3 agents, amounts at most 3 and at most 6 minted; invariant holds & \texttt{Conservation.tla} \\
 No-overdraft lemma (\S\ref{sec:conservation}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
 Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\
 Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE & \texttt{chain-replay.pv} \\
