@@ -1637,6 +1637,11 @@ composition of local work grants, evidence and funded remedies; comparing
 that composition requires matching the other system's actual application and
 trust model, not assuming all federation has the same objective.
 
+% The open-font proof sets this section's thirteen first-use sources on one
+% page and overflows the margin; give the remaining paragraphs a fresh margin.
+\ifdefined\pdbookfontprofile
+  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
+\fi
 \paragraph{Transparency logs.} Certificate Transparency~\pdcite{laurie2013ct} is the model; the federated witness log of \S\ref{sec:fh-witness} is CT applied to capability tokens. Sigstore~\pdcite{newman2022sigstore} and Rekor are the production systems we follow most closely; in-toto~\pdcite{torres2019intoto} and SLSA~\pdcite{slsa2023} are the supply-chain analogues that compose with the Federated Harbor for the ``poisoned plugin under a bonded principal'' case but do not close it. The Crosby--Wallach history-tree~\pdcite{crosby2009tamper} is a relevant construction for tamper-evident histories and the consistency checks this design requires.
 
 \paragraph{Cross-domain settlement.} Herlihy's atomic cross-chain swap~\pdcite{herlihy2018atomic} is a comparison point; the cross-harbor settlement protocol of \S\ref{sec:fh-settlement} instead handles non-fungible reputation-priced bonds through conditionally restricted custody. It is not trustless in Herlihy's sense. Whether trustless settlement is achievable in our setting is open (\S\ref{sec:fh-limitations}). The IBC protocol~\pdcite{goes2020ibc}, built on connections and channels between chains, supplies another comparison; unlike IBC, this design does not assume a consensus-backed state machine underneath.

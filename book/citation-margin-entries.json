@@ -307,7 +307,7 @@
   },
   {
     "key": "mega026",
-    "original": "Daniel J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.\n\\newblock High-Speed High-Security Signatures.\n\\newblock \\textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.\n\\newblock (Ed25519 --- the signature scheme underlying the authorization chain.)",
+    "original": "Daniel J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.\n\\newblock High-Speed High-Security Signatures.\n\\newblock \\textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.\n\\newblock (Ed25519, the signature scheme underlying the authorization chain.)",
     "margin": "Bernstein et al. \\emph{High-Speed High-Security Signatures}. J. Cryptographic Engineering 2(2):77--89, 2012.",
     "reason": "Retains the full title and publication locator/year while removing the chapter-specific Ed25519 annotation."
   },
@@ -402,12 +402,6 @@
     "reason": "Retains all named authors, complete title, arXiv identifier, and year; removes only source line wrapping and quotation markup."
   },
   {
-    "key": "mega182",
-    "original": "Port Daddy Harbor research program.\n\\newblock \\textit{Reputation is Amortized Verification: Inspection Games for Agent Economies}.\n\\newblock Companion formal paper (Paper~3), August 2026.\n\\newblock Source of the stage-deterrence and tower-contraction theorems restated in\nthe section on grading-oracle incentive compatibility.",
-    "margin": "Port Daddy Harbor research program. \\emph{Reputation is Amortized Verification: Inspection Games for Agent Economies}. Companion paper~3, August 2026.",
-    "reason": "Compact source identification; retain work title, year and publication/status, omit duplicate chapter commentary."
-  },
-  {
     "key": "mega257",
     "original": "Santiago Torres-Arias, Hammad Afzali, Trishank Karthik Kuppusamy, Reza Curtmola, and Justin Cappos.\n\\newblock in-toto: Providing farm-to-table guarantees for bits and bytes.\n\\newblock In \\textit{USENIX Security Symposium}, 2019.",
     "margin": "Torres-Arias et al. \\emph{in-toto: Providing farm-to-table guarantees for bits and bytes}. USENIX Security, 2019.",
@@ -472,12 +466,6 @@
     "original": "J.~Jung, V.~Paxson, A.~W. Berger, and H.~Balakrishnan. Fast portscan detection\nusing sequential hypothesis testing. In \\emph{Proc.\\ IEEE Symposium on Security and Privacy},\n2004.",
     "margin": "Jung et al. 2004. \\emph{Fast portscan detection using sequential hypothesis testing}.",
     "reason": "Author-date and complete title beside the security precedent and its approximation limits; all authors and proceedings remain in the archival registry."
-  },
-  {
-    "key": "harbor3",
-    "original": "\\emph{Reputation is Amortized Verification: Inspection Games for\nAgent Economies.} Paper~3 of the Port Daddy Harbor research program, 2026. (The\ncompanion technical paper: proves the bonded-inspection stage-game threshold\n$\\rho^\\star = G/(dB)$, its confiscation-convention fork\n$\\rho^\\star_c = G/(d(G{+}B))$, and the audit-tower contraction under sealed\nmulti-clique sampling.)",
-    "margin": "\\emph{Reputation is Amortized Verification: Inspection Games for Agent Economies}. Port Daddy Harbor research program, companion paper~3, 2026.",
-    "reason": "Retain complete title, source identity and year; compact author/venue metadata and omit repeated explanatory commentary."
   },
   {
     "key": "kleppmann2016locking",
