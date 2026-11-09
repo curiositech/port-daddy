@@ -528,12 +528,13 @@
       "paths": [
         "proofs/relay/CardRevocation.tla",
         "proofs/relay/CardRevocation_baseline.cfg",
+        "proofs/relay/CardRevocation_dbepoch.cfg",
         "proofs/relay/CardRevocation_epoch.cfg",
         "proofs/relay/CardRevocation_rollback.cfg"
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "Evidence is recorded in three .tlc.log artifacts per CI run, not a checked-in transcript. CardRevocation_rollback.cfg is the negative control: restoring an older database must produce a counterexample to RevocationFinal. The baseline and epoch configurations are checked separately; these bounded models do not establish that every deployment survives rollback.",
+      "evidencePolicy": "Evidence is recorded in four .tlc.log artifacts per CI run, not a checked-in transcript. Two negative controls: restoring an older database must violate RevocationFinal (rollback.cfg), and the card-epoch rule must violate Availability while RevocationFinal holds on every state (epoch.cfg, run with -continue). Baseline and dbepoch must hold both. These bounded models do not establish that every deployment survives rollback.",
       "ci": {
         "status": "wired",
         "job": [
