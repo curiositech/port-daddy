@@ -1643,9 +1643,11 @@ Both parity classes have four members, so the equal-parity pairs number
 $2\binom{4}{2}=12$; those must stay indistinguishable forever. The remaining
 $\binom{8}{2}-12=16$ pairs have different parities and may differ at explicit
 gate-release steps only. Table~\ref{tab:sealed-parity-pairs} shows how this
-scales: doubling the secret count roughly quadruples both counts, since
-both grow quadratically in $h$ while the equal-parity share of the total
-approaches one half. For even $h$, the exact share is $(h-2)/(2(h-1))$,
+scales with the number of secrets $h$. Going from 4 to 8 secrets multiplies
+the different-parity count by exactly 4 and the equal-parity count by 6.
+Both counts grow quadratically in $h$, so for large $h$ doubling the secrets
+about quadruples each, while the equal-parity share of the total approaches
+one half. For even $h$, the exact share is $(h-2)/(2(h-1))$,
 which gives $1/3$ at $h=4$ and $3/7$ at $h=8$.
 \end{pdsolution}
 
