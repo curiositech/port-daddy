@@ -749,8 +749,9 @@ For the checkout repair, let Heron hold epoch~1 and then pause. Its lease
 expires; Wren receives epoch~2. Heron resumes with a patch computed against
 revision~7. A database with only one current claim can still be paired with a
 filesystem that accepts Heron's stale patch. The stronger design therefore
-requires the effect broker to compare the submitted lease and epoch against
-the current allocation: epoch~1 is refused once epoch~2 is current. That design is
+requires the effect broker to compare the submitted epoch, and the agent
+submitting it, against the current allocation: epoch~1 is refused once epoch~2
+is current, and so is epoch~2 from anyone but Wren. That design is
 not built: the reference implementation keeps no per-resource epoch, and no
 effect broker checks one (I2b in Table~\ref{tab:invariants}).
 Figure~\ref{fig:swk-fencing-epoch} shows the same late effect with two other
@@ -763,22 +764,49 @@ perfectly serialized.
 \setlength{\parskip}{4pt plus 1pt}
 Assume conflicting acquisitions are checked and inserted in one serialized
 transaction: by uniqueness for exact keys, or by an overlap predicate for
-line intervals and path hierarchies. Assume each new allocation increments
-a persistent per-resource epoch, and every downstream effect checks both
-the active lease and its epoch. Then at most one holder has an active lease
-in each conflict domain, and a stale holder cannot pass that effect gate.
-In particular, the gate rejects an older epoch
+line intervals and path hierarchies. Assume each new allocation takes the
+next value of a persistent per-resource epoch. Assume one process both issues
+the epochs and gates the effects: it checks and applies each downstream effect
+in one serialized step, and admits the effect only if its epoch is the newest
+issued for the resource and was issued to the presenter, whose identity the
+process authenticates. Then at most one holder has an active lease in each
+conflict domain, and every admitted effect comes from the holder of the newest
+grant, under that grant's epoch. In particular, the gate rejects an older epoch
 \[
-e' < e_{\text{current}}.
+e' < e_{\text{current}},
 \]
+and rejects the current epoch from anyone but its holder.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
 \setlength{\parskip}{4pt plus 1pt}
 Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic.
 
-Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
+Take an effect on a resource, and let $e$ be the epoch of the newest grant on it, held by $h$, when the effect's step runs. The process that issued $e$ runs the check in the same serialized order, so the check reads $e$ itself, not an estimate of it. An agent holding an older grant holds an epoch below $e$, because each new allocation took the next value, so every effect it stamped with its own epoch is refused. It could name $e$, a small integer, but $e$ was issued to $h$, so only $h$ passes. The lease is never consulted: until a newer grant exists no one else holds the resource, so an effect from $h$ under $e$ cannot overwrite another holder's work.
 \end{proof}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+Each hypothesis is needed. Without one serialized acquisition, two requests
+can both be granted. Without the newest-epoch check, the woken holder passes
+with its old epoch. Without the binding, any agent that learns the current
+epoch passes as its holder. If an allocation reuses an epoch, or a restart
+rebuilds the counter, an old effect carries the current number. A gate that
+knows only the epochs presented to it, as Kleppmann's storage server
+does~\pdcite{kleppmann2016locking}, refuses an older epoch only after a newer
+one has reached it; the theorem does not cover that gate. The set is
+sufficient, not the only one: an epoch that cannot be guessed, used as a
+capability, could replace the binding and the authentication.
+
+Dropping the lease check has a cost the conclusion does not show. A holder
+that wakes after its lease, with no newer grant issued, still passes: the lease
+bounds how long others wait, not how long a holder may act. A rule that also
+bounds the holder needs the lease check as well. The proof also assumes that an
+acknowledged epoch increment survives; under \texttt{synchronous=NORMAL} a power
+loss can roll it back (I1b). The binding is only as strong as the identity
+check behind it (I12, \S\ref{sec:swk-identity}). The reference implementation
+discharges none of these hypotheses: fencing is designed, not built (I2b).
+\end{pdboundary}
 
 \input{figures/fig-swk-fencing-epoch}
 
@@ -807,8 +835,8 @@ Paterson's result does not apply). The fencing token itself is still borrowed, n
 shows how uniqueness rejects a second active row. It does not implement the
 stronger fenced-lease theorem by itself. Reclaiming an expired row, allocating
 its successor, and advancing the persistent epoch must form the serialized
-transition assumed there; every downstream effect must check the resulting
-lease and epoch. Two separate delete/insert statements can leave a gap on
+transition assumed there; every downstream effect must be checked against
+the resulting epoch and the agent it was issued to. Two separate delete/insert statements can leave a gap on
 failure even when one connection prevents another handler from interleaving.
 An explicit transaction addresses atomicity; preventing stale external
 effects still requires the downstream gate. Single ownership, atomic
@@ -2226,7 +2254,7 @@ Theorem~\ref{thm:exclusion}; I7--I9 carry the regimentation/detection correction
 I1a & Process-crash durability & reply only after commit, on SQLite's atomic commit & \Built \\
 I1b & Power-loss durability & (needs full synchronization) & \NotGuar \\
 I2 & Mutual exclusion (1 holder per conflict domain) & uniqueness constraint + busy-wait (exact keys); overlap check that warns (file regions) & \Built{} for exact keys; \BuiltWeak{} for file regions (overlap reported, both claims kept) \\
-I2b & Fencing of a stale holder at the effect gate & per-resource epoch checked by an effect broker & \Designed{} (no epoch is kept or checked) \\
+I2b & Fencing of a stale holder at the effect gate & per-resource epoch, bound to its holder, checked by the process that issues it & \Designed{} (no epoch is kept or checked) \\
 I3 & Idempotence of re-claim/re-release & upsert / delete-if-exists & \Built \\
 I4 & Liveness reclamation (TTL sweep) & lazy expiry on read + ticks & \Built \\
 I5 & Metric-control separation (Law 1) & daemon-derived deadline & \Built \\
@@ -2987,8 +3015,9 @@ The chapter's main results, in the order the rest of the book relies on them:
   commit; a power loss can lose recent commits under the default synchronous
   setting, and for that fault the setting decides the durability claim.
 \item A fenced lease adds an epoch to the ownership record. The stronger
-  theorem requires atomic conflict checks and allocation, plus an effect broker
-  checking the active lease and epoch. An exact-key claim alone does not supply
+  theorem requires atomic conflict checks and allocation, plus a gate, run by
+  the process that issues the epochs, that admits only the newest epoch and only
+  from the agent it was issued to; the gate need not check the lease. An exact-key claim alone does not supply
   those extra guarantees, and fencing is designed, not built.
 \item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
   idempotency key the coordination layer has yet to supply; only protocol violations raise alarms.
@@ -3174,7 +3203,7 @@ The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key
 The Stigmergic Ticket-Lock gives bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a scheduler for claims, or argue that no reactive-only design can, and say what the minimum scheduler would be.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-op1-ticket}
-Add a durable FIFO ticket queue per conflict domain, a maximum lease $\ell$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No scheduler for claims is required for safety, but liveness requires some live caller or tick to trigger the transitions. Eventual requests alone give no finite wait bound. If leases cannot renew past $\ell$, a live trigger arrives within $d$ of each expiry, and each handoff completes within $h$, then a requester with $q$ predecessors waits at most $(q+1)(\ell+d+h)$, a conservative bound allowing a current holder as well. Without finite trigger and processing bounds, reactive safety can hold while waiting is unbounded. Every external effect must validate the fencing epoch, or an expired holder can still act.
+Add a durable FIFO ticket queue per conflict domain, a maximum lease $\ell$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No scheduler for claims is required for safety, but liveness requires some live caller or tick to trigger the transitions. Eventual requests alone give no finite wait bound. If leases cannot renew past $\ell$, a live trigger arrives within $d$ of each expiry, and each handoff completes within $h$, then a requester with $q$ predecessors waits at most $(q+1)(\ell+d+h)$, a conservative bound allowing a current holder as well. Without finite trigger and processing bounds, reactive safety can hold while waiting is unbounded. Every external effect must be checked against the newest fencing epoch and the agent it was issued to, or a holder whose lease passed to the next ticket can still act.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:comm}}{The communication subsystem: the bus, stigmergy, and two delegation chains}
