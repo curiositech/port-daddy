@@ -2110,9 +2110,11 @@ but solving one does not solve the other.
 The append-only operation log is the kernel's audit subsystem: the policy
 monitor subscribes to it, and it is what lets anyone answer ``what actually
 happened?'' The log is hash-chained, so a later edit to an earlier entry can be
-detected. This is the digital-timestamping pattern of Haber and
-Stornetta~\pdcite{haberstornetta1991}, which predates blockchains and builds on
-Merkle's hash trees~\pdcite{merkle1987}. The chain exists, but
+detected. This is the linking scheme for digital time-stamps of Haber and
+Stornetta~\pdcite{haberstornetta1991}, a linear chain of hashes that predates
+blockchains. Bayer, Haber and Stornetta later used hash trees, of the kind Merkle
+had used for another purpose~\pdcite{merkle1987}, to make time-stamps cheaper to
+store and verify~\pdcite{bayer1993timestamping}. The chain exists, but
 \S\ref{sec:merkle} narrows what it protects against.
 
 % The nearby first-use bibliography occupies the lower outside margin.
@@ -3429,9 +3431,10 @@ chain of digital signatures over an elliptic-curve signature scheme
 \pdcite{bernstein2012high}, of the kind whose secrecy and integrity properties are
 mechanically checkable in protocol-verification tools~\pdcite{blanchet2016modeling};
 its full treatment belongs to \pdchapref{anchor}{The Anchor Protocol}. The audit log's tamper-evidence is
-the digital-timestamping construction of Haber and
-Stornetta~\pdcite{haberstornetta1991}, built on Merkle's hash trees~\pdcite{merkle1987},
-a structure that predates blockchains and does not depend on them.
+the linked time-stamping of Haber and Stornetta~\pdcite{haberstornetta1991}, a
+linear hash chain that predates blockchains and does not depend on them. The
+tree-based refinement is Bayer, Haber and Stornetta's~\pdcite{bayer1993timestamping},
+built from hash trees of Merkle's kind~\pdcite{merkle1987}.
 
 \keyidea[One writer reduces coordination machinery]{The kernel's novelty lies
 less in any single primitive than in how much follows from \emph{one writer}.
@@ -3889,6 +3892,12 @@ Ralph C. Merkle.
 Stuart Haber and W. Scott Stornetta.
 \newblock How to Time-Stamp a Digital Document.
 \newblock \textit{Journal of Cryptology}, 3(2):99--111, 1991.
+
+\bibitem{bayer1993timestamping}
+Dave Bayer, Stuart Haber, and W. Scott Stornetta.
+\newblock Improving the Efficiency and Reliability of Digital Time-Stamping.
+\newblock In R.~Capocelli, A.~De Santis, and U.~Vaccaro, editors, \textit{Sequences II}, Springer, New York, 1993.
+\newblock \url{https://doi.org/10.1007/978-1-4613-9323-8_24}
 
 \bibitem{kephartchess2003}
 Jeffrey O. Kephart and David M. Chess.
