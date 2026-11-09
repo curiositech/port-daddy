@@ -1,0 +1,3 @@
+type: changed
+
+- **The Book is rewritten in plain language.** Following Erich's audit of its hard-to-read passages, every chapter now states each claim first and its limits once, in a Scope line; uses "admit" only for the write-path check; defines every coined term in plain words before its first use; moves status notes out of the argument into margin tags; and names mechanisms plainly where a metaphor had stood in for the name, while teaching analogies stay beside the plain statement. The 93 flagged passages are rewritten or given worked examples, six new figures illustrate the hardest ideas, and the players test T1 and the checkout-repair protocol now report their first runs.
