@@ -1754,7 +1754,7 @@ threat models separate.
 
 \begin{definition}[Local non-forgeable identity]\label{def:0040}
 \setlength{\parskip}{4pt plus 1pt}
-\pdstatus{\BuiltWeak}{a design invariant; the daemon-minted actor-soul and credential meet a bounded part of it, and full write-boundary enforcement and migration of legacy identity paths remain}
+\pdstatus{\BuiltWeak}{actor-soul and credential built; write-boundary enforcement and legacy migration remain}
 A \textbf{local non-forgeable identity} provides an unforgeable actor identity
 \emph{within one trusted daemon}: the runtime issues and binds it, and no actor
 inside the fleet can re-pick or impersonate it.
@@ -1767,7 +1767,7 @@ including this one needs and assumes exactly this.
 
 \begin{definition}[Cross-operator attestation]\label{def:cross-operator-attestation}\label{def:0040b}
 \setlength{\parskip}{4pt plus 1pt}
-\pdstatus{\Vision}{a design requirement and an open dependency of cross-operator exchange}
+\pdstatus{\Vision}{an open dependency of cross-operator exchange}
 \textbf{Cross-operator attestation} binds an identity key to an accountable
 owner in a way that an operator who does not run the issuing harbor can
 verify. It is an \emph{unsolved} problem: it needs a way to distribute and

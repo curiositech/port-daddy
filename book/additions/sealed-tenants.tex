@@ -56,11 +56,10 @@ which trains on preference pairs without a reward model, regurgitates more
 than RL \pdcite{pappu2024rlhf}. Table~\ref{tab:sealed-tenant-channels} collects the
 channels.
 
-% The open-font proof needs a fresh margin so this caption sits beside its
-% table rather than below the three citations above it.
-\ifdefined\pdbookfontprofile
-  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
-\fi
+% Both editions need a fresh margin here, so this caption sits beside its
+% table rather than below the three citations above it; in the publication
+% edition the flow rule's status tag otherwise overflows the margin too.
+\pdmarginpagebreak
 
 \begin{table}[H]\centering\footnotesize
 \caption{Channels by which one tenant's log content can reach another
