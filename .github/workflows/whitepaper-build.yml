@@ -51,6 +51,7 @@ on:
       - 'tests/harbor-research/test_book_exercise_navigation.py'
       - 'scripts/harbor-research/page_overflow.py'
       - 'scripts/harbor-research/run_pdf_checks.py'
+      - 'scripts/harbor-research/check_corrections.py'
       - 'book/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
@@ -67,6 +68,7 @@ on:
       - 'tests/harbor-research/test_book_exercise_navigation.py'
       - 'scripts/harbor-research/page_overflow.py'
       - 'scripts/harbor-research/run_pdf_checks.py'
+      - 'scripts/harbor-research/check_corrections.py'
       - 'book/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
