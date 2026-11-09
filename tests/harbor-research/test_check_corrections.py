@@ -25,13 +25,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "harbor-research"))
 
+import importlib.util  # noqa: E402
+
 import check_corrections as cc  # noqa: E402
 
 try:
     import pymupdf  # noqa: F401
-    import yaml  # noqa: F401
 except ImportError:  # pragma: no cover - CI installs requirements-pdf.txt
     pymupdf = None
+# load_rows imports PyYAML lazily; without it the ledger tests cannot run.
+HAVE_YAML = importlib.util.find_spec("yaml") is not None
 
 FONT = REPO_ROOT / "book" / "fonts" / "source-sans" / "SourceSans3-Regular.otf"
 
@@ -189,7 +192,7 @@ class Ledger(unittest.TestCase):
             self.load("- {id: a, item: i, file: book/ch.tex, before: 'Fig.~2.4', after: y, source: s}\n")
 
 
-@unittest.skipIf(pymupdf is None, "PyMuPDF and PyYAML come from requirements-pdf.txt")
+@unittest.skipIf(pymupdf is None or not HAVE_YAML, "PyMuPDF and PyYAML come from requirements-pdf.txt")
 class OnTheRenderedPage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -280,7 +283,7 @@ class OnTheRenderedPage(unittest.TestCase):
         self.assertEqual([r["id"] for r in cc.vacuous_rows(rows, self.texts)], ["v-1"])
 
 
-@unittest.skipIf(pymupdf is None, "PyMuPDF and PyYAML come from requirements-pdf.txt")
+@unittest.skipIf(pymupdf is None or not HAVE_YAML, "PyMuPDF and PyYAML come from requirements-pdf.txt")
 class CommandLine(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

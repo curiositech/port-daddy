@@ -445,9 +445,9 @@ def render(unit: Unit, rows: list[tuple[Artifact, tuple[str, ...]]], caption: st
         r"\def\UrlBreaks{\do\/\do\_\do\-\do\.}",
         # \hspace{0pt} lets TeX hyphenate a cell's first word ("deterministic").
         r"\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.31\textwidth} "
-        r">{\raggedright\arraybackslash\hspace{0pt}}p{0.16\textwidth} "
-        r">{\raggedright\arraybackslash\hspace{0pt}}p{0.19\textwidth} "
-        r">{\raggedright\arraybackslash\hspace{0pt}}X@{}}",
+        + r">{\raggedright\arraybackslash\hspace{0pt}}p{0.16\textwidth} "
+        + r">{\raggedright\arraybackslash\hspace{0pt}}p{0.19\textwidth} "
+        + r">{\raggedright\arraybackslash\hspace{0pt}}X@{}}",
         rf"\caption{{{caption}}}\label{{{label}}}\\",
         r"\toprule", header, r"\midrule", r"\endfirsthead",
         r"\multicolumn{4}{@{}l}{\small\itshape (continued)}\\",
