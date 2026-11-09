@@ -371,14 +371,7 @@
       "scripts": [
         "skills/harbor-results/scripts/b2_tower.py"
       ],
-      "numbers": [
-        {
-          "name": "tower_C8_bond_capital",
-          "value": "1350",
-          "tag": "internal",
-          "regex": "1\\{?,?\\}?350"
-        }
-      ],
+      "numbers": [],
       "mechanization": [],
       "site": [
         "/research/paper3.pdf"
@@ -886,21 +879,7 @@
           "S6 (sec:radius), boxed CR-1 unrestricted edge minimum, CR-2 one-edge sensitivity, CR-3 union-coordinate decomposition"
         ]
       },
-      "chapters": [
-        {
-          "file": "book/federated-harbor-whitepaper.tex",
-          "chapter": 8,
-          "prefix": "fh",
-          "labels": [
-            "thm:radius-soundness",
-            "thm:radius-localization",
-            "thm:radius-cost"
-          ],
-          "sections": [
-            "sec:fh-sheaf (inside sec:fh-revocation): unrestricted edge minimum and fixed-sender caveat in thm:radius-soundness, one-edge sensitivity in thm:radius-localization, union-coordinate cost in thm:radius-cost, synthetic sweeps and evidence boundary"
-          ]
-        }
-      ],
+      "chapters": [],
       "figures": [
         "docs/harbor-research/figures/fig-paper7-radius.tex"
       ],
@@ -1897,6 +1876,11 @@
       "reason": "Chapter-native definition (\"Single-writer discipline\"), the kernel's founding definition; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
+      "id": "def:swk-timed-claims",
+      "file": "book/single-writer-kernel.tex",
+      "reason": "Chapter-native definition (\"Timed claims object\"), the timed sequential specification Theorem thm:consistency is linearizable against; no docs/harbor-research/tex/paperN.tex restates it; not part of the R1-R17/CR/B6 catalog."
+    },
+    {
       "id": "prop:attest",
       "file": "book/single-writer-kernel.tex",
       "reason": "Chapter-native property (\"Honest self-report, I10\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
@@ -2055,6 +2039,26 @@
       "id": "thm:swk-control-game",
       "file": "book/additions/swk-control-game.tex",
       "reason": "Research-agenda addition (November 2026): Theorem 'What a Control Evaluation Can Measure', proposed material not yet folded into a research-program entry."
+    },
+    {
+      "id": "conj:he-revocation-bond",
+      "file": "book/harbor-economy.tex",
+      "reason": "Wave 1 correction (November 2026): Conjecture 6.8.1 split into its two objects; this half is the revocation-window bond. Chapter-native; not yet folded into a research-program entry."
+    },
+    {
+      "id": "conj:he-equivocation-bond",
+      "file": "book/harbor-economy.tex",
+      "reason": "Wave 1 correction (November 2026): Conjecture 6.8.1 split into its two objects; this half is the equivocation bond. Chapter-native; not yet folded into a research-program entry."
+    },
+    {
+      "id": "thm:sealed-capacity",
+      "file": "book/sealed-harbor.tex",
+      "reason": "Wave 1 correction (November 2026): Theorem 'Capacity of a Worker-Chosen Channel', the q*b account stated with tightness at review request; not yet folded into a research-program entry."
+    },
+    {
+      "id": "lem:stp-scope",
+      "file": "book/spawn-to-person.tex",
+      "reason": "Wave 1 correction (November 2026): the scope lemma promoted to a labelled result at review request; chapter-native; not yet folded into a research-program entry."
     }
   ]
 }
