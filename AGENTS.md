@@ -48,6 +48,15 @@ chapter transformation strips literal `\clearpage` but preserves this macro.
 Page-turn word checks must include
 protocol and solution text below 10 pt, including literal compound-word hyphens.
 
+Build Book source receipts (`scripts/build-book-source.py build`) only with a
+Python linked against stock zlib, such as uv's managed CPython:
+`"$(uv python find --python-preference only-managed 3.12)" scripts/build-book-source.py build`
+(on macOS, a python.org or uv build). The receipt pins exact gzip bytes, and a
+zlib-ng Python (`zlib.ZLIB_RUNTIME_VERSION` like `1.3.1.zlib-ng`, as some system
+`python3` builds report) writes different ones that CI rejects as stale. The
+script compresses a fixed canary before writing and refuses on any other deflate;
+`check` names the interpreter and zlib build when a stale receipt may be its fault.
+
 ## Recently Shipped Surfaces (verify before you depend on them)
 
 These landed on `main` in the last few weeks. Source presence does not prove an

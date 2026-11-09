@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Source-package regressions; synthetic fixtures never run the daemon."""
+import contextlib
+import gzip
 import importlib.util
 import io
 import json
@@ -10,15 +12,28 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
+import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("book_source", ROOT / "scripts/build-book-source.py")
 bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
+REAL_CANARY_OUTPUT = bundle.canary_output
+FAKE_STOCK = b"deflate bytes standing in for stock zlib"
+FAKE_ZLIB_NG = b"deflate bytes standing in for zlib-ng"
 
 
 class SourceBundleTests(unittest.TestCase):
     def setUp(self):
+        # Fake the deflate canary's compressor output so no test depends on the
+        # runner's zlib; individual tests switch it to non-stock bytes.
+        canary = patch.object(bundle, "canary_output", return_value=FAKE_STOCK)
+        expected = patch.object(bundle, "STOCK_CANARY_SHA256", bundle.digest(FAKE_STOCK))
+        self.canary = canary.start()
+        expected.start()
+        self.addCleanup(canary.stop)
+        self.addCleanup(expected.stop)
         scratch = ROOT / ".cache/book-source-tests"
         scratch.mkdir(parents=True, exist_ok=True)
         self.temporary = tempfile.TemporaryDirectory(dir=scratch)
@@ -148,6 +163,71 @@ class SourceBundleTests(unittest.TestCase):
         path.write_text(path.read_text().replace(receipt["archive"]["url"], "https://example.org/wrong"))
         with self.assertRaisesRegex(ValueError, "redirects"):
             bundle.check(self.root, self.receipt)
+
+    def test_build_refuses_non_stock_deflate_before_writing(self):
+        self.canary.return_value = FAKE_ZLIB_NG
+        with self.assertRaises(ValueError) as caught:
+            self.build()
+        message = str(caught.exception)
+        for expected in ("Refusing to write the source archive or receipt", sys.executable,
+                         f"zlib {zlib.ZLIB_RUNTIME_VERSION}", "differs from stock zlib",
+                         "uv python install 3.12", "scripts/build-book-source.py build", "macOS"):
+            self.assertIn(expected, message)
+        self.assertFalse(self.archive.exists())
+        self.assertFalse(self.receipt.exists())
+        self.assertFalse((self.root / "website-v2/public/_redirects").exists())
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as exited:
+            bundle.main(["build", "--root", str(self.root), "--output", str(self.archive)])
+        self.assertEqual(exited.exception.code, 1)
+        self.assertIn("Book source: Refusing to write", stderr.getvalue())
+        self.assertFalse(self.archive.exists())
+
+    def test_build_proceeds_with_stock_deflate_and_check_skips_the_canary(self):
+        self.build()
+        self.canary.assert_called_once_with()
+        self.canary.reset_mock()
+        self.canary.return_value = FAKE_ZLIB_NG
+        # A fresh receipt passes without consulting the canary: check only
+        # explains a mismatch, so a website prebuild is never refused for it.
+        bundle.check(self.root, self.receipt)
+        self.canary.assert_not_called()
+
+    def test_stale_check_names_a_non_stock_deflate_and_the_fix(self):
+        self.build()
+        (self.root / "book/chapter.tex").write_text("Changed chapter\n")
+        with self.assertRaises(ValueError) as caught:
+            bundle.check(self.root, self.receipt)
+        self.assertNotIn("zlib", str(caught.exception))
+        self.canary.return_value = FAKE_ZLIB_NG
+        with self.assertRaisesRegex(ValueError, "stale") as caught:
+            bundle.check(self.root, self.receipt)
+        message = str(caught.exception)
+        for expected in ("cannot reproduce stock archive bytes", sys.executable,
+                         f"zlib {zlib.ZLIB_RUNTIME_VERSION}", "scripts/build-book-source.py check"):
+            self.assertIn(expected, message)
+
+    def test_stale_archive_with_matching_sources_points_at_the_compressor(self):
+        # A receipt from another deflate implementation: same inputs, other bytes.
+        other = lambda output: gzip.GzipFile(filename="", fileobj=output, mode="wb", compresslevel=1, mtime=0)
+        with patch.object(bundle, "gzip_writer", other):
+            self.build()
+        with self.assertRaisesRegex(ValueError, "Every source hash matches .*non-stock zlib .*build-book-source.py build"):
+            bundle.check(self.root, self.receipt)
+
+    def test_canary_is_pinned_and_uses_the_archive_compressor(self):
+        payload = bundle.canary_payload()
+        # Editing the payload invalidates STOCK_CANARY_SHA256; regenerate it with stock zlib.
+        self.assertEqual(bundle.digest(payload), "d14faac58733f106596b303d1f7cbc4b9f82b636b98c5b5522ce8d559b86df62")
+        writers, real_writer = [], bundle.gzip_writer
+        def recording(output):
+            writers.append(output)
+            return real_writer(output)
+        with patch.object(bundle, "gzip_writer", recording):
+            output = REAL_CANARY_OUTPUT()
+            self.build()
+        self.assertEqual(len(writers), 2)
+        self.assertEqual(gzip.decompress(output), payload)
 
     def test_open_profile_does_not_discover_private_font_directory(self):
         # The helper normally discovers fonts under the user's home. An explicit

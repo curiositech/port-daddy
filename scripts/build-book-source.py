@@ -15,8 +15,10 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import sys
 import tarfile
 import tempfile
+import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "coordination-papers-mega-volume-source.tar.gz"
@@ -34,6 +36,12 @@ BUILD = {"texliveImage": TEXLIVE, "nodeMajor": 22, "pythonMinimum": "3.10",
          "sourceDateEpoch": EPOCH, "defaultFontProfile": "open-proof",
          "entrypoint": "book/BUILDING.sh",
          "publicationFonts": "Exact published Suisse typography requires separately licensed private Suisse fonts; they are not included."}
+# The receipt pins exact gzip bytes, and only stock zlib's deflate reproduces
+# them. zlib-ng (including zlib-compat builds reporting "1.3.1.zlib-ng") writes
+# valid but different streams, so its receipt fails CI's rebuild as stale. A
+# version string cannot prove equivalence; this is the SHA-256 of
+# canary_output() under stock zlib 1.3, 1.3.1 and 1.3.2.
+STOCK_CANARY_SHA256 = "7fac0ff0817a42d563b902ba13a8ef9a2adbcfb32729fadd8503c7c940080aa4"
 
 
 def digest(data: bytes) -> str:
@@ -117,13 +125,77 @@ def source_manifest(files: list[dict]) -> dict:
             "build": BUILD, "files": files}
 
 
+def gzip_writer(output) -> gzip.GzipFile:
+    # The archive's only compressor configuration; the deflate canary uses it too.
+    return gzip.GzipFile(filename="", fileobj=output, mode="wb", compresslevel=9, mtime=0)
+
+
+def canary_payload() -> bytes:
+    """Tar-like input: 48 NUL-padded 512-byte headers, each before LCG-drawn words."""
+    words = b"the agent harbor claim of a lease port daddy book source receipt proof and to is".split()
+    state, out = 20261109, bytearray()
+    for record in range(48):
+        header = b"port-daddy-book-source/book/canary-%02d.tex" % record
+        out += header + bytes(512 - len(header))
+        for _ in range(96):
+            state = (state * 1103515245 + 12345) % 2**31
+            out += words[(state >> 16) % 16] + (b"\n" if state % 8 == 0 else b" ")
+    return bytes(out)
+
+
+def canary_output() -> bytes:
+    output = io.BytesIO()
+    with gzip_writer(output) as stream:
+        stream.write(canary_payload())
+    return output.getvalue()
+
+
+def zlib_build() -> str:
+    build = f"zlib {zlib.ZLIB_RUNTIME_VERSION} (compiled against {zlib.ZLIB_VERSION})"
+    native_ng = getattr(zlib, "ZLIBNG_VERSION", None)
+    return build + (f", zlib-ng {native_ng}" if native_ng else "")
+
+
+def deflate_mismatch() -> str | None:
+    """Name the running interpreter and zlib when its deflate is not stock zlib's."""
+    if digest(canary_output()) == STOCK_CANARY_SHA256:
+        return None
+    return f"{sys.executable} uses {zlib_build()}, whose deflate output differs from stock zlib's"
+
+
+def stock_zlib_fix(command: str) -> str:
+    return ("Use a Python linked against stock zlib, such as uv's managed CPython: "
+            "`uv python install 3.12`, then "
+            f"`\"$(uv python find --python-preference only-managed 3.12)\" scripts/build-book-source.py {command}`. "
+            "On macOS, a python.org or uv build also works.")
+
+
+def require_stock_deflate():
+    problem = deflate_mismatch()
+    if problem:
+        raise ValueError(f"Refusing to write the source archive or receipt: {problem}, "
+                         "so a receipt built here would fail CI's byte-for-byte rebuild as stale. "
+                         f"{stock_zlib_fix('build')}")
+
+
+def stale_hint(actual: dict, expected: dict) -> str:
+    problem = deflate_mismatch()
+    if problem:
+        return (f". This check cannot reproduce stock archive bytes, so the receipt may be current: "
+                f"{problem}. {stock_zlib_fix('check')}")
+    if isinstance(actual, dict) and actual.get("source") == expected["source"]:
+        return (". Every source hash matches but the archive bytes differ, so the receipt was "
+                f"probably built with a non-stock zlib such as zlib-ng. {stock_zlib_fix('build')}")
+    return ""
+
+
 def make_archive(files: list[dict], data: dict[str, bytes]) -> tuple[bytes, bytes]:
     manifest = encoded(source_manifest(files))
     contents = dict(data)
     contents["SOURCE-MANIFEST.json"] = manifest
     contents["README.md"] = data["book/BUILDING.md"]
     output = io.BytesIO()
-    with gzip.GzipFile(filename="", fileobj=output, mode="wb", compresslevel=9, mtime=0) as gz:
+    with gzip_writer(output) as gz:
         with tarfile.open(fileobj=gz, mode="w", format=tarfile.USTAR_FORMAT) as archive:
             for name, content in sorted(contents.items()):
                 info = tarfile.TarInfo(f"{PREFIX}/{safe_name(name)}")
@@ -184,6 +256,9 @@ def redirects_with_block(text: str, block: str) -> str:
 
 
 def build(root: Path, output: Path, receipt_path: Path, r2_manifest: Path | None = None):
+    # Fail closed before anything is written; check() runs the canary only to
+    # explain a mismatch, so a website build is not gated on its interpreter.
+    require_stock_deflate()
     files, data = source_files(root)
     archive, manifest = make_archive(files, data)
     receipt = receipt_for(files, archive, manifest)
@@ -208,7 +283,8 @@ def check(root: Path, receipt_path: Path):
     expected = receipt_for(files, archive, manifest)
     actual = json.loads(receipt_path.read_bytes())
     if actual != expected:
-        raise ValueError("Book source archive receipt is stale; rebuild and publish the source archive")
+        raise ValueError("Book source archive receipt is stale; rebuild and publish the source archive"
+                         + stale_hint(actual, expected))
     redirects = (root / "website-v2/public/_redirects").read_text()
     if redirects_with_block(redirects, redirect_block(expected)) != redirects:
         raise ValueError("Book source download redirects are missing or stale")
