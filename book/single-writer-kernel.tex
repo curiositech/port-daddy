@@ -2326,7 +2326,9 @@ output below is the evidence behind the state count and the shortest-crime table
 with every guard on, no reachable state violates an invariant; with any one guard
 off, the checker finds the violating run and prints it. The claim below labels
 its six invariants W1--W6, so that they cannot be read as the
-I1--I12 of Table~\ref{tab:invariants}.
+I1--I12 of Table~\ref{tab:invariants}. When the transcript says that all six
+hold, it has evaluated five predicates: W5 has none of its own and is reported
+together with W1.
 
 \begingroup
 \pdsessionwordwraptrue
@@ -2356,13 +2358,15 @@ W3, a verified completion has an acceptance policy and an admitted verifier rece
 
 W4, no delegated grant is more permissive than its immediate parent;
 
-W5, role reassignment invalidates stale epochs at the effect boundary;
+W5, role reassignment invalidates stale epochs at the effect boundary. W5
+follows from W1, because an effect that carries the current epoch carries no
+stale one, and the checker tests it with W1's predicate;
 
 W6, every settlement is funded by the owning principal and references a receipt.
 
 \textbf{Result.} On the two-principal instance (one work unit, one exclusive role with
 fencing epochs, a root grant with one delegation, one idempotency key, at most two effects),
-all 536 reachable states satisfy all six invariants; disabling any single guard yields a
+all 536 reachable states satisfy all six invariants, which five predicates check; disabling any single guard yields a
 violation, found automatically as a shortest counterexample trace, and restoring the guard
 restores safety [internal, \texttt{c0\_workunit.py}].
 \end{pdclaim}
@@ -2377,8 +2381,9 @@ harmless, which is Helland's case for idempotent processing~\pdcite{helland2012i
 
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker performs a breadth-first
-enumeration of the reachable states from the initial state, evaluates the six predicates in
-each, and stops at the first violation. The mutation suite then disables one guard at a
+enumeration of the reachable states from the initial state, evaluates five predicates in
+each, one for every invariant except W5, which W1's predicate covers, and stops at the
+first violation. The mutation suite then disables one guard at a
 time and reports the shortest violating trace it finds. A checker that has never caught a
 seeded bug is an unvalidated checker; the five traces below show that this one
 catches them.
@@ -2453,8 +2458,9 @@ Safety only: liveness
 (``the work eventually settles'') needs fairness assumptions this check does not make.
 
 And
-an invariant list is only as good as its coverage; the mutation suite shows that these six
-have teeth, each catching a seeded bug, and it does not show that the list is complete.
+an invariant list is only as good as its coverage; the mutation suite shows that the five
+predicates have teeth, each catching a seeded bug, and it does not show that the list is
+complete. No mutant targets W5 alone.
 
 The unbounded-parameter version, in TLA\textsuperscript{+}
 with Apalache, is planned and not done.
