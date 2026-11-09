@@ -264,7 +264,7 @@
   \foreach \y in {153,102,51}{\draw[sg/arrow] (79,\y)--(79,{\y-13});}
   \draw[sgBlue,line width=2.4pt] (7,154)--(7,190);
   \draw[sgInk!60,dashed,line width=.7pt] (17,204) rectangle (307,243);
-  \node[anchor=west,font=\SGType\bfseries] at (26,216) {Machine floor};
+  \node[anchor=west,font=\SGType\bfseries] at (26,216) {The machine};
   \node[anchor=west] at (26,231) {file lock, clock, socket, supervisor};
   \draw[sg/arrow] (79,204)--(79,192);
 \end{tikzpicture}}
@@ -273,7 +273,7 @@
 % A named current-layer argument changes emphasis, never the layer order.
 \newcommand{\SGMarginLadder}[1]{%
 \begin{tikzpicture}[sg/base,y=-1pt]
-  \foreach \y/\n/\name/\hue in {0/3/Economy/sgAmber,37/2/Legibility/sgTeal,74/1/Coordination/sgViolet,111/0/Substrate/sgBlue}{
+  \foreach \y/\n/\name/\hue in {0/3/Economy/sgAmber,37/2/Legibility/sgTeal,74/1/Coordination/sgViolet,111/0/Storage/sgBlue}{
     \draw[\hue,line width=.7pt] (0,\y)--(91,\y);
     \node[anchor=north west,text=\hue,font=\SGType\bfseries] at (4,{\y+3}) {L\n};
     \node[anchor=north west] at (4,{\y+16}) {\name};

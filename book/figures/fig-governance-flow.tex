@@ -47,7 +47,7 @@
     \node[pd ready datum] at (\bx,\yrail) {};
     \node[pd ready label,anchor=north] at (\bx,{\yrail-.45}) {\outcome};}
   \node[pd note,anchor=west,text width=10.25cm] at (\xa,{\yrail-1.45})
-    {every stage discharges to one evidence rail: actor $\cdot$ reason $\cdot$
+    {every stage writes to one evidence record: actor $\cdot$ reason $\cdot$
      artifact $\cdot$ outcome $\rightarrow$ Merkle forest $\rightarrow$ appeal window};
   % ---- the legend: each badge, its escalation trigger ----------------------
   \def\ly{-2.35}  \def\lc{4.65}
@@ -66,8 +66,8 @@
 \end{tikzpicture}
 \caption{Dispute resolution is an ordered four-stage escalation ladder. Each
 stage badge is keyed to the escalation trigger in the legend, and every
-stage outcome -- released, expired, preempted, or ruled -- discharges onto
-the same evidence rail regardless of which stage resolved the dispute.
+stage outcome -- released, expired, preempted, or ruled -- is written to
+the same evidence record, whichever stage resolved the dispute.
 Escalation therefore changes only the decision cost and decision-maker,
 never the record kept for appeal. [internal]}
 \label{fig:governance-flow}
