@@ -194,8 +194,8 @@ and leave unrelated migrations alone. The following timings and review budget
 are a constructed teaching case, not a measured run.
 
 \scene{Alice, 2:40 p.m.}{Five processes begin from revision~7. By 3:10 she has
-five proposed changes. The first question is not how much code they produced,
-but which changes satisfy Bob's request and which she is authorized to admit.}
+five proposed changes. Her first question is which changes satisfy Bob's
+request and which she has authority to accept.}
 \begin{enumerate}[leftmargin=1.6em]
 \item \textbf{Conflicting proposals.} Wren and Heron both change the payment
 module from revision~7. Applying either proposal without checking the other's
@@ -215,14 +215,16 @@ or not, that effect lies outside the repair grant and needs a separate decision.
 \end{enumerate}
 \begin{pdexample}{Alice's Half Hour, Counted}
 Thirty minutes yielded five proposed changes: one every six minutes. That
-arrival interval alone does not establish overload. Now state the inspection
+arrival rate alone would not overload her. Now state the inspection
 budget. At an illustrative two lines per second, the $600$-line patch needs
 $300$ seconds, while Alice's ninety-second interval covers only $180$ lines.
 The shortage is uninterrupted inspection time under this assumed rate.
 
-A useful digest points Alice to the unrelated migration and the test deletion,
-then preserves the artifacts needed to check them. It cannot make either change
-acceptable by shortening its description. The next table separates these
+A \pdterm{digest} is a short summary written for one reader, in which each
+statement links to the evidence behind it. A useful digest points Alice to the
+unrelated migration and the test deletion, then keeps the artifacts she needs
+to check them. Shortening the description of either change cannot make it
+acceptable. The next table separates these
 failures because exclusion, evidence, and authorization solve different parts
 of the afternoon. A coordinator adds a fifth possible failure: an unexplained
 refusal whose grounds Alice cannot inspect.
@@ -232,10 +234,16 @@ Exercise~\ref{ex:ls-taxonomy-five-failures}.
 
 The chapter develops three decisions from this job: what Alice may delegate,
 what evidence she must be able to inspect, and how to allocate limited attention.
-Hobbes' question of a common authority supplies a comparison, not a theorem
-that software agents are people or that a central daemon is the only solution
-\pdcite{hobbes1651}. The proposed authority must itself be inspectable and
-revocable; Section~\ref{sec:consent-canon} tests the political analogy's limits.
+All three serve \pdterm{legibility}: the operator's ability to tell, in the
+time she has, what the swarm did and why, and to check each statement against
+its evidence. A summary supports \pdterm{zoom} when each of its statements
+opens, in one step, to the artifact behind it: the diff, the test log, the
+committed file.
+Hobbes' question of a common authority supplies a comparison
+\pdcite{hobbes1651}, used here without assuming that agents are people or that
+a central daemon is the only answer. The proposed
+authority must itself be inspectable and revocable;
+Section~\ref{sec:consent-canon} tests the political analogy's limits.
 
 \paragraph{Two routes through the argument.}
 For \emph{supervision decisions}, follow Sections~\ref{sec:intro}--\ref{sec:operator}:
@@ -286,8 +294,8 @@ authority} --- is the additional design problem created by the coordinator itsel
 in this chapter (\S\ref{sec:authority}).}
 \label{tab:taxonomy}
 \end{table}
-The striking recent result is that the identification is not merely a useful
-analogy. \textbf{Dai et al.\ 2024}, \emph{Artificial Leviathan}
+A recent experiment found the same arc in a population of language-model
+agents. \textbf{Dai et al.\ 2024}, \emph{Artificial Leviathan}
 (arXiv:2406.14373)~\pdcite{dai2024} --- \emph{a sandbox of LLM agents with
 psychological drives that, starting from unrestrained conflict resembling the state
 of nature, were observed to establish social contracts, authorize a sovereign, and
@@ -296,7 +304,7 @@ series posits as its organizing metaphor is, in at least one controlled study, a
 \emph{emergent dynamic} of LLM populations (the methodological ancestor is
 \textbf{Park et al.\ 2023}, \emph{Generative Agents}~\pdcite{park2023}, where LLM
 agents form emergent social behavior in a sandbox town). This motivates a
-design hypothesis; it does not establish a universal attractor for coding swarms.
+design hypothesis, and one sandbox study is all it rests on.
 The wager of this chapter is that we can build the consented sovereign
 \emph{deliberately, locally, and legibly} rather than let an illegible one congeal
 by accident. Figure~\ref{fig:state-of-nature} follows three concrete
@@ -315,21 +323,27 @@ additional problem taken up in \pdchapref{fh}{The Federated Harbor}.
 \section{Consent to the Leviathan (the normative claim)}\label{sec:authority}
 \pdmarginfigure{hobbes}{Thomas Hobbes. This chapter borrows the question of authorized power, but makes the operator's consent scoped and revocable.}
 % ═════════════════════════════════════════════════════════════════════════════
-Why should the operator cede authority to a daemon --- let it block an agent's
-claim, escalate a decision, reorder a merge, refuse a \texttt{done}? Hobbes'
+Why should the operator give a daemon the authority to block an agent's
+claim, reorder a merge, refuse a \texttt{done}, or raise an
+\pdterm{escalation}, a decision handed up to a human because no agent may
+make it alone? Hobbes'
 answer, transposed: the operator authorizes the sovereign because the covenant is
 rational under the alternative. Crucially, in Hobbes the covenant is \emph{among the
 subjects} --- ``a real unity of them all\ldots by covenant of every man with every
 man''~\pdcite{hobbes1651,sep-hobbes} --- not a bargain struck \emph{with} the
-sovereign. Transposed: the operator does not negotiate with each agent; the operator
-institutes a \emph{rule of the road} --- a \textbf{coordination protocol} of
-\emph{typed performatives} (messages whose type declares their intent: a request, a
-\textbf{commitment} (glossed in \S\ref{sec:flatten}: a violable obligation bound to a named actor, watched by a breach monitor), a delegation, a termination), so that every message carries real intent,
-ownership, and a stop condition --- that all agents are bound to, and the daemon
-enforces it.
+sovereign. In the software version, the operator does not bargain with each
+agent. Instead the operator sets one rule of the road that binds every agent,
+and the daemon enforces it. The rule is a \textbf{coordination protocol}, a
+message protocol in which each message states its type. A typed message of
+this kind is a \pdterm{performative}, a term from speech-act theory: a
+request, a \textbf{commitment} (a promise tied to a named agent, which a
+monitor watches for breach; \S\ref{sec:flatten}), a delegation, or a
+termination. Because the type is stated, every message says what it intends,
+who owns it, and when it ends.
 The authority is asymmetric by design: the clients propose work, while one
 coordinator applies the operator's policy to the effects within its boundary.
-This is a central-coordinator assumption, not a consensus result. If a client
+This is an assumption of one central coordinator; no consensus protocol
+produces it. If a client
 can bypass that boundary, or the coordinator cannot observe the decisive effect,
 the prevention claim fails. Section~\ref{sec:landing} separates what can be
 prevented from what can only be detected afterward.
@@ -340,7 +354,7 @@ Hobbes argued the sovereign, being the \emph{product} of the covenant rather tha
 \emph{party} to it, can never breach it and need not be
 inspectable~\pdcite{hobbes1651,sep-hobbes}. For a software authority this is exactly
 wrong. An \emph{illegible authority} is the fifth state-of-nature failure mode
-(Table~\ref{tab:taxonomy}) wearing a crown: if the daemon blocks an agent and the
+of Table~\ref{tab:taxonomy}, committed by the coordinator itself: if the daemon blocks an agent and the
 operator cannot see why, the operator's trust --- and therefore the consent that
 legitimizes the authority --- erodes.
 \begin{pdclaim}{Design invariant}{The Legible-Sovereign Rule}
@@ -358,7 +372,7 @@ This is the inversion that rescues the design from despotism, and it is the move
 political theorist would press hardest (\S\ref{sec:consent-canon}). In Hobbes the
 sovereign is opaque \emph{by structure}; here the sovereign is the one actor whose
 every exercise of power is an audit record. It is realized as a discipline of
-\textbf{honest attestation}: a single self-report that runs every invariant check,
+\pdterm{honest attestation}: a single self-report that runs every invariant check,
 distinguishes \emph{verified-good} from \emph{no-evidence-of-bad}, regiments what it
 can, and fails loudly about what it cannot. That discipline is precisely the
 sovereign making its own judgments legible --- ``all good'' becomes ``a claim with a
@@ -369,22 +383,22 @@ authority --- the digest decides what is surfaced and what is buried. The Attent
 Queue ranker (\S\ref{sec:discovery}) is \emph{the} sovereign act: it decides what
 the operator sees \emph{right now}. A ranker that silently buries an escalation is
 governing opaquely. The rule is therefore not complete until the ranker's
-\emph{omissions} are themselves legible --- a ``what did the queue not show me, and
-why'' counter-surface. Ranking is governing; we say so explicitly in
+\emph{omissions} are themselves legible, through a \pdterm{counter-surface}:
+a view that lists what the queue did not show the operator, and why. Ranking is governing; we say so explicitly in
 \S\ref{sec:consent-canon}.}
 \begin{pdexample}{Three Omissions, and How Many of Them a Score Explains}
 \setlength{\parskip}{4pt plus 1pt}
 Take the three suppressed items tabulated below and try to audit the queue the cheap way --- by score alone, against the distress threshold of $0.45$ that governs this action class.
 The first item, \texttt{agent-7}'s escalation, scores $0.31$; since $0.31<0.45$ it sits below the bar and the threshold explains it, and an auditor with nothing but the scores reconstructs that omission correctly.
-The second scores $0.12$, which is also below $0.45$ --- so the score-only auditor thinks the threshold explains that one too, and is wrong: it was dropped because its recency weight decayed past the floor, and a rule that consults the clock rather than the score would have aged it out at any score at all.
+The second scores $0.12$, which is also below $0.45$ --- so the score-only auditor thinks the threshold explains that one too, and is wrong: it was dropped because its recency weight decayed below the cutoff, and a rule that consults the clock rather than the score would have aged it out at any score at all.
 The third is the one that should end the argument: it scores $0.58$, above the only threshold the screen names, and it was suppressed anyway, by de-duplication into an earlier occurrence --- another rule that never looks at the number.
 So of three omissions, a score-only audit explains one, misattributes one, and cannot see the third at all --- and the two it fumbles are the two where a rule other than ranking did the governing. That is the concrete content of ``ranking is governing'': the suppression \emph{rules} are what have to be legible, because the suppression \emph{scores} do not determine them.
 \emph{Now you try:} specify the counter-surface, including its own decay discipline (Exercise~\ref{ex:ls-ranker-counter-surface}).
 \end{pdexample}
 The regress is easier to reason about once you have seen what a counter-surface would
 concretely be, so here is the whole mockup screen those three rows came from.
-Table~\ref{tab:counter-surface} is one screen of it: not a diagram of a mechanism
-that does not exist, but the artifact the mechanism would have to produce.
+Table~\ref{tab:counter-surface} shows one screen of the output such a mechanism
+would have to produce; the mechanism itself does not exist yet.
 \begin{table}[H]
 \centering
 \small
@@ -397,7 +411,7 @@ that does not exist, but the artifact the mechanism would have to produce.
 \textbf{Suppressed item} & \textbf{Regret} & \textbf{Why it was not shown} & \textbf{Re-surface trigger} \\
 \midrule
 \texttt{agent-7} escalation: ``migration ordering unclear'' & $0.31$ & below the distress threshold $(0.45)$ for this action class & threshold drops, or the item is restated \\
-\texttt{agent-3} note on \path{auth/}\allowbreak\path{session.ts} & $0.12$ & aged out; recency weight decayed past the floor & any new claim on the same file \\
+\texttt{agent-3} note on \path{auth/}\allowbreak\path{session.ts} & $0.12$ & aged out; recency weight decayed below the cutoff & any new claim on the same file \\
 Third retry of the same failing test & $0.58$ & de-duplicated into the first occurrence & a fourth retry, or a different failure mode \\
 \bottomrule
 \end{tabularx}
@@ -406,14 +420,15 @@ Third retry of the same failing test & $0.58$ & de-duplicated into the first occ
 \end{table}
 \subsection{Consent as a first-class, revocable primitive}\label{sec:consent}
 It is easy to say the operator ``consents to cede decision authority.'' A political
-theorist's first question --- and the one that decides whether the Leviathan frame has
-substance or is merely decorative --- is: \emph{consented how, to what, and revocable when?}
+theorist asks first \emph{consented how, to what, and revocable when?}, and the
+answer decides whether the Leviathan frame has any content.
 ``The operator just starts using the tool'' is
-not Hobbesian consent; it is what the canon calls \textbf{tacit consent}, and
-\textbf{Hume} (\emph{Of the Original Contract}, 1748~\pdcite{hume1748} --- \emph{the
-decisive critique: the peasant who ``consents'' by remaining in the country has no
-real alternative, so the consent does no normative work}) demolished it two and a
-half centuries ago. We therefore make consent a concrete object.
+not Hobbesian consent. It is \pdterm{tacit consent}, consent inferred from
+someone merely staying put without any act of agreeing, and
+\textbf{Hume} (\emph{Of the Original Contract}, 1748~\pdcite{hume1748})
+demolished it two and a half centuries ago: the peasant who ``consents'' by
+remaining in the country has no real alternative, so the consent does no
+normative work. We therefore make consent a concrete object.
 \scene{Alice, 3:25 p.m.}{Alice grants two hours of low-stakes, reversible
 formatting changes in \texttt{tests/}, provided the original acceptance test
 remains intact. A formatting change can satisfy all these conditions. Drake's
@@ -422,12 +437,12 @@ outside the subtree; Finch's force-push is outside the grant. The fact that a
 process can propose them gives it no permission to execute them.}
 
 The tuple below records the conditions that distinguished those four proposals.
-Its scope must include the acceptance-preservation rule, not merely a path glob.
+Its scope must include the acceptance-preservation rule as well as a path pattern.
 
 \begin{pdclaim}{Design invariant}{Consent Grant}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:consent}
-A \textbf{consent grant} is an explicit, scoped, revocable authorization the
+A \pdterm{consent grant} is an explicit, scoped, revocable authorization the
 operator issues to the daemon, of the form
 \[
 \begin{aligned}
@@ -451,7 +466,8 @@ its active grants.
 Consent so defined gives the design something Hume's critique cannot reach: a
 discrete authorization event, a bounded scope, and an exit. It is also an object
 supervisory-control research named long before this chapter did: a
-\textbf{level of automation}, in Sheridan's ten-point sense and in the
+\pdterm{level of automation}, meaning how much of a task the machine may do
+without asking, in Sheridan's ten-point sense and in the
 four-stage refinement (acquire, analyse, decide, act) that Parasuraman,
 Sheridan and Wickens later gave it~\pdcite{sheridan1992,parasuraman2000}. Read
 that way, a grant's $\langle\textsc{scope}, s_{\max}, v_{\min},
@@ -460,18 +476,18 @@ rather than once for the whole system, which is roughly what that literature
 has been recommending since 1978. This section built the same selector from a
 Hobbesian covenant, and that two routes so far apart arrive at a compatible
 object is some evidence the object is the right one. It also hands the
-accompanying chapters a concrete object. A grant is precisely what a \emph{hosted-trust}
-offering transfers --- ``we make this fleet legible to you, under this scope'' is
-the sale of a consent grant to a third party, which \pdchapref{he}{The Harbor Economy}
-prices --- which is why \S\ref{sec:bridge} lists consent among the things this layer
-provides upward.
+accompanying chapters a concrete object. A \emph{hosted-trust} offering
+transfers a grant: its promise, ``we make this fleet legible to you, under this
+scope'', sells a consent grant to a third party, and
+\pdchapref{he}{The Harbor Economy} sets the price of that sale. For that reason
+\S\ref{sec:bridge} lists consent among the things this layer provides upward.
 
 \begin{protocol}{Consent-grant lifecycle}
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item \textbf{Issue.} The operator issues a grant
 $g=\langle\textsc{scope},s_{\max},v_{\min},\textsc{ttl}\rangle$. The grant is
 appended to the audit log as a named, zoomable event and surfaced in the digest.
-\item \textbf{Act.} On a candidate action $x$, the daemon admits the action without
+\item \textbf{Act.} On a candidate action $x$, the daemon allows the action without
 asking \emph{iff} $x$ is in scope \textbf{and} $\mathrm{stakes}(x)\le s_{\max}$
 \textbf{and} $\mathrm{reversibility}(x)\ge v_{\min}$ \textbf{and} the grant is
 unexpired and unrevoked; otherwise it escalates to the operator.
@@ -488,8 +504,8 @@ require separate recovery.
 
 \input{figures/legible-swarm-consent-lifecycle}
 Figure~\ref{fig:consent-lifecycle} separates the grant's state from repeated
-action decisions: all five conditions apply to every admission. Neither
-decision renews $g$; expiry or revocation removes it from the active set.
+action decisions. All five conditions apply to every action decision, and no
+decision renews $g$; only expiry or revocation removes it from the active set.
 
 \begin{pdclaim}{Design invariant}{The Inalienable Operator-Override}
 \setlength{\parskip}{4pt plus 1pt}
@@ -510,12 +526,15 @@ mediated boundary; it cannot undo an already committed effect.
 \end{pdclaim}
 
 \ifpdmargincolumn\pdconsentregion\fi
-Computer security reached the same object by its own road. A consent grant is,
-to a capability theorist, a \textbf{capability with contextual caveats} ---
-unforgeable and able only to narrow as it is passed along; revocation
-additionally requires a verifier-side revocation or expiry policy~\pdcite{macaroons2014} --- and that a Hobbesian covenant and a Macaroon
-agree about what the object has to be is a small reassurance that neither
-derivation was decorative.
+Computer security arrived at the same object independently. To a capability
+theorist, a consent grant is a \textbf{capability with contextual caveats}: a
+token that cannot be forged and that can only be narrowed, never widened, as
+it is handed on, each holder adding restrictions (caveats) that depend on
+context. Macaroons are credentials built this way~\pdcite{macaroons2014}.
+Revoking one before it expires needs one more mechanism, in which the checker
+consults a revocation list or an expiry rule. That political theory and
+security engineering reach the same object independently is modest evidence
+that the object is right, and not an artifact of the Hobbes metaphor.
 
 This pairs with \textbf{Hirschman}'s \emph{Exit, Voice, and Loyalty}
 (1970~\pdcite{hirschman1970} --- \emph{the choice between leaving (exit) and
@@ -536,15 +555,15 @@ over the sovereign.
 
 \begin{pdexample}{The Same Pull Request, Rendered Twice}
 \setlength{\parskip}{4pt plus 1pt}
-Before the rule, the two rows it separates --- both one line long, both about Wren's checkout-repair pull request, both perfectly honest-looking.
+Before the rule, here are the two rows it separates. Each is one line of a \pdterm{read-surface}, any view the operator reads to learn the swarm's state; both are about Wren's checkout-repair pull request, and both look honest.
 
 Row~A reads \emph{Wren $\cdot$ checkout repair $\cdot$ open $\cdot$ diff and log attached}, and every noun in it resolves: press one key and the $600$-line diff and the verbatim test log open beside each other. The repair passes the original test, but the diff also changes an unrelated migration.
 
 Row~B reads \emph{Wren $\cdot$ checkout repair $\cdot$ all green}, and nothing in it resolves to anything --- there is no diff behind it, no log, no committed file, only the sentence.
 
-Count what each row buys. Both compress $600$ lines of work into one line, a ratio of $600{:}1$, and that ratio is not the difference between them; a digest that refused to compress would just be the diff again.
+Count what each row gives Alice. Both compress $600$ lines of work into one line, a ratio of $600{:}1$, and that ratio is not the difference between them; a digest that refused to compress would just be the diff again.
 
-The difference is that Row~A's single line has a route back to $600$ lines Alice owns and Row~B's has a route back to nothing, so Row~A's compression is recoverable and Row~B's is a claim about a forest nobody has walked into.
+The difference is that Row~A's single line has a route back to $600$ lines Alice owns and Row~B's has a route back to nothing, so Row~A's compression is recoverable and Row~B's is an assertion nobody can check.
 
 Row~A supplies a route to evidence; Row~B supplies only an assertion. A dishonest agent could still fabricate or reuse Row~A's log, so a link alone does not certify execution. Alice must be able to check the tested tree, command, result, and independently controlled runner that binds them together. The definition in this section names the navigable route $\zeta$; the verifiable-zoom rule then specifies what must be at its end.
 
@@ -557,7 +576,7 @@ lets the operator inspect the work it coordinates. \textbf{James~C.\ Scott}'s
 \emph{Seeing Like a State} (1998)~\pdcite{scott1998} describes how cadastral maps,
 standardized surnames, the metric grid and scientific forestry make populations
 and resources countable. His warning concerns treating that simplified view as a
-replacement for local practical knowledge: \textbf{m\^etis}, the hands-on,
+replacement for local practical knowledge, \pdterm[metis]{m\^etis}: the hands-on,
 case-specific know-how the system depends on. In his account of the German
 \emph{Normalbaum} (``scientific forest''), same-age, single-species rows thrived
 for a generation, then collapsed after the simplification had removed soil fungi,
@@ -567,9 +586,9 @@ systems that flatten reality to one purpose.
 
 In agent oversight, the operator is the state, the swarm the population, and the
 dashboard the cadastral map. A grid of green tiles invites the operator to
-\emph{govern the map}. The software failure is a \textbf{Potemkin digest}: its
-tiles assert a reality nobody can check because the summary has discarded the
-diff, test output, error and reasoning behind the work. The operator admires the
+\emph{govern the map}. The software failure is a \pdterm{Potemkin digest}, a
+digest whose lines assert a state nobody can check, because the summary has
+discarded the diff, test output, error and reasoning behind the work. The operator admires the
 yield table while the forest dies.
 
 \ifdefined\pdreflectionplate\pdreflectionplate{the-unseen-boat}\fi
@@ -627,14 +646,14 @@ theorist will say so (\S\ref{sec:consent-canon}). M\^etis in Scott is not ``the
 detailed data underneath the summary'' --- it is practitioner knowledge that
 \emph{resists codification entirely}: the operator's gut sense that ``this agent is
 about to do something dumb,'' the local knowledge of which corners of the codebase
-are cursed. A read-path to the diff is more legibility, not m\^etis. The honest
-admission --- which couples Scott to Bainbridge (\S\ref{sec:operator}) --- is that
+are cursed. A read-path to the diff adds legibility and leaves m\^etis where it was.
+The limitation, which links Scott to Bainbridge (\S\ref{sec:operator}), is that
 \emph{some of the most valuable operator knowledge is exactly what the system cannot
 make legible, and the more the supervising automation takes over, the faster that
 m\^etis atrophies}. What organizational-knowledge theory calls the problem of
-converting \textbf{tacit knowledge} into explicit, transferable form --- ``we know
+converting \pdterm{tacit knowledge} into explicit, transferable form --- ``we know
 more than we can tell''~\pdcite{polanyi1966} --- remains an open problem for
-artifact-based oversight. The skill-retention tax (\S\ref{sec:abdication}) is the design's
+artifact-based oversight. The skill-retention schedule (\S\ref{sec:abdication}) is the design's
 only defense, and it is frankly the hardest part of the design to engineer.}
 
 \subsection{The zoom target must be verifiable, not self-reported}\label{sec:verifiable}
@@ -665,13 +684,13 @@ Two LLMs agreeing (an agent acting and an LLM summarizing it) is
 not by itself evidence of two independent checks; it may be one error reported twice.
 \end{pdclaim}
 
-This is why the source of truth must be the durable substrate --- the coordination
-database and the version-control working tree --- and not a model's summary of them.
+This is why the source of truth must be the durable records, the coordination
+database and the version-control working tree, and not a model's summary of them.
 The digest is computed \emph{over} artifacts the operator owns. This motivates
 an independently controlled review or evaluation mechanism. An adversarial
 reviewer is one option; a protected mechanical evaluator can also satisfy the
-requirement. A swarm reviewing its own work has not established that its checks
-fail independently. Agreement can reproduce a shared error; the relevant
+requirement. When a swarm reviews its own work, nothing yet shows that its
+checks fail independently. Agreement can reproduce a shared error; the relevant
 question is which evidence and failure modes the checks actually share. We
 return to adversarial review as one such mechanism in
 \S\ref{sec:authority-rules}.
@@ -684,10 +703,8 @@ return to adversarial review as one such mechanism in
 \needspace{6\baselineskip}
 \subsection{The four design questions (a decision procedure)}\label{sec:four-questions}
 
-For any read-surface --- Attention Queue, briefing, resurrection digest, TUI pane ---
-ask, in order (Table~\ref{tab:ls-four-questions}):
-
-Table~\ref{tab:ls-four-questions} turns the rule into four checks: the effect's
+For any read-surface (the Attention Queue, a briefing, a resurrection digest, a
+terminal pane), Table~\ref{tab:ls-four-questions} turns the rule into four checks, asked in order: the effect's
 consequence, the information preserved, the evidence behind the claim, and the
 authority for the decision. Apply them to Drake's row: a green summary cannot
 justify landing when the preserved acceptance test is absent. The protocol
@@ -748,10 +765,11 @@ proved that any proposal is correct.}
 % ═════════════════════════════════════════════════════════════════════════════
 
 The title is \emph{Legibility \& Authority}. A read-only legibility layer is a
-glorified dashboard; the whole point of Hobbes is that the sovereign does not just
-\emph{see} --- it \emph{rules}. This section specifies the authority half: the
+glorified dashboard; the point of Hobbes is that the sovereign rules as well as
+sees. This section specifies the authority half: the
 mechanisms by which the consented daemon actually decides, blocks, lands, and
-gates. Table~\ref{tab:ls-authority-organs} lists the organs; the engineering status of
+gates. Table~\ref{tab:ls-authority-organs} lists the six mechanisms (roadmap,
+review, completion, landing, guard, escalation); the engineering status of
 each is in Appendix~\ref{app:honest}.
 
 \begin{table}[H]
@@ -765,7 +783,7 @@ each is in Appendix~\ref{app:honest}.
 \textbf{Mechanism} & \textbf{Input} & \textbf{Outcome} & \textbf{What the grant records} \\
 \midrule
 roadmap & evidence & a priority & the evidence weighed and the ordering it produced \\
-review & rival claims & a gate & which claim was admitted and why the others were not \\
+review & rival claims & a gate & which claim was accepted and why the others were not \\
 completion & a predicate & done, or not & the predicate and the artifact that satisfied it \\
 landing & conflicts & an order & the conflict set and the serialization chosen \\
 guard & a proposed act & a block, or passage & the act, the rule that fired and the named reason \\
@@ -778,31 +796,38 @@ escalation & an interrupt & an operator decision & the question raised and the d
 
 A coordinator that prevents collisions answers ``what is the swarm doing?'' It does
 not answer ``is the swarm doing the \emph{right} thing?'' That question needs a
-single legible artifact the authority is measured against: a \textbf{roadmap} --- a
-phase-keyed, versioned, amendable statement of intent, priority, and dependency,
-against which the swarm's actual output can be compared. It is not truth about the
+single legible artifact the authority is measured against: a \pdterm{roadmap}, a
+versioned, amendable statement of intent, priority and dependency, organized by
+phase, against which the swarm's actual output can be compared. It is not truth about the
 world; calling it that would turn every lesson the work teaches into drift. The
 authority's legitimacy is measured by \emph{whether the roadmap stays honest}: every
 unit of work keys to a plan item, amendments are recorded as amendments, and drift
 between plan and reality is itself a legible, surfaced anomaly rather than a fact to
 be hidden.
 
-A roadmap amendment also changes which earlier receipts can support the next
-act. Figure~\ref{fig:ls-plan-revision} offers a proposed typed disposition:
-source, acceptance-policy, and authority changes have different consequences.
-A ``reuse?'' cell demands matching receipt bindings; deleting a plan node cannot
-undo an external effect whose outcome is still unknown. The matrix is a
-teaching contract, not a measured saving or an implemented invalidation rule.
+When the plan changes, some evidence gathered earlier stops counting. Each
+piece of evidence, a receipt (for example, ``test $X$ passed on commit $Y$ on
+runner $Z$''), is tied to the inputs it checked.
+Figure~\ref{fig:ls-plan-revision} proposes a rule for each kind of change. If
+the source changes, earlier compile and acceptance results are stale. If the
+acceptance policy changes, compile results may be reused but acceptance must be
+rerun. If the authority is revoked, earlier results may still be valid
+evidence, but nothing may be published. In the first two cases publication
+must be rechecked. A result is reused only when every input it names still
+matches; reuse is never automatic. Deleting a plan item does not undo an
+outside effect whose outcome is unknown; that effect must be reconciled
+separately. The figure illustrates a proposal; it is neither implemented nor
+measured.
 \input{figures/legible-swarm-plan-revision}
 
-\subsection{Adversarial review: the quality organ}\label{sec:review}
+\subsection{Adversarial review: the quality check}\label{sec:review}
 
 A swarm reviewing its own work can repeat the same error. Agreement alone does
 not supply the independently checkable evidence required by
-Invariant~\ref{prop:verifiable-zoom}. The proposed quality organ is therefore
+Invariant~\ref{prop:verifiable-zoom}. The proposed quality check is therefore
 \emph{adversarial and conflict-free}: a reviewer with no stake in the work, running a
 bounded critique--refine protocol. This is the single-operator tool's local analog of the
-\emph{neutral evaluators} --- the independent rating agencies --- that \pdchapref{stp}{From Spawn to Person} and \pdchapref{he}{The Harbor Economy}
+\emph{neutral evaluators} (the independent rating agencies) that \pdchapref{stp}{From Spawn to Person} and \pdchapref{he}{The Harbor Economy}
 federate across operators: the same conflict-free-judge discipline, scoped
 first to one operator and then opened to a market.
 
@@ -815,7 +840,7 @@ corroboration; a colluding clique requires a separate strategic test.
 
 \subsection{Sole-responsibility roles and the specialization boundary}\label{sec:sole-roles}
 
-The single-writer discipline (\S\ref{sec:local}) generalizes naturally from data files to system functions. When an invariant is critical, the authority assigns a \textbf{sole-responsibility role} (an avatar holding exclusive write capability over an invariant):
+The single-writer discipline (\S\ref{sec:local}) generalizes naturally from data files to system functions. When an invariant is critical, the authority assigns a \pdterm{sole-responsibility role}: one named agent identity (an avatar) that alone may write the state an invariant protects.
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt]
 \item \emph{Roadmap Owner:} The single avatar authorized to commit mutations to the phase plan.
 \item \emph{Test Suite Curator:} The sole agent authorized to land modifications to regression suites.
@@ -830,7 +855,7 @@ slower per request but almost never leaves the line standing idle behind a long
 job. \textbf{$M/M/1$}/\textbf{$M/M/c$} --- \emph{the standard queueing-theory
 shorthand (\textbf{Kendall 1953}~\pdcite{kendall1953}) for a single-server versus
 $c$-server queue with Poisson arrivals, exponential service times, and one waiting
-line served first-come-first-served} --- is the textbook way to price the trade.
+line served first-come-first-served} --- is the textbook way to compute the trade-off.
 
 For a first calculation, let requests arrive at one per hour. Two generalists, each serving one request per hour, have utilization $1/2$ and delay probability $1/3$. Their mean response time is $1+(1/3)/(2-1)=4/3$ hours. A specialist serving $1.75$ requests per hour has the same response time, $1/(1.75-1)=4/3$ hours. A rate of $2$ wins; a rate of $1.5$ loses. The boundary below generalizes this comparison. Both arrangements must already satisfy the required safety rules: a latency calculation cannot authorize an unsafe pool.
 
@@ -868,10 +893,10 @@ $M/M/1$-versus-$M/M/c$ response-time comparison. A sweep against simulation
 is the exact boundary --- the companion formal paper's
 Theorem~2~\pdcite{paper6}, independently re-derived and checked numerically over two
 thousand $(\rho,c)$ points. Keeping the shortcut beside the exact result exposes
-its failure: the two thresholds cross exactly once, so the shortcut is not merely
-conservative. Figure~\ref{fig:specialization} shades both error regions.
+its failure: the two thresholds cross exactly once, so the shortcut errs on the
+unsafe side as well as the safe one. Figure~\ref{fig:specialization} shades both error regions.
 
-At $A=0$ --- pure response time, accountability priced at nothing --- the boundary
+At $A=0$ (response time only, with no value placed on accountability) the boundary
 reduces to
 \begin{equation}\label{eq:specboundary0}
 g(\rho,c) \;=\; c\rho \;+\; \frac{c(1-\rho)}{c(1-\rho)+C(c,\rho)}.
@@ -880,9 +905,9 @@ Three properties fix its shape: $g(\rho,1)=1$ (a specialist against a single
 generalist needs no premium at all), $g\to c$ as $\rho\to1$ (the boundary
 \emph{saturates} at the capacity ratio; it never diverges), and for two generalists
 it is the closed form $g(\rho,2)=1+2\rho-\rho^2$. Below the boundary, sole
-ownership buys strict single-writer accountability at an explicit latency price
-that must be budgeted rather than obscured; Eq.~\ref{eq:specboundary} is where that
-price is written down.
+ownership gives strict single-writer accountability at the cost of longer waits;
+Eq.~\ref{eq:specboundary} states that cost explicitly, so it can be budgeted
+instead of hidden.
 
 % Preserve the former run-in paragraph's hyperlink slot while replacing its style.
 \phantomsection
@@ -959,7 +984,7 @@ calculations, not measured roadmap performance.
 $\mu_{\mathrm{spec}} = 2.8/\text{hr}$ still be worth it on response time alone?
 (The premium is $2.8/1.2 = 2.33 < 2.483$ --- no, and $W_{\mathrm{solo}} = 1.25$ hr
 confirms it. The boundary is genuinely tight here; note that a positive
-accountability value $A$ lowers $g_A$ below $g$ and can buy the sole owner back.)
+accountability value $A$ lowers $g_A$ below $g$ and can tip the decision back to the sole owner.)
 \end{pdexample}
 
 \begin{pdexample}{Where the Exact and Naive Thresholds Cross}
@@ -984,35 +1009,34 @@ whose root in $(0,1)$ is
 \[
 \rho=(3-\sqrt5)/2\approx0.382
 \]
-[verified, closed form]: below it $\tilde g$ over-certifies \mbox{specialization} (false-certify), above it $\tilde g$ over-rejects (false-reject), so the naive form errs in \emph{both} directions rather than merely being conservative.
+[verified, closed form]: below it $\tilde g$ over-certifies \mbox{specialization} (false-certify), above it $\tilde g$ over-rejects (false-reject), so the naive form errs in \emph{both} directions.
 
 \emph{Now you try:} run the falsification sweep behind this crossing (Exercise~\ref{ex:ls-b8-specialization-run}).
 \end{pdexample}
 
 \input{figures/legible-swarm-specialization}
 
-\pitfall[Mean latency hides tail risk]{Eq.~\ref{eq:specboundary} prices \emph{mean} response time under
-first-come-first-served exponential service. It does not price the tail, and it does
-not price the thing an operator actually values in a roadmap owner ---
-consistency of judgment across requests --- which does not appear in a
-response-time objective at all. The corner the whole sole-responsibility
-discipline exists for, the sole specialist \emph{failing}, is priced in
-\S\ref{sec:succession-corner} below, and priced under an assumption worth
-reading before the formula.}
+\pitfall[Mean latency hides tail risk]{Eq.~\ref{eq:specboundary} compares \emph{mean} response time under
+first-come-first-served exponential service. It says nothing about the tail, or
+about what an operator actually values in a roadmap owner, consistency of
+judgment across requests, which does not appear in a response-time objective at
+all. The case the whole sole-responsibility discipline exists for, the sole
+specialist \emph{failing}, is treated in \S\ref{sec:succession-corner} below,
+under an assumption worth reading before the formula.}
 
-\subsubsection{The succession corner, and who prices it}\label{sec:succession-corner}
+\subsubsection{The succession corner: when the sole owner fails}\label{sec:succession-corner}
 
 Eq.~\ref{eq:specboundary} assumes a specialist who never stops. The corner the
 whole discipline exists for is the one where they do: they crash, are reaped,
-quit, or are reassigned, and a successor spins up. That corner \emph{is}
-priced, in closed form, and it is priced in
-\pdchapref{he}{The Harbor Economy} rather than here --- the result is a
-condition on what a succession plan costs, which is an economic statement, and
-the economy chapter carries it as the price of the succession rule%
+quit, or are reassigned, and a successor spins up. That case has a
+closed-form answer, derived in \pdchapref{he}{The Harbor Economy} rather than
+here because it is a condition on what a succession plan costs, an economic
+statement. The economy chapter states it as the succession price of the
+succession rule%
 \ifpdbook
 \ (Thm.~\ref{he:thm:succession-price})%
 \fi
-, with its own verification and its own boundary. Two of its consequences belong in
+, with its own verification and its own scope. Two of its consequences belong in
 this chapter's argument, because they change what a sole-responsibility role
 means rather than what it costs.
 
@@ -1023,7 +1047,7 @@ skill but never below
 W_\infty=\frac{\xi}{\eta(\xi+\eta)},
 \]
 the residual downtime a request meets when it arrives during an outage. No
-premium buys that back, so past a point the honest fix for a slow sole role is
+skill premium removes it, so past a point the honest fix for a slow sole role is
 a better handoff and not a better owner. The second is that the ceiling can
 bind absolutely: writing $K=W_{\mathrm{pool}}+A/(w\lambda_F)$ for the
 response-time threshold in hours,
@@ -1034,10 +1058,37 @@ $\eta K\ge 1$ there is no such threshold at all and sole ownership cannot be
 ruled out on response time, which is the more common situation in a
 well-run fleet and the one a reader is likeliest to be in.
 
+\begin{pdexample}{Fast and Slow Succession for the Roadmap Owner}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. Reuse the roadmap-owner queue worked above:
+mutations arrive at $2$/hr and the pool is three generalists at $1.2$/hr each.
+With $A=0$ the threshold is $K=W_{\mathrm{pool}}=1.021$ hours.
+
+Fast succession: the owner crashes about every ten hours ($\xi=0.1$/hr) and a
+successor is working within thirty minutes ($\eta=2$/hr). Then
+\[
+W_\infty=\frac{0.1}{2\times2.1}\approx0.024\text{ hr},
+\]
+about 1.4 minutes, and $\eta K=2.04\ge1$, so no failure rate rules sole
+ownership out.
+
+Slow succession: a successor takes two hours to start ($\eta=0.5$/hr). Now
+$\eta K=0.51<1$ and
+\[
+D^\star=\frac{0.51}{0.49}\approx1.04,
+\]
+so pooling wins at every skill premium once $\xi/\eta>1.04$, that is once
+$\xi>0.52$/hr, a crash about every two hours. At $\xi=1$/hr,
+\[
+W_\infty=\frac{1}{0.5\times1.5}\approx1.33\text{ hr}>1.021\text{ hr},
+\]
+and no specialist, however fast, beats the pool on response time.
+\end{pdexample}
+
 \pdthesis{Both statements rest on a modelling choice the economy chapter
 declares and this one inherits: the specialist can die \emph{at any time},
 not only while serving. Under active-only breakdowns a fast enough specialist
-escapes the floor entirely and $D^\star$ does not exist. The choice is right
+has no such lower limit and $D^\star$ does not exist. The choice is right
 for an owner who is reassigned or dead rather than worn out, and it is a
 choice, not a derivation.}
 
@@ -1047,8 +1098,7 @@ choice, not a derivation.}
 Exponential service is the assumption a queueing reader will challenge first, and
 they are right to: a rebuild or a flaky integration test can produce a long turn,
 and submissions may arrive in correlated bursts. Whether a particular workload
-has heavy tails or Poisson arrivals is a measurement question, not something this
-example establishes. Kingman's heavy-traffic result \pdcite{kingman1961} says what
+has heavy tails or Poisson arrivals must be measured. Kingman's heavy-traffic result \pdcite{kingman1961} says what
 that costs in general: waiting grows with the sum of the squared coefficients of
 variation of the arrival and service processes, so a queue that is fine at
 $c_s^2=1$ can be badly congested at $c_s^2=6$ with the same utilization. The
@@ -1091,14 +1141,13 @@ r=(8+\sqrt{124})/10\approx1.914.
 \]
 \end{pdexample}
 
-These are analytic comparisons, not measurements of agent workloads. A useful
+These are analytic comparisons; no agent workload was measured. A useful
 test would extend \texttt{b8\_specialization.py} with matched-mean lognormal and
 Pareto service, report simulation uncertainty, and measure the approximation's
 crossing error. That sweep has not been run. Infinite service variance makes the
 stable $M/G/1$ mean waiting time infinite, so this finite-mean comparison no longer
-applies. Correlated or bursty arrivals also leave the Poisson model; neither
-Pollaczek--Khinchine nor a variability correction alone establishes their delay
-distribution or tail latency.
+applies. Correlated or bursty arrivals also leave the Poisson model, and their
+delay distribution and tail latency need a separate analysis.
 
 \subsection{Completionist obligation: completion as a verifier, not a vibe}\label{sec:completionist}
 
@@ -1116,7 +1165,7 @@ predicate below makes those task-specific requirements the gate.
 \begin{pdclaim}{Design invariant}{Completionist Completion}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:completionist}
-A \textbf{completion claim} is a commitment whose satisfaction predicate is a
+A \pdterm{completion claim} is a commitment whose satisfaction predicate is a
 \emph{verifier} derived from the task's acceptance criteria. The authority refuses to
 accept the claim against an unmet predicate.
 
@@ -1138,8 +1187,8 @@ sense.\pdcite{meyer1992}
 cheap to verify; ``the architecture is right'' is expensive, and reading a 600-line
 diff to confirm an acceptance criterion is itself attention-seconds that may exceed
 the agent's narration cost by an order of magnitude (the \emph{verification
-asymmetry}). Invariant~\ref{def:completionist}'s fail-loud is the honest floor for the
-\emph{unverifiable}; \S\ref{sec:operator} supplies the cost model for the
+asymmetry}). Invariant~\ref{def:completionist}'s fail-loud is the least an honest
+system can do with the \emph{unverifiable}; \S\ref{sec:operator} supplies the cost model for the
 \emph{expensive-but-possible} middle.}
 
 \subsection{Thoughtful landing and the regimentation/enforcement split}\label{sec:landing}
@@ -1200,9 +1249,9 @@ built to eliminate.
 
 The one thing that needs a human is an \emph{escalation} (a distress signal) routed
 to the operator on a reserved, highest-priority lane. The mechanism wants the
-critical signal to win the operator's attention --- but \emph{when} the daemon
-stops and asks versus proceeds is a control problem (\S\ref{sec:operator}), and the
-\emph{escalation predicate} is not an afterthought: it is a rationalized alarm
+critical signal to win the operator's attention. \emph{When} the daemon
+stops and asks, instead of proceeding, is a control problem (\S\ref{sec:operator}), and the
+\emph{escalation predicate} needs a rationalized alarm
 philosophy (\textbf{ANSI/ISA-18.2}, \emph{Management of Alarm
 Systems}~\pdcite{isa182} --- \emph{the process-control standard for alarm
 rationalization: every alarm has a defined priority, set-point, and operator
@@ -1210,18 +1259,18 @@ response, with explicit flood-suppression}). Frequent unhelpful alerts risk
 habituation and ignored warnings. Cvach's clinical review~\pdcite{cvach2012}
 reports studies in which $80$--$99\%$ of alarms were false or clinically
 insignificant, and discusses desensitization. That clinical evidence motivates
-measuring alert burden and response in agent supervision; it establishes
-neither the rate nor the timescale of those effects in an agent distress lane. Spence's signaling model~\pdcite{spence1973} motivates examining how an
+measuring alert burden and response in agent supervision; the rate and
+timescale of those effects in an agent distress lane are unmeasured. Spence's signaling model~\pdcite{spence1973} motivates examining how an
 escalation cost could separate signal types. Here the proposed debit follows an
 adjudicated false escalation, not a bare dismissal (\S\ref{sec:gates}). Whether
 it discourages manipulation without suppressing valid warnings depends on the
 validation rule and its errors. The model below abstracts that rule as an
-upholding probability; it does not establish the validator's correctness.
+upholding probability and takes the validator's correctness as given.
 
-The next result gives a threshold best response to a fixed validation rule.
-The worked model's threshold and feasible debit range are checked by
-\texttt{b7\_escalation\_band.py}; this is not a joint equilibrium proof for an
-operator who also changes the validation rule.
+The next result gives an agent's best response to a fixed validation rule: a
+cut-off signal strength above which it escalates. The script
+\texttt{b7\_escalation\_band.py} checks the worked model's threshold and
+feasible debit range.
 
 \begin{pdexample}{The Threshold and the Tuning Band, by Hand}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1242,7 +1291,7 @@ and a needless interruption costs $5$ ($C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1
 \]
 at attention budget $A=3.3$, and it is \emph{empty} at $A=2.0$ (there $\delta_{\min}=0.396$ exceeds $\delta_{\max}=0.072$, so no debit satisfies both walls at once) [verified closed forms, grid-confirmed].
 
-An empty band is not a bug to tune away: it is the honest signal that the fix is capacity or evidence quality, not a better $\delta$.
+An empty band means the fix is capacity or evidence quality; no choice of $\delta$ will do.
 
 \emph{Now you try:} run the script and confirm both bands (Exercise~\ref{ex:ls-b7-escalation-run}).
 \end{pdexample}
@@ -1281,6 +1330,29 @@ constraints therefore intersect as an interval; continuity makes their
 sublevel sets closed. A point mass at the threshold can break aggregate
 continuity, so closed endpoints do not follow from monotonicity alone.
 \end{proof}
+\pdscope{The validation rule is held fixed; an operator who also changes it in response to the agents' behavior needs a joint equilibrium analysis.}
+
+\begin{pdexample}{Pike's 4:05 Escalation}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example in the linear model above, with $\delta=0.05$
+and $w=1$, so $u^\star=0.05/1.05\approx0.048$. The debit is charged to the
+agent's standing: an escalation ruled false lowers the weight its later
+escalations receive by $\delta$, and $w$ converts that weight into the units
+of the benefit.
+
+At 4:05 p.m.\ Pike is unsure about migration ordering. If Pike's evidence gives
+$u=0.03$, escalating pays $0.03-0.05\times0.97\approx-0.019$, so Pike stays
+quiet. At $u=0.10$ it pays $0.10-0.05\times0.90=+0.055$, so Pike escalates.
+
+Now the two limits. The attention budget $A$ caps the expected cost, per item,
+of the alarms Alice handles: one unit for each escalation she attends to and
+five more for each she rules false. These are the research program's R3
+expected-loss constants, $c_{\mathrm{att}}=1$ and $C_{\mathrm{fa}}=5$, with
+$C_{\mathrm{miss}}=100$ for a genuine warning that stays silent. At $A=3.3$ the
+allowed debits run from $0.035$ to $0.072$, and $\delta=0.05$ lies inside. At
+$A=2.0$ the alarm limit demands $\delta\ge0.396$ while the miss limit allows at
+most $0.072$, so no debit works; the fix is more reviewers or better evidence.
+\end{pdexample}
 \pdexercisepointer*{\ref{ex:ls-adversarial-review-corollary}}{\ref{ex:ls-b7-escalation-run}}{\pageref{ex:ls-adversarial-review-corollary}}
 
 \begin{pdrecitation}
@@ -1327,13 +1399,13 @@ the binding constraint depends on the workload.
 held fixed, additional agents do not automatically add review capacity. A
 single-server queue can approximate sequential human review, but its service
 times depend on the task, the interface, and the operator's experience. We need to
-price both inspection effort and decision errors, not assume a universal human
-service rate or a future token price.}
+measure the cost of both inspection effort and decision errors, instead of assuming
+a universal human service rate or a future token price.}
 
 \textbf{Miller's} \emph{The Magical Number Seven}\pdcite{miller1956}
 distinguishes limits in absolute judgment from limits in immediate memory. Familiar
 chunks and recoding change how much information a remembered item carries. These
-experiments do not establish a universal seven-item limit for dashboards or a
+experiments give no universal seven-item limit for dashboards and no
 maximum number of agents one person can supervise.
 
 \textbf{Wickens' multiple-resource theory}\pdcite{wickens2002} adds a different
@@ -1341,33 +1413,35 @@ warning: equal durations need not impose equal interference. Tasks can compete
 for resources associated with processing stages, sensory modalities, visual
 channels, and representational codes. Under the model's comparable-demand
 conditions, greater resource overlap predicts greater interference. This
-motivates measuring workload distribution as well as elapsed time. It does not
-prove that minimizing peak load is the universal objective, or that the proposed
-ambient/dense display split (\S\ref{sec:ambient}) achieves it. That display choice
-needs evaluation on the intended decisions.
+motivates measuring how workload is distributed as well as elapsed time. Whether
+minimizing peak load is the right objective, and whether the proposed
+ambient/dense display split (\S\ref{sec:ambient}) achieves it, must be evaluated
+on the decisions the display is meant to support.
 
-\subsection{The attention objective, spined on Signal Detection Theory}\label{sec:sdt}
+\subsection{The attention objective, built on signal detection theory}\label{sec:sdt}
 
 An average such as ``attention-seconds per correct decision'' can conceal rare,
 expensive mistakes among many cheap successes. \textbf{Signal Detection Theory}
 (\textbf{Green \& Swets 1966}\pdcite{greenswets1966}) separates two questions:
 how well does the evidence distinguish dangerous from safe actions, and where
-should the inspection threshold sit? For equal-variance Gaussian evidence, the
-sensitivity $d'=(\mu_{\mathrm{danger}}-\mu_{\mathrm{safe}})/\sigma$ is the
+should the inspection threshold sit? The first question is answered by the
+\pdterm{sensitivity}, written $d'$: how far apart the evidence scores of
+dangerous and safe actions lie. For equal-variance Gaussian evidence,
+$d'=(\mu_{\mathrm{danger}}-\mu_{\mathrm{safe}})/\sigma$, the
 separation of the means in common standard-deviation units. Holding these
 distributions fixed, moving the threshold changes misses and false alarms;
 it does not change $d'$.
 
-Here $\beta$ denotes a threshold on the evidence score: inspect above it, otherwise
-permit the action. A \emph{miss} permits a dangerous action; a \emph{false alarm}
+The second question is answered by the \pdterm{criterion} $\beta$, a threshold
+on the evidence score: inspect above it, otherwise permit the action. A \emph{miss} permits a dangerous action; a \emph{false alarm}
 inspects a safe one. The preferred threshold depends on prevalence and the costs
 of those outcomes. A destructive migration and an unnecessary inspection need
 not carry the same cost. The next example begins with just two available
 policies, inspect every item in a class or inspect none.
 
-\begin{pdexample}{Two Action Classes, Priced Before the Objective Is Written Down}
+\begin{pdexample}{Two Action Classes, Costed Before the Objective Is Written Down}
 \setlength{\parskip}{4pt plus 1pt}
-The objective below looks heavier than it is, so price two action classes with it first, in its crudest collapse: zoom \emph{every} item in a class or zoom \emph{none} of them, at an additional false-alarm cost $C_{\text{fa}}=1$ and an attention cost of $c_{\mathrm{att}}=0.2$ per inspection. Convert attention and harm to the same
+The objective below looks heavier than it is, so cost out two action classes with it first, in its crudest collapse: zoom \emph{every} item in a class or zoom \emph{none} of them, at an additional false-alarm cost $C_{\text{fa}}=1$ and an attention cost of $c_{\mathrm{att}}=0.2$ per inspection. Convert attention and harm to the same
 normalized cost units, and assume inspection detects every dangerous action.
 
 Take a migration that drops a foreign key, with a base rate of genuinely dangerous instances $\pi=0.2$ and a miss cost $C_{\text{miss}}=500$. Never zoom and you pay the miss term alone,
@@ -1378,7 +1452,7 @@ Always zoom and you pay
 \[
 (1-0.2)\times 1 + 0.2 = 0.8+0.2 = 1.0.
 \]
-A hundred against one: the class is decided by the miss term before irreversibility is priced separately at all, which is why the design forces the zoom rather than suggesting it.
+A hundred against one: the class is decided by the miss term before irreversibility is counted separately at all, which is why the design forces the zoom rather than suggesting it.
 
 Now take a \texttt{tests/}-only formatting diff, $\pi=0.001$ and $C_{\text{miss}}=5$. Never zoom:
 \[
@@ -1388,14 +1462,14 @@ Always zoom:
 \[
 0.999\times 1 + 0.2 = 1.199.
 \]
-That is a factor of about $240$ the other way. Under these stipulated costs and prevalences, the two classes call for different inspection policies. This calculation can inform Alice's grant in \S\ref{sec:consent}; it neither establishes her actual preferences nor authorizes the daemon to issue that grant for her.
+That is a factor of about $240$ the other way. Under these stipulated costs and prevalences, the two classes call for different inspection policies. This calculation can inform Alice's grant in \S\ref{sec:consent}; the costs are stipulated, and only Alice can issue the grant.
 
 The whole apparatus below exists to keep that arithmetic honest once $P_{\text{miss}}$ and $P_{\text{fa}}$ stop being degenerate.
 
 \emph{Now you try:} keep prevalence positive and the other costs fixed. Which of these two policies wins as $C_{\text{miss}}\to\infty$ (Exercise~\ref{ex:ls-sdt-limits})?
 \end{pdexample}
 
-\begin{pdclaim}{Design invariant}{The SDT-Spined Attention Objective}
+\begin{pdclaim}{Design invariant}{The SDT-Based Attention Objective}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:sdt}
 Fix the score distributions for safe and dangerous actions. Let
@@ -1427,23 +1501,31 @@ the live rival account).
 
 \input{figures/legible-swarm-sdt}
 
-This is a normative claim --- a Bayesian SDT decision-maker is the target to
-calibrate toward --- and not a descriptive one. Naturalistic decision-making
+This is a normative claim: a Bayesian SDT decision-maker is the target to
+calibrate toward. Naturalistic decision-making
 research argues that skilled operators under time pressure do something else
 entirely: they recognize the situation as a case they have seen before and act
 on the match, rather than computing a likelihood ratio and holding it against a
-threshold~\pdcite{klein1998}. That is a live rival account of what the
-operator's instrument actually measures, and this objective does not adjudicate
-it; it says what Alice should be calibrated toward, not what Alice is doing at
-3:25 in the afternoon.
+threshold~\pdcite{klein1998}. That rival account of what the operator's
+instrument actually measures remains open. The objective says what Alice should
+be calibrated toward and makes no claim about what she is doing at 3:25 in the
+afternoon.
 
 Figure~\ref{fig:sdt} lays the same decision out visually: the operator's criterion
-$\beta$ trading misses against false alarms. The miss-cost term prices the harm of zero review; it does not always rule
-it out. If inspection costs more than the expected harm it prevents, zero
-review can minimize this objective, as the formatting example shows. Monotonic response to stakes, irreversibility, and reputation
-is a policy constraint to test during calibration; it does not follow from the
-display without a model linking $(r,s,v)$ to the score distributions. Before a
-reputation layer exists, $r$ is a flat prior.
+$\beta$ trading misses against false alarms. The miss-cost term charges for the
+harm of zero review, but it does not always rule zero review out. If inspection
+costs more than the expected harm it prevents, zero review can minimize this
+objective, as the formatting example shows.
+
+Write $p(r,s,v)$ for the forced-zoom policy: the probability that the daemon
+makes Alice open an action before it proceeds, given the agent's reputation $r$,
+the action's stakes $s$ and its reversibility $v$. We would like $p$ to rise
+with stakes, to rise as reversibility falls, and to fall as reputation rises.
+The attention objective above does not guarantee this; it follows only from a
+model linking $r$, $s$ and $v$ to the distributions of evidence scores, so it
+is a requirement to test when the policy is calibrated. Until a reputation
+system exists, $r$ carries no information: every agent starts from the same
+prior.
 
 \paragraph{The third class, where the answer stops being obvious.} The collapse
 worked above --- zoom \emph{every} item in an action class or zoom \emph{none}, so
@@ -1483,16 +1565,15 @@ Migration dropping a foreign key & $0.2$ & $500$ & $100.0$ & $1.00$ & forced zoo
 
 \emph{Now you try:} at what base rate does a $C_{\text{miss}}/C_{\text{fa}}=50$
 action class cross from auto-land to forced zoom? (Set $50\pi = (1-\pi)+0.2$, giving
-$\pi \approx 0.024$ --- roughly one dangerous action in forty.) The boundary:
-this comparison restricts the choices to inspecting a whole class or none of
-it, and assumes inspection detects every dangerous action. A score-based policy
-may do better. Its true optimum is weakly no worse if both constant policies
-remain available, but neither strict improvement nor the quality of a fitted
-detector follows from this table.
+$\pi \approx 0.024$, roughly one dangerous action in forty.) This comparison
+restricts the choices to inspecting a whole class or none of it, and assumes
+inspection detects every dangerous action. A score-based policy does at least as
+well when both constant policies remain available; how much better depends on a
+fitted detector, which this table does not supply.
 
 \subsection{Trust calibration is multi-dimensional, and the vigilance decrement is real}\label{sec:calibration}
 
-A readable digest does not by itself establish appropriate reliance.
+A readable digest is not enough, by itself, for appropriate reliance.
 \textbf{Lee \& See}\pdcite{leesee2004} distinguish trust based on performance,
 process, and purpose, and discuss calibration, resolution, and specificity.
 For this chapter, the practical question is whether the operator distinguishes
@@ -1501,8 +1582,8 @@ contexts in which the automation has different capabilities.
 The two action classes above show why a global review rate can hide useful
 variation. Under their stated costs, light review of formatting and close review
 of migrations are sensible together. Their pooled review rate can hide that
-allocation. Table~\ref{tab:trust-calibration} is an illustrative aggregation
-problem, not a measured operator result. A common setting can be adequate when
+allocation. Table~\ref{tab:trust-calibration} is illustrative; no operator was
+measured. A common setting can be adequate when
 the relevant risks and costs are alike; when they differ, calibration should
 retain the action class, agent, and current evidence rather than discard them.
 
@@ -1526,12 +1607,15 @@ class's danger rate and error costs. [internal]}
 \label{tab:trust-calibration}
 \end{table}
 
-The proposed canary mechanism is also a vigilance task: the operator monitors
-for defects in items with known ground truth. \textbf{Warm, Parasuraman \&
+The proposed canary mechanism, described below, slips known and already-fixed
+defects into review to check that the operator still catches them. It is a
+\pdterm{vigilance task}: sustained watching for rare events, here defects in
+items whose ground truth is known. \textbf{Warm, Parasuraman \&
 Matthews}\pdcite{warm2008} review evidence that vigilance can demand substantial
 mental effort and produce stress; performance and workload depend on task
-conditions. \textbf{Mackworth's} experiments~\pdcite{mackworth1948} are a classic
-study of sustained monitoring, not a universal timer for software review.
+conditions. \textbf{Mackworth's} experiments~\pdcite{mackworth1948} are the
+classic study of the \pdterm{vigilance decrement}, the decline in detection over
+a long watch; they give no general timer for software review.
 A falling catch rate could reflect time on task, probe difficulty, prevalence,
 or changes in review conditions. It should not automatically be interpreted as
 worse trust calibration or greater swarm danger. Evaluation should record those
@@ -1545,20 +1629,21 @@ template can improve the score without improving detection of real defects.
 This is the risk highlighted by \textbf{Campbell's Law}\pdcite{campbell1979}:
 using an indicator for consequential decisions can distort the process it is
 meant to assess. Refreshed holdouts, separation of probe generation from scoring,
-and independent outcome evidence are proposed safeguards. None proves the
-program ungameable or beneficial; its effect on real decisions must be evaluated.}
+and independent outcome evidence are proposed safeguards. Their effect on real
+decisions, and on gaming, must be evaluated.}
 
 \pagebreak
 \subsection{Situation awareness needs projection, not just perception}\label{sec:sa}
 
-Digest-with-zoom can organize current state and its supporting evidence; it does
-not establish what an operator understands. Endsley~\pdcite{endsley1995}
-distinguishes perception, comprehension, and projection of future states, and
-treats situation awareness, decision-making, and performance as distinct stages.
+Digest-with-zoom can organize current state and its supporting evidence. What
+the operator understands from it is a separate question. Endsley~\pdcite{endsley1995}
+defines \pdterm{situation awareness} in three levels: perceiving the current
+state, comprehending it, and projecting future states. She treats situation
+awareness, decision-making, and performance as distinct stages.
 In Endsley and Kiris's navigation experiment,\pdcite{endsleykiris1995}
 fully automated control produced poorer comprehension than manual control, but
 no significant perception difference. That result motivates caution about passive
-supervision; it does not show that every present-focused digest destroys awareness.
+supervision, though it comes from one navigation task.
 
 Our \emph{design hypothesis} is that an explicit projection mode would help an
 operator anticipate the swarm's next effects. The proposed freeze-probe in
@@ -1575,20 +1660,20 @@ contrasts current support with the proposed projection mode.
 \textbf{Bainbridge's} \emph{Ironies of Automation}\pdcite{bainbridge1983}
 identifies a practical tension: automating routine control can remove opportunities
 to practise while leaving the operator responsible for difficult exceptions.
-This resembles Scott's concern about losing situated knowledge, but it does not
-prove that every digest erases either the swarm's or the operator's m\^etis.
-The proposed trajectory
-$\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ is this
-chapter's \emph{abdication-gradient hypothesis}, not a measured law.
+This resembles Scott's concern about losing situated knowledge. This chapter's
+\pdterm{abdication gradient} is the proposed slide by which an operator goes from
+doing the work to approving it, then rubber-stamping it, then being absent:
+$\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$. It is
+a hypothesis; nobody has measured it.
 
-The \textbf{Inception Canary} is a proposed, consented, blinded probe of defect
+The \pdterm{Inception Canary} is a consented, blinded probe of defect
 detection. It is intended to test meaningful review rather than impose arbitrary
-manual tasks. Its interruptions also need to be priced: Leroy's
+manual tasks. Its interruptions also have a cost that must be measured: Leroy's
 attention-residue experiments~\pdcite{leroy2009} motivate measuring the cost of
-switching away from unfinished work, not assuming every interruption is harmful
-or that a probe preserves supervisory skill.
+switching away from unfinished work, case by case.
 
 \begin{protocol}{The Inception Canary protocol}\label{prot:canary}
+\pdstatus{\Vision}{no implementation}
 The proposed protocol measures detection of known defects on sandboxed replays; whether training with it improves real supervision is an empirical question. Operators enroll knowingly: the program's existence, rate $\rho_{\text{canary}}$, and stakes are disclosed at onboarding; only the \emph{which} and \emph{when} are blinded:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item \textbf{Blinded holdout replay.} An out-of-band Compaction Sidecar (\S\ref{sec:tokens-digest}) draws from a curated holdout of \emph{historical, already-fixed} defects (an off-by-one boundary condition, an unindexed query, a removed regression test), re-materializes one inside a sandboxed replay of a past work item at rate $\rho_{\text{canary}}$, and routes it through the review surface indistinguishably from live traffic. No anomaly is injected into a live pull request or pending action: the replay cannot directly modify production. Interruptions and score-driven changes to future grants can still affect real work and require evaluation.
@@ -1622,8 +1707,7 @@ one full-window conversation, the \emph{Mission} view, and opens inspectors
 from it: fleet, cockpit, claims, parley, lineage, the cost ledger, the active
 harnesses, the interruptions awaiting a human, and some two dozen more, each
 pane fetching one route from the daemon and rendering the records that route
-returns. Two things about it follow from this chapter; neither flatters it,
-and neither is a complaint.
+returns. Two things about it follow from this chapter.
 
 First, each pane projects a particular record. The claims pane shows what
 cooperating clients registered, not an unrecorded write by another process;
@@ -1634,10 +1718,10 @@ Table~\ref{tab:pane-floors} records these coverage limits.
 
 The counting bound in \S\ref{sec:lowerbound} applies only after specifying its
 artifact universe, possible critical sets, message budget, decoder, and allowed
-review set. A pane is not automatically an instance of that model. For the
-console, an evidence link from a digest claim to its artifact is a design
-requirement that makes checking possible; the theorem does not establish that
-links alone make the representation sufficient.
+review set. A pane is an instance of that model only once those are specified.
+For the console, an evidence link from a digest claim to its artifact is a
+design requirement that makes checking possible; whether links alone make the
+representation sufficient is a separate question.
 
 \begin{table}[H]
 \centering
