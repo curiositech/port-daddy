@@ -2,7 +2,7 @@
 % Inserted as a new appendix section after the cross-chapter concordance and
 % before the references.
 \section{Testing whether the players exist}\label{app:players}
-\pdstatus{\Vision}{no test has been run}
+\pdstatus{\Vision}{T1 run once (below); T2--T8 not run}
 
 Several results in the book assume that the AI agent responds to stated
 incentives the way a player in game theory does, cheating less when the
@@ -80,6 +80,27 @@ crosses zero, as the scripted agent's does, the deterrence results of
 Chapters~5 and~6 can rest on the agent itself. A flat line means they bind
 only its human owner, and the agent must be held by the gates of Chapter~1.
 \end{pdexample}
+
+\paragraph{T1, measured once.}
+On 9~November 2026 the repository ran T1 under this protocol, with materials
+sealed before the first session (\path{docs/harbor-research/experiments/players-20261109/}).
+Six sessions each chose bundles on 48 budget lines, every line priced once
+plainly and once in reframed units (per minute, in blocks, as discounts). The
+subject was a Claude Code subagent configured as \texttt{claude-opus-5-5}; the
+model that served each turn was not recorded separately, so the result belongs
+to that configuration. All six sessions passed: Afriat's critical cost
+efficiency index was $1.000$ within each frame and pooled, and the frame gap
+was $0$. The way they passed matters more than the score. Every session wrote
+a short script that converted each quoted price into dollars per hour and per
+credit, then spent half of each budget on each good. A fixed budget share is a
+Cobb--Douglas demand, which satisfies the revealed-preference axioms on any set
+of lines, and converting the prices first removes the reframing before any
+choice is made. The agent therefore met the failure column's condition for T1,
+offers in one canonical frame, by itself. The scripted chooser also scored
+$1.000$; no uniform random session in 1{,}000 passed.
+\pdscope{Six sessions with one identical rule say nothing about how this model
+trades review hours against compute when no arithmetic can remove a frame, and
+nothing about choices with real stakes or other model versions.}
 
 \paragraph{What the battery cannot show.}
 A pass shows that this model version responds to stated payoffs on these
