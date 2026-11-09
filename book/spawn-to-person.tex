@@ -2626,15 +2626,19 @@ reliability are distinct decisions.
 The \textbf{evidence ledger is append-only}: a genuine delivery is never
 silently erased by the passage of time. A reputation estimate need not rise
 with every honest report; an honestly reported failure can lower it. Separately, a witnessed
-outcome is itself \textbf{individually revocable via a propagating tombstone}: a
-compensating, append-only entry that retracts a specific outcome later found
+outcome is itself \textbf{individually revocable via a propagating tombstone}: an
+append-only entry that retracts a specific outcome later found
 fraudulent (a colluding judge, a faked oracle). Retention preserves the outcome record; it does not require its score weight
 to remain constant or prevent a later invalidation.
 \end{property}
 
-\noindent This is a \textbf{saga}-style compensation~\pdcite{garcia1987sagas}: you do
-not mutate the ledger in place (that would break append-only and auditability);
-you append a tombstone that nullifies the targeted entry, and the tombstone
+\noindent A tombstone looks like a saga's compensating step~\pdcite{garcia1987sagas}
+only in form: you do not mutate the ledger in place (that would break
+append-only and auditability); you append a tombstone that nullifies the
+targeted entry. A compensation restores a balance, while a tombstone cannot
+undo decisions others already made on the retracted outcome.
+\pdchapref{he}{The Harbor Economy} draws that contrast%
+\ifpdbook\ (Theorem~\ref{he:prop:no-saga})\fi. The tombstone
 \emph{propagates} across harbors bounded by the federation's revocation-convergence
 window studied in \pdchapref{fh}{The Federated Harbor}. The fraudulent outcome may have influenced decisions before the fraud was detected. After
 the tombstone is issued, a bounded stale-use window needs delivery assumptions
@@ -2670,8 +2674,8 @@ To retract a witnessed outcome $o$ later found fraudulent:
 \end{enumerate}
 \end{protocol}
 
-% --- FIGURE 13: tombstone compensation on an append-only ledger ---
-Figure~\ref{fig:tombstone} draws the append-only compensation: the original entry
+% --- FIGURE 13: tombstone retraction on an append-only ledger ---
+Figure~\ref{fig:tombstone} draws the append-only retraction: the original entry
 stays, and a later tombstone nullifies it without mutating the ledger.
 \input{figures/fig-stp-tombstone}
 
