@@ -17,8 +17,8 @@
     3.35/{Alice: earned bounty}/400/160,
     2.75/{Alice: returned collateral}/100/40,
     2.15/{Dana: runtime lease}/50/50,
-    1.55/{Carol: metered licence}/8/0,
-    .95/{Bob: unused payment reserve}/2/250,
+    1.55/{Carol: licence fee}/10/0,
+    .95/{Bob: unused payment reserve}/0/250,
     .35/{Commons: slashed collateral}/0/60}{
     \node[pd label,anchor=west] at (0,\y) {\recipient};
     \node[pd label,anchor=east] at (7,\y) {$\success$};
@@ -32,7 +32,7 @@
      Each column is an alternative outcome of the same funded plan.};
 \end{tikzpicture}
 \caption{Separate payment and performance-collateral balances settle by
-different rules. Success meters $16$ files at $0.5$ CR each. Partial pays
+different rules. Success releases Carol's flat $10$ CR licence fee. Partial pays
 $40\%$ of the bounty and returns $40\%$ of the bond; the other $60$ CR goes to
 the commons. Amounts are disbursements, not net earnings. [constructed example]}
 \label{fig:he-two-bucket-settlement}
