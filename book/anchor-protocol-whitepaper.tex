@@ -405,14 +405,14 @@ Then it compares each child with its immediate parent. \texttt{admin} on
 on \texttt{a*} covers \texttt{pub} on \texttt{ab} as well. [internal]
 \end{pdexample}
 
-For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature must cover a fresh nonce and the identities of the previous and next holders, so that an attacker who intercepts one hop cannot splice it into a different chain. That hop binding is the structure \path{proofs/anchor/delegation/chain-replay.pv} models (Listing~\ref{lst:anchor-chain-replay}), a separate model from Algorithm~\ref{alg:delegation}, which carries no nonces.
+For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature must cover a fresh nonce and the identities of the previous and next holders, so that an attacker who intercepts one hop cannot splice it into a different chain. That hop binding is the structure \path{proofs/anchor/delegation/chain-replay.pv} models (Listing~\ref{alg:anchor-chain-replay}), a separate model from Algorithm~\ref{alg:delegation}, which carries no nonces.
 
 Two older bodies of work study the property checked here more directly than macaroons do. SPKI/SDSI, a public-key certificate system from the late 1990s, asks whether a chain of certificates only ever narrows as it lengthens, and answers by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the harbor's per-hop subset check is that reduction done one link at a time. Miller's object-capability discipline, in which a capability is the only route to any authority and nothing is allowed merely because a process is present, was worked out for concurrent components that do not trust each other~\pdcite{miller2006robustcomposition}. That rule fits this protocol more closely than Dennis and Van Horn's founding 1966 statement, and Hardy's confused deputy is the classic case for it: a compiler overwrote its system's billing file on a user's behalf because, in Hardy's words, it ``runs with authority stemming from two sources''~\pdcite{hardy1988confused}. The design rule that follows is to restrict a capability when it is issued and also check the chain when it is verified, so that the chain check is a second defense rather than the only one. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} shows why: checking each card against the root instead of its immediate parent accepts a card that re-grants a right a middle hop had removed. Neither macaroons nor Biscuit, their public-key descendant~\pdcite{biscuit2026}, can fall into that trap, because a holder can only append restrictions and the verifier checks every one. A Harbor Card child instead restates its rights in full, which is why the verifier must compare each child with its parent.
 
 \input{figures/fig-anchor-delegation-inline}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
-\pdstatus{\BuiltWeak}{the daemon and the relay look each card's ID up in an exact revocation table; per-link identifiers for offline delegations, the filter, gossip and revocation counter below are specified, not built}
+\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built}
 
 \pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
 Alice withdraws Heron's test-database write grant three minutes into its
@@ -1961,11 +1961,11 @@ signatures, $P \to A \to B \to C$, in which each hop signs
 \texttt{hopBind(nonce, prev\_id, next\_id, message)}. Each signer records
 the nonce it uses in a table, \texttt{issued\_nonce}, and the final holder
 $C$ verifies the whole chain before it acts.
-Listing~\ref{lst:anchor-chain-replay} gives the verifier and the query.
+Listing~\ref{alg:anchor-chain-replay} gives the verifier and the query.
 ProVerif~2.05 reports the query true
 (\path{proofs/anchor/delegation/chain-replay.run.log}).
 
-\begin{lstlisting}[caption={\texttt{chain-replay.pv} (excerpt): the final verifier and the query},label={lst:anchor-chain-replay}]
+\begin{lstlisting}[caption={\texttt{chain-replay.pv} (excerpt): the final verifier and the query},label={alg:anchor-chain-replay}]
 table issued_nonce(nonce).
 table consumed_nonce(nonce).
 
@@ -2091,12 +2091,12 @@ single difference:
 
 \input{figures/session-anchor-v6-attack}
 
-Listing~\ref{lst:anchor-v6-excerpt} gives the middle holder and the verifier
+Listing~\ref{alg:anchor-v6-excerpt} gives the middle holder and the verifier
 of the attack model. The daemon issues \texttt{cap\_write} to $A$, and an
 honest $A$ delegates only \texttt{cap\_read} to $B$. The v7 model is
 identical except for the line marked \texttt{BUG}.
 
-\begin{lstlisting}[caption={\texttt{harbor\_card\_v6\_multihop\_attack.pv} (excerpt): the middle holder and the verifier},label={lst:anchor-v6-excerpt}]
+\begin{lstlisting}[caption={\texttt{harbor\_card\_v6\_multihop\_attack.pv} (excerpt): the middle holder and the verifier},label={alg:anchor-v6-excerpt}]
 (* Malicious B: holds cap_read from A, re-delegates cap_write to C (escalation). *)
 let MaliciousB(b: id, b_sk: skey, cc: id) =
     in(c, (d1: bitstring, d1s: bitstring));
@@ -2375,7 +2375,7 @@ RESULT event(accepted_naive(m_4)) ==> event(issued_A(m_4)) is false.
 The first line is the property this chapter relies on; the second is the negative control, checked in the same file so the true result is not vacuous.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-chain-replay}
-Listing~\ref{lst:anchor-chain-replay} excerpts the verifier of \path{proofs/anchor/delegation/chain-replay.pv}, which models a 3-hop chain $P \to A \to B \to C$ and whose query ProVerif reports true. Which property does the query state? The verifier's comments promise replay protection. Does its code refuse a chain presented a second time, and could the query tell you if it did not?
+Listing~\ref{alg:anchor-chain-replay} excerpts the verifier of \path{proofs/anchor/delegation/chain-replay.pv}, which models a 3-hop chain $P \to A \to B \to C$ and whose query ProVerif reports true. Which property does the query state? The verifier's comments promise replay protection. Does its code refuse a chain presented a second time, and could the query tell you if it did not?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-chain-replay}
 The query states that every chain $C$ accepts corresponds to one $P$ actually authorized, with the \emph{same} $(P,A,B,C,m)$ tuple: no hop can be replayed against a different message, and no hop can be spliced out of one chain into another, because each signature binds \texttt{hopBind(nonce, prev\_id, next\_id, message)}. The code does not do what its comments promise. It reads \texttt{issued\_nonce} three times, so every nonce must have been issued, but it only inserts into \texttt{consumed\_nonce} and never reads that table before acceptance. A chain presented a second time passes every check and is accepted again. The query cannot notice: it is non-injective, so the one \texttt{chain\_authorized} event matches every acceptance of that chain. Refusing a replay needs a check that no nonce is already in \texttt{consumed\_nonce}, and showing it needs an injective query. The runtime conformance suite tests replay rejection; no model in this chapter proves it, which is what Table~\ref{tab:anchor-status} records. Message substitution and duplicate acceptance are different questions.
@@ -2461,7 +2461,7 @@ Trace the chain $A{:}\texttt{write} \to B{:}\texttt{read} \to C{:}\texttt{write}
 The induction: if every hop satisfies $\mathrm{cap}_i \subseteq \mathrm{cap}_{i-1}$, transitivity of $\subseteq$ chains them directly into $\mathrm{cap}_N \subseteq \mathrm{cap}_{N-1} \subseteq \cdots \subseteq \mathrm{cap}_0$. Checking $\mathrm{cap}_i \subseteq \mathrm{cap}_0$ independently at each hop supplies no such chain: it only asks whether each capability fits inside the \emph{root}, which a re-escalating middle hop can satisfy (write $\subseteq$ root) while still expanding relative to what that hop's own parent actually held (write $\not\subseteq$ $B$'s read). This is why the security note after Algorithm~\ref{alg:delegation} credits Property~\ref{thm:attn-sound} with the single hop only. The multi-hop result comes from checking every hop, by transitivity, and its machine-checked confirmation at depth two is the v6/v7 pair in the next two exercises, not a restatement of the property at greater depth.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-multihop-attack}
-Listing~\ref{lst:anchor-v6-excerpt} excerpts \path{analyses/harbor_card_v6_multihop_attack.pv}, and the session above it shows the verdict. State the attack in words: who signs what, at which hop, and why does a verifier that checks only the final capability against the root accept it?
+Listing~\ref{alg:anchor-v6-excerpt} excerpts \path{analyses/harbor_card_v6_multihop_attack.pv}, and the session above it shows the verdict. State the attack in words: who signs what, at which hop, and why does a verifier that checks only the final capability against the root accept it?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-multihop-attack}
 The root holds \texttt{cap\_write}. Honest $A$ correctly attenuates to \texttt{cap\_read} for $B$, a legitimate restriction. Malicious $B$, holding only that read-capped delegation, signs a \emph{new} delegation to $C$ carrying \texttt{cap\_write}: an authority $B$ never held, forged with $B$'s own legitimately-issued delegation key, not by breaking any signature. \texttt{NaiveVerifier} unwraps the two-hop chain and checks \texttt{is\_subset(final\_cap, root\_cap)}, the final capability against the root only, and never re-derives what the intermediate hop actually held. Because \texttt{cap\_write} is a subset of the root, the check passes and $C$ is accepted with full write authority, although $B$ itself only ever held read. This is hop-2 escalation: a child re-grants an authority its own parent narrowed away, and a root-vs-final comparison is structurally blind to it.
@@ -2476,7 +2476,7 @@ RESULT not event(Accepted(cc_2,harbor_id[],cap_write)) is false.
 ProVerif reports the query false and also exhibits the concrete trace above as a witness.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-multihop-fix}
-\path{analyses/harbor_card_v7_multihop_fixed.pv} is identical to v6 except for the line marked \texttt{BUG} in Listing~\ref{lst:anchor-v6-excerpt}. What must that line become to close the attack, and what does the RESULT line become?
+\path{analyses/harbor_card_v7_multihop_fixed.pv} is identical to v6 except for the line marked \texttt{BUG} in Listing~\ref{alg:anchor-v6-excerpt}. What must that line become to close the attack, and what does the RESULT line become?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-multihop-fix}
 Both models already check each link's signature under its signer's key, so the only change is in the comparison: v6's single check \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} becomes two checks in sequence, \texttt{is\allowbreak\_subset(mid\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} for hop~1 ($A \to B$ against the root) \emph{and} \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{mid\allowbreak\_cap)} for hop~2 ($B \to C$ against what $B$ actually held). Same malicious $B$, same forged \texttt{cap\_write} delegation, same query; only the verifier's comparison target moves from the root to the immediate parent.

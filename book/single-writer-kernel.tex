@@ -2257,8 +2257,10 @@ maturity scale to the theorems themselves.
 Theorem~\ref{thm:exclusion}; I7--I9 carry the regimentation/detection correction per
 \S\ref{sec:enforcement}.}
 \label{tab:invariants}
-\small
-\begin{tabularx}{\textwidth}{@{}p{0.05\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.29\textwidth} >{\raggedright\arraybackslash}p{0.21\textwidth}@{}}
+% \footnotesize and a wider Maturity column: at \small the fourteen rows
+% overran the text height in the publication edition (third pass, Wave 1).
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{0.05\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
 \toprule
 \textbf{\#} & \textbf{Invariant (theorem)} & \textbf{Mechanism} & \textbf{Maturity} \\
 \midrule
@@ -2681,8 +2683,11 @@ Table~\ref{tab:threat-model} draws that boundary, naming each one.
 scope} by design; several ``security'' subsystems become necessary only against the
 cross-machine adversary, which belongs to the economy layer.}
 \label{tab:threat-model}
-\small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.23\textwidth} >{\raggedright\arraybackslash}p{0.27\textwidth} >{\raggedright\arraybackslash}X@{}}
+% A narrow scope column and \footnotesize: once the identity and loopback-port
+% rows grew, the table overran the text height in the publication edition
+% (third pass, Wave 1).
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Adversary} & \textbf{In/out of scope} & \textbf{What defends (or does not)} \\
 \midrule
