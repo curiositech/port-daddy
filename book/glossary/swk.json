@@ -133,5 +133,30 @@
   "term": "AI control",
   "sort": "AI control",
   "definition": "A method that measures how safe a deployment stays when a capable model may be trying to defeat its safeguards, by having a red team supply the model's behavior."
+ },
+ {
+  "term": "event-sourced rehydration",
+  "sort": "event-sourced rehydration",
+  "definition": "A proposed recovery method that starts a successor agent by replaying the recorded commit and message log instead of a summary, restoring the durable inputs to the dead agent's context but not its inference state."
+ },
+ {
+  "term": "effectively-once",
+  "sort": "effectively-once processing",
+  "definition": "Processing in which duplicate deliveries are removed at the boundary by an idempotency key and a unique receipt row, so each operation takes effect at most once even though the network may deliver it more than once."
+ },
+ {
+  "term": "differential fuzzing",
+  "sort": "differential fuzzing",
+  "definition": "Running the same large random stream of operations against two implementations from the same seed and checking that their resulting states match."
+ },
+ {
+  "term": "macaroon",
+  "sort": "macaroon",
+  "definition": "A token the daemon issues that says what its holder may do; any holder can add restrictions (caveats), but none can be removed, because each is folded into a keyed hash chain only the daemon can recompute."
+ },
+ {
+  "term": "actor soul",
+  "sort": "actor soul",
+  "definition": "The lasting identifier the daemon issues to each worker, with a secret credential for proving it, so an identity can outlive a single session."
  }
 ]
