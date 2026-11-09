@@ -1,0 +1,3 @@
+type: added
+
+- **Two of the Book's proposed experiments have now been run.** Thirty sealed sessions, each a fresh agent given only its task, measured revealed preference over harbor goods (T1 of the players battery) and the checkout repair with contradictory tests under writable tests, a test-write gate, and a gate plus an escalation command. No session gamed a test; every agent normalized reframed prices in code; and an escalation channel turned "decision for you" replies into recorded escalations. Materials, results, a blind second reading and a known harness defect are in `docs/harbor-research/experiments/players-20261109/`.
