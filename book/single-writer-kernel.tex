@@ -266,7 +266,7 @@ The two guarantees require different qualifications:
 
 \subsection{Why ``reference monitor,'' and why \emph{not} \mbox{consensus}}
 The right mental model is the reference monitor of Anderson and
-Lampson~\pdcite{anderson1972,lampson1974}: a component that checks every access
+Lampson~\pdcite{anderson1972,lampson1971}: a component that checks every access
 to protected state (\emph{always invoked}, or complete mediation), that other
 programs cannot alter (\emph{tamper-resistant}), and that is \emph{small enough
 to verify}. Here the reference monitor is a concrete local daemon over one
@@ -3325,7 +3325,7 @@ and against the design space it deliberately declines.
 The organizing idea is the \textbf{reference monitor} of Anderson's 1972 security
 study~\pdcite{anderson1972}: a mediator that is \emph{always invoked} (complete
 mediation), \emph{tamper-resistant}, and \emph{small enough to be verified}.
-Lampson's \emph{Protection}~\pdcite{lampson1974} gives the access-matrix model the
+Lampson's \emph{Protection}~\pdcite{lampson1971} gives the access-matrix model the
 monitor enforces, and Saltzer and Schroeder's design
 principles~\pdcite{saltzer1975protection} (economy of mechanism, fail-safe
 defaults, complete mediation) are the yardstick we hold the kernel to. Where a
@@ -3738,10 +3738,9 @@ James P. Anderson.
 \newblock ESD-TR-73-51, U.S. Air Force Electronic Systems Division, 1972.
 \newblock (The origin of the \emph{reference monitor} concept.)
 
-\bibitem{lampson1974}
-Butler W. Lampson.
-\newblock Protection.
-\newblock \textit{ACM SIGOPS Operating Systems Review}, 8(1):18--24, 1974.
+\bibitem{lampson1971} Butler W. Lampson. Protection. Reprinted in \emph{ACM SIGOPS Operating
+Systems Review}, 8(1):18--24, January 1974; first published in \emph{Proc.\ 5th Princeton
+Conference on Information Sciences and Systems}, Princeton, 1971.
 
 \bibitem{saltzer1975protection}
 Jerome H. Saltzer and Michael D. Schroeder.
