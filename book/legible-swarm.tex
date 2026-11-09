@@ -465,6 +465,23 @@ The authority's legitimate action set at any moment is exactly the union of
 its active grants.
 \end{pdclaim}
 
+The grant compares two functions of a proposed action $x$ with its limits, and
+Invariant~\ref{prop:verifiable-zoom} rules out taking either from the agent's
+own account of $x$. In the design, the daemon computes both from the effect
+itself as it reaches the mediation boundary. It assigns $x$ an effect class from
+a fixed, typed list the operator maintains, keyed on the operation and its
+target rather than on any label the agent supplies: an edit inside the worktree,
+a commit, a push, a force-push, a branch deletion, a migration, a deploy. Each
+class carries two numbers the operator sets. $\mathrm{stakes}(x)\ge0$ is the
+class's worst-case loss in the chapter's normalized cost units, set higher for
+named targets such as the main branch or a production database.
+$\mathrm{reversibility}(x)\in[0,1]$ is the share of that loss a declared recovery
+path can restore: near $1$ for an edit under version control, $0$ for a
+force-push that discards unmerged commits. Later sections use
+$\mathrm{irreversibility}(x)=1-\mathrm{reversibility}(x)$, the share that cannot
+be restored. The daemon classes Finch's proposal as a force-push because it
+reads the command and its target, whatever Finch calls it.
+
 Consent so defined gives the design something Hume's critique cannot reach: a
 discrete authorization event, a bounded scope, and an exit. It is also an object
 supervisory-control research named long before this chapter did: a
@@ -1517,7 +1534,7 @@ $\mathbb{E}[\text{zooms}(\beta)]$ is the inspection probability. The objective i
 
 The forced-zoom policy $p_{\mathrm{zoom}}(r,s,v)$, the probability that the daemon makes the
 operator open an action before it proceeds, given the agent's reputation $r$, the
-action's stakes $s$ and its reversibility $v$, is calibrated against this loss after specifying
+action's stakes $s=\mathrm{stakes}(x)$ and its reversibility $v=\mathrm{reversibility}(x)$, is calibrated against this loss after specifying
 the score distributions that determine $P_{\text{miss}}$ and $P_{\text{fa}}$.
 An imperfect inspection requires an additional residual-harm term; the displayed
 loss does not include that error.
@@ -2478,7 +2495,7 @@ candidate ranked below an incapable one
 Human oversight regret \newline (\S\ref{sec:sdt}, \S\ref{sec:tokens-digest})
 & a compaction $D$ of a trace $E$; optimized over what to surface under budget
 & \emph{Minimize} $L_{\mathrm{op}}(D)=\sum_{e\in E\setminus D}\mathrm{regret}(e)$
-with $\mathrm{regret}=\mathrm{stakes}\times\mathrm{irrev}\times\mathrm{anomaly}$
+with regret the product of stakes, irreversibility and anomaly
 (Eq.~\ref{eq:regret}). Wrongness is measured in \emph{unreviewed
 irreversible loss}
 & the human operator, deciding whether to intervene \\
@@ -2646,7 +2663,7 @@ but apply distinct scoring heads. Discovery uses capability fit
 (Eq.~\ref{eq:fit}); the attention queue uses regret-if-ignored:
 \begin{equation}\label{eq:regret}
 \mathrm{regret}(x) \;=\; \underbrace{\mathrm{stakes}(x)}_{\text{magnitude}}
-   \times \underbrace{\mathrm{irreversibility}(x)}_{v^{-1}}
+   \times \underbrace{\mathrm{irreversibility}(x)}_{1-v}
    \times \underbrace{\mathrm{anomaly}(x)}_{\text{surprise}}.
 \end{equation}
 
@@ -2819,7 +2836,7 @@ choice more often.)
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:regret-head}
 For an unreviewed item $x$ let $C_{\mathrm{miss}}(x)=\mathrm{stakes}(x)\cdot
-\mathrm{irrev}(x)$ be the unrecoverable loss of passing a bad $x$, let
+\mathrm{irreversibility}(x)$ be the unrecoverable loss of passing a bad $x$, let
 $a(x)=\Pr(\mathsf{bad}\mid\text{evidence}(x))$ be a \emph{calibrated} posterior,
 $c_{\mathrm{att}}$ the marginal attention cost, and $C_{\mathrm{fa}}$ the
 non-attention cost of inspecting a good item, with all costs nonnegative.
