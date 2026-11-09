@@ -299,7 +299,7 @@ The witness log lets anyone audit the federation without making any harbor sover
 A witness log $W$ meets the Federated Harbor's requirements if it provides:
 \begin{enumerate}[nosep]
 \item \textbf{Append-only.} Once $W$ records an entry, $W$ cannot retract or reorder it.
-\item \textbf{Per-harbor latest-root binding.} For each harbor $X$ in the federation and each epoch $e$, $W$ records at most one root $R_X^{(e)}$ signed under $\mathit{sk}_X$.
+\item \textbf{One root per epoch in each log; no silent merge across logs.} Each instance of $W$ records at most one root $R_X^{(e)}$ signed under $\mathit{sk}_X$ for each harbor $X$ and epoch $e$, and refuses a second. Several instances cannot promise to hold the same root without agreeing among themselves, which is consensus. They promise \pdterm{fork consistency} instead: once two auditors have been shown histories that differ, neither can later be shown a history that contains the other's entries unless the split becomes provable~\pdcite{mazieres2002byzantine,li2004sundr}. Witnesses that exchange signed log heads, as PeerReview's witnesses exchange signed log authenticators~\pdcite{haeberlen2007peerreview}, turn such a split into the evidence of item~4.
 \item \textbf{Auditable consistency.} Any third party can verify, given $R_X^{(e_1)}$ and $R_X^{(e_2)}$ with $e_1 \le e_2$, that $R_X^{(e_2)}$ is a Merkle-consistent extension of $R_X^{(e_1)}$.
 \item \textbf{Equivocation evidence.} If an auditor obtains two differently signed roots for the same harbor and epoch, it can verify the contradiction immediately. Getting both versions to one auditor depends on the delivery and partition model (Theorem~\ref{thm:fh-conv}).
 \item \textbf{Threshold publishability.} The act of publishing $R_X^{(e)}$ to $W$ does not require $D_X$ to trust any other party; cross-signatures collected from other daemons help auditors but authorize nothing.
@@ -378,7 +378,7 @@ freshness rule govern use while $B$'s view may be stale.
 \paragraph{Stale-revocation acceptance.} An attacker at $B$ presents a card revoked at $A$ but not yet observed at $B$. With $m$ harbors gossiping in reliable rounds of length $\Delta$ over a complete network with uniformly random peer choice, the window is expected to grow like $\Theta(\Delta\log m)$; during a partition it is unbounded. A bond sized to an agreed service-level window can compensate losses inside that window and cannot remove the risk beyond it.
 
 \paragraph{Cross-witness equivocation.} A malicious daemon $D_A$ publishes contradictory roots to isolated witnesses. The contradiction is cryptographically verifiable once a common auditor receives both views, but how long that takes depends on the network and on partitions. A witness bond pays out once equivocation is confirmed; it does not make the proof arrive by any deadline.
-Table~\ref{tab:fh-witness-log} pairs each of the five witness-log properties with the failure it prevents; per-harbor latest-root binding, for instance, stops a harbor silently publishing two roots for one epoch.
+Table~\ref{tab:fh-witness-log} pairs each of the five witness-log properties with the failure it prevents. Fork consistency, for instance, does not stop a harbor showing two log instances two roots for one epoch; it stops the two histories later merging without the split being provable.
 
 \input{figures/tab-fh-witness-log}
 
@@ -1600,7 +1600,7 @@ The control-plane distinction is concrete: Tailscale describes centralized coord
 \subsection{Equivocation by a malicious witness}\label{sec:fh-equiv}
 
 \ifpdmargincolumn\pdequivocationsketch\fi
-A malicious witness log can serve different views to partitioned auditors. A contradictory signed pair is immediately verifiable once co-located, but the protocol has no topology-independent time bound for bringing the pair together. Witness bonding applies after confirmation.
+A malicious witness log can serve different views to partitioned auditors. Fork consistency (\S\ref{sec:fh-witness}) keeps those views from merging later without the split becoming provable. A contradictory signed pair is immediately verifiable once co-located, but the protocol has no topology-independent time bound for bringing the pair together. Witness bonding applies after confirmation.
 
 For high-stakes settlements, harbors can require multiple witness signatures before treating a root as authoritative, in the Certificate Transparency pattern of requiring signed timestamps from two independent logs~\pdcite{laurie2013ct}. This trades latency for assurance; the design space is well-explored in the CT literature and we adopt the same techniques.
 
@@ -1764,7 +1764,7 @@ decision or proves the complete federation deployed.
 What to carry away from this chapter:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
-\item \textbf{Two machines, no shared daemon.} A harbor accepts another harbor's card only under its own local policy. To check the card it consults the shared witness log for the issuer's public key and latest signed root, but the log itself authorizes nothing. The log can be relied on because of properties of the log (append-only, at most one signed root per harbor per epoch, checkable consistency, provable equivocation), not because the other harbor is trusted.
+\item \textbf{Two machines, no shared daemon.} A harbor accepts another harbor's card only under its own local policy. To check the card it consults the shared witness log for the issuer's public key and latest signed root, but the log itself authorizes nothing. The log can be relied on because of properties of the log (append-only, one signed root per harbor and epoch in each instance, fork consistency across instances, checkable consistency, provable equivocation), not because the other harbor is trusted.
 \item \textbf{The card stays home; a signed attestation crosses.} $A$ describes the card, naming its holder, the recipient and a transfer identifier, and $B$ issues its own holder-bound card within $\mathrm{att}_B(\mathrm{map}_{A\to B}(\mathrm{att}_A(C_A)))$. On a shared resource the mapping is the identity and inclusion follows by composing the narrowings. Authenticity and freshness require the stated assumptions; the transfer protocol remains unmechanized.
 \item \textbf{Revocation propagation has a conditional expectation.} Reliable rounds on a complete network with uniform peer choice give expected logarithmic dissemination. It supplies neither a deterministic delivery deadline nor a finite deadline during a partition.
 \item \textbf{A one-edge perturbation alarms exactly on a visible coordinate cycle.} For a perturbation of size $3$, the residual is $1.2247$ on $C_6$ and zero on $P_6$. This concerns the edge encoding; authenticated endpoint claims can be compared directly on either graph.
@@ -2047,6 +2047,21 @@ Linux Foundation / OpenSSF.
 Scott A. Crosby and Dan S. Wallach.
 \newblock Efficient Data Structures for Tamper-Evident Logging.
 \newblock In \textit{USENIX Security Symposium}, 2009.
+
+\bibitem{mazieres2002byzantine}
+David Mazi\`eres and Dennis Shasha.
+\newblock Building Secure File Systems out of Byzantine Storage.
+\newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, pp.~108--117, 2002.
+
+\bibitem{li2004sundr}
+Jinyuan Li, Maxwell Krohn, David Mazi\`eres, and Dennis Shasha.
+\newblock Secure Untrusted Data Repository (SUNDR).
+\newblock In \textit{6th USENIX Symposium on Operating Systems Design and Implementation (OSDI)}, 2004.
+
+\bibitem{haeberlen2007peerreview}
+Andreas Haeberlen, Petr Kouznetsov, and Peter Druschel.
+\newblock PeerReview: Practical Accountability for Distributed Systems.
+\newblock In \textit{21st ACM Symposium on Operating Systems Principles (SOSP)}, pp.~175--188, 2007.
 
 \bibitem{demers1987epidemic}
 Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, and Doug Terry.
