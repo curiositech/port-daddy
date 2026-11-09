@@ -1699,7 +1699,7 @@ verifyCapsSubset: lib.func(
 
 \section{Full ProVerif Models}\label{app:proverif}
 
-This appendix gives the full ProVerif models used for verification. They correspond to the algorithms in Section~\ref{sec:algorithms}. Before reading the first one, count its \emph{destructor} rules, the rules that let a process take a message apart or check it; that count separates a real proof from one that holds trivially.
+This appendix gives the full ProVerif models used for verification. They correspond to the algorithms in Section~\ref{sec:algorithms}. Before reading the first one, count its \emph{destructor} rules, the rules that let a process take a message apart or check it, and then count which of them a process actually calls. A rule that no process calls can neither make an attack possible nor make a proof mean anything.
 
 \begin{pdexample}{Two Rules Offered, One Rule Used}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1708,19 +1708,22 @@ one that succeeds when the signature is $\mathrm{hs256}(m,k)$ and the header
 says \texttt{hs256\_alg}, and a second, \texttt{verify\_generic(m, none\_alg,
 m, k) = true}, which succeeds for \emph{any} message whose header says
 \texttt{none\_alg} and whose signature field holds the message itself. That second
-rule is the \texttt{alg:none} downgrade, written into the model on purpose so
-that the attack can be stated here instead of being assumed away.
+rule is the \texttt{alg:none} downgrade.
 
-Now count the rules the
-honest verifier actually calls: \texttt{SecureHarbor} invokes
-\texttt{check\_hs256}, which has exactly one rule and no header parameter at
-all, so the header it received is destructured and then never consulted. Two
-rules offered, one used, and the unused one is the one an attacker would
-need.
+Now count the processes that call \texttt{verify\_generic}: none.
+\texttt{SecureHarbor} invokes \texttt{check\_hs256}, which has exactly one rule
+and no header parameter at all, so the header it receives is destructured and
+then never consulted. The attacker gains nothing from the unused rule either,
+because applying it to its own terms yields only the constant \texttt{true}.
+The downgrade is written down in v1, but nothing in v1 can carry it out, so
+v1's TRUE verdict cannot show that pinning is what stops it.
 
-The TRUE verdict in Table~\ref{tab:proverif-results} is therefore a
-statement about the verifier's structure rather than about a rule the model
-forgot to write down. [internal]
+That evidence comes from \path{proofs/anchor/token-verify/algconfusion.pv}, where
+a naive verifier that lets the token choose its verification routine runs
+beside the pinned one. The naive verifier's query is FALSE, with a forged
+token, and the pinned verifier's is TRUE (Table~\ref{tab:proverif-results}).
+v1's TRUE verdict says only that a verifier which checks HS256 under the master
+key accepts only tokens the daemon issued. [internal]
 \end{pdexample}
 
 \subsection{Phase 1: Symmetric HS256}
