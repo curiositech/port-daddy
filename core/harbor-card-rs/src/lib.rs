@@ -286,25 +286,46 @@ pub fn capability_matches<'a>(
 /// delegated card ask for no more than its parent granted), which run daemon-
 /// side.
 ///
-/// The rule is deliberately conservative, so that
-/// `covers(p, q) ⟹ ∀c. channel_matches(q, c) → channel_matches(p, c)`
-/// (asserted by a property test):
+/// # What a pattern matches
 ///
-/// - `*` covers everything.
-/// - `prefix*` covers any pattern that starts with `prefix` — glob or literal.
-/// - a literal covers only itself, and only when the other side is not a glob:
-///   the literal `a` does NOT cover `a*`, which reaches `ab`.
+/// Read off [`channel_matches`], every pattern `p` has a match set `M(p)`:
+///
+/// - if `p` ends in `*`, write `p = P*`; then `M(p)` is every channel that
+///   starts with `P`. The bare `*` is the case `P = ""`. Only the final `*` is
+///   a glob: any `*` inside `P` is an ordinary byte, so `a**` (prefix `a*`)
+///   matches `a*` and `a*b` but not `ab`;
+/// - otherwise `M(p) = {p}`.
+///
+/// # Contract
+///
+/// **Soundness** (the security obligation): `channel_pattern_covers(r, s)`
+/// implies that every channel matched by `s` is matched by `r`, that is
+/// `∀c. channel_matches(s, c) → channel_matches(r, c)`, or `M(s) ⊆ M(r)`.
+/// The rule is also **complete**: whenever `M(s) ⊆ M(r)` it returns true, so
+/// a legitimate narrowing is never refused. Both directions are checked
+/// exhaustively against [`channel_matches`] over every pattern of up to four
+/// bytes from `{a, b, *}`, and soundness is also a property test.
+///
+/// # Rule
+///
+/// - Root `P*`: a glob sub-pattern `S*` is covered iff `S` starts with `P`; a
+///   literal sub-pattern `s` is covered iff `s` starts with `P`. The test is on
+///   the sub-pattern's *prefix*, not its spelling. The spelling `a*` starts
+///   with the root prefix `a*` of `a**`, but `a*` reaches `ab`, which `a**`
+///   refuses. Testing the spelling made `**` cover `*`, `a**` cover `a*`, and
+///   `***` cover `**`; that was the rule here before.
+/// - Root literal: covers only the identical literal. Any glob reaches more
+///   than one channel, so the literal `a` does NOT cover `a*`, which reaches
+///   `ab`.
 pub fn channel_pattern_covers(root_pattern: &str, sub_pattern: &str) -> bool {
-    if root_pattern == "*" {
-        return true;
-    }
     if let Some(prefix) = root_pattern.strip_suffix('*') {
-        return sub_pattern.starts_with(prefix);
+        // Every channel the sub-pattern reaches starts with `reached`.
+        let reached = sub_pattern.strip_suffix('*').unwrap_or(sub_pattern);
+        return reached.starts_with(prefix);
     }
-    // Root is a literal: only an identical literal is covered. A sub-pattern
-    // ending in '*' is treated as a glob (thus not covered) even though
-    // `channel_matches` would have matched it by equality — fail closed.
-    root_pattern == sub_pattern && !sub_pattern.ends_with('*')
+    // Root is a literal (no trailing `*`), so an equal sub-pattern is that
+    // same literal and every other sub-pattern reaches some other channel.
+    root_pattern == sub_pattern
 }
 
 /// Is every entry in `sub` no broader than something in `root`?
@@ -1271,6 +1292,65 @@ mod tests {
         assert!(!verify_capability_subset_structured(&root, &sub));
     }
 
+    /// Each pair returned true under the rule this replaced, which tested the
+    /// root's prefix against the sub-pattern's spelling. The third column is
+    /// a channel the sub-pattern matches and the root does not.
+    #[test]
+    fn pattern_covers_tests_the_sub_globs_prefix_not_its_spelling() {
+        for (root, sub, escaping) in [
+            ("**", "*", "a"),
+            ("a**", "a*", "ab"),
+            ("b**", "b*", "b"),
+            ("***", "**", "*"),
+        ] {
+            assert!(channel_matches(sub, escaping), "{sub} matches {escaping}");
+            assert!(
+                !channel_matches(root, escaping),
+                "{root} refuses {escaping}"
+            );
+            assert!(
+                !channel_pattern_covers(root, sub),
+                "{root} must not cover {sub}"
+            );
+        }
+    }
+
+    /// The fix must not refuse narrowing that is genuine, including globs
+    /// whose prefix itself contains `*`.
+    #[test]
+    fn pattern_covers_still_accepts_genuine_narrowing() {
+        for (root, sub) in [
+            ("*", "**"),
+            ("*", ""),
+            ("**", "**"),
+            ("**", "*b*"),
+            ("a*", "a**"),
+            ("a*", "a"),
+            ("a**", "a**"),
+            ("a**", "a*b"),
+            ("a**", "a*b*"),
+            ("logs.*", "logs.app*"),
+            ("logs.app", "logs.app"),
+            ("", ""),
+        ] {
+            assert!(channel_pattern_covers(root, sub), "{root} covers {sub}");
+        }
+        for (root, sub) in [("a*", ""), ("a", "a*"), ("a*", "b*"), ("**", "")] {
+            assert!(!channel_pattern_covers(root, sub), "{root} refuses {sub}");
+        }
+    }
+
+    #[test]
+    fn structured_subset_rejects_a_glob_whose_prefix_contains_a_star() {
+        // `a**` grants only channels beginning `a*`; the child `a*` would reach
+        // `ab`. The replaced rule accepted this delegation.
+        let root = vec![cap("pub", "a**")];
+        let child = vec![cap("pub", "a*")];
+        assert!(!verify_capability_subset_structured(&root, &child));
+        assert!(capability_matches(&child, "pub", "ab").is_some());
+        assert!(capability_matches(&root, "pub", "ab").is_none());
+    }
+
     #[test]
     fn structured_subset_rejects_dropping_a_ceiling() {
         let mut root = cap("pub", "*");
@@ -1429,19 +1509,49 @@ mod proptests {
             sub.push(extra);
             prop_assert!(!HarborCardVerifier::verify_capability_subset(&root, &sub));
         }
+    }
+
+    // The replaced rule fails only when `root` is `sub` with one more `*`, a
+    // rare draw from these regexes, so the pattern properties run 4,096 cases
+    // rather than proptest's default 256. At the default, the two properties
+    // below missed the replaced rule in about one run in three.
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4096))]
 
         /// The soundness obligation for [`channel_pattern_covers`]: if the root
         /// pattern covers the sub pattern, then every concrete channel the sub
         /// pattern admits is one the root pattern admits too. Without this, an
         /// attenuation check that says "narrower" could hand out access the
-        /// parent never had.
+        /// parent never had. `*` is in the alphabet of patterns AND channels,
+        /// so `**`, `a**` and channels such as `a*b` are generated; an
+        /// alphabet with `*` only as a final character could not reach the
+        /// glob-prefix case the replaced rule got wrong.
         #[test]
         fn pattern_coverage_implies_channel_coverage(
-            root in "[a-c.]{0,4}\\*?",
-            sub in "[a-c.]{0,4}\\*?",
-            channel in "[a-c.]{0,6}",
+            root in "[ab*]{0,4}",
+            sub in "[ab*]{0,4}",
+            channel in "[ab*]{0,6}",
         ) {
             if channel_pattern_covers(&root, &sub) && channel_matches(&sub, &channel) {
+                prop_assert!(channel_matches(&root, &channel));
+            }
+        }
+
+        /// The same obligation with the channel drawn from what the sub
+        /// pattern matches, so every case exercises the implication instead
+        /// of mostly falling outside `M(sub)`.
+        #[test]
+        fn pattern_coverage_holds_on_channels_the_sub_pattern_matches(
+            root in "[ab*]{0,4}",
+            sub in "[ab*]{0,4}",
+            tail in "[ab*]{0,3}",
+        ) {
+            let channel = match sub.strip_suffix('*') {
+                Some(prefix) => format!("{prefix}{tail}"),
+                None => sub.clone(),
+            };
+            prop_assert!(channel_matches(&sub, &channel));
+            if channel_pattern_covers(&root, &sub) {
                 prop_assert!(channel_matches(&root, &channel));
             }
         }
@@ -1450,9 +1560,9 @@ mod proptests {
         /// (op, channel) that its parent could not.
         #[test]
         fn structured_subset_never_grants_more_than_root(
-            root_ch in "[a-c.]{0,4}\\*?",
-            sub_ch in "[a-c.]{0,4}\\*?",
-            channel in "[a-c.]{0,6}",
+            root_ch in "[ab*.]{0,4}",
+            sub_ch in "[ab*.]{0,4}",
+            channel in "[ab*.]{0,6}",
         ) {
             let root = vec![cap("pub", &root_ch)];
             let sub = vec![cap("pub", &sub_ch)];
@@ -1460,6 +1570,139 @@ mod proptests {
                 && capability_matches(&sub, "pub", &channel).is_some()
             {
                 prop_assert!(capability_matches(&root, "pub", &channel).is_some());
+            }
+        }
+    }
+
+    /// Every string over `alphabet` of length at most `max_len`, shortest first.
+    fn strings_up_to(alphabet: &[char], max_len: usize) -> Vec<String> {
+        let mut all = vec![String::new()];
+        let mut frontier = vec![String::new()];
+        for _ in 0..max_len {
+            frontier = frontier
+                .iter()
+                .flat_map(|s| {
+                    alphabet.iter().map(move |c| {
+                        let mut next = s.clone();
+                        next.push(*c);
+                        next
+                    })
+                })
+                .collect();
+            all.extend(frontier.iter().cloned());
+        }
+        all
+    }
+
+    /// `channel_pattern_covers(r, s)` holds exactly when `M(s) ⊆ M(r)`, checked
+    /// against [`channel_matches`] for every pattern of up to four bytes over
+    /// `{a, b, *}` (121 patterns, 14,641 pairs).
+    ///
+    /// The channel bound makes the inclusion check exact. If `M(s) ⊄ M(r)`,
+    /// a witness no longer than `s` exists: `s` itself when `s` is a literal;
+    /// the prefix `S` when `s = S*` and `S` is outside `M(r)`; otherwise `r`
+    /// is a literal equal to `S`, and `S` followed by one byte is a witness of
+    /// length `|s|`. Channels of up to five bytes therefore decide both
+    /// directions.
+    #[test]
+    fn pattern_coverage_is_exactly_match_set_inclusion() {
+        let patterns = strings_up_to(&['a', 'b', '*'], 4);
+        let channels = strings_up_to(&['a', 'b', '*'], 5);
+        assert_eq!(patterns.len(), 121);
+        let mut covered = 0usize;
+        for root in &patterns {
+            for sub in &patterns {
+                let included = channels
+                    .iter()
+                    .all(|c| !channel_matches(sub, c) || channel_matches(root, c));
+                assert_eq!(
+                    channel_pattern_covers(root, sub),
+                    included,
+                    "covers({root:?}, {sub:?}) disagrees with M(sub) ⊆ M(root)"
+                );
+                covered += usize::from(included);
+            }
+        }
+        // Not vacuous in either direction: inclusion holds for 534 of the
+        // 14,641 pairs (`*` alone covers all 121 patterns).
+        assert_eq!(covered, 534);
+    }
+
+    /// The rule `channel_pattern_covers` used before this fix: it tested the
+    /// root prefix against the sub-pattern's spelling. Kept only so the tests
+    /// below can show which input domains detect it.
+    fn replaced_covers(root: &str, sub: &str) -> bool {
+        if root == "*" {
+            return true;
+        }
+        if let Some(prefix) = root.strip_suffix('*') {
+            return sub.starts_with(prefix);
+        }
+        root == sub && !sub.ends_with('*')
+    }
+
+    #[test]
+    fn the_exhaustive_check_refutes_the_replaced_rule() {
+        let patterns = strings_up_to(&['a', 'b', '*'], 4);
+        let channels = strings_up_to(&['a', 'b', '*'], 5);
+        let unsound: Vec<(&str, &str)> = patterns
+            .iter()
+            .flat_map(|r| patterns.iter().map(move |s| (r.as_str(), s.as_str())))
+            .filter(|(r, s)| {
+                replaced_covers(r, s)
+                    && channels
+                        .iter()
+                        .any(|c| channel_matches(s, c) && !channel_matches(r, c))
+            })
+            .collect();
+        for case in [("**", "*"), ("a**", "a*"), ("b**", "b*"), ("***", "**")] {
+            assert!(
+                unsound.contains(&case),
+                "{case:?} should be a counterexample"
+            );
+        }
+    }
+
+    /// The Kani pattern domain must contain a counterexample to the replaced
+    /// rule, or the harnesses cannot tell the two rules apart. Its first eight
+    /// selectors are the grammar the harnesses used before; that grammar has
+    /// no `*` before the final byte and none of the replaced rule's
+    /// counterexamples. The two added patterns, `**` and `a**`, do.
+    #[test]
+    fn the_kani_pattern_domain_separates_the_replaced_rule() {
+        let pattern = crate::kani_claims_domain::pattern;
+        let channels: Vec<&str> = (0..=u8::MAX)
+            .map(crate::kani_claims_domain::channel)
+            .collect();
+        let unsound_within = |selectors: std::ops::Range<u8>| {
+            let mut found = Vec::new();
+            for r in selectors.clone() {
+                for s in selectors.clone() {
+                    let (root, sub) = (pattern(r), pattern(s));
+                    if replaced_covers(&root, &sub)
+                        && channels
+                            .iter()
+                            .any(|c| channel_matches(&sub, c) && !channel_matches(&root, c))
+                    {
+                        found.push((root, sub));
+                    }
+                }
+            }
+            found
+        };
+        assert!(unsound_within(0..8).is_empty());
+        let widened = unsound_within(0..10);
+        assert!(widened.contains(&("**".to_string(), "*".to_string())));
+        assert!(widened.contains(&("a**".to_string(), "a*".to_string())));
+        // The fixed rule is sound over the same domain.
+        for r in 0..10 {
+            for s in 0..10 {
+                let (root, sub) = (pattern(r), pattern(s));
+                if channel_pattern_covers(&root, &sub) {
+                    for c in &channels {
+                        assert!(!channel_matches(&sub, c) || channel_matches(&root, c));
+                    }
+                }
             }
         }
     }

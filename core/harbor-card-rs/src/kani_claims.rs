@@ -74,7 +74,8 @@ fn cap() -> CapabilityEntry {
 
 /// One decoded grant, the finite grammar above, arbitrary u64/absent ceilings,
 /// and arbitrary i64 timestamps. Acceptance is conditional on authentication;
-/// the requested operation is pub or sub and the channel is a concrete name.
+/// the requested operation is pub or sub and the channel is a concrete name
+/// from `kani_claims_domain::channel` (which includes `*` and `a*` as names).
 #[kani::proof]
 #[kani::unwind(16)]
 fn proof_decoded_channel_authority() {
@@ -82,21 +83,17 @@ fn proof_decoded_channel_authority() {
     let mut c = claims(2, iat, exp, None);
     c.cap.push(cap());
     let requested_op = if kani::any() { "pub" } else { "sub" };
-    let channel = match kani::any::<u8>() % 6 {
-        0 => "",
-        1 => "a",
-        2 => "ab",
-        3 => "aba",
-        4 => "b",
-        _ => "ba",
-    };
+    let channel = kani_claims_domain::channel(kani::any());
     let policy_ok = validate_decoded_claims(&c, now).is_ok();
     let grant = capability_matches(&c.cap, requested_op, channel);
+    // Enumerated by hand over the eight channels, independently of the matcher.
     let channel_ok = match c.cap[0].channel.as_str() {
         "*" => true,
-        "a*" => matches!(channel, "a" | "ab" | "aba"),
+        "a*" => matches!(channel, "a" | "ab" | "aba" | "a*"),
         "ab*" => matches!(channel, "ab" | "aba"),
         "b*" => matches!(channel, "b" | "ba"),
+        "**" => channel == "*",
+        "a**" => channel == "a*",
         literal => literal == channel,
     };
     let expected = (c.cap[0].op == "admin" || c.cap[0].op == requested_op) && channel_ok;
@@ -115,10 +112,23 @@ fn proof_decoded_channel_authority() {
     );
 }
 
+/// Does every (op, channel) request `child` grants also succeed against `parent`?
+fn grants_within(
+    parent: &[CapabilityEntry],
+    child: &[CapabilityEntry],
+    op: &str,
+    channel: &str,
+) -> bool {
+    capability_matches(child, op, channel).is_none()
+        || capability_matches(parent, op, channel).is_some()
+}
+
 /// Two delegations, one structured grant at each hop, the finite operation and
 /// pattern grammar above, and arbitrary u64/absent ceilings. The proof checks
-/// transitivity of the existing structured subset predicate, not a deployed
-/// signed-chain verifier (the crate does not implement one).
+/// transitivity of the existing structured subset predicate, and that every
+/// subset it accepts grants no request its parent refuses, for any operation
+/// and any channel in the domain. It is not a deployed signed-chain verifier
+/// (the crate does not implement one).
 #[kani::proof]
 #[kani::unwind(16)]
 fn proof_decoded_delegation_two_hops() {
@@ -129,6 +139,20 @@ fn proof_decoded_delegation_two_hops() {
     let second = verify_capability_subset_structured(&child, &leaf);
     let direct = verify_capability_subset_structured(&root, &leaf);
     assert!(!(first && second) || direct);
+    let requested_op = kani_claims_domain::operation(kani::any());
+    let channel = kani_claims_domain::channel(kani::any());
+    assert!(
+        !first || grants_within(&root, &child, &requested_op, channel),
+        "attenuated grant stays inside its parent"
+    );
+    assert!(
+        !second || grants_within(&child, &leaf, &requested_op, channel),
+        "attenuated grant stays inside its parent"
+    );
+    assert!(
+        !direct || grants_within(&root, &leaf, &requested_op, channel),
+        "attenuated grant stays inside its parent"
+    );
     if first && second {
         if let Some(ceiling) = root[0].rate_per_min {
             assert!(

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run two deliberately broken copies; neither may pass its actual harness.
+"""Run three deliberately broken copies; none may pass its actual harness.
 
 Mutants live under the crate's excluded .cache directory. Production sources are never
 modified. A compile error or resource failure is not a successful negative control.
@@ -29,6 +29,16 @@ MUTANTS = [
         "(Some(_r), Some(_s)) => true,",
         "proof_decoded_delegation_two_hops",
         "rate ceiling preserved",
+    ),
+    # The pattern-cover rule before the fix compared the root prefix with the
+    # sub-pattern's spelling, so `**` covered `*` and `a**` covered `a*`. The
+    # widened pattern domain must find that, or it cannot tell the rules apart.
+    (
+        "covers-spelling-prefix",
+        "let reached = sub_pattern.strip_suffix('*').unwrap_or(sub_pattern);",
+        "let reached = sub_pattern;",
+        "proof_decoded_delegation_two_hops",
+        "attenuated grant stays inside its parent",
     ),
 ]
 

@@ -596,7 +596,8 @@ jobs:
   # The signed-token path and the harness share validate_decoded_claims.
   # The finite capability grammars and list/hop bounds are explicit in
   # src/kani_claims.rs. CI requires reachable acceptance AND rejection paths,
-  # then checks that removing expiry/ceiling checks produces counterexamples.
+  # then checks that removing expiry/ceiling checks, or restoring the replaced
+  # pattern-cover rule, produces counterexamples.
   kani-harbor-card:
     if: github.event_name != 'merge_group' && github.event_name != 'schedule'
     name: Kani / harbor-card-rs (decoded claims and attenuation)

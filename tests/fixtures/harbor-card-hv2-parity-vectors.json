@@ -167,6 +167,54 @@
       "name": "literal-star-channel-matched-by-equality",
       "required_channel": "a*",
       "required_op": "pub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "**",
+          "op": "sub"
+        }
+      ],
+      "expected_match": true,
+      "name": "double-star-matches-channels-starting-with-a-star",
+      "required_channel": "*x",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "**",
+          "op": "sub"
+        }
+      ],
+      "expected_match": false,
+      "name": "double-star-refuses-a-plain-channel",
+      "required_channel": "x",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "a**",
+          "op": "sub"
+        }
+      ],
+      "expected_match": true,
+      "name": "inner-star-is-a-literal-byte-hit",
+      "required_channel": "a*b",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "a**",
+          "op": "sub"
+        }
+      ],
+      "expected_match": false,
+      "name": "inner-star-is-a-literal-byte-miss",
+      "required_channel": "ab",
+      "required_op": "sub"
     }
   ],
   "card_vectors": [
@@ -570,6 +618,118 @@
             "channel": "*",
             "op": "pub",
             "rate_per_min": 10
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "double-star-does-not-cover-star",
+        "root": [
+          {
+            "channel": "**",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "*",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "a-double-star-does-not-cover-a-star",
+        "root": [
+          {
+            "channel": "a**",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "a*",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "b-double-star-does-not-cover-b-star",
+        "root": [
+          {
+            "channel": "b**",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "b*",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "triple-star-does-not-cover-double-star",
+        "root": [
+          {
+            "channel": "***",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "**",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": true,
+        "name": "star-covers-double-star",
+        "root": [
+          {
+            "channel": "*",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "**",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": true,
+        "name": "a-star-covers-a-double-star",
+        "root": [
+          {
+            "channel": "a*",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "a**",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": true,
+        "name": "a-double-star-covers-a-star-b-glob",
+        "root": [
+          {
+            "channel": "a**",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "a*b*",
+            "op": "pub"
           }
         ]
       }
