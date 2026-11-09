@@ -3,6 +3,7 @@
 % the reachable-future theorem, its boundary and its exercise pointer.
 
 \subsection{Principal-tagged commitments}\label{sec:he-principal-commitments}
+\pdstatus{\Designed}{tagging and the deletion filter are specified, not implemented}
 
 The checker above takes one policy set. In a shared harbor several people
 issue commitments into it. Bob forbids migrations during a release freeze;
@@ -12,13 +13,14 @@ is metadata. It adds no atom and changes no clause of the conflict definition.
 Write $P=P_1\uplus\cdots\uplus P_M$ for the tagged union of the principals'
 accepted sentences.
 
-\Designed{} The tagging and the deletion filter below are specified here;
-neither is implemented. \pdchapref{ls}{The Legible Swarm} uses the blame set
-to route escalations%
+When the tagged set is in conflict, a blame set, as defined in
+\pdchapref{ls}{The Legible Swarm}%
 \ifpdbook
 \ (\S\ref{ls:sec:ls-many-authors})%
 \fi
-.
+, is a set of principals whose commitments together cause the conflict,
+with no member redundant; the deletion filter below finds one. That chapter
+uses the blame set to route escalations.
 
 \begin{pdclaim}{Theorem}{Principal-Tagged Detection and Minimal Blame}
 \setlength{\parskip}{4pt plus 1pt}
@@ -108,8 +110,8 @@ takes linear time.
 Each person's commitments make sense on their own; the clash lives only in the
 combination, and finding a compatible choice is as hard as satisfiability.
 The practical remedy is the one already given for one principal: bounded
-search that returns a checkable selection, or a timeout that refuses admission
-and attaches what the search found.
+search that returns a checkable selection, or a timeout on which the admission
+check refuses and attaches what the search found.
 
 Prohibitions behave better than obligations.
 
@@ -139,18 +141,56 @@ clause (ii) cannot hold; without claims clause (iii) cannot; and an empty
 deadline graph has no cycle.
 \end{proof}
 
-Admitting a new prohibition from anyone therefore needs only an index lookup
-against the obligations fired on the same action, at the current facts and at
-each maximal member of the declared reachable family. A new fact, Horn rule,
-obligation, claim or deadline needs the full check, because it can fire or meet
-anyone's rules. The theorem does not say that prohibitions are harmless. They
-can forbid every way to discharge an obligation, which is a clause-(ii) clash
-and is caught. They can also forbid so much that nothing useful remains
-admissible, a failure of progress that this fragment does not call a conflict.
+The admission check for a new prohibition from anyone therefore needs only an
+index lookup against the obligations fired on the same action, at the current
+facts and at each maximal member of the declared reachable family. A new fact,
+Horn rule, obligation, claim or deadline needs the full check, because it can
+fire or meet anyone's rules.
+\pdscope{The theorem does not say that prohibitions are harmless.}
+They can forbid every way to discharge an obligation, which is a clause-(ii)
+clash and is caught. They can also forbid so much that nothing useful remains
+allowed, a failure of progress that this fragment does not call a conflict.
+
+\begin{pdexample}{One Running Case Through the Section's Theorems}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. Bob files a release freeze,
+$\mathsf F(\texttt{migrate},\{\texttt{db:prod}\},[0,48])$. Alice files
+$\texttt{schema\_approved}\to\mathsf O(\texttt{migrate},\{\texttt{db:prod}\},[24,30])$.
+Today \texttt{schema\_approved} is not a fact, so the batch check passes.
+
+\emph{Reachable futures} (Theorem~\ref{thm:he-reachable-admission}). The
+declared reachable fact sets are $\varnothing$ and
+$\{\texttt{schema\_approved}\}$. The theorem says to check only the largest.
+There the obligation fires and overlaps the freeze on
+$[\max(0,24),\min(48,30)]=[24,30]$, so the daemon refuses Alice's rule now
+rather than when the schema is approved.
+
+\emph{Blame} (Theorem~\ref{thm:he-tagged-blame}). Suppose Alice also issued
+the fact \texttt{schema\_approved}, so the combined set is in conflict. Run the
+deletion filter in the order Bob, then Alice. Without Bob, Alice's set fires an
+obligation and meets no prohibition, so it is conflict-free and Bob stays.
+Without Alice, only Bob's prohibition remains, which is conflict-free, so Alice
+stays. The blame set is $\{\text{Bob},\text{Alice}\}$, found in two checker
+calls, and neither principal conflicts alone.
+
+\emph{Either-or} (Theorems~\ref{thm:deontic-frontier}
+and~\ref{thm:he-joint-frontier}). Let Alice's duty instead be ``migrate, or
+ship behind a feature flag''. Choosing the flag removes the clash, since no
+prohibition names that action. With many such choices from several
+principals, each consistent alone, finding a joint choice is NP-complete in
+general, so the daemon searches with a time limit and refuses on a timeout.
+
+\emph{Prohibitions} (Theorem~\ref{thm:he-prohibitions-compose}). Pike adds
+$\mathsf F(\texttt{deploy},\{\texttt{prod}\},[0,60])$. The daemon looks up the
+obligations fired on \texttt{deploy}, at today's facts and at
+$\{\texttt{schema\_approved}\}$, finds none, and accepts the freeze without a
+full re-check.
+\end{pdexample}
 
 Supervisory control draws a similar line. A specification there may only
-restrict what can happen, as a prefix-closed language, or may also mark
-completions that must stay reachable. Prefix-closed languages are trivially
+restrict what can happen, as a prefix-closed language (one in which every
+prefix of an allowed run is also allowed), or may also mark completions that
+must stay reachable. Prefix-closed languages are trivially
 nonconflicting, while verifying that a synchronous product of an unspecified
 number of components is nonconflicting is
 PSPACE-complete~\pdcite{komenda2016distributed}; many modular supervision
