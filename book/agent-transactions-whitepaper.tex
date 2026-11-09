@@ -467,34 +467,35 @@ The daemon does not need to threaten agents; it offers services that make coordi
 \section{Layer 1: Structural Prevention}\label{sec:structural}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The first layer of trust does not depend on agent reputation or economic incentives. It depends on \emph{walls}: structural authorization checks that reject out-of-scope operations wherever the runtime actually interposes them.
+The first layer of trust does not depend on agent reputation or economic incentives. It depends on authorization checks that refuse an out-of-scope operation before it takes effect, at every point where the runtime actually places such a check.
 
 \subsection{Capability Attenuation}
 
-The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
+The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards, Ed25519-signed tokens that list the operations an agent may perform. What matters here is that a card can be narrowed without contacting the daemon (offline attenuation). When Agent~A delegates to Agent~B, it creates a new card whose permissions are a subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
 
-The capability subset check and the secret-independent comparison are implemented in a \textbf{Rust core} (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani harnesses check that the parser and the comparator cannot panic on bounded symbolic inputs and exercise the subset check on two concrete vectors; the every-hop attenuation property is ProVerif's, in \pdchapref{anchor}{The Anchor Protocol}; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
+The capability subset check and the secret-independent comparison are implemented in a Rust core (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani harnesses check that the parser and the comparator cannot panic on bounded symbolic inputs and exercise the subset check on two concrete vectors; the every-hop attenuation property is ProVerif's, in \pdchapref{anchor}{The Anchor Protocol}; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
 
 For the checkout repair, a grant may permit tests and payment-module writes
-while excluding deployment. Wren's unrelated migration is refused only if its
-actuator verifies the grant before committing. A direct unmediated shell write
-is the counterexample: valid token issuance alone cannot stop it. The
-definition below names the complete-mediation property needed for the theorem.
+while excluding deployment. Wren's unrelated migration is refused only if the
+component that performs the write checks the grant before committing it. A
+shell write that bypasses that component goes through, however valid the
+tokens. The definition below states what the theorem needs: every operation
+passes through the check (complete mediation).
 
 \begin{definition}[Capability-Bounded Transaction]\label{def:cap-txn}
-\Designed{} This defines the execution property required by the scope theorem.
+\pdstatus{\Designed}{the execution property the scope theorem requires}
 \setlength{\parskip}{4pt plus 1pt}
 An agent transaction $\mathcal{T}_\alpha$ is capability-bounded by token $\tau_\alpha$ if every operation $o$ executed during $\mathcal{T}_\alpha$ satisfies $o \in C(\tau_\alpha)$, where $C(\tau)$ extracts the capability set from a Harbor Card.
 
 The commons authority rejects any operation $o \notin C(\tau_\alpha)$ at the verification step, before the operation can affect shared state.
 \end{definition}
 
-We reuse Anchor's attenuation relation: each child's authorized operations
-and validity interval must lie within its parent's. Here the mathematical
-step is transitivity of those inclusions. Anchor's model checks and runtime
-conformance evidence retain their stated bounds; they do not make every
-filesystem operation pass through a verifier. The theorem therefore names
-complete mediation as a separate premise.
+We reuse Anchor's attenuation relation, under which a child card's
+operations and validity interval lie within its parent's. The only
+mathematical step here is that these inclusions chain. Anchor's model checks
+and conformance tests keep their stated bounds and do not route every
+filesystem operation through a verifier, so the theorem states complete
+mediation as a separate premise.
 
 % Keep the opening authorization premise and its inclusion chain together.
 \Needspace{15\baselineskip}
@@ -515,25 +516,25 @@ The Anchor model establishes a non-injective authentication correspondence for a
 \end{proof}
 
 \begin{remark}
-This is the layer where the metaphor of ``walls, not laws'' applies. A law says ``you shall not write to the production database.'' A wall means your token is not valid for production database writes, and no amount of intent---good or bad---can change that. The wall is the correctly interposed verifier and actuator, not the token
-alone. Its construction and continuing coverage are security obligations.
+A rule saying ``do not write to the production database'' works only if the agent obeys it. A token that is not valid for production writes, checked on every write path, works whatever the agent intends: the write is refused. The protection comes from the verifier and the component that performs the write, correctly placed, and not from the token
+alone. Building that check and keeping it on every path are security obligations.
 \end{remark}
 
 \pdexercisepointerone{\ref{ex:bonded-cap-attenuation}}{\pageref{ex:bonded-cap-attenuation}}
 
 \subsection{Isolation Domains}\label{sec:isolation}
 
-Beyond capability tokens, git worktrees provide separate working directories
-for ordinary edits. The following arrangements distinguish claim reporting
-from that separation.
+Git worktrees give each agent its own working directory for ordinary edits.
+The three arrangements below separate reporting overlapping claims from
+keeping working directories apart.
 
 \begin{definition}[Isolation Levels]\label{def:isolation}
-\Designed{} These are editing arrangements, not access-control boundaries.
+\pdstatus{\Designed}{}
 \setlength{\parskip}{4pt plus 1pt}
-Three arrangements are distinguished:
+Three editing arrangements are distinguished; none is an access-control boundary:
 \begin{description}[nosep]
   \item[$I_0$ (None):] Agents share a working directory without claim-overlap reporting; ordinary edits affect the same files.
-  \item[$I_1$ (Advisory):] Agents share a working directory but register file claims with the commons authority. Overlapping claims are reported; writes are not blocked. This is the declared default.
+  \item[$I_1$ (Advisory):] Agents share a working directory but register file claims with the commons authority. Overlapping claims are reported; writes are not blocked. A claim of this kind is called advisory. This is the declared default.
   \item[$I_2$ (Structural):] Each agent operates in a separate git worktree. Distinct working directories separate ordinary edits. They do not prevent
 same-user processes from accessing another worktree, and Git metadata and
 external services may still be shared. Integration conflicts remain possible.
@@ -552,12 +553,11 @@ the separate question of when file claims should block writes.
 \subsection{Runtime Invariant Enforcement}
 Protocol analysis and runtime enforcement answer different questions.
 Anchor's symbolic models analyze token authenticity and attenuation under
-their stated bounds. The runtime Arbiter checks selected transitions; its
-coverage depends on the hooks and ledger dependencies actually connected.
-For example, an escrow check cannot inspect a bond ledger that was not wired
-in. An after-the-fact alert may preserve evidence or trigger recovery but
-cannot retroactively prevent the effect. The following distinction determines
-where each mechanism belongs.
+their stated bounds. The runtime Arbiter checks selected transitions, and it sees only what its
+hooks and ledgers are actually connected to. For example, an escrow check
+cannot inspect a bond ledger that was never connected to it. An alert after
+the fact may preserve evidence or start recovery but cannot undo the effect.
+The distinction below says which mechanism belongs where.
 
 % SUBMISSION-SKILL: naming conflict --- "regimentation" vs. "enforcement" is an
 % established term-of-art pair in normative multi-agent systems (Jones and
@@ -565,20 +565,24 @@ where each mechanism belongs.
 % at all, while enforcing a norm means a violation can occur and is sanctioned
 % after detection. That is exactly the pre-commit/post-commit distinction drawn
 % below. Resolved here by adopting and citing rather than silently coining.
-\paragraph{Regimentation vs. Enforcement (OP-2).}
-A deterministic local guard is a sufficient way to implement
-pre-commit \emph{regimentation}, in Jones and Sergot's sense: the mediated
-violation is refused before its effect~\pdcite{jonessergot1993regimentation}.
-This requires complete mediation and an atomic check-and-commit; merely
-observing a transition afterwards is \emph{enforcement}.
-External I/O does not determine which category applies. An operation may
-remain pending while a remote authority issues an authenticated permit bound
-to its payload, resource version, expiry, and authorization epoch. A local
-admission step verifies that binding before committing, and a timeout refuses
-admission. This can preserve safety at an availability cost. Where evidence
-arrives only after an irreversible effect, detection and compensation are
-the available mechanisms. Figure~\ref{fig:bonded-regiment-boundary} contrasts
-these admission and recovery paths.
+\paragraph{Prevention and enforcement.}
+There are two ways to make a rule stick. The first is prevention, which Jones
+and Sergot call \emph{regimentation}~\pdcite{jonessergot1993regimentation}.
+The forbidden action cannot happen, because a checker sees every attempt and
+refuses it before anything changes. That needs every attempt to pass through
+the checker, and the check and the change to happen as one indivisible step.
+The second is \emph{enforcement}. The action can happen, and someone notices
+afterwards and responds. Watching a change after the fact is enforcement,
+however fast the watcher is; \pdchapref{swk}{The Single-Writer Kernel} draws
+this boundary formally. Calling an outside system does not by itself decide
+which kind you have. An operation can wait for a signed permit from a remote
+authority, bound to its payload, resource version, expiry and authorization
+epoch, and the local admission check (the guard that decides whether a
+proposed change takes effect) can verify that permit before committing; a
+timeout refuses the change. That is still prevention, at the cost of waiting.
+But when the deciding evidence arrives only after an irreversible effect, all
+you can do is detect it and compensate.
+Figure~\ref{fig:bonded-regiment-boundary} sets the two paths side by side.
 
 \input{figures/fig-bonded-regiment-boundary}
 
@@ -587,17 +591,19 @@ these admission and recovery paths.
 % ═══════════════════════════════════════════════════════════════════════════════
 
 Pike may hold permission to edit a test file and still violate Bob's
-acceptance rule by deleting the regression. Scope checks alone do not judge
-that permitted edit. The evidence layer must bind the actual diff, the test
-version and the responsible principal so that settlement can inspect them.
-Its guarantee covers faithfully captured effects and retained records.
+acceptance rule by deleting the regression. The scope layer answers ``was this
+edit allowed?'' It cannot answer ``did this allowed edit break the deal?'' To
+settle that, the adjudicator needs a record of exactly which diff the session
+made, against which version of the test, under which principal, and proof that
+the record was not changed afterwards. That guarantee covers only effects that
+were captured faithfully and records that were kept.
 
 \subsection{The Evidence Chain}
 
-Every agent session maintains an \textbf{append-only note trail}---a sequence of timestamped records of observations, decisions, and progress.
+Every agent session keeps an \pdterm{evidence trail}, a sequence of timestamped notes recording its observations, decisions and progress. Notes can be added to the trail but never changed.
 
 \begin{definition}[Evidence Trail]\label{def:evidence}
-\Designed{} This retention contract excludes administrative deletion, which is discussed separately below.
+\pdstatus{\Designed}{administrative deletion is treated separately below}
 \setlength{\parskip}{4pt plus 1pt}
 An evidence trail $N = \langle n_1, n_2, \ldots, n_k \rangle$ is an ordered sequence of notes where:
 \begin{enumerate}[nosep]
@@ -626,10 +632,10 @@ By code inspection of the session module: the note insertion API performs only \
 
 \subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
 
-For high-assurance environments and for fleets spanning multiple daemons, the evidence trail is strengthened to a three-level \textbf{Merkle Forest}. The single-daemon Merkle chain---each note hashing the previous, with a per-session root---is necessary but not sufficient: the moment two daemons exist, an auditor without database access still needs to verify that a particular note was included in a particular session using only a short proof.
+Where the stakes are high, or a fleet spans several daemons, the evidence trail is strengthened into a three-level \pdterm{Merkle forest}. Inside one daemon, chaining each note's hash to the previous one, with a root per session, makes tampering visible. Once there are two daemons, an auditor without database access must also be able to check, from a short proof, that a particular note belongs to a particular session.
 
 \begin{definition}[Merkle Forest]\label{def:merkle-forest}
-\Designed{} This is the proposed commitment structure; its verification and implementation evidence have separate scopes.
+\pdstatus{\Designed}{verification and implementation are recorded separately}
 \setlength{\parskip}{4pt plus 1pt}
 The evidence structure has three levels:
 \begin{description}[nosep]
@@ -644,18 +650,43 @@ The session's note commitment is $h_k$, the hash of the last note.
 The collection $\{R_{\text{harbor},\ell}\}_{\ell}$ is the \emph{Merkle forest}: one tree per epoch.
 \end{definition}
 
+\begin{pdexample}{Following a deleted test through the trail}
+This is a constructed example. Pike's session \texttt{s-41} records four
+notes: $n_1$ ``claim \texttt{tests/checkout.spec.ts}'', $n_2$ ``diff: delete
+test \texttt{checkout\_regression}'', $n_3$ ``tests pass 41/41'' and $n_4$
+``handoff''. The hashes chain: $h_1=H(n_1)$, $h_2=H(n_2 \| h_1)$,
+$h_3=H(n_3 \| h_2)$ and $h_4=H(n_4 \| h_3)$. Suppose someone
+later changes $n_2$ to ``diff: refactor helper''. Then $h_2$, $h_3$ and $h_4$
+all change, so the session root changes, so the epoch-9 harbor root that the
+daemon signed at 15:00 no longer matches, and Bob's adjudicator rejects the
+record.
+
+To prove that $n_2$ is in the record, the daemon gives Bob two sibling hashes
+(a tree of four notes has two levels), the session's path in the harbor tree,
+and the signed root. Bob recomputes the root and compares it with the signed
+one.
+
+The proof has limits. It shows that $n_2$ was recorded in \texttt{s-41} at
+epoch~9. It does not show that $n_2$ describes the real diff; for that, the
+diff itself must pass through the checked write path. An administrator can
+still delete \texttt{s-41} outright (CASCADE), and that deletion is logged.
+So the trail is append-only through the API: notes can be added, never edited
+or removed one at a time.
+\end{pdexample}
+
 Figure~\ref{fig:bonded-merkle-forest} follows the inclusion check: start with
 the note hash, reconstruct its session root, then reconstruct the harbor root
-and check the daemon's signature. This proves inclusion, not that the note is
-true. The byte calculation follows the figure.
+and check the daemon's signature. This shows that the note was recorded; it
+does not show that the note is true. The byte calculation follows the figure.
 
 \input{figures/fig-bonded-merkle-forest}
 
-\paragraph{Inclusion proofs.} To prove that note $n_i$ from session $s$ belongs to harbor $h$ at epoch $\ell$, the daemon emits: (i) the note inclusion path of size $O(\log k)$, (ii) the session inclusion path of size $O(\log N)$ where $N$ is the number of settled sessions in the epoch, and (iii) the signed harbor root $\sigma_{\text{daemon}}(R_{\text{harbor},\ell})$. For $k=100$ notes and $N=10^{4}$ sessions, the two binary paths contain $\lceil\log_2 100\rceil+\lceil\log_2 10^4\rceil=7+14=21$ sibling hashes. At 32 bytes per SHA-256 hash plus one 64-byte Ed25519 signature, the proof is $21\times32+64=736$ bytes, about $0.7$ KiB---small enough to embed in any settlement receipt.
+\paragraph{Inclusion proofs.} An \pdterm{inclusion proof} is the short list of hashes, with a signed root, that lets anyone check that one note belongs to the record. To prove that note $n_i$ from session $s$ belongs to harbor $h$ at epoch $\ell$, the daemon emits: (i) the note inclusion path of size $O(\log k)$, (ii) the session inclusion path of size $O(\log N)$ where $N$ is the number of settled sessions in the epoch, and (iii) the signed harbor root $\sigma_{\text{daemon}}(R_{\text{harbor},\ell})$. For $k=100$ notes and $N=10^{4}$ sessions, the two binary paths contain $\lceil\log_2 100\rceil+\lceil\log_2 10^4\rceil=7+14=21$ sibling hashes. At 32 bytes per SHA-256 hash plus one 64-byte Ed25519 signature, the proof is $21\times32+64=736$ bytes, about $0.7$ KiB---small enough to embed in any settlement receipt.
 
-A verifier needs an authenticated checkpoint as well as a path.
-Figure~\ref{fig:bonded-inclusion-check} separates these checks in a four-record
-example. A matching hash alone does not establish who committed to the root.
+A verifier needs a signed checkpoint as well as a path, because a matching
+hash alone does not show who committed to the root.
+Figure~\ref{fig:bonded-inclusion-check} separates these checks in a
+four-record example.
 
 \input{figures/fig-bonded-inclusion-check}
 
@@ -665,7 +696,7 @@ ordered pair, using distinct domain tags. The signed checkpoint must also
 identify the intended tree and its size. The drawing omits wire-format
 details; the two-level forest applies the path calculation at each level.
 
-\paragraph{Witness to an abstract KMS.} Each $R_{\text{harbor},\ell}$ is uploaded as a \textbf{witness} to a Key Management Service satisfying the properties enumerated in \S\ref{sec:federated-sovereign}. The KMS enforces append-only monotonicity and periodically publishes a signed tree head, in the Certificate Transparency pattern~\pdcite{laurie2013ct}. Equivocation---publishing different roots for the same epoch to different parties---is detectable by auditors performing consistency proofs across tree heads.
+\paragraph{Witness to an abstract KMS.} Each $R_{\text{harbor},\ell}$ is also sent to a key management service (KMS) with the properties listed in \S\ref{sec:federated-sovereign}, which keeps it as a witness: an independent copy that can only grow. The KMS accepts roots only in order and periodically publishes a signed summary of everything it holds (a signed tree head), as in Certificate Transparency~\pdcite{laurie2013ct}. A daemon that shows different roots for the same epoch to different parties (equivocation) can then be caught by auditors who check that successive tree heads are consistent.
 
 \begin{pdclaim}{Design invariant}{Proof Soundness}
 \setlength{\parskip}{4pt plus 1pt}
@@ -690,12 +721,12 @@ for $N$ session roots and logarithmic inclusion paths. Incremental accumulation
 can amortize append work. No measured latency for the complete forest is
 supplied here; the hash count does not justify a millisecond estimate.
 
-This is the structural meaning of ``decentralized verification'' in this chapter: bonded commons evidence is not just append-only within a daemon, it is verifiable \emph{across} daemons by any party with the daemon's public key and the authenticated checkpoint and the stated inclusion proof; the $736$-byte
+That is what decentralized verification means in this chapter. Evidence is append-only within a daemon, and anyone holding the daemon's public key, a signed checkpoint and an inclusion proof can check it from outside that daemon. The $736$-byte
 calculation excludes serialization and context metadata.
 
 \subsection{Mutable-Signal Ledger (Pheromone Lineage)}\label{sec:pheromones}
 
-Stigmergic coordination originated in biology, where pheromones are accumulate-only: ants deposit, the environment evaporates~\pdcite{theraulaz1999stigmergy}. Software agents need a richer model. Coordination signals must be \emph{revocable, renamable, and provenance-attributable} as understanding of the work evolves---an agent that deposited a hint and later realized the hint was wrong needs a way to retract it that preserves attribution rather than erasing it.
+Stigmergy, coordination through marks left in a shared environment, comes from biology. There pheromones only accumulate: ants deposit them and they evaporate~\pdcite{theraulaz1999stigmergy}. Software agents need more. An agent that left a hint and later found it wrong must be able to retract it while keeping the record of who left it and who retracted it. Signals must therefore be revocable, renamable and traceable to their author.
 
 For example, choose decay $S2^{-u/h}$ with strength $S=8$ and half-life
 $h=10$ minutes. After twenty minutes the view is $2$. A revocation then
@@ -705,7 +736,7 @@ rule before replay is deterministic; a timestamp alone is not that rule.
 The zero view and the retained evidence have different jobs.
 
 
-\paragraph{Event-sourced pheromones.} Each entity's pheromone state is a view over an append-only event ledger. For entity $e$ and key $k$:
+\paragraph{Event-sourced pheromones.} Each entity's pheromone state is a view, a value computed from an append-only ledger of events. For entity $e$ and key $k$:
 \[
 \sigma_t(e,k) \;=\; \mathrm{decay}(S, t - t_0)\;\cdot\;\mathbb{1}\bigl[\text{not revoked or expired in }(t_0, t]\bigr],
 \]
@@ -731,22 +762,22 @@ Revocation does not erase.
 The event ledger is monotone: the cardinality of the event set only grows.
 \end{pdclaim}
 
-\paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and revocations are therefore transparent to witnesses without erasing any prior state. The mutable surface is the \emph{view}; the underlying ledger is append-only.
+\paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and witnesses therefore see revocations without any earlier state being erased. What changes is the \emph{view}; the ledger beneath it is append-only.
 
-This dual---mutable view, append-only substrate---is what lets coordination signals evolve without compromising the evidentiary guarantees the rest of the chapter depends on.
+Because the view can change while the ledger only grows, signals can be revised without weakening the evidence the rest of the chapter relies on.
 
 \subsection{Attribution Survives Identity Disposal}\label{sec:attribution-survives}
 
-A critical property: even if an agent's identity is discarded after task completion, the \textbf{authorization chain} traces every action back to the authorizing principal. The chain is:
+Even if an agent's identity is discarded when its task ends, the \pdterm{authorization chain}, the signed sequence from the funding principal to the acting agent, traces every action back to the principal that authorized it:
 \[
 \begin{aligned}
 \text{Principal} &\xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha\\
 &\xrightarrow{\text{delegates}} \text{Agent } \beta \xrightarrow{\text{acts}} \text{Evidence Trail}.
 \end{aligned}
 \]
-The agent is ephemeral. The principal's authorization---signed, escrowed, recorded---is permanent. For completely mediated and faithfully recorded actions, this chain identifies
-the authorizing principal and collateral. It does not attribute an unobserved
-write or prove that a signed statement is true; \S\ref{sec:pricing:threats} draws the corresponding line for harm from \emph{disclosure}, which this chain does not cover.
+The agent is short-lived. The principal's authorization is signed, backed by escrow and recorded, and it stays. For actions that passed through the check and were recorded faithfully, this chain identifies
+the principal and the collateral behind them.
+\pdscope{The chain cannot attribute a write nobody observed or make a signed statement true, and it does not cover harm from disclosure (\S\ref{sec:pricing:threats}).}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The Limits of Decisive Allocation}\label{sec:sen}
