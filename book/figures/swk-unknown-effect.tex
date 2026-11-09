@@ -17,12 +17,12 @@
   }
   \draw[pd guide] (10.0,-.75)--(10.0,-3.75);
   \draw[pd arrow] (.9,-.95)--(5.7,-.95);
-  \node[pd direct label,anchor=south] at (3.3,-.53) {submit $K$};
+  \node[pd direct label,anchor=south] at (3.3,-.53) {submit $k$};
   \draw[pd caution rule] (.7,-1.65)--(1.1,-2.05)
                          (.7,-2.05)--(1.1,-1.65);
   \node[pd direct label,anchor=west] at (1.35,-1.48) {timeout};
   \draw[pd arrow] (.9,-2.75)--(10.0,-2.75);
-  \node[pd direct label,anchor=south] at (3.25,-2.36) {query status for $K$};
+  \node[pd direct label,anchor=south] at (3.25,-2.36) {query status for $k$};
   \draw[pd focus arrow] (10.0,-3.55)--(.9,-3.55);
   \node[pd direct label,anchor=south] at (8,-3.35) {status evidence};
   \draw[pd rule] (0,-3.98)--(11.2,-3.98);
@@ -43,7 +43,7 @@
 queries an operation-specific authoritative status before deciding whether to
 record a receipt, retry under a proved idempotent boundary, or preserve an
 unresolved outcome. An absence result permits retry only when the authority excludes a late
-commit for $K$; the drawing does not make unbrokered delivery exactly once
+commit for $k$; the drawing does not make unbrokered delivery exactly once
 [internal].}
 \label{fig:swk-unknown-effect}
 \end{figure}
