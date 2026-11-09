@@ -461,6 +461,17 @@ jobs:
       - name: Banned phrases ("held to account", "load-bearing") never appear in prose
         run: node scripts/lint/check-banned-phrases.mjs
 
+      - name: Define-before-use lint unit tests
+        run: node --test scripts/lint/check-book-terms.test.mjs
+
+      # Advisory while the chapters are rewritten against \pdterm and their
+      # glossaries land: the report is the work list (a term used before its
+      # \pdterm, a term defined twice, a \pdterm with no glossary entry, an
+      # entry with no \pdterm), printed in full, and it does not block. Promote
+      # it by adding --strict and dropping continue-on-error once it is clean.
+      - name: Book terms are defined before their first use (advisory)
+        continue-on-error: true
+        run: node scripts/lint/check-book-terms.mjs
 
       - name: textbook-craft chapter_lint unit tests
         run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v
