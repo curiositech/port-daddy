@@ -2321,8 +2321,9 @@ restores safety [internal, \texttt{c0\_workunit.py}].
 
 W2's guarantee is what the literature calls \pdterm{effectively-once} processing:
 duplicates are removed at the boundary, by an idempotency key plus a unique
-receipt row. The network itself cannot promise more, since true exactly-once
-delivery across an unreliable channel is impossible~\pdcite{helland2007distributed}.
+receipt row. The network itself cannot promise more: a sender that retries until
+it hears back can deliver a message twice, so the receiver has to make a repeat
+harmless, which is Helland's case for idempotent processing~\pdcite{helland2012idempotence}.
 
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker performs a breadth-first
@@ -3938,10 +3939,10 @@ Mike Burrows.
 \newblock The Chubby Lock Service for Loosely-Coupled Distributed Systems.
 \newblock In \textit{Symposium on Operating Systems Design and Implementation (OSDI)}, 2006.
 
-\bibitem{helland2007distributed}
+\bibitem{helland2012idempotence}
 Pat Helland.
-\newblock Life beyond Distributed Transactions: an Apostate's Opinion.
-\newblock In \textit{Conference on Innovative Data Systems Research (CIDR)}, 2007.
+\newblock Idempotence Is Not a Medical Condition.
+\newblock \textit{Communications of the ACM}, 55(5), May 2012.
 
 \bibitem{klein2009sel4}
 Gerwin Klein, Kevin Elphinstone, Gernot Heiser, June Andronick, David Cock, Philip Derrin, Dhammika Elkaduwe, Kai Engelhardt, Rafal Kolanski, Michael Norrish, Thomas Sewell, Harvey Tuch, and Simon Winwood.
