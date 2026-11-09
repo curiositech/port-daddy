@@ -345,6 +345,8 @@ name back to the first, with that chain bound to one accountable owner, the
 principal. Whether a later process is the same person depends on $\kappa$ and
 that owner, not on whether it holds the same role: Heron can move from
 implementing to reviewing without getting a clean history.
+Section~\ref{sec:parfit-lineage-map} fixes the fields of each record and who
+signs it.
 
 The three subsystems of \S\ref{sec:organs} support $\kappa$: memory,
 task-state recovery, and the outcome ledger, each tied to an authenticated
@@ -483,9 +485,24 @@ criterion would let an agent that forgot a debt stop owing it, so the ledger
 keeps Locke's forensic purpose and rejects his criterion
 (\S\ref{sec:stp-consolidation}).
 
+Butler pressed a second objection, and it bears on the ledger more directly.
+Consciousness of personal identity, he wrote, ``presupposes, and therefore
+cannot constitute, personal identity''~\pdcite{butler1736identity}. A
+succession record signed with ``the same key'' runs the same circle: it shows
+continuity only if control of that key already follows the participant, and
+that is the identity in question. The ledger answers by putting the root
+outside the chain. A daemon signs each record
+(\S\ref{sec:parfit-lineage-map}), so the identity rests on that daemon's
+issuance and on trust in the daemon (\S\ref{sec:keystone}), and a copied agent
+key proves nothing by itself.
+
 \subsection{Parfit's repair: continuity, not connectedness}
 
 \pdmarginfigure{parfit}{Parfit argued that personal identity is an overlapping chain of psychological continuity, not a further fact: the shape this chapter gives an agent across spawns.}%
+Reid's objection had an answer before Parfit. Grice proposed in 1941 that two
+states belong to one person when a series of memory links joins them, even if
+no single link spans the pair~\pdcite{grice1941identity}; the general and the
+boy are then one person through the officer. Parfit builds on that chain.
 \textbf{Parfit's repair}~\pdcite{parfit1984} (\textit{Reasons and Persons}, 1984:
 \emph{identity is psychological continuity, an overlapping chain of
 memory/intention connections, which is transitive even when direct connectedness
@@ -533,12 +550,39 @@ one level. This subsection writes the map down and names the three places
 where it breaks.
 
 \pdwrapanalogy[r][0.42\textwidth]{stp-splice-continuity}{The Overlapping Strand}{ch05-continuity-rope-splice}{Like the overlapping strands of a wire rope splice, continuity can persist across successive connections without one strand spanning the whole history.}%
-A small chain makes the engineering relation concrete. Suppose incarnation $x$ signs a permitted succession to $y$, and $y$ signs one to $z$. The direct-successor relation contains $(x,y)$ and $(y,z)$, but need not contain $(x,z)$: direct succession is one step. Its transitive closure, written $\mathsf{succ}^{*}$, records reachability along validated links, including $x$ to $z$. This is the mathematical operation we borrow for lineage. Psychological continuity has richer conditions, including the right causal connections; it is not defined here by signatures.
+A small chain makes the engineering relation concrete. Suppose a validated succession record links incarnation $x$ to $y$, and another links $y$ to $z$. The direct-successor relation contains $(x,y)$ and $(y,z)$, but need not contain $(x,z)$: direct succession is one step. Its transitive closure, written $\mathsf{succ}^{*}$, records reachability along validated links, including $x$ to $z$. This is the mathematical operation we borrow for lineage. Psychological continuity has richer conditions, including the right causal connections; it is not defined here by signatures.
 
 \begin{pdclaim}{Design invariant}{Accountable Lineage Uses Validated Succession}
 \label{inv:parfit-lineage}
 Record each authorized direct succession and use reachability along those records to reconstruct an incarnation's lineage. A shared lineage does not confer duplicate authority, erase a principal's sanctions, or allocate inherited credit: those require the separate rules below. The relation $\mathsf{succ}^{*}$ is directed ancestry, not an equivalence relation asserting that every descendant is the same person.
 \end{pdclaim}
+
+\paragraph{What a succession record holds.}
+\pdstatus{\Designed}{a record format, not built}
+The continuity witness $\kappa$ of Definition~\ref{def:person} is a list of
+succession records, each holding the hash of the one before it. A record names
+the person's account, the predecessor and successor incarnations, the
+principal, the cause of the succession, the hash of the previous record (empty
+for the first) and the daemon's sequence number. Who signs it depends on how
+the predecessor ended:
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+  \item \emph{Handoff.} The predecessor is alive and hands over, as when Alice
+  moves Heron to review or a process restarts because its context is full. The
+  predecessor and the daemon both sign.
+  \item \emph{Crash.} The predecessor cannot sign. The daemon signs alone, and
+  only after the predecessor's body-lease has expired; the record cites that
+  expiry. Heron's first successor was recorded this way.
+  \item \emph{Fork.} One predecessor has several successors. The daemon signs
+  one record per branch, and each record carries the share of credit its
+  branch receives under the allocation rule below.
+  \item \emph{Provider migration.} The old harbor's daemon may be gone. The
+  principal signs, and the receiving daemon countersigns once it has checked
+  the lineage, clause~(i) of Property~\ref{thm:resurrection-soundness}. Across
+  operators that check needs the attestation of \S\ref{sec:keystone}, which is
+  not built.
+\end{itemize}
+Because a daemon signs every record, a copied agent key alone signs nothing
+the ledger accepts.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
@@ -557,8 +601,9 @@ coarser object than Relation~R that happens to be built by the same closure.
 continuous successors) is deliberately left without a determinate answer,
 because for him it shows the question was wrong. A key can sign two
 successors, so the ledger faces the same case and \emph{does} answer it, with
-the \pdterm{no-mint} rule: credit passed to successors is debited in full from
-the source, and each successor receives a discounted share, so splitting a
+the \pdterm{no-mint} rule: the shares a source passes to all its successors
+together come to at most its balance, every share is debited in full from the
+source, and each successor receives a discounted share, so splitting a
 record never creates credit. That answer is a decision, imposed because an
 economy needs the total reputation available to spend never to grow except
 when a new outcome is checked. It is no
@@ -607,13 +652,25 @@ quantities; the sum under each row states which is being counted.
 \setlength{\parskip}{4pt plus 1pt}
 The branching rule of Exercise~\ref{ex:stp-fork-inheritance} has a
 no-mint argument (research-ledger item A6). Treat inheritance as a
-\textbf{transfer}, not a copy. When a share $w$ of a source's
-reputation passes to a successor (a \emph{child}), the child receives
-$\gamma\,w$, here 90\% of the share ($\gamma=0.9$), and the source's balance
-goes down by the full $w$. So the total reputation that all descendants can
-spend never exceeds the value that was actually checked, and that total can
-grow only when a new outcome is checked. (In probability terms, the total is a
-supermartingale under derivation.)
+\textbf{transfer}, not a copy. A source $x$ fixes, for each successor (a
+\emph{child}) $y$, the share $w_{xy}$ of its balance that passes to $y$, with
+\[
+\textstyle\sum_y w_{xy}\le 1 .
+\]
+Child $y$ receives $\gamma\,w_{xy}$ of that balance, here 90\% of its share
+($\gamma=0.9$), and the source's balance goes down by the full
+$\sum_y w_{xy}$. As a fraction of the source's balance, the live total after
+the split is
+\[
+\textstyle\bigl(1-\sum_y w_{xy}\bigr)+\gamma\sum_y w_{xy}
+=1-(1-\gamma)\sum_y w_{xy}\le 1 .
+\]
+So the total reputation that all descendants can spend never exceeds the
+value that was actually checked, and that total can grow only when a new
+outcome is checked: derivation never increases it. The budget is kept per
+pair (source, child) and summed over children. Without the sum, a source that
+gave each of two children $0.9$ of a full share while being debited that share
+once would turn one unit into $1.8$.
 
 The reported randomized sweep of $4{,}000$
 fork DAGs (chains, diamonds, multi-parent merges, re-derivation cycles) shows
@@ -625,7 +682,7 @@ source's $1$ live and gives each fork $0.9$, so one checked unit becomes a live
 total of $1+8\times0.9=8.2$.
 
 A counterexample to local grant budgets alone:
-per-outcome budgets $\sum w \le 1$ without debiting do not conserve live
+per-outcome budgets $\sum_y w_{xy} \le 1$ without debiting do not conserve live
 credit. A full-weight chain at $\gamma=0.9$ is within budget at every hop, yet
 its closure sums to
 \[
@@ -1203,6 +1260,11 @@ No cash deposit is posted in this model: $g_t$ reduces an earning ceiling.
 That does \emph{not} remove a liquidity barrier. A newcomer still needs to pay
 for work and living costs before later earnings arrive. A capital-poor honest
 entrant may decline a schedule that a well-financed attacker can tolerate.
+Such an entrant may also be the less patient party. The theorem does not
+cover that case: with $\delta_h<\delta_f$ the cost of a unit of deterrence,
+$(\delta_h/\delta_f)^t$, falls with $t$, and the same exchange argument fills
+the cap from the last period instead. The cliff's direction comes from the
+premise $\delta_f<\delta_h$.
 
 Two constraints answer different questions. Ex-ante participation requires
 $\sum_{t=0}^T\delta_h^t(\pi_t-g_t-\omega_t)\ge0$, where $\pi_t$ is earnings before
@@ -1570,6 +1632,40 @@ engine is attested and the price schedule passes the quality gap through.
 
 \paragraph{What attestation gives.} Attestation permits a payment rule to distinguish the engine that supplied the work. With full quality pass-through, the model aligns the seller's engine choice with total surplus. Attestation alone does not force that price rule, measure task quality, or establish that providers will adopt it. Cai et al.~\pdcite{cai2025} study model-substitution audits and propose trusted execution environments as a robust verification approach. That evidence concerns whether the engine claim can be checked; the pricing calculation concerns incentives once the claim can be checked.
 
+Theorem~\ref{thm:engine-swap} prices one engine against another. A harbor
+also has to decide what key a sanction is recorded under, and the two keys
+need not be the same.
+
+\begin{lemma}[Scope of prices and sanctions]\label{lem:stp-scope}
+\setlength{\parskip}{4pt plus 1pt}
+\pdstatus{\Designed}{the two necessity claims are argued here; that the pair suffices is checked only in the bounded model of Property~\ref{thm:resurrection-soundness}}
+Take the setting of Theorem~\ref{thm:engine-swap} with the engine attested,
+and a principal that can run work on two engines, A and B.
+\begin{enumerate}[label=(\alph*),leftmargin=2em,itemsep=2pt]
+\item If sanctions are recorded per (principal, engine), the reputation is
+not sanction-respecting in the sense of
+Definition~\ref{def:sanction-respecting}: a principal that cheats on engine A
+and then works through engine B keeps the score its clean continuation on B
+would have had.
+\item If prices are set per principal alone, the swap gain of
+Theorem~\ref{thm:engine-swap}(a) returns.
+\end{enumerate}
+Prices must therefore be keyed at least per (principal, engine), and
+sanctions at least per principal.
+\end{lemma}
+\begin{proof}
+(a) Definition~\ref{def:sanction-respecting} counts every identity through
+which the actor can route work. Take a principal whose clean continuation runs
+on engine B and which produces the dishonest outcome on engine A. A sanction
+recorded under the key of engine A leaves the key of engine B at its clean
+score, so this principal's available score is not lowered and no positive
+$\sigma$ persists. One such actor is enough, since the definition covers every
+actor. (b) A price that
+depends only on the principal gives $p_H=p_L$, so the attested swap gain
+$\Delta c-(p_H-p_L)$ of Theorem~\ref{thm:engine-swap}(b) equals the
+unattested gain $\Delta c>0$.
+\end{proof}
+
 \paragraph{Resurrection that keeps its debts.} The provider hosting an agent shuts down.
 The principal holds a checkpoint and a competitor will run it. Whether the
 resurrected process \emph{is} the same agent is the question this chapter
@@ -1595,14 +1691,10 @@ $\theta_H$ key, its accessible score exceeding even a clean twin's
 (\emph{engine-history shedding}, two steps). Without (iii) in-flight
 obligations land on nobody (\emph{liability stranding}, two steps).
 
-\smallskip\noindent\emph{Scope rule.} Set prices separately for each
-combination of owner (principal) and model engine, and apply penalties to the
-owner, across all its engines. Getting either one wrong opens an escape. If
-penalties were recorded per engine, an agent caught cheating on engine A could
-keep working at full score on engine B under the same name, an escape hatch
-the model checker finds in one step, with no migration involved. If prices were set per
-owner only, buyers would pay the same whichever engine ran, and the incentive
-to swap in the cheap engine (Theorem~\ref{thm:engine-swap}(a)) returns.
+\smallskip\noindent\emph{Scope.} Prices are keyed per (principal, engine)
+and sanctions per principal, as Lemma~\ref{lem:stp-scope} requires. The model
+checker finds the escape of Lemma~\ref{lem:stp-scope}(a) in one step, with no
+migration involved.
 
 \smallskip\noindent\emph{Checked.} Bounded model check of the migration
 protocol: $747$ reachable states to depth $7$ ($467$ of them
@@ -1624,7 +1716,7 @@ counts describe the bounded model, not elapsed recovery time.
 \paragraph{Why sanctions attach to the principal.} Suppose sanctions are
 keyed like prices, per (principal, engine). An agent can violate
 Definition~\ref{def:sanction-respecting} without migrating: work dishonestly
-on one engine key, then act at full score on its sibling. The scope rule
+on one engine key, then act at full score on its sibling. Lemma~\ref{lem:stp-scope}
 blocks this escape by pricing per (principal, engine) and sanctioning per
 principal. The same rule closes
 skill-versioning's escape (a sanctioned \texttt{v1} must not act clean through
@@ -1869,6 +1961,17 @@ Different observations answer different questions. Choose the model for the
 observation and intended decision, then test its assumptions on that task.
 
 \begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Pass/fail signal $\to$ beta-Bernoulli.} For observations such
+  as ``Heron's delivery passed the protected acceptance test,'' the beta
+  reputation system of Jøsang and Ismail~\pdcite{josang2002beta} counts $r$
+  passes and $s$ failures and estimates the chance of the next pass as
+  $(r+1)/(r+s+2)$, the mean of a uniform prior updated by the record. Heron's
+  three passes in four give $4/6=2/3$. The estimate treats outcomes in one
+  declared task class as draws with one fixed success rate; drifting skill or
+  a changing task mix breaks that assumption. A tombstone that retracts one
+  outcome subtracts one from $r$ or $s$, so recomputing this estimate is
+  constant work. Jøsang and Ismail also discount old feedback with a
+  forgetting factor, which is the memory-horizon choice of \S\ref{sec:revoke}.
   \item \textbf{Pairwise / tournament signal $\to$ Bradley--Terry / Elo /
   TrueSkill.} For observations such as ``Heron beat Wren on this task,''
   \textbf{Bradley--Terry}~\pdcite{bradleyterry1952} models pairwise probabilities
@@ -2184,7 +2287,7 @@ on the helpfulness estimate alone.}
 \input{additions/stp-skill-attribution}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The grading oracle's incentive-compatibility}\label{sec:oracle}
+\section{The grading oracle's deterrence condition}\label{sec:oracle}
 % ═════════════════════════════════════════════════════════════════════════════
 
 
@@ -2274,7 +2377,13 @@ the expected-forfeiture inequality
   \qquad\Longleftrightarrow\qquad
   \rho \;\ge\; \rho^\star \;=\; \frac{G_k}{d\,B},
 \]
-which is Becker's condition, and note that the detector term $d$ belongs in it: the
+which is Becker's condition. It assumes the \pdterm{keep-gain convention} of
+settlement: a caught judge forfeits $B$ but keeps the gain $G_k$. A settlement
+that also claws the gain back needs a lower rate. \pdchapref{he}{The Harbor
+Economy} states the condition as a theorem%
+\ifpdbook\ (Theorem~\ref{he:prop:becker-deterrence})\fi\ and compares the two
+conventions. When $G_k>dB$ the critical rate exceeds one, and no audit rate
+deters at that bond. The detector term $d$ belongs in the condition: the
 $d$-free form $\Pr(\text{honeypot}) > G_k/B$ is the perfect-detector special case
 $d=1$ and under-quotes the required injection rate by a factor of $1/d$.
 
@@ -2294,7 +2403,8 @@ under-quote.
 Let level $k{+}1$ audit level-$k$ auditors, each audit sampled
 \emph{sealed} from a pool spanning $C$ disjoint cliques, each auditor bonded at $B$
 with audit parameters $(\rho,d)$ and stipulated bribe price
-$\beta=\rho d B>0$. Assume one clique is sampled uniformly after the briber
+$\beta=\rho d B>0$, an auditor's expected forfeiture under the keep-gain
+convention. Assume one clique is sampled uniformly after the briber
 commits, buying $j$ cliques prevents detection with probability $j/C$, and
 all $j$ payments are made regardless of the draw. Relative to buying none,
 the briber's expected gain is
@@ -2323,7 +2433,11 @@ conditional recurrence pushes expected surviving value strictly below $u$ after
 \]
 levels for target
 $0<u\le G_0$, a depth
-\emph{logarithmic} in $G_0/u$. Counting one selected bond per level gives
+\emph{logarithmic} in $G_0/u$. The recurrence bounds residual damage, the
+corrupt value still expected to survive. It does not deter a judge at a
+level where $G_k>\rho dB$. With the target $u=\beta$, the value still at
+stake falls below the bribe price, so from that depth on the Becker
+condition $\rho dB\ge G_k$ holds again. Counting one selected bond per level gives
 $B$ times this depth; total capital reserved by all eligible judges depends
 on whether their bonds can be reused and is not determined by that count.
 \end{pdclaim}
@@ -2344,24 +2458,36 @@ be enough: a fault that no level can detect would survive every level.
 \label{ex:audit-depth}
 \marginnote{\input{figures/spark-stp-audit-depth}\par
 The model's linear bribery phase delays geometric decay. All three traces
-stop below one unit; they are not measured audit performance.}
+stop below the bribe price $\beta=10$; they are not measured audit performance.}
 Walk a corrupt grade worth $G_0 = 400$ up the tower with the running
 parameters above: $\rho=0.25$ and $d=0.8$, so $\rho d = 0.2$, a bribe per
 group costs $\beta = \rho d B = 10$, and the geometric factor is
 $\lambda = 1-\rho d = 0.8$. Nobody learns which group will audit until the
 bribes are paid.
 
+This grade is a counterexample to deterrence, and the example uses it on
+purpose. Becker's condition at $G_0=400$ gives $\rho^\star=400/(0.8\times50)=10>1$,
+so no audit rate at this bond deters the level-0 judge. At $\rho=0.25$ the bond
+would have to be $G_0/(\rho d)=2{,}000$, and it must reach $G_0/d=500$ before
+any rate up to one deters: bonds have to scale with the gain they guard. A
+smaller gain would not rescue the comparison of pool sizes below, because
+bribery pays only where deterrence already fails: $CB\ge B>\rho dB=\beta$ for
+every $C\ge1$. The tower
+therefore does not deter this judge. It bounds the residual damage, and the
+depth that matters is the depth at which the value still at stake falls below
+the bribe price $\beta$, where the Becker condition holds again.
+
 With a heterogeneous pool of $C=8$ groups, bribing all eight costs
 $8\times10=80$ and avoids an expected loss of $400\times0.2=80$: a tie,
 resolved against bribery. (Every number of bribed groups gives the briber
 zero expected gain, since the gain is affine in $j$.) The bribery threshold
 $G_k > CB = 400$ is unmet even at level 0, so nobody is bribed and the value
-at risk falls $400\to320\to256\to205\to\cdots$. After $27$ levels it is
-$400\times0.8^{27}\approx0.97$, below one unit; the tower needs
+at risk falls $400\to320\to256\to205\to\cdots$. After $17$ levels it is
+$400\times0.8^{17}\approx9.0$, below the bribe price; the tower needs
 \[
-  \lceil \log 400/\log 1.25 \rceil = 27
+  \lceil \log 40/\log 1.25 \rceil = 17
 \]
-levels, counting $27\times50=\$1{,}350$ in selected bonds. This is not a
+levels, counting $17\times50=\$850$ in selected bonds. This is not a
 capital requirement for the entire eight-clique candidate pool.
 
 For $C=1$, a single bribe of $10$ avoids $80$ of expected loss, so bribery
@@ -2369,24 +2495,25 @@ pays; the threshold is $G_k>50$. To obtain the following linear
 phase, additionally assume the briber pays each level's bribes from its
 remaining budget, cannot replenish that budget, and the next level values
 only that remainder. The script then subtracts $C\beta=10$ per level
-($400 \to 390 \to 380 \to\cdots$) for $35$ levels before the geometric phase takes
-over for
+($400 \to 390 \to 380 \to\cdots$) for $35$ levels. In each of them the briber
+buys the whole pool, so no audit in those levels detects anything. The
+geometric phase then takes over for
 \[
-  \lceil \log 50/\log 1.25\rceil = 18
+  \lceil \log 5/\log 1.25\rceil = 8
 \]
-more: $53$ levels and $53\times50=\$2{,}650$ in selected bonds. The
+more: $43$ levels and $43\times50=\$2{,}150$ in selected bonds. The
 linear phase tracks net budget under the extra assumption, not disappearance
 of the fraudulent grade itself.
 
 \emph{Now you try:} at $C=2$, where does the linear
 phase stop? (Bleed $C\beta = 20$ per level until $G_k \le CB = 100$, i.e.\ $15$
-levels, then $21$ geometric ones: $36$ levels, $\$1{,}800$.)
+levels, then $11$ geometric ones: $26$ levels, $\$1{,}300$.)
 \end{pdexample}
 
 \paragraph{What $C$ is actually doing, and the symbol it shares with the market.}
 The clique count $C$ is this theorem's diversity parameter. It is why the
 worked numbers above contrast $C=8$ against a monoculture $C=1$, and why the
-monoculture costs roughly twice the bond capital. $C$ stands in for something
+monoculture costs about two and a half times the bond capital. $C$ stands in for something
 statistical, and a critic who worries that every judge runs on the same few
 foundation models is right: ``disjoint clique'' says who can be bribed
 together, while shared blind spots are a statistical correlation. \pdchapref{he}{The Harbor Economy} gives the
@@ -2443,9 +2570,10 @@ Continuation value is a familiar source of discipline in repeated games~\pdcite{
 \input{figures/fig-stp-deterrence-regime}
 
 \noindent\textbf{What heterogeneity gives, and three conditions.} The two
-results of the audit-depth example above, $27$ levels and \$1{,}350 of selected
-bonds at $C=8$ against $53$ levels and \$2{,}650 at $C=1$, compare designs
-within the extra non-replenishing-budget model. Raising $C$ removes its linear prefix at these parameters; this does not prove that an externally financed adversary must run out of money. The selected-bond totals exclude collateral held by unused candidates. Three hypotheses are required and must not be dropped in
+results of the audit-depth example above, $17$ levels and \$850 of selected
+bonds at $C=8$ against $43$ levels and \$2{,}150 at $C=1$, compare designs
+within the extra non-replenishing-budget model. Both are depths to the bribe
+price for a gain that no audit rate deters at level 0. Raising $C$ removes its linear prefix at these parameters; this does not prove that an externally financed adversary must run out of money. The selected-bond totals exclude collateral held by unused candidates. Three hypotheses are required and must not be dropped in
 restatement. (i) \emph{Sealed sampling is a hypothesis, not hygiene}: a leaked draw
 collapses $C$ to $1$ and puts the VRF sampler inside the trusted computing base.
 (ii) \emph{The tower needs an exogenously honest root}: the operator, when there is a
@@ -2459,7 +2587,8 @@ deployment evidence supports it; distinct cliques alone do not establish it.
 
 \keyidea[A deeper audit still needs a sound root]{The tower model bounds a recursion under stated sampling, detection, and
 incentive assumptions. It does not create a competent grader or an honest root.
-The illustrative $27$ levels / $\$1{,}350$ versus $53$ / $\$2{,}650$ comparison
+What it bounds is residual damage; a judge whose gain exceeds $\rho dB$ is not
+deterred by it. The illustrative $17$ levels / $\$850$ versus $43$ / $\$2{,}150$ comparison
 depends on the assumed conditional detection rates, not measurements of deployed
 judge pools. A VRF can make a draw verifiable; it cannot make the selected judge
 correct. Oracle completeness, cross-clique dependence, and the terminal root
@@ -2502,15 +2631,19 @@ reliability are distinct decisions.
 The \textbf{evidence ledger is append-only}: a genuine delivery is never
 silently erased by the passage of time. A reputation estimate need not rise
 with every honest report; an honestly reported failure can lower it. Separately, a witnessed
-outcome is itself \textbf{individually revocable via a propagating tombstone}: a
-compensating, append-only entry that retracts a specific outcome later found
+outcome is itself \textbf{individually revocable via a propagating tombstone}: an
+append-only entry that retracts a specific outcome later found
 fraudulent (a colluding judge, a faked oracle). Retention preserves the outcome record; it does not require its score weight
 to remain constant or prevent a later invalidation.
 \end{property}
 
-\noindent This is a \textbf{saga}-style compensation~\pdcite{garcia1987sagas}: you do
-not mutate the ledger in place (that would break append-only and auditability);
-you append a tombstone that nullifies the targeted entry, and the tombstone
+\noindent A tombstone looks like a saga's compensating step~\pdcite{garcia1987sagas}
+only in form: you do not mutate the ledger in place (that would break
+append-only and auditability); you append a tombstone that nullifies the
+targeted entry. A compensation restores a balance, while a tombstone cannot
+undo decisions others already made on the retracted outcome.
+\pdchapref{he}{The Harbor Economy} draws that contrast%
+\ifpdbook\ (Theorem~\ref{he:prop:no-saga})\fi. The tombstone
 \emph{propagates} across harbors bounded by the federation's revocation-convergence
 window studied in \pdchapref{fh}{The Federated Harbor}. The fraudulent outcome may have influenced decisions before the fraud was detected. After
 the tombstone is issued, a bounded stale-use window needs delivery assumptions
@@ -2533,7 +2666,8 @@ To retract a witnessed outcome $o$ later found fraudulent:
   with $o$ nullified by $\bar{o}$. A local incremental update may be cheap,
   but removing an older observation can require replaying retained history or
   refitting a coupled estimator. Cost depends on the estimator and dependency
-  indexes; it is not bounded here by the cost of one forward update.
+  indexes; it is not bounded here by the cost of one forward update. For the
+  beta-Bernoulli count of \S\ref{sec:substrate} it is one decrement.
   \item \textbf{Propagate.} $\bar{o}$ gossips to every harbor that imported $o$,
   under the federation's declared delivery and freshness assumptions. Each
   harbor applies step 3 on receipt; an expired view must refuse decisions
@@ -2545,8 +2679,8 @@ To retract a witnessed outcome $o$ later found fraudulent:
 \end{enumerate}
 \end{protocol}
 
-% --- FIGURE 13: tombstone compensation on an append-only ledger ---
-Figure~\ref{fig:tombstone} draws the append-only compensation: the original entry
+% --- FIGURE 13: tombstone retraction on an append-only ledger ---
+Figure~\ref{fig:tombstone} draws the append-only retraction: the original entry
 stays, and a later tombstone nullifies it without mutating the ledger.
 \input{figures/fig-stp-tombstone}
 
@@ -2843,7 +2977,9 @@ evidence but does not create its provenance or accountability.
 \item \textbf{Bonded grading needs its stated detection model.} The tower uses
 prepaid bribes, sealed uniform clique sampling, and a conditional detection
 bound. Geometric contraction starts below the bribery threshold; a trustworthy
-root is a separate assumption. A bond alone neither makes a grade correct nor
+root is a separate assumption. The contraction bounds residual damage: when a
+gain exceeds $dB$, no audit rate deters it, and the bond has to grow with the
+gain. A bond alone neither makes a grade correct nor
 excludes other ways to obtain useful evidence.
 \item \textbf{Revocation needs a freshness contract}: a tombstone retracts a
 record without erasing its history. A finite stale-use bound requires delivery
@@ -3063,23 +3199,28 @@ environment, open claims/epochs, acceptance state, tool receipts, and the
 idempotency journal.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-death-taxonomy}
-When an LLM agent dies mid-thought, what is recoverable and what is
-fundamentally lost? Propose a taxonomy of agent-death by what survives
-(record / claims / execution state / latent ``intent''). This is the hard
-half of OP-4, the checkpoint that restores work. (Open Problem~\ref{op:death},
-\S\ref{sec:open}.)
+Table~\ref{tab:death-ladder} orders process deaths by what survives and puts
+the portable task capsule at rung~3. It does not say how to show that a given
+capsule reaches rung~3. Design that test for one provider and one task: what
+do you compare, against which record, and which failure sends the capsule
+back to rung~2? This is the hard half of OP-4, the checkpoint that restores
+work. (Open Problem~\ref{op:death}, \S\ref{sec:open}.)
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-death-taxonomy}
-A useful death taxonomy, in increasing order of what survives: (1)
-\emph{record survival}: logs/notes only, reconstruction is manual; (2)
-\emph{artifact survival}: a content-addressed worktree and outputs survive,
-computation is rerun; (3) \emph{semantic task capsule}: artifacts plus
-obligations, decisions, transcript/projection, tools, and a pending-effect
-journal, so a new provider can continue observably; (4) \emph{execution
-snapshot}: process memory/runtime state survives under a controlled
-runtime, rarely portable; (5) \emph{latent state}: unexposed activations,
-KV cache, or ``intent'' dies, fundamentally unrecoverable from an arbitrary
-provider. Checkpoint guarantees should state which tier they provide.
+Compare the capsule only against records it did not write. (1)
+\emph{Obligations}: check its coverage against a separate record of required
+source turns and exact instruction text, as the handoff-coverage check did; a
+dropped obligation such as OBL-01 sends it back to rung~2, because the
+successor can no longer continue what was promised. (2) \emph{Effects}: every
+non-idempotent call in the pending-effect journal is either receipted or
+marked unknown, and the successor follows the deduplication, fence-then-read
+or stop rule of \S\ref{sec:stp-unknown-effect}; a successor that retries an
+unknown payment without one of them fails. (3) \emph{Behavior}: run the
+successor and an uninterrupted control on the same remaining task under a
+fixed model version, and compare outcomes on the protected acceptance
+criterion across seeds. Agreement in (3) is a measurement for that provider
+and task, not a guarantee for others, and rung~5 state stays lost whatever the
+result.
 \end{pdsolution}
 
 \input{additions/stp-exercises-memory}
@@ -3241,8 +3382,10 @@ only by a human's aesthetic preference. Which estimator fits each, and why
 does EigenTrust fit neither directly?
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-estimator-fit}
-A binary protected acceptance test can update a beta-Bernoulli reliability
-estimate (or a calibrated per-task success model). Human aesthetic preference
+A binary protected acceptance test fits the beta-Bernoulli estimate of
+\S\ref{sec:substrate}: $r$ passes and $s$ failures give $(r+1)/(r+s+2)$, and a
+retraction removes one count (a calibrated per-task success model is the
+richer alternative). Human aesthetic preference
 is naturally pairwise and may use Bradley--Terry/TrueSkill with judge
 effects. EigenTrust expects a who-trusts-whom graph and therefore fits
 neither raw task-outcome signal directly.
@@ -3359,7 +3502,7 @@ one universal target from becoming the asset itself.
 \end{pdsolution}
 
 \input{additions/stp-exercises-attribution}
-\pdexercisesfor{\S\ref{sec:oracle}}{The grading oracle's incentive-compatibility}
+\pdexercisesfor{\S\ref{sec:oracle}}{The grading oracle's deterrence condition}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:stp-grading-oracle-hole}
 State Property~\ref{prop:hole} and explain why ``the daemon derives the
@@ -3389,19 +3532,23 @@ scratch: a judge cheats for gain $G$, is sampled with probability $\rho$, is
 caught given sampling with probability $d$, and forfeits bond $B$ when
 caught. Write the cheat payoff, set it to zero, and recover
 $\rho^\star = G/(dB)$. Then check the two worked towers: at $G_0=400$,
-$d=0.8$, $B=50$, $\rho=0.25$, confirm $27$ levels at $C=8$ and $53$ at $C=1$.
+$d=0.8$, $B=50$, $\rho=0.25$, compute $\rho^\star$ for the level-0 judge and
+confirm $17$ levels at $C=8$ and $43$ at $C=1$ to the bribe price $\beta=10$.
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-rho-star-derive}
 With one-shot corrupt gain at most $G$, re-audit probability $\rho$,
 conditional detection probability $d$, and slashable bond $B$, weak local deterrence requires $\rho d B\ge G$, giving
 $\rho^\star=G/(dB)$ when $dB>0$ and $G\le dB$. Strict deterrence
 requires a strict inequality; if $G>dB$, no audit probability at this bond
-suffices. At
-$G_0=400,d=0.8,B=50,\rho=0.25$: $\rho d=0.2$, so $\lambda=1-\rho d=0.8$; with
+suffices. The worked towers are such a case: $G_0=400>dB=40$, so
+$\rho^\star=10$ and no audit rate deters the level-0 judge; the tower bounds
+residual damage instead. At
+$G_0=400,d=0.8,B=50,\rho=0.25$: $\rho d=0.2$, so $\lambda=1-\rho d=0.8$ and
+$\beta=10$; with
 $C=8$ the threshold $G_k>CB=400$ is unmet at level $0$, giving
-$\lceil\log 400/\log 1.25\rceil=27$ levels; with $C=1$ the threshold is only
-$G_k>50$, so bribery bleeds linearly for $35$ levels before $18$ more
-geometric ones close it, $53$ total.
+$\lceil\log 40/\log 1.25\rceil=17$ levels to fall below $\beta$; with $C=1$ the
+threshold is only $G_k>50$, so bribery bleeds linearly for $35$ levels before
+$8$ more geometric ones close it, $43$ total.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-arbitration-capacity}
 Arbitration capacity: the contraction theorem measures the depth to an
@@ -3529,17 +3676,18 @@ this chapter's own.
   lineage, while equivalent behavior even within one provider/model/version is
   an unmeasured hypothesis;
   it does not export the inference state, so across providers the honest
-  description is task continuity with actor succession. The taxonomy itself
-  (record vs.\ claims vs.\ execution state vs.\ latent ``intent'') stays open
-  until the mechanism ships and is measured.
+  description is task continuity with actor succession.
+  Table~\ref{tab:death-ladder} gives the taxonomy; whether any capsule reaches
+  its rung~3 stays open until the mechanism ships and is measured.
   \item\label{op:attest} \textbf{Cross-operator attestation (\S\ref{sec:keystone}).}
   Binding identity keys across harbors you do not own. It is the market's most
   consequential unbuilt dependency.
   \item\label{op:root} \textbf{The grading oracle's honest root and its telemetry
   (\S\ref{sec:oracle}).} Theorem~\ref{thm:tower-imported} solves the stated
   conditional recurrence with a
-  derived contraction factor $\lambda = 1-\rho d$ and a computed depth ($27$ levels /
-  \$1{,}350 at $C{=}8$; $53$ / \$2{,}650 at $C{=}1$). What remains open is what that
+  derived contraction factor $\lambda = 1-\rho d$ and a computed depth to the
+  bribe price ($17$ levels / \$850 at $C{=}8$; $43$ / \$2{,}150 at $C{=}1$) for
+  a gain no audit rate deters. What remains open is what that
   theorem explicitly does not supply: the exogenously honest root the tower
   terminates against at scale, and the deployment telemetry that estimates $d$ and
   the cross-clique collusion correlation the disjointness hypothesis assumes away.
@@ -3671,6 +3819,16 @@ Derek Parfit.
 \newblock \textit{Reasons and Persons}.
 \newblock Oxford University Press, 1984.
 
+\bibitem{grice1941identity}
+H. P. Grice.
+\newblock Personal Identity.
+\newblock \textit{Mind}, 50(200):330--350, 1941.
+
+\bibitem{butler1736identity}
+Joseph Butler.
+\newblock Of Personal Identity.
+\newblock Dissertation~I in \textit{The Analogy of Religion, Natural and Revealed}. London, 1736.
+
 \bibitem{dennis1966programming}
 Jack B. Dennis and Earl C. Van Horn.
 \newblock Programming Semantics for Multiprogrammed Computations.
@@ -3710,6 +3868,11 @@ Arpad E. Elo.
 Ralf Herbrich, Tom Minka, and Thore Graepel.
 \newblock TrueSkill: A Bayesian Skill Rating System.
 \newblock In \textit{Advances in Neural Information Processing Systems (NeurIPS)}, 2007.
+
+\bibitem{josang2002beta}
+Audun Jøsang and Roslan Ismail.
+\newblock The Beta Reputation System.
+\newblock In \textit{Proceedings of the 15th Bled Electronic Commerce Conference}, Bled, Slovenia, June 2002.
 
 \bibitem{kamvar2003eigentrust}
 Sepandar D. Kamvar, Mario T. Schlosser, and Hector Garcia-Molina.
