@@ -800,27 +800,20 @@ the principal and the collateral behind them.
 \section{The Limits of Decisive Allocation}\label{sec:sen}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Why are file claims advisory instead of exclusive locks? An agent starting a task does not know which files it will need, so if claims were locks it would lock everything it might touch. A second agent that then finds it really needs one of those files is stuck until the first lets go, even though both would rather finish both tasks. Advisory claims block nothing. They tell both agents about the overlap, and the one that claimed only in case it needed the file can release it. Sen's result about personal vetoes supplies the warning. It does not show that locks are always worse: when file needs are known up front, a lock costs nothing and adds certainty.
+Why are file claims advisory instead of exclusive locks? An agent starting a task does not know which files it will need, so if claims were locks it would lock everything it might touch. A second agent that then finds it really needs one of those files is stuck until the first lets go, even though both would rather finish both tasks. Advisory claims block nothing. They tell both agents about the overlap, and the one that claimed only in case it needed the file can release it. The trouble with locks is the one Hayek described: the knowledge needed to allocate the file sits with the agents, not with the allocator. That does not make locks always worse: when file needs are known up front, a lock costs nothing and adds certainty.
 
-\subsection{A Sen-Inspired Design Warning}
+\subsection{The Allocator's Knowledge Problem}
 
-\pdmarginfigure{sen}{Amartya Sen. Decisive personal rights can conflict with unanimous preferences; that result is not a blanket verdict against locks.}
-Sen~\pdcite{sen1970impossibility} showed that when individuals may hold any
-preferences at all, a social decision rule that gives at least two people a
-personal veto can conflict with the Pareto requirement. The two conditions
-are:
-\begin{enumerate}[nosep]
-  \item \textbf{Pareto efficiency}: If every agent prefers outcome $X$ to $Y$, the system chooses $X$.
-  \item \pdterm[minimal liberalism]{Minimal liberalism}: At least two individuals each have a pair of outcomes over which their own
-preference is decisive.
-\end{enumerate}
-
-The analogy to file coordination is:
-
-\begin{itemize}[nosep]
-  \item \textbf{Pareto efficiency} $=$ the team ships both features (the collectively optimal outcome).
-  \item \textbf{Minimal liberalism} $=$ each agent has decisive control over its claimed files (enforced locking).
-\end{itemize}
+\pdmarginfigure{sen}{Amartya Sen. His liberal paradox needs preferences that conflict; in the locking case below both agents want the same outcome.}
+Hayek argued that the knowledge an allocation needs, the particular
+circumstances of time and place, is dispersed among the people who hold it,
+so no central allocator can gather it in time~\pdcite{hayek1945}.
+\pdchapref{ls}{The Legible Swarm} makes the same argument about
+operators\ifpdbook\ (\S\ref{ls:sec:hayek})\fi. Exclusive file locks meet the
+problem directly. The lock manager knows who holds which file. It does not
+know that the holder will never need the file, or that another agent needs it
+now; each agent knows only its own half. The instance below shows what that
+costs.
 
 \begin{pdclaim}{Theorem}{A Pareto-Inferior Locking Instance}
 \setlength{\parskip}{4pt plus 1pt}
@@ -833,9 +826,9 @@ Assume the claim is not released before the task deadline, both agents
 strictly prefer completion of both tasks, and safe joint completion would be
 feasible after release. Under these assumptions:
 \begin{itemize}[nosep]
-  \item $\alpha$'s claim is decisive (minimal liberalism): $\beta$ is blocked.
+  \item $\alpha$'s claim is decisive: $\beta$ is blocked.
   \item The team-level outcome ($\Gamma_\alpha$ and $\Gamma_\beta$ both completed) is blocked by $\alpha$'s precautionary claim.
-  \item A Pareto-superior outcome exists (both tasks completed) but is unreachable because $\alpha$'s liberal right vetoes it.
+  \item A Pareto-superior outcome exists (both tasks completed) but is unreachable because $\alpha$'s claim vetoes it.
 \end{itemize}
 \end{pdclaim}
 
@@ -858,7 +851,7 @@ tasks ship. Both agents preferred that outcome, and the lock blocked it.
 
 \input{figures/fig-sen-pareto-locking}
 
-This instance refutes the universal claim that exclusive locks always improve team welfare. It does not derive Sen's theorem, which needs unrestricted preferences and a decision rule with personal vetoes; a production lock manager may restrict preferences, negotiate releases or time out claims. The usable lesson is narrower. Do not give an agent an unconditional veto over a shared resource when the team may know something the allocator does not.
+This instance refutes the universal claim that exclusive locks always improve team welfare. The loss has no conflict of preferences in it: both agents rank the same outcome first, and what fails is that Pike's need and Wren's indifference never reach the holder of the lock before the deadline. That is Hayek's knowledge problem, not Sen's liberal paradox~\pdcite{sen1970impossibility}, which needs individuals whose preferences conflict over an unrestricted domain. A production lock manager may also negotiate releases or time out claims. The usable lesson is narrower. Do not give an agent an unconditional veto over a shared resource when the team may know something the allocator does not.
 
 The scenario is common, because AI agents are \emph{inherently uncertain} about which files they will modify when they begin a task.\marginnote{\input{figures/spark-welfare-loss}\par
 Chance $L_{\mathrm{lock}}(\rho)=1-(1-\rho)^2$ that a precautionary lock blocks at least one of two agents, as the overlap probability $\rho$ grows.} An agent asked to ``fix the login bug'' cannot predict whether it will need the authentication middleware, the route handler, the test suite, or all three. Enforced claims force agents to either:
@@ -978,7 +971,7 @@ Reversal appends a counter-record signed by the daemon, with an inclusion proof 
 
 \begin{pdrecitation}
 \item Without looking: what is the one thing an advisory claim never does that an enforced lock always does?
-\item Name the two conditions of Sen's theorem this chapter maps onto ``the team ships both features'' and ``each agent controls its own claimed files.''
+\item In the just-in-case lock, what does the lock manager not know, and which agent knows it?
 \item Of the four governance mechanisms in \S\ref{sec:governance}'s escalation order, which one is the equilibrium response to a claim that was merely precautionary, and which to a claim whose holder crashed?
 \end{pdrecitation}
 
@@ -2162,15 +2155,18 @@ The architecture combines ideas from the following bodies of prior work. The com
 \paragraph{Bonded participation in distributed systems.} Casper~\pdcite{buterin2017casper}, Tendermint~\pdcite{buchman2016tendermint}, and the Ethereum consensus specification~\pdcite{ethereum2spec} connect validator participation to collateral and penalties. Their evidence rules and liveness assumptions differ. Casper's accountable-safety result identifies slashable behavior after conflicting finalization; it does not by itself prove that every rational validator prefers honesty. In the risk-neutral, single-deviation comparison used here, deterrence requires expected collectible loss to exceed the deviation's gain. This design also assumes a trusted local ledger writer, not Byzantine consensus among independent writers. Its bonded act is work with filesystem side effects, rather than block validation, and its application must distinguish error from deliberate damage when estimating losses even where remedies are outcome-based.
 \paragraph{Capability-based security.} Dennis and Van Horn~\pdcite{dennis1966programming}, Miller's object-capability work~\pdcite{miller2006robust}, and the SPKI/SDSI line~\pdcite{ellison1999spki} supply the lineage of bounded, delegable authority. Macaroons~\pdcite{birgisson2014macaroons} use chained HMACs for decentralized delegation; \pdchapref{anchor}{The Anchor Protocol} uses signed attenuation for agent coordination. This chapter adds a proposed economic settlement layer. Authorized actions can still cause damage, and a bond alone does not restrict the actions available before adjudication. The architecture combines bounded authority with agreed remedies; other coordination systems may need neither.
 \paragraph{Commons governance.} \pdmarginfigure{ostrom}{Ostrom documented institutions that sustained shared resources without assuming inevitable collapse.} Ostrom's eight design principles~\pdcite{ostrom1990governing} are guides to institutional design drawn from field evidence. This design draws on four of them: boundaries, monitoring, graduated sanctions and accessible dispute resolution (\S\ref{sec:governance}). Software that performs those functions does not thereby give participants collective-choice rights or legitimate rule-making; those need institutional evidence of their own.
-\paragraph{Cryptoeconomic mechanism design.} Werbach~\pdcite{werbach2018blockchain}, Buterin~\pdcite{buterin2014ethereum}, and the broader DAO literature describe ``code is law'' as a stance on enforcement. This design takes a narrower stance on purpose. Here code is the \emph{record}, and the law comes from the parties' agreement. Allocation decisions remain with the agents (Sen, \S\ref{sec:sen}); the daemon supplies the evidence and the settlement. Dividing authority this way does not by itself make participation voluntary, adjudication fair or remedies effective.
+\paragraph{Cryptoeconomic mechanism design.} Werbach~\pdcite{werbach2018blockchain}, Buterin~\pdcite{buterin2014ethereum}, and the broader DAO literature describe ``code is law'' as a stance on enforcement. This design takes a narrower stance on purpose. Here code is the \emph{record}, and the law comes from the parties' agreement. Allocation decisions remain with the agents, who hold the knowledge they need (\S\ref{sec:sen}); the daemon supplies the evidence and the settlement. Dividing authority this way does not by itself make participation voluntary, adjudication fair or remedies effective.
 
 \paragraph{Social contract theory.} Hobbes~\pdcite{hobbes1651leviathan} argued that cooperation requires a sovereign whose authority is accepted before interactions begin. Locke~\pdcite{locke1689two} proposed a more limited authority protecting natural rights. Our commons authority is Hobbesian in structure (centralized, pre-transactional) but Lockean in scope (provides infrastructure, not dictates).
 
-\paragraph{Impossibility results.} Sen~\pdcite{sen1970impossibility} proves an incompatibility under an
-unrestricted preference domain and decisive personal pairs. Our locking
-example is separate: precautionary claims can block a mutually preferred
-completion. It motivates a design choice without transferring Sen's theorem
-to every lock manager.
+\paragraph{Dispersed knowledge.} Hayek~\pdcite{hayek1945} argued that the
+knowledge an allocation needs is dispersed among those who hold it and cannot
+be gathered by a central allocator in time. Our locking example is an
+instance: a precautionary claim blocks a completion both agents prefer,
+because the knowledge that would release it does not reach the holder before
+the deadline. Sen's liberal paradox~\pdcite{sen1970impossibility}, an
+incompatibility under an unrestricted preference domain and decisive personal
+pairs, is a different result; the example has no conflict of preferences.
 
 \paragraph{Long-lived transactions.} Garcia-Molina and Salem~\pdcite{garciamolina1987sagas} introduced Sagas for decomposing long-lived transactions with compensating actions. Here, compensation and economic settlement are separate remedies. A recorded partial result can support the agreed adjudicator's pro-rata award; an evidence chain alone supplies neither a valuation nor authority to release funds.
 
@@ -2205,7 +2201,7 @@ compares these interfaces; no live interoperability result is claimed here.
 \textbf{Body of work} & \textbf{Borrowed} & \textbf{Departure} & \textbf{Why} \\
 \midrule
 Social contract theory & Authority accepted before interaction begins & The sovereign is a daemon whose rules are inspectable and whose consent is revocable per task & Agents can exit; Hobbes's subjects could not \\
-Impossibility results & Decisive rights under unrestricted preferences & A separate precautionary-lock counterexample & Motivates a conditional advisory default \\
+Dispersed knowledge & Allocators lack the local knowledge agents hold & Overlap reports carry that knowledge to the agents who can act on it & Motivates a conditional advisory default \\
 Long-lived transactions & Compensation for work that outlives a transaction & Economic settlement in place of mechanical compensation & Compensation cannot undo an external effect; a bond can price it \\
 BDI and generative agents & Beliefs, desires, intentions; memory streams & The evidence trail is read by an adversarial operator, not a private memory & The reader, not the agent, is the customer of the record \\
 Capability-based security & Attenuable capabilities & Capabilities bind to bonded identities with settlement & Authority without liability is the failure the commons prices \\
@@ -2384,8 +2380,10 @@ An advisory claim is a durable declaration that an agent intends to use a resour
 
 That extra permissiveness is the feature Theorem~\ref{prop:sen} names: The locking instance assumes both agents prefer completion of both tasks
 and that the precautionary claim is not released in time; under those
-assumptions its veto blocks a Pareto-superior outcome. Sen motivates the
-comparison, but his theorem is not a theorem about every lock manager. An advisory regime never grants that veto, so it never closes off the outcome a lock would have blocked. The cost is that it also allows traces in which two agents genuinely collide. \S\ref{sec:governance}'s appeals and preemption path is the mechanism that handles that cost; it does not remove it.
+assumptions its veto blocks a Pareto-superior outcome, because the knowledge
+that would release the claim in time sits with the agents and not with the
+lock manager. The instance is neither Sen's theorem nor a theorem about every
+lock manager. An advisory regime never grants that veto, so it never closes off the outcome a lock would have blocked. The cost is that it also allows traces in which two agents genuinely collide. \S\ref{sec:governance}'s appeals and preemption path is the mechanism that handles that cost; it does not remove it.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:crash-recovery}}{Crash Recovery as Social Continuation}
@@ -2582,8 +2580,8 @@ Six further pieces of the design build on these three layers. The Conservation T
 
 Advisory claims leave room for negotiation when agents know more about
 their needs than the allocator. Their benefit depends on the conflict and
-resolution costs; Sen supplies a warning about decisive rights, not a
-universal choice between advisory claims and locks. The commons authority provides information, not allocation decisions.
+resolution costs; Hayek's knowledge problem supplies a warning about
+decisive rights, not a universal choice between advisory claims and locks. The commons authority provides information, not allocation decisions.
 
 Bond pricing breaks into five smaller problems: a cleanup-cost lower bound (\S\ref{sec:cleanup-bound}), a scope multiplier (\S\ref{sec:scope-multiplier}), a reputation discount (\S\ref{sec:rep-discount}), the Bonded Advisor mechanism (\S\ref{sec:bonded-advisor}), and the competitive-insurance market (\S\ref{sec:youle}). Each is precise enough to disprove.
 
@@ -2611,6 +2609,10 @@ Amartya Sen.
 \newblock The Impossibility of a Paretian Liberal.
 \newblock \textit{Journal of Political Economy}, 78(1):152--157, 1970.
 \newblock \url{https://doi.org/10.1086/259614}
+
+\bibitem{hayek1945}
+Friedrich A.\ Hayek.
+\newblock The Use of Knowledge in Society. \textit{American Economic Review}, 35(4):519--530, 1945.
 
 \bibitem{jonessergot1993regimentation}
 Andrew J.~I. Jones and Marek Sergot.

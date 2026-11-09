@@ -40,11 +40,6 @@
   "definition": "The short list of hashes showing that a larger signed checkpoint of an append-only log extends a smaller one, with every earlier entry kept unchanged."
  },
  {
-  "term": "minimal liberalism",
-  "sort": "minimal liberalism",
-  "definition": "Sen's condition that at least two individuals each have a pair of outcomes over which their own preference decides the social choice."
- },
- {
   "term": "conflict graph",
   "sort": "conflict graph",
   "definition": "The graph whose vertices are active sessions and whose edges join sessions that hold overlapping file claims."
