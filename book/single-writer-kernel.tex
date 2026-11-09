@@ -1494,7 +1494,11 @@ formal-language semantics and lets enforcers be synthesized automatically for
 some classes of systems and properties. Within Schneider's execution-monitor
 model, Basin, Jugé, Klaedtke and Zălinescu~\pdcite{basin2013enforceable} already
 separate the actions a monitor can control from those it can only observe, and
-characterize which policies are then enforceable. What this section adds is the
+characterize which policies are then enforceable. Ligatti, Bauer and Walker's
+edit automata~\pdcite{ligatti2005edit} show that a monitor able to suppress or
+insert actions can enforce policies that one able only to halt the program
+cannot. What
+this section adds is the
 application to an agent runtime, whose controllable events are the effects that
 cross the daemon's boundary and whose uncontrollable ones complete inside the
 model, worked through in Table~\ref{tab:policy-classification} and the hand
@@ -3966,6 +3970,12 @@ David Basin, Vincent Jugé, Felix Klaedtke, and Eugen Zălinescu.
 \newblock Enforceable Security Policies Revisited.
 \newblock \textit{ACM Transactions on Information and System Security}, 16(1), Article 3, June 2013.
 \newblock \url{https://doi.org/10.1145/2487222.2487225}
+
+\bibitem{ligatti2005edit}
+Jay Ligatti, Lujo Bauer, and David Walker.
+\newblock Edit Automata: Enforcement Mechanisms for Run-time Security Policies.
+\newblock \textit{International Journal of Information Security}, 4(1--2):2--16, 2005.
+\newblock \url{https://doi.org/10.1007/s10207-004-0046-8}
 
 \bibitem{dastani2017normenforcement}
 Mehdi Dastani, Sebastian Sardina, and Vahid Yazdanpanah.
