@@ -215,11 +215,13 @@ the simple trace has deliberately left open.
 We model an agent-coordination system as a four-layer stack
 (Figure~\ref{fig:swk-stack-map}), each layer serving a different \emph{whom}.
 \begin{description}[leftmargin=2.2em,style=nextline]
-\item[Substrate (the machine).] A single always-on daemon over one local database:
-durable storage and serialized mutation. \emph{This chapter's core.}
-\item[Coordination (the agents).] The protocol agents speak over the substrate:
-ownership claims, a message bus, stigmergic markers, obligations, and policy
-enforcement. This chapter specifies the implemented half of it.
+\item[L0, storage (the machine).] A single always-on daemon over one local
+database: it stores records durably and applies changes one at a time. The
+figure labels this layer Substrate. \emph{This chapter's core.}
+\item[Coordination (the agents).] The protocol agents speak through the storage
+layer: ownership claims, a message bus, shared signals that fade over time,
+obligations, and policy enforcement. This chapter specifies the implemented
+half of it.
 \item[Legibility (the operator).] The human-facing view that renders the swarm
 intelligible. Treated in an accompanying chapter (\emph{The Legible Swarm}).
 \item[Economy (the market between operators).] The cross-machine market in which
@@ -227,26 +229,30 @@ operators trade work and reputation. Treated in an accompanying chapter (\emph{T
 Harbor Economy}).
 \end{description}
 \noindent Later chapters depend on this kernel in different ways.
-The operator's view reads its claims, bus, and policy monitor. Durable agent
-identity requires its continuity records. The settlement ledger adds tables
-under the same writer, while cross-machine transfer uses its authorization
-chain. A fault in these records can therefore affect supervision, attribution,
-or settlement; each guarantee below states the conditions it needs.
+The operator's view reads its claims, its message bus, and its
+\pdterm{policy monitor}, the component that checks recorded operations against
+the rules.
+Durable agent identity requires its continuity records. The settlement ledger
+adds tables under the same writer, while cross-machine transfer uses its signed
+record of who granted which permission to whom. A fault in these records can
+therefore affect supervision, attribution, or settlement; each guarantee below
+states the conditions it needs.
 \subsection{The one-sentence thesis}
 \pdthesis{The kernel is a single-writer transactional reference monitor over a
-local SQLite/WAL database: one process accepts coordination-state changes
-and records their order. Its ledger is authoritative for those changes, not
-for every claim about the world outside it.}
+local SQLite/WAL database. One process accepts every change to coordination
+state and records the order of those changes. Its ledger is authoritative for
+those changes and for nothing else about the world outside it.}
 The two guarantees require different qualifications:
 \begin{enumerate}[leftmargin=1.4em]
-  \item \textbf{Durability (with an edge):} a write that returned success is
-  durable across the death of any agent --- and, we will be careful, across the
-  death of the \emph{daemon process}, though \emph{not} unconditionally across
-  power loss.
-  \item \textbf{Mediation:} a pre-effect guard can refuse a forbidden
-  transition. A post-effect monitor can only report or respond to a transition
-  that already happened. We call the former \emph{regimentation}; a bound on
-  detection or repair needs its own timing and availability assumptions.
+  \item \textbf{Durability, with one exception:} a write that returned success
+  survives the death of any agent and the death of the \emph{daemon process}.
+  It does \emph{not} survive every power loss; the durability section below
+  states which failures it survives.
+  \item \textbf{Mediation:} a guard that runs before a change takes effect can
+  refuse a forbidden change. A monitor that runs afterwards can only report the
+  change or respond to it. Refusing a forbidden change before it takes effect
+  is called \pdterm{regimentation}. How fast a later monitor detects or repairs
+  a violation depends on separate assumptions about timing and availability.
 \end{enumerate}
 
 \ifdefined\pdswisslandmarkplate
@@ -258,43 +264,44 @@ The two guarantees require different qualifications:
 \fi
 
 \subsection{Why ``reference monitor,'' and why \emph{not} \mbox{consensus}}
-The right mental model is the \textbf{reference monitor} of Anderson and
-Lampson~\pdcite{anderson1972,lampson1974}: a mediator that is \emph{always invoked}
-(complete mediation), \emph{tamper-resistant}, and \emph{small enough to verify}.
-The kernel instantiates this not as an abstract security kernel but as a concrete
-local daemon over one SQLite file. Complete mediation holds \emph{by construction
-over the kernel's own state}: because every mutation of \emph{coordination state}
-routes through one writer holding one file lock, the operating system's
-serialization \emph{is} the mediation primitive --- Saltzer and Schroeder's
-``economy of mechanism''~\pdcite{saltzer1975protection} done with one moving part
-instead of $N$ hand-rolled critical sections. We are deliberate about the scope of
-the word \emph{complete}: it is complete over writes that \emph{enter} the daemon,
-not over what a same-user agent can do \emph{beside} it. A classical reference
-monitor earns ``always invoked'' from the hardware/operating-system boundary that
-forces every access through it; this kernel has no such boundary at the substrate
-layer, so a same-user process can mutate shared state the daemon never sees ---
-edit a file under an advisory claim, run \texttt{git} directly, or write the
-SQLite file itself --- without routing through the writer. Mediation is therefore
-complete over the daemon's \emph{application-program interface} and advisory
-everywhere else; making it complete over the agent's host capabilities is an
-out-of-band enforcement problem we scope to the threat model
-(\S\ref{sec:threatmodel}) and credit, when it lands, to a separate-user kernel
-boundary that does not yet exist (\S\ref{sec:enforcement-gap}).
+The right mental model is the \pdterm{reference monitor} of Anderson and
+Lampson~\pdcite{anderson1972,lampson1974}: a component that checks every access
+to protected state (\emph{always invoked}, or complete mediation), that other
+programs cannot alter (\emph{tamper-resistant}), and that is \emph{small enough
+to verify}. Here the reference monitor is a concrete local daemon over one
+SQLite file. Over the kernel's own state, every change is checked \emph{by
+construction}. Every change to \emph{coordination state} goes through one
+writer holding one file lock, so the operating system's lock puts the changes
+in order and is the one place the checks run. This is Saltzer and Schroeder's
+``economy of mechanism''~\pdcite{saltzer1975protection}: one mechanism in place
+of $N$ hand-written critical sections. The checking is complete only over
+writes that \emph{enter} the daemon. It does not cover what an agent running as
+the same user can do \emph{beside} the daemon. A classical reference monitor is
+always invoked because the hardware or operating system forces every access
+through it. This kernel has no such boundary, so a process running as the same
+user can change shared state the daemon never sees: it can edit a file under an
+advisory claim, run \texttt{git} directly, or write the SQLite file itself.
+Checking is therefore complete over the daemon's \emph{programming interface}
+and advisory everywhere else. Making it complete over everything an agent can
+do on the host needs enforcement outside the daemon. The threat model
+(\S\ref{sec:threatmodel}) states that problem, and a kernel boundary under a
+separate user, which does not yet exist (\S\ref{sec:enforcement-gap}), would
+close it.
 \pdmarginfigure{lampson}{Butler Lampson's access matrix: permissions connect subjects to objects.}%
-\keyidea[One writer needs no consensus]{The swarm \emph{looks} like a distributed-systems problem --- many
-agents, contention, failover --- so the trained reflex is Raft, Paxos, CRDTs. The
-kernel's defining move is to refuse that problem. One writer, one machine, one
-file: there is nothing to \emph{agree} on, so the consensus impossibility of
-Fischer, Lynch, and Paterson~\pdcite{flp1985} does not bite. It is sidestepped, not
-solved. Distribution is a cross-machine concern that belongs to the economy layer;
-pushing a consensus protocol down into the local substrate would be the wrong
-layer.}
+\keyidea[One writer needs no consensus]{Many agents contending for shared
+state, with failover, look like a distributed-systems problem, and the usual
+reflex is Raft, Paxos or CRDTs. The kernel avoids that problem. With one writer
+on one machine using one file, there is nothing for several processes to
+\emph{agree} on, so the consensus impossibility result of Fischer, Lynch, and
+Paterson~\pdcite{flp1985} does not apply. The design avoids the result without
+solving it. Distribution across machines belongs to the economy layer; a
+consensus protocol inside the local storage layer would be in the wrong layer.}
 A local writer avoids the agreement protocol required by a replicated
 system~\pdcite{kleppmann2017}. The conditional theorem in
 \S\ref{sec:invariants} states the resulting guarantee: when every read and write is routed through the sole daemon
 connection and responses follow commit, transactions are \emph{serializable} and
-claim/lock operations are \emph{linearizable} --- the property that lets the coordination layer treat ``who
-holds this'' as a single authoritative coordination record. Serializable
+claim/lock operations are \emph{linearizable}. Linearizability is what lets the
+coordination layer treat ``who holds this'' as one authoritative record. Serializable
 means the result matches some sequential transaction order. Linearizable adds
 real-time order: a claim completed before another request began must appear
 first. Overlapping requests may be ordered either way if their results fit
@@ -329,7 +336,7 @@ stores. The grades come from the chapter's own status table (\S\ref{app:status})
 \toprule
 \textbf{Subsystem} & \textbf{Contract held for the layer above} & \textbf{Maturity} \\
 \midrule
-transactional substrate & one writer, one durable file; every other subsystem is a table with discipline over the same commit history & \Built \\
+transactional store & one writer, one durable file; every other subsystem is a set of tables written through the same commit history & \Built \\
 resource / exclusion & at most one compatible holder per conflict domain; leases expire and are swept lazily (home: \texttt{claims}) & \Built \\
 actor continuity & a stable actor identity across sessions, mechanically present but asserted by the actor, not proven & \BuiltWeak\ self-asserted \\
 message carriage & an ordered, cursor-addressable, durable envelope delivered at least once (home: \texttt{messages}) & \Built \\
@@ -339,7 +346,7 @@ self-attestation & the daemon reports its own coverage as enforced, degraded or 
 \bottomrule
 \end{tabularx}
 \end{table}
-The \textbf{substrate subsystem} underlies the other six; mechanically, they are
+The \textbf{storage subsystem} lies under the other six; mechanically, they are
 tables updated through the same SQLite connection. For example, accepting
 A's claim changes the \texttt{claims} table, while recording A's promised
 release changes \texttt{commitments}. They share a transaction mechanism
@@ -348,23 +355,22 @@ resource exclusion, and commitment checking in detail, then use them to
 explain communication and recovery.
 \pdexercisepointer{\ref{ex:swk-organs-inmemory}}{\ref{ex:swk-organs-cut}}{\pageref{ex:swk-organs-inmemory}}
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The substrate subsystem: one writer, one file}
+\section{The storage subsystem: one writer, one file}
 \label{sec:substrate}
 % ═════════════════════════════════════════════════════════════════════════════
-The substrate underlies everything else, mechanically nothing more than a
-table with two promises to keep --- durability and serialized mutation --- and
-to keep them formally. We cover the single-writer discipline here and durability in
-\S\ref{sec:durability}, because durability is where the most consequential
-correction lives.
+The storage subsystem makes two promises: a write that returned success is
+durable, and changes are applied one at a time. This section covers the second
+promise, the single-writer discipline. \S\ref{sec:durability} covers
+durability, where the chapter makes its largest correction.
 \subsection{The single-writer discipline}
 \input{figures/fig-swk-single-writer}
 \pdmarginanalogy{swk-one-printing-press}{}{one-printing-press}{Like our single-writer daemon, the platen handles jobs one after another.}
-The kernel's concurrency story (Figure~\ref{fig:swk-single-writer}) is: dozens of
-command-line invocations and agent connections funnel through one writer --- the
-daemon, the sole holder of a read--write connection to the database file --- and
-SQLite's operating-system file lock plus a bounded busy-wait serialize all
-mutations. We must be precise about \emph{what} serializes writers, because there
-are two stories and only one is true at a time.
+In the kernel (Figure~\ref{fig:swk-single-writer}), dozens of command-line
+invocations and agent connections send their writes to one writer. That writer
+is the daemon, the only process holding a read--write connection to the
+database file. SQLite's operating-system file lock and a bounded busy-wait then
+put all changes in order. Two mechanisms can do that ordering, and the
+definition below says \emph{which} one the design relies on.
 \begin{definition}[Single-writer discipline]\label{def:single-writer}
 \setlength{\parskip}{4pt plus 1pt}
 All state-mutating operations route through a single daemon process holding one
@@ -375,44 +381,44 @@ by the daemon's request queue; the SQLite file lock is the \emph{backstop} that
 preserves correctness if the discipline is ever violated by a second writer (for
 example a stray direct write), not the primary serialization mechanism.
 \end{definition}
-\keyidea[Routing makes the writer unique]{``Single-writer'' is an architectural \emph{discipline} (everything goes
-through the daemon), backstopped --- not replaced --- by SQLite's file lock. This
-distinction matters: SQLite permits multiple writer connections (it serializes
-them, it does not reject them), so the property holds because of where writes are
-routed, not because the database forbids a second writer. The standing risk is
-therefore a second \emph{copy} of the daemon coming up against the same file ---
-which is why the substrate also runs self-checks that detect a divergent or stale
+\keyidea[Routing makes the writer unique]{``Single-writer'' is a rule about
+routing: every write goes through the daemon. SQLite's file lock still orders
+writes if that rule is broken. SQLite accepts several writer connections and
+puts them in order instead of refusing them, so the property holds because of
+where writes are routed; the database itself does not forbid a second writer.
+The standing risk is a second \emph{copy} of the daemon opening the same file,
+which is why the kernel also runs self-checks that detect a divergent or stale
 second instance (\S\ref{sec:attest}).}
 \subsection{The configuration \emph{is} the durability claim}
 \ifpdmargincolumn\pdcheckpointwindow\fi
-The substrate's storage configuration is short and decisive. In WAL mode with
+The storage configuration is short, and it decides the durability claim. In WAL mode with
 the \emph{normal} synchronization level (the WAL is fsync'd at checkpoints rather
 than on every commit), a bounded auto-checkpoint interval, a bounded busy-wait,
 foreign-key enforcement on, and a clean-shutdown checkpoint-and-truncate, the
 kernel inherits exactly the crash semantics that configuration defines. The claim
 ``a write that returned success survives a crash'' reduces \emph{entirely} to what
-WAL with normal synchronization guarantees --- which is the subject of
-\S\ref{sec:durability}, and which is not what an unguarded reading assumes.
+WAL with normal synchronization guarantees. \S\ref{sec:durability} shows that
+this is less than a casual reading assumes.
 \subsection{Schema evolution: an ordered boot ledger, not yet a sequencer (OP-7)}
+\pdstatus{\BuiltWeak}{the ordered boot ledger ships; the sequencer is specified}
 The initial schema-by-union approach (\texttt{CREATE TABLE IF NOT EXISTS}) created
 vulnerabilities around unsequenced renames and multi-column backfills. The kernel's
-answer so far is a partial one, and the honest way to report it is to name the trade
-it makes rather than the property it saves.
-What ships (\BuiltWeak) is a \textbf{boot-time migration ledger}: the daemon applies
+answer so far is partial, and it trades one property for another.
+What ships is a \textbf{boot-time migration ledger}: the daemon applies
 a numbered, totally ordered set of migrations before it serves any request, and then
 \emph{verifies the schema it is about to serve from} --- probing the actual tables
 and column sentinels rather than trusting that the statements ran without raising
---- and refuses to serve on a mismatch. That is a real fail-safe default, and it is
-the reason a half-applied migration cannot quietly become coordination truth.
+--- and refuses to serve on a mismatch. That is a real fail-safe default: a
+half-applied migration cannot quietly become part of the coordination record.
 What does \emph{not} yet ship is the sequencer that would make that order
 authoritative. Subsystem modules still self-initialize their own tables over the shared
 database handle (Appendix~\ref{app:status}), so the schema is still, in part, a
 union. A strict linear ledger managed exclusively by the daemon via SQLite's
 \texttt{pragma user\_version}, in which modules \emph{declare} migrations rather
-than applying them, is \Designed. OP-7 therefore stands \Partial{}: this is
-the schema-ordering question answered by requiring an explicit dependency
-order, at the cost of the ``any module, any order''
-flexibility the schema-by-union design offered, and not yet paid for in full.
+than applying them, is specified but not built. The schema-ordering question is
+therefore answered in part: modules must follow an explicit dependency order,
+giving up the ``any module, any order'' flexibility of schema-by-union, and the
+daemon does not yet enforce that order everywhere.
 Table~\ref{tab:swk-schema-evolution} states the trade in two rows.
 \begin{table}[H]
 \centering
@@ -425,7 +431,7 @@ design would still need. [internal]}
 \toprule
 \textbf{State} & \textbf{What governs migration order} \\
 \midrule
-ships (\BuiltWeak) & a numbered, totally ordered boot-time migration ledger, applied before any request is served, with post-apply verification against the actual tables; organ modules still self-initialize their own tables, so the schema is still, in part, a union \\
+ships (\BuiltWeak) & a numbered, totally ordered boot-time migration ledger, applied before any request is served, with post-apply verification against the actual tables; subsystem modules still self-initialize their own tables, so the schema is still, in part, a union \\
 designed (\Designed) & a strict linear ledger managed exclusively by the daemon via \texttt{pragma user\_version}, in which modules \emph{declare} migrations rather than applying them themselves \\
 \bottomrule
 \end{tabularx}
@@ -435,31 +441,31 @@ The database resolves to a single canonical path with owner-only file permission
 Signing-key isolation remains partial: operating-system keychain storage is an
 unfinished requirement, and a same-user attacker remains outside the guarantee
 (\S\ref{sec:threatmodel}). A fail-closed guard refuses to open the live registry
-from a test context --- the analogue of a framework's protected-environment check.
-This is Saltzer and Schroeder's \emph{fail-safe defaults}~\pdcite{saltzer1975protection}
-applied at the one place a test could corrupt production truth.
-\subsection{The second writer: institutional truth above the local harbor}
+from a test, much as a web framework refuses to run its tests against the
+production environment. This is Saltzer and Schroeder's \emph{fail-safe
+defaults}~\pdcite{saltzer1975protection} applied at the one place a test could
+corrupt the live record.
+\subsection{The second writer: one record across several machines}
 \label{sec:second-writer}
-A team runs several harbors and wants one plan across them: which objectives
-are authorized, who owns what, which transitions were accepted. A shared
-coordination service could display that plan or become its authoritative writer;
-those are different roles. Transferring authority from a local harbor to such a
-service is \Designed{}, not an implemented extension of the local ledger.
-The design rule is short enough to state before the mechanism. \emph{A second
-writer above the local harbor is either a projection of the local record or
-the writer of it, never both, and the switch between the two is an epoch.} Here an \emph{epoch} is a monotonically increasing authority generation: records from an older generation cannot authorize a current write. A
-projection may be copied, searched, and rendered anywhere; it carries no
-authority, and a client that writes to it has written nothing. The writer is
-the one process whose accepted transitions define the record, and there is
-one per record per epoch. Under the proposed signing policy, the harbor signs
-work intents with its own key; a relay verifies and applies them but cannot author
-them. A snapshot feed that replaces a remote mirror while leaving the local
-daemon authoritative is still only a projection. Replicating that feed does not
-transfer writing authority. This is a \emph{design invariant}: intended to hold, backed by the
-single-writer implementation for the local case, and not yet exercised across
-harbors by any code.
-The proposed writer transfer requires a procedure rather than a setting ---
-six steps, in this order. (1) Freeze: the local harbor stops accepting writes and records the
+\pdstatus{\Designed}{writer transfer between harbors; the local single writer is built}
+A team may run several machines, each with its own kernel governing its own
+agents (each such governed environment is a \emph{harbor}), and want one shared
+plan across them: which objectives are authorized, who owns what, which
+changes were accepted. A shared service could either display copies of each
+machine's record or become the one place where that record is written; it must
+not do both. A copy of this kind, a \pdterm{projection}, can be searched and
+displayed anywhere, but writing to it changes nothing. Exactly one process at a
+time is the writer whose accepted changes define the record. Handing the writer
+role to another process is recorded by raising an authority number, the
+\emph{epoch}, and any write stamped with an older epoch is refused. This
+handover is designed but not yet implemented.
+Under the proposed signing policy, the harbor signs work intents with its own
+key; a relay verifies and applies them but cannot author them. A snapshot feed
+that replaces a remote mirror while leaving the local daemon authoritative is
+still only a projection, and replicating that feed does not transfer writing
+authority. The single-writer implementation supports this rule for one harbor;
+no code yet exercises it across harbors.
+The proposed writer transfer is a procedure of six steps, in this order. (1) Freeze: the local harbor stops accepting writes and records the
 freeze as its last transition. (2) Export: the ledger and its root hash leave
 the harbor as one artifact. (3) Verified import: the receiving authority
 imports the artifact and proves, against the root, that what it holds is what
@@ -468,28 +474,28 @@ and compared with the old. (5) Epoch: the new writer's epoch is signed and
 published, and every client refuses a write under any older epoch from that
 moment. (6) Rollback only by another epoch: there is no return to the old
 writer except by running the same procedure in reverse, so the record never
-has two writers, even for the duration of a mistake. The reason the switch
-must be an epoch and not a flag is the same reason revocation must be an
-epoch in \pdchapref{anchor}{The Anchor Protocol}: the model-checked attack
-there restores a backup taken before a revocation and thereby resurrects a
-dead credential, and it is refuted only when state carries the epoch it was
-valid under. A restored harbor database that predates the cutover is the same
-attack against authority, and the same defence closes it. That transfer is a
+has two writers, even for the duration of a mistake. A flag would not do, for
+the same reason revocation needs an epoch in \pdchapref{anchor}{The Anchor
+Protocol}. The model-checked attack there restores a backup taken before a
+revocation and so brings a revoked credential back into use; it fails only
+when stored state carries the epoch under which it was valid. A restored
+harbor database that predates the handover is the same attack against the
+writer role, and the same defence stops it. The argument is a
 \emph{model-checked property} for credentials and a \emph{design invariant}
 for writers; nothing in the repository yet checks the writer case.
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
 The alternative the procedure exists to forbid is dual writing with
 reconciliation: both authorities accept writes for a while and \mbox{receipts}
-reconcile them afterwards. That is two truths, the condition every result in
-this chapter assumes away, and no receipt repairs it after the fact, because
-the receipt itself would need a writer.
+reconcile them afterwards. That gives two records that can disagree, which
+every result in this chapter assumes cannot happen. No receipt repairs it
+afterwards, because the receipt itself would need a writer.
 A transfer implementation must demonstrate
 that an interrupted cutover or restored backup cannot reactivate a stale writer,
 and that the new epoch was authorized by the existing root of authority.
-Those
-checks are not provided by the local ledger. Until the transfer is implemented
-and checked, a remote copy remains a projection over local authorities.
+The local ledger does not provide those checks. Until the transfer is
+implemented and checked, a remote copy remains a projection of the local
+records.
 \end{pdboundary}
 \pdexercisepointer{\ref{ex:swk-schema-rename}}{\ref{ex:swk-op7-sequencer}}{\pageref{ex:swk-schema-rename}}
 % ═════════════════════════════════════════════════════════════════════════════
@@ -506,9 +512,9 @@ If the host loses power, that cache may disappear too: the database can remain
 consistent while those recent acknowledged writes are lost.
 
 Figure~\ref{fig:swk-durability-dramatization} asks what survives each fork.
-The distinction is not whether the agent received an acknowledgement; it did
-in both cases. It is which component retained the acknowledged bytes. Neither
-case recovers an edit or thought Heron never recorded.
+Heron received an acknowledgement in both cases. What differs is which
+component still held the acknowledged bytes. Neither case recovers an edit or
+thought Heron never recorded.
 
 \input{figures/fig-swk-durability-dramatization}
 Durability is a claim about a named failure class. Table~\ref{tab:swk-durability-faultclass} summarizes the two forks and the stronger synchronization policy.
@@ -528,9 +534,9 @@ per-commit synchronization against OS crashes and power loss. [internal]}
 \bottomrule
 \end{tabularx}
 \end{table}
-Table~\ref{tab:swk-durability-faultclass} draws the split this section defends:
-the same write, judged against two different fault classes with two different
-answers.
+Under \texttt{NORMAL}, the same acknowledged write is durable against a
+process crash and may be lost to an operating-system crash or a power loss;
+under \texttt{FULL} it is durable against all three.
 \subsection{Separate process crashes from power loss}
 Gray and Reuter~\pdcite{grayreuter1992} draw the canonical line between
 \emph{atomicity/consistency} (a transaction is all-or-nothing and never leaves the
@@ -539,8 +545,8 @@ survives subsequent failures). Under SQLite's WAL with the \emph{normal}
 synchronization level, the log is \emph{not} fsync'd on every commit --- it is
 synced at checkpoint~\pdcite{sqlitewal}. Per SQLite's own documentation, in WAL mode
 the normal level means ``commits might lose durability following a power loss or
-hard reset,'' though the database remains uncorrupted. So the honest statement
-splits in two.
+hard reset,'' though the database remains uncorrupted. So the durability
+claim has two parts.
 \begin{property}[Durability by fault class]\label{prop:durability}
 \setlength{\parskip}{4pt plus 1pt}
 Let a write return success under the default WAL configuration.
@@ -556,13 +562,14 @@ Let a write return success under the default WAL configuration.
   and verify its completion under the storage fault model.
 \end{itemize}
 \end{property}
-\pitfall[Power loss can erase commits]{The seductive misconception is ``the normal sync level is safe in WAL mode
+\pitfall[Power loss can erase commits]{A common mistake is to think ``the normal sync level is safe in WAL mode
 because WAL already guarantees crash safety.'' This conflates crash-\emph{consistency}
 (the documented crash-consistency property) with \emph{durability} (which
 NORMAL does not guarantee under power loss). Both depend on SQLite's filesystem
 and storage assumptions. A successful process-crash recovery does not establish
 power-loss durability.}
-\subsection{Why the trade is defensible --- and where it stops being so}
+\subsection{When the trade is acceptable, and when it is not}
+\pdstatus{\Designed}{typed durability selector (OP-10); not deployed}
 The acceptable fault class is a policy choice. Ordinary claims may tolerate
 loss after a host failure; financial settlement may not. The loss interval under
 \texttt{NORMAL} is not a fixed number of milliseconds.
@@ -576,10 +583,11 @@ Ordinary coordination writes may retain \texttt{NORMAL}.
 \texttt{wal\_checkpoint(FULL)} names a checkpoint mode, not the connection's
 synchronization setting. It is not a substitute for a typed commit contract;
 checkpoint completion, errors, and concurrent readers must be handled explicitly.
-The reference implementation has no per-write durability selector today. OP-10
-remains \Open{} pending an interface that requires each path to name its fault
-class, configuration checks, and host-failure tests. Table~\ref{tab:swk-selective-checkpoint}
-states this proposed interface rather than deployed behavior.
+The reference implementation has no per-write durability selector today.
+Closing OP-10 needs an interface that requires each write path to name its
+fault class, together with configuration checks and host-failure tests.
+Table~\ref{tab:swk-selective-checkpoint} states this proposed interface; it is
+not deployed behavior.
 \begin{table}[H]
 \centering
 \caption{Typed durability selection (OP-10, \Designed). Connection settings
@@ -596,36 +604,38 @@ settlement-ledger entry (money-bearing) & \texttt{synchronous=FULL} on the trans
 \bottomrule
 \end{tabularx}
 \end{table}
-\subsection{A recovery story, not just a durability story}
+\subsection{Recovery after a crash}
+\pdstatus{\BuiltWeak}{the three boot checks exist but are not one invariant}
 Durability is about what survives; recovery is about what happens next. On daemon
 restart with a WAL, SQLite recovers the valid committed state (I1a's
-mechanism). But the kernel-level questions are larger: who validates the audit
-chain on boot, and what becomes of a half-applied cross-subsystem operation
-(\S\ref{sec:atomicity}) after a crash? The hook exists --- the boot-admission gate
-that refuses to serve when a critical self-check fails (\S\ref{sec:attest}) ---
-but boot-time WAL recovery plus integrity check plus chain verification should be a
-single named invariant, and today it is closer to \BuiltWeak{} than \Built.
+mechanism). The kernel must also answer two larger questions: who validates the
+audit chain on boot, and what becomes of a half-applied cross-subsystem
+operation (\S\ref{sec:atomicity}) after a crash? A boot gate already refuses to
+serve when a critical self-check fails (\S\ref{sec:attest}). Boot-time WAL
+recovery, the integrity check and chain verification should together form one
+named invariant; today they are three separate checks.
 \input{figures/fig-swk-recovery-pipeline}
-Figure~\ref{fig:swk-recovery-pipeline} draws the three mechanisms in the
-order they run and the admission decision that follows. The dashed group
-does not imply a shared recovery invariant; that remains to be established.
+Figure~\ref{fig:swk-recovery-pipeline} shows WAL recovery, the integrity check
+and chain verification in the order they run, then the decision to serve or
+refuse. The figure groups the three, but they do not yet share one recovery
+invariant.
 \pdexercisepointer{\ref{ex:swk-fault-classes}}{\ref{ex:swk-op10-interface}}{\pageref{ex:swk-fault-classes}}
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The resource subsystem: claims, locks, and fair exclusion}
 \label{sec:resource}
 % ═════════════════════════════════════════════════════════════════════════════
-Network ports are the namesake and the original sin: two agents that each start a
-development server on the same port collide, and one silently fails. The resource
-subsystem generalizes that problem into a single exclusion primitive --- over network
-ports, over named mutex locks, and over edit-surface claims on regions of source
-files --- to which every higher layer's notion of ownership reduces.
+The project began with network ports: two agents that each start a development
+server on the same port collide, and one silently fails. The resource subsystem
+turns that problem into one exclusion mechanism, used for network ports, for
+named mutex locks, and for claims on regions of source files. Every higher
+layer's notion of ownership reduces to it.
 \subsection{Claim granularity is richer than ``claims''}
 It is tempting to collapse all three of these into one word. The kernel instead
 distinguishes \textbf{whole-file}, \textbf{line-range}, and \textbf{symbol-path}
 claims, each keyed by the file path together with, respectively, nothing, a
-line interval, or a syntactic symbol identifier. This is the substrate for a
-``reserve regions, not whole files'' coordination policy and for semantic-conflict
-prediction over a syntax-aware symbol index --- but at the substrate layer it is
+line interval, or a syntactic symbol identifier. These three kinds support a
+``reserve regions, not whole files'' coordination policy and semantic-conflict
+prediction over a syntax-aware symbol index. In the storage layer they are
 simply exclusion at three granularities, listed in Table~\ref{tab:swk-claim-granularity}.
 \begin{table}[H]
 \centering
@@ -648,18 +658,22 @@ symbol-path & file path + a syntactic symbol identifier & \texttt{claim(lib/webh
 Two developer agents, \texttt{claude:worker-1} (feature development) and \texttt{codex:bench} (integration testing), started a millisecond apart, both attempt to bind a development server to port~7421. Each issues \texttt{acquire(7421)} (Algorithm \ref{alg:acquire}). Both requests reach the single daemon, which serializes them: one insert lands first. Say \texttt{claude:worker-1}'s does. Its insert succeeds and it is granted the port (lease token \texttt{tk\_94a2}, epoch $e=1$). \texttt{codex:bench}'s insert, arriving an instant later ($t = +1\,\text{ms}$), hits the database uniqueness constraint on key~\texttt{port:7421} and is rejected \emph{atomically} --- there is no moment at which both rows exist. Crucially, \texttt{codex:bench} does not get a bare error. The catch path reads back the row and hands \texttt{codex:bench} the \emph{identity and lease metadata of the holder}: ``\texttt{port:7421} is held by \texttt{claude:worker-1}, epoch 1, TTL remaining 59s.'' \texttt{codex:bench} can now pick fallback port~7422, wait, or message \texttt{claude:worker-1}.
 The service cannot grant both agents the same fresh key. Preventing a direct,
 unmediated port bind is a separate operating-system obligation. The daemon's
-request queue serializes these operations; primary-key uniqueness rejects
-the second row, and the file lock is the database's backstop. One writer, one constraint, one holder.
+request queue puts these operations in order; primary-key uniqueness rejects
+the second row, and the file lock still orders writes if a second writer
+appears. One writer, one constraint, one holder.
 
 \input{figures/fig-swk-race-dramatization}
 
-Figure~\ref{fig:swk-race-dramatization} draws the two lanes converging on that
-one commit point and the two outcomes.
+In Figure~\ref{fig:swk-race-dramatization} both requests reach that one commit
+point: \texttt{claude:worker-1} is granted the port, and \texttt{codex:bench}
+is told who holds it.
 
 \subsection{The claim lifecycle as a finite-state machine}
 \input{figures/fig-swk-claim-lifecycle}
-Figure~\ref{fig:swk-claim-lifecycle} states, as a state machine, the four
-properties on which the coordination layer builds typed ownership. The acquire
+Figure~\ref{fig:swk-claim-lifecycle} states four properties as a state machine:
+acquire is one atomic insert, re-claim and release are idempotent, an expired
+claim is swept back to free on the next read, and there is no queued state.
+The coordination layer builds typed ownership on these four. The acquire
 path is small enough to state as an algorithm (Listing~\ref{alg:acquire}); we
 then give the central property as a theorem.
 \begin{figure}[H]
@@ -687,23 +701,21 @@ function acquire(key, requester, ttl):
 \end{minipage}
 \end{figure}
 The listing shows the exact-key claim protocol. Its uniqueness constraint
-does not by itself check overlapping line ranges, and it does not show a
-fencing epoch. The next result therefore states the stronger protocol's
-assumptions explicitly; neither extra guarantee follows from this listing
-alone.
+does not check overlapping line ranges, and the listing has no fencing epoch.
+The next result therefore states the assumptions of a stronger protocol that
+covers both.
 
-The second half of the theorem below is the \textbf{fencing token}, and it should
-be named before it is proved, because it is the part of the design that was not
-invented here. Kleppmann's rule is the whole of it --- ``a number that increases
-every time a client acquires the lock,'' handed to the resource along with every
-write, so that the resource itself and not the lock service can refuse a holder
-who paused past its lease and woke up still believing it held
-it~\pdcite{kleppmann2016locking} --- and Chubby shipped it first, as the
+The second half of the theorem below uses a \pdterm{fencing token}, an idea
+this design borrows. Kleppmann states the rule: ``a number that increases every
+time a client acquires the lock'' is handed to the resource with every write,
+so the resource itself, and not the lock service, can refuse a holder that
+paused past its lease and woke up still believing it held
+it~\pdcite{kleppmann2016locking}. Chubby shipped it first, as the
 \emph{sequencer} a lock holder passes downstream so a storage server can tell a
 current handle from a stale predecessor's~\pdcite{burrows2006chubby}. This
 chapter calls the number an \emph{epoch} because it is kept per resource and
-survives reallocation, but the protocol shape is the same one: acquire, receive
-a monotone number, present it with every effect, get refused when it is stale.
+survives reallocation. The protocol is the same: acquire, receive a number that
+only increases, present it with every effect, and be refused when it is stale.
 
 \paragraph{A lease can expire while its holder is paused.}
 For the checkout repair, let Heron hold epoch~1 and then pause. Its lease
@@ -740,21 +752,21 @@ Upon grant or reallocation, the daemon increments the resource's fencing epoch $
 \input{figures/fig-swk-fencing-epoch}
 
 Figure~\ref{fig:swk-fencing-epoch} isolates that guard as a four-step
-sequence: the epoch, not the lock, is what a paused holder's late effect
-cannot get past.
+sequence: the broker accepts the write stamped with epoch~105 and refuses the
+paused holder's late write stamped with epoch~104. The epoch stops the late
+write; the lock alone would not.
 
 \pdmarginanalogy{swk-railway-token-staff}{}{ch01-railway-token-staff}{Like an English railway token staff, possession of the token is the sole physical authority to occupy the single track, preventing collision without distributed consensus.}%
 
-What differs from Chubby is the setting, and it is worth being exact about how
-much smaller our problem is. Chubby's sequencer and Raft's leader term fence
-across machines that cannot otherwise agree on who is alive; the danger they
-answer is a paused JVM or a partitioned node still acting on a lease the rest
-of the world has moved past. This rail fences one process's own asynchronous
-handlers against each other, so the race the epoch defends against is logical
-rather than physical, and the whole apparatus fits inside one SQLite
-transaction. That is a good reason not to need Raft (the related-work section
-makes the argument by way of Fischer, Lynch and Paterson); it is not a reason
-to let the token pass as new.
+The setting differs from Chubby's, and the problem here is much smaller.
+Chubby's sequencer and Raft's leader term fence across machines that cannot
+otherwise agree on who is alive; the danger they answer is a paused JVM or a
+partitioned node still acting on a lease everyone else has moved past. Here the
+epoch fences one process's own asynchronous handlers against each other, so the
+race it defends against is between handlers on one machine, and the whole
+mechanism fits inside one SQLite transaction. That is why the kernel does not
+need Raft (the related-work section makes the argument by way of Fischer, Lynch
+and Paterson). The fencing token itself is still borrowed, not new.
 
 \pitfall[Reclamation needs its own atomic protocol]{The exact-key listing
 shows how uniqueness rejects a second active row. It does not implement the
@@ -765,11 +777,11 @@ lease and epoch. Two separate delete/insert statements can leave a gap on
 failure even when one connection prevents another handler from interleaving.
 An explicit transaction addresses atomicity; preventing stale external
 effects still requires the downstream gate. Single ownership, atomic
-reclamation, and fencing are three obligations, not synonyms.}
+reclamation, and fencing are three separate obligations.}
 
 What the discipline looks like from two terminals: one agent holds a lock on a file,
 a second asks for the same name and is told who holds it and for how long, and only
-after the first releases does the second acquire. Nothing here is advisory --- the
+after the first releases does the second acquire. Nothing here is advisory: the
 daemon is the single writer for the \texttt{locks} row, so the second request cannot
 race the first.
 
@@ -777,11 +789,12 @@ race the first.
 
 \subsection{Fairness without a scheduler: the Stigmergic Ticket-Lock (OP-1)}
 \label{sec:op1}
+\pdstatus{\Designed}{OP-1 open; no ticket table in the reference implementation}
 
 The conspicuous gap in the claim lifecycle (Figure~\ref{fig:swk-claim-lifecycle}) is
 the absence of a \textsc{queued} state. Locks have a time-to-live, but acquisition is
-racy first-come, so a fast agent churning a hot file can starve a slow agent
-indefinitely.
+a race won by whoever asks first, so a fast agent that keeps re-acquiring a busy
+file can keep a slow agent waiting forever.
 
 \ifdefined\pdswisslandmarkplate
 \begin{figure}[p]
@@ -792,11 +805,12 @@ indefinitely.
 \pdmarginpagebreak
 \fi
 
-The design that would close OP-1 without dragging a background scheduler into the
-kernel is a \textbf{Stigmergic Ticket-Lock}. It is \Designed{} --- specified here in
-enough detail to build and to attack, but not realized: no \texttt{claim\_tickets}
-table exists in the reference implementation, and the lifecycle above is still the
-one the kernel runs. It would introduce a \texttt{claim\_tickets} table:
+The design that would close OP-1 without adding a background scheduler to the
+kernel is a \pdterm{Stigmergic Ticket-Lock}: each waiting agent leaves a
+numbered ticket in shared state, and the agent that releases the claim hands it
+to the lowest ticket. It is specified here in enough detail to build and to
+attack. No \texttt{claim\_tickets} table exists in the reference
+implementation, and the kernel still runs the lifecycle above. It would introduce a \texttt{claim\_tickets} table:
 \pdmarginanalogy{batch3-ch01-ticket-dispenser}{}{ch01-fairness-ticket-dispenser}{Like a ticket dispenser, the proposed lock would assign turns instead of making contenders race again.}%
 \begin{lstlisting}[language=SQL]
 CREATE TABLE claim_tickets (
@@ -820,19 +834,20 @@ ORDER BY seq_num ASC LIMIT 1;
 Because the state transition would be driven entirely \emph{reactively} by the
 releasing agent inside one transaction, FIFO ordering among waiters follows from the
 ticket table's own monotonic sequence, with no background timer or polling thread in
-the kernel --- which is the property that makes the design worth stating.
+the kernel. That property is what makes the design worth stating.
 
-Its honest edge is the path it does \emph{not} cover. A holder that never calls
-\texttt{release} --- it crashed, or its lease simply expired --- returns the
+The design does \emph{not} cover one path. A holder that never calls
+\texttt{release}, because it crashed or its lease simply expired, returns the
 resource through the lazy TTL sweep (I4), and the sweep consults no ticket queue.
 So bounded wait would hold for cooperative release and fail on exactly the
-failure path the kernel was built to expect. OP-1 stays \Open{} until the sweep and
-the queue are the same code path, and until the ticket table exists at all.
+failure path the kernel was built to expect. OP-1 remains open until the sweep
+and the queue share one code path and the ticket table exists.
 
 \input{figures/fig-swk-ticket-lock-delta}
 
-Figure~\ref{fig:swk-ticket-lock-delta} draws that split as a delta on the
-shipped machine: one exit closed, one still open.
+Figure~\ref{fig:swk-ticket-lock-delta} shows the change against the shipped
+state machine: cooperative release would consult the ticket queue, while
+expiry still bypasses it.
 
 \pdexercisepointer{\ref{ex:swk-release-idempotent}}{\ref{ex:swk-op1-ticket}}{\pageref{ex:swk-release-idempotent}}
 
@@ -841,20 +856,24 @@ shipped machine: one exit closed, one still open.
 \label{sec:comm}
 
 Alice sends Heron a request to run the checkout regression test. Heron starts
-it, but the acknowledgement is lost. Replaying the request is normal for an
-at-least-once bus; starting a second consequential operation may not be.
+it, but the acknowledgement is lost. Delivering the request again is normal for
+a message bus that promises at-least-once delivery; starting the test a second
+time may not be harmless.
 The receiver needs an operation identifier whose stored result remains bound
 to the effect. A message cursor answers ``which messages have I read?''; it
 does not answer ``did this tool already act?'' The distinction will recur
 when a crashed worker is recovered in \S\ref{sec:continuity}.
 
-Delegated work needs a record of its own. When Heron hands part of the test
-run to Wren, the system records that Wren's task came from Heron's, so it can
-tell which agents already sit above Wren in the line of hand-offs. An
-\pdterm{upward block} is the rule that uses this record to refuse a hand-off
-back up the line: Wren may not pass the task to Heron, or to anyone who handed
-it down to Heron, so two agents cannot pass one task between them while
-neither finishes it.
+Delegated work needs records of its own. When Heron hands part of the test
+run to Wren, two questions arise: who allowed Wren to act, and what larger work
+Wren's task belongs to. The \pdterm{authorization chain} answers the first: it
+is the signed record of who granted which permission to whom. The
+\pdterm{coordination lineage} answers the second: it records which task was
+handed down from which, so the system can tell which agents already sit above
+Wren in the line of hand-offs. An \pdterm{upward block} is the rule that uses
+the lineage to refuse a hand-off back up the line: Wren may not pass the task
+to Heron, or to anyone who handed it down to Heron, so two agents cannot pass
+one task between them while neither finishes it.
 
 % ═════════════════════════════════════════════════════════════════════════════
 
@@ -877,10 +896,11 @@ coordination lineage & the coordination object: what work is already in flight, 
 \end{tabularx}
 \end{table}
 
-The communication subsystem (Table~\ref{tab:swk-comm-organ}) is where the substrate
-stops being a lockbox and becomes a medium for conversation. The carrier is
-\Built; the \emph{semantics} that ride on top of it (typed speech acts, protocol
-state machines) belong to the coordination layer. Three pieces matter here.
+In the communication subsystem (Table~\ref{tab:swk-comm-organ}), stored
+records become messages between agents. The kernel implements the message
+carrier; the \emph{meaning} carried on top of it (typed speech acts, protocol
+state machines) belongs to the coordination layer. Three pieces matter here:
+the bus, the stigmergic markers, and the two records of delegation.
 
 \subsection{The bus: a durable carrier envelope}
 
@@ -904,11 +924,13 @@ In the local experiment in Figure~\ref{fig:swk-idempotency-gap}, a sender
 journals one ten-unit synthetic request to a separate SQLite receiver. A child
 process stops at one of three cutpoints, alongside a no-crash control. A fresh
 worker attempts one recovery using only its journal and responses to
-requests---not the receiver's database. The two crash histories
-have identical local records. Retrying blindly duplicates the effect in one;
-holding avoids duplicates but leaves both outcomes unresolved. The receiver's
-retained binding permits useful recovery in these cases. This tests process
-crashes with serial requests, not arbitrary tools, key expiry or power loss.
+requests, not the receiver's database. A crash just before the effect and a
+crash just after it leave identical local records: the request is pending and
+no receipt exists. Retrying blindly then gives one effect in the first case
+and two in the second; holding avoids the duplicate but leaves both cases
+pending. A receiver that keeps the key, payload, effect and receipt together
+lets one recovery finish every case with exactly one effect.
+\pdscope{The experiment tests process crashes with serial requests, not arbitrary tools, key expiry or power loss.}
 
 \input{figures/fig-swk-idempotency-gap}
 
@@ -917,17 +939,19 @@ crashes with serial requests, not arbitrary tools, key expiry or power loss.
 \pagebreak[4]
 \subsection{Stigmergic markers: decay as a provided guarantee}
 
-The kernel also carries \emph{stigmergic markers} --- numeric coordination signals
-deposited in shared state, after the manner of Grass\'e's stigmergy in social
-insects~\pdcite{grasse1959} and the generative-communication tuple spaces of
-Gelernter's Linda~\pdcite{gelernter1985}, and used in ant-colony optimization
-\pdcite{dorigo1999}. Each marker carries per-kind exponential decay $w \cdot
-r^{\Delta t}$, computed both on a background evaporation tick \emph{and} at read
-time (so a reader sees the correctly decayed value without waiting for the tick),
-and pruned below a small threshold. The decay is the structural defense against
-``blackboard rot'': stale coordination signals evaporate on their own. The
-calibration of the decay rate is genuinely open (OP-8): too slow and signals rot,
-too fast and they evaporate before they coordinate.
+The kernel also carries \pdterm{stigmergic markers}: numeric signals that
+agents leave in shared state for other agents to read, whose weight fades over
+time. The idea follows Grass\'e's stigmergy in social
+insects~\pdcite{grasse1959}, coordination through marks left in the
+environment, and the tuple spaces of Gelernter's Linda~\pdcite{gelernter1985};
+ant-colony optimization uses it too~\pdcite{dorigo1999}. Each marker's weight
+decays exponentially, $w \cdot r^{\Delta t}$, at a rate set for its kind. The
+decay is computed both on a background tick \emph{and} at read time, so a
+reader sees the correctly decayed value without waiting for the tick, and a
+marker is deleted once its weight falls below a small threshold. Old signals
+therefore fade on their own instead of piling up on the shared board. How fast
+they should fade is an open calibration question (OP-8): too slow and stale
+signals linger; too fast and they fade before other agents act on them.
 
 \begin{pdexample}{The Decay Arithmetic a Calibration Will Use}
 \setlength{\parskip}{4pt plus 1pt}
@@ -966,24 +990,51 @@ the same at every answer.
 
 \subsection{Two delegation chains, one dangerous name}
 
-A dangerous naming collision lives in this subsystem. The phrase ``delegation chain''
-names \emph{two different objects}, which we keep rigorously distinct:
+Two different records are both called a ``delegation chain,'' and this book
+keeps them apart.
 
 \begin{itemize}[leftmargin=1.4em]
-  \item the \textbf{authorization chain} --- the \emph{cryptographic} object
-  (\Built, mechanically verified in a protocol-verification tool): a hop-bound,
-  attenuation-monotonic, anti-replay and anti-splice chain of digital signatures
-  that proves \emph{who authorized whom}. This is what cross-machine capability
-  transfer in the economy layer rides on.
-  \item the \textbf{coordination lineage} --- the \emph{coordination} object
-  (\Designed): the task-lineage over which loop detection and upward-block run,
-  preventing two agents from delegating a task back and forth forever.
+  \item The \textbf{authorization chain} (\Built, verified in a
+  protocol-verification tool): a chain of signed permission slips. Bob signs a grant to Alice, Alice signs a narrower one to Wren, and a
+  verifier checks every signature and checks that each slip allows no more than
+  the one before it. Each slip is bound to its place in the chain, so an old
+  slip cannot be replayed or spliced into another chain. It answers ``who
+  allowed whom to do what?'' Cross-machine capability transfer in the economy
+  layer depends on it.
+  \item The \textbf{coordination lineage} (\Designed): the task-lineage, or
+  family tree of tasks. The checkout repair spawned ``run the payment tests,'' which spawned ``fix the
+  mock.'' It answers ``what work is already in progress?'' Loop detection and
+  the upward block run over it, so two agents cannot hand a task back and forth
+  forever.
 \end{itemize}
 
-These are distinct objects, and the relationship is that the coordination lineage
-is carried \emph{inside} the authorization chain --- loop detection runs over a
-lineage whose authenticity the cryptographic chain guarantees. We never again write
-bare ``delegation chain.''
+The coordination lineage is carried \emph{inside} the authorization chain:
+each lineage entry travels inside the signed slip that hands the task on, so
+the lineage cannot be forged, and loop detection runs over a lineage whose
+authenticity the signatures guarantee. A signature cannot tell whether two
+differently worded tasks are the same task. This book never writes bare
+``delegation chain'' again.
+
+\begin{pdexample}{Three grants, three requests}
+This is a constructed example. Bob grants Alice G1: read and write the
+repository and run tests until 18:00, with lineage [checkout-repair]. Alice
+grants Wren G2: write \texttt{lib/payments/**} and run tests until 17:00, with
+lineage [checkout-repair, payment-tests]. Wren grants Pike G3: run tests only,
+until 17:00, with lineage [checkout-repair, payment-tests, fix-mock]. Each
+grant is signed by its issuer and carries its lineage inside the signed bytes.
+
+Now Pike makes three requests. First, Pike asks for G4: write
+\texttt{lib/**}. The authorization chain refuses it, because G4 allows more
+than G3. Second, Pike hands payment-tests back to Wren. Running tests is within
+G3, so the signatures allow it, but the lineage already contains
+payment-tests, so loop detection refuses it; Wren also sits above Pike in the
+lineage, so the upward block refuses it as well. Third, Pike hands ``verify
+the payment suite'' to Carol, who is not in the lineage, under a grant to run
+tests only. The signatures verify, the grant is no wider than G3, and the
+lineage contains no repeated entry, so both checks pass. Yet this is the
+payment-tests task again under a new name. Recognizing that two differently
+worded tasks are the same task is the open problem stated next.
+\end{pdexample}
 
 \pitfall[Authentication does not settle task equivalence]{A signed task
 identifier can prove which identifier a delegator supplied. It cannot prove
@@ -998,33 +1049,43 @@ and semantic loop detection are separate checks.}
 \subsection{A second transport}
 
 \pdmarginanalogy{swk-flywheel-governor}{}{ch01-flywheel-governor}{Like a steam engine centrifugal governor whose collar chokes the inlet when speed threatens stability, rate-limiting enforces backpressure before the transport faults.}%
-The kernel ships \emph{two} transports, not one: a request/response protocol over a
-Unix domain socket \emph{and} a binary framed transport over a Unix domain socket,
-the latter with peer-credential authentication and backpressure/draining for
-high-frequency, tight-loop coordination. We note in \S\ref{sec:threatmodel} that
-the peer-credential check is a software handshake --- the connecting process
-\emph{states} an agent identity and the daemon checks it against the registration
-table, backed by owner-only (\texttt{0600}) permissions on the socket file --- and
-\emph{not} the kernel-enforced socket-level credential check
-(\texttt{SO\_PEERCRED}) it resembles and is named after. That is a real
-trust-boundary caveat, it holds for both transports, and it is unchanged by the
-hardening design of \S\ref{sec:merkle}.
+The kernel ships \emph{two} transports over Unix domain sockets: a
+request/response protocol, and a binary framed transport with peer-credential
+authentication and backpressure for frequent, tight-loop coordination. As
+\S\ref{sec:threatmodel} explains, the peer-credential check is a software
+handshake. The connecting process \emph{states} an agent identity, and the
+daemon checks it against the registration table, with owner-only
+(\texttt{0600}) permissions on the socket file behind it. It is \emph{not}
+the kernel-enforced socket-level credential check (\texttt{SO\_PEERCRED}) it
+resembles and is named after. This weakens the trust boundary for both
+transports, and the hardening design of \S\ref{sec:merkle} does not change it.
 
 \pdexercisepointer{\ref{ex:swk-decay-honest}}{\ref{ex:swk-op8-decay}}{\pageref{ex:swk-decay-honest}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The obligation \& enforcement subsystem: the sovereign's two levers}
+\section{The obligation \& enforcement subsystem: prohibition, obligation and permission}
 \label{sec:enforcement}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This subsystem is the deontic core, and it is genuinely two distinct mechanisms ---
-in the vocabulary of deontic logic for computer systems (Jones and
-Sergot~\pdcite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
-\emph{obligation} (commitments). Getting the distinction right --- and being honest
-about how strong each lever actually is --- is the security core of this chapter.
+Later chapters borrow Hobbes's word \pdterm{sovereign} for the one authority
+whose rules every party accepts before acting. In a harbor that authority is
+the daemon, and this subsystem holds its two ways of making a rule bind.
+The subsystem handles three kinds of rule; \emph{deontic} is the logician's
+word for rules of must, must-not and may, and we follow the vocabulary of
+deontic logic for computer systems of Jones and
+Sergot~\pdcite{jonessergot1993}. Two kinds need machinery of their own. A
+\emph{prohibition} says what a worker must not do: the kernel either refuses
+the act before it is recorded (\emph{regimented}) or notices it afterwards and
+responds (\emph{enforced}). An \emph{obligation} says what a worker must do:
+the kernel records it as a \emph{commitment} that can be closed only by a piece
+of evidence the kernel can re-check itself, an \pdterm{oracle}, such as a
+passing test ID. A \emph{permission} says what a worker may do and is simply
+recorded as a grant. The coordination layer reuses this split unchanged. How
+strong each of the two mechanisms really is matters more to this chapter's
+security argument than anything else in it.
 
-Table~\ref{tab:swk-deontic-split} lays out the three modalities and the mechanism
-behind each.
+Table~\ref{tab:swk-deontic-split} lays out the three kinds of rule and the
+mechanism behind each.
 
 \begin{table}[H]
 \centering
@@ -1040,7 +1101,7 @@ permission remain separate so ``able but forbidden'' stays expressible.}
 \toprule
 \textbf{Modality} & \textbf{Trigger} & \textbf{Mechanism} & \textbf{Holds / fails when} & \textbf{Example} \\
 \midrule
-prohibition & an act the policy forbids is attempted & regimented before commit by a gate when the event is controllable; otherwise detected after commit and compensated & holds when the effect never commits; fails as detect-and-compensate when the gate could not see the trigger & a tool's emergency override flag: the agent is \emph{able} to call it and \emph{forbidden} to \\
+prohibition & an act the policy forbids is attempted & regimented before commit by a gate when the gate can block the event; otherwise detected after commit and compensated & holds when the effect never commits; fails as detect-and-compensate when the gate could not see the trigger & a tool's emergency override flag: the agent is \emph{able} to call it and \emph{forbidden} to \\
 obligation & a commitment is recorded & an oracle-bound commitment: closure only through a receipt the daemon can re-check, before a daemon-set deadline & holds when a typed receipt closes it in time; fails by staying open and escalating, never by free-text assertion & ``release the claim on \texttt{lib/\allowbreak webhooks.ts} within thirty minutes'' \\
 permission & a grant is issued & a recorded capability row, attenuable, never widened downstream & holds while the grant is live; an act without a grant is a prohibition case & ``may read the audit log until the session ends'' \\
 \bottomrule
@@ -1055,46 +1116,46 @@ The kernel realizes three deontic modalities with three mechanisms:
 
 \emph{prohibition} is regimented (rejected pre-commit) or enforced (detected
 post-commit); \emph{obligation} is enforced by oracle-bound commitments;
-\emph{permission} is a recorded capability. The coordination layer's deontic
-binding is a direct lift of this split.
+\emph{permission} is a recorded capability. The coordination layer reuses this
+split unchanged.
 \end{definition}
 
-We keep \textbf{capability} (\emph{ability} --- what the agent's sandbox makes
-possible) distinct from \textbf{permission} (\emph{normative status} --- what the
-deontic layer allows), so that ``able but forbidden'' stays expressible. The
-canonical example is a dangerous override flag that a tool exposes for emergencies:
-it \emph{exists} (an agent is \emph{capable} of invoking it) but \emph{must not be
-used} (it is \emph{forbidden}). Collapsing capability into permission makes that
-state inexpressible --- which is exactly the bug a discipline against silently
-bypassing guardrails cannot afford.
+We keep \textbf{capability}, what the agent's sandbox makes possible, distinct
+from \textbf{permission}, what the rules allow, so that ``able but forbidden''
+stays expressible. The standard example is a dangerous override flag that a
+tool exposes for emergencies: it \emph{exists} (an agent is \emph{capable} of
+invoking it) but \emph{must not be used} (it is \emph{forbidden}). If capability
+and permission were one field, that state could not be written down, and a rule
+against silently bypassing safeguards would have nothing to check.
 
 \input{figures/fig-swk-capability-permission}
 
-Figure~\ref{fig:swk-capability-permission} puts both axes on one grid; the
-override flag names the one cell that must stay expressible.
+Figure~\ref{fig:swk-capability-permission} puts capability and permission on
+one grid; the override flag sits in the cell ``able but forbidden,'' which must
+stay expressible.
 
-\subsection{The policy monitor is a detector, not a regimenter}
+\subsection{The policy monitor detects; it does not prevent}
 \label{sec:arbiter-correction}
 
 \input{figures/fig-swk-reference-monitor}
 
-Figure~\ref{fig:swk-reference-monitor} draws the correction this section makes
-precise. Here is the correction that the rest of this stack must adopt. The most seductive
-claim one can make about a coordination policy monitor --- that it ``makes
-forbidden states physically unreachable'' --- is false as stated. The monitor is a
-\emph{subscriber to an append-only event stream of operations that have already
-committed}. By the time it observes a violation, the offending write is already
-durable in the log. Even in its strictest mode, its strongest response is a
-\emph{compensating} undo, not a prevention. This is not an implementation accident;
-it is a theorem.
+A tempting claim about the policy monitor is that it ``makes forbidden states
+physically unreachable.'' The claim is false as stated, and the rest of the
+stack must not rely on it (Figure~\ref{fig:swk-reference-monitor}). The monitor
+is a \emph{subscriber to an append-only event stream of operations that have
+already committed}. By the time it observes a violation, the offending write is
+already durable in the log. Even in its strictest mode, its strongest response
+is a \emph{compensating} undo. The limit follows from a theorem, not from this
+implementation.
 
 \paragraph{The test deletion is already in the history.}
 Drake makes the checkout test pass by deleting the test, contrary to Bob's
 acceptance rule. Suppose the edit has already occurred and the daemon commits
 a record describing it. A subscriber sees the record and flags the violation.
 It can request restoration or stop later work, but the deletion occurred
-before its decision. The diagram's commit line is the ordering boundary for
-that observation, not a claim that a database transaction owns the filesystem.
+before its decision. In the figure, the commit line marks the order of events
+for that observation; it does not claim that a database transaction controls
+the filesystem.
 
 Compare a mediated claim for port~7421 while another holder's lease is active:
 the uniqueness check refuses the second row before it commits. Prevention and
@@ -1123,17 +1184,17 @@ eventual or bounded-recovery property, but it does not retroactively remove the 
 prefix.
 \end{proof}
 
-\keyidea[Constraints prevent; monitors detect]{The only genuine pre-commit regimentation is credited to the right
-mechanism: the uniqueness constraint (no two holders of one resource key; no
-duplicate process-identity squat) and the fail-closed boot-admission gate (no
-serving from a test database; refuse to serve when a critical self-check fails).
-Those reject \emph{before} the commit line and are \emph{truly} unreachable. The
-policy monitor notices everything else \emph{afterward} and compensates. So:
-``physically unreachable'' for the regimented set; detection and possible
-remedy for the observed remainder. A bounded response window needs a separate
-observation and scheduling argument. Crediting double-claim
-prevention to the monitor \emph{double-counts} --- the uniqueness constraint
-already did it; the monitor merely logs it.}
+\keyidea[Constraints prevent; monitors detect]{Only two mechanisms refuse a
+change before it commits: the uniqueness constraint (no two holders of one
+resource key; no duplicate process-identity squat) and the fail-closed boot
+gate (no serving from a test database; no serving when a critical self-check
+fails). The states they refuse are \emph{truly} unreachable. The policy monitor
+notices everything else \emph{afterward} and compensates. ``Physically
+unreachable'' therefore applies only to the regimented set; the rest gets
+detection and possible remedy. A bounded response window needs a separate
+argument about observation and scheduling. Crediting double-claim prevention to
+the monitor counts it twice: the uniqueness constraint already prevented it,
+and the monitor only logs it.}
 
 \begin{theorem}[Synchronous guard sufficiency]\label{thm:decidability}
 Let $I(S)$ be an invariant of the committed database state, initially true.
@@ -1155,16 +1216,17 @@ mediated transition system: writing a receipt does not make an arbitrary
 filesystem or remote effect atomic with the database transaction.
 \end{proof}
 
-This is a sufficient condition for a synchronous admission guard, not a
-necessary condition for prevention. An operation may remain pending while
+The theorem gives a sufficient condition for a synchronous admission guard;
+prevention does not require it. An operation may remain pending while
 an external authority issues a permit bound to its identifier and payload;
 the executor can verify the permit and admit the effect only afterwards.
 Timeout can refuse admission. When permission depends on mutable external
 state, the protocol must additionally specify freshness, reservation or
 fencing so that the checked permission still authorizes the actual effect.
 External I/O can therefore increase latency or reduce availability without
-forcing a forbidden effect to occur before its check. The general boundary
-is controllability and observation, as developed next.
+forcing a forbidden effect to occur before its check. The next subsection
+states the general boundary: which events a runtime can block, and which it
+can see.
 
 
 % ---------------------------------------------------------------------------
@@ -1175,13 +1237,15 @@ is controllability and observation, as developed next.
 \subsection{The general boundary: regimentation is controllability}
 \label{sec:controllability}
 
-\noindent\emph{Express lane: a runtime can realize the whole permitted safety
-language exactly when no
+\noindent\emph{Express lane: which rules can a runtime enforce exactly,
+blocking every violation and nothing else? Sort what an agent does into steps
+the runtime can block, such as writing a file or pushing to git, and steps it
+cannot, such as the model producing its next token or forming a plan; a rule
+can be enforced exactly if and only if no
 \pdmarginfigure{wonham}{Wonham's supervisory-control theory, built for factory floors, is why a software policy can be proved enforceable rather than hoped.}%
-event the runtime cannot refuse can carry a legal history out of the rule; that is
-Ramadge--Wonham controllability with the model's own steps as the uncontrollable alphabet.
-The formal statement is the box below; the machine-checked policy table is
-Table~\ref{tab:policy-classification}.}\footnote{A standalone, submission-form version of this section is \emph{Regimented or Enforced: The Controllability Boundary for Agent Governance} (research paper 2), whose policy table and verdicts regenerate from \texttt{skills/harbor-results/scripts/b3\_controllability.py}.}
+unblockable step can, by itself, turn an allowed history into a forbidden one.
+Six of the nine rules in Table~\ref{tab:policy-classification} pass this
+test.}\footnote{A standalone, submission-form version of this section is \emph{Regimented or Enforced: The Controllability Boundary for Agent Governance} (research paper 2), whose policy table and verdicts regenerate from \texttt{skills/harbor-results/scripts/b3\_controllability.py}.}
 
 \paragraph{The scene.}
 The operations lead reads the governance document aloud. \emph{No force-push to main. No
@@ -1190,17 +1254,19 @@ confident falsehoods in status reports.} She asks the question every practitione
 answer to: which of these does the runtime \emph{guarantee}, and which does it merely
 \emph{watch for}? The first three feel airtight. The daemon holds the remote credential, so a
 push that never happens needs no forgiveness. The fourth needs a more precise event boundary. A mediator cannot prevent
-an unobserved internal model event in this plant. It may nevertheless refuse
+an unobserved internal model event in this setting. It may nevertheless refuse
 to publish an unverified report, or allow only registered facts with checked
 evidence. Generating a false candidate and delivering it are different events. Theorem~\ref{thm:decidability} settled this for one
 door, the database commit. This section settles it for every door a runtime can stand at,
-and the instinct turns out to be an instance of a theorem from 1987.
+and the practitioner's instinct turns out to be an instance of a theorem from 1987.
 
 \paragraph{The idea in one breath.}
-\emph{Split the agent's events into what the runtime can refuse and what it cannot; a safety
-language is exactly realizable if and only if no unrefusable event can carry
-a permitted history out of it. A stricter supervisor may preserve safety while
-sacrificing some permitted histories.}
+\emph{What if a rule fails this test? The runtime can still keep it by blocking
+more than the rule asks, giving up some allowed histories, unless unblockable
+steps alone can break the rule from the very start. The three failing rules,
+which forbid emitting a token, reading the context and forming a plan, each
+forbid a step the model can take at its first moment, so blocking more cannot
+save them.}
 
 \paragraph{Intuition: the bouncer at the one door.}
 A club has one door and a bouncer. The bouncer can refuse \emph{entry}: entry is mediated by
@@ -1209,18 +1275,21 @@ mediates it. A door policy (``no entry after two'') is enforceable by prevention
 policy (``no ill intent inside'') cannot be enforced from the door alone;
 removing someone after observable misconduct is a different policy. The daemon's effect boundary is the door. Writes, egress, tool execution,
 pushes, spawns, and API calls cross it, so each can be refused; token emission, in-context
-reads, plan formation, and hidden activations complete inside the model, so none can. The
-analogy maps relations rather than surface features, which is why it earns a prediction: a
+reads, plan formation, and hidden activations complete inside the model, so none can.
+A step that crosses the door is a \pdterm{controllable event}; a step that
+completes inside the model is an \pdterm{uncontrollable event}. The analogy
+matches how the parts relate, so it makes a prediction: a
 \emph{compound} rule that mentions thought but gates only the door (``no entry for anyone
 who arrived after the fight started'') should still be preventable, because the bouncer need
 only \emph{observe} the trigger and \emph{refuse} the door. Section~\ref{sec:gate-the-channel}
-confirms exactly this. The predictable misread, preempted: uncontrollable does not mean
-invisible. Tokens are eminently loggable after emission. Uncontrollable means
-\emph{unrefusable before the fact}, not unobservable after it; when an event is also
-unobservable a second, stricter theory applies (\S\ref{sec:partial-observation}).
+confirms exactly this. One misreading is common: uncontrollable does not mean
+invisible. Tokens can easily be logged after emission. Uncontrollable means
+\emph{unrefusable before the fact}; it says nothing about whether the event can
+be seen afterwards. When an event is also unobservable, a second, stricter
+theory applies (\S\ref{sec:partial-observation}).
 
 \paragraph{The vocabulary, at the point of use.}
-Everything below is a statement about strings and sets of strings. An \emph{alphabet}
+Everything below is a statement about strings and sets of strings. An \pdterm{alphabet}
 $\Sigma$ is the finite set of event types the system can emit: \texttt{fs\_write},
 \texttt{net\_egress}, \texttt{model\_emit\_token}, and the rest. A \emph{string} over $\Sigma$
 is one possible history of an execution. A set of strings $K$ is \emph{prefix-closed} when
@@ -1228,17 +1297,24 @@ every prefix of a member is a member: if the first ten events of a run are allow
 the first nine. The notation $\overline{K}$ means all prefixes of strings
 in $K$, so $\overline{K}=K$ when $K$ is prefix-closed. Prefix-closed languages represent the finite histories of Lamport's safety properties: a violation
 has a finite witness, and once you have violated one you can never un-violate it. The
-\emph{plant} $L$ is the set of histories that are physically possible before any policy is
+\pdterm{plant} $L$ is the set of histories that are physically possible before any policy is
 imposed. The illustrative classification takes $L=\Sigma^{*}$, allowing
 every finite string; actual hardware and protocols may restrict that plant.
-A \emph{policy} is a prefix-closed $K \subseteq L$. A \emph{supervisor} is a function from the
-history so far to a set of events to disable next, and the whole theorem turns on its type:
-it may disable members of $\Sigma_c$, the \emph{controllable} events that pass through a
-mediation boundary before taking effect, and nothing else. The \emph{closed loop} is the set
-of histories that occur once the supervisor is attached. A supervisor \emph{regiments} $K$
-when the closed loop equals $K$ exactly: nothing forbidden happens and nothing permitted is
-lost. That second half is half the value. A supervisor that achieves safety by disabling
-everything is not a solution.
+A \emph{policy} is a prefix-closed $K \subseteq L$. A \pdterm{supervisor} is the
+program that, after each history, decides which events to block next: formally, a
+function from the history so far to a set of events to disable next. The whole theorem
+turns on its type. It may disable members of $\Sigma_c$, the \emph{controllable
+alphabet} of events that pass through a mediation boundary before taking effect, and
+nothing in $\Sigma_u$, the \emph{uncontrollable alphabet} of the rest. The
+\emph{closed loop} is the set of histories that occur once the supervisor is
+attached. A supervisor \emph{regiments} $K$ when the closed loop equals $K$
+exactly: nothing forbidden happens and nothing permitted is lost. Both halves
+matter, since a supervisor that achieves safety by disabling everything is not a
+solution. A policy has \pdterm{controllability}, and is called
+\emph{controllable}, when no uncontrollable event that the plant allows after a
+permitted history leads out of the policy. The name is Ramadge and Wonham's, and
+the theorem below shows that controllable policies are exactly the ones a
+supervisor can regiment.
 
 \begin{pdexample}{The Policy Table, Checked by Hand}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1345,7 +1421,7 @@ The proof is structured; each numbered step can be checked on its own.
     $\overline{K}$. This rules out realizing \emph{all} of $K$ exactly.
     A supervisor may instead exclude $s$ by restricting earlier controllable
     behavior, thereby realizing a smaller safe language. Post-violation
-    response may remain available if the design insists on admitting that
+    response may remain available if the design insists on allowing that
     history, but the theorem neither guarantees nor requires a remedy.
   \end{description}
 \item[$\langle 1\rangle 3.$] The existence, uniqueness, and computability of
@@ -1404,8 +1480,8 @@ compound: no \texttt{net\_egress} after a secret \texttt{in\_context\_read} & mi
 \subsubsection{The compound case: gate the channel, never the token}
 \label{sec:gate-the-channel}
 
-The last row of Table~\ref{tab:policy-classification} is the one an entire product line
-rests on. The policy \emph{no network egress after an in-context read of a secret} mentions an
+The last row of Table~\ref{tab:policy-classification} is the one a whole product line
+depends on. The policy \emph{no network egress after an in-context read of a secret} mentions an
 uncontrollable event, so a naive reading of the single-event rows predicts detect-only. The
 checker says otherwise, and the mechanism is visible in the policy automaton
 (Figure~\ref{fig:swk-taint-automaton}): two states,
@@ -1416,14 +1492,14 @@ uncontrollable event the plant enables is enabled by the policy in every reachab
 the criterion holds and the constructive direction of the theorem hands us the supervisor:
 track taint, gate the channel. This automaton is Schneider's own Figure~1, a two-state
 security automaton for ``no \texttt{Send} after a \texttt{FileRead}''~\pdcite{schneider2000},
-with his states relabelled. What the alphabet split adds is not the construction but the
-grading: under complete mediation the figure is one more enforceable safety policy; once
-$\Sigma_u \neq \emptyset$ the same two states become the canonical witness that a policy may
-reference an unrefusable event freely so long as it never tries to refuse it.
+with his states relabelled. The alphabet split adds a grading to Schneider's
+construction. Under complete mediation the figure is one more enforceable safety policy;
+once $\Sigma_u \neq \emptyset$ the same two states become the standard witness that a policy may
+mention an unrefusable event freely so long as it never tries to refuse it.
 
 \input{figures/fig-swk-taint-automaton}
 
-Three consequences, in increasing order of consequence.
+Three consequences follow, from least to most important.
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \textbf{The design rule.} In this fully observed two-state example,
   the policy forbids only controllable egress, so it is exactly realizable.
@@ -1442,7 +1518,7 @@ Three consequences, in increasing order of consequence.
   sealed room proves from the other direction that the gate suffices; controllability says the
   gate is the only place a guarantee \emph{can} live. This is why ``all spend is recorded'' in
   the economy chapters is precisely complete mediation of $\Sigma_c$.
-\item \textbf{The two dials.} With plant, observation, and policy fixed, widening $\Sigma_c$
+\item \textbf{Two things a designer can change.} With plant, observation, and policy fixed, widening $\Sigma_c$
   (owning more channels) can remove a controllability obstruction; relabelling
   the same policy cannot.
   The plant is the other dial: $\overline{L}$ sits on the left of the containment, so shrinking
@@ -1478,9 +1554,9 @@ disable $\{\texttt{net\_egress}, \texttt{git\_push}, \texttt{fs\_write}\}$; one 
 transition flips \texttt{ok} to \texttt{tainted}.
 
 That table is exactly the policy engine a
-competent engineer would have written by hand. The value of synthesis is not surprise; it is
-that the answer arrives with a maximal-permissiveness certificate and a controllability
-certificate, neither of which hand-written engines carry.
+competent engineer would have written by hand. Synthesis brings no surprise here. Its
+value is that the answer comes with a maximal-permissiveness certificate and a
+controllability certificate, which hand-written engines lack.
 
 Synthesis is equally informative when it fails. Ask for the best preventable approximation
 of ``forbid \texttt{internal\_plan}'': any nonempty controllable sublanguage $K'$ contains the
@@ -1503,8 +1579,8 @@ vocabulary.
 (Exercise~\ref{ex:swk-synthesis}).
 \end{pdexample}
 
-Table~\ref{tab:swk-review-disablement} states the two-row disablement map the
-proof falls out as.
+Table~\ref{tab:swk-review-disablement} gives the supervisor that the proof
+produces, as a two-row disablement map.
 
 \begin{table}[H]
 \centering
@@ -1532,8 +1608,10 @@ event, even the ones it cannot disable: the daemon logs tokens after emission an
 completion. Realistic deployments break this in a second place. Some events are not only
 unrefusable but unobservable: activations never surfaced, state internal to a third-party
 tool, another principal's context. Supervisory control under partial observation is also
-a classical extension. The next example shows why seeing the trigger is
-a separate requirement from controlling the effect.
+a classical extension, and it adds a second condition, \pdterm{observability}: no two
+histories that look the same to the runtime may call for different decisions about the
+same controllable event. The next example shows why seeing the trigger is a separate
+requirement from controlling the effect.
 
 \begin{pdexample}{Two histories, one visible record}
 Let \texttt{read-secret} be hidden and \texttt{send} controllable. Compare
@@ -1567,11 +1645,11 @@ the same controllable event
 \end{pdclaim}
 
 \paragraph{Proof idea.}
-A supervisor that only sees $P(s)$ has one decision to spend on the whole class of histories
+A supervisor that only sees $P(s)$ has one decision for the whole class of histories
 that share a projection. If the policy ever wants $\sigma$ enabled after $s$ and disabled
-after an indistinguishable $s'$, no such supervisor can serve both, and the failure is not a
-matter of trying harder: it is a counting argument about how many decisions the observation
-map leaves available. If the policy never asks for that, the laziest supervisor of
+after an indistinguishable $s'$, no such supervisor can serve both. No extra effort helps;
+it is a counting argument about how many decisions the observation map leaves
+available. If the policy never asks for that, the laziest supervisor of
 Theorem~\ref{thm:regimentation-controllability} can be defined on projections instead of
 histories, and the same closed-loop argument goes through unchanged.
 
@@ -1582,15 +1660,17 @@ condition to a tautology, which is why the first theorem never had to mention it
 ``No egress after the model \emph{considered} exfiltration'' has a
 controllable prohibition and an unwitnessed trigger, so no supervisor can implement its gate
 condition --- two runs, identical in everything the daemon logged, differing only in a
-deliberation nobody saw, are exactly the $s$ and $s'$ the condition forbids. The practical
-reading: a compound policy is deployable only if its trigger is
-witnessed at the mediation boundary. Taint must be an event the daemon sees, not a state it
-infers. Figure~\ref{fig:swk-controllability-quadrant} puts both boundaries on one grid.
+deliberation nobody saw, are exactly the $s$ and $s'$ the condition forbids. In practice,
+a compound policy can be deployed only if the daemon witnesses its trigger at the
+mediation boundary. Taint must be an event the daemon sees; a state it would have to
+infer does not work. Figure~\ref{fig:swk-controllability-quadrant} puts both boundaries
+on one grid: whether the runtime can block the effect, and whether it can see the
+trigger.
 
 \input{figures/fig-swk-controllability-quadrant}
 \FloatBarrier
 
-\paragraph{What it buys.}
+\paragraph{What it gives.}
 The theorem separates three questions an implementer must ask: can the
 supervisor refuse the effect; can it distinguish histories requiring different
 decisions; and must it preserve every legal behavior or may it safely restrict
@@ -1600,11 +1680,6 @@ observable at all. Later audit, reputation, and remedies therefore require
 specified evidence as well as a response mechanism; they do not follow from
 failure of exact controllability.
 
-% Start this comparison with its three sources on a fresh margin rail; the
-% preceding controllability reference otherwise overfills the same page.
-% Flush a pending top float as well: a paragraph pagebreak alone can leave
-% its caption on the comparison's supposedly fresh margin.
-\pdmarginpagebreak
 A rule enforced at a gate is only as strong as the route an action is forced
 to take. This book grades each enforcement mechanism by its
 \pdterm{assurance mode}: what an adversary would have to defeat to make the
@@ -1627,29 +1702,27 @@ mechanism's claim false. There are five modes.
 Appendix~\ref{app:volume-status} lists the five modes again with the
 book's implementation boundary.
 
-The ladder these modes form has two obvious public neighbours, and since the
-resemblance is real it's worth saying exactly what each of the three grades
-before somebody assumes they're the same instrument in different clothes.
+% Start this comparison with its three sources on a fresh margin rail; the
+% preceding controllability reference otherwise overfills the same page.
+% Flush a pending top float as well: a paragraph pagebreak alone can leave
+% its caption on the comparison's supposedly fresh margin.
+\pdmarginpagebreak
+The ladder these modes form has two public neighbours that look similar to it.
 Sheridan and Verplank rank a system on a ten-point scale by how much of the
 decide-and-act loop the computer holds rather than the
 human~\pdcite{sheridanverplank1978}; Parasuraman, Sheridan and Wickens later
-split that single scale across four stages of processing --- acquisition,
-analysis, decision selection, action implementation --- each carrying its own
-level~\pdcite{parasuraman2000}. Both grade the \emph{allocation of the work}:
-who does it. The Common Criteria's evaluation assurance levels, EAL1 through
-EAL7, rank a security claim by how much independent evaluation effort was spent
-before deployment and against how deep a body of design evidence, from
-functionally tested at the bottom to formally verified design at the
-top~\pdcite{cciso15408}. EAL grades \emph{how hard somebody looked}, once, at
-evaluation time, for a whole product. This ladder grades neither, and the
-question it does ask is narrower than both: of one runtime claim about one
-mechanism, \emph{what would have to be defeated for the claim to be false?}
-Nothing at all at Observed --- the act may have happened somewhere else
-entirely and the record was written afterwards --- then a client's willingness
-to declare at Coordinated, a daemon-owned broker at Brokered, the operating
-system's own confinement at Confined, and a measured environment plus a
-conditional key release at Attested. That is an adversary's work factor, per
-mechanism, at run time, and neither neighbour measures it.
+split that scale across four stages of processing (acquisition, analysis,
+decision selection, action implementation), each with its own
+level~\pdcite{parasuraman2000}. Both grade \emph{who does the work}. The Common
+Criteria's evaluation assurance levels, EAL1 through EAL7, rank a security
+claim by how much independent evaluation effort was spent before deployment,
+and against how deep a body of design evidence, from functionally tested at the
+bottom to formally verified design at the top~\pdcite{cciso15408}. EAL grades
+\emph{how hard evaluators looked}, once, before release, for a whole product.
+The assurance modes grade neither. They ask a narrower question of one runtime
+claim about one mechanism: \emph{what would have to be defeated for the claim
+to be false?} That is an adversary's work factor, per mechanism, at run time,
+and neither of the other scales measures it.
 
 \begin{pdclaim}{Design invariant}{The Three Gradings Are Independent Axes}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1667,37 +1740,35 @@ mechanisms and an unevaluated one can contain \pdassurance{Attested} mechanisms,
 because EAL scores the evaluation and this ladder scores the mechanism.
 \end{pdclaim}
 
-The boundary on that is worth stating in the same breath: the ladder is a design
-vocabulary, not a measured scale. No procedure assigns a rung by measurement, no
-inter-rater agreement stands behind the assignments, and the five rungs are not
-claimed to be evenly spaced or even totally ordered --- Brokered and Confined
-defeat different adversaries rather than the same adversary harder, which is why
-the appendix says these modes are not a maturity staircase. What the ladder is
-for is naming which part of the system a claim rests on, and it earns that only
-by being applied consistently.
+\pdscope{The modes are a design vocabulary, not a measured scale: no procedure assigns a mode by measurement, and no inter-rater agreement stands behind the assignments.}
+The five modes are also not evenly spaced, nor even totally ordered. Brokered
+and Confined defeat different adversaries; neither is a harder version of the
+other, which is why the appendix says these modes are not a maturity staircase.
+The modes name which part of the system a claim depends on, and they are useful
+only if applied consistently.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-(i) The theorem does not say detect-only policies are hopeless. Detection feeding audit,
-reputation, and slashing is real enforcement; the theorem rules out exact realization of the full permitted language.
-A stricter supervisor may still prevent violations by sacrificing legal
-histories; detection requires suitable observations.
+(i) Detect-only policies still have value: detection feeding audit, reputation, and
+slashing is real enforcement. The theorem rules out only exact realization of the full
+permitted language. A stricter supervisor may still prevent violations by sacrificing
+legal histories, and detection needs suitable observations.
 
-(ii) It certifies no implementation. Its $\Sigma_c$ is the set of events
+(ii) The theorem certifies no implementation. Its $\Sigma_c$ is the set of events
 \emph{actually} mediated, and every unenumerated side channel (raw sockets, DNS, inherited
 file descriptors, \texttt{/proc}, credential helpers, package managers, provider callbacks)
 silently moves events from $\Sigma_c$ to $\Sigma_u$ and shrinks the regimentable set behind
 the operator's back. Complete mediation of the claimed alphabet is an architectural
-obligation (Anderson; Rushby) that a red team, not this proof, discharges.
+obligation (Anderson; Rushby) that a red team must check; this proof does not.
 
 (iii) The
 classification is relative to the alphabet split: a runtime that gates model steps changes
 $\Sigma_u$ and re-grades the table. The verdict therefore belongs to the stated architecture and event model;
 it is not an architecture-independent label for a policy sentence.
 
-(iv) Full observation is the assumption this
-classification rests on: policies whose triggers are unwitnessed internal state fall to
-the Lin--Wonham refinement even when their prohibitions are controllable.
+(iv) The classification assumes full observation. Policies whose triggers are
+unwitnessed internal state fall under the Lin--Wonham refinement even when their
+prohibitions are controllable.
 
 (v) The checker verifies the stated automata over the stated
 alphabet; it is a faithful implementation of the test, not a mechanized proof of the theorem.
@@ -1708,11 +1779,11 @@ semantics. For ``no confident falsehoods in status reports'' the obstruction is
 \mbox{observability}: a report leaves through emission and then through \texttt{api\_call},
 \texttt{fs\_write}, or \texttt{net\_egress}, all controllable, so the prohibition can be made
 controllable; but the coarse event alphabet does not say whether a report is true.
-A stronger interface might admit only registered facts with checked receipts.
-For unrestricted prose, the chapter supplies no complete truth oracle. The
-remaining obligation is to specify observable evidence sufficient for the
-claim being released, not to infer semantic correctness from control of the
-send operation.
+A stronger interface might allow only registered facts with checked receipts.
+For unrestricted prose, the chapter supplies no complete truth oracle. What
+remains is to specify observable evidence sufficient for the claim being
+released; control of the send operation says nothing about whether the report
+is true.
 \end{pdboundary}
 
 \begin{pdrecitation}
@@ -1721,12 +1792,12 @@ send operation.
 \item Why can gating every effect still fail to prevent a false report?
 \end{pdrecitation}
 
-The monitor is honest about its own coverage, which is itself a genuine security
-property: it reports each rule as \emph{enforced}, \emph{degraded}, or
-\emph{stubbed}, so a reader can never mistake a stubbed rule for an active one. We
-note in \S\ref{sec:threatmodel} that one rule's enforcement (capability escalation)
-is backed by a separate native component whose evidence is the weakest in the
-subsystem, carrying a time-of-check-to-time-of-use surface.
+The monitor reports its own coverage, which is itself a security property: it
+reports each rule as \emph{enforced}, \emph{degraded}, or \emph{stubbed}, so a
+reader can never mistake a stubbed rule for an active one. As
+\S\ref{sec:threatmodel} notes, one rule (capability escalation) is enforced by a
+separate native component, the most weakly evidenced part of the subsystem, and
+it leaves a gap between the time of the check and the time of use.
 \input{additions/swk-control-game}
 
 % The open-font proof needs an empty margin queue here; Suisse keeps its layout.
@@ -1742,12 +1813,12 @@ Suppose A reserves port 7421 and promises to release it within 30 minutes.
 At minute 29, a note saying ``released'' does not settle the promise: the
 claims table must show that A no longer holds the lease. This distinction
 between saying and demonstrating completion motivates the closure rule.
-Here an \emph{oracle} is a named machine-checkable predicate, not an
-infallible judge of every aspect of the work. A release predicate can be
+An oracle here is a named predicate the machine can check; it does not judge
+every aspect of the work. A release predicate can be
 checked against a claims row; a test predicate needs the relevant source
 revision and test result bound together.
 
-Commitments are durable, \emph{violable} promises --- in the sense of Cohen and
+Commitments are durable promises that \emph{can be broken}, in the sense of Cohen and
 Levesque's ``intention as a persistent goal''~\pdcite{cohenlevesque1990}, with both
 single-minded and open-minded strategies for when a promise may be dropped. Two
 hardening laws are implemented, and they are the ones that determine safety
@@ -1774,8 +1845,8 @@ notes cannot close a commitment. (Invariant I6.)
 \end{property}
 
 The closure gate is small enough to state as a protocol (Algorithm
-\ref{alg:close}). The crux is the final clause: the supplied reference must not only
-be drawn from the vocabulary but must \emph{currently hold} when the daemon
+\ref{alg:close}). The important clause is the last: the supplied reference must be
+drawn from the vocabulary \emph{and} must \emph{currently hold} when the daemon
 re-checks it, so an agent cannot name a test that passed yesterday and has since
 regressed.
 
@@ -1804,12 +1875,12 @@ function close(commitment, status, oracle_ref):
 \end{minipage}
 \end{figure}
 
-\keyidea[Receipt checks do not judge quality]{That finite oracle vocabulary \emph{is} the kernel's honesty boundary. It
-can mechanically verify ``the test you named passed,'' never ``the refactor is
-good.'' Naming the oracle set is naming the limit of what the substrate layer can
-verify --- and open problem OP-5 asks which real ``done'' conditions it fails to
-capture, and whether the set can be extended without re-opening the Goodhart hole
-that free-text closure would.}
+\keyidea[Receipt checks do not judge quality]{That finite oracle vocabulary marks
+the limit of what the kernel can honestly verify. It can mechanically verify
+``the test you named passed,'' never ``the refactor is good.'' Open problem
+OP-5 asks which real ``done'' conditions the vocabulary fails to capture, and
+whether it can be extended without letting agents game closure the way free
+text would (Goodhart's law: a measure that becomes a target stops measuring).}
 
 % SUBMISSION-SKILL: naming conflict --- "state machine assertions" / "state
 % machines and assertions" already names an established formal-verification
@@ -1822,44 +1893,46 @@ that free-text closure would.}
 % authored; a human should decide adopt/gloss/rename before this term goes
 % further (e.g. into a companion formal chapter).
 \subsection{Extending the oracle vocabulary: State-Machine Assertions (OP-5)}
+\pdstatus{\Designed}{OP-5 open; neither kind is in the shipped vocabulary}
 
 The obvious way to widen what a commitment can close against is to widen the
-vocabulary, and there is a concrete design for doing so without re-admitting the
-Goodhart hole. \textbf{State-Machine Assertions} (\Designed) would add two kinds to
+vocabulary, and there is a concrete design for doing so without letting closure
+be gamed again. \pdterm{State-Machine Assertions} would add two kinds to
 Listing~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
 machine-checkable before/after measurement (a named benchmark improving past a
 declared threshold), and \emph{AST assertions}, which use a parser such as
 \texttt{tree-sitter} to state a structural property of the resulting code (``no call
 site of $f$ remains'') that the daemon can re-evaluate at closure time.
 
-Both kinds satisfy the property that matters --- the daemon can re-check them
-itself, so they are oracles and not testimony. Neither is in the shipped set:
+Both kinds have the property that matters: the daemon can re-check them itself,
+so they are oracles, not testimony. Neither is in the shipped set:
 Listing~\ref{alg:close}'s four kinds are the vocabulary the kernel actually
-enforces, and the listing marks the two proposed additions as exactly that. Two
-questions also stand between the design and the claim, which is why we do not make
-it. A delta oracle inherits the noise of whatever it measures, so ``improved by a
+enforces, and the listing marks the two proposed additions as proposals. Two
+questions remain open, so the chapter does not claim the design is complete. A delta oracle inherits the noise of whatever it measures, so ``improved by a
 threshold'' is a statistical statement dressed as a boolean; and an AST assertion is
 a proxy for a structural intent, which is the shape of every target that has ever
-been gamed. \emph{Oracle completeness} --- the claim that some finite vocabulary
-captures the ``done'' conditions agents actually need --- is not established by
-adding two kinds, and OP-5 stays \Open{}.
+been gamed. \emph{Oracle completeness}, the claim that some finite vocabulary
+captures the ``done'' conditions agents actually need, does not follow from
+adding two kinds, and OP-5 stays open.
 
-The separate question of who checks a grader has a conditional answer in
-\pdchapref{stp}{From Spawn to Person}%
-\ifpdbook\ (Theorem~\ref{stp:thm:tower-imported})\fi.
-Its inspection-tower model distinguishes bribery incentives from detection.
-With prepaid bribes and a sealed, uniform draw from separately bribable
-candidate groups, buying cooperation does not improve the briber's expected
-payoff below the stated threshold; at equality, the model resolves the tie
-against bribery. In that regime, the stated positive lower bound on detection,
-conditional on all earlier levels having missed, gives geometric decay of expected surviving
-corrupt value. Disjoint groups alone do not establish this detection premise,
-and the tower still requires a trustworthy terminal adjudicator.
+Who checks the checker? \pdchapref{stp}{From Spawn to Person}%
+\ifpdbook\ (Theorem~\ref{stp:thm:tower-imported})\fi{} gives a conditional
+answer using a model in which work passes through several levels of
+inspection, each inspector drawn at random from separate groups. If a cheater
+must pay bribes in advance and cannot know which inspector will be drawn, then,
+under a stated cost threshold, bribing does not raise the cheater's expected
+payoff (ties count against bribery). If, in addition, each level has at least a
+fixed chance of catching what every earlier level missed, the expected value of
+cheating that survives shrinks by a constant factor per level. Separate groups
+alone do not guarantee that detection chance, and the top level still needs a
+trustworthy final judge.
 
-Neither result establishes oracle \emph{expressiveness}: whether the vocabulary
-can state the closure condition at all. Even a competent, honestly motivated
-grader cannot close a commitment whose condition the vocabulary cannot phrase.
-The tower therefore does not discharge OP-5's completeness obligation.
+Neither the proposed oracle kinds nor the inspection model address oracle
+\emph{expressiveness}: whether the vocabulary
+can state the closure condition at all. No inspector, honest or bribed, can
+close a commitment such as ``the refactor is good,'' because none of the four
+oracle kinds can express it. The inspection model therefore leaves OP-5's
+completeness question open.
 
 \pdexercisepointer{\ref{ex:swk-monitor-rules-precommit}}{\ref{ex:swk-op5-oracle}}{\pageref{ex:swk-monitor-rules-precommit}}
 
@@ -1994,7 +2067,7 @@ The attestation reports ``all good'' only if every checked critical invariant
 passed, and it always lists the unchecked set.
 
 There are three triggers: a
-boot-admission gate (refuse to serve on a critical failure), a command pre-flight
+boot gate (refuse to serve on a critical failure), a command pre-flight
 (loud refusal that names the fix), and a continuous watchdog (a pass-to-fail
 transition deposits a coordination marker and a notification). \Built.
 \end{property}
@@ -2016,7 +2089,7 @@ failure response differ. [internal, I10]}
 \toprule
 \textbf{trigger} & \textbf{when it fires} & \textbf{on a critical failure} \\
 \midrule
-boot-admission gate & at daemon start, before serving any request & refuses to serve \\
+boot gate & at daemon start, before serving any request & refuses to serve \\
 command pre-flight & before a command runs & a loud refusal that names the fix \\
 continuous watchdog & on every check cycle while running & a pass-to-fail transition deposits a coordination marker and a notification \\
 \bottomrule
@@ -2180,7 +2253,7 @@ reconstruct by hand.
 
 \emph{The stale write in four steps:} authorize the work unit; start
 execution; reassign the role, so the epoch becomes~1 and the old holder retains token~0;
-now the old holder admits an effect with token~0. With the epoch guard on, that last
+now the old holder submits an effect with token~0. With the epoch guard on, that last
 transition does not exist, so the state is unreachable; with the guard off, the effect
 lands carrying yesterday's epoch and I1 fails. This is exactly the ``paused holder wakes
 after expiry'' scenario the fenced-lease theorem (Theorem~\ref{thm:exclusion}) exists to
@@ -2928,7 +3001,7 @@ What per-kind marker decay rate keeps stigmergic signals neither rotten nor prem
 For each marker kind, log creation, reads, the actions it influenced, its supersession, and the time at which operators label it stale. Fit a survival curve and choose the half-life that minimizes $C_{\text{stale}}\cdot\text{false-live} + C_{\text{lost}}\cdot\text{false-expired}$, validated on held-out projects. Claims and presence should decay far faster than decisions or learned skills. Publish the confidence and re-estimate under drift.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:enforcement}}{The obligation \& enforcement subsystem: the sovereign's two levers}
+\pdexercisesfor{\S\ref{sec:enforcement}}{The obligation \& enforcement subsystem: prohibition, obligation and permission}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-monitor-rules-precommit}
 Consider note-count monotonicity, capability attenuation, owner-checked release, and heartbeat freshness. For each rule, use Theorem~\ref{thm:schneider} to say whether it \emph{could in principle} be moved to a pre-commit check (a before-insert trigger). Which genuinely cannot, and why? (Hint: heartbeat freshness is a failure detector, and Chandra and Toueg~\pdcite{chandratoueg1996} show failure detection cannot be made perfectly synchronous.)
@@ -3331,7 +3404,7 @@ one decider, no consensus.
 Where it stops, it stops formally. Durability is split: process-crash durable
 (I1a), \emph{not} guaranteed against power loss (I1b). The policy monitor detects
 and compensates; it does not regiment, and we credit the only genuine pre-commit
-regimentation to the uniqueness constraint and the boot-admission gate. Cross-subsystem
+regimentation to the uniqueness constraint and the boot gate. Cross-subsystem
 atomicity is a buildable defect, not a frontier. Hash-chain tamper-evidence is
 re-scoped to cross-machine provisioning, where it actually defends someone. And the
 two genuinely soft spots --- partial local identity enforcement (I12) and a
@@ -3389,7 +3462,7 @@ refinements this chapter introduces (see \S\ref{sec:durability} and
 \Vision & Named as a direction; no design yet. \\
 \midrule
 \textbf{I1a / I1b} & Durability \emph{split by fault class}: I1a (process-crash) is \Built; I1b (power-loss) is \NotGuar{} under the default WAL configuration. A claim that conflates fault classes cannot carry one grade. \\
-\textbf{regimented / enforced} & Prohibition split by interception point: \emph{regimented} = rejected pre-commit, truly unreachable (a uniqueness constraint / boot-admission gate); \emph{enforced} = post-commit detection and possible remedy (the policy monitor); a bounded response time requires additional observation and scheduling assumptions. ``Physically unreachable'' is reserved for the regimented set. \\
+\textbf{regimented / enforced} & Prohibition split by interception point: \emph{regimented} = rejected pre-commit, truly unreachable (a uniqueness constraint / boot gate); \emph{enforced} = post-commit detection and possible remedy (the policy monitor); a bounded response time requires additional observation and scheduling assumptions. ``Physically unreachable'' is reserved for the regimented set. \\
 \bottomrule
 \end{tabularx}
 \end{table}

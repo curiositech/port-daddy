@@ -12,9 +12,11 @@ and reinforcement learning. In the same study, models trained to say ``I hate
 you'' on a trigger kept it through adversarial training as well, which taught
 them to recognize the trigger more accurately, hiding the behavior rather than
 removing it~\pdcite{hubinger2024sleeper}. Passing a
-behavioral evaluation does not earn a gate's trust.
+behavioral evaluation does not give the guarantee a gate gives.
 
-\textbf{AI control} is the method for the residue. Greenblatt and colleagues
+\pdterm{AI control} is the method for what a gate leaves over: it measures how
+safe a deployment stays when the capable model may be trying to defeat its
+safeguards. Greenblatt and colleagues
 evaluate a \emph{protocol} that uses an untrusted capable model, a weaker
 trusted model and a small budget of trusted human labor. A red team replaces
 the untrusted model with an attack policy; safety is the probability that no
@@ -24,9 +26,9 @@ safety at $97\%$ usefulness; trusted editing at a $20\%$ threshold gave $92\%$
 at $94\%$, usefulness in each case scaled between the trusted and the
 untrusted model~\pdcite{greenblatt2024control}. In a multi-step shell setting,
 resampling suspicious actions before execution cut attack success from $58\%$
-to $7\%$ at a $5\%$ cost in usefulness~\pdcite{bhatt2025ctrlz}. Every lever
-acts before the effect: defer, resample, audit, shut down. A protocol is a
-supervisor.
+to $7\%$ at a $5\%$ cost in usefulness~\pdcite{bhatt2025ctrlz}. Every one of
+these measures acts before the effect: defer, resample, audit, shut down. In
+this section's terms, a protocol is a supervisor.
 
 \begin{pdclaim}{Theorem}{What a Control Evaluation Can Measure}\label{thm:swk-control-game}
 \setlength{\parskip}{3pt plus 1pt}
@@ -100,15 +102,15 @@ supervisor of Theorem~\ref{thm:regimentation-controllability}. No fully safe
 protocol lets an agent do more. Under partial observation the bound need not be
 reached, and no single most permissive observing supervisor exists, because
 sublanguages that are both controllable and observable are not closed under
-union. An audit buys observation: it refines $P$ for the step it inspects. How
+union. An audit adds observation: it refines $P$ for the step it inspects. How
 close protocols that see only through $P$, plus a budget of audits, can come
-to the bound is \Open{}.
+to the bound is an open question.
 
 Keep the adversaries apart. The red team in the theorem is zero-sum: it
 minimizes safety and has no payoff of its own. Becker's condition in
 \pdchapref{he}{The Harbor Economy}%
 \ifpdbook\ (Theorem~\ref{he:prop:becker-deterrence})\fi\
-prices a risk-neutral player who weighs a gain against an expected
+applies to a risk-neutral player who weighs a gain against an expected
 forfeiture. Against a zero-sum red team it supplies nothing, because there is
 no gain for a bond to outweigh. A worst-case claim must rest on the gate, and
 an incentive claim on a player whose payoffs are stated;
@@ -134,7 +136,7 @@ pass every write rule and still violate the specification: ``this diff
 special-cases the tests'' is not a function of the observed write, so no gate
 over this alphabet regiments it.
 
-The paper's other lever is an escalation channel. Letting the agent stop and
+The paper's other measure is an escalation channel. Letting the agent stop and
 flag the task for a person cut GPT-5's cheating on the same variant from $54\%$
 to $9\%$, a relative fall of $45/54\approx 0.83$, and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$. The authors report the effect as much less pronounced for Claude Opus~4.1, the model this example opened with.
 \end{pdexample}
@@ -143,12 +145,13 @@ to $9\%$, a relative fall of $45/54\approx 0.83$, and o3's from $49\%$ to $12\%$
 Mutate the checkout repair's original test in the ImpossibleBench manner and
 run three configurations. In G0 the tests are writable. In G1 a capability
 card from \pdchapref{anchor}{The Anchor Protocol} makes them read-only. G2 adds
-an escalation channel priced by the dismissal debit of
+an escalation channel whose cost is set by the dismissal debit of
 \pdchapref{ls}{The Legible Swarm}%
 \ifpdbook\ (Theorem~\ref{ls:thm:escalation-threshold})\fi.
 Classify every pass by strategy: test edit, special-casing, operator
-overloading or recorded state. Part~(a) predicts that G1 admits no test edit;
-one admitted test write falsifies the gate's conformance, not the theorem. The
+overloading or recorded state. Part~(a) predicts that G1 allows no test edit;
+a single test write that gets through shows the gate does not conform, and
+leaves the theorem standing. The
 residue under G1 and G2 is what a control evaluation measures, with a red team
 supplying an attack policy for G2. None of this has been run.
 

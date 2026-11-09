@@ -33,5 +33,105 @@
   "term": "Attested",
   "sort": "Attested (assurance mode)",
   "definition": "The assurance mode in which a key is released, or a result accepted, only to an environment whose measured build matches a published identity, so an adversary must subvert the measured environment."
+ },
+ {
+  "term": "policy monitor",
+  "sort": "policy monitor",
+  "definition": "The kernel component that checks operations already recorded in the log against the rules and reports or responds to violations; it detects and cannot always prevent."
+ },
+ {
+  "term": "regimentation",
+  "sort": "regimentation",
+  "definition": "Refusing a forbidden change before it takes effect, so that the forbidden state is never reached; contrasted with enforcement, which notices a violation afterwards and responds."
+ },
+ {
+  "term": "reference monitor",
+  "sort": "reference monitor",
+  "definition": "A component that checks every access to protected state, that other programs cannot alter, and that is small enough to verify (Anderson; Lampson)."
+ },
+ {
+  "term": "projection",
+  "sort": "projection (of a record)",
+  "definition": "A copy of a record that can be searched and displayed anywhere but carries no authority: writing to it changes nothing."
+ },
+ {
+  "term": "fencing token",
+  "sort": "fencing token",
+  "definition": "A number that increases every time a lock or lease is granted and is presented with every write, so the resource can refuse a holder whose lease has since passed to someone else."
+ },
+ {
+  "term": "Stigmergic Ticket-Lock",
+  "sort": "Stigmergic Ticket-Lock",
+  "definition": "A proposed fair lock in which each waiting agent leaves a numbered ticket in shared state and the agent releasing a claim hands it to the lowest ticket, with no background scheduler."
+ },
+ {
+  "term": "authorization chain",
+  "sort": "authorization chain",
+  "definition": "The signed record of who granted which permission to whom: a chain of grants, each allowing no more than the one before it, that a verifier can check signature by signature."
+ },
+ {
+  "term": "coordination lineage",
+  "sort": "coordination lineage",
+  "definition": "The record of which delegated task was handed down from which, used to detect a task being passed around in a loop."
+ },
+ {
+  "term": "stigmergic marker",
+  "sort": "stigmergic marker",
+  "definition": "A numeric signal an agent leaves in shared state for other agents to read, whose weight decays over time until it is deleted."
+ },
+ {
+  "term": "sovereign",
+  "sort": "sovereign",
+  "definition": "Hobbes's word, borrowed by this book, for the one authority whose rules every party accepts before acting; in a harbor, the daemon."
+ },
+ {
+  "term": "oracle",
+  "sort": "oracle",
+  "definition": "A piece of evidence the kernel can re-check by itself, such as a passing test identifier or a released claim, and the only thing that can close a commitment as done."
+ },
+ {
+  "term": "controllable event",
+  "sort": "controllable event",
+  "definition": "A step that passes through a point where the runtime can refuse it before it takes effect, such as a file write, network egress or a git push."
+ },
+ {
+  "term": "uncontrollable event",
+  "sort": "uncontrollable event",
+  "definition": "A step that completes before any point where the runtime could refuse it, such as the model emitting a token, reading its context or forming a plan."
+ },
+ {
+  "term": "alphabet",
+  "sort": "alphabet (of events)",
+  "definition": "The finite set of event types a system can emit; it is split into a controllable and an uncontrollable part."
+ },
+ {
+  "term": "plant",
+  "sort": "plant",
+  "definition": "The set of histories that are physically possible before any rule is imposed."
+ },
+ {
+  "term": "supervisor",
+  "sort": "supervisor",
+  "definition": "The program that, after each history, decides which controllable events to block next."
+ },
+ {
+  "term": "controllability",
+  "sort": "controllability",
+  "definition": "The property of a rule that no uncontrollable event, possible after an allowed history, can lead out of the rule; exactly the rules with this property can be enforced before the fact without losing allowed behavior."
+ },
+ {
+  "term": "observability",
+  "sort": "observability",
+  "definition": "The property of a rule that no two histories the runtime cannot tell apart call for different decisions about the same controllable event."
+ },
+ {
+  "term": "State-Machine Assertions",
+  "sort": "State-Machine Assertions",
+  "definition": "A proposed extension of the oracle vocabulary with delta oracles (a measured before/after improvement) and AST assertions (a structural property of the code), both re-checkable by the daemon."
+ },
+ {
+  "term": "AI control",
+  "sort": "AI control",
+  "definition": "A method that measures how safe a deployment stays when a capable model may be trying to defeat its safeguards, by having a red team supply the model's behavior."
  }
 ]
