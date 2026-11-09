@@ -1277,8 +1277,9 @@ The operations lead reads the governance document aloud. \emph{No force-push to 
 network egress from sandboxed jobs. No writes outside the granted scope.} And then: \emph{no
 confident falsehoods in status reports.} She asks the question every practitioner senses the
 answer to: which of these does the runtime \emph{guarantee}, and which does it merely
-\emph{watch for}? The first three feel airtight. The daemon holds the remote credential, so a
-push that never happens needs no forgiveness. The fourth needs a more precise event boundary. A mediator cannot prevent
+\emph{watch for}? The first three feel airtight. If the daemon held the remote credential, a
+push it refused would need no forgiveness; today the agent holds its own
+(\S\ref{sec:enforcement-gap}). The fourth needs a more precise event boundary. A mediator cannot prevent
 an unobserved internal model event in this setting. It may nevertheless refuse
 to publish an unverified report, or allow only registered facts with checked
 evidence. Generating a false candidate and delivering it are different events. Theorem~\ref{thm:decidability} settled this for one
@@ -1484,23 +1485,28 @@ some classes of systems and properties.
 \centering
 \caption{Nine governance rules classified by the product-automaton checker. The verdicts are
 the checker's output; the eight single-event rows also follow by hand from
-Theorem~\ref{thm:regimentation-controllability} [internal, \texttt{b3\_controllability.py}].}
+Theorem~\ref{thm:regimentation-controllability} [internal, \texttt{b3\_controllability.py}].
+The last column says whether the reference implementation mediates every
+occurrence of the event today. It mediates none of them against an agent that
+declines the in-band guard (\S\ref{sec:enforcement-gap}), so each ``yes'' is a
+verdict about an architecture whose effect boundary has been built, not about
+the shipped kernel.}
 \label{tab:policy-classification}
 \small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lc@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X l c >{\raggedright\arraybackslash}p{0.17\textwidth}@{}}
 \toprule
-\textbf{Policy} & \textbf{Event class} & \textbf{Regimentable?} \\
+\textbf{Policy} & \textbf{Event class} & \textbf{Regimentable?} & \textbf{Mediated today?} \\
 \midrule
-forbid \texttt{net\_egress} & controllable & yes (regiment) \\
-forbid \texttt{git\_push} (incl.\ force-push) & controllable & yes (regiment) \\
-forbid \texttt{fs\_write} (out-of-scope write) & controllable & yes (regiment) \\
-forbid \texttt{exec\_tool} & controllable & yes (regiment) \\
-forbid \texttt{spawn\_child} & controllable & yes (regiment) \\
-forbid \texttt{model\_emit\_token} & uncontrollable & no (cannot prevent) \\
-forbid \texttt{in\_context\_read} & uncontrollable & no (cannot prevent) \\
-forbid \texttt{internal\_plan} (``confident lie'') & uncontrollable & no (cannot prevent) \\
+forbid \texttt{net\_egress} & controllable & yes (regiment) & no \\
+forbid \texttt{git\_push} (incl.\ force-push) & controllable & yes (regiment) & no (in-band shim only) \\
+forbid \texttt{fs\_write} (out-of-scope write) & controllable & yes (regiment) & no \\
+forbid \texttt{exec\_tool} & controllable & yes (regiment) & no \\
+forbid \texttt{spawn\_child} & controllable & yes (regiment) & no \\
+forbid \texttt{model\_emit\_token} & uncontrollable & no (cannot prevent) & not applicable \\
+forbid \texttt{in\_context\_read} & uncontrollable & no (cannot prevent) & not applicable \\
+forbid \texttt{internal\_plan} (``confident lie'') & uncontrollable & no (cannot prevent) & not applicable \\
 \midrule
-compound: no \texttt{net\_egress} after a secret \texttt{in\_context\_read} & mixed & yes (regiment) \\
+compound: no \texttt{net\_egress} after a secret \texttt{in\_context\_read} & mixed & yes (regiment) & no \\
 \bottomrule
 \end{tabularx}
 \end{table}
