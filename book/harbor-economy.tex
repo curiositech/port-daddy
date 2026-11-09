@@ -965,20 +965,25 @@ the deontic-rule bodies, $I$ the number of (fired token, scope atom it names)
 pairs, $X$ the number of exclusive claims, and $(V,E)$ the deadline graph.
 Deciding with indexes whether any conflict exists takes
 $O(H+I\log(I+1)+X\log(X+1)+V\cdot E)$ and returns one witness. To list every
-distinct interval clash, let $Q$ be the number of obligation-prohibition
+interval clash, let $Q$ be the number of obligation-prohibition
 pairs that share an action and a scope atom and overlap in time, counted once
 per shared scope atom, plus the number of overlapping claim pairs on one
-resource. A deterministic enumerator that sorts and removes duplicates adds
-$O(Q\log(Q+1))$; $n$ obligations and $n$ prohibitions on one scope and
-interval give $Q=n^2$. Unit propagation computes in $O(H)$ the least Horn
+resource. A sweep line visits each key's interval endpoints in sorted order,
+keeps the intervals still open, and reports a newly opened interval against
+each open one it clashes with. It reports each of the $Q$ clashes exactly
+once, so listing them all takes $O(H+(I+X)\log(I+X+1)+Q+V\cdot E)$. The bound
+grows with the output: $n$ obligations and $n$ prohibitions on one scope and
+interval give $Q=n^2$, and no enumerator can list those in fewer steps.
+Unit propagation computes in $O(H)$ the least Horn
 model, the smallest set of facts closed under the Horn rules, whose facts
-hold in every model~\pdcite{dg84}; keyed interval indexes find one overlap, while
-listing them all must visit every overlapping pair. Bellman--Ford returns a
-negative cycle iff the deadline system is infeasible in $O(V\cdot E)$.
+hold in every model~\pdcite{dg84}. The deadline system is a simple temporal
+problem, which is consistent iff the deadline graph has no negative
+cycle~\pdcite{dmp91}; Bellman--Ford finds such a cycle, or shows there is none,
+in $O(V\cdot E)$.
 The witnesses are a derivation chain, the fired rules and overlap interval,
 the claims, or a negative cycle. The reference
 \texttt{b4\_deontic\_fragment.py} scans active pairs, including nonclashes;
-it does not implement the indexed bound and can be quadratic with $Q=0$.
+it does not implement the sweep and can be quadratic with $Q=0$.
 \end{pdclaim}
 
 \begin{pdclaim}{Theorem}{One Step Outside the Fragment Is NP-Complete}
