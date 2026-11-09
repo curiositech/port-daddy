@@ -634,22 +634,21 @@ By code inspection of the session module (\texttt{lib/sessions.ts}): the note AP
 
 \subsection{Cross-Daemon Proofs of Inclusion}\label{sec:merkle-forest}
 
-Where the stakes are high, or a fleet spans several daemons, the evidence trail is strengthened into a three-level \pdterm{Merkle forest}. Inside one daemon, chaining each note's hash to the previous one, with a root per session, makes tampering visible. Once there are two daemons, an auditor without database access must also be able to check, from a short proof, that a particular note belongs to a particular session.
+Where the stakes are high, or a fleet spans several daemons, the evidence trail is strengthened into a \pdterm{harbor log}: one append-only Merkle log per harbor, in the style of Certificate Transparency~\pdcite{laurie2013ct}, whose entries are the roots of completed sessions. Inside one daemon, chaining each note's hash to the previous one makes tampering visible. Once there are two daemons, an auditor without database access must also be able to check, from a short proof, that a particular note belongs to a particular session, and that the daemon has not quietly dropped a session it already committed to.
 
-\begin{definition}[Merkle Forest]\label{def:merkle-forest}
+\begin{definition}[Harbor Log]\label{def:merkle-forest}
 \pdstatus{\Designed}{verification and implementation are recorded separately}
 \setlength{\parskip}{4pt plus 1pt}
-The evidence structure has three levels:
+The evidence structure has three levels. As in RFC~6962, $H_L$ hashes a leaf and $H_N$ an ordered pair of child hashes, each with its own domain tag.
 \begin{description}[nosep]
-  \item[Note chain.] Each note's header includes $h_i = H(n_i \mathbin{\|} h_{i-1})$ over SHA-256.
+  \item[Note chain.] Each note's header includes $h_i = H(n_i \mathbin{\|} h_{i-1})$ over SHA-256, which commits the session's notes in order.
 
 The session's note commitment is $h_J$, the hash of the last note.
 
 
-\item[Session root.] All note hashes $(h_1,\ldots,h_J)$ are assembled into a Merkle binary tree with root $R_{\text{session}}$. The chain commits to order; the tree commits to presence with $O(\log J)$ proofs.
-  \item[Harbor root.] Periodically (per-settlement, or hourly), every completed session root within a harbor is assembled into a harbor Merkle tree with root $R_{\text{harbor},\ell}$ at epoch $\ell$, signed by the daemon's Ed25519 key.
+\item[Session root.] The notes, hashed as leaves $H_L(n_1),\ldots,H_L(n_J)$, form a Merkle binary tree with root $R_{\text{session}}$. The chain commits to order; the tree commits to presence with $O(\log J)$ proofs.
+  \item[Harbor log.] Each completed session root is appended, in settlement order, as the next leaf of the harbor's single append-only Merkle tree. Periodically (per settlement, or hourly) the daemon publishes a \pdterm{signed checkpoint}, its Ed25519 signature over the log's current size $N$ and root $R_N$; Certificate Transparency calls this a signed tree head.
 \end{description}
-The collection $\{R_{\text{harbor},\ell}\}_{\ell}$ is the \emph{Merkle forest}: one tree per epoch.
 \end{definition}
 
 \begin{pdexample}{Following a deleted test through the trail}
@@ -659,32 +658,33 @@ test \texttt{checkout\_regression}'', $n_3$ ``tests pass 41/41'' and $n_4$
 ``handoff''. The hashes chain: $h_1=H(n_1)$, $h_2=H(n_2 \| h_1)$,
 $h_3=H(n_3 \| h_2)$ and $h_4=H(n_4 \| h_3)$. Suppose someone
 later changes $n_2$ to ``diff: refactor helper''. Then $h_2$, $h_3$ and $h_4$
-all change, so the session root changes, so the epoch-9 harbor root that the
-daemon signed at 15:00 no longer matches, and Bob's adjudicator rejects the
-record.
+all change, and so does the leaf $H_L(n_2)$, so the session root changes, so
+the checkpoint that the daemon signed at 15:00 no longer matches, and Bob's
+adjudicator rejects the record.
 
 To prove that $n_2$ is in the record, the daemon gives Bob two sibling hashes
-(a tree of four notes has two levels), the session's path in the harbor tree,
-and the signed root. Bob recomputes the root and compares it with the signed
-one.
+(a tree of four notes has two levels), the session root's path in the harbor
+log, and the signed checkpoint. Bob recomputes the log's root and compares it
+with the signed one.
 
-The proof has limits. It shows that $n_2$ was recorded in \texttt{s-41} at
-epoch~9. It does not show that $n_2$ describes the real diff; for that, the
+The proof has limits. It shows that $n_2$ was recorded in \texttt{s-41} by
+the 15:00 checkpoint. It does not show that $n_2$ describes the real diff; for that, the
 diff itself must pass through the checked write path. Removing \texttt{s-41}
 through the API only archives it and appends a tombstone note; $n_1$ to $n_4$
 stay. Someone with direct access to the database could still delete the
-session row and its notes, but the epoch-9 root already sent to the outside
-witness (below) would then no longer match the record.
+session row and its notes, but the 15:00 checkpoint already sent to the
+outside witness (below) would then no longer match the record, and no later
+checkpoint could be shown consistent with it.
 \end{pdexample}
 
 Figure~\ref{fig:bonded-merkle-forest} follows the inclusion check: start with
-the note hash, reconstruct its session root, then reconstruct the harbor root
-and check the daemon's signature. This shows that the note was recorded; it
+the note hash, reconstruct its session root, then reconstruct the log's root
+and check the daemon's signature on the checkpoint. This shows that the note was recorded; it
 does not show that the note is true. The byte calculation follows the figure.
 
 \input{figures/fig-bonded-merkle-forest}
 
-\paragraph{Inclusion proofs.} An inclusion proof is the short list of hashes, with a signed root, that lets anyone check that one note belongs to the record. To prove that note $n_i$ from session $S$ belongs to harbor $\mathcal{H}$ at epoch $\ell$, the daemon emits: (i) the note inclusion path of size $O(\log J)$, (ii) the session inclusion path of size $O(\log N)$ where $N$ is the number of settled sessions in the epoch, and (iii) the signed harbor root $\sigma_{\text{daemon}}(R_{\text{harbor},\ell})$. For $J=100$ notes and $N=10^{4}$ sessions, the two binary paths contain $\lceil\log_2 100\rceil+\lceil\log_2 10^4\rceil=7+14=21$ sibling hashes. At 32 bytes per SHA-256 hash plus one 64-byte Ed25519 signature, the proof is $21\times32+64=736$ bytes, about $0.7$ KiB, small enough to embed in any settlement receipt.
+\paragraph{Inclusion proofs.} An inclusion proof is the short list of hashes, with a signed checkpoint, that lets anyone check that one note belongs to the record. To prove that note $n_i$ from session $S$ is in harbor $\mathcal{H}$'s log of size $N$, the daemon emits: (i) the note's path in the session tree, of size $O(\log J)$, (ii) the session root's path in the harbor log, of size $O(\log N)$, and (iii) the signed checkpoint $\sigma_{\text{daemon}}(N,R_N)$. For $J=100$ notes and a log of $N=10^{4}$ sessions, the two binary paths contain $\lceil\log_2 100\rceil+\lceil\log_2 10^4\rceil=7+14=21$ sibling hashes. At 32 bytes per SHA-256 hash plus one 64-byte Ed25519 signature, the proof is $21\times32+64=736$ bytes, about $0.7$ KiB, small enough to embed in any settlement receipt.
 
 A verifier needs a signed checkpoint as well as a path, because a matching
 hash alone does not show who committed to the root.
@@ -697,14 +697,25 @@ Here $b$ is the other leaf in the receipt's pair, while $c$ is the other
 two-record subtree. Their order matters. $H_L$ hashes a leaf and $H_N$ an
 ordered pair, using distinct domain tags. The signed checkpoint must also
 identify the intended tree and its size. The drawing omits wire-format
-details; the two-level forest applies the path calculation at each level.
+details; the harbor log applies the same path calculation once in the session
+tree and once in the log.
 
-\paragraph{Witness to an abstract KMS.} Each $R_{\text{harbor},\ell}$ is also sent to a key management service (KMS) with the properties listed in \S\ref{sec:federated-sovereign}, which appends it to a witness log, an independent record outside the daemon that can only grow. The KMS accepts roots only in order and periodically publishes a signed summary of everything it holds (a signed tree head), as in Certificate Transparency~\pdcite{laurie2013ct}. A daemon that shows different roots for the same epoch to different parties (equivocation) can then be caught by auditors who check that successive tree heads are consistent.
+\paragraph{Proving that the log only grew.} Because the log is one tree that
+only grows, anyone can also check that it has only grown. Given two signed checkpoints of
+sizes $N_1<N_2$, a \pdterm{consistency proof} is the $O(\log N_2)$ hashes
+that show the first $N_1$ leaves of the larger tree are exactly the smaller
+tree~\pdcite{laurie2013ct}. If a daemon dropped or changed a session root it
+had already signed into a checkpoint, no consistency proof from that
+checkpoint to a later one would verify. A set of independent trees, one per
+period, has no such proof between periods, so nothing would stop a daemon
+from leaving a session out of the next period's tree.
+
+\paragraph{Witness to an abstract KMS.} Each signed checkpoint is also sent to a key management service (KMS) with the properties listed in \S\ref{sec:federated-sovereign}, which keeps it in a witness log, an independent record outside the daemon that can only grow. The KMS accepts a checkpoint only with a consistency proof from the last one it holds, as in Certificate Transparency~\pdcite{laurie2013ct}. A daemon that shows different checkpoints of the same size to different parties (equivocation) can then be caught by an auditor who compares the checkpoint it was shown with the witness's copy.
 
 \begin{pdclaim}{Design invariant}{Proof Soundness}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:proof-sound}
-If \textsc{verify-note-inclusion}$(n,S,\mathcal{H},\ell,\pi_{\mathrm{inc}})$ returns \texttt{true} for some proof $\pi_{\mathrm{inc}}$, then either (a) $n$ was included in session $S$ at epoch $\ell$, or (b) the daemon's signing key has been compromised, or (c) SHA-256 has been broken.
+If \textsc{verify-note-inclusion}$(n,S,\mathcal{H},N,\pi_{\mathrm{inc}})$ returns \texttt{true} for some proof $\pi_{\mathrm{inc}}$, then either (a) $n$ was included in session $S$, whose root is among the first $N$ leaves of $\mathcal{H}$'s log, or (b) the daemon's signing key has been compromised, or (c) SHA-256 has been broken.
 
 Here ``included'' means membership in the authenticated committed tree,
 not that the recorded action actually happened. Key compromise is an operational
@@ -716,13 +727,13 @@ and size.
 \begin{pdclaim}{Design invariant}{Binding}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:forest-bind}
-Once a daemon publishes $R_{\text{harbor},\ell}$, it cannot produce a different valid root for the same $(\textit{harbor},\ell)$ without contradicting its earlier signature (detectable via the KMS witness) or forking its identity.
+Once a daemon signs a checkpoint of size $N$, it cannot produce a later checkpoint with a valid consistency proof from it that drops or changes any of the first $N$ session roots, unless SHA-256 has been broken. Nor can it sign a second, different checkpoint of size $N$ without contradicting its earlier signature (detectable via the KMS witness) or forking its identity.
 \end{pdclaim}
 
-\paragraph{Cost.} A binary-tree epoch commitment requires $O(N)$ hashes
-for $N$ session roots and logarithmic inclusion paths. Incremental accumulation
-can amortize append work. No measured latency for the complete forest is
-supplied here; the hash count does not justify a millisecond estimate.
+\paragraph{Cost.} Appending one session root to the log updates $O(\log N)$
+stored hashes, and inclusion and consistency paths are logarithmic. No
+measured latency for the log is supplied here; the hash count does not
+justify a millisecond estimate.
 
 That is what decentralized verification means in this chapter. Evidence is append-only within a daemon, and anyone holding the daemon's public key, a signed checkpoint and an inclusion proof can check it from outside that daemon. The $736$-byte
 calculation excludes serialization and context metadata.
@@ -766,7 +777,7 @@ Revocation does not erase.
 The event ledger is monotone: the cardinality of the event set only grows.
 \end{pdclaim}
 
-\paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and witnesses therefore see revocations without any earlier state being erased. What changes is the \emph{view}; the ledger beneath it is append-only.
+\paragraph{Integration with the log.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, the harbor log holds the session roots, and witnesses therefore see revocations without any earlier state being erased. What changes is the \emph{view}; the ledger beneath it is append-only.
 
 Because the view can change while the ledger only grows, signals can be revised without weakening the evidence the rest of the chapter relies on.
 
@@ -917,7 +928,7 @@ information does not guarantee agreement. Disputes still arise. Two agents may l
   \item \textbf{Direct release.} The original claimant releases the claim. This resolves a precautionary claim when its holder agrees to release it.
   \item \textbf{Time-out release.} Claims carry TTLs. A claim whose holder has not heartbeated within the TTL window is released automatically; downstream agents observe the release in their next poll. This is a recovery rule for sufficiently stale claims, not proof of a Nash equilibrium.
   \item \textbf{Bonded preemption.} A blocked agent may post an additional bond, no larger than the \pdterm{cleanup cost} (the human and compute cost of recovering from one breach, \S\ref{sec:cleanup-bound}), to force release of an active claim. The preempted claimant receives the bond as compensation; the preemptor accepts the risk that its preemption was wrong (in which case the bond is slashed under settlement). Preemption is meant to be rare, because the bond is large enough that an agent prefers waiting to preempting unless waiting costs more.
-  \item \textbf{Human escalation.} If preemption is ambiguous or the stakes exceed the preemption-bond ceiling, the dispute escalates to a human operator via the \texttt{request} channel (\S\ref{sec:taxonomy}). The operator's decision is appended to the evidence chain with the same Merkle-Forest binding as any agent action; the resolution is auditable by all parties post-hoc.
+  \item \textbf{Human escalation.} If preemption is ambiguous or the stakes exceed the preemption-bond ceiling, the dispute escalates to a human operator via the \texttt{request} channel (\S\ref{sec:taxonomy}). The operator's decision is appended to the evidence chain with the same harbor-log binding as any agent action; the resolution is auditable by all parties post-hoc.
 \end{enumerate}
 
 \input{figures/fig-governance-flow}
@@ -956,7 +967,7 @@ The schema alone gives no liveness guarantee.
 \label{prop:appeal-sound}
 The appeals path does not weaken the append-only property of the evidence chain (\S\ref{sec:attribution}): no record is rewritten.
 
-Reversal appends a counter-record signed by the daemon, with a Merkle-Forest proof of the original settlement's position and the appellant's evidence. The chain grows monotonically.
+Reversal appends a counter-record signed by the daemon, with an inclusion proof of the original settlement in the harbor log and the appellant's evidence. The chain grows monotonically.
 \end{pdclaim}
 
 \paragraph{What the daemon does \emph{not} do.} The daemon does not judge an appeal's merits as a human court would. It checks whether the evidence supports the original settlement under the published rules. Substantive judgments (``was the agent's reasoning sound''; ``was the principal acting in good faith'') remain with humans, escalated through the \texttt{request} channel. The daemon's role is to ensure that all parties have access to the same evidence and that any human decision is recorded with the same finality as any agent decision.
@@ -1187,7 +1198,7 @@ and truthful signaling needs no repeated game at all.
 \paragraph{Move to the repeated game.}
 Truthful signaling can survive because the agents play the stage game many times. The commons supplies three things:
 \begin{itemize}[nosep]
-  \item \textbf{Observable history.} The Merkle-chained evidence trail of \S\ref{sec:attribution} and heartbeat record of \S\ref{sec:crash-recovery} authenticate retained statements to a verifier with the relevant proof.
+  \item \textbf{Observable history.} The hash-chained evidence trail of \S\ref{sec:attribution} and heartbeat record of \S\ref{sec:crash-recovery} authenticate retained statements to a verifier with the relevant proof.
 They do not reveal an unrecorded intention or guarantee delivery of every action.
 The game below assumes more, namely \pdterm{perfect public monitoring}, in which
 both players see the same correct record of past actions before each round.
@@ -1280,7 +1291,7 @@ monitoring remains \emph{open}, within a harbor as well as across harbors.
 \paragraph{Where the argument stops.}
 Removing an assumption invalidates this strategy's guarantee, not every possible cooperation mechanism.
 \begin{itemize}[nosep]
-  \item \emph{Remove the shared action history (\S\ref{sec:attribution}).} The prescribed trigger can no longer identify when punishment starts or ends. A Merkle forest can authenticate recorded evidence; it is not the only possible monitoring mechanism, and authentication alone does not deliver perfect public monitoring.
+  \item \emph{Remove the shared action history (\S\ref{sec:attribution}).} The prescribed trigger can no longer identify when punishment starts or ends. A harbor log can authenticate recorded evidence; it is not the only possible monitoring mechanism, and authentication alone does not deliver perfect public monitoring.
   \item \emph{Allow costless identity resets (\pdchapref{anchor}{The Anchor Protocol}).} If a principal can discard its identity and return immediately on unchanged terms, identity-specific punishment loses its force. Re-entry costs or a larger bond may change that incentive. An agent process that persists is not a persistent player; the principal is.
   \item \emph{Drop $\delta$ below $\delta^\star_{k=3}(p_{\mathrm f}b)$.} The three-round trigger no longer deters defection. For $(1-p_{\mathrm f}b)/3<\delta<\delta^\star_{k=3}(p_{\mathrm f}b)$, a sufficiently long finite punishment restores deterrence. At $\delta=(1-p_{\mathrm f}b)/3$, only the perpetual-punishment limit reaches the weak incentive condition; no finite window suffices.
   \item \emph{Drop $\delta$ below $(1-p_{\mathrm f}b)/3$.} Even perpetual mutual-$F$ punishment cannot deter a deviation from $(T,T)$ with these payoffs. No finite window of that punishment can do better. A larger expected forfeiture lowers this bound, and $p_{\mathrm f}b\ge1$ removes it.
@@ -1495,7 +1506,7 @@ verdicts, correlated errors and appeals.
 Test-suite pass/fail, type checks, lints, coverage thresholds, and any deterministic CI signal already recorded on the session. Cheap to run, fast to return, and \emph{gameable}: a principal who knows the test surface can ship work that passes the checks while failing the intent. The daemon already produces this oracle as a side effect of normal operation; the change is to label it as one signal among three rather than the dispositive one.
 
 \paragraph{Oracle 2: Evidence-based.}
-A verifier (which may itself be a bonded agent) reviews the Merkle attribution chain (\S\ref{sec:attribution}) for the disputed transaction. The chain is append-only and cryptographically bound, so the oracle's hard problem is not authenticity of the evidence but interpretation: did the recorded actions match the Float Plan's scope, and do the diffs produced match the acceptance criteria? Medium cost; authentic records can still be incomplete or misleading, and collusion adds another failure mode (\S\ref{sec:youle:a5}).
+A verifier (which may itself be a bonded agent) reviews the hash-chained attribution record (\S\ref{sec:attribution}) for the disputed transaction. The chain is append-only and cryptographically bound, so the oracle's hard problem is not authenticity of the evidence but interpretation: did the recorded actions match the Float Plan's scope, and do the diffs produced match the acceptance criteria? Medium cost; authentic records can still be incomplete or misleading, and collusion adds another failure mode (\S\ref{sec:youle:a5}).
 
 \paragraph{Oracle 3: Human audit.}
 A randomized sample of contested settlements, at a configurable rate (default $10\%$), is routed to a human auditor. Expensive, slow, and authoritative. The audit produces a labeled outcome that feeds back into reputation history and into calibrating Oracles 1 and 2: any disagreement between human audit and the cheaper oracles is a training signal for the gameable layers.
@@ -1572,7 +1583,7 @@ from existing~\pdcite{rothschildstiglitz1976,wilson1977insurance}.
 \paragraph{Adverse-selection controls.}
 To avoid the lemons problem, in which only bad risks stay in the market because good ones find the price too high, the mechanism requires:
 \begin{itemize}[nosep]
-  \item Public agent reputation history (from the Merkle forest of \S\ref{sec:merkle-forest}).
+  \item Public agent reputation history (from the harbor log of \S\ref{sec:merkle-forest}).
   \item Principal-bound slashing if an agent's history is misrepresented at quote time.
   \item Insurer capital reserve backed by on-chain stake (the same bond mechanism, recursive: an insurer posts bond that its claim ceilings are funded).
 \end{itemize}
@@ -2232,10 +2243,10 @@ the custody design below.
 
 We introduce a fourth actor, specified by properties rather than by vendor:
 \begin{description}[nosep]
-  \item[Daemon] commons authority within a machine; signs harbor roots; enforces bonds.
+  \item[Daemon] commons authority within a machine; signs the harbor log's checkpoints; enforces bonds.
   \item[Agent] participant; holds Harbor Card; signs actions.
   \item[Principal] funds Float Plans; identifies via Ed25519 keypair.
-  \item[\textbf{KMS}] key custody; recovery root-of-trust; witnesses harbor roots.
+  \item[\textbf{KMS}] key custody; recovery root-of-trust; witnesses the checkpoints.
 \end{description}
 
 \begin{definition}[Acceptable KMS]\label{def:kms}
@@ -2245,7 +2256,7 @@ A Key Management Service $\mathcal{K}$ is acceptable for the federated custody d
 \begin{enumerate}[nosep]
   \item Passphrase-wrapped private-key custody using a memory-hard KDF (Argon2id) with parameters meeting the 2026 security lower bound.
   \item Encryption-at-rest for all user-held blobs; $\mathcal{K}$ never sees plaintext keying material.
-  \item A signed witness log for harbor Merkle roots with append-only, monotonic semantics and detectable equivocation~\pdcite{laurie2013ct}.
+  \item A signed witness log for harbor-log checkpoints with append-only, monotonic semantics and detectable equivocation~\pdcite{laurie2013ct}.
   \item Rate-limited, email-gated recovery via single-use magic-link tokens of bounded TTL.
   \item Public verification of signed user public keys under an account identifier, without requiring mutual authentication.
 \end{enumerate}
@@ -2276,7 +2287,7 @@ Assuming Ed25519 and SHA-256 are secure, Argon2id parameters meet the 2026 secur
 (i) forge a Harbor Card without the daemon's private key,
 (ii) read plaintext evidence without the harbor's session key,
 (iii) impersonate the user without both email access and passphrase,
-(iv) roll back a harbor's Merkle forest without $\mathcal{K}$'s complicity.
+(iv) roll back a harbor's log without $\mathcal{K}$'s complicity.
 \end{pdclaim}
 
 The design invariant deliberately excludes the same-user adversary (an unsandboxed agent, a malicious postinstall, a compromised editor extension). Such an adversary reads any file the user can read, which absent OS-mediated key custody includes the daemon's keys and database. The \texttt{macOS Keychain} integration ships now; native keyring or hardware-backed custody may narrow key exposure, but
@@ -2285,7 +2296,7 @@ and signing-oracle model; storing a key there alone is insufficient.
 
 \paragraph{Recovery and its structural limits.} Recovery is email magic link. The structural limit: \emph{if the user loses both passphrase and old machine}, harbor session keys wrapped only for that pubkey cannot be recovered. That is the cost of encrypting data at rest so that the KMS learns nothing about it. An opt-in Shamir escrow mode~\pdcite{shamir1979share} (threshold secret sharing across $\mathcal{K}$, email, and recovery contacts) trades some zero-knowledge for stronger recovery.
 
-\paragraph{Passkeys instead of passwords.} Identity rests on WebAuthn-backed device keypairs, so there are no secrets to phish and ordinary actions need no passphrase. New devices enroll by exchanging a short-lived pairing token that re-encrypts the KMS master under the new device's public key. Mobile devices act as \emph{viewers}, not peers: they sign low-stakes actions (approve an ask, bump budget) over a WebSocket viewer channel, but they do not run the full daemon. Each account's harbors gossip Merkle roots among its own devices; cross-account gossip requires explicit signed consent.
+\paragraph{Passkeys instead of passwords.} Identity rests on WebAuthn-backed device keypairs, so there are no secrets to phish and ordinary actions need no passphrase. New devices enroll by exchanging a short-lived pairing token that re-encrypts the KMS master under the new device's public key. Mobile devices act as \emph{viewers}, not peers: they sign low-stakes actions (approve an ask, bump budget) over a WebSocket viewer channel, but they do not run the full daemon. Each account's harbors gossip signed checkpoints among their own devices; cross-account gossip requires explicit signed consent.
 
 What we deliberately do \emph{not} do: require passwords, use TOTP as a primary factor, or couple recovery to a single cloud vendor.
 
@@ -2320,7 +2331,7 @@ The ideas below are the ones later chapters use, in the order they use them:
 \item \textbf{Structural scope limitation is a theorem}, not a policy: accepted operations stay within the root grant when every relevant effect
 passes through the verifier. Checks have a runtime cost; an unmediated write
 is outside that guarantee.
-\item \textbf{The record is tamper-evident.} Notes are hash-chained, each session's notes are gathered into a tree, and each period's session roots go into a harbor tree whose root the daemon signs (the Merkle forest). The design requires six properties; only the first is proved here, and the other five are design invariants. Notes can only be added. A proof that checks out must mean the note really was recorded, unless the daemon's key or SHA-256 is broken. A daemon must not be able to publish two different roots for the same period without contradicting its own earlier signature, which the witness log exposes, or forking its identity. Every signal must trace back to one signing principal. A reader must be able to replay events to correct for a revocation that arrived late. Revoking a signal must add an event instead of deleting one. Separately, a bounded model check of the ledger's TLA$^{+}$ model shows that it creates or loses no credits except by top-up; the running ledger still stores money as floating point. Property tests show that two simultaneous escrow requests cannot overdraw a wallet, provided the balance check and the debit happen in one transaction.
+\item \textbf{The record is tamper-evident.} Notes are hash-chained, each session's notes are gathered into a tree, and session roots are appended to one append-only harbor log whose checkpoints the daemon signs. The design requires six properties; only the first is proved here, and the other five are design invariants. Notes can only be added. A proof that checks out must mean the note really was recorded, unless the daemon's key or SHA-256 is broken. A daemon must not be able to drop a session root it has signed into a checkpoint without breaking SHA-256, or sign two different checkpoints of the same size without contradicting its own earlier signature, which the witness log exposes, or forking its identity. Every signal must trace back to one signing principal. A reader must be able to replay events to correct for a revocation that arrived late. Revoking a signal must add an event instead of deleting one. Separately, a bounded model check of the ledger's TLA$^{+}$ model shows that it creates or loses no credits except by top-up; the running ledger still stores money as floating point. Property tests show that two simultaneous escrow requests cannot overdraw a wallet, provided the balance check and the debit happen in one transaction.
 \item \textbf{Exclusive locks can backfire.} If Wren locks a file just in case and Pike turns out to need it, the lock can block an outcome both of them prefer. Advisory claims block nothing; they guarantee that every overlap between registered claims is reported. An appeal can reverse a settlement only by adding a counter-record, never by rewriting one.
 \item \textbf{A crash is a social event.} Recovery is continuation of the record by whoever next holds the role, not resurrection of the process.
 \item \textbf{Intent is irrelevant to settlement}; the bond pays on the evidence, whatever the agent meant.
@@ -2560,7 +2571,7 @@ this architecture. The authority provides three layers of guarantee:
 
 \begin{enumerate}[nosep]
   \item \textbf{Structural prevention}: for any operation routed through the verifier, capability-attenuated tokens make scope escalation impossible (Theorem~\ref{thm:scope}). The guarantee holds once the Anchor model's own assumptions and the runtime's interception coverage are granted, and no further.
-  \item \textbf{Append-only attribution}: a Merkle forest of evidence trails (\S\ref{sec:merkle-forest}) authenticates retained records across daemons. Attribution of an actual
+  \item \textbf{Append-only attribution}: an append-only harbor log of evidence trails (\S\ref{sec:merkle-forest}) authenticates retained records across daemons. Attribution of an actual
 effect additionally requires complete capture and principal binding; it says nothing about disclosure to outsiders (\S\ref{sec:pricing:threats}) or about a same-user adversary on the daemon's own host (\S\ref{sec:federated-sovereign}).
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}

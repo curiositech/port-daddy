@@ -1,10 +1,10 @@
-% Reader question: how is one note linked to the signed harbor root?
+% Reader question: how is one note linked to the harbor log's signed checkpoint?
 % One continuous inclusion path. The ordering guarantee and byte calculation
 % belong to the adjacent prose, not additional diagram lanes.
 % Counter-reading: inclusion does not establish that the note is true.
 \begin{figure}[htbp]
 \centering
-\caption{Two inclusion paths connect a note to a signed root. Here, the hashes and signature occupy 736 bytes. [hand-derived]}
+\caption{Two inclusion paths connect a note to a signed checkpoint of the harbor log. Here, the hashes and signature occupy 736 bytes. [hand-derived]}
 \label{fig:bonded-merkle-forest}
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
@@ -12,7 +12,7 @@
     minimum height=1.05cm,inner xsep=8pt,inner ysep=7pt,align=center}}
   \node[receipt root] (note) at (2.05,5.8) {Note hash};
   \node[receipt root] (session) at (2.05,3.25) {Session root\\100 notes};
-  \node[receipt root] (harbor) at (2.05,0.7) {Signed harbor root\\10,000 sessions};
+  \node[receipt root] (harbor) at (2.05,0.7) {Signed checkpoint\\log of 10,000 sessions};
   % Shafts exceed 1 cm after tip shortening; labels never mask them.
   \draw[pd arrow,shorten <=3pt,shorten >=3pt] (note.south) -- (session.north);
   \draw[pd arrow,shorten <=3pt,shorten >=3pt] (session.south) -- (harbor.north);
