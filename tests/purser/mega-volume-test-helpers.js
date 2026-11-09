@@ -54,6 +54,12 @@ export function makeFixture() {
   }
   cpSync(resolve(subjectRoot, 'scripts/prepare-book-fonts.py'),
     resolve(root, 'scripts/prepare-book-fonts.py'));
+  // The generator renders the glossary appendix on every build, so it imports
+  // the glossary module; a subject from before the glossary has no such file.
+  const glossaryRelative = 'scripts/generate-book-glossary.mjs';
+  if (existsSync(resolve(subjectRoot, glossaryRelative))) {
+    cpSync(resolve(subjectRoot, glossaryRelative), resolve(root, glossaryRelative));
+  }
   copyTexTree(resolve(subjectRoot, 'book'), resolve(root, 'book'));
   return root;
 }
