@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40243827,
+    "bytes": 40243877,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/99c8df19645a8b787047ecf92f4961000f80ff71c8cb995b50451d64d2733e6d.tar.gz",
-    "sha256": "99c8df19645a8b787047ecf92f4961000f80ff71c8cb995b50451d64d2733e6d",
-    "url": "https://media.portdaddy.dev/book/source/sha256/99c8df19645a8b787047ecf92f4961000f80ff71c8cb995b50451d64d2733e6d.tar.gz"
+    "key": "book/source/sha256/672dfc6372a70d7d6a08766504a623c2642122ae681af58d52d5f4c72b0ce311.tar.gz",
+    "sha256": "672dfc6372a70d7d6a08766504a623c2642122ae681af58d52d5f4c72b0ce311",
+    "url": "https://media.portdaddy.dev/book/source/sha256/672dfc6372a70d7d6a08766504a623c2642122ae681af58d52d5f4c72b0ce311.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "9b987f56f8ed37b92f067efa8f9fad80fdb818176327c8766fcc0fc17df7e469",
+  "manifestSha256": "49321a0d9297cf57c35c8a537351a8211f63dafe1e14126f77e9cbb26b502d60",
   "schemaVersion": 1,
   "source": {
     "fileCount": 535,
@@ -130,10 +130,10 @@
         "sha256": "7dcfbd65ec1084c04befa5ed0776fce2f7f3ca272d3e362e10c0774de308748c"
       },
       {
-        "bytes": 14653,
+        "bytes": 14886,
         "mode": 420,
         "path": "book/additions/sealed-tenants.tex",
-        "sha256": "21e54cca30f92b6697b2e8915959e13389420056d389bb823df82d8348f6ee24"
+        "sha256": "458f232e1a2776dbfb9a43d8ec7430af41692e539cb088f0339b1612adb8b279"
       },
       {
         "bytes": 17150,
@@ -3232,6 +3232,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "a5d32a7a7f5f69a93778862a018aadbb1ccab926044d95acc97d7ad3111616ea"
+    "sha256": "1efe9c94d9a3903f2cd5d4a2da83836f4f3a9d9bf583fde70fef650c9868a8f7"
   }
 }
