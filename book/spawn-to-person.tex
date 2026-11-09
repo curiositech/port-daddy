@@ -980,9 +980,9 @@ Cheap-pseudonym analysis~\pdcite{friedmanresnick2001} and Sybil-proof reputation
 Let $W$ be the earnings forgone after a reset relative to keeping the established
 identity, under the same stipulated stream of opportunities. It is a sum you can
 do on paper. Set the
-newcomer ceiling $\kappa_0=10$, the steady-state ceiling $\kappa^\star=100$, a
-linear five-period climb $\kappa_t = 10 + 18t$, and per-period surplus
-$\pi(\kappa)=0.1\kappa$. Table~\ref{tab:whitewash-numbers} sums the five
+newcomer ceiling $\bar{c}_0=10$, the steady-state ceiling $\bar{c}^\star=100$, a
+linear five-period climb $\bar{c}_t = 10 + 18t$, and per-period surplus
+$\pi(\bar{c})=0.1\bar{c}$. Table~\ref{tab:whitewash-numbers} sums the five
 surplus gaps to $W=18$ for this illustrative schedule.
 
 With certain immediate detection and $\delta=1$, a deviation gain of
@@ -996,13 +996,13 @@ Note also what this
 instance fixes for the next theorem: the largest holdback any single period can
 carry here is
 \[
-L=\pi(\kappa^\star)-\pi(\kappa_0)=10-1=9,
+L=\pi(\bar{c}^\star)-\pi(\bar{c}_0)=10-1=9,
 \]
 and that $L$ is precisely
 the per-period ceiling that Theorem~\ref{thm:probation-dominance} must respect.
 
 \emph{Now you try:} stretch the same endpoints over ten periods instead of five ---
-what is $W$? ($\kappa_t=10+9t$, so the gaps are $9-0.9t$ and
+what is $W$? ($\bar{c}_t=10+9t$, so the gaps are $9-0.9t$ and
 \[
 W=90-0.9\cdot 55=40.5:
 \]
@@ -1015,15 +1015,15 @@ the early gaps are the expensive ones.)
 \label{thm:whitewash-cost}
 Fix a risk-neutral actor, discount factor $0<\delta\le1$, and a continuation
 opportunity schedule. Maintaining its established identity yields expected
-surplus $\pi(\kappa^\star)$ per period. A reset forces the actor through
-ceilings $\kappa_t\le\kappa^\star$, yielding $\pi(\kappa_t)$ for
+surplus $\pi(\bar{c}^\star)$ per period. A reset forces the actor through
+ceilings $\bar{c}_t\le\bar{c}^\star$, yielding $\pi(\bar{c}_t)$ for
 $t=1,\ldots,T$, after which the continuations coincide. Assume these are
 attainable expected surpluses under the specified counterpart strategies,
 not merely upper bounds on earnings, and that $\pi$ is \mbox{non-decreasing}.
 The discounted opportunity cost, measured at reset, is exactly
 \[
 W_\delta=\sum_{t=1}^{T}\delta^t
- \bigl(\pi(\kappa^\star)-\pi(\kappa_t)\bigr)\ge0.
+ \bigl(\pi(\bar{c}^\star)-\pi(\bar{c}_t)\bigr)\ge0.
 \]
 If resetting avoids a sanction of present value $S$ and carries no other
 benefit or cost, resetting rather than retaining the sanctioned identity
@@ -1063,9 +1063,9 @@ $\mathbb E[\mathbf1_{\{\mathrm{detected}\}}\delta^\tau W_\delta]$.
 \toprule
 Period $t$ & $1$ & $2$ & $3$ & $4$ & $5$ & \textbf{total} \\
 \midrule
-Ceiling $\kappa_t$ & $28$ & $46$ & $64$ & $82$ & $100$ & --- \\
-Surplus $\pi(\kappa_t)$ & $2.8$ & $4.6$ & $6.4$ & $8.2$ & $10.0$ & --- \\
-Gap $\pi(\kappa^\star)-\pi(\kappa_t)$ & $7.2$ & $5.4$ & $3.6$ & $1.8$ & $0.0$ & $\mathbf{W=18.0}$ \\
+Ceiling $\bar{c}_t$ & $28$ & $46$ & $64$ & $82$ & $100$ & --- \\
+Surplus $\pi(\bar{c}_t)$ & $2.8$ & $4.6$ & $6.4$ & $8.2$ & $10.0$ & --- \\
+Gap $\pi(\bar{c}^\star)-\pi(\bar{c}_t)$ & $7.2$ & $5.4$ & $3.6$ & $1.8$ & $0.0$ & $\mathbf{W=18.0}$ \\
 \bottomrule
 \end{tabular}
 \caption{Re-entering as a newcomer forgoes $18$ of surplus over five periods;
@@ -1095,7 +1095,7 @@ $T\ge0$ finite and $L>0$. Because $g_t$ is the
 amount by which a newcomer's economic \emph{ceiling} is reduced, it is bounded above
 by that ceiling: the schedule is constrained by
 \[
-  0 \;\le\; g_t \;\le\; L, \qquad L \;:=\; \pi(\kappa^\star)-\pi(\kappa_0),
+  0 \;\le\; g_t \;\le\; L, \qquad L \;:=\; \pi(\bar{c}^\star)-\pi(\bar{c}_0),
 \]
 the per-period cap supplied by Theorem~\ref{thm:whitewash-cost}'s own ceiling
 schedule.
