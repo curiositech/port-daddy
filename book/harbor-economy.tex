@@ -1857,7 +1857,9 @@ does not make the task metric universally strategy-proof.
 
 \noindent\emph{Fix~B, accountable contractual adjudication:} for subjective
 criteria, parties name the judges, appeal procedure, terminal authority, and
-sanctionable misconduct in advance. Judges may post bonds, but disagreement
+sanctionable misconduct in advance. Judges may post bonds, as Becker and
+Stigler proposed for law enforcers, who would forfeit a bond equal to the
+temptation if caught in malfeasance~\pdcite{beckerstigler1974}. Disagreement
 alone is not proof of dishonesty. An appeal has a finite rank and can move
 only to a lower rank, terminating either at a protected objective predicate
 or at a designated final decision-maker. The latter supplies contractual
@@ -1909,7 +1911,9 @@ Bob choose a provider, but its economic value needs measurement.
 
 For illustration, consider charging $2$--$5\%$ of a successful labor payment.
 This is a candidate fee band, not an estimated optimum. A fee on forfeitures
-would also give the platform an interest in slashing.
+would also give the platform an interest in slashing. Dickens, Katz, Lang and
+Summers raise the same objection to bonding workers: once a bond is posted,
+the party holding it gains by declaring it forfeit~\pdcite{dickens1989}.
 
 \begin{pdexample}{A proposed fee on the labor payment}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2322,6 +2326,18 @@ by Jensen, since $x \mapsto (1-x)^k$ is convex. The independent bound is
 therefore \emph{optimistic} for every mixing distribution with the same mean in
 this common-rate mixture model; the inequality says nothing about other
 dependence structures.
+
+The model comes from software reliability. Eckhardt and Lee gave it for
+programs written several times by separate teams: there the shared draw is
+the input, whose difficulty sets every version's chance of failing on it, and
+the same convexity makes simultaneous failure likelier than independence
+predicts~\pdcite{eckhardt1985}. Littlewood and Miller extended it to versions
+built by different methods and showed that forcing such diversity can, in
+principle, do better than independence~\pdcite{littlewood1989}. Knight and
+Leveson tested independence directly: in $27$ versions written to one
+specification and run on a million test inputs, more than one version failed
+on the same input far more often than independence predicts, and the
+independence hypothesis was rejected~\pdcite{knight1986}.
 
 To get a closed form take $\tilde d \sim \mathrm{Beta}(a,b)$, whose intra-panel
 correlation is $\theta = 1/(a+b+1)$ and whose mean is $d = a/(a+b)$, so a target
@@ -3193,6 +3209,10 @@ prover's work) crossed with multi-agent debate~\pdcite{irving2018}, where two
 adversarial reasoners are more legible to a judge than one cooperative one. Becker's
 deterrence condition~\pdcite{becker1968} supplies the enforcement half: a test-writer's
 expected forfeiture must match its gain from misreporting.
+The correlated-reviewer model of \S\ref{sec:assurance-correlation} has a
+different lineage: it is the coincident-failure model of software
+reliability~\pdcite{eckhardt1985,littlewood1989}, whose independence
+assumption Knight and Leveson rejected by experiment~\pdcite{knight1986}.
 These sources address two questions: how a verifier gains assurance without
 redoing all the prover's work, and how adversarial reports expose errors. The chapter
 adds a market and bond, not a cryptographic proof of the whole artifact.
@@ -3547,6 +3567,26 @@ Debate.'' arXiv:1805.00899, 2018.
 
 \bibitem{becker1968} G. Becker. ``Crime and Punishment: An Economic Approach.''
 \emph{Journal of Political Economy} 76(2):169--217, 1968.
+
+\bibitem{beckerstigler1974} G. S. Becker \& G. J. Stigler. ``Law Enforcement,
+Malfeasance, and Compensation of Enforcers.'' \emph{Journal of Legal Studies}
+3(1):1--18, 1974.
+
+\bibitem{dickens1989} W. T. Dickens, L. F. Katz, K. Lang \& L. H. Summers.
+``Employee Crime and the Monitoring Puzzle.'' \emph{Journal of Labor Economics}
+7(3):331--347, 1989.
+
+\bibitem{eckhardt1985} D. E. Eckhardt \& L. D. Lee. ``A Theoretical Basis for the
+Analysis of Multiversion Software Subject to Coincident Errors.'' \emph{IEEE
+Transactions on Software Engineering} SE-11(12):1511--1517, 1985.
+
+\bibitem{littlewood1989} B. Littlewood \& D. R. Miller. ``Conceptual Modeling of
+Coincident Failures in Multiversion Software.'' \emph{IEEE Transactions on
+Software Engineering} 15(12):1596--1614, 1989.
+
+\bibitem{knight1986} J. C. Knight \& N. G. Leveson. ``An Experimental Evaluation
+of the Assumption of Independence in Multiversion Programming.'' \emph{IEEE
+Transactions on Software Engineering} SE-12(1):96--109, 1986.
 
 \bibitem{dg84} W. F. Dowling \& J. H. Gallier. ``Linear-Time Algorithms for Testing
 the Satisfiability of Propositional Horn Formulae.'' \emph{Journal of Logic
