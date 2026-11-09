@@ -1958,6 +1958,19 @@ a digest needs $B^\star$ bits to be useful. It counts only what the zero-miss
 guarantee needs; cheaper digests are fine the moment misses are tolerated, and
 the two-constraint rate below measures exactly that saving.
 
+\paragraph{When the bound is reached.} A fixed-length zero-miss digest with $M$
+messages is a family of $M$ review sets of size $m$ such that every possible
+critical $k$-set lies inside at least one of them. Write $\mathrm{Cov}(N,m,k)$
+for the smallest such $M$, the covering number of design theory. The counting
+argument gives $\mathrm{Cov}(N,m,k)\ge\binom Nk/\binom mk$, and at small $N$ the
+gap is real: four artifacts with two critical and three opens need three review
+sets, not two, because any two triples drawn from four items share a pair. For
+fixed $k$ and $m$, Rödl~\pdcite{rodl1985} proved that
+$\mathrm{Cov}(N,m,k)\binom mk/\binom Nk\to1$ as $N\to\infty$. The best codebook
+then needs $\log_2\binom Nk-\log_2\binom mk+o(1)$ bits before rounding up, so in
+that regime the theorem's bound is asymptotically exact. Rödl's theorem says
+nothing when $k$ or $m$ grows with $N$.
+
 When two readers need disjoint critical sets, one joint digest given both
 readers' opens has a lower bound below the sum of two separate digests'
 bounds; Theorem~\ref{thm:pooling-gain} states the comparison.
@@ -3049,7 +3062,7 @@ gets $m$, and the joint bound exceeds the sum: at $N=60$, $k=2$, $m=8$ it is
 $12.77$ bits against $2\times5.98=11.96$. That comparison gives the joint
 digest half the opens of the pair, so it measures a shortage of opens, not a
 cost of serving two readers from one store.
-\pdscope{Both sides are lower bounds on message length. The inequality compares the bounds, not encoders; the remark after Theorem~\ref{thm:lowerbound} says when codebooks reach them.}
+\pdscope{Both sides are lower bounds on message length. The inequality compares the bounds, not encoders; the paragraph on when the bound is reached, after Theorem~\ref{thm:lowerbound}, says when codebooks reach them.}
 
 \begin{pdexample}{The Pooling Gain, at the Sweep's Own Instance}
 \setlength{\parskip}{4pt plus 1pt}
@@ -4446,6 +4459,11 @@ Frank K. Hwang.
 Ding-Zhu Du and Frank K. Hwang.
 \newblock \textit{Combinatorial Group Testing and Its Applications}, 2nd ed.
 \newblock World Scientific, 2000.
+
+\bibitem{rodl1985}
+Vojtěch Rödl.
+\newblock On a Packing and Covering Problem.
+\newblock \textit{European Journal of Combinatorics}, 6(1):69--78, 1985.
 
 \bibitem{expansion}
 H. Si, O. O. Koyluoglu, and S. Vishwanath.
