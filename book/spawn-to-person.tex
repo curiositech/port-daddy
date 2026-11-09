@@ -267,7 +267,7 @@ daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 \emph{see} the swarm. None of that yet gives other operators a person whose
 record they can trade on. This chapter supplies what the market needs from the
 single-operator tool: \pdterm{continuity}, the link that lets a later process
-carry on an earlier process's account, and the reputation it makes possible.
+carry on the same person's account as an earlier one, and the reputation it makes possible.
 % --- FIGURE 1: the L0->L3 stack map, placing Chapter III ---
 \subsection{What this chapter claims, and what it refuses to claim}
 Figure~\ref{fig:stp-dependency-spine} orders the prerequisites for trading on an
@@ -2770,7 +2770,7 @@ bounds, and proposed evaluation procedure.
 \toprule
 \textbf{Question} & \textbf{Cited comparison} & \textbf{Development here} \\
 \midrule
-What is a tradeable agent? & org-role theory; personal identity & role + continuity = \emph{person} (Defs.~\ref{def:role}--\ref{def:person}) \\
+What is a tradeable agent? & org-role theory; personal identity & \emph{role} (the job) vs.\ \emph{person} (the ledger account succession records link processes to) (Defs.~\ref{def:role}--\ref{def:person}) \\
 Why is identity necessary? & cheap pseudonyms; Sybil & \emph{necessity proof} (Thm.~\ref{thm:necessity}) + cost bound (Thm.~\ref{thm:whitewash-cost}) \\
 How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, judge-per-axis (\S\ref{sec:adr0049}) \\
 Who grades the graders? & LLM-as-judge evaluation and bias studies & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
