@@ -206,7 +206,7 @@ evidence comparison and settlement, and return to that case to check the whole
 protocol. The scenarios are constructed; none describes a deployment.
 
 \subsection{What this chapter is and is not}\label{sec:fh-scope}
-This chapter closes the book. Each owner's machine runs a harbor, the governed environment in which that owner's daemon decides what agents may do there. A \pdterm{federation} is a group of harbors with different owners that exchange cards, revocations and payments while none of them rules the others. \pdchapref{anchor}{The Anchor Protocol} supplies the signed capability cards; \pdchapref{bonded}{The Bonded Commons} supplies the economic and governance model; this chapter specifies what happens where two harbors meet. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's authorization chain from one owner to another; \S\ref{sec:fh-revocation} extends its revocation gossip; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
+This chapter closes the book. Each owner's machine runs a harbor, the governed environment in which that owner's daemon decides what agents may do there. A federation is a group of harbors with different owners that exchange cards, revocations and payments while none of them rules the others. \pdchapref{anchor}{The Anchor Protocol} supplies the signed capability cards; \pdchapref{bonded}{The Bonded Commons} supplies the economic and governance model; this chapter specifies what happens where two harbors meet. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's authorization chain from one owner to another; \S\ref{sec:fh-revocation} extends its revocation gossip; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
 The design needs no global agreement on the order of work events, unlike
 ledger-backed constructions such as ETHDKG~\pdcite{schindler2019ethdkg}.
 Without a shared chain we cannot rely on one for ordering, for settlement, or for catching equivocation: one party signing two different versions of the same record and showing each version to a different audience. We build each of those from peer gossip plus a witness log, the append-only log to which every harbor posts signed summaries of its records, in which two signed versions for the same epoch prove that the harbor equivocated. In return, the design fits the local-first architecture of \pdchapref{he}{The Harbor Economy} and \pdchapref{bonded}{The Bonded Commons}, in which one operator runs each machine.
@@ -1083,7 +1083,7 @@ Different snapshots are no contradiction, and a missing receipt is missing
 evidence, not a value. When two witnesses compare notes, the receipt says
 either that they agree (without saying on what) or that one saw retained and
 the other deleted. A disagreement receipt therefore forces both witnesses'
-values, and we call such forced values \pdterm[pin]{pins}. If a chain of
+values; each is a \pdterm{forced value}, called a pin for short. If a chain of
 agreement receipts links a witness pinned to retained with one pinned to
 deleted, or one witness is pinned both ways, the receipts
 contradict each other, and those receipts are the proof.

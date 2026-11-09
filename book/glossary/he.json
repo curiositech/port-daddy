@@ -7,7 +7,7 @@
   {"term": "two-sided market", "sort": "two-sided market", "definition": "A platform market in which how the total price is split between two user groups, not only its level, changes how much trade happens (Rochet and Tirole)."},
   {"term": "succession price", "sort": "succession price", "definition": "The ratio of a sole specialist's failure rate to its replacement rate above which a pool of interchangeable workers beats the specialist at any skill level."},
   {"term": "Horn rule", "sort": "Horn rule", "definition": "An if-then rule with one conclusion: once all its premises hold, the conclusion is added as a fact."},
-  {"term": "ground", "sort": "ground", "definition": "Said of a rule written with fixed names and times only, so that no variable is left to fill in when it runs."},
+  {"term": "ground", "sort": "ground", "other_senses": ["ground truth", "ground-truth", "grounds"], "definition": "Said of a rule written with fixed names and times only, so that no variable is left to fill in when it runs."},
   {"term": "epoch root", "sort": "epoch root", "definition": "A value a harbor signs that commits to every card it has issued, narrowed or revoked up to a given epoch."},
   {"term": "equivocation", "sort": "equivocation", "definition": "A harbor signing two contradictory epoch roots for the same epoch, so that different peers see different histories."},
   {"term": "grim trigger", "sort": "grim trigger", "definition": "A repeated-game strategy that cooperates until the first observed defection and then defects forever."},

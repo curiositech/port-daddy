@@ -20,7 +20,7 @@
   {"term": "contradiction certificate", "sort": "contradiction certificate", "definition": "A small set of received reports that anyone can check and that cannot all be honest together."},
   {"term": "effective resistance", "sort": "effective resistance", "definition": "With every visible link given one ohm, the voltage needed to push one ampere between an edge's endpoints through the whole network; it measures how well the rest of the network can explain away a lie on that edge."},
   {"term": "one-hot", "sort": "one-hot", "definition": "A way of writing one of several values as a vector in which exactly one entry is one."},
-  {"term": "pins", "sort": "pin", "definition": "Endpoint values forced by a disagreement receipt, which fixes its tail to one value and its head to another."},
+  {"term": "forced value", "sort": "forced value", "definition": "An endpoint value fixed by a disagreement receipt, which fixes its tail to one value and its head to another; the chapter calls it a pin for short."},
   {"term": "edge group", "sort": "edge group", "definition": "All the coordinates carried by one channel, counted as one unit when measuring how many channels an error touches."},
   {"term": "redundancy distance", "sort": "redundancy distance", "definition": "The fewest channels that must change to turn one honest-looking report pattern into a different honest-looking one; errors on fewer channels are detected, and errors on fewer than half as many can be located."},
   {"term": "lifecycle accounts", "sort": "lifecycle account", "definition": "The four whole-bond status records (posted, in escrow, cleared, refunded), exactly one of which holds a funded bond at any time."}
