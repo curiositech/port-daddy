@@ -334,7 +334,8 @@ subjects} (``a real unity of them all\ldots by covenant of every man with every
 man''~\pdcite{hobbes1651,sep-hobbes}), not a bargain struck \emph{with} the
 sovereign. In the software version, the operator does not bargain with each
 agent. Instead the operator sets one rule of the road that binds every agent,
-and the daemon enforces it. The rule is a \textbf{coordination protocol}, a
+and the daemon enforces it. The agents themselves make no covenant at all;
+\S\ref{sec:roles} says what that does to the analogy. The rule is a \textbf{coordination protocol}, a
 message protocol in which each message states its type. A typed message of
 this kind is a \pdterm{performative}, a term from speech-act theory: a
 request, a \textbf{commitment} (a promise tied to a named agent, which a
@@ -351,10 +352,15 @@ prevented from what can only be detected afterward.
 
 \subsection{The legible-sovereign amendment}\label{sec:legible-sovereign}
 Hobbes' absolutism needs one modern amendment, and it is the crux of this chapter.
-Hobbes argued the sovereign, being the \emph{product} of the covenant rather than a
-\emph{party} to it, can never breach it and need not be
-inspectable~\pdcite{hobbes1651,sep-hobbes}. For a software authority this is exactly
-wrong. An \emph{illegible authority} is the fifth state-of-nature failure mode
+Hobbes did not want a secret sovereign. He required the sovereign's laws to be made
+known: a command ``is Law onely to those, that have means to take notice of it''
+(\emph{Leviathan} ch.~26~\pdcite{hobbes1651}). What he denied was accountability.
+The sovereign, being the \emph{product} of the covenant rather than a
+\emph{party} to it, can never breach it, and no subject may accuse him of
+injustice or punish him (ch.~18~\pdcite{hobbes1651,sep-hobbes}). Publishing the
+rules is therefore not the amendment. The amendment is that every act of
+authority carries its reasons and stays open to audit. For a software
+authority, Hobbes' denial of accountability is exactly wrong. An \emph{illegible authority} is the fifth state-of-nature failure mode
 of Table~\ref{tab:taxonomy} wearing a crown, committed by the coordinator itself: if the daemon blocks an agent and the
 operator cannot see why, the operator's trust erodes, and with it the consent that
 legitimizes the authority.
@@ -371,7 +377,7 @@ sovereign is inspectable.
 \end{pdclaim}
 This is the inversion that rescues the design from despotism, and it is the move a
 political theorist would press hardest (\S\ref{sec:consent-canon}). In Hobbes the
-sovereign is opaque \emph{by structure}; here the sovereign is the one actor whose
+sovereign is unaccountable \emph{by structure}; here the sovereign is the one actor whose
 every exercise of power is an audit record. It is realized as a discipline of
 \pdterm{honest attestation}: a single self-report that runs every invariant check,
 distinguishes \emph{verified-good} from \emph{no-evidence-of-bad}, regiments what it
@@ -3407,11 +3413,16 @@ We assign roles explicitly, using Hobbes' own
 author/actor distinction (\emph{Leviathan} ch.~16~\pdcite{hobbes1651}):
 
 \begin{itemize}[leftmargin=1.2em]
-\item \textbf{The agents are the multitude.} They covenant, through the rule of the
-road (the coordination protocol), to be bound, each to all, enforced by the daemon.
-This is an engineering analogy to a covenant among subjects, not an assertion that software can give human consent.
+\item \textbf{The agents are the multitude, but they never covenant.} They are
+started inside a rule of the road (the coordination protocol) that is already in
+force, and the daemon binds each of them to it without any act of agreement.
+Hobbes' other route to sovereignty, by acquisition (ch.~20~\pdcite{hobbes1651}),
+fits better than his covenant among equals: there authority rests on the power
+that holds the subjects' lives and liberty, not on an agreement among them. Even
+that route has the subjects submit, and agents do not submit either. The consent
+that legitimates the daemon is the operator's alone.
 \item \textbf{The daemon is the sovereign-as-actor.} It holds the authority the
-multitude instituted; it blocks, lands, escalates. But, per the legible-sovereign
+operator granted; it blocks, lands, escalates. But, per the legible-sovereign
 amendment (Invariant~\ref{prop:legible-sovereign}), it is the \emph{most} legible actor,
 not (as in Hobbes) the least.
 \item \textbf{The operator is the author.} In Hobbes' author/actor split, the
@@ -3423,7 +3434,7 @@ but does not personally act.
 \end{itemize}
 
 This assignment is what makes the consent grant (Invariant~\ref{def:consent}) coherent:
-the author issues a scoped grant to the actor, over a multitude bound by covenant.
+the author issues a scoped grant to the actor, over a multitude bound by rules it did not agree to.
 
 \input{figures/legible-swarm-roles}
 
@@ -4042,7 +4053,7 @@ Map each of {agents, daemon, operator} onto Hobbes' {multitude, sovereign-actor,
 author}. Why does the metaphor break if the operator is called the sovereign?
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-hobbes-mapping}
-Agents are the multitude bound by the common coordination protocol; the daemon is the sovereign-as-actor that applies the rules; the operator is the author/principal who originates and can withdraw authority. Calling the operator the sovereign collapses author and executing authority and makes the supposed covenant among agents incoherent: there would be no distinct actor left to hold accountable to the author's terms.
+Agents are the multitude, bound by the common coordination protocol without having agreed to it; the daemon is the sovereign-as-actor that applies the rules; the operator is the author/principal who originates and can withdraw authority. Calling the operator the sovereign collapses author and executing authority: there would be no distinct actor left to hold accountable to the author's terms.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-exit-makes-voice-honest}
 Why does Hirschman's \emph{exit} (Invariant~\ref{prop:override}) make \emph{voice}
@@ -4101,7 +4112,7 @@ LLM populations (\textbf{Dai et al.}~\pdcite{dai2024}, building on \textbf{Park 
 al.}~\pdcite{park2023}). We turn the metaphor into a mechanism: an express, scoped,
 revocable consent grant (Invariant~\ref{def:consent}) with an inalienable override
 (Invariant~\ref{prop:override}), and a legible-sovereign rule
-(Invariant~\ref{prop:legible-sovereign}) that inverts Hobbes' opaque sovereign.
+(Invariant~\ref{prop:legible-sovereign}) that inverts Hobbes' unaccountable sovereign.
 
 % This paragraph's citations need a fresh margin in both profiles: with the
 % many-authors section, the history's citations overflow one page otherwise.
