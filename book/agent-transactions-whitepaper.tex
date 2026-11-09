@@ -2863,9 +2863,9 @@ Federated security (\S\ref{sec:federated-sovereign}) & ProVerif query audit & \P
 Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 1{,}716 reachable states (26{,}818 generated) with 3 agents, amounts at most 3 and at most 6 minted; invariant holds & \texttt{Conservation.tla} \\
 No-overdraft lemma (\S\ref{sec:conservation}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
 Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\
-Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE & \texttt{chain-replay.pv} \\
+Delegation chain replay & ProVerif at depth 3 & \Closed\ non-injective chain authenticity TRUE; replay rejection not proved (runtime suite tests it) & \texttt{chain-replay.pv} \\
 Magic-link single-use (\S\ref{sec:federated-sovereign}) & ProVerif (private-channel cap) & \Closed\ injective-event TRUE; 7/7 runtime conformance & \texttt{magic-link.pv} \\
-Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate within Chapter~2's bound at load $0.95$ & cuckoo property tests \\
+Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Partial\ no model; the property test finds the FP rate within Chapter~2's bound at load $0.95$, for a library the revocation check does not yet use & cuckoo property tests \\
 \midrule
 Merkle-tree binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ 3 admits; not in CI. EasyCrypt has never checked the file; the evidence is the fast-check property test & \texttt{binding.ec} \\
 Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\
