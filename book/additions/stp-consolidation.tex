@@ -2,15 +2,17 @@
 % Ch5 (spawn-to-person.tex): closing subsection of \S\ref{sec:organs}, before
 % \section{Identity: the root the whole chain hangs from}. Author suffix: memory.
 \subsection{Consolidation compacts the view, never the record}\label{sec:stp-consolidation}
+\pdstatus{\Vision}{nothing in this subsection is enforced by the reference system}
 
 Heron's notes grow with every session, and sooner or later something merges,
 rewrites or deletes them. Agent-memory systems call that step
-\textbf{consolidation}: a background rewrite of stored memory into fewer, more
+\pdterm{consolidation}: a background rewrite of stored memory into fewer, more
 general entries. Under two premises stated below, consolidation cannot change
-who Heron is. The person is defined by the ledger: what Heron owes, what it
-may do, which of its results were confirmed, and which processes it descends
-from. Consolidation does not write to the ledger. It can still change whether Heron \emph{acts} like the
-person the ledger records. Nothing here is enforced by the reference system.
+who Heron is. Heron, as a person, is a ledger account (\S\ref{sec:intro}), and
+four readings of the ledger describe that account: what Heron owes, what it may
+do, which of its results were confirmed, and which processes it descends from.
+Consolidation does not write to the ledger. It can still change whether Heron
+\emph{acts} like the person the ledger records.
 
 \paragraph{Three operations called dreaming.} The literature uses one word for
 three operations, and they need different rules.
@@ -27,10 +29,11 @@ replayed real experience~\pdcite{hafner2023dreamerv3}. Imagined trajectories
 change the policy; they are not filed as experience.
 \item \emph{Parametric sleep} distils in-context knowledge into slower
 parameters and trains on self-generated ``dreams''~\pdcite{behrouz2026sleep}.
-It changes the weights, so it is an engine change:
-Theorem~\ref{thm:engine-swap} and clause~(ii) of
-Property~\ref{thm:resurrection-soundness} apply, and an outcome earned before
-parametric sleep is evidence about a different engine.
+It changes the weights, so it is an engine change (a change to the model that
+does the work): Theorem~\ref{thm:engine-swap} and clause~(ii) of
+Property~\ref{thm:resurrection-soundness}, both proved in
+\S\ref{sec:body-behind-name}, apply, and an outcome earned before parametric
+sleep is evidence about a different engine.
 \end{enumerate}
 Only the first rewrites what a successor reads as its history, and the rest of
 this subsection is about it.
@@ -77,17 +80,19 @@ GPT-5.4 failed on about half of the ARC-AGI problems it had solved without
 memory, while
 an episodic-only control that kept the raw trajectories was
 competitive~\pdcite{zhang2026faultymemory}. Cerruti et al.\ call memory that
-misstates permissions \textbf{endogenous authorization laundering}: with no
+misstates permissions \pdterm{endogenous authorization laundering}: with no
 attacker present, memory writers created false authority for up to 50.2\% of
 unauthorized requests, and executors acted on it in 98.6\% of
-trials~\pdcite{cerruti2026eal}. Zhan et al.\ found \textbf{authority collapse}
+trials~\pdcite{cerruti2026eal}. Zhan et al.\ found \pdterm{authority collapse}
 (a claim kept while the source constraints on its use are erased) in 48 of 49
 consolidator--model configurations~\pdcite{zhan2026authmem}. AgentPoison
 reached an average attack success rate of 80\% or more while poisoning under
 0.1\% of a memory or knowledge base~\pdcite{chen2024agentpoison}.
 
 \begin{definition}[Memory as a view]\label{def:stp-memory-view}
-Let $L$ be the append-only ledger. Four functions of $L$ carry the person: the
+\pdstatus{\Designed}{}
+Let $L$ be the append-only ledger. Four functions of $L$ describe the person's
+account: the
 outstanding-obligation set $\mathrm{Owed}(L)$ (open commitments, debts, escrow,
 open sanctions); the authority state $\mathrm{Auth}(L)$ (live grants with their
 scopes, revocations, restrictions); the outcome multiset $\mathrm{Rep}(L)$,
@@ -96,20 +101,49 @@ $\mathrm{Lin}(L)$ with its closure $\mathsf{succ}^{*}$. A \textbf{memory} $M$
 is a finite set of notes
 $n=(\mathsf{text},\mathsf{ptr},\mathsf{kind},\mathsf{src})$, where
 $\mathsf{ptr}\subseteq\mathrm{ids}(L)$ names the events the note rests on
-(empty for episodic texture) and $\mathsf{src}$ is a source class the platform
+(empty for \pdterm{texture}, episodic detail that carries no authority) and $\mathsf{src}$ is a source class the platform
 assigns from the arrival channel. A \textbf{consolidation} is any procedure
 $\Gamma$ mapping $(M,L)$ to a memory $M'$ that writes only to the memory store.
-\emph{Kind:} \Designed{} definition.
 \end{definition}
 
-Two premises describe how a deployment is wired. \textbf{P1} (memory cannot
-write to the ledger): every entry added to $L$ is a ledger operation ---
-commitment enrollment, oracle-bound closure (Def.~\ref{def:oracle}), grant or
-revocation by its issuer, tombstone, succession record --- and $\Gamma$ can
-perform none of them, nor can memory content serve as their evidence.
-\textbf{P2} (permission is read only from the ledger): the guard decides
-whether to allow a request by evaluating a rule on the request and
-$\mathrm{Auth}(L)$ alone; the memory $M$ is not an input to that rule.
+\begin{pdexample}{Reading Heron Off the Ledger}
+\setlength{\parskip}{4pt plus 1pt}
+\label{ex:stp-four-readings}
+This is a constructed example. Here are seven entries of $L$ on Heron's
+account, in order:
+\begin{enumerate}[label=e\arabic*,leftmargin=2.2em,itemsep=1pt]
+\item succession heron\#1 $\to$ heron\#2, signed by Alice's daemon;
+\item grant $g_1$: edit \texttt{src/checkout/*} until Friday;
+\item commitment $c_1$: fix the session token and keep the acceptance test, due
+Friday 17:00;
+\item closure of $c_1$: suite v3 passed at commit \texttt{a41f9c} on runner-7;
+\item outcome $o_1$: accepted;
+\item commitment $c_2$: review Pike's patch, due Monday;
+\item revocation of $g_1$.
+\end{enumerate}
+The four readings are $\mathrm{Owed}(L)=\{c_2\}$, because e4 closed $c_1$;
+$\mathrm{Auth}(L)=\varnothing$, because e7 revoked $g_1$;
+$\mathrm{Rep}(L)=\{o_1\}$; and $\mathrm{Lin}(L)$ is heron\#1 $\to$ heron\#2.
+For this chapter's purposes, those four readings describe Heron's account
+completely.
+
+Now Heron's memory consolidates away the note ``review Pike's patch''. The
+memory changes and $L$ does not, so $\mathrm{Owed}(L)$ still contains $c_2$.
+That is ``forgetting is not resetting'' in one line.
+\end{pdexample}
+
+The theorem below rests on two assumptions about how the system is deployed.
+\textbf{P1} (memory cannot write to the ledger): entries are added to $L$ only
+by specific ledger operations (opening a commitment, closing it against
+independent evidence as in Def.~\ref{def:oracle}, a permission granted or
+revoked by its issuer, a tombstone, a succession record). $\Gamma$ can perform
+none of them, and none of them accepts a memory note as evidence. \textbf{P2}
+(permission is read only from the ledger): when an agent asks to do something
+with an outside effect, such as sending a payment or pushing a commit, the
+guard decides yes or no from the request and the permissions recorded in the
+ledger, $\mathrm{Auth}(L)$, alone; what the memory $M$ says plays no part. The
+theorem also uses the principal binding, defined formally in
+\S\ref{sec:identity}.
 
 \begin{pdclaim}{Theorem}{Consolidation Separation}
 \label{thm:stp-consolidation-separation}
@@ -138,7 +172,8 @@ inventory must list files and compaction summaries as well as the memory tool.
 
 \begin{pdclaim}{Design invariant}{Ledger-Faithful Consolidation}
 \label{inv:stp-ledger-faithful}
-A consolidation $\Gamma:(M,L)\mapsto M'$ is \textbf{ledger-faithful} when:
+\pdstatus{\Designed}{}
+A consolidation $\Gamma:(M,L)\mapsto M'$ is \pdterm{ledger-faithful} when:
 \begin{enumerate}[label=F\arabic*,leftmargin=2.2em,itemsep=2pt]
 \item \emph{No mint.} Every note asserting a commitment, closure, grant,
 revocation, outcome or debt has a nonempty $\mathsf{ptr}$ into $L$ and carries
@@ -157,8 +192,9 @@ record count as one piece of evidence: the no-mint rule of
 deleted or rewritten in place; a later note and a tombstone supersede it, as in
 Prop.~\ref{prop:tombstone}. Texture may be compacted freely.
 \end{enumerate}
-\emph{Kind:} \Designed{} design invariant --- a requirement on any consolidator
-admitted to the memory path. F1 and F4 can be checked deterministically against
+This is a requirement on any consolidator allowed to write to the memory path;
+tombstones and Prop.~\ref{prop:tombstone} are stated in \S\ref{sec:revoke}.
+F1 and F4 can be checked deterministically against
 $L$ because they compare pointers and structured fields, not prose; no check
 of free text is claimed, and none is needed, since free text never carries
 authority. F2 needs a declared list of required records, like the coverage test of
@@ -242,8 +278,8 @@ permit the first, since lunch $\in S_L\cap S_M$ and $6{,}000\le 6{,}000$; both
 deny the second, since $6{,}001>6{,}000$.)
 \end{pdexample}
 
-\paragraph{The mediation rule.} Memory writes are effects; memory reads are
-never authority.
+\paragraph{The mediation rule.}\pdstatus{\Vision}{nothing in the reference system enforces it}
+Memory writes are effects; memory reads are never authority.
 \begin{enumerate}[leftmargin=1.6em,itemsep=1pt]
 \item A memory write is a typed proposal: kind, pointer set, and a source class
 assigned by the platform from the arrival channel, never inferred from the text.
@@ -263,13 +299,13 @@ previous summary.
 \item No admission decision reads $M$ (P2): memory may suggest an action; only
 $\mathrm{Auth}(L)$ can permit it.
 \end{enumerate}
-\emph{Kind:} \Vision{}; nothing in the reference system enforces it. Claude
-Code's documentation states the read half for its own files: they are context,
+Claude Code's documentation states the read half for its own files: they are context,
 and blocking an action regardless of the model's decision takes a
 hook~\pdcite{anthropic2026memory}.
 
-\paragraph{The consolidation and load receipts.} Each consolidation the checker
-decides appends one record to the succession log: digests of $M$ before and
+\paragraph{The consolidation and load receipts.}\pdstatus{\Vision}{}
+Each consolidation the checker decides appends one record, a
+\pdterm{consolidation receipt}, to the succession log: digests of $M$ before and
 after, the consolidator's identity and engine, the consolidation-policy
 version, the verdict, and the pointer-bearing notes superseded. The checker,
 not $\Gamma$, writes it, so P1 is untouched. This receipt records what the
@@ -280,7 +316,7 @@ stale notes, a subset, or nothing would leave it unchanged. The witness
 context: the successor's identity, the digest of the memory state it was
 given, and the digests of the notes actually injected. Together the two
 receipts say what was kept and what was handed on. Neither makes memory
-authoritative. \emph{Kind:} \Vision{}.
+authoritative.
 
 \paragraph{Aggressive consolidation is an engine swap.} Mem0 reports lower
 latency and token cost than reasoning over the full
@@ -291,7 +327,7 @@ Under its assumptions (one delivery, no future reputation payoff, a policy the
 buyer cannot see), the gain from consolidating harder is $\Delta c$ at every
 price. The remedy is the theorem's: attest each outcome with the pair (engine,
 consolidation-policy version), key prices on it, and keep sanctions on the
-principal, as the scope lemma of Property~\ref{thm:resurrection-soundness}
+principal, as the scope rule of Property~\ref{thm:resurrection-soundness}
 requires. Whether buyers would price the policy version is a market hypothesis,
 like full pass-through in Theorem~\ref{thm:engine-swap}(b).
 
