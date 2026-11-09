@@ -55,11 +55,10 @@ repeats them for reference.
   only for a runtime whose identity it can verify.
 \end{description}
 
-The modes are not stages of maturity climbed like a staircase. They are not
-evenly spaced, and they do
-not even form one order, because Brokered and Confined stop different
-attackers. Each mode names what an attacker would have to defeat to make a
-claim about the mechanism false. At Observed that is nothing; at Coordinated,
+The modes are not stages of maturity climbed like a staircase. They are
+unevenly spaced, and because Brokered and Confined stop different attackers,
+they do not even form one order. Each mode names what an attacker would have
+to defeat to make a claim about the mechanism false. At Observed that is nothing; at Coordinated,
 a client's willingness to register first; at Brokered, a broker the daemon
 owns; at Confined, the operating system; at Attested, a measured environment
 and a key released only to it.
@@ -120,8 +119,9 @@ The product builds the operator's summary views from the event and
 coordination records, and each item links back to the records it came from.
 No view can beat the legibility lower bound proved in \pdchapref{ls}{The
 Legible Swarm}, the fewest bits a summary needs to guarantee that no critical
-item is missed. Each view's coverage, what it leaves out, and how long a
-reviewer takes to see an event therefore still have to be measured.
+item is missed. The bound certifies no view, so each view's coverage, what it
+leaves out, and how long a reviewer takes to see an event still have to be
+measured.
 
 \paragraph{Durable work records.}
 \pdstatus{\BuiltWeak}{}
@@ -142,11 +142,10 @@ protected effect is actually checked by the verified primitive.
 
 \paragraph{Sealed execution.}
 \pdstatus{\Designed}{properties model-checked}
-The sealed room of \pdchapref{sealed}{The Sealed Harbor} is a design whose
-properties have been model-checked. Noninterference modulo declassification
-and the invariants of the release ledger are checked exhaustively on finite
-models; $\varepsilon$-conservation, canary power and Wald latency are theorems
-over the stated models. No harbor, meaning a daemon and its database governing
+In the sealed room of \pdchapref{sealed}{The Sealed Harbor}, noninterference
+modulo declassification and the invariants of the release ledger are checked
+exhaustively on finite models; $\varepsilon$-conservation, canary power and
+Wald latency are theorems over the stated models. No harbor, meaning a daemon and its database governing
 a group of agents, yet runs a work order inside the two fences (a monitor
 inside the guest and a gateway outside it) with one metered release slot. The
 attestation, the gate and the ledger are designed, not built, so the
@@ -198,7 +197,7 @@ machine-readable manifest.
 
 \subsection{The eight propositions and their evidence}
 
-\paragraph{1. Prevention begins at the effect boundary (R5, R8) --- \pdchapref{swk}{The Single-Writer Kernel}.}
+\paragraph{1. Prevention begins at the effect boundary (\pdchapref{swk}{The Single-Writer Kernel}; R5, R8).}
 A rule can be enforced before its effect happens only when the supervisor can
 block the effect and can see enough of the history to know when to block it.
 Rules that fail either test need other controls, or remedies after the effect.
@@ -206,15 +205,15 @@ The airlock experiments show why the deciding assumption is that every channel
 passes through the gate. A token, label or policy document does not control an
 effect channel by itself.
 
-\paragraph{2. Delegation only narrows (ANCHOR-ATTENUATION, R5) --- \pdchapref{anchor}{The Anchor Protocol}.}
+\paragraph{2. Delegation only narrows (\pdchapref{anchor}{The Anchor Protocol}; ANCHOR-ATTENUATION, R5).}
 Every hop must authenticate the issuer and refuse a capability that widens its
 scope or extends its lifetime. The cryptographic models prove this narrowing
 property as stated. What remains is engineering work, making every protected
 channel use the check.
 
-\paragraph{3. The room confines its tenant, the code inside it, whatever that code intends (R9, R10, R11) --- \pdchapref{sealed}{The Sealed Harbor}.}
-Two owners who distrust each other compute one answer inside two fences, two
-layers of isolation, with one metered output slot that counts every release. Noninterference
+\paragraph{3. The room confines its tenant, the code inside it, whatever that code intends (\pdchapref{sealed}{The Sealed Harbor}; R9, R10, R11).}
+Two owners who distrust each other compute one answer inside two fences (two
+layers of isolation) with one metered output slot that counts every release. Noninterference
 modulo declassification holds on the finite model of the room. The release
 ledger conserves its $\varepsilon$ leakage budget and refuses a half-finished
 (torn) write. Planted canary records detect exfiltration with a stated detection
@@ -223,7 +222,7 @@ fixed-length $b$-bit releases, at most $q\cdot b$ bits of payload can leave,
 not counting timing. Timing, cache and physical channels lie outside the model
 and remain open.
 
-\paragraph{4. Supervision has an information cost (R1--R4, R14, R16) --- \pdchapref{ls}{The Legible Swarm}.}
+\paragraph{4. Supervision has an information cost (\pdchapref{ls}{The Legible Swarm}; R1--R4, R14, R16).}
 The legibility lower bound gives the fewest bits a summary needs to guarantee
 that the operator misses no critical item. The two-reader result shows why one
 ordering of items cannot in general serve both a successor agent choosing what
@@ -233,7 +232,7 @@ zoom and context paging say when attention can be spent later instead of being
 summarized away now. These bounds hold under their stated event and flag
 models; they do not certify an arbitrary dashboard.
 
-\paragraph{5. An agent's record follows its owner and outlives its process (R7, R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
+\paragraph{5. An agent's record follows its owner and outlives its process (\pdchapref{stp}{From Spawn to Person}; R7, R12, R13, B6).}
 Reputation is worth something because checking an agent's history once
 replaces re-checking every job it does. Under the no-mint rule a replacement
 inherits no more than its predecessor had, so swapping an agent's skills or
@@ -245,7 +244,7 @@ alone does not stop its holder from walking away from liabilities under a new
 key.
 
 \paragraph{6. Exchange separates payment, collateral, evidence, and closure
-(R15, R17) --- \pdchapref{he}{The Harbor Economy}.}
+(\pdchapref{he}{The Harbor Economy}; R15, R17).}
 Conservation gives the accounting invariant: no transfer creates or destroys
 money. For a restricted rule language, the commitment fragment, a
 polynomial-time procedure decides which rule sets can conflict, and the
@@ -258,8 +257,8 @@ These are conditional economic statements. Detection probability, one-shot
 gain, collateral, judge independence and custody must be measured or written
 into a contract; none of them can be assumed.
 
-\paragraph{7. Uncertainty needs an institution (the $\delta^{\star}$ claim-signaling
-game, the conservation model; R11 as instrument) --- \pdchapref{bonded}{The Bonded Commons}.}
+\paragraph{7. Uncertainty needs an institution (\pdchapref{bonded}{The Bonded Commons};
+the $\delta^{\star}$ claim-signaling game, the conservation model; R11 as instrument).}
 Atomic ledgers keep conservation. Truthful claim signaling is
 incentive-compatible when the discount factor, how much players weigh future
 rounds, is above the mechanized threshold $\delta^{\star}$. If the other player
@@ -271,8 +270,8 @@ randomized adjudication depends on how judges are selected, how independent
 they are and how their rulings are enforced. Evidence can justify a remedy
 without being proof.
 
-\paragraph{8. Federation relays evidence; each harbor keeps its sovereign authority (R6, R6-CR,
-RELAY-V0) --- \pdchapref{fh}{The Federated Harbor}.}
+\paragraph{8. Federation relays evidence; each harbor keeps its sovereign authority
+(\pdchapref{fh}{The Federated Harbor}; R6, R6-CR, RELAY-V0).}
 When harbors sign summaries (roots) of their logs and compare them along more
 than one path, a harbor that tells different peers different things can be
 caught, for a stated network layout. The counterexample R6-CR refutes the
@@ -285,8 +284,8 @@ and local authorization still need their own mechanisms.
 In this volume a claim is incomplete unless it states five things: what it is
 about, the assumptions under which it holds, the kind of evidence offered, a
 limit or a test that could refute it, and the artifact a reader can use to
-recompute or inspect it. The machine-readable manifest is the publication
-ledger for that discipline, recording those five things for every result. A new mechanism enters the book only once it can name
+recompute or inspect it. The machine-readable manifest records those five
+things for every result. A new mechanism enters the book only once it can name
 the result it implements and the obligation it leaves open.
 
 \section{Notation and cross-chapter concordance}\label{app:concordance}
