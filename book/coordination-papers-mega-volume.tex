@@ -160,19 +160,22 @@ A passing test can concern the wrong revision. A process can disappear while
 its obligations remain. This book studies the mechanisms needed to distinguish
 these cases and make coordinated work inspectable.
 
-The argument starts with a local transaction boundary and follows authority
-through delegation, confined execution, human supervision, process succession,
-exchange and federation. Worked examples establish the problem before the
-formal statements. Theorems name their assumptions; finite checks name their
-models; proposed institutions remain separate from implemented paths.
+The argument starts on one machine, where a single program checks and
+records every change to a local database, and follows authority as it is delegated, confined in a
+sealed environment, supervised by people, handed to replacement processes,
+traded between organizations and shared across machines. Worked examples come
+before the formal statements. Theorems name their assumptions, finite checks
+name their models, and proposed designs are kept apart from built ones.
 
-The central construction is a durable coordination kernel with explicitly
-mediated effects. It is one way to preserve the stated invariants, not a proof
-that every system needs the same architecture. Cryptographic evidence can bind
-records to keys without making their descriptions true. Economic deterrence
-requires credible detection and enforcement. Summaries help readers navigate
-retained evidence without reconstructing information they omit. These limits
-are part of the argument, because later mechanisms depend on them.
+The book's main construction is a coordinating service, the \pdterm{kernel},
+that keeps durable records and checks each change it governs before that
+change takes effect. It is one way to keep the stated safety rules true, not a
+proof that every system needs this design. Three limits run through the book.
+A digital signature shows which key signed a record, not that the record is
+accurate. A penalty deters cheating only if cheating is likely to be detected
+and the penalty is actually enforced. A summary can point a reader to the
+stored evidence, but it cannot restore details it left out. Later mechanisms
+are built around these limits, so the argument states them up front.
 \end{abstract}
 
 \clearpage
@@ -186,38 +189,45 @@ are part of the argument, because later mechanisms depend on them.
 A green test result can accompany a deleted assertion. A convincing account
 of a repair can describe a different revision from the one delivered. Two
 capable workers can undo each other's changes, and a worker that disappears
-can leave a payment, a promise or a disputed result behind. These failures
-make a practical demand: somebody must be able to reconstruct what was
-allowed, what happened and what is still owed.
+can leave a payment, a promise or a disputed result behind. The
+\pdterm{operator}, the person who runs the machine and answers for the
+workers on it, must then be able to reconstruct what was allowed, what
+happened and what is still owed, and to continue after a convincing answer
+turns out to be wrong. That is the standard this book asks its mechanisms to
+meet.
 
-Generating a candidate repair is one part of that work. Accepting it requires
-an agreement about the task and evidence tied to the delivered result.
-Recovering from an interruption requires records that outlive the interrupted
-process. Sharing work with another operator adds a further question: which
+Accepting a repair requires an agreed task and evidence tied to the
+delivered result; recovering from an interruption requires records that outlive the interrupted process. Sharing work with another operator raises a further question: which
 claims can that operator check without trusting the account that produced
-them? The book follows these questions from a local write to a disputed
-cross-machine transaction.
+them?
 
-The central engineering choice is where to put the decision that admits an
-effect. A prompt may ask a worker to preserve a test. A mediated write can
-refuse a prohibited change, provided the rule and its inputs are available
-at that boundary. Where the machine cannot decide, an evaluator, an operator
-or an agreed dispute process must take responsibility. Naming that boundary
-is part of designing the system.
+The most important design decision in this book is where the yes-or-no check
+on each action sits: at what point, and by whom, a worker's proposed change is
+allowed to happen or refused. A prompt can ask a
+worker to keep a test, but the worker can ignore it. A check built into the
+write path can refuse the test's deletion outright, but only if the rule and
+the facts it needs are available at the moment of the write. Where no program
+can decide, a named reviewer, the operator or an agreed dispute process must
+decide and take responsibility. Designing the system includes saying, for each
+kind of action, where that check sits.
 
-We use a single constructed repair job to make these responsibilities
-visible. Its workers can fail in different ways; its rules can be inspected
-and challenged. The examples are invitations to check the reasoning, not
-claims about an end-to-end deployment. The proofs and experiments state the
-smaller questions they actually answer.
-
-An accountable system gives its operator a way to continue after the
-convincing answer has turned out to be wrong. That is the standard this
-book asks its mechanisms to meet.
+An \pdterm{agent} is a program,
+usually built around a language model, that observes its task and proposes
+actions; the workers above are agents. A \pdterm{harbor} is the governed environment the agents work in,
+run by a \pdterm{daemon}, a background service that holds the shared record and
+decides, for each change an agent proposes, whether that change takes effect.
+That decision is \pdterm{admission}, and to admit a change means only to let it
+pass this check and take effect. The shared record includes a
+\pdterm{ledger}, the authoritative account of who holds which resources, who
+owes what and what has been paid. A \pdterm{grant} states what its holder may
+do, to which resources and until when; the daemon signs each grant as a
+\pdterm{capability card} and checks the card before it admits a change. The
+daemon and its database are this book's implementation of the kernel.
 
 \newcommand{\pdreaderleftprose}{%
-On a first reading, follow the chapter sequence and the recurring checkout
-repair. Each stage adds one contract the next stage needs. For a selective
+On a first reading, follow the chapter sequence and the running example, a
+constructed checkout repair that Chapter~0 introduces and later chapters
+revisit. Each stage adds one contract the next stage needs. For a selective
 reading, use the route tables here, then read a claim's assumptions and evidence label. If the notation is unfamiliar, start with the worked
 example and return to the formal statement. When resuming after a break,
 the chapter question and the last example provide a useful starting point.
