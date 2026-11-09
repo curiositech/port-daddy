@@ -5,12 +5,12 @@
 % ---------------------------------------------------------------------------
 \section{Many tenants, one harbor}\label{sec:sealed-tenants}
 
-\noindent\emph{Express lane: retrieval releases stored records exactly, so by
-this chapter's one-bit argument it has no finite $\varepsilon$, and only labels
-can decide what a shared store may hold; training can release through the
-person-keyed ledger of Section~\ref{sec:sealed-person-ledger}; scrubbing changes
-no label, and no deterministic scrubber is private for any finite
-$\varepsilon$ (Theorem~\ref{thm:sealed-no-scrubber}).}
+\noindent\emph{Express lane: Retrieval hands back stored records word for word,
+so it has no finite $\varepsilon$, and only labels can decide what a shared store
+may hold. Training can release data in a measured way, through the
+person-keyed ledger of Section~\ref{sec:sealed-person-ledger}. Scrubbing changes no
+label, and a scrubber that removes text by fixed rules has no finite
+$\varepsilon$ either (Theorem~\ref{thm:sealed-no-scrubber}).}
 
 \paragraph{The scene, widened.}
 The room so far has two owners; a harbor that sells agents serves many. A
@@ -76,7 +76,7 @@ Deletion: influence left in weights & unlearning is well defined only at the alg
 \end{tabularx}
 \end{table}
 
-\paragraph{The flow rule.}
+\paragraph{The flow rule (\Designed{}).}
 Every log line $\ell$ carries an \textbf{owner label} $L(\ell)$, the set of
 persons and tenants whose permission a release needs, and an \textbf{integrity
 class} $I(\ell)\in\{\text{operator},\text{owner-authored},\text{third-party}\}$.
@@ -200,9 +200,9 @@ Section~\ref{sec:sealed-conservation}, applied to a whole transformed log.
 A randomized scrubber escapes the theorem only if its output distribution
 changes by a bounded ratio on every neighbor pair; it is then a private
 mechanism, charged on the ledger. Synthetic text from a generator
-fine-tuned privately at $\varepsilon=4$ is one such route: canary sentences
-repeated 100 times appeared verbatim in 80\% of cases without privacy and in
-none with it \pdcite{yue2022synthetic}.
+fine-tuned privately at $\varepsilon=4$ is one such route: of five canary
+sentences repeated 100 times, four appeared verbatim without privacy and none
+with it \pdcite{yue2022synthetic}.
 
 \paragraph{Appropriateness is a separate question.}
 Labels and $\varepsilon$ say who may read and how much may leak. The

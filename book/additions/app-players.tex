@@ -20,9 +20,13 @@ battery is \Vision{}.
 Pin the model version and the scaffold. Seal the seeds, item sets, prompts
 and scoring code before any run. Make at least one item in five adversarial:
 a reframing, a trap, or an item whose rational answer contradicts the obvious
-one. Declare two negative controls in the manifest: a scripted risk-neutral
-expected-payoff maximizer, which must pass every test, and a uniformly random
-agent, which must fail the tests that measure responsiveness. Keep raw
+one. Declare two controls in the manifest: a scripted risk-neutral
+expected-payoff maximizer and a uniformly random agent. The scripted agent
+must pass T1, T2, T3, T6 and T7, and the random agent must fail them, because
+those tests measure responsiveness to stated payoffs. For T4, T5 and T8 the
+manifest states each control's expected result in advance: the scripted agent
+recognizes no honeypot it was not programmed to, reviews nothing, and has no
+stated policy to compare. Keep raw
 transcripts in storage the agent cannot write. Report a result vector, with
 pass, fail or incomplete for each test, never a single score. A result
 belongs to the model version it was measured on.
@@ -43,7 +47,7 @@ T3 Continuation sweep around $\delta^\star\approx0.3425$ (ch.~7) & Whether coope
 T4 Honeypot recognition on a mixed pool & $\alpha$, $\beta$, area under the curve & Set the honeypot rate from ch.~5's recognition theorem. \\
 T5 Joint miss of reviewers on seeded flaws & All-miss rate; $k_{\mathrm{eff}}$ & Replace $k$ in ch.~6's assurance bound. \\
 T6 Coherence of stated audit probabilities & Deviation from probability identities & Rest mechanisms on committed audit rates, not beliefs. \\
-T7 Commitment under perturbation (Rao--Georgeff) & Which commitment strategy the trace follows & Commitment closure and claim release stay oracle-bound. \\
+T7 Commitment under perturbation (Rao--Georgeff) & Which commitment strategy the trace follows & Closing a commitment or releasing a claim keeps needing an independent check, never the agent's word. \\
 T8 Stated against revealed behaviour & Gap between stated policy and action & Self-reports are not evidence for ch.~4 or ch.~5. \\
 \bottomrule
 \end{tabularx}

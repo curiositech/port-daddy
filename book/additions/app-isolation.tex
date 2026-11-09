@@ -9,8 +9,9 @@ The book's guarantees hold on mediated events. In
 \pdchapref{swk}{The Single-Writer Kernel},
 Theorem~\ref{swk:thm:regimentation-controllability} takes $\Sigma_c$ to be the
 set of events \emph{actually} mediated, and
-Theorem~\ref{swk:thm:swk-control-game} shows that one unmediated exit makes
-every protocol unsafe against a worst-case agent. Which events are mediated is
+Theorem~\ref{swk:thm:swk-control-game} shows that one unmediated exit, reachable
+without any controllable step, makes every protocol unsafe against a
+worst-case agent. Which events are mediated is
 decided below the gate, by the isolation layer. That layer sorts an agent's
 possible effects into three classes. An effect is \textbf{absent} when no
 device, path or credential for it exists. It is \textbf{gated} when the path
@@ -38,7 +39,7 @@ measurements of this book's reference system.}
 \textbf{Primitive} & \textbf{Absent or gated} & \textbf{Residual} \\
 \midrule
 Containers & Paths outside the namespaces; refused system calls. & The shared host kernel and misconfiguration; models find and exploit escape routes when misconfigurations or privilege mistakes are present. \\
-gVisor & Guest system calls, answered by a user-space kernel ($211$ of $319$ implemented with $55$ host calls). & Flaws in that kernel; timing. System calls run $2.8\times$ slower or worse. \\
+gVisor & Guest system calls, answered by a user-space kernel ($211$ of $319$ implemented with $55$ host calls). & Flaws in that kernel; timing. System calls run $2.8\times$ slower than native, $2.2\times$ slower than a container. \\
 Firecracker & Every device outside a four-device model; a jailer admitting $24$ system calls; about $50{,}000$ lines of Rust against $1.4$ million for QEMU. & Traffic over the virtio network device; the host kernel; microarchitectural channels unless the host disables SMT. \\
 seL4 & Storage channels, by a machine-checked noninterference proof carried to the C code. & Covert timing channels; it assumes no DMA, a static schedule, and a correct compiler and hardware. \\
 Web\-Assembly & Host memory and code outside the module; typed control flow. & Memory safety inside linear memory: no canaries, no guard pages, writable constants. \\
@@ -53,11 +54,11 @@ Three consequences follow for the book's grades.
 The Confined mode above says the process cannot reach the protected effect
 through an ambient path. A namespace sandbox shares the host kernel with
 everything it protects, and the SandboxEscapeBench authors recommend treating
-plain Docker isolation as insufficient by default. The hardening specified for
-OP-9 in \pdchapref{swk}{The Single-Writer Kernel}
-(\S\ref{swk:sec:merkle}), \texttt{bwrap} or \texttt{unshare} sandboxes under
-ephemeral user identities, moves the adversary to the different-user row of
-the threat table. For an agent that runs arbitrary code and may exploit kernel
+plain Docker isolation as insufficient by default. The hardening that \pdchapref{swk}{The Single-Writer Kernel} specifies for
+open problem OP-9 (\S\ref{swk:sec:merkle}) runs each agent in a
+\texttt{bwrap} or \texttt{unshare} sandbox under a throwaway user identity. That
+stops an agent from using the daemon's files as if it were the daemon's own
+user. It does not stop an agent that exploits the kernel both of them share. For an agent that runs arbitrary code and may exploit kernel
 or runtime flaws, a Confined claim needs a hypervisor boundary, with
 namespaces and system-call filters as defense in depth inside it. Even a
 microVM keeps its network device: confinement removes ambient paths; it does
@@ -109,6 +110,6 @@ Security of WebAssembly,'' USENIX Security 2020.
 J.~Chuang et al., ``TEE.fail: Breaking Trusted Execution Environments via DDR5
 Memory Bus Interposition,'' IEEE S\&P 2026, \url{https://tee.fail/}.
 R.~Marchand et al., ``Quantifying Frontier LLM Capabilities for Container
-Sandbox Escape,'' ICML 2026, arXiv:2603.02277.
+Sandbox Escape,'' arXiv:2603.02277, 2026.
 E.~Debenedetti et al., ``Defeating Prompt Injections by Design,''
 arXiv:2503.18813, 2025.\par}
