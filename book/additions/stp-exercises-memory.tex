@@ -24,7 +24,7 @@ relation invalid instead of removing it, is closer to F4.
 Trace Numbers by Hand~\ref{ex:stp-lunches-only} through the seven steps of the
 mediation rule in \S\ref{sec:stp-consolidation}. At which step is the false
 authority first stopped? If that step is misconfigured and the widened note is
-admitted, which later step stops the 6{,}000 USD order, and what does the
+accepted, which later step stops the 6{,}000 USD order, and what does the
 consolidation receipt let an auditor find?
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-lunches-trace}
@@ -33,11 +33,11 @@ channel. Step~2 does not fire, because the ERP record does not claim to be a
 grant; it is texture. Step~3 stops the false authority: the batch would set the
 note with $\mathsf{ptr}=\{g_1,g_2\}$ to scope $\{\text{lunch},\text{reception}\}$,
 while $L$ gives $S_L=\{\text{lunch}\}$, so F1 fails and the batch is rejected
-whole. If the checker is misconfigured and admits the batch, step~7 still stops
+whole. If the checker is misconfigured and accepts the batch, step~7 still stops
 the order: admission evaluates $S_L$, reception $\notin S_L$, and the request is
 denied. The receipt records the digests before and after, the consolidator and
 its engine, the policy version and the verdict. In the misconfigured run it
-shows an admitted batch that superseded the $\{g_1,g_2\}$ note, which is where
+shows an accepted batch that superseded the $\{g_1,g_2\}$ note, which is where
 an auditor finds the fault.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-bounded-coverage}

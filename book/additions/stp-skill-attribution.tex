@@ -9,7 +9,8 @@ one documented loader, a skill's name and description sit in the system
 prompt from the start; the instructions enter the context when the skill
 triggers; other files enter only when read; and a script's code never enters
 the context, only its output~\pdcite{anthropic2026skills}. A run therefore
-shows an \textbf{exposure ladder}: listed, loaded, file read, script run.
+shows an \pdterm{exposure ladder}, the ordered levels of contact an agent can
+have with a skill: listed, loaded, file read, script run.
 
 Never use ``opened'' as the treatment. The agent decides to open a file
 after seeing the task and its own progress, so a comparison of opened with
@@ -30,6 +31,7 @@ trace looks like diligent use. Only the reference run shows that the skill
 induced the cost.
 
 \begin{protocol}[Masked-asset extension of the skill event]\label{proto:stp-masked-asset}
+\pdstatus{\Designed}{not implemented in the reference system; no result from it is reported here}
 Extend each event of Protocol~\ref{proto:skill} as follows.
 \begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
   \item \textbf{Exposure ladder.} Record listed, loaded, each file read
@@ -48,8 +50,6 @@ Extend each event of Protocol~\ref{proto:skill} as follows.
   \item \textbf{Commitment.} The draws are committed to the evidence trail
   before the run starts.
 \end{enumerate}
-\emph{Kind:} \Designed{} protocol. It is not implemented in the reference
-system, and no result from it is reported here.
 \end{protocol}
 
 \begin{table}[H]
