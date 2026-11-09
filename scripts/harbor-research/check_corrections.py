@@ -33,9 +33,20 @@ must be there. A `before` found
 only inside an occurrence of its own row's `after` (a fix that only adds
 words) does not count as surviving.
 
+A row may leave one side null: `before: null` for a pure addition (only
+the `after` is checked), `after: null` for a pure removal (only the
+`before`). A row with both null checks nothing and is rejected.
+
+A `before` the old Book never printed proves nothing by being absent now.
+Given --baseline-pdf (the Book built from origin/main, before the fixes),
+the checker warns about every such row as "vacuous". The warning is
+advisory and does not change the exit code; listing text, which extraction
+spaces differently, is the usual cause.
+
 Usage:
     python3 scripts/harbor-research/check_corrections.py BOOK.pdf
     python3 scripts/harbor-research/check_corrections.py BOOK.pdf --corrections PATH
+    python3 scripts/harbor-research/check_corrections.py BOOK.pdf --baseline-pdf MAIN.pdf
     python3 scripts/harbor-research/check_corrections.py BOOK.pdf --json
 
 Exit 0 when every row holds (an empty ledger holds trivially and says so),
@@ -140,7 +151,7 @@ def load_rows(path: Path, repo_root: Path = REPO_ROOT) -> list[dict]:
             if raw.get(key) is not None and isinstance(raw.get(key), str) and not row[key]:
                 problems.append(f"{where}: {key} must not be empty")
         if not row["before"] and not row["after"]:
-            problems.append(f"{where}: before and after cannot both be empty")
+            problems.append(f"{where}: before and after cannot both be null; a row must check one side")
         if row["before"] and row["before"] == row["after"]:
             problems.append(f"{where}: before and after are the same string")
         for key in ("before", "after"):
@@ -431,7 +442,17 @@ def check(rows: list[dict], texts: list[Reading]) -> list[Finding]:
     return findings
 
 
-def report(findings: list[Finding], rows: list[dict], pages: list[Page], pdf: Path) -> str:
+def vacuous_rows(rows: list[dict], baseline: list[Reading]) -> list[dict]:
+    """Rows whose `before` the baseline PDF (built from origin/main, before
+    the fixes) never printed either. That string's absence now proves
+    nothing: it was chosen wrongly, or extraction never yields it (listing
+    text is the usual case)."""
+    return [row for row in rows
+            if row["before"] and not any(needle(row["before"]) in reading.text for reading in baseline)]
+
+
+def report(findings: list[Finding], rows: list[dict], pages: list[Page], pdf: Path,
+           vacuous: list[dict] | None = None, baseline: Path | None = None) -> str:
     if not rows:
         return (f"check_corrections: {pdf.name}\n"
                 "-- 0 rows in the corrections ledger; nothing to check")
@@ -454,6 +475,12 @@ def report(findings: list[Finding], rows: list[dict], pages: list[Page], pdf: Pa
                 )
             else:
                 lines.append(f"p? {row['id']} after missing: {f.text!r}; on no page {tail}")
+    if baseline is not None:
+        # Advisory: a vacuous row does not fail the check, but it checks nothing.
+        lines.append(f"-- advisory: {len(vacuous or [])} vacuous before string(s), absent from the "
+                     f"baseline {baseline.name} too, so their absence proves nothing")
+        for row in vacuous or []:
+            lines.append(f"vacuous {row['id']} before: {row['before']!r} -- {row['item']}; {row['file']}")
     return "\n".join(lines)
 
 
@@ -463,27 +490,35 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--corrections", type=Path, default=DEFAULT_LEDGER,
                         help="the ledger (default: book/corrections.yaml)")
     parser.add_argument("--json", action="store_true", help="print findings as JSON")
+    parser.add_argument("--baseline-pdf", type=Path,
+                        help="the Book built from origin/main before the fixes: warn about every "
+                             "`before` it does not print either (vacuous rows; advisory)")
     args = parser.parse_args(argv)
 
     try:
         rows = load_rows(args.corrections)
-        if not args.pdf.is_file():
-            raise LedgerError(f"no PDF at {args.pdf}")
+        for pdf in (args.pdf, args.baseline_pdf):
+            if pdf is not None and not pdf.is_file():
+                raise LedgerError(f"no PDF at {pdf}")
         pages = read_pdf(args.pdf) if rows or args.json else []
+        baseline = readings(read_pdf(args.baseline_pdf)) if args.baseline_pdf and rows else []
     except LedgerError as error:
         print(f"check_corrections: {error}", file=sys.stderr)
         return 2
 
     findings = check(rows, readings(pages)) if rows else []
+    vacuous = vacuous_rows(rows, baseline) if args.baseline_pdf else []
     if args.json:
         print(json.dumps({
             "pdf": str(args.pdf),
             "pages": len(pages),
             "rows": len(rows),
             "findings": [f.as_json(pages) for f in findings],
+            "baseline": str(args.baseline_pdf) if args.baseline_pdf else None,
+            "vacuous": [row["id"] for row in vacuous],
         }, indent=2))
     else:
-        print(report(findings, rows, pages, args.pdf))
+        print(report(findings, rows, pages, args.pdf, vacuous, args.baseline_pdf))
     return 1 if findings else 0
 
 

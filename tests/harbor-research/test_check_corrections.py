@@ -76,9 +76,10 @@ def make_fixture(path: Path) -> None:
 
 
 def row(**fields) -> dict:
+    """A row as load_rows returns it: a null side reads as the empty string."""
     base = {"id": "t-1", "item": "test item", "file": "book/corrections.yaml",
             "before": "", "after": "", "source": "test"}
-    base.update(fields)
+    base.update({key: ("" if value is None else value) for key, value in fields.items()})
     return base
 
 
@@ -142,12 +143,18 @@ class Ledger(unittest.TestCase):
         )
         self.assertEqual(rows[0]["before"], "Ren et al.")
 
-    def test_a_pure_deletion_or_insertion_is_allowed(self):
-        rows = self.load(
-            "- {id: a-1, item: i, file: book/ch.tex, before: old words, after: '', source: s}\n"
-            "- {id: a-2, item: i, file: book/ch.tex, before: '', after: new words, source: s}\n"
-        )
-        self.assertEqual(len(rows), 2)
+    def test_a_pure_addition_may_set_before_null(self):
+        [loaded] = self.load("- {id: a-1, item: i, file: book/ch.tex, before: null, after: new words, source: s}\n")
+        self.assertEqual((loaded["before"], loaded["after"]), ("", "new words"))
+
+    def test_a_pure_removal_may_set_after_null(self):
+        [loaded] = self.load("- {id: a-1, item: i, file: book/ch.tex, before: old words, after: null, source: s}\n")
+        self.assertEqual((loaded["before"], loaded["after"]), ("old words", ""))
+
+    def test_a_row_with_both_sides_null_is_rejected(self):
+        with self.assertRaises(cc.LedgerError) as caught:
+            self.load("- {id: a-1, item: i, file: book/ch.tex, before: null, after: null, source: s}\n")
+        self.assertIn("cannot both be null", str(caught.exception))
 
     def test_every_problem_is_named_in_one_run(self):
         with self.assertRaises(cc.LedgerError) as caught:
@@ -161,7 +168,7 @@ class Ledger(unittest.TestCase):
                 "- {id: a-7, item: i, file: ../outside.tex, before: x, after: y, source: s}\n"
             )
         message = str(caught.exception)
-        for expected in ("does not exist", "duplicate id", "TeX syntax", "cannot both be empty",
+        for expected in ("does not exist", "duplicate id", "TeX syntax", "cannot both be null",
                          "source must be a string", "unknown field(s) page", "outside the repository"):
             self.assertIn(expected, message)
 
@@ -240,6 +247,23 @@ class OnTheRenderedPage(unittest.TestCase):
     def test_matching_is_case_sensitive(self):
         self.assertEqual(self.findings(before="ren et al."), [])
 
+    def test_a_null_before_checks_only_the_after(self):
+        # The after prints; there is no before to look for.
+        self.assertEqual(self.findings(before=None, after="the page cleanly"), [])
+        [finding] = self.findings(before=None, after="words that never print")
+        self.assertEqual(finding.kind, "after missing")
+
+    def test_a_null_after_checks_only_the_before(self):
+        self.assertEqual(self.findings(before="words that never print", after=None), [])
+        [finding] = self.findings(before="Ren et al.", after=None)
+        self.assertEqual(finding.kind, "before survives")
+
+    def test_a_before_the_baseline_never_printed_is_vacuous(self):
+        rows = [row(id="v-1", before="words the old Book never printed", after="Ren et al."),
+                row(id="v-2", before="Ren et al.", after="Huang"),
+                row(id="v-3", before=None, after="anything")]
+        self.assertEqual([r["id"] for r in cc.vacuous_rows(rows, self.texts)], ["v-1"])
+
 
 @unittest.skipIf(pymupdf is None, "PyMuPDF and PyYAML come from requirements-pdf.txt")
 class CommandLine(unittest.TestCase):
@@ -292,6 +316,27 @@ class CommandLine(unittest.TestCase):
         data = json.loads(text)
         self.assertEqual(data["findings"][0]["pages"], [1])
         self.assertEqual(data["findings"][0]["folios"], ["i"])
+
+    def test_a_baseline_pdf_names_vacuous_rows_without_failing_them(self):
+        ledger = (
+            "- {id: v-1, item: listing, file: book/corrections.yaml, before: never printed anywhere, "
+            "after: the page cleanly, source: s}\n"
+            "- {id: v-2, item: i, file: book/corrections.yaml, before: null, after: the page cleanly, source: s}\n")
+        code, text = self.run_main(ledger, "--baseline-pdf", str(self.pdf))
+        self.assertEqual(code, 0, text)
+        self.assertIn("-- advisory: 1 vacuous before string(s)", text)
+        self.assertIn("vacuous v-1 before: 'never printed anywhere' -- listing", text)
+        code, text = self.run_main(ledger, "--baseline-pdf", str(self.pdf), "--json")
+        self.assertEqual(json.loads(text)["vacuous"], ["v-1"])
+        # Without a baseline there is nothing to compare against, and no advisory.
+        code, text = self.run_main(ledger)
+        self.assertNotIn("vacuous", text)
+
+    def test_a_missing_baseline_exits_two(self):
+        code, text = self.run_main("- {id: b, item: i, file: book/corrections.yaml, before: x, after: null, source: s}\n",
+                                   "--baseline-pdf", str(self.dir / "absent.pdf"))
+        self.assertEqual(code, 2)
+        self.assertIn("no PDF at", text)
 
     def test_a_broken_ledger_exits_two(self):
         code, text = self.run_main("- {id: b, item: i}\n")

@@ -9,7 +9,8 @@
 # local acceptance of a candidate Book). See book/BUILDING.md.
 #
 # Rows are a top-level YAML sequence, appended below this header. Every field
-# is required and every value is a string:
+# is required and every value is a string, except that one of `before` and
+# `after` may be null:
 #
 #   - id: ls-1                          # unique across the file
 #     item: "Blocker 6: ANS authorship" # the agenda item the row closes
@@ -18,10 +19,15 @@
 #     after: "Huang, Narajala, Habler"  # must print now
 #     source: "https://arxiv.org/abs/2505.10609"  # a URL, or "derivation: <script>"
 #
-# A pure deletion leaves `after` empty (""); a pure insertion leaves `before`
-# empty. One of the two must be non-empty. When `after` contains `before`
-# (a correction that only adds words), a `before` that prints inside the new
+# A pure addition sets `before: null` and only its `after` is checked; a pure
+# removal sets `after: null` and only its `before` is checked. A row with both
+# null checks nothing and is rejected. When `after` contains `before` (a
+# correction that only adds words), a `before` that prints inside the new
 # `after` text does not count as surviving.
+#
+# A `before` the old Book never printed proves nothing by being gone. Run the
+# checker with --baseline-pdf (the Book built from origin/main) to list such
+# rows as "vacuous"; listing text is the usual cause.
 #
 # Choosing strings that survive PDF text extraction:
 #   - 3 to 10 plain words, exactly as they print;
