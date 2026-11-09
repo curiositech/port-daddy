@@ -214,58 +214,68 @@
 \end{center}
 \vspace{0.4cm}
 \vspace{0.5cm}
-\noindent\textbf{Volume Context.} \pdchapref{anchor}{The Anchor Protocol} supplies the ProVerif-verified cryptographic-token foundation this chapter assumes throughout---Harbor Card phases, cuckoo-filter revocation, bounded multi-hop delegation; this chapter supplies the economic and governance argument built on top of it.
+\noindent\textbf{Volume Context.} \pdchapref{anchor}{The Anchor Protocol} supplies the ProVerif-verified tokens this chapter assumes throughout (Harbor Card phases, cuckoo-filter revocation, bounded multi-hop delegation). This chapter adds the economic and governance argument that uses them.
 \newpage
 \tableofcontents
 \newpage
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Introduction: The Trust Problem}
 % ═══════════════════════════════════════════════════════════════════════════════
-Bob's checkout repair has reached a contractual boundary: Alice's team may
-work, and both parties have reserved funds, but they still need rules for
-conflicts, interruptions and disputed results. Wren's genuine patch includes
-an unrelated migration; Drake makes the failing test disappear. Neither a
-passing test count nor a payment promise resolves those cases.
+Bob's checkout repair now has a contract. Alice's team may work, and both
+parties have reserved funds, but they still need rules for conflicts,
+interruptions and disputed results. Wren's genuine patch includes an
+unrelated migration; Pike makes the failing test disappear. Neither a passing
+test count nor a payment promise settles those cases.
 
-For one local conflict, let Agent~A be Wren and Agent~B be Pike. A refactors a
-shared middleware file; B begins ninety seconds later in a sibling worktree.
-They integrate incompatible changes. Figure~\ref{fig:bonded-trust-collision}
-asks where the two independently reasonable plans collide. A recorded claim
-could expose the overlap before integration; only a mediated effect boundary
-could prevent a conflicting write.
+Take one local conflict. Wren (Agent~A in
+Figure~\ref{fig:bonded-trust-collision}) refactors a shared middleware file;
+Pike (Agent~B) starts ninety seconds later in a sibling worktree, and the two
+merge incompatible changes. If Wren had registered a claim on the middleware
+file with the daemon, Pike would have been told of the overlap as soon as it
+claimed the same file, before either of them merged. A claim can only warn.
+Stopping a conflicting write outright requires that every write pass through a
+checker that can refuse it before the file changes. Even that checker stops
+only writes the agent was not permitted to make, and both of these edits were
+permitted.
 \input{figures/fig-bonded-trust-collision}
 
-A \textbf{commons authority} is the proposed persistent service that supplies
-shared admission, attribution and settlement rules. Alice and Bob must agree
-to its scope before relying on it. Admission does not establish good behavior:
-the evidence and incentive conditions below remain necessary for the stated
-conclusions. Hobbes's account of enforceable covenants motivates this
-institutional question~\pdcite{hobbes1651leviathan}; it does not prove that every
-successful collaboration needs a common sovereign.
+A \pdterm{commons authority} is a persistent service, proposed here, that
+every participant relies on for three sets of shared rules: who may take part
+and with which permissions, how each act is recorded against whoever made it,
+and how money moves when work is settled. Alice and Bob must agree to its
+scope before relying on it. Being let in is no promise of good behavior; each
+conclusion below states the evidence and incentives it needs. Hobbes argued
+that agreements hold only where a common power can enforce
+them~\pdcite{hobbes1651leviathan}. That argument motivates this chapter's
+question; it does not show that every successful collaboration needs a common
+authority.
 
 We first follow a small repair through all three layers. Then we ask what
 scope checks prevent, what records preserve, and which losses collateral can
 cover. The repeated-game calculation tests one reason to report claims
 truthfully; the lifecycle model tests a different question, recovery after
-silence. Keeping those questions separate prevents a checked ledger from
-being mistaken for a proof of cooperation. Finally,
+silence. Keeping the two apart stops a ledger that passes its checks from
+being read as proof that agents cooperate. Finally,
 Section~\ref{sec:federated-sovereign} asks how key custody and recovery would
 extend beyond one machine; its proposed security requirements remain separate
 from the checked local ledger.
 
 \subsection{Three Risks of Ad Hoc Pairwise Trust}
 Ad hoc pairwise arrangements can expose agent systems to three risks:
-\paragraph{Pairwise negotiation can be costly.} A complete all-to-all arrangement among $n$ agents has $n(n-1)/2$ potential unordered pairs. If each pair separately negotiates trust, the number of negotiations is quadratic in $n$. Actual token use, latency, and context demand depend on the interaction topology, the cost of each negotiation, concurrency, and whether established credentials or agreements can be reused. Sparse interaction and shared verification can reduce that cost; the pair count alone establishes no fleet-size threshold for feasibility.
+\paragraph{Pairwise negotiation can be costly.} A complete all-to-all arrangement among $n$ agents has $n(n-1)/2$ potential unordered pairs. If each pair separately negotiates trust, the number of negotiations is quadratic in $n$. Actual token use, latency, and context demand depend on the interaction topology, the cost of each negotiation, concurrency, and whether established credentials or agreements can be reused. Sparse interaction and shared verification can reduce that cost; the pair count alone sets no fleet size beyond which pairwise trust stops working.
 \paragraph{Ephemeral trust state can be lost.} If credentials, agreements, and continuity records exist only in an agent's volatile state, a crash can leave its successor unable to establish the authority or commitments it inherited. Durable peer-to-peer protocols can preserve this evidence; shared infrastructure is another way to make continuity explicit and recoverable.
-\paragraph{Faithful execution need not serve the commons.} An agent may follow its principal's instructions faithfully while pursuing interests that conflict with those of other participants. Evidence of faithful execution alone does not establish a common interest. Admission, monitoring, and contract design must therefore account for the principal's incentives as well as the agent's observed behavior.
-The proposed composition joins bounded authority, attributable records and
-collectible remedies. Each has precedent. The interesting test is whether the
-combination still works when one process disappears or one participant has an
-incentive to misreport. Table~\ref{tab:bonded-three-layer} names the question
-each layer must answer; no row is supplied merely by the other two.
+\paragraph{Faithful execution need not serve the commons.} An agent may follow its principal's instructions faithfully while pursuing interests that conflict with those of other participants. A record of faithful execution therefore says nothing about whether the agent serves the other participants. Entry rules, monitoring and contract design must account for the principal's incentives as well as the agent's observed behavior.
+The design joins three layers, each with precedent: bounded permissions,
+records tied to whoever acted, and collateral that can actually be collected.
+The test is whether the combination still works when one process disappears
+or one participant has an incentive to misreport. Each layer answers its own
+question about an attempted act (Table~\ref{tab:bonded-three-layer}). Scope
+asks whether the act can happen at all, evidence asks who did what, and
+collateral asks who carries the loss. Neither of the other layers can answer
+a layer's question for it.
 \begin{table}[H]
 \centering
-\caption{Three layers answer three different questions about the same attempted act. An out-of-grant act ends at Layer 1 before shared state changes; every admitted act crosses Layer 2 and acquires durable attribution, so admission creates an attribution duty; a harmful admitted act reaches Layer 3, where only bound evidence can reach settlement. [internal]}
+\caption{Three layers answer three questions about the same attempted act. An act outside its grant stops at Layer 1, before shared state changes. Every admitted act passes through Layer 2 and is recorded against whoever made it. A harmful admitted act reaches Layer 3, where settlement can use only evidence tied to that act. [internal]}
 \label{tab:bonded-three-layer}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -273,88 +283,91 @@ each layer must answer; no row is supplied merely by the other two.
 \toprule
 \textbf{Layer} & \textbf{Question} & \textbf{What it does to the act} & \textbf{Terminal outcome} \\
 \midrule
-1 scope & can this act exist? & terminates an out-of-grant trajectory before shared state changes & refused \\
-2 evidence & who did what? & binds every admitted act to a durable, addressable attribution & complete and recorded \\
-3 collateral & who carries the loss? & prices a harmful admitted act against posted collateral; only bound evidence can reach settlement & priced settlement \\
+1 scope & can this act happen? & stops an act outside the grant before shared state changes & refused \\
+2 evidence & who did what? & records every admitted act, durably, against whoever made it & complete and recorded \\
+3 collateral & who carries the loss? & charges a harmful admitted act against posted collateral, using only evidence tied to that act & settled in money \\
 \bottomrule
 \end{tabularx}
 \end{table}
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{A small repair through all three layers}\label{app:worked}
-This separate calibration case uses a $\$6$ bond to make the bookkeeping easy;
-it does not replace Bob and Alice's $460+100$ contract. Principal $P$ asks
-agent $\alpha$ to fix a login bug in \texttt{auth.ts}. The original regression
-test must pass, no other test may regress, and the diff may touch only
-\texttt{auth.ts} and that test file. All amounts and times below are
-constructed. Assume complete mediation, durable receipts and an agreed
-adjudicator; this is not a live execution transcript.
+This side case uses a $\$6$ bond to keep the bookkeeping easy; Bob and
+Alice's $460+100$ contract is unchanged. Principal $P$ asks agent $\alpha$ to
+fix a login bug in \texttt{auth.ts}. The original regression test must pass,
+no other test may regress, and the diff may touch only \texttt{auth.ts} and
+that test file. This is a constructed example; all amounts and times are
+illustrative, not a live transcript. Assume that every write passes through
+the authority's check (complete mediation), that receipts are durable, and
+that both sides have agreed on an adjudicator.
 
 \paragraph{Before work.}
 At minute zero the authority prepares a thirty-minute capability permitting
 repository reads, writes to \texttt{auth.ts} and \texttt{tests/**}, and test
-execution. It permits no database migration. The wider test-directory grant
-is intentional: a permitted write may still violate the narrower acceptance
-contract. The admission gate enables work only after $P$ posts the quoted
-$\$6$ collateral at minute one. The quote uses an illustrative $\$5$ cleanup
-bill and a $20\%$ scope uplift. It is a coverage proposal, not yet a deterrence
-calculation.
+execution. It permits no database migration. The grant covers the whole test
+directory on purpose, so that a permitted write can still break the narrower
+acceptance contract. Work can start only after $P$ posts the quoted $\$6$
+collateral at minute one. The quote adds a $20\%$ scope uplift to an
+illustrative $\$5$ cleanup bill. It sizes the bond to cover cleanup; whether
+$\$6$ deters anyone is a separate calculation.
 
-At minute three $\alpha$ declares its claim on \texttt{auth.ts}. An overlap
-would be reported, not automatically locked away. It records its scope,
-partial patch and test output in five retained entries. Hash links commit
-to those records; they cannot record reasoning the agent never emitted.
-Figure~\ref{fig:worked-example} asks which of the three obligations survives
-the interruption that follows.
+At minute three $\alpha$ registers a claim on \texttt{auth.ts}. Had another
+agent held an overlapping claim, both would have been told and neither locked
+out. $\alpha$ records its scope, partial patch and test output in five
+retained notes. Each note's hash covers the note before it, so a later change
+to any note is detectable; no hash can capture reasoning the agent never wrote
+down. Figure~\ref{fig:worked-example} follows the three obligations (scope,
+record and collateral) through the interruption that comes next.
 
 \input{figures/fig-worked-example}
 
 \paragraph{Interruption and continuation.}
-The process crashes at minute twelve. In this illustrative trace a one-minute
-heartbeat threshold makes it eligible for recovery at minute thirteen. In a
-real run the same silence could be delay, so the old writer must be fenced or
-its effects separately coordinated before a successor acts. The abandoned
-claim is released by the specified recovery policy; a timeout alone is not
-proof of contractual breach.
+The process crashes at minute twelve. With a one-minute heartbeat threshold
+it becomes eligible for recovery at minute thirteen. In a real run the same
+silence could be mere delay, so before a successor acts the old writer must
+be fenced (its permission to write revoked) or its effects otherwise
+coordinated. The recovery policy releases the abandoned claim. A timeout alone
+does not prove a breach of contract.
 
 A separately authorized successor $\beta$ receives a new capability and the
-retained scope, patch and test receipts. Its first record names the old
-session as its salvage parent. The evidence and $\$6$ reservation remain;
-the successor does not inherit an unrecorded mental state. Alice's Heron
-would need the same distinction on the checkout job: continuing Alice's
-obligations does not mean reusing a process label establishes personhood.
+retained scope, patch and test receipts. Its first note names the old
+session as its \pdterm{salvage parent}, the session whose work it continues.
+The evidence and the $\$6$ reservation remain; whatever $\alpha$ thought but
+never recorded is gone. The same holds for Alice's Heron on the checkout job.
+A successor that carries on Alice's obligations does not become the same
+agent by reusing the name Heron.
 
 \paragraph{Settlement.}
 At minute twenty-four the agreed evaluator checks the retained regression
-test, the other tests and the allowed diff. In this success branch it
+test, the other tests and the allowed diff. Here every check passes, so it
 authorizes return of the $\$6$ collateral to $P$ and signs a settlement receipt.
 The figure's ``pay principal'' label denotes this refund, not earned revenue.
 No bounty is modeled in this reduced case. Failure would invoke the agreed
 remedy, not a verdict derived from a note count or the fact that a process died.
 
-The capability boundary prevented an out-of-grant migration only because all
-relevant effects passed through it. The retained artifacts made continuation
-possible without certifying the successor's success. The funded bond supplied
-collectible value without proving that $\$6$ deters every adversary. The rest
-of the chapter develops these three distinct claims.
+The capability check could refuse a migration only because every relevant
+write passed through it. The retained notes let $\beta$ continue, but they do
+not show that $\beta$ succeeded. Because the bond was funded, $\$6$ could
+actually have been collected on a breach; whether $\$6$ deters every
+adversary is a separate question. The rest of the chapter develops these three claims in turn.
 
 \section{The Commons Authority}\label{sec:commons}
 % ═══════════════════════════════════════════════════════════════════════════════
 Wren and Pike need an overlap report before they integrate their patches.
 Heron's successor needs records after the process exits. Bob and Alice need
 the same settlement terms after a dispute as before it. A persistent service
-can supply these shared functions. It earns reliance through specified rules
-and enforcement, not simply by existing before the agents.
+can supply all three. Participants can rely on it only because its rules are
+written down in advance and it enforces them.
 
-The following definition states the intended service contract. The artifact
-status in Appendix~\ref{app:mech} distinguishes implemented local components
-from proposed cross-daemon evidence and economic machinery.
+The definition below states what the service must provide.
+Appendix~\ref{app:mech} records which parts are built locally and which,
+such as cross-daemon evidence and the economic layer, are still proposals.
 \begin{definition}[Commons Authority]\label{def:commons}
-\Designed{} This definition states the intended service contract; implementations must establish each item.
+\pdstatus{\Designed}{each item must be established by an implementation}
 \setlength{\parskip}{4pt plus 1pt}
 A commons authority $\mathcal{D}$ for a multi-agent system is a persistent service that provides:
 \begin{enumerate}[nosep]
   \item \textbf{Identity}: Every agent receives a cryptographic identity before participating.
-\item \textbf{Capability bounding}: Every agent's operations are structurally limited by attenuable tokens.
+\item \textbf{Capability bounding}: Every agent's operations are limited by tokens whose permissions can only narrow when passed on.
 \item \textbf{Shared knowledge}: Resource claims, agent status, and conflict information are visible to all participants.
   \item \textbf{Append-only history}: All actions are recorded in an append-only, tamper-evident trail.
   \item \textbf{Economic settlement}: Work contracts are collateralized and settled against verifiable evidence.
@@ -362,12 +375,12 @@ A commons authority $\mathcal{D}$ for a multi-agent system is a persistent servi
 The commons authority is not a central planner. It does not decide which agent should work on which task, which file conflicts should be resolved in whose favor, or which agents are ``good.'' It provides the \emph{infrastructure} within which agents make those decisions for themselves, using the shared knowledge and economic incentives the authority maintains.
 \end{definition}
 \begin{remark}
-The commons authority is a \emph{Hobbesian sovereign}, not an \emph{omniscient coordinator}. Hobbes's Leviathan does not micromanage citizens' daily choices---it establishes the conditions (laws, enforcement, courts) under which citizens can trust each other enough to transact freely. Similarly, the commons authority establishes identity, capability bounds, shared knowledge, and economic settlement---and then gets out of the way.
+The commons authority plays the part Hobbes gave his sovereign, and no more. In \emph{Leviathan} the sovereign does not direct citizens' daily choices; it sets up laws, enforcement and courts so that citizens can trust each other enough to trade. The commons authority likewise sets up identity, capability bounds, shared knowledge and settlement, and leaves the work itself to the agents.
 \end{remark}
-In the Port Daddy implementation, the commons authority is a daemon running on \texttt{localhost:9876}, backed by SQLite. The local implementation supplies parts of this contract; a simple storage
-design does not establish the missing attribution or incentive hypotheses.
+In Port Daddy, the commons authority is a daemon on \texttt{localhost:9876} backed by SQLite. The environment it governs, meaning its agents, sessions, claims and records, is called a harbor. The local daemon supplies parts of this contract; each claim below names
+the attribution and incentive conditions it still needs.
 \subsection{The Daemon as Correlating Device}\label{sec:correlating-device}
-Suppose two agents want the same file. A mediator recommends that one proceed and the other defer. Those recommendations avoid a collision only if the agents follow them. To predict obedience, we must compare each agent's payoff from following its recommendation with its payoff from deviating, given what it knows. A daemon's ability to enforce a capability boundary is a separate question: recommendations change information; enforcement limits actions.
+Suppose two agents want the same file. A mediator recommends that one proceed and the other defer. Those recommendations avoid a collision only if the agents follow them. To predict obedience, we must compare each agent's payoff from following its recommendation with its payoff from deviating, given what it knows. Whether a daemon can enforce a capability boundary is a separate question. A recommendation changes what an agent knows; enforcement changes what it can do.
 \begin{pdexample}{A Recommendation That Both Agents Want to Follow}
 For one file, suppose proceeding alone pays $3$, deferring while the other
 proceeds pays $1$, a collision pays $-2$ to each, and both deferring pays $0$.
@@ -383,18 +396,18 @@ incentive test. A signed \mbox{recommendation} certifies its source, not its wis
 or the recipient's incentive to follow it.
 \end{pdexample}
 
-\pdmarginfigure{aumann}{Aumann's obedience test asks whether following a recommendation pays. It does not establish the daemon's authority or its ability to prevent an action.}%
-The daemon's role therefore admits a precise game-theoretic test. Aumann~\pdcite{aumann1974subjectivity} introduced the \emph{correlated equilibrium}: a mediator draws a recommendation tuple $r=(r_1,\ldots,r_n)$ from a joint distribution $\mu$ over action profiles and privately reveals $r_i$ to player $i$. The distribution is a correlated equilibrium only if, for every player $i$, recommended action $r_i$, and unilateral deviation $a_i'$, the obedience inequality holds:
+\pdmarginfigure{aumann}{Aumann's obedience test asks whether following a recommendation pays. It says nothing about the daemon's authority or its power to prevent an action.}%
+The daemon's role therefore has a precise game-theoretic test. Aumann~\pdcite{aumann1974subjectivity} introduced the \pdterm{correlated equilibrium}, a joint distribution of recommendations that every player prefers to obey. A mediator draws a recommendation tuple $r=(r_1,\ldots,r_n)$ from a joint distribution $\mu$ over action profiles and privately reveals $r_i$ to player $i$. The distribution is a correlated equilibrium only if, for every player $i$, recommended action $r_i$, and unilateral deviation $a_i'$, the obedience inequality holds:
 \[
 \sum_{r_{-i}} \mu(r_i,r_{-i})
 \bigl[u_i(r_i,r_{-i})-u_i(a_i',r_{-i})\bigr] \ge 0.
 \]
-Every mixed Nash equilibrium induces such a distribution, but a mediator does not create an equilibrium merely by issuing recommendations. The inequality is the governing condition.
+Every mixed Nash equilibrium induces such a distribution. Issuing recommendations does not by itself create one; the inequality has to hold.
 
-The commons authority can play this mediator role. It observes the global claim graph and emits a recommendation pair on a contested file: \emph{Agent~$\alpha$, proceed; Agent~$\beta$, defer or coordinate.} A deterministic policy can still induce a non-degenerate $\mu$ through uncertainty over observed system states, but determinism is not itself evidence of obedience. Utilities, bond coverage, and continuation values must make the inequality above hold.
+The commons authority can play this mediator role. It observes the global claim graph and emits a recommendation pair on a contested file: \emph{Agent~$\alpha$, proceed; Agent~$\beta$, defer or coordinate.} A deterministic policy can still produce a genuinely random $\mu$, because the agents do not know which system state the daemon observed. Being deterministic does not make a recommendation obeyed. The agents' payoffs, the bond coverage and the value of future rounds must make the inequality above hold.
 
 \begin{property}[Conditional Correlating-Device Interpretation]\label{prop:correlating-device}
-\Designed{} This is a conditional interpretation of the proposed mechanism, not an observed equilibrium.
+\pdstatus{\Designed}{a conditional interpretation, not an observed equilibrium}
 \setlength{\parskip}{4pt plus 1pt}
 Port Daddy's daemon supplies the information structure of a correlating device for the agent-coordination game.
 
@@ -402,31 +415,31 @@ It induces a correlated equilibrium only under the following conditions:
 \begin{enumerate}[nosep]
   \item \textbf{Specified distribution.} The model fixes a joint recommendation distribution $\mu$ and assumes the players know it.
 
-A public policy and a replayable log do not alone supply this distribution: uncertainty about inputs, their probabilities, and each player's observations must also be specified.
+A public policy and a replayable log are not enough. The model must also specify the uncertainty about inputs, their probabilities, and what each player observes.
   \item \textbf{Specified information.} The displayed inequality models a player who observes its own recommendation. If the public claim graph reveals additional information, including another player's recommendation, obedience must be checked conditional on that information too. Private delivery alone does not make a signal private.
   \item \textbf{Obedience inequality.} For every recommendation and deviation, the expected deviation gain is no larger than the expected bond loss plus discounted reputation loss. These losses must reach the decision-maker. An observable deviation need not be unprofitable, and a logged claim need not reveal every off-ledger action.
 \end{enumerate}
 \end{property}
 
-The reframe therefore yields an audit obligation, not an automatic guarantee. Nothing physically stops an agent from ignoring advice. The repeated-game calculation in Section~\ref{sec:economic} verifies one stylized two-player payoff table; deployments with different utilities must re-check the obedience inequalities. Section~\ref{sec:tlaplus} separates lifecycle safety from recovery liveness and exhibits the missing fairness assumption. Its bounded accounting checks do not establish strategic optimality.
+Seen this way, the daemon gives each deployment something to check; it guarantees nothing by itself. Nothing physically stops an agent from ignoring advice. The repeated-game calculation in Section~\ref{sec:economic} checks one simple two-player payoff table, and a deployment with different payoffs must check the obedience inequalities again. Section~\ref{sec:tlaplus} separates the safety of the session lifecycle from the promise that recovery eventually happens, and shows which fairness assumption the second needs. Its bounded accounting checks say nothing about strategy.
 
-No price-of-anarchy bound follows from this interpretation alone. The simulations of \S\ref{sec:youle:welfare} compare one auction model with one static baseline; an analytical worst-equilibrium bound for the coordination game remains open.
+No bound on how far the worst equilibrium falls below the best outcome (the price of anarchy) follows from this view alone. The simulations of \S\ref{sec:youle:welfare} compare one auction model with one static baseline; an analytical worst-equilibrium bound for the coordination game remains open.
 
-\paragraph{Formal-backing status of the game-theoretic core.}
-The evidence has several distinct scopes. The claim-signaling payoff model
-has the analytical argument below, a scalar Z3 check, a bounded TLA$^{+}$
-witness, and a companion treatment in research paper~3. The insurer
-comparisons have finite parameter sweeps and their stated payoff recurrences.
-The broader multi-principal deployment has no equilibrium proof. Formal
-checks of a supplied model do not establish that the deployment satisfies
-its payoff, observation, or identity assumptions. Table~\ref{tab:verification-status}
-records the artifacts; the boundary paragraphs state what remains to be shown.
+\paragraph{What has been checked.}
+The claim-signaling payoff model has the analytical argument below, a Z3
+check of its threshold, a bounded TLA$^{+}$ witness, and a companion
+treatment in research paper~3. The insurer comparisons have finite parameter
+sweeps and their payoff recurrences. A deployment with many principals has
+no equilibrium proof. Table~\ref{tab:verification-status} lists the
+artifacts.
+\pdscope{A check of a supplied model does not show that a deployment meets the model's payoff, observation or identity assumptions.}
 
 \subsection{Why Agents Consent}\label{sec:why-consent}
 
-In Hobbes, consent to the sovereign is rational because the alternative---the state of nature---is worse. For an agent principal, joining is rational when the services below are worth
-more than their fees, disclosure costs, and constraints. The comparison is
-conditional: a durable peer protocol may already supply some of these services.
+For Hobbes, consent to the sovereign is rational because the alternative, the state of nature, is worse. For a principal running agents, joining is rational when the six services below are worth
+more than their fees, the information it must disclose, and the constraints
+it accepts. A durable peer-to-peer protocol may already supply some of them,
+so the answer depends on the alternative.
 
 \begin{table}[H]
 \centering
@@ -448,7 +461,7 @@ Accountability & Effects with no accountable record & Attribute mediated, faithf
 \end{tabularx}
 \end{table}
 
-The daemon does not need to threaten agents. It provides services that make coordination \emph{rational}. Whether a principal benefits depends on its workload and outside option; the table alone establishes no dominance result.
+The daemon does not need to threaten agents; it offers services that make coordinating worth its cost. Whether a given principal gains depends on its workload and its alternatives, so the table does not show that joining is always better.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Layer 1: Structural Prevention}\label{sec:structural}
