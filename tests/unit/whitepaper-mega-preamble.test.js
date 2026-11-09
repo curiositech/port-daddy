@@ -98,7 +98,7 @@ describe('collected-volume LaTeX preamble', () => {
 \input{${preamblePath}}
 \begin{document}
 \pdchapter{1}{Compatibility Smoke}{swk}{pdcobalt}
-\section{Status and prose idioms}
+\section{Status and prose idioms}\label{swk:sec:smoke}
 \Built\quad\BuiltWeak\quad\Designed\quad\Vision
 \pullquote{One compatibility grammar, exercised as rendered LaTeX.}
 \xrefbox{Cross-reference boxes and chapter-local numbering remain available.}
@@ -113,6 +113,7 @@ describe('collected-volume LaTeX preamble', () => {
 \pdchapterappendix
 \section{Smoke appendix}
 Appendix numbering and hyperlink anchors remain defined.
+A weld back to the status idioms, \weld{swk:sec:smoke}{status}, and the build \pdbuildid.
 \end{document}
 `,
       'utf8',
