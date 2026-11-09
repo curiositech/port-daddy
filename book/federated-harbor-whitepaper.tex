@@ -343,7 +343,7 @@ With the boundary in view, the recall prompts separate sovereign powers from dow
 We state the threat model before the protocols so that each design choice can be checked against a named attacker power. We follow the Dolev--Yao convention~\pdcite{dolev1983security}, extended to the federation: an attacker controls every wire between harbors, can intercept and replay any cross-machine message, and may collude with any bounded number of harbor operators. The attacker cannot break the underlying cryptographic primitives (Ed25519 signatures, SHA-256 hashes); these assumptions are inherited from Anchor.
 \begin{pdexample}{A Four-Step Breach, Traced}
 \setlength{\parskip}{4pt plus 1pt}
-Before naming attacker classes in general, trace one all the way through. \path{proofs/relay/CardRevocation.tla} models a single relay with a \texttt{revoked} set and an \texttt{everRevoked} ground-truth set, and TLC checks the invariant \texttt{RevocationFinal == badAccept = FALSE} against three configurations.
+Before naming attacker classes in general, trace one all the way through. \path{proofs/relay/CardRevocation.tla} models a single relay with a \texttt{revoked} set and an \texttt{everRevoked} ground-truth set, and TLC, the model checker for the TLA+ specification language, checks the invariant \texttt{RevocationFinal == badAccept = FALSE} against three configurations.
 \textbf{Baseline} (no adversary action available): 13 reachable states, invariant holds.
 \textbf{Rollback} (a \texttt{RollbackRestore} action can restore the relay's database, including \texttt{revoked}, from a backup taken before a revocation): the same 13-state search space now contains the four-transition trace
 \[
@@ -360,7 +360,7 @@ The whole fix is one counter that a restore cannot roll back. It is why revocati
 
 The protocols in this chapter are designed against the following attackers.
 
-\paragraph{Cross-realm identity spoofing.} An attacker presents a card at $B$ claiming issuance by $A$, using a forged signature under $\mathit{sk}_A$. \emph{Closed by} signature verification against $A$'s public key as recorded in the witness log (\S\ref{sec:fh-xfer}). This reduces to Ed25519's standard unforgeability guarantee (EUF-CMA: no one without the key can forge a signature, even after seeing many)~\pdcite{bernstein2012high}.
+\paragraph{Cross-realm identity spoofing.} A realm is one harbor's domain of authority, so a cross-realm attack crosses from one harbor to another. An attacker presents a card at $B$ claiming issuance by $A$, using a forged signature under $\mathit{sk}_A$. \emph{Closed by} signature verification against $A$'s public key as recorded in the witness log (\S\ref{sec:fh-xfer}). This reduces to Ed25519's standard unforgeability guarantee (EUF-CMA: no one without the key can forge a signature, even after seeing many)~\pdcite{bernstein2012high}.
 
 \paragraph{Replay across the boundary.}
 A signed epoch binding lets $B$ reject an offer older than the state $B$
@@ -706,7 +706,7 @@ collection of signed logs ordered by extension has no such arithmetic. We
 therefore choose which numbers each witness reports and which of them each
 channel compares. The result is a \pdterm{cellular sheaf} $\mathcal F$: a vector
 space at every vertex and edge of a graph, plus maps saying how a vertex's
-numbers are compared along each of its edges,\footnote{A standalone, submission-form version of the results folded into this subsection is \emph{The Cohomology of Equivocation} (research paper~7)~\cite{owens2026sheaf}; the harness and the sweeps cited here are its artifacts, regenerated at seed 20260816.} here on the gossip graph $G=(V,E)$ of witnesses. Witness $v$ holds a \pdterm{stalk} $\mathbb{R}^{d_v}$, the vector of numbers encoding its log state; edge $e=\{u,v\}$ holds $\mathbb{R}^{|S_e|}$, the shared prefix coordinates $S_e$ that both endpoints report; and each \pdterm{restriction map} $\rho_{v,e}$ selects from witness $v$'s state the coordinates that edge $e$ compares. With real numbers throughout, the coboundary $\delta$, its adjoint $\delta^*$, and the predicted edge differences $(\delta x)_e=\rho_{u,e}x_u-\rho_{v,e}x_v$
+numbers are compared along each of its edges,\footnote{A standalone, submission-form version of the results folded into this subsection is \emph{The Cohomology of Equivocation} (research paper~7)~\cite{owens2026sheaf}; the harness and the sweeps cited here are its artifacts, regenerated at seed 20260816.} here on the gossip graph $G=(V,E)$ of witnesses. Witness $v$ holds a \pdterm{stalk} $\mathbb{R}^{d_v}$, the vector of numbers encoding its log state; edge $e=\{u,v\}$ holds $\mathbb{R}^{|S_e|}$, the shared prefix coordinates $S_e$ that both endpoints report; and each \pdterm{restriction map} $\rho_{v,e}$ selects from witness $v$'s state the coordinates that edge $e$ compares. Here $S_e$ is always the first $|S_e|$ coordinates, so we call these maps \pdterm{prefix restrictions}. With real numbers throughout, the coboundary $\delta$, its adjoint $\delta^*$, and the predicted edge differences $(\delta x)_e=\rho_{u,e}x_u-\rho_{v,e}x_v$
 are all defined. The measured vector $g_e$ comes instead from the reports made
 on that channel. An equivocator may report different values to different
 neighbors, so $g$ need not equal $\delta x$ for any single assignment $x$; if
@@ -714,6 +714,7 @@ we built the input by applying $\delta$ to one stored state per vertex, the
 residual would be zero by construction. The theorem below is about this vector encoding, not about signed logs directly.
 
 Detection depends on which edges the auditor can see, using the three tiers of the ring example. On a compared edge the auditor holds a direct cross-check and needs no loop arithmetic; on a relayed edge both endpoints' reports reach it by gossip; from a severed edge nothing reaches it. Write $K$ for the compared-plus-relayed, or \emph{visible}, edge set, and for each shared coordinate $c$ write $K_c := (V, \{e \in K : c \in S_e\})$ for the visible coordinate subgraph. Whether a cycle lies in $K_c$ or only in the full coordinate subgraph $G_c$ changes the theorem: a cycle through a severed edge constrains nothing, because the completion may give the severed edge any value.
+A \pdterm{global section} is one assignment of values to every witness that explains all visible edges at once. The \pdterm{cycle space} of $K_c$ is the set of edge vectors orthogonal to every coboundary on $K_c$; on a ring it is spanned by the vector that goes once around. Write $\Pi_K$ for the orthogonal projection onto these visible cycle spaces, and $\varepsilon_K$ for a vector of offsets on the visible edges, such as the changes one liar makes to its reports.
 
 \input{figures/fig-fh-visible-topology}
 
@@ -841,8 +842,7 @@ r=|s|/\sqrt n
 \pdexercisepointer{\ref{ex:fh-consistency-radius-run}}{\ref{ex:fh-two-liar-boundary}}{\pageref{ex:fh-consistency-radius-run}}
 
 \paragraph{The residual as a certificate.} The consistency radius measures how
-far local data sits from the nearest global section, an assignment of values
-to every witness that explains all edges at once. Here $r$ is also a bound on
+far local data sits from the nearest global section. Here $r$ is also a bound on
 repairs. Every additive correction that makes the visible data consistent has
 norm at least $r$, and some correction has norm exactly $r$ when corrections
 may touch every visible edge. Restricting the correction to one sender, or to
@@ -856,11 +856,12 @@ fraction $\sqrt{1-R_{\mathrm{eff}}}$ decays like $1/\sqrt n$. Severing a link
 raises the effective resistance of every edge whose loops ran through it,
 which is the visibility clause in numerical form.
 
-For the next statement, $\Pi_K$ is the orthogonal projection that removes
-all edge differences explainable by vertex values. An offset vector $o$
+Recall that $\Pi_K$ removes all edge differences explainable by vertex
+values. An offset vector $o$
 lists the altered reports attributed to a chosen sender $q$; the linear map
 $A_q$ places those changes on visible edges. Thus $B_q=\Pi_K A_q$ keeps
-only the observable part. A vector in the kernel $\ker B_q$, the offsets that
+only the observable part. $A_q$ and $B_q$ are matrices, not harbors, and the support
+$S$ in the theorem is a set of edges, not the staging harbor. A vector in the kernel $\ker B_q$, the offsets that
 $B_q$ sends to zero, causes no alarm, so the bound concerns $o_\perp$, the part
 perpendicular to that invisible subspace.
 The largest and smallest positive singular values measure the largest and
@@ -1144,11 +1145,10 @@ identification. On an oriented four-cycle, an error $(1,0,0,0)$ and an error
 $(0,1,0,0)$ have the same cycle projection: each contributes total circulation
 one. Both alarm, but the residual cannot tell which edge changed.
 
-Paper~8 states the general rule for a typed linear observation model. An
+A companion research paper (Paper~8 of the Harbor Research Program) states the general rule for a typed linear observation model. An
 \pdterm{edge group} contains all coordinates of one channel; the size of an
 error's support counts the channels it touches, whatever their dimension or
-the error's size. Let $M$ map allowed vertex features to edge features, let $Q$
-project orthogonally off $\operatorname{im}M$, and define the
+the error's size. Let $M$ map allowed vertex features to edge features, and define the
 \pdterm{redundancy distance} $d_{\mathcal F}$ as the smallest number of edge
 groups supporting a nonzero vector in $\operatorname{im}M$, or infinity when
 $M=0$. It counts how many channel groups must change to turn one
@@ -1338,7 +1338,7 @@ The designed transition is atomic in the bucket-partition sense: a bond moves on
 \subsection{Fee structure and economic discipline}\label{sec:fh-econ}
 \pdstatus{\Vision}{conjecture; no market analysis}
 
-The escrow's fee $\phi$ is capped and above zero. In the competitive-insurance market of \pdchapref{bonded}{The Bonded Commons} (the Youle contribution), $\phi$ would be the market-clearing price for holding the bond and checking the inclusion proof. We conjecture that Bonded's mechanism carries over to the cross-harbor case when enough escrows compete, and we do not analyze that market here.
+The escrow's fee $\phi$ is capped and above zero. In the competitive-insurance market of \pdchapref{bonded}{The Bonded Commons} (the pricing mechanism contributed by Thomas Youle), $\phi$ would be the market-clearing price for holding the bond and checking the inclusion proof. We conjecture that Bonded's mechanism carries over to the cross-harbor case when enough escrows compete, and we do not analyze that market here.
 
 For small federations of two or three harbors, $\phi$ is more likely a posted price than an auctioned one. The mechanism has the same shape as Bonded's, applied between harbors.
 
@@ -1384,7 +1384,7 @@ the sponsor bond only when the replacement coverage is funded and the contract
 permits release; insufficient evidence can require extended probation or exit.
 \end{enumerate}
 
-This is the federation's version of competitive insurance from \pdchapref{bonded}{The Bonded Commons} (the Youle contribution). No authority picks who joins; willing sponsors decide. A sponsor risks losing its bond during probation and gains from having $N$ in the federation. We expect, without proof, that a federation with many candidate sponsors who judge risk well reaches a reasonably efficient outcome.
+This is the federation's version of competitive insurance from \pdchapref{bonded}{The Bonded Commons} (Youle's pricing mechanism). No authority picks who joins; willing sponsors decide. A sponsor risks losing its bond during probation and gains from having $N$ in the federation. We expect, without proof, that a federation with many candidate sponsors who judge risk well reaches a reasonably efficient outcome.
 
 Figure~\ref{fig:fh-sponsor-lifecycle} draws the four-state lifecycle end to end.
 
@@ -1578,7 +1578,7 @@ The control-plane distinction is concrete: Tailscale describes centralized coord
 \ifpdmargincolumn\pdequivocationsketch\fi
 A malicious witness log can serve different views to partitioned auditors. A contradictory signed pair is immediately verifiable once co-located, but the protocol has no topology-independent time bound for bringing the pair together. Witness bonding applies after confirmation.
 
-For high-stakes settlements, harbors can require multiple witness signatures before treating a root as authoritative, in the Certificate Transparency two-SCT pattern~\pdcite{laurie2013ct}. This trades latency for assurance; the design space is well-explored in the CT literature and we adopt the same techniques.
+For high-stakes settlements, harbors can require multiple witness signatures before treating a root as authoritative, in the Certificate Transparency pattern of requiring signed timestamps from two independent logs~\pdcite{laurie2013ct}. This trades latency for assurance; the design space is well-explored in the CT literature and we adopt the same techniques.
 
 \subsection{Partition tolerance}\label{sec:fh-partition}
 
@@ -1956,8 +1956,7 @@ What two machines need beyond a shared repository is a solution to the two-machi
 
 The proposed federation keeps local authority with each daemon. A shared
 witness log supports revocation records and conditionally restricted custody;
-bonded sponsorship controls who joins. These mechanisms require the
-implementation and service-level assumptions stated in the chapter.
+bonded sponsorship controls who joins.
 
 Figure~\ref{fig:fh-threat-bands} distinguishes the verified claims, conditional bounds, and open questions.
 
