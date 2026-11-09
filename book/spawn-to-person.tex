@@ -3194,23 +3194,28 @@ environment, open claims/epochs, acceptance state, tool receipts, and the
 idempotency journal.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-death-taxonomy}
-When an LLM agent dies mid-thought, what is recoverable and what is
-fundamentally lost? Propose a taxonomy of agent-death by what survives
-(record / claims / execution state / latent ``intent''). This is the hard
-half of OP-4, the checkpoint that restores work. (Open Problem~\ref{op:death},
-\S\ref{sec:open}.)
+Table~\ref{tab:death-ladder} orders process deaths by what survives and puts
+the portable task capsule at rung~3. It does not say how to show that a given
+capsule reaches rung~3. Design that test for one provider and one task: what
+do you compare, against which record, and which failure sends the capsule
+back to rung~2? This is the hard half of OP-4, the checkpoint that restores
+work. (Open Problem~\ref{op:death}, \S\ref{sec:open}.)
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-death-taxonomy}
-A useful death taxonomy, in increasing order of what survives: (1)
-\emph{record survival}: logs/notes only, reconstruction is manual; (2)
-\emph{artifact survival}: a content-addressed worktree and outputs survive,
-computation is rerun; (3) \emph{semantic task capsule}: artifacts plus
-obligations, decisions, transcript/projection, tools, and a pending-effect
-journal, so a new provider can continue observably; (4) \emph{execution
-snapshot}: process memory/runtime state survives under a controlled
-runtime, rarely portable; (5) \emph{latent state}: unexposed activations,
-KV cache, or ``intent'' dies, fundamentally unrecoverable from an arbitrary
-provider. Checkpoint guarantees should state which tier they provide.
+Compare the capsule only against records it did not write. (1)
+\emph{Obligations}: check its coverage against a separate record of required
+source turns and exact instruction text, as the handoff-coverage check did; a
+dropped obligation such as OBL-01 sends it back to rung~2, because the
+successor can no longer continue what was promised. (2) \emph{Effects}: every
+non-idempotent call in the pending-effect journal is either receipted or
+marked unknown, and the successor follows the deduplication, fence-then-read
+or stop rule of \S\ref{sec:stp-unknown-effect}; a successor that retries an
+unknown payment without one of them fails. (3) \emph{Behavior}: run the
+successor and an uninterrupted control on the same remaining task under a
+fixed model version, and compare outcomes on the protected acceptance
+criterion across seeds. Agreement in (3) is a measurement for that provider
+and task, not a guarantee for others, and rung~5 state stays lost whatever the
+result.
 \end{pdsolution}
 
 \input{additions/stp-exercises-memory}
@@ -3666,9 +3671,9 @@ this chapter's own.
   lineage, while equivalent behavior even within one provider/model/version is
   an unmeasured hypothesis;
   it does not export the inference state, so across providers the honest
-  description is task continuity with actor succession. The taxonomy itself
-  (record vs.\ claims vs.\ execution state vs.\ latent ``intent'') stays open
-  until the mechanism ships and is measured.
+  description is task continuity with actor succession.
+  Table~\ref{tab:death-ladder} gives the taxonomy; whether any capsule reaches
+  its rung~3 stays open until the mechanism ships and is measured.
   \item\label{op:attest} \textbf{Cross-operator attestation (\S\ref{sec:keystone}).}
   Binding identity keys across harbors you do not own. It is the market's most
   consequential unbuilt dependency.
