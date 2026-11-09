@@ -396,14 +396,19 @@ which is why the kernel also runs self-checks that detect a divergent or stale
 second instance (\S\ref{sec:attest}).}
 \subsection{The configuration \emph{is} the durability claim}
 \ifpdmargincolumn\pdcheckpointwindow\fi
-The storage configuration is short, and it decides the durability claim. In WAL mode with
+The storage configuration is short, and it decides the durability claim for an
+operating-system crash or a power loss. In WAL mode with
 the \emph{normal} synchronization level (the WAL is fsync'd at checkpoints rather
 than on every commit), a bounded auto-checkpoint interval, a bounded busy-wait,
 foreign-key enforcement on, and a clean-shutdown checkpoint-and-truncate, the
-kernel inherits exactly the crash semantics that configuration defines. The claim
-``a write that returned success survives a crash'' reduces \emph{entirely} to what
-WAL with normal synchronization guarantees. \S\ref{sec:durability} shows that
-this is less than a casual reading assumes.
+kernel inherits exactly the crash semantics that configuration defines. Against
+those two faults, the claim that an acknowledged write survives reduces
+\emph{entirely} to what WAL with normal synchronization guarantees, and
+\S\ref{sec:durability} shows that this is less than a casual reading assumes.
+A crash of the daemon process alone is a different case. SQLite keeps a
+committed transaction across an application crash at every synchronization
+level~\pdcite{sqlitepragma}, so for that fault the claim rests on the daemon
+replying only after commit, not on the configuration.
 \subsection{Schema evolution: an ordered boot ledger, not yet a sequencer (OP-7)}
 \pdstatus{\BuiltWeak}{OP-7, the seventh of the chapter's numbered open problems (Table~\ref{tab:op-status}); the ordered boot ledger ships; the sequencer is specified}
 The initial schema-by-union approach (\texttt{CREATE TABLE IF NOT EXISTS}) created
@@ -561,9 +566,14 @@ claim has two parts.
 Let a write return success under the default WAL configuration.
 \begin{itemize}[leftmargin=1.4em]
   \item \textbf{I1a (process-crash durability).} If the \emph{daemon process}
-  dies (a forced kill, a panic, an out-of-memory termination), the write survives:
-  the data is in the operating system's page cache, which outlives the process.
-  \Built.
+  dies (a forced kill, a panic, an out-of-memory termination), the write survives.
+  It rests on two things: the daemon replies only after the transaction commits,
+  and SQLite keeps a committed transaction across an application crash at any
+  synchronization level, with WAL or with a rollback journal on
+  disk~\pdcite{sqlitepragma}. The committed pages are in the operating system's
+  page cache, which outlives the process. WAL matters elsewhere: under power
+  loss it keeps the database consistent while syncing only at checkpoints (I1b),
+  and readers do not block the writer~\pdcite{sqlitewal}. \Built.
   \item \textbf{I1b (power-loss durability).} If the \emph{operating system}
   crashes or power is lost \emph{before the next checkpoint}, the most recent
   committed writes may roll back. \NotGuar{} under the normal synchronization
@@ -615,9 +625,10 @@ settlement-ledger entry (money-bearing) & \texttt{synchronous=FULL} on the trans
 \end{table}
 \subsection{Recovery after a crash}
 \pdstatus{\BuiltWeak}{the three boot checks exist but are not one invariant}
-Durability is about what survives; recovery is about what happens next. On daemon
-restart with a WAL, SQLite recovers the valid committed state (I1a's
-mechanism). The kernel must also answer two larger questions: who validates the
+Durability is about what survives; recovery is about what happens next. When the
+daemon restarts, SQLite recovers the valid committed state, which in this
+configuration it reads back from the WAL. I1a rests on that recovery and on the
+reply following the commit, not on WAL as such. The kernel must also answer two larger questions: who validates the
 audit chain on boot, and what becomes of a half-applied cross-subsystem
 operation (\S\ref{sec:atomicity}) after a crash? A boot gate already refuses to
 serve when a critical self-check fails (\S\ref{sec:attest}). Boot-time WAL
@@ -683,8 +694,8 @@ is told who holds it.
 \subsection{The claim lifecycle as a finite-state machine}
 \input{figures/fig-swk-claim-lifecycle}
 Figure~\ref{fig:swk-claim-lifecycle} states four properties as a state machine:
-acquire is one atomic insert, re-claim and release are idempotent, an expired
-claim is swept back to free by a later read or the daemon's cleanup tick, and there
+acquire is one atomic insert, re-claim of a live claim and release are
+idempotent, an expired claim is swept back to free by a later read or the daemon's cleanup tick, and there
 is no queued state.
 The coordination layer builds typed ownership on these four. The acquire
 path is small enough to state as an algorithm (Listing~\ref{alg:acquire}); we
@@ -695,7 +706,8 @@ then give the central property as a theorem.
 \lstset{style=pseudocode}
 \begin{lstlisting}[caption={Claim acquisition. The whole acquire is a single
 insert against a uniqueness constraint; the loser is handed the current holder,
-not an error to retry blindly.},label={alg:acquire},captionpos=b]
+not an error to retry blindly. Expiry is checked before the holder, so a
+holder's own claim after its lease expired is a new acquisition.},label={alg:acquire},captionpos=b]
 function acquire(key, requester, ttl):
   // single atomic statement; the uniqueness constraint is the mutex
   try:
@@ -703,12 +715,12 @@ function acquire(key, requester, ttl):
     return GRANTED(holder=requester)         // we won
   catch UNIQUE_CONSTRAINT_VIOLATION:
     existing = SELECT row WHERE row.key = key
-    if existing.holder == requester:
+    if existing.expires_at < now():          // expired, whoever held it
+      DELETE row WHERE key = key AND expires_at < now()
+      return acquire(key, requester, ttl)    // new acquisition; one retry
+    if existing.holder == requester:         // live, and the requester's
       UPDATE row SET expires_at = now()+ttl  // idempotent re-claim
       return GRANTED(holder=requester)
-    if existing.expires_at < now():          // stale holder
-      DELETE row WHERE key = key AND expires_at < now()
-      return acquire(key, requester, ttl)    // one bounded retry
     return DENIED(holder=existing.holder)    // loser learns the winner
 \end{lstlisting}
 \end{minipage}
@@ -719,6 +731,14 @@ The reference implementation's claims on files and their line ranges do run an
 overlap check, but an overlap comes back to the claimant as a warning and both
 claims are recorded. The next result therefore states the assumptions of a
 stronger protocol that covers both.
+
+The order of the two checks in the catch path matters once epochs are added.
+Expiry comes first, so a holder that claims again after its own lease expired
+makes a new acquisition, and a fenced design gives it a new epoch. With the
+holder checked first, the expired row would be renewed under its old epoch,
+and the holder's own effects from before its pause would still pass the gate:
+the late write that epochs exist to stop. Re-claim is idempotent only while
+the claim is live (I3).
 
 \pdstatus{\Designed}{fencing (I2b): no per-resource epoch is kept and no effect broker checks one; exact-key exclusion is built}
 The second half of the theorem below uses a \pdterm{fencing token}, an idea
@@ -738,8 +758,9 @@ For the checkout repair, let Heron hold epoch~1 and then pause. Its lease
 expires; Wren receives epoch~2. Heron resumes with a patch computed against
 revision~7. A database with only one current claim can still be paired with a
 filesystem that accepts Heron's stale patch. The stronger design therefore
-requires the effect broker to compare the submitted lease and epoch against
-the current allocation: epoch~1 is refused once epoch~2 is current. That design is
+requires the effect broker to compare the submitted epoch, and the agent
+submitting it, against the current allocation: epoch~1 is refused once epoch~2
+is current, and so is epoch~2 from anyone but Wren. That design is
 not built: the reference implementation keeps no per-resource epoch, and no
 effect broker checks one (I2b in Table~\ref{tab:invariants}).
 Figure~\ref{fig:swk-fencing-epoch} shows the same late effect with two other
@@ -752,22 +773,51 @@ perfectly serialized.
 \setlength{\parskip}{4pt plus 1pt}
 Assume conflicting acquisitions are checked and inserted in one serialized
 transaction: by uniqueness for exact keys, or by an overlap predicate for
-line intervals and path hierarchies. Assume each new allocation increments
-a persistent per-resource epoch, and every downstream effect checks both
-the active lease and its epoch. Then at most one holder has an active lease
-in each conflict domain, and a stale holder cannot pass that effect gate.
-In particular, the gate rejects an older epoch
+line intervals and path hierarchies. Assume each new allocation takes the
+next value of a persistent per-resource epoch, a holder's own claim after its
+lease expired included. Assume one process both issues
+the epochs and gates the effects: it checks and applies each downstream effect
+in one serialized step, and admits the effect only if its epoch is the newest
+issued for the resource and was issued to the presenter, whose identity the
+process authenticates. Then at most one holder has an active lease in each
+conflict domain, and every admitted effect comes from the holder of the newest
+grant, under that grant's epoch. In particular, the gate rejects an older epoch
 \[
-e' < e_{\text{current}}.
+e' < e_{\text{current}},
 \]
+and rejects the current epoch from anyone but its holder.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
 \setlength{\parskip}{4pt plus 1pt}
 Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic.
 
-Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
+Take an effect on a resource, and let $e$ be the epoch of the newest grant on it, held by $h$, when the effect's step runs. The process that issued $e$ runs the check in the same serialized order, so the check reads $e$ itself, not an estimate of it. An agent holding an older grant holds an epoch below $e$, because each new allocation took the next value, so every effect it stamped with its own epoch is refused. It could name $e$, a small integer, but $e$ was issued to $h$, so only $h$ passes. A holder that claimed again after its own lease expired holds a new epoch, so its effects stamped before that claim are refused as well. The lease is never consulted: until a newer grant exists no one else holds the resource, so an effect from $h$ under $e$ cannot overwrite another holder's work.
 \end{proof}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+Each hypothesis is needed. Without one serialized acquisition, two requests
+can both be granted. Without the newest-epoch check, the woken holder passes
+with its old epoch. Without the binding, any agent that learns the current
+epoch passes as its holder. If an allocation reuses an epoch, as renewing a
+holder's expired row would, or a restart rebuilds the counter, an old effect
+carries the current number. A gate that
+knows only the epochs presented to it, as Kleppmann's storage server
+does~\pdcite{kleppmann2016locking}, refuses an older epoch only after a newer
+one has reached it; the theorem does not cover that gate. The set is
+sufficient, not the only one: an epoch that cannot be guessed, used as a
+capability, could replace the binding and the authentication.
+
+Dropping the lease check has a cost the conclusion does not show. A holder
+that wakes after its lease, with no newer grant issued, still passes: the lease
+bounds how long others wait, not how long a holder may act. A rule that also
+bounds the holder needs the lease check as well. The proof also assumes that an
+acknowledged epoch increment survives; under \texttt{synchronous=NORMAL} a power
+loss can roll it back (I1b). The binding is only as strong as the identity
+check behind it (I12, \S\ref{sec:swk-identity}). The reference implementation
+discharges none of these hypotheses: fencing is designed, not built (I2b).
+\end{pdboundary}
 
 \input{figures/fig-swk-fencing-epoch}
 
@@ -796,8 +846,8 @@ Paterson's result does not apply). The fencing token itself is still borrowed, n
 shows how uniqueness rejects a second active row. It does not implement the
 stronger fenced-lease theorem by itself. Reclaiming an expired row, allocating
 its successor, and advancing the persistent epoch must form the serialized
-transition assumed there; every downstream effect must check the resulting
-lease and epoch. Two separate delete/insert statements can leave a gap on
+transition assumed there; every downstream effect must be checked against
+the resulting epoch and the agent it was issued to. Two separate delete/insert statements can leave a gap on
 failure even when one connection prevents another handler from interleaving.
 An explicit transaction addresses atomicity; preventing stale external
 effects still requires the downstream gate. Single ownership, atomic
@@ -2212,11 +2262,11 @@ Theorem~\ref{thm:exclusion}; I7--I9 carry the regimentation/detection correction
 \toprule
 \textbf{\#} & \textbf{Invariant (theorem)} & \textbf{Mechanism} & \textbf{Maturity} \\
 \midrule
-I1a & Process-crash durability & WAL + OS page cache & \Built \\
+I1a & Process-crash durability & reply only after commit, on SQLite's atomic commit & \Built \\
 I1b & Power-loss durability & (needs full synchronization) & \NotGuar \\
 I2 & Mutual exclusion (1 holder per conflict domain) & uniqueness constraint + busy-wait (exact keys); overlap check that warns (file regions) & \Built{} for exact keys; \BuiltWeak{} for file regions (overlap reported, both claims kept) \\
-I2b & Fencing of a stale holder at the effect gate & per-resource epoch checked by an effect broker & \Designed{} (no epoch is kept or checked) \\
-I3 & Idempotence of re-claim/re-release & upsert / delete-if-exists & \Built \\
+I2b & Fencing of a stale holder at the effect gate & per-resource epoch, bound to its holder, checked by the process that issues it & \Designed{} (no epoch is kept or checked) \\
+I3 & Idempotence of re-claim (live claims only) and re-release & upsert / delete-if-exists & \Built \\
 I4 & Liveness reclamation (TTL sweep) & lazy expiry on read + ticks & \Built \\
 I5 & Metric-control separation (Law 1) & daemon-derived deadline & \Built \\
 I6 & Oracle-bound closure (Law 2) & finite oracle vocabulary & \Built \\
@@ -2276,7 +2326,9 @@ output below is the evidence behind the state count and the shortest-crime table
 with every guard on, no reachable state violates an invariant; with any one guard
 off, the checker finds the violating run and prints it. The claim below labels
 its six invariants W1--W6, so that they cannot be read as the
-I1--I12 of Table~\ref{tab:invariants}.
+I1--I12 of Table~\ref{tab:invariants}. When the transcript says that all six
+hold, it has evaluated five predicates: W5 has none of its own and is reported
+together with W1.
 
 \begingroup
 \pdsessionwordwraptrue
@@ -2306,13 +2358,15 @@ W3, a verified completion has an acceptance policy and an admitted verifier rece
 
 W4, no delegated grant is more permissive than its immediate parent;
 
-W5, role reassignment invalidates stale epochs at the effect boundary;
+W5, role reassignment invalidates stale epochs at the effect boundary. W5
+follows from W1, because an effect that carries the current epoch carries no
+stale one, and the checker tests it with W1's predicate;
 
 W6, every settlement is funded by the owning principal and references a receipt.
 
 \textbf{Result.} On the two-principal instance (one work unit, one exclusive role with
 fencing epochs, a root grant with one delegation, one idempotency key, at most two effects),
-all 536 reachable states satisfy all six invariants; disabling any single guard yields a
+all 536 reachable states satisfy all six invariants, which five predicates check; disabling any single guard yields a
 violation, found automatically as a shortest counterexample trace, and restoring the guard
 restores safety [internal, \texttt{c0\_workunit.py}].
 \end{pdclaim}
@@ -2327,8 +2381,9 @@ harmless, which is Helland's case for idempotent processing~\pdcite{helland2012i
 
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker performs a breadth-first
-enumeration of the reachable states from the initial state, evaluates the six predicates in
-each, and stops at the first violation. The mutation suite then disables one guard at a
+enumeration of the reachable states from the initial state, evaluates five predicates in
+each, one for every invariant except W5, which W1's predicate covers, and stops at the
+first violation. The mutation suite then disables one guard at a
 time and reports the shortest violating trace it finds. A checker that has never caught a
 seeded bug is an unvalidated checker; the five traces below show that this one
 catches them.
@@ -2403,8 +2458,9 @@ Safety only: liveness
 (``the work eventually settles'') needs fairness assumptions this check does not make.
 
 And
-an invariant list is only as good as its coverage; the mutation suite shows that these six
-have teeth, each catching a seeded bug, and it does not show that the list is complete.
+an invariant list is only as good as its coverage; the mutation suite shows that the five
+predicates have teeth, each catching a seeded bug, and it does not show that the list is
+complete. No mutant targets W5 alone.
 
 The unbounded-parameter version, in TLA\textsuperscript{+}
 with Apalache, is planned and not done.
@@ -2456,8 +2512,10 @@ clock.
 \end{itemize}
 \end{definition}
 
-Listing~\ref{alg:acquire}'s stale-holder branch is a sweep of one key followed
-by an acquire. An expired lease that no sweep has reached still blocks an
+Listing~\ref{alg:acquire}'s expired-lease branch is a sweep of one key
+followed by an acquire. The specification keeps no epoch, so a holder's
+renewal and its new acquisition after expiry look the same in it; under
+fencing they differ (Theorem~\ref{thm:exclusion}). An expired lease that no sweep has reached still blocks an
 acquire and still answers a read, and the specification records that.
 Because $t$ is whatever the transaction
 read, a wall clock that steps (\S\ref{sec:adjacency}) changes how long a lease
@@ -2465,7 +2523,7 @@ lasts. It does not change whether a history meets the specification.
 
 \begin{theorem}[Conditional consistency model]\label{thm:consistency}
 \setlength{\parskip}{4pt plus 1pt}
-Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), the daemon runs each request's statements on its connection to completion before it starts the next request's, each successful response is sent only after commit, no out-of-band writer mutates the tables, and the observed execution is crash-free. Each claim/lock operation's state checks and mutation belong to one transaction, which reads the clock once and may begin with a sweep.
+Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), the daemon runs each request's statements on its connection to completion before it starts the next request's, each successful response is sent only after commit, no out-of-band writer mutates the tables, and the observed execution is crash-free. Each claim/lock operation's state checks and mutation belong to one transaction, which may begin with a sweep; that transaction reads the daemon's clock itself, once, after it begins, and judges every expiry it checks or sets by that reading.
 
 Then committed transactions have an equivalent serial order, and the externally observed
 claim/lock operations are linearizable with respect to the timed claims object of
@@ -2480,6 +2538,13 @@ undefined~\pdcite{sqliteisolation}. A daemon with one connection therefore
 gets isolation only by never interleaving two requests' statements on it. A
 synchronous driver on one thread provides that for any request whose
 statements run without yielding to other work in between.
+
+The clock read belongs inside the transaction for the same reason. A lease's
+expiry is part of the state the transaction checks, so the time must be the
+one at which the transaction acts. A time read when the request arrived would
+judge expiry at an earlier moment: a lease that expired while the request
+waited its turn would still deny it, and the result would not be the one the
+specification gives at the commit point.
 
 \begin{proof}[Proof sketch]
 \setlength{\parskip}{4pt plus 1pt}
@@ -2912,7 +2977,8 @@ what it explicitly does \emph{not} provide, so higher layers do not assume too m
 
 \subsection{What the storage layer provides to the coordination layer}
 \begin{itemize}[leftmargin=1.4em]
-  \item \textbf{Atomic, idempotent, time-to-live'd claims} (I2--I4): exclusive
+  \item \textbf{Atomic, idempotent, time-to-live'd claims} (I2--I4), where
+  re-claim is idempotent only while the claim is live: exclusive
   over ports and named locks, and advisory over file regions and symbols, where
   an overlap is reported and both claims are kept; the coordination layer's typed
   ownership reduces to claim and release.
@@ -2972,12 +3038,15 @@ The chapter's main results, in the order the rest of the book relies on them:
   assumptions; no agreement protocol is needed. Across a power loss the most WAL
   with \texttt{synchronous=NORMAL} can offer is buffered durable linearizability.
 \item Durability is split by fault class. Acknowledged commits survive a process
-  crash under the stated storage assumptions; a power loss can lose recent commits
-  under the default synchronous setting. The setting is the
-  durability claim.
+  crash under the stated storage assumptions, because the reply follows the
+  commit; a power loss can lose recent commits under the default synchronous
+  setting, and for that fault the setting decides the durability claim.
 \item A fenced lease adds an epoch to the ownership record. The stronger
-  theorem requires atomic conflict checks and allocation, plus an effect broker
-  checking the active lease and epoch. An exact-key claim alone does not supply
+  theorem requires atomic conflict checks and allocation, plus a gate, run by
+  the process that issues the epochs, that admits only the newest epoch and only
+  from the agent it was issued to; the gate need not check the lease. A claim
+  after expiry, even by the same holder, is a new acquisition with a new epoch.
+  An exact-key claim alone does not supply
   those extra guarantees, and fencing is designed, not built.
 \item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
   idempotency key the coordination layer has yet to supply; only protocol violations raise alarms.
@@ -3163,7 +3232,7 @@ The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key
 The Stigmergic Ticket-Lock gives bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a scheduler for claims, or argue that no reactive-only design can, and say what the minimum scheduler would be.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-op1-ticket}
-Add a durable FIFO ticket queue per conflict domain, a maximum lease $\ell$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No scheduler for claims is required for safety, but liveness requires some live caller or tick to trigger the transitions. Eventual requests alone give no finite wait bound. If leases cannot renew past $\ell$, a live trigger arrives within $d$ of each expiry, and each handoff completes within $h$, then a requester with $q$ predecessors waits at most $(q+1)(\ell+d+h)$, a conservative bound allowing a current holder as well. Without finite trigger and processing bounds, reactive safety can hold while waiting is unbounded. Every external effect must validate the fencing epoch, or an expired holder can still act.
+Add a durable FIFO ticket queue per conflict domain, a maximum lease $\ell$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No scheduler for claims is required for safety, but liveness requires some live caller or tick to trigger the transitions. Eventual requests alone give no finite wait bound. If leases cannot renew past $\ell$, a live trigger arrives within $d$ of each expiry, and each handoff completes within $h$, then a requester with $q$ predecessors waits at most $(q+1)(\ell+d+h)$, a conservative bound allowing a current holder as well. Without finite trigger and processing bounds, reactive safety can hold while waiting is unbounded. Every external effect must be checked against the newest fencing epoch and the agent it was issued to, or a holder whose lease passed to the next ticket can still act.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:comm}}{The communication subsystem: the bus, stigmergy, and two delegation chains}
@@ -3269,7 +3338,7 @@ One candidate: a contested work unit never settles (\texttt{settle} is guarded o
 List the routing, transaction, response, and failure assumptions of Theorem~\ref{thm:consistency}. Which one fails first if an out-of-band SQLite writer is introduced? Does the theorem require synchronized clocks?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-linearizability-assumptions}
-One daemon connection handles every claim and lock read and write; no two requests' statements interleave on it; checks and mutations share one transaction, which reads the clock once and may open with a sweep; respond only after commit; no out-of-band writer; a crash-free observed history. An external writer violates the single-writer and no-bypass conditions. A read-only connection needs its own API and snapshot analysis. Synchronized clocks are unnecessary: non-overlapping invocation/response intervals constrain the order, and the daemon's clock enters only as the time each transaction read.
+One daemon connection handles every claim and lock read and write; no two requests' statements interleave on it; checks and mutations share one transaction, which reads the clock itself, once, after it begins, and may open with a sweep; respond only after commit; no out-of-band writer; a crash-free observed history. An external writer violates the single-writer and no-bypass conditions. A read-only connection needs its own API and snapshot analysis. Synchronized clocks are unnecessary: non-overlapping invocation/response intervals constrain the order, and the daemon's clock enters only as the time each transaction read.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-linearization}
 Construct a three-operation claim history and give a valid linearization. If two calls overlap, show why more than one linearization may still respect real time.
@@ -3443,8 +3512,9 @@ A single local writer puts every write transaction in one commit order.
 Exclusion and consistency follow only with the disciplines
 Theorems~\ref{thm:exclusion} and~\ref{thm:consistency} assume, among them
 checking and mutating in one transaction and replying only after commit. Complete mediation holds only for
-writes that reach the daemon (\S\ref{sec:threatmodel}), and the durable audit
-log is a property of the write-ahead log. The contribution is that reduction,
+writes that reach the daemon (\S\ref{sec:threatmodel}), and the audit log
+survives a daemon crash because the reply waits for SQLite's commit, not
+because of the write-ahead log. The contribution is that reduction,
 with its conditions, and an exact account of where it stops working.}
 
 % ═════════════════════════════════════════════════════════════════════════════

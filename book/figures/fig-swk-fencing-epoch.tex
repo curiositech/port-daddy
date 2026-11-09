@@ -76,6 +76,6 @@
 4 & rejected & stale epoch 104; \texttt{412 Precondition Failed} \\
 \bottomrule
 \end{tabular}
-\caption{The epoch, not the lock, is the guard: the broker accepts the epoch-105 write and rejects the stale epoch-104 write. This is the design, graded designed (I2b): no broker checks an epoch yet. [internal, Theorem~\ref{thm:exclusion}]}
+\caption{The epoch, not the lock, is the guard: the broker accepts the epoch-105 write and rejects the stale epoch-104 write. Theorem~\ref{thm:exclusion} needs the broker to read the newest epoch from the kernel's record and to check who presents it; a broker that knew only the epochs presented to it would refuse 104 here only because 105 reached it first. This is the design, graded designed (I2b): no broker checks an epoch yet. [internal, Theorem~\ref{thm:exclusion}]}
 \label{fig:swk-fencing-epoch}
 \end{figure}
