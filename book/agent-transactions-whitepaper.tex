@@ -232,7 +232,7 @@ shared middleware file; B begins ninety seconds later in a sibling worktree.
 They integrate incompatible changes. Figure~\ref{fig:bonded-trust-collision}
 asks where the two independently reasonable plans collide. A recorded claim
 could expose the overlap before integration; only a mediated effect boundary
-could prevent an unauthorized write.
+could prevent a conflicting write.
 \input{figures/fig-bonded-trust-collision}
 
 A \textbf{commons authority} is the proposed persistent service that supplies
@@ -356,7 +356,7 @@ A commons authority $\mathcal{D}$ for a multi-agent system is a persistent servi
   \item \textbf{Identity}: Every agent receives a cryptographic identity before participating.
 \item \textbf{Capability bounding}: Every agent's operations are structurally limited by attenuable tokens.
 \item \textbf{Shared knowledge}: Resource claims, agent status, and conflict information are visible to all participants.
-  \item \textbf{Immutable history}: All actions are recorded in an append-only, tamper-evident trail.
+  \item \textbf{Append-only history}: All actions are recorded in an append-only, tamper-evident trail.
   \item \textbf{Economic settlement}: Work contracts are collateralized and settled against verifiable evidence.
 \end{enumerate}
 The commons authority is not a central planner. It does not decide which agent should work on which task, which file conflicts should be resolved in whose favor, or which agents are ``good.'' It provides the \emph{infrastructure} within which agents make those decisions for themselves, using the shared knowledge and economic incentives the authority maintains.
@@ -570,10 +570,10 @@ these admission and recovery paths.
 \input{figures/fig-bonded-regiment-boundary}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Layer 2: Immutable Attribution}\label{sec:attribution}
+\section{Layer 2: Append-Only Attribution}\label{sec:attribution}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Drake may hold permission to edit a test file and still violate Bob's
+Pike may hold permission to edit a test file and still violate Bob's
 acceptance rule by deleting the regression. Scope checks alone do not judge
 that permitted edit. The evidence layer must bind the actual diff, the test
 version and the responsible principal so that settlement can inspect them.
@@ -581,7 +581,7 @@ Its guarantee covers faithfully captured effects and retained records.
 
 \subsection{The Evidence Chain}
 
-Every agent session maintains an \textbf{append-only note trail}---a sequence of timestamped, immutable records of observations, decisions, and progress.
+Every agent session maintains an \textbf{append-only note trail}---a sequence of timestamped records of observations, decisions, and progress.
 
 \begin{definition}[Evidence Trail]\label{def:evidence}
 \Designed{} This retention contract excludes administrative deletion, which is discussed separately below.
@@ -598,12 +598,12 @@ An evidence trail $N = \langle n_1, n_2, \ldots, n_k \rangle$ is an ordered sequ
 \end{enumerate}
 \end{definition}
 
-\begin{pdclaim}{Theorem}{Trail Integrity}
+\begin{pdclaim}{Theorem}{Append-Only Trail}
 \setlength{\parskip}{4pt plus 1pt}
 \label{lem:integrity}
-The evidence trail is immutable by construction.
+The evidence trail is append-only by construction.
 
-No \texttt{UPDATE} or targeted \texttt{DELETE} operation exists in the system's API surface. Notes are destroyed only by explicit administrative deletion of the parent session (CASCADE), which is an auditable action distinct from normal transaction lifecycle operations.
+No \texttt{UPDATE} or targeted \texttt{DELETE} operation exists in the system's API surface. Notes are destroyed only by explicit administrative deletion of the whole parent session (CASCADE), which is a logged administrative act distinct from normal transaction lifecycle operations.
 \end{pdclaim}
 
 \begin{proof}
@@ -677,7 +677,7 @@ for $N$ session roots and logarithmic inclusion paths. Incremental accumulation
 can amortize append work. No measured latency for the complete forest is
 supplied here; the hash count does not justify a millisecond estimate.
 
-This is the structural meaning of ``decentralized verification'' in this chapter: bonded commons evidence is not just immutable within a daemon, it is verifiable \emph{across} daemons by any party with the daemon's public key and the authenticated checkpoint and the stated inclusion proof; the $736$-byte
+This is the structural meaning of ``decentralized verification'' in this chapter: bonded commons evidence is not just append-only within a daemon, it is verifiable \emph{across} daemons by any party with the daemon's public key and the authenticated checkpoint and the stated inclusion proof; the $736$-byte
 calculation excludes serialization and context metadata.
 
 \subsection{Mutable-Signal Ledger (Pheromone Lineage)}\label{sec:pheromones}
@@ -718,9 +718,9 @@ Revocation does not erase.
 The event ledger is monotone: the cardinality of the event set only grows.
 \end{pdclaim}
 
-\paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and revocations are therefore transparent to witnesses without erasing any prior state. The mutable surface is the \emph{view}; the underlying ledger is immutable.
+\paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and revocations are therefore transparent to witnesses without erasing any prior state. The mutable surface is the \emph{view}; the underlying ledger is append-only.
 
-This dual---mutable view, immutable substrate---is what lets coordination signals evolve without compromising the evidentiary guarantees the rest of the chapter depends on.
+This dual---mutable view, append-only substrate---is what lets coordination signals evolve without compromising the evidentiary guarantees the rest of the chapter depends on.
 
 \subsection{Attribution Survives Identity Disposal}\label{sec:attribution-survives}
 
@@ -787,6 +787,17 @@ Precautionary lock welfare loss $L(\rho)=1-(1-\rho)^2$ as file contention $\rho$
   \item \textbf{Over-claim} (request locks on every file they might touch) $\rightarrow$ destroys parallelism.
   \item \textbf{Under-claim} (request locks only on files they're certain about) $\rightarrow$ produces undetected conflicts, defeating the purpose.
 \end{enumerate}
+
+The margin curve shows how fast over-claiming costs a pair of agents. Let
+$\rho$ be the probability that one agent's precautionary locks cover a file
+the other agent turns out to need. Treat the two agents alike and
+independently, and assume, as in the locking instance above, that a blocking lock
+is not released before the deadline. Each agent escapes being blocked with
+probability $1-\rho$, both escape with probability $(1-\rho)^2$, and the team
+loses the outcome in which both tasks ship with probability
+$L(\rho)=1-(1-\rho)^2$. At $\rho=0.5$ that is $0.75$, the marked point; at
+$\rho=0.8$ it is $0.96$, the end of the curve. This is a constructed two-agent
+model, not a measured loss.
 
 The lesson has a boundary, and it is worth drawing rather than asserting. Advisory claims are not better than locks everywhere; they are better in a region, and the region has a boundary. Where an agent's file needs are knowable up front, an exclusive lock allocates exactly as an advisory claim would and adds determinism at no cost---in that regime the design choice of this section would simply be wrong. Where negotiating a release is prohibitively expensive, neither regime converges, which is the case the hard-lock fallback of \S\ref{sec:governance} exists to absorb. The advisory default is justified by where LLM coding agents actually sit, not by a universal claim.
 
@@ -876,7 +887,7 @@ The schema alone gives no liveness guarantee.
 \begin{pdclaim}{Design invariant}{Appeal Soundness}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:appeal-sound}
-The appeals path does not weaken the immutability of the evidence chain (\S\ref{sec:attribution}): no record is rewritten.
+The appeals path does not weaken the append-only property of the evidence chain (\S\ref{sec:attribution}): no record is rewritten.
 
 Reversal appends a counter-record signed by the daemon, with a Merkle-Forest proof of the original settlement's position and the appellant's evidence. The chain grows monotonically.
 \end{pdclaim}
@@ -940,7 +951,7 @@ abstract lifecycle excerpt; merely removing a queue entry need not delete data.}
 \midrule
 Agent crash & Bounded by retained state & Salvage offers recorded context;
 unrecorded reasoning or external effects may be lost. \\
-Agent defects & Moderate & Immutable history records it. Future delegations attenuate. Reputation degrades. \\
+Agent defects & Moderate & The append-only history records it. Future delegations attenuate. Reputation degrades. \\
 Only retained session deleted & Potentially irrecoverable & The abstract
 Dismiss action deletes its session record; an independent durable copy would
 change the recovery consequence. \\
@@ -2137,7 +2148,7 @@ establishing that sufficiency. Paxos~\pdcite{lamport1998part} remains the textbo
 What this chapter leaves coupled, in the order the rest of the book will lean on it:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
-\item \textbf{Three layers, each doing what the layer below cannot.} Structural prevention bounds scope before the act; immutable attribution makes every act answerable after it; economic alignment prices what neither can forbid.
+\item \textbf{Three layers, each doing what the layer below cannot.} Structural prevention bounds scope before the act; append-only attribution makes every act answerable after it; economic alignment prices what neither can forbid.
 \item \textbf{Structural scope limitation is a theorem}, not a policy: accepted operations stay within the root grant when every relevant effect
 passes through the verifier. Checks have a runtime cost; an unmediated write
 is outside that guarantee.
@@ -2382,12 +2393,12 @@ this architecture. The authority provides three layers of guarantee:
 
 \begin{enumerate}[nosep]
   \item \textbf{Structural prevention}: for any operation routed through the verifier, capability-attenuated tokens make scope escalation physically impossible (Theorem~\ref{thm:scope}) --- a guarantee that holds once the Anchor model's own assumptions and the runtime's interception coverage are granted, and no further.
-  \item \textbf{Immutable attribution}: a Merkle forest of evidence trails (\S\ref{sec:merkle-forest}) authenticates retained records across daemons. Attribution of an actual
+  \item \textbf{Append-only attribution}: a Merkle forest of evidence trails (\S\ref{sec:merkle-forest}) authenticates retained records across daemons. Attribution of an actual
 effect additionally requires complete capture and principal binding; it says nothing about disclosure to outsiders (\S\ref{sec:pricing:threats}) or about a same-user adversary on the daemon's own host (\S\ref{sec:federated-sovereign}).
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because different loss and participation profiles can make one price unsuitable. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
+Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the append-only record the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, using competitive insurance as a conditional pricing benchmark. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because different loss and participation profiles can make one price unsuitable. The proposed evidence-growth and replay protocol (\S\ref{sec:vibe}) specifies measurements for evaluating these designs; its utility remains to be tested.
 
 Advisory claims leave room for negotiation when agents know more about
 their needs than the allocator. Their benefit depends on the conflict and
