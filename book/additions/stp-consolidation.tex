@@ -31,8 +31,8 @@ change the policy; they are not filed as experience.
 parameters and trains on self-generated ``dreams''~\pdcite{behrouz2026sleep}.
 It changes the weights, so it is an engine change (a change to the model that
 does the work): Theorem~\ref{thm:engine-swap} and clause~(ii) of
-Property~\ref{thm:resurrection-soundness}, both proved in
-\S\ref{sec:body-behind-name}, apply, and an outcome earned before parametric
+Property~\ref{thm:resurrection-soundness}, both proved later in this chapter
+in the subsection on engine swaps and resurrection, apply, and an outcome earned before parametric
 sleep is evidence about a different engine.
 \end{enumerate}
 Only the first rewrites what a successor reads as its history, and the rest of
@@ -142,8 +142,8 @@ none of them, and none of them accepts a memory note as evidence. \textbf{P2}
 with an outside effect, such as sending a payment or pushing a commit, the
 guard decides yes or no from the request and the permissions recorded in the
 ledger, $\mathrm{Auth}(L)$, alone; what the memory $M$ says plays no part. The
-theorem also uses the principal binding, defined formally in
-\S\ref{sec:identity}.
+theorem also uses the principal binding, defined formally in the next
+section.
 
 \begin{pdclaim}{Theorem}{Consolidation Separation}
 \label{thm:stp-consolidation-separation}
@@ -193,7 +193,8 @@ deleted or rewritten in place; a later note and a tombstone supersede it, as in
 Prop.~\ref{prop:tombstone}. Texture may be compacted freely.
 \end{enumerate}
 This is a requirement on any consolidator allowed to write to the memory path;
-tombstones and Prop.~\ref{prop:tombstone} are stated in \S\ref{sec:revoke}.
+tombstones, and the property F4 cites, are defined in the section on revocation
+later in this chapter.
 F1 and F4 can be checked deterministically against
 $L$ because they compare pointers and structured fields, not prose; no check
 of free text is claimed, and none is needed, since free text never carries
