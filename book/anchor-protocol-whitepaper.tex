@@ -247,6 +247,8 @@ for example, Phase~2 separates signing from verification and still needs
 Phase~1's pinned algorithm. Table~\ref{tab:anchor-four-phases} in
 Appendix~\ref{app:anchor-mech} restates the figure one phase per row.
 One rule runs through every phase. Under capability attenuation, a card handed on to another agent never carries more authority than the card it came from. Each handing-on is a hop, one step from a parent card's holder to a child card's holder. A child's expiry is the earlier of its parent's expiry and the requested expiry, so a request for twenty minutes under a parent with ten minutes left produces a ten-minute card, and an already-signed child claiming the longer expiry must fail verification. Rights and expiry can narrow or stay the same; they never widen. Figure~\ref{fig:anchor-capability-attenuation} shows a valid child, a request shortened before signing, and a refused extra right.
+
+Every comparison of authority in this chapter uses one order. A card carries a grant: what its holder may do, and until when. Treat a grant $g$ as the set of pairs (request, time) it permits, so that $g$ permits a request at time $t$ when its rights cover the request and $t$ is no later than its expiry. One grant is no broader than another when it is a subset of it, $g \subseteq g'$. Set inclusion is reflexive, antisymmetric and transitive, so this is a partial order on grants, and transitivity is the property every argument about chains of more than one hop uses. For a grant that permits anything at all, $g \subseteq g'$ holds exactly when $g'$'s rights cover every request $g$'s rights cover and $g$ expires no later than $g'$. A grant that permits nothing is below every other, whatever its expiry. What a right covers depends on how it is written. A plain name such as \texttt{db:write} covers requests for that name only, so for plain names the rights condition is inclusion of the sets of names. A channel grant, used in the example after Figure~\ref{fig:anchor-handshake-ladder}, names an operation and a channel pattern, and may carry a rate or payload ceiling that narrows it further. Each check in this chapter tests the order for one way of writing rights, and none tests all of it: the ProVerif models compare rights with at most two values, the bounded checks of the Rust code in \S\ref{sec:implementation} compare plain names or channel grants on finite domains, and no model or bounded check compares expiries.
 \pdmarginanalogy{anchor-reduced-key}{A smaller set of permissions}{reduced-key}{Removing teeth suggests removing authority. A capability must also bind that restriction cryptographically.}
 \begin{pdexample}{A Child Card under a Parent with Ten Minutes Left}
 \setlength{\parskip}{4pt plus 1pt}
@@ -364,7 +366,7 @@ Agent A takes its existing Harbor Card, appends a narrower set of rights (for ex
 
 The harbor checks the daemon's root signature under \texttt{pk\_daemon} and Agent A's delegation signature under \texttt{pk\_A}, and checks that Agent B's rights are a subset of Agent A's.
 
-The deployed verifier must run the subset check at every hop of a chain; that is a requirement on the code, not something a model proves. The models in \S\ref{sec:attn-soundness}, written for ProVerif, a tool that checks a protocol's messages against an attacker who controls the network, prove a narrower fact. At a single hop the check is necessary (remove it and an escalating card is accepted) and sufficient (keep it and none is). Safety for longer chains follows from running the check at every hop, because subset is transitive: if $C \subseteq B$ and $B \subseteq A$, then $C \subseteq A$. The invariant as stated above covers one hop only.
+The deployed verifier must run the subset check at every hop of a chain; that is a requirement on the code, not something a model proves. The models in \S\ref{sec:attn-soundness}, written for ProVerif, a tool that checks a protocol's messages against an attacker who controls the network, prove a narrower fact. At a single hop the check is necessary (remove it and an escalating card is accepted) and sufficient (keep it and none is). Safety for longer chains follows from running the check at every hop, because the order of \S\ref{sec:architecture}, inclusion of grants, is transitive: if $C \subseteq B$ and $B \subseteq A$, then $C \subseteq A$. The invariant as stated above covers one hop only.
 \end{pdclaim}
 
 Figure~\ref{fig:anchor-handshake-ladder} shows that exchange in time order: who signs what, in what order, which key checks each signature, and that the daemon is not contacted after the first message. That is what \emph{offline} means here.
@@ -900,7 +902,7 @@ Algorithm~\ref{alg:delegation} presents the authorization chain verification, in
 
 \begin{lstlisting}[caption={Algorithm 3: Authorization Chain Verification},label={alg:delegation}]
 Require: Daemon Public Key: pk_daemon
-Require: Subset Relation: subseteq on capabilities
+Require: Order: subseteq, inclusion of grants
 
 function Agent.Delegate(token_parent, sk_parent, agent_child, cap_sub):
     (msg_parent, sigma_parent) <- token_parent
@@ -1885,7 +1887,10 @@ in which an insider can actually attempt the forbidden delegation.
 \texttt{harbor\_card\_v5\_attenuation.pv} fixes this by enriching the model,
 not by weakening the claim. It gives capabilities a real partial order
 ($\texttt{cap\_read} \sqsubset \texttt{cap\_write}$, both public so the
-attacker can construct either), replaces the reflexive stub with the sound order
+attacker can construct either). The two values stand for the rights sets
+$\{r\}$ and $\{r,w\}$ of \S\ref{sec:delegation}, so this is the rights part of
+the order of \S\ref{sec:architecture} on two values, with no expiry. The
+model replaces the reflexive stub with the sound order
 (\texttt{is\_subset(cap\_read, cap\_write)} derivable; \texttt{is\_subset(cap\_write,
 cap\_read)} \emph{not}), and adds an \emph{insider escalation adversary}: an agent
 holding a valid \texttt{cap\_read} root token that signs an over-broad
@@ -2118,7 +2123,7 @@ The ideas the rest of the book relies on, in order:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item A \textbf{harbor card} is a short-lived signed statement of exactly what one agent may do; the daemon checks the card, not the process, and a process with no card can do nothing the harbor mediates.
-\item \textbf{Attenuation never widens}: a child card is a subset of its parent in scope and in lifetime, at every hop. The symbolic capability-order models check the stated rights constraint; they do not by themselves prove every runtime lifetime or task-binding check.
+\item \textbf{Attenuation never widens}: at every hop a child card's grant is a subset of its parent's, $\mathrm{cap}_i \subseteq \mathrm{cap}_{i-1}$, in rights and in lifetime. The symbolic capability-order models check the stated rights constraint; they do not by themselves prove every runtime lifetime or task-binding check.
 \item \textbf{Algorithmic pinning}: the verifier chooses the signature algorithm from policy, never from the token's header. The same bytes that a header-selected verifier accepts, a policy-pinned verifier refuses.
 \item \textbf{Revocation needs current local knowledge}: a verifier rejects a revoked card once its authoritative state includes the revocation. The expected gossip time is an average, not a deadline, and a partition that can last indefinitely rules out any finite guarantee that every daemon has heard.
 \item \textbf{Filters do not merge; logs do.} Two daemons cannot union their cuckoo filters, so the append-only revocation log is the shared object and each daemon rebuilds its own filter from it.
