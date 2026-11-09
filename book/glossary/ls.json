@@ -47,7 +47,7 @@
  {
   "term": "consent grant",
   "sort": "consent grant",
-  "definition": "An explicit, scoped, time-limited and revocable authorization the operator gives the daemon, recording scope, stakes ceiling, reversibility floor and expiry."
+  "definition": "An explicit, scoped, time-limited and revocable authorization the operator gives the daemon, recording scope, stakes ceiling, minimum reversibility and expiry."
  },
  {
   "term": "level of automation",
