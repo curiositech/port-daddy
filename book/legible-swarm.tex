@@ -1226,25 +1226,35 @@ gate that refuses to run against the wrong target.
 A monitor that \emph{subscribes to
 the log of actions already taken} is something weaker and must be named formally:
 \mbox{\textbf{detect-and-compensate}}. It observes a violation \emph{after} the fact and
-can halt or repair within a bounded window only if observation delay, response authority, and repair completion have explicit bounds. By the reference-monitor result below,
-such a downstream monitor cannot prevent the violation it has already observed.
-It can still mediate later actions; that is a separate enforcement boundary.
+can halt or repair within a bounded window only if observation delay, response authority, and repair completion have explicit bounds. Such a downstream monitor
+cannot prevent a violation it has already observed, because the violating act is
+already in the record. It can still mediate later actions; that is a separate enforcement boundary.
 
 The phrase ``physically
 unreachable'' is therefore reserved for the constraint-enforced set and used nowhere else.
 
 This is an invariant on the chapter's \emph{vocabulary} and on which name each
-mechanism class may carry; the teeth behind the classification are Schneider's theorem, cited
-in the paragraph that follows, and are his rather than ours.
+mechanism class may carry. The result it leans on, which says what an inline
+monitor can prevent at all, is Schneider's, cited in the paragraph that follows,
+and is his rather than ours.
 \end{pdclaim}
 
 \textbf{Fred B.\ Schneider} (\emph{Enforceable Security Policies},
-2000~\pdcite{schneider2000}: \emph{an execution monitor that observes a system can
-enforce exactly the safety properties; a monitor placed downstream of the act it
-would forbid can detect a violation but cannot prevent it}) is decisive: a monitor
-downstream of a forbidden commit cannot make that committed violation
-unhappen. Detection and compensation need their own stated response-time
-assumptions. A post-commit anomaly detector, however useful, is
+2000~\pdcite{schneider2000}: \emph{an execution monitor sees each step of a run
+before it takes effect and may halt the run; every policy such a monitor can
+enforce is a safety property}) proved the result this invariant needs. A safety
+property says that some bad thing never happens, so any violation shows up in a
+finite prefix of the run, and an inline monitor enforces it by halting before the
+bad step executes. A liveness property, such as ``every repair eventually
+completes'', has no such prefix, and no execution monitor can enforce it. The
+converse fails: not every safety property can be enforced by a monitor.
+\textbf{Hamlen, Morrisett and Schneider} (\emph{Computability Classes for
+Enforcement Mechanisms}, 2006~\pdcite{hamlen2006}) showed that Schneider's
+original conditions give only an upper bound on what execution monitors enforce,
+and characterized the smaller class they actually do. Neither theorem concerns a
+monitor placed after a commit. That such a monitor cannot undo the committed
+violation follows from the definitions. Detection and compensation need their
+own stated response-time assumptions. A post-commit anomaly detector, however useful, is
 therefore detect-and-compensate, not prevention. Honesty about this distinction is
 essential: a system that advertises detection as prevention has lied about its own
 safety envelope, which is the very failure (the confident-wrong report) this chapter is
@@ -4247,6 +4257,11 @@ Friedrich A.\ Hayek.
 Fred B.\ Schneider.
 \newblock Enforceable Security Policies.
 \newblock \textit{ACM Transactions on Information and System Security}, 3(1):30--50, 2000.
+
+\bibitem{hamlen2006}
+Kevin W.\ Hamlen, Greg Morrisett, and Fred B.\ Schneider.
+\newblock Computability Classes for Enforcement Mechanisms.
+\newblock \textit{ACM Transactions on Programming Languages and Systems}, 28(1):175--205, 2006.
 
 \bibitem{turpin2023}
 Miles Turpin, Julian Michael, Ethan Perez, and Samuel R.\ Bowman.
