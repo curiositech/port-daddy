@@ -29,7 +29,8 @@
 
 The book argues for more than the product does today. This appendix says, for
 each mechanism, which parts run now and which exist only as a design or a
-proof, so that neither is read as the other. A mechanism gets the grade of its
+proof, so that neither is read as the other or borrows its authority. A
+mechanism gets the grade of its
 weakest necessary part. A verified library does not make every program that
 calls it safe, and offering a checked route does not show that every effect
 takes it.
@@ -54,7 +55,8 @@ repeats them for reference.
   only for a runtime whose identity it can verify.
 \end{description}
 
-The modes are not stages of maturity. They are not evenly spaced, and they do
+The modes are not stages of maturity climbed like a staircase. They are not
+evenly spaced, and they do
 not even form one order, because Brokered and Confined stop different
 attackers. Each mode names what an attacker would have to defeat to make a
 claim about the mechanism false. At Observed that is nothing; at Coordinated,
@@ -209,9 +211,9 @@ scope or extends its lifetime. The cryptographic models prove this narrowing
 property as stated. What remains is engineering work, making every protected
 channel use the check.
 
-\paragraph{3. The room confines the code inside it, whatever that code intends (R9, R10, R11) --- \pdchapref{sealed}{The Sealed Harbor}.}
-Two owners who distrust each other compute one answer inside two layers of
-isolation, with one output slot whose releases are counted. Noninterference
+\paragraph{3. The room confines its tenant, the code inside it, whatever that code intends (R9, R10, R11) --- \pdchapref{sealed}{The Sealed Harbor}.}
+Two owners who distrust each other compute one answer inside two fences, two
+layers of isolation, with one metered output slot that counts every release. Noninterference
 modulo declassification holds on the finite model of the room. The release
 ledger conserves its $\varepsilon$ leakage budget and refuses a half-finished
 (torn) write. Planted canary records detect exfiltration with a stated detection
@@ -230,13 +232,13 @@ zoom and context paging say when attention can be spent later instead of being
 summarized away now. These bounds hold under their stated event and flag
 models; they do not certify an arbitrary dashboard.
 
-\paragraph{5. An agent's record follows its owner, not its process (R7, R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
+\paragraph{5. An agent's record follows its owner and outlives its process (R7, R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
 Reputation is worth something because checking an agent's history once
 replaces re-checking every job it does. Under the no-mint rule a replacement
 inherits no more than its predecessor had, so swapping an agent's skills or
 identity cannot create new permissions. Because budgets and exposure are tracked on the responsible
 principal's case file rather than on the process name, an owner cannot shed
-debts or a bad record by restarting the agent under a new name. This depends
+debts or launder a bad record by restarting the agent under a new name. This depends
 on the rules for registering principals and tracking exposure: a valid key
 alone does not stop its holder from walking away from liabilities under a new
 key.
@@ -262,13 +264,13 @@ incentive-compatible when the discount factor, how much players weigh future
 rounds, is above the mechanized threshold $\delta^{*}$. If the other player
 signals truthfully and punishes a lie for three rounds, signaling truthfully
 is each player's best response (a Nash equilibrium).
-Audit sampling and canaries use the detection-power curve of the sealed room's
-detector. Any claimed benefit of
+Audit sampling and canaries borrow the detection-power curve of the sealed
+room's detector. Any claimed benefit of
 randomized adjudication depends on how judges are selected, how independent
 they are and how their rulings are enforced. Evidence can justify a remedy
 without being proof.
 
-\paragraph{8. Federation carries evidence; each harbor keeps its own authority (R6, R6-CR,
+\paragraph{8. Federation relays evidence; each harbor keeps its sovereign authority (R6, R6-CR,
 RELAY-V0) --- \pdchapref{fh}{The Federated Harbor}.}
 When harbors sign summaries (roots) of their logs and compare them along more
 than one path, a harbor that tells different peers different things can be
@@ -282,8 +284,8 @@ and local authorization still need their own mechanisms.
 In this volume a claim is incomplete unless it states five things: what it is
 about, the assumptions under which it holds, the kind of evidence offered, a
 limit or a test that could refute it, and the artifact a reader can use to
-recompute or inspect it. The machine-readable manifest records those five
-things for every result. A new mechanism enters the book only once it can name
+recompute or inspect it. The machine-readable manifest is the publication
+ledger for that discipline, recording those five things for every result. A new mechanism enters the book only once it can name
 the result it implements and the obligation it leaves open.
 
 \section{Notation and cross-chapter concordance}\label{app:concordance}
