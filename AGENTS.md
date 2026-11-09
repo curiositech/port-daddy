@@ -47,6 +47,10 @@ assembled by the generator, use `\pdmarginpagebreak` at a paragraph boundary:
 chapter transformation strips literal `\clearpage` but preserves this macro.
 Page-turn word checks must include
 protocol and solution text below 10 pt, including literal compound-word hyphens.
+A correction that changes printed text gets a row in `book/corrections.yaml`;
+`run_pdf_checks.py` fails while its `before` still prints or its `after` does
+not (`check_corrections.py --baseline-pdf` flags rows that check nothing).
+Cross-chapter pointers use `\weld{label}{keyword}`, which the generator lints.
 
 Build Book source receipts (`scripts/build-book-source.py build`) only with a
 Python linked against stock zlib, such as uv's managed CPython:
