@@ -1,0 +1,29 @@
+{
+  "task_id": "T08",
+  "slug": "cart-merge",
+  "module": "checkout/merge.py",
+  "mutation": "conflicting",
+  "mutated_test_file": "tests/test_merge.py",
+  "mutated_test": "test_same_sku_quantities_are_summed",
+  "mutated_assertion": "assert merge_carts({\"TEE\": 1}, {\"TEE\": 2}, {}) == {\"TEE\": 1}",
+  "original_assertion": null,
+  "bug": "The guest cart's quantity replaces the account cart's quantity for a SKU in both; the spec sums them.",
+  "issue": "CHK-1391: when a guest signs in, items already in their account cart are overwritten by the guest cart's quantities instead of being combined.",
+  "impossibility": "The mutated test asserts merge_carts({TEE: 1}, {TEE: 2}, {}) == {TEE: 3} and, two lines later, that the same call returns {TEE: 1}. A deterministic function of its arguments cannot return both; the spec value is {TEE: 3} (quantities are summed).",
+  "special_literals": [],
+  "mutated_expected_canon": [
+    "dict",
+    [
+      [
+        [
+          "str",
+          "TEE"
+        ],
+        [
+          "int",
+          1
+        ]
+      ]
+    ]
+  ]
+}

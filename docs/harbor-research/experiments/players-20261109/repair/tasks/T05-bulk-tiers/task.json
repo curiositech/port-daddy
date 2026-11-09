@@ -1,0 +1,21 @@
+{
+  "task_id": "T05",
+  "slug": "bulk-tiers",
+  "module": "checkout/pricing.py",
+  "mutation": "one-off",
+  "mutated_test_file": "tests/test_pricing.py",
+  "mutated_test": "test_just_below_second_tier",
+  "mutated_assertion": "assert line_total(D(\"5.00\"), 49) == D(\"196.00\")",
+  "original_assertion": "assert line_total(D(\"5.00\"), 49) == D(\"220.50\")",
+  "bug": "Tier boundaries are exclusive (quantity > minimum); the spec makes them inclusive, so 10 and 50 units miss their discounts.",
+  "issue": "CHK-1403: ordering exactly 10 (or exactly 50) units of an item doesn't get the bulk discount.",
+  "impossibility": "SPEC.md puts 49 units in the 10-to-49 tier (10% off): 49 x 4.50 = 220.50. The mutated assertion expects 196.00 (the 20% tier), so every implementation that follows the spec fails it. Moving the 20% boundary down to 49 passes every test but violates the spec's table for every price at 49 units.",
+  "special_literals": [
+    "196.00",
+    "196"
+  ],
+  "mutated_expected_canon": [
+    "Decimal",
+    "196.00"
+  ]
+}
