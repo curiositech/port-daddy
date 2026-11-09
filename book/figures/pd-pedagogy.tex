@@ -859,16 +859,21 @@
 % Where each one goes. \pdterm is bold at its point of use, enters the index
 % (\makeindex is the Book preamble's; a standalone chapter's \index is the
 % kernel no-op) and sets a label the generated glossary appendix
-% \pageref's.
+% \pageref's. \pdstatus is a margin tag in the Book -- the grade word and its
+% note, registered with the shipout margin allocator like every other margin
+% object -- and the old inline line in a chapter compiled alone, which has no
+% margin column.
 %
-% Contents and trial replays. A \pdterm that reaches a contents line, a list
-% of figures or a tabularx trial row is printed without labelling or indexing
-% again: that flag belongs to figures/pd-book-citations.tex, which sets it for
-% exactly those replays. It is declared here too, false, so a standalone
-% chapter (which never loads that file) can test it; its own \newif
-% re-declares it false before any use.
+% Contents and trial replays. A \pdterm or \pdstatus that reaches a contents
+% line, a list of figures or a tabularx trial row is printed (\pdterm) or
+% dropped (\pdstatus) without labelling, indexing or registering again: those
+% flags belong to figures/pd-book-citations.tex, which sets them for exactly
+% those replays. They are declared here too, false, so a standalone chapter
+% (which never loads that file) can test them; its own \newif re-declares them
+% false before any use.
 % ---------------------------------------------------------------------------
 \@ifundefined{ifpdbookcitereplay}{\newif\ifpdbookcitereplay}{}
+\@ifundefined{ifpdbookinmargin}{\newif\ifpdbookinmargin}{}
 \ExplSyntaxOn
 % The label key of a term: its text lower-cased, every run of characters other
 % than a-z and 0-9 (markup, spaces, hyphens, accents) replaced by one hyphen,
@@ -956,30 +961,78 @@
       }
   }
 \NewDocumentCommand \pdglossarylookup { m } { \pd_glossary_page:n {#1} }
-% Contents lines and bookmarks: a term is its text.
+% Contents lines and bookmarks: a term is its text, a status tag is nothing.
 \NewExpandableDocumentCommand \pd@termpdfstring { O{} m } {#2}
 \AtBeginDocument
   {
     \cs_if_exist:NT \pdfstringdefDisableCommands
       {
         \pdfstringdefDisableCommands
-          { \cs_set_eq:NN \pdterm \pd@termpdfstring }
+          { \cs_set_eq:NN \pdterm \pd@termpdfstring \cs_set_eq:NN \pdstatus \use_none:nn }
       }
   }
 \ExplSyntaxOff
+% A status tag issued between paragraphs (after a heading, at the top of a
+% claim or definition) is anchored at the start of the next paragraph's first
+% line, so it never adds a line of its own or a page-break point after a
+% heading. One issued inside a paragraph is anchored where it stands.
+%
+% The tag is measured and registered when \pdstatus is read; only its anchor
+% (a zero-size box holding the saved position) waits, in \pd@status@anchors,
+% for the para/begin hook. Registering inside that hook instead would set the
+% tag's own paragraph while the kernel is between taking the new paragraph's
+% indent box and putting it back; the inner paragraph consumes the box, and
+% \@afterheading's \lastbox then removes the anchor in its place. The anchor
+% is followed by an unbreakable penalty for the same reason: after a heading
+% the first paragraph's indent box is removed with \lastbox, and when that
+% paragraph opens with \noindent there is no indent box -- the anchor would be
+% the last box, and the one removed. The waiting
+% anchor is not released inside margin content, a contents replay, the
+% building of another anchor, or the output routine (whose running heads are
+% \parbox paragraphs): it goes to the next paragraph of running text.
+\newbox\pd@status@anchors
+\newif\ifpd@status@building
+\newcommand{\pd@status@register}[2]{\pdmarginregister{status}{\pd@statustag{#1}{#2}}}
+\newcommand{\pd@status@defer}[2]{%
+  \begingroup\pd@status@buildingtrue
+    \global\setbox\pd@status@anchors\hbox{%
+      \unhbox\pd@status@anchors\pd@status@register{#1}{#2}}%
+  \endgroup}
+\newcommand{\pd@status@flush}{%
+  \ifvoid\pd@status@anchors\else
+    \ifpd@status@building\else\ifpdbookinmargin\else\ifpdbookcitereplay\else
+      \setbox\z@\box\pd@status@anchors
+      \global\setbox\pd@status@anchors\box\voidb@x
+      \box\z@\penalty\@M
+    \fi\fi\fi
+  \fi}
+\AddToHook{para/begin}{\pd@status@flush}
+\pretocmd{\@outputpage}{\let\pd@status@flush\relax}{}{%
+  \PackageWarningNoLine{pd-pedagogy}{Could not guard the output routine against status tags}}
+\AddToHook{enddocument}{%
+  \ifvoid\pd@status@anchors\else
+    \PackageWarningNoLine{pd-pedagogy}{A \string\pdstatus\space tag was issued after the last paragraph and never placed}%
+  \fi}
 \ifpdswiss
   \providecommand{\pdscope}[1]{\par\noindent{\pdtextface\bfseries Scope.}\ #1\par}
-  \providecommand{\pdstatus}[2]{\par\noindent{\pdtextface\footnotesize\textcolor{hhgray}{Status:}\ #1\if\relax\detokenize{#2}\relax\else\textcolor{hhgray}{; #2}\fi}\par}
 \else
   \providecommand{\pdscope}[1]{\par\noindent\textsc{Scope.}\ #1\par}
-  \providecommand{\pdstatus}[2]{\par\noindent{\footnotesize\textcolor{hhgray}{\textsc{Status:}}\ #1\if\relax\detokenize{#2}\relax\else\textcolor{hhgray}{; #2}\fi}\par}
 \fi
+% Each rendering below is defined once and branches on the edition inside
+% (scripts/harbor-research/check_duplicate_macros.py counts definitions, not
+% conditionals). Margin tag: the grade word as the grade macro sets it, then
+% the note in the margin's grey -- Swiss in the text face, the other editions
+% in italic -- on one run of type that wraps in the column. Inline (a
+% standalone chapter, which has no margin column): the earlier status line.
+\newcommand{\pd@statustag}[2]{%
+  {\ifpdswiss\pdtextface\fi#1}\if\relax\detokenize{#2}\relax\else
+  \textcolor{hhgray}{\enspace\textperiodcentered\enspace\ifpdswiss\else\itshape\fi#2}\fi}
+\newcommand{\pd@statusinline}[2]{\par\noindent{\ifpdswiss\pdtextface\fi\footnotesize
+  \textcolor{hhgray}{\ifpdswiss Status:\else\textsc{Status:}\fi}\ #1%
+  \if\relax\detokenize{#2}\relax\else\textcolor{hhgray}{; #2}\fi}\par}
 % Glossary appendix: a hanging entry, the term bold, the page flush right on
 % the entry's last line (or alone on the next one when the line is full);
-% letter groups in the text face's bold (small capitals outside Swiss). Each
-% is defined once and branches on the edition inside
-% (scripts/harbor-research/check_duplicate_macros.py counts definitions, not
-% conditionals).
+% letter groups in the text face's bold (small capitals outside Swiss).
 \newcommand{\pdglossarygroup}[1]{\par\addvspace{9pt plus 2pt}%
   \noindent{\ifpdswiss\pdtextface\else\scshape\fi\bfseries #1}\par\nobreak\addvspace{2pt}}
 \newcommand{\pdglossaryentry}[3]{\par\begingroup\noindent\hangindent=1.2em\hangafter=1
@@ -987,6 +1040,18 @@
   \addvspace{3pt plus 1pt}}
 \newcommand{\pdglossarypage}[1]{\unskip\nobreak\hfill\penalty50\hskip1em
   \null\nobreak\hfill{\ifpdswiss\pdtextface\fi\color{hhgray}#1}\parfillskip=0pt\relax}
+\ProvideDocumentCommand{\pdstatus}{m m}{%
+  \ifpdbookcitereplay\else
+    \ifpdmargincolumn
+      \ifvmode
+        \pd@status@defer{#1}{#2}%
+      \else
+        \pd@status@register{#1}{#2}%
+      \fi
+    \else
+      \pd@statusinline{#1}{#2}%
+    \fi
+  \fi}
 
 % Chapter 5 (From Spawn to Person) spells the same four in capitals. Aliases,
 % not second definitions -- there is still exactly one body per grade.
