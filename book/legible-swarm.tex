@@ -2088,13 +2088,23 @@ flagger already meets the miss budget on its own and the true rate is exactly $0
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-$I(X;\hat X)$ is convex in $P_{\hat X\mid X}$ and decreases along the feasible ray
-toward the independent coupling, where it is $0$. An independent flagger
+Parametrize the joint by its miss mass $q_{10}$ and its false-flag mass
+$q_{01}$; the source margin fixes $q_{11}=p-q_{10}$ and $q_{00}=1-p-q_{01}$.
+The partial derivatives of $I(X;\hat X)$ are log-likelihood ratios,
+\[
+\frac{\partial I}{\partial q_{10}}=\log_2\frac{\Pr(X{=}1\mid\hat X{=}0)}{\Pr(X{=}1\mid\hat X{=}1)},
+\qquad
+\frac{\partial I}{\partial q_{01}}=\log_2\frac{\Pr(X{=}0\mid\hat X{=}1)}{\Pr(X{=}0\mid\hat X{=}0)},
+\]
+and both are negative wherever the flag is positively informative, that is,
+wherever $q_{11}q_{00}>q_{10}q_{01}$. An independent flagger
 $\hat X\sim\mathrm{Bern}(\phi)$ has miss mass $p(1-\phi)$, so it meets the miss
-constraint only when $\phi\ge 1-\delta/p$; when $f<1-\delta/p$ that coupling lies
-outside the flag budget, so the minimum sits on the boundary where any remaining
-slack in either constraint could otherwise be used to move further along the ray,
-and both constraints bind.
+constraint only when $\phi\ge 1-\delta/p$; when $f<1-\delta/p$ the feasible set
+contains no independent coupling. The feasible set is convex, so it then cannot
+hold couplings of both signs, and at the corner $(q_{10},q_{01})=(\delta,f-p+\delta)$
+the difference $q_{11}q_{00}-q_{10}q_{01}$ equals $p(1-f)-\delta>0$. Every
+feasible coupling is therefore positively informative, $I$ falls as either mass
+grows, and at the minimum both constraints bind.
 Binding constraints fix $q_{10}=\delta$ and
 $q_{11}+q_{01}=f$; with the source margin $q_{10}+q_{11}=p$ this pins all four
 cells.
