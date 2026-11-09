@@ -343,7 +343,7 @@ Phase~2 signs cards with Ed25519 (EdDSA)~\pdcite{bernstein2012high,josefsson2017
 \label{def:anchor-key-hierarchy}
 The daemon is the root certificate authority, the party whose key every other key's authority traces back to. Each harbor has its own Ed25519 key pair. In Phase~2 the daemon signs Harbor Cards with the harbor's private key \texttt{sk\_harbor}, which reaches it over a private channel; agents check a peer's card with the matching public key \texttt{pk\_harbor}, which Port Daddy's discovery service publishes.
 
-Phase~3's delegation uses a different root, the daemon's \emph{own} signing key \texttt{sk\_daemon}. Every verifier checks \texttt{chain[0]}, the first card of an authorization chain, under \texttt{pk\_daemon}. Algorithm~\ref{alg:delegation} requires this, and the models \texttt{analyses/harbor\_card\_v3}, \texttt{v5}, \texttt{v6} and \texttt{v7} assume it. The chain walker in \texttt{lib/delegation-chain.ts} checks the first hop under the principal key its caller supplies; \texttt{core/harbor-card-rs} has no chain verifier.
+Phase~3's delegation uses a different root, the daemon's \emph{own} signing key \texttt{sk\_daemon}. Every verifier checks \texttt{chain[0]}, the first card of an authorization chain, under \texttt{pk\_daemon}, and each later card under the public key that its parent card names for the card's signer. Algorithm~\ref{alg:delegation} requires this. The models \texttt{analyses/harbor\_card\_v3}, \texttt{v5}, \texttt{v6} and \texttt{v7} check the root under the daemon's key and each delegation under its signer's key, which they are given rather than read from the parent card. The chain walker in \texttt{lib/delegation-chain.ts} checks the first hop under the principal key its caller supplies; \texttt{core/harbor-card-rs} has no chain verifier.
 
 The per-harbor key pair belongs to Phase~2 only; no authorization chain starts from it.
 
@@ -360,16 +360,43 @@ Delegation can pass authority through more than one agent, one hop at a time. Wh
 \begin{pdclaim}{Design invariant}{Offline Attenuation}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:offline-attn}
-Agent A takes its existing Harbor Card, appends a narrower set of rights (for example \texttt{["db:read"]}, cut down from \texttt{["db:read", "db:write"]}), and signs the \textit{entire chain} with its own short-lived private key. Each signature also covers a \pdterm{nonce}, a fresh random value that ties the signature to this one delegation. A nonce does not by itself stop replay: the same signed message can still be copied unless the verifier also rejects repeats.
+Agent A takes its existing Harbor Card, appends a narrower set of rights (for example \texttt{["db:read"]}, cut down from \texttt{["db:read", "db:write"]}) together with Agent B's name and public key, and signs the \textit{entire chain} with its own private key, the one whose public half \texttt{pk\_A} its root card names. Each signature also covers a \pdterm{nonce}, a fresh random value that ties the signature to this one delegation. A nonce does not by itself stop replay: the same signed message can still be copied unless the verifier also rejects repeats.
 
-The harbor checks the daemon's root signature and Agent A's delegation signature, and checks that Agent B's rights are a subset of Agent A's.
+The harbor checks the daemon's root signature under \texttt{pk\_daemon} and Agent A's delegation signature under \texttt{pk\_A}, and checks that Agent B's rights are a subset of Agent A's.
 
 The deployed verifier must run the subset check at every hop of a chain; that is a requirement on the code, not something a model proves. The models in \S\ref{sec:attn-soundness}, written for ProVerif, a tool that checks a protocol's messages against an attacker who controls the network, prove a narrower fact. At a single hop the check is necessary (remove it and an escalating card is accepted) and sufficient (keep it and none is). Safety for longer chains follows from running the check at every hop, because subset is transitive: if $C \subseteq B$ and $B \subseteq A$, then $C \subseteq A$. The invariant as stated above covers one hop only.
 \end{pdclaim}
 
-Figure~\ref{fig:anchor-handshake-ladder} shows that exchange in time order: who signs what, in what order, and that the daemon is not contacted after the first message. That is what \emph{offline} means here.
+Figure~\ref{fig:anchor-handshake-ladder} shows that exchange in time order: who signs what, in what order, which key checks each signature, and that the daemon is not contacted after the first message. That is what \emph{offline} means here.
 
 \input{figures/fig-anchor-handshake-ladder}
+
+\begin{pdexample}{Two Hops, Each Checked under Its Signer's Key}
+\setlength{\parskip}{4pt plus 1pt}
+Add one more hop, and use the grants Port Daddy's message channels carry. A
+channel grant names an operation, \texttt{pub} (publish), \texttt{sub}
+(subscribe) or \texttt{admin} (any operation), and a channel pattern, where
+\texttt{a*} means every channel whose name begins with \texttt{a}.
+
+The daemon signs \texttt{card\_0} for Alice: \texttt{admin} on \texttt{a*},
+naming Alice and her key \texttt{pk\_A}. Alice signs \texttt{card\_1} for
+Heron: \texttt{sub} on \texttt{ab}, naming Heron and its key \texttt{pk\_B}.
+Heron signs \texttt{card\_2} for Finch, asking for \texttt{pub} on
+\texttt{ab}.
+
+The verifier takes the keys in turn: \texttt{card\_0} under
+\texttt{pk\_daemon}, \texttt{card\_1} under the \texttt{pk\_A} it has just
+read from the authenticated \texttt{card\_0}, and \texttt{card\_2} under the
+\texttt{pk\_B} read from \texttt{card\_1}. All three signatures pass, because
+each card was signed by the holder its parent names.
+
+Then it compares each child with its immediate parent. \texttt{admin} on
+\texttt{a*} covers \texttt{sub} on \texttt{ab}, so \texttt{card\_1} passes.
+\texttt{card\_1} grants only \texttt{sub}, so \texttt{card\_2}'s
+\texttt{pub} fails, and Finch is refused. A verifier that compared
+\texttt{card\_2} with the root instead would accept it, since \texttt{admin}
+on \texttt{a*} covers \texttt{pub} on \texttt{ab} as well. [internal]
+\end{pdexample}
 
 For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature must cover a fresh nonce and the identities of the previous and next holders, so that an attacker who intercepts one hop cannot splice it into a different chain.
 
@@ -1056,12 +1083,10 @@ these outcomes. The Kani policy harness instead ranges over every value of
 the decoded fields. The test connects one real signed card to those
 functions; it is not a proof of the decoder or the signature algorithm.
 
-Now let a root grant \texttt{admin} on \texttt{a*}, a child receive only
-\texttt{sub} on \texttt{ab}, and a grandchild ask for \texttt{pub} on
-\texttt{ab}. The root covers both requests, but the child cannot grant the
-grandchild's operation. A root-only comparison accepts the escalation; the
-immediate-parent comparison rejects it. This is the concrete failure that
-the two-hop harness requires to be reachable. [internal]
+The two-hop example beside Figure~\ref{fig:anchor-handshake-ladder}, from
+\texttt{admin} on \texttt{a*} through \texttt{sub} on \texttt{ab} to
+\texttt{pub} on \texttt{ab}, is the concrete failure that the two-hop harness
+requires to be reachable. [internal]
 \end{pdexample}
 
 \paragraph{The domains, explicitly.}
@@ -1913,10 +1938,15 @@ Property~\ref{thm:attn-sound} is single-hop (Daemon $\to A\to$ verifier).
 The chain in Figure~\ref{fig:anchor-v6v7-escalation} has two delegations.
 \path{analyses/harbor_card_v6_multihop_attack.pv} models the root-only
 comparison; its committed result makes escalating acceptance reachable.
-\path{analyses/harbor_card_v7_multihop_fixed.pv} authenticates each link and
-checks both $\mathrm{is\_subset}(\mathit{mid},\mathit{root})$ and
+\path{analyses/harbor_card_v7_multihop_fixed.pv} checks both
+$\mathrm{is\_subset}(\mathit{mid},\mathit{root})$ and
 $\mathrm{is\_subset}(\mathit{final},\mathit{mid})$; its committed result
-makes that acceptance unreachable. The paired model checks have this fixed
+makes that acceptance unreachable. Both models check each link under its own
+signer's key, as Figure~\ref{fig:anchor-handshake-ladder} does: the root under
+the daemon's key, the first delegation under $A$'s and the second under $B$'s.
+They hand the verifier those keys directly, though, instead of having it read
+each key from the parent card, so neither model checks that a card names the
+right key for its subject. The paired model checks have this fixed
 chain depth. The extension to arbitrary finite chains uses the per-hop
 subset argument of \S\ref{sec:delegation}, not an unbounded-depth
 mechanized result.
