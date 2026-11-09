@@ -1,0 +1,22 @@
+[
+  {
+    "term": "Observed",
+    "sort": "Observed (assurance mode)",
+    "definition": "The assurance mode in which the system keeps only evidence recorded after the act; nothing stops the act itself."
+  },
+  {
+    "term": "$\\delta^{*}$ threshold",
+    "sort": "delta threshold",
+    "definition": "The discount factor above which truthful claim signalling pays better than a one-shot deviation; below it, a bond must make up the difference."
+  },
+  {
+    "term": "admission",
+    "sort": "admission",
+    "definition": "The kernel's decision to let a proposed change take effect, checked against 100% of the stated rules before the change touches the shared record & its copies."
+  },
+  {
+    "term": "unprinted fixture term",
+    "sort": "unprinted fixture term",
+    "definition": "A glossary entry whose term the text never defines: it prints with no page number, and the term lint reports it."
+  }
+]

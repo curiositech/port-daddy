@@ -109,6 +109,9 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
     expect(sources).toContain('book/textbook.json');
     expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
+    // The generator imports the glossary renderer, so a change to how the
+    // glossary appendix is rendered must move the Book's epoch too.
+    expect(sources).toContain('scripts/generate-book-glossary.mjs');
     // The preamble \input's the Swiss plate macros unconditionally on the
     // Swiss branch, and Swiss is what the canonical root renders, so the
     // published PDF's freshness depends on that file.
