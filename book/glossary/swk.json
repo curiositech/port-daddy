@@ -140,6 +140,21 @@
   "definition": "Processing in which duplicate deliveries are removed at the boundary by an idempotency key and a unique receipt row, so each operation takes effect at most once even though the network may deliver it more than once."
  },
  {
+  "term": "sequential specification",
+  "sort": "sequential specification",
+  "definition": "A statement of what each operation of a shared object returns, and how it changes the object's state, when operations run one at a time; linearizability is always judged against one."
+ },
+ {
+  "term": "durable linearizability",
+  "sort": "durable linearizability",
+  "definition": "Linearizability that survives crashes: every operation that completed before a crash is still reflected afterwards."
+ },
+ {
+  "term": "buffered durable linearizability",
+  "sort": "buffered durable linearizability",
+  "definition": "A weaker crash condition than durable linearizability: a crash may lose recent completed operations, provided that what survives is a consistent cut, so no operation survives without every operation that happened before it."
+ },
+ {
   "term": "differential fuzzing",
   "sort": "differential fuzzing",
   "definition": "Running the same large random stream of operations against two implementations from the same seed and checking that their resulting states match."
