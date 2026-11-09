@@ -314,7 +314,7 @@ Figure~\ref{fig:anchor-alg-confusion} shows the two verifiers side by side. The 
 
 \begin{pdexample}{pinning is not skipping validation}
 \setlength{\parskip}{4pt plus 1pt}
-The daemon's Rust \texttt{verify} function first checks that the card has its
+The Rust \texttt{verify} function in \path{core/harbor-card-rs} first checks that the card has its
 three dot-separated parts, then checks the signature with the one fixed
 algorithm (Ed25519, the public-key scheme of Phase~2). It then decodes the
 now-authenticated header and rejects the card if
@@ -332,6 +332,11 @@ A card can be authentic and unexpired and still be refused by either.
 
 Design invariant~\ref{prop:alg-pinning} therefore gives no reason to delete
 the header check.
+
+The daemon does not run this Rust function. It checks cards in TypeScript, in
+\path{lib/harbor-tokens.ts}, which hands the one allowed algorithm, EdDSA, to
+the verifier of the \texttt{jose} library, so there too the policy, not the
+header, decides.
 \pdscope{This account is read from the source code; it is not a new test or proof result.}
 [internal]
 \end{pdexample}
@@ -667,7 +672,7 @@ the daemon loads built from this crate? [internal]
 \midrule
 protocol model & ProVerif & authentication correspondence for a capability passed on unchanged (v3), attenuation soundness on the multi-hop model; its secrecy queries hold by construction & that the modeled protocol is this source (the specification gap; a human asserts it) \\
 Rust source & Kani and tests & decoded lifetime and channel-policy predicates on stated domains; bounded subset checks; a separately stubbed parser & that the inspected source is this running binary (the deployment gap; a human asserts it) \\
-running binary & conformance suite & the selected attacks are refused at the FFI boundary & any attack the suite does not contain \\
+running binary & conformance suite & the selected attacks are refused by the running TypeScript code the suite calls & any attack the suite does not contain \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -987,12 +992,20 @@ function Harbor.VerifyChain(chain, pk_daemon, revoked):
 % ═════════════════════════════════════════════════════════════════════════════
 
 The \texttt{harbor-card-rs} crate, a Rust package, supplies both the source
-compiled into the shared library the daemon loads and the Kani harnesses.
-Sharing source removes one way for the checked code and the shipped code to
-drift apart, but the harnesses still cover different parts of it. The harnesses are
+compiled into the shared library the daemon loads and the Kani harnesses. The
+daemon calls only two of the library's functions, the constant-time comparator
+and the flat-string subset check (Appendix~\ref{app:anchor-mech}). It never
+calls the crate's \texttt{verify()}: the daemon checks cards in TypeScript, in
+\path{lib/harbor-tokens.ts}, and the relay, which cannot load the library,
+uses its own TypeScript verifier, held to the crate by a shared set of test
+cards whose file records every case where the two disagree. So the harnesses
+on \texttt{verify()} and the decoded claims check a reference implementation,
+not code on either acceptance path. For the two functions the daemon does
+call, sharing source removes one way for the checked code and the shipped code
+to drift apart, but the harnesses still cover different parts of it. The harnesses are
 compiled only under \texttt{cfg(kani)}. One parser harness replaces three
 functions with stubs and limits tokens to exactly 32 bytes; the decoded-claims
-harnesses call the production functions with no stubs. A Kani
+harnesses call the crate's own functions with no stubs. A Kani
 \pdterm{cover statement} asks the tool to find at least one input that reaches a stated
 outcome, which shows that a harness whose assertions pass is not passing
 merely because no input reaches the code. The deployed library still needs
@@ -1099,7 +1112,7 @@ fn proof_decoded_claims_policy() {
 }
 \end{lstlisting}
 
-The production function adds the 60-second clock-skew allowance in 64-bit
+The crate's function adds the 60-second clock-skew allowance in 64-bit
 arithmetic that stops at the largest 64-bit value instead of overflowing. The
 harness's reference formula, its \emph{oracle}, does the same sum in 128-bit
 arithmetic, which cannot overflow, so the two are computed independently. Every signed 64-bit timestamp
@@ -1252,7 +1265,7 @@ Master Key Secrecy~\pdcite{blanchet2016modeling} & Tautology & ProVerif & --- \\
 Algorithm Confusion Immunity~\pdcite{mclean2015critical} & Yes & ProVerif & --- \\
 Authenti\-cation correspondence~\pdcite{lowe1997hierarchy} & Yes & ProVerif & --- \\
 Delegation Integrity~\pdcite{birgisson2014macaroons} & Yes & ProVerif & --- \\
-No-panic parsing (bounded)~\pdcite{aws2022kani} & Bounded & Kani & Yes (FFI) \\
+No-panic parsing (bounded)~\pdcite{aws2022kani} & Bounded & Kani & No (not exported) \\
 Secret-independent source branching~\pdcite{brumley2011remote} & By inspection & --- & Yes (FFI) \\
 Capability subset check~\pdcite{birgisson2014macaroons} & Bounded & Kani & Yes (FFI) \\
 \bottomrule
@@ -1611,7 +1624,7 @@ Agent Payments Protocol (AP2): Mandates.
 \end{tabularx}
 \end{table}
 
-\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is in the Port Daddy repository under the file name its row gives, and the Mechanized claims appendix lists each one with its continuous-integration job or the reason it was retired. The verified Rust core is the source-available \texttt{harbor-card-rs} crate (FSL-1.1-MIT); runtime components are deployed inside the Port Daddy daemon binary. \pdchapref{bonded}{The Bonded Commons} carries the cross-chapter status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is in the Port Daddy repository under the file name its row gives, and the Mechanized claims appendix lists each one with its continuous-integration job or the reason it was retired. The Rust core is the source-available \texttt{harbor-card-rs} crate (FSL-1.1-MIT). The daemon loads it as a shared library but calls only the two functions listed at the end of this appendix; it verifies cards in TypeScript. \pdchapref{bonded}{The Bonded Commons} carries the cross-chapter status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 
 The markers summarize different kinds of evidence; they are not
 interchangeable units of security. Marking the constant-time row \Closed, for
@@ -2405,7 +2418,7 @@ None of this chapter's ProVerif models, and none of its six Kani harnesses, says
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-model-vs-code}
 The Kani harnesses check source predicates within their stated domains.
-The decoded lifetime and capability checks use production functions; the
+The decoded lifetime and capability checks call the crate's own functions, which the daemon does not use to accept cards; the
 parser uses stubs and cannot accept a card. Neither the finite capability
 grammars nor the 16-byte comparator establish arbitrary-input correctness
 or hardware timing. None proves cryptography, caller-side issuer/audience
