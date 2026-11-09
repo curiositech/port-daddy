@@ -428,7 +428,7 @@ No bound on how far the worst equilibrium falls below the best outcome (the pric
 
 \paragraph{What has been checked.}
 The claim-signaling payoff model has the analytical argument below, a Z3
-check of its threshold and a bounded TLA$^{+}$ witness. The insurer comparisons have finite parameter
+check of its zero-bond threshold and a bounded TLA$^{+}$ witness. The insurer comparisons have finite parameter
 sweeps and their payoff recurrences. A deployment with many principals has
 no equilibrium proof. Table~\ref{tab:verification-status} lists the
 artifacts.
@@ -1133,18 +1133,19 @@ Construction performance bonds and futures settlement work the same way. The con
 The Float Plan makes sabotage \emph{expensive}; it does not make it impossible. A principal willing to burn money to cause damage will burn the bond and cause the damage. Against threats to the commons' existence, the defense is deciding who may post Float Plans at all, and that decision is political.
 \end{remark}
 
-\subsection{Truthful Claim Signaling as Nash Equilibrium}\label{sec:claim-signaling-ic}
+\subsection{Truthful Claim Signaling as a Subgame-Perfect Equilibrium}\label{sec:claim-signaling-ic}
 
 On Bob's repair, a false file claim can conceal a planned write or reserve
 attention for work that will not happen. An authentic signature identifies
 who sent the claim but does not make honesty preferable. We therefore analyze
 one explicit payoff model before drawing conclusions about repeated use.
 The model concerns claim signaling; the insurer game later has different
-payoffs and monitoring.
+payoffs and monitoring. A bond enters it as an expected forfeiture on every
+false claim.
 
 \pagebreak
 \paragraph{Stage game.}
-Consider two agents $A$ and $B$ working on a shared project, deciding per round on each file whether to signal:
+Consider two principals $A$ and $B$ whose agents work on a shared project. The players are the principals, not their agents: an agent can be discarded when its task ends (\S\ref{sec:attribution-survives}), but the principal that funds it persists, and only a persistent player can be punished in a later round. Each round, for each file, a principal's agent signals in one of two ways:
 \begin{description}[nosep]
   \item[\textbf{T (Truthful).}] Claim files the agent intends to edit; do not claim files it will not edit.
   \item[\textbf{F (False).}] Either claim files the agent does not intend to edit (to block a rival), or fail to claim files it does intend to edit (to avoid scrutiny). Either form of misrepresentation counts as $F$.
@@ -1154,7 +1155,7 @@ The stage-game payoffs, in expected-utility units, are below. We write $u_C=3$ f
 
 \begin{table}[H]
 \centering
-\caption{False signaling strictly dominates truth in a single round. Mutual falsehood is the unique Nash equilibrium, even though mutual truth gives both agents more.}
+\caption{Without a bond, false signaling strictly dominates truth in a single round. Mutual falsehood is the unique Nash equilibrium, even though mutual truth gives both principals more.}
 \label{tab:claim-stage-game}
 \begin{tabular}{@{}rcc@{}}
 \toprule
@@ -1166,7 +1167,22 @@ $A$: F & $(4,\,0)$ & $(1,\,1)$ \\
 \end{tabular}
 \end{table}
 
-The stage game is a strict Prisoner's Dilemma: $F$ strictly dominates $T$ for each player ($4 > 3$ against $T$, $1 > 0$ against $F$), and $(F, F)$ is the unique one-shot Nash equilibrium. \emph{Truthful signaling is not a one-shot equilibrium}; advisory coordination cannot be sustained by stage-game rationality alone.
+Without a bond the stage game is a strict Prisoner's Dilemma: $F$ strictly dominates $T$ for each player ($4 > 3$ against $T$, $1 > 0$ against $F$), and $(F, F)$ is the unique one-shot Nash equilibrium. \emph{Truthful signaling is not a one-shot equilibrium}; advisory coordination cannot be sustained by stage-game rationality alone.
+
+\paragraph{The bond in the stage game.}
+Each principal posts a bond $b$ behind its claims. A false claim is detected
+and the bond forfeited with probability $p_{\mathrm f}$, in every round and
+whatever the strategy prescribes for that round. A false claim made as
+punishment is still a false claim, as Intent Irrelevance
+(\S\ref{sec:economic}) requires. Every $F$ payoff in
+Table~\ref{tab:claim-stage-game} therefore falls by the expected forfeiture
+$p_{\mathrm f}b$, and every $T$ payoff is unchanged. Here $p_{\mathrm f}$ is
+the chance that the adjudicator proves the false claim and collects; the
+repeated game below still assumes that both principals see every past action.
+If $p_{\mathrm f}b<1$, $F$ still strictly dominates and $(F,F)$, now paying
+$1-p_{\mathrm f}b$ to each, is still the unique stage equilibrium. If
+$p_{\mathrm f}b\ge1$, $T$ is a dominant stage action (strictly so above $1$),
+and truthful signaling needs no repeated game at all.
 
 \paragraph{Move to the repeated game.}
 Truthful signaling can survive because the agents play the stage game many times. The commons supplies three things:
@@ -1175,18 +1191,18 @@ Truthful signaling can survive because the agents play the stage game many times
 They do not reveal an unrecorded intention or guarantee delivery of every action.
 The game below assumes more, namely \pdterm{perfect public monitoring}, in which
 both players see the same correct record of past actions before each round.
-  \item \textbf{Persistent identity.} The passkey-bound device pairing of \pdchapref{anchor}{The Anchor Protocol} ties an agent ID to a hardware-rooted credential. Sybil re-registration is bounded by a per-identity onboarding cost $C_{\mathrm{kyc}}$, such as the non-refundable entry fee A5 lists as a candidate control (\S\ref{sec:youle:a5}; its simulation sets that cost to zero), so an agent cannot trivially shed a reputation by re-incarnating.
+  \item \textbf{Persistent identity.} The players are principals, whose identities outlast any one agent. Sybil re-registration is bounded by a per-identity onboarding cost $C_{\mathrm{kyc}}$, such as the non-refundable entry fee A5 lists as a candidate control (\S\ref{sec:youle:a5}; its simulation sets that cost to zero), so a principal cannot trivially shed a reputation by re-registering. The passkey-bound device pairing of \pdchapref{anchor}{The Anchor Protocol} could tie a principal to a hardware-rooted credential, but Table~\ref{tab:verification-status} records it as a model with no runtime.
   \item \textbf{A discount factor $\delta$}, the weight a principal puts on the next round's payoff relative to this round's. Principals value future interactions: a development project lives over weeks; insurer relationships compound; reputation discounts (\S\ref{sec:rep-discount}) accrue. For long-lived principals we take $\delta \approx 0.9$ as a working operating point, consistent with the discount used in \S\ref{sec:youle:a6}.
 \end{itemize}
 
 \paragraph{Strategy profile.}
 Under the \pdterm{graduated trigger}, a deviation is punished for a fixed number
-of rounds and cooperation then resumes. Both agents use the same public mode
+of rounds and cooperation then resumes. Both principals use the same public mode
 and punishment counter for each file:
 \begin{enumerate}[nosep]
   \item Begin in cooperation mode, with counter zero; both play $T$.
   \item A publicly observed deviation from the prescribed profile sets the
-    counter to three for the next round, for \emph{both} agents, including the deviator.
+    counter to three for the next round, for \emph{both} principals, including the deviator.
   \item While the counter is positive, both play $F$. Each compliant punishment
     round reduces it by one; at zero, both return to $T$.
   \item A deviation from the prescribed punishment profile resets the counter
@@ -1202,31 +1218,40 @@ intent does not make the strategy robust to misread events or inconsistent
 observations.
 
 \paragraph{Deviation analysis.}
-Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, received in the deviation round, is $u_D - u_C = 4 - 3 = 1$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each giving $u_P = 1$ instead of the cooperative $u_C = 3$ (a net loss of $u_C - u_P = 2$ per round). Discounted at $\delta$:
+Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, received in the deviation round, is $(u_D - p_{\mathrm f}b) - u_C = 1 - p_{\mathrm f}b$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each giving $u_P - p_{\mathrm f}b$ instead of the cooperative $u_C = 3$ (a net loss of $u_C - u_P + p_{\mathrm f}b = 2 + p_{\mathrm f}b$ per round). Discounted at $\delta$:
 \[
-\text{PV of lost cooperative payoff} \;=\; (u_C - u_P) \cdot (\delta + \delta^2 + \delta^3) \;=\; 2 \cdot (\delta + \delta^2 + \delta^3).
+\text{PV of lost cooperative payoff} \;=\; (u_C - u_P + p_{\mathrm f}b) \cdot (\delta + \delta^2 + \delta^3) \;=\; (2 + p_{\mathrm f}b) \cdot (\delta + \delta^2 + \delta^3).
 \]
-At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviation's payoff advantage is $1 - 2 \cdot 2.439 = 1 - 4.878 = -3.878$, strictly negative. Deviation is strictly unprofitable.
+With no bond and a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviation's payoff advantage is $1 - 2 \cdot 2.439 = 1 - 4.878 = -3.878$, strictly negative. Deviation is strictly unprofitable.
 
 \paragraph{Critical $\delta$.}
 \marginnote{\input{figures/spark-bonded-deviation}\par
-Three-round model: net gain from deviation, in payoff units.
+Three-round model with no bond: net gain from deviation, in payoff units.
 Above $\delta\approx.343$, deviation loses.}
-The general sustainability condition under a $k$-round graduated trigger with stage-game payoffs $(u_C, u_D, u_P) = (3, 4, 1)$ is
+The general sustainability condition under a $k$-round graduated trigger with stage-game payoffs $(u_C, u_D, u_P) = (3, 4, 1)$ and expected forfeiture $p_{\mathrm f}b$ is
 \[
-\underbrace{u_D - u_C}_{\text{one-shot gain}} \;<\; \underbrace{(u_C - u_P) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
+\underbrace{u_D - u_C - p_{\mathrm f}b}_{\text{one-shot gain}} \;<\; \underbrace{(u_C - u_P + p_{\mathrm f}b) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
 \]
-Substituting $u_D - u_C = 1,\; u_C - u_P = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.3425$. Under grim trigger ($k \to \infty$), strict deterrence requires $\delta > 1/3 \approx 0.333$ for this payoff table. The three-round threshold is about $0.009$ higher. Finite punishment allows a return to cooperation after three compliant rounds; the calculation says nothing about crashes or mistaken observations.
+Substituting $u_D - u_C = 1,\; u_C - u_P = 2$ and $k = 3$ gives $1 - p_{\mathrm f}b < (2 + p_{\mathrm f}b)\,\delta(1 + \delta + \delta^2)$. Its root, $\delta^\star_{k=3}(p_{\mathrm f}b)$, is the threshold. With no bond the condition is $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3}(0) \approx 0.3425$; written without an argument, $\delta^\star_{k=3}$ means this zero-bond value, the one the figures and the mechanized checks use. An expected forfeiture of $p_{\mathrm f}b = 0.5$, half the one-shot gain, lowers the threshold to about $0.1673$, and at $p_{\mathrm f}b = 1$ it reaches $0$ [verified]. Under grim trigger ($k \to \infty$), strict deterrence requires $\delta > (1 - p_{\mathrm f}b)/3$, which is $1/3 \approx 0.333$ with no bond. The three-round threshold is at most about $0.009$ higher. Finite punishment allows a return to cooperation after three compliant rounds; the calculation says nothing about crashes or mistaken observations.
 
 \begin{pdclaim}{Theorem}{Claim Signaling Incentive Compatibility}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:claim-signaling-ic}
-Assume persistent identities that cannot escape the stated punishment, the payoffs in Table~\ref{tab:claim-stage-game}, and perfect public monitoring: both players observe the same past actions before each new round.
+Let the players be two principals with persistent identities that cannot escape the stated punishment. Assume the payoffs in Table~\ref{tab:claim-stage-game}; a bond under which every false claim, in every round, forfeits $p_{\mathrm f}b$ in expectation, with $0\le p_{\mathrm f}b<1$; and perfect public monitoring: both players observe the same past actions before each new round.
 
-Under the three-round graduated-trigger strategy described above, cooperative truthful signaling is a Nash equilibrium for $\delta>\delta^\star_{k=3}$, where $\delta^\star_{k=3}=0.3425080314\ldots$ solves $2\delta^3+2\delta^2+2\delta-1=0$. Under grim trigger, the weak incentive condition is $\delta\ge1/3$.
+Under the three-round graduated-trigger strategy described above, cooperative truthful signaling is a subgame-perfect equilibrium for $\delta>\delta^\star_{k=3}(p_{\mathrm f}b)$, the unique root in $(0,1)$ of
+\[
+(2+p_{\mathrm f}b)(\delta^3+\delta^2+\delta)-(1-p_{\mathrm f}b)=0.
+\]
+With no bond this is $2\delta^3+2\delta^2+2\delta-1=0$, and $\delta^\star_{k=3}(0)=0.3425080314\ldots$; at $p_{\mathrm f}b=0.5$ the root is $0.1673\ldots$. Under grim trigger, the weak incentive condition is $\delta\ge(1-p_{\mathrm f}b)/3$. If $p_{\mathrm f}b\ge1$, truthful signaling is a dominant stage action and needs no punishment.
 
 The ledger and identity mechanisms motivate these hypotheses but do not establish them for every deployment.
 \end{pdclaim}
+
+\begin{proof}
+\setlength{\parskip}{4pt plus 1pt}
+The public punishment counter, zero to three, is the only state. By the one-shot deviation principle for discounted games with bounded payoffs, the profile is subgame-perfect if no single deviation, followed by a return to the profile, pays in any state. In the cooperation state a deviation gains $1-p_{\mathrm f}b$ now and starts three punishment rounds, each $2+p_{\mathrm f}b$ below cooperation, so it does not pay when $1-p_{\mathrm f}b\le(2+p_{\mathrm f}b)(\delta+\delta^2+\delta^3)$. The left side of the displayed equation is strictly increasing in $\delta$, negative at $0$ and positive at $1$, so its root in $(0,1)$ is unique, and the inequality holds strictly above it. In a punishment state the prescribed $(F,F)$ is the stage game's Nash equilibrium, because $p_{\mathrm f}b<1$. Switching to $T$ there earns $0$ instead of $1-p_{\mathrm f}b>0$ in that round and restarts the counter at three, so it loses both now and later. Grim trigger replaces the three-round sum by $\delta/(1-\delta)$. If $p_{\mathrm f}b\ge1$, each $F$ payoff is at most the $T$ payoff against the same action, so $T$ is dominant.
+\end{proof}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1256,14 +1281,14 @@ monitoring remains \emph{open}, within a harbor as well as across harbors.
 Removing an assumption invalidates this strategy's guarantee, not every possible cooperation mechanism.
 \begin{itemize}[nosep]
   \item \emph{Remove the shared action history (\S\ref{sec:attribution}).} The prescribed trigger can no longer identify when punishment starts or ends. A Merkle forest can authenticate recorded evidence; it is not the only possible monitoring mechanism, and authentication alone does not deliver perfect public monitoring.
-  \item \emph{Allow costless identity resets (\pdchapref{anchor}{The Anchor Protocol}).} If an agent can discard its identity and return immediately on unchanged terms, identity-specific punishment loses its force. Accountability attached to a persistent principal, re-entry costs, or collateral may change that incentive. Process persistence and the principal's discount factor are distinct.
-  \item \emph{Drop $\delta$ below $\delta^\star_{k=3} \approx 0.3425$.} The three-round trigger no longer deters defection. For $1/3<\delta<\delta^\star_{k=3}$, a sufficiently long finite punishment restores deterrence. At $\delta=1/3$, only the perpetual-punishment limit reaches the weak incentive condition; no finite window suffices.
-  \item \emph{Drop $\delta$ below $1/3$.} Even perpetual mutual-$F$ punishment cannot deter a deviation from $(T,T)$ with these payoffs. No finite window of that punishment can do better. This is a limit of the analyzed strategy family; collateral or a different payoff structure requires a new calculation.
+  \item \emph{Allow costless identity resets (\pdchapref{anchor}{The Anchor Protocol}).} If a principal can discard its identity and return immediately on unchanged terms, identity-specific punishment loses its force. Re-entry costs or a larger bond may change that incentive. An agent process that persists is not a persistent player; the principal is.
+  \item \emph{Drop $\delta$ below $\delta^\star_{k=3}(p_{\mathrm f}b)$.} The three-round trigger no longer deters defection. For $(1-p_{\mathrm f}b)/3<\delta<\delta^\star_{k=3}(p_{\mathrm f}b)$, a sufficiently long finite punishment restores deterrence. At $\delta=(1-p_{\mathrm f}b)/3$, only the perpetual-punishment limit reaches the weak incentive condition; no finite window suffices.
+  \item \emph{Drop $\delta$ below $(1-p_{\mathrm f}b)/3$.} Even perpetual mutual-$F$ punishment cannot deter a deviation from $(T,T)$ with these payoffs. No finite window of that punishment can do better. A larger expected forfeiture lowers this bound, and $p_{\mathrm f}b\ge1$ removes it.
 \end{itemize}
 
 Section~\ref{sec:youle:a6} reuses the same pattern at the insurer pricing layer: a stage game, a repeated game made possible by observable history, a deviation calculation, and a $\delta$ threshold. The analogy is one of structure only. No result carries over, because the payoff functions, monitoring signal, detection timing and punishment rules differ and must each be derived.
 
-\paragraph{Mechanized claim-signaling.} The argument above is also checked by machine. Standard one-shot-deviation analysis yields the discount-factor threshold $\delta^\star$ as the unique real root in $(0,1)$ of $2\delta^3 + 2\delta^2 + 2\delta - 1 = 0$, numerically $\delta^\star \approx 0.3425$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.34,\,0.35]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.35$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
+\paragraph{Mechanized claim-signaling.} The zero-bond case of the argument is also checked by machine. With $p_{\mathrm f}b=0$ the discount-factor threshold $\delta^\star$ is the unique real root in $(0,1)$ of $2\delta^3 + 2\delta^2 + 2\delta - 1 = 0$, numerically $\delta^\star \approx 0.3425$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.34,\,0.35]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.35$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}). Neither models the bond; the frontier for $p_{\mathrm f}b>0$ rests on the derivation above.
 
 The TLA$^{+}$ witness uses a shared countdown for one deviation followed by
 compliant punishment. It does not exhaust arbitrary deviation histories or
@@ -1273,7 +1298,7 @@ the reset rule above; those belong to the analytical strategy argument.
 
 \begin{pdexample}{The Claim-Signaling Threshold}
 \setlength{\parskip}{4pt plus 1pt}
-Evaluate $g(\delta) = 2\delta^3+2\delta^2+2\delta-1$ at $\delta=0.3425$ by hand, using the factored form \[
+Evaluate the zero-bond cubic $g(\delta) = 2\delta^3+2\delta^2+2\delta-1$ at $\delta=0.3425$ by hand, using the factored form \[
 g(\delta)=2\delta(1+\delta+\delta^2)-1
 \] to keep the arithmetic to two multiplications.
 
@@ -1298,9 +1323,9 @@ That is within $3.3\times10^{-5}$ of zero, close enough to call $0.3425$ a root 
 \emph{Now you try:} Exercise~\ref{ex:bonded-threshold-hand} asks you to bound the same root between two adjacent points of the $0.01$-step grid the model checker uses ($\delta=\texttt{DeltaNum}/100$) instead of evaluating it at the algebraic value alone.
 \end{pdexample}
 
-Figure~\ref{fig:bc-delta-threshold} plots that root where it means something:
-the deviator's own net payoff, against $\delta$, for the graduated trigger and
-for grim trigger on the same axis.
+Figure~\ref{fig:bc-delta-threshold} plots that zero-bond root where it means
+something: the deviator's own net payoff with no bond, against $\delta$, for
+the graduated trigger and for grim trigger on the same axis.
 
 \input{figures/fig-bc-delta-threshold}
 % Finish the deferred plot before starting the breakable recorded transcript.
@@ -1318,7 +1343,7 @@ round, and the run ends with the deviator ahead.
 \begin{pdrecitation}
 \item Without looking: what is the one-shot Nash equilibrium of the stage game in Table~\ref{tab:claim-stage-game}, and why does that rule out truthful signaling as an equilibrium of this one-shot payoff table?
 \item Name the three ingredients the repeated game needs to sustain truth-telling, and which section of the chapter supplies each one.
-\item Which polynomial defines the threshold $\delta^\star$ for the three-round graduated trigger, and how does it compare to the grim-trigger bound of $1/3$?
+\item Which polynomial defines the threshold $\delta^\star_{k=3}(p_{\mathrm f}b)$ for the three-round graduated trigger, and what does a larger expected forfeiture do to it?
 \end{pdrecitation}
 
 % Stranded at the foot of p. 358 in all three editions (p. 362 Swiss). Same
@@ -2138,7 +2163,7 @@ Impossibility results & Decisive rights under unrestricted preferences & A separ
 Long-lived transactions & Compensation for work that outlives a transaction & Economic settlement in place of mechanical compensation & Compensation cannot undo an external effect; a bond can price it \\
 BDI and generative agents & Beliefs, desires, intentions; memory streams & The evidence trail is read by an adversarial operator, not a private memory & The reader, not the agent, is the customer of the record \\
 Capability-based security & Attenuable capabilities & Capabilities bind to bonded identities with settlement & Authority without liability is the failure the commons prices \\
-Mechanism design & Incentive compatibility as the design target & A claim-signaling patience threshold and separate bond-pricing proposals & The commons is a repeated game, not a one-shot sale \\
+Mechanism design & Incentive compatibility as the design target & A claim-signaling threshold that the bond lowers, and separate bond-pricing proposals & The commons is a repeated game, not a one-shot sale \\
 Agentic-commerce protocols & The credential envelope & The envelope carries authorization; the commons carries liability & A standard format shrinks the problem without settling it \\
 \bottomrule
 \end{tabularx}
@@ -2266,7 +2291,7 @@ is outside that guarantee.
 \item \textbf{Exclusive locks can backfire.} If Wren locks a file just in case and Pike turns out to need it, the lock can block an outcome both of them prefer. Advisory claims block nothing; they guarantee that every overlap between registered claims is reported. An appeal can reverse a settlement only by adding a counter-record, never by rewriting one.
 \item \textbf{A crash is a social event.} Recovery is continuation of the record by whoever next holds the role, not resurrection of the process.
 \item \textbf{Intent is irrelevant to settlement}; the bond pays on the evidence, whatever the agent meant.
-\item \textbf{Claim signaling is incentive-compatible above $\delta^{\ast}\approx0.3425$}, the root of $2\delta^{3}+2\delta^{2}+2\delta-1=0$; TLC agrees on the $0.01$-step grid, holding at $0.35$ and producing the deviation trace at $0.30$.
+\item \textbf{Truthful claim signaling is subgame-perfect above $\delta^\star_{k=3}(p_{\mathrm f}b)$.} With no bond the threshold is $0.3425$, the root of $2\delta^{3}+2\delta^{2}+2\delta-1=0$, and TLC agrees on the $0.01$-step grid, holding at $0.35$ and producing the deviation trace at $0.30$. A bond lowers it: an expected forfeiture of half the one-shot gain brings it to $0.167$, and a forfeiture at least as large as that gain makes truth a dominant stage action.
 \item \textbf{Cleanup has a lower bound}: cleanup funded entirely from a forfeited bond requires that bond to
 cover the assumed bill. Deterrence additionally depends on the principal's
 gain and probability of collectible loss.
@@ -2366,7 +2391,7 @@ sat
 )
 unsat
 \end{lstlisting}
-Reading the three lines against the three questions: \texttt{sat} (a root exists, printed in Z3's algebraic \texttt{root-obj} form rather than a decimal); \texttt{sat} again with the identical model (that same root also satisfies the tighter bound, so it lies in $[0.34,0.35]$); \texttt{unsat} (no second, distinct $\delta_2$ in $[0,1]$ satisfies the cubic, so the root is unique). Together the three verdicts mechanize the threshold of Theorem~\ref{prop:claim-signaling-ic}, with existence and uniqueness.
+Reading the three lines against the three questions: \texttt{sat} (a root exists, printed in Z3's algebraic \texttt{root-obj} form rather than a decimal); \texttt{sat} again with the identical model (that same root also satisfies the tighter bound, so it lies in $[0.34,0.35]$); \texttt{unsat} (no second, distinct $\delta_2$ in $[0,1]$ satisfies the cubic, so the root is unique). Together the three verdicts mechanize the zero-bond threshold $\delta^\star_{k=3}(0)$ of Theorem~\ref{prop:claim-signaling-ic}, with existence and uniqueness; the Z3 model has no bond in it.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-tla-two-deltas}
@@ -2777,7 +2802,7 @@ Merkle-tree binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Part
 Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\
 Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \path{simulation-}\allowbreak\path{sybil.mjs} \\
 Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \path{simulation-}\allowbreak\path{cartel.mjs} \\
-Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \path{claim_signaling.tla},\newline{}\path{delta-}\allowbreak\path{thresh}\allowbreak\path{old.z3} \\
+Claim-signaling IC, zero-bond case (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \path{claim_signaling.tla},\newline{}\path{delta-}\allowbreak\path{thresh}\allowbreak\path{old.z3} \\
 Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
 \midrule
 Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\
