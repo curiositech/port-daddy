@@ -407,7 +407,7 @@ Two older bodies of work study the property checked here more directly than maca
 \input{figures/fig-anchor-delegation-inline}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
-\pdstatus{\BuiltWeak}{the daemon and the relay look each card's ID up in an exact revocation table; the filter, gossip and epoch below are specified, not built}
+\pdstatus{\BuiltWeak}{the daemon and the relay look each card's ID up in an exact revocation table; per-link identifiers for offline delegations, the filter, gossip and epoch below are specified, not built}
 
 \pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
 Alice withdraws Heron's test-database write grant three minutes into its
@@ -477,17 +477,18 @@ So the design limits how full the filter may get, not how many bytes it uses.
 \begin{pdclaim}{Design invariant}{Revocation-Augmented Verification}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:revocation}
-Let $R_t$ be the authoritative append-only log of revoked Harbor Card IDs at time $t$. Each daemon $d$ keeps a local cuckoo filter $F_d \approx R_t$, held in memory and rebuilt from the log when needed. After the signature, scope, time and ancestor checks have passed, the revocation check does two more things:
+Let $R_t$ be the authoritative append-only log of revoked card and link identifiers at time $t$. Each daemon $d$ keeps a local cuckoo filter $F_d \approx R_t$, held in memory and rebuilt from the log when needed. After the signature, scope, time and ancestor checks have passed, the revocation check does two more things:
 \begin{enumerate}[nosep]
-  \item Look up the card's identifier \texttt{kid} in $F_d$. If the filter is
-  complete and healthy and the ID is absent, the local revocation check passes.
-  \item If the ID is present, look it up in the local \texttt{revocations} table, which is authoritative. If the card really is revoked, reject it with \texttt{revoked}. Otherwise the \mbox{filter} gave a false positive: accept the card, and let a background job refresh the filter.
+  \item Look up every link's identifier in $F_d$: the root card's \texttt{jti}
+  and, for each delegated link $i$, $\texttt{jti}_i = H(\sigma_i)$
+  (\S\ref{sec:algorithms}). If the filter is complete and healthy and no
+  identifier is in it, the local revocation check passes.
+  \item If an identifier is present, look it up in the local \texttt{revocations} table, which is authoritative. If that link really is revoked, reject the card with \texttt{revoked}. Otherwise the \mbox{filter} gave a false positive: accept the card, and let a background job refresh the filter.
 \end{enumerate}
 
-Here \texttt{kid} is this protocol's card identifier, not only a
-signing-key identifier. A revoked ancestor must make every chain below it
-fail. A stale, failed or rebuilding filter must fall back to the
-authoritative local table.
+Because every link's identifier is checked, a revoked ancestor makes every
+chain below it fail. A stale, failed or rebuilding filter must fall back to
+the authoritative local table.
 
 The design keeps the filter as an index only, never as the authority, and that is what makes a false positive a slower answer rather than a wrong one.
 \end{pdclaim}
@@ -514,7 +515,7 @@ are never reused, descendant expiry never exceeds ancestor expiry, and all
 verifiers enforce expiry with a stated clock-skew allowance and no unchecked
 clock rollback.
 
-An entry naming card \texttt{kid} may be dropped from the active
+An entry naming identifier \texttt{jti} may be dropped from the active
 revocation log
 $R_t$ once every card that entry could name has expired, that is, once
 $t$ exceeds the entry's recorded card expiry plus that allowance, without
@@ -604,7 +605,7 @@ No finite worst-case freshness bound holds under an unbounded partition.
 % Keep the exhibit caption with its figure; later margin objects start anew.
 \pdmarginpagebreak
 
-\paragraph{Privacy.} An attacker who can read, alter and inject any network message, but cannot break the cryptography, is called a \pdterm{Dolev-Yao adversary}. One that watches all gossip traffic learns the revoked card IDs, and so which agents have been disciplined. Among an organization's own daemons this is acceptable openness for audit. For stronger privacy, the daemons can gossip salted hashes $H(\texttt{kid}, \texttt{salt})$ instead, where the salt changes daily and is kept encrypted under a harbor session key.
+\paragraph{Privacy.} An attacker who can read, alter and inject any network message, but cannot break the cryptography, is called a \pdterm{Dolev-Yao adversary}. One that watches all gossip traffic learns the revoked card IDs, and so which agents have been disciplined. Among an organization's own daemons this is acceptable openness for audit. For stronger privacy, the daemons can gossip salted hashes $H(\texttt{jti}, \texttt{salt})$ instead, where the salt changes daily and is kept encrypted under a harbor session key.
 
 \begin{pdrecitation}
 \item What must every delegated card preserve about its parent's authority?
@@ -789,10 +790,11 @@ This is a property of the source text, established by reading it; Kani adds only
 
 \subsection{The procedures, precisely}\label{sec:algorithms}
 
-The pseudocode below shows only signature checking and per-hop attenuation. A
-complete card verifier must also check expiry, audience (the harbor the card
-was issued for), format, the calling
-process and revocation. The symbols $\bot$ and $\top$ mean rejection and
+The pseudocode below shows signature checking, per-hop attenuation and, for
+chains, the revocation check on every link. A complete card verifier must also
+check expiry, audience (the harbor the card was issued for), format and the
+calling process, and Algorithms~\ref{alg:symmetric} and~\ref{alg:asymmetric}
+leave out revocation. The symbols $\bot$ and $\top$ mean rejection and
 acceptance. \texttt{Encode} is a fixed encoding with exactly one way to read
 any message; the symbolic models in Appendix~\ref{app:proverif} assume that
 parsing it is correct.
@@ -802,6 +804,17 @@ Alice's public key. Alice signs Heron's child card, so that child must be
 verified under Alice's authenticated key, not the daemon's. Heron's key then
 verifies Heron's next delegation. Each signature both checks the current link
 and supplies the authenticated identity needed for the next one.
+
+Every link also has its own revocation identifier. The root's is the
+\texttt{jti} the daemon chose when it issued the card. A delegated link is
+signed offline, with no issuer to choose one, so its identifier is the hash of
+its signature, $\texttt{jti}_i = H(\sigma_i)$, where $H$ is a
+collision-resistant hash such as SHA-256. Anyone who holds the chain can
+compute it, and the verifier checks every link's identifier against its
+revocation table. Revoking $H(\sigma_1)$ withdraws Heron's grant and every card
+below it, and Alice's own card stays valid. Biscuit, a public-key token format
+that any holder can attenuate offline, likewise gives every block of a token
+its own revocation identifier, the block's signature~\pdcite{biscuit2026}.
 
 \texttt{Decode}, in Algorithms~\ref{alg:symmetric} and~\ref{alg:asymmetric},
 reads only a root card, whose fields are the agent, the harbor, the card
@@ -923,13 +936,15 @@ function Agent.Delegate(token_parent, sk_parent, agent_child, pk_child, cap_sub)
     msg_delegate <- Encode_delegation(msg_parent, sigma_parent, agent_child, pk_child, cap_sub)
     sigma_delegate <- Ed25519.Sign(msg_delegate, sk_parent)
     emit Delegated(agent_parent, agent_child, cap_sub)
-    return (msg_delegate, sigma_delegate)
+    return (msg_delegate, sigma_delegate)  // revocation id: H(sigma_delegate)
 
-function Harbor.VerifyChain(chain, pk_daemon):
+function Harbor.VerifyChain(chain, pk_daemon, revoked):
     tok_root <- chain[0]
     (msg_0, sigma_0) <- tok_root
     if not Ed25519.Verify(msg_0, sigma_0, pk_daemon):
         return _|_  // Invalid root signature
+    if Jti(msg_0) in revoked:
+        return _|_  // Root card revoked
     cap_prev <- ExtractCaps(msg_0)
     pk_current <- AuthenticatedSubjectKey(msg_0)
     for i <- 1 to |chain| - 1:
@@ -938,6 +953,8 @@ function Harbor.VerifyChain(chain, pk_daemon):
             return _|_  // Child must bind this authenticated parent
         if not Ed25519.Verify(msg_i, sigma_i, pk_current):
             return _|_  // Invalid delegation signature
+        if H(sigma_i) in revoked:
+            return _|_  // This link revoked: jti_i = H(sigma_i)
         cap_i <- ExtractCaps(msg_i)
         if cap_i not_subseteq cap_prev:
             return _|_  // Per-hop capability escalation detected
@@ -1360,6 +1377,11 @@ Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable
 \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
 \newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
 \newblock \url{https://doi.org/10.14722/ndss.2014.23212}
+
+\bibitem{biscuit2026}
+Eclipse Biscuit.
+\newblock Biscuit: a delegated, decentralized, capabilities-based authorization token.
+\newblock Specification, \url{https://github.com/eclipse-biscuit/biscuit}; per-block revocation identifiers as implemented in \texttt{biscuit-auth} 6.0.0, \url{https://docs.rs/biscuit-auth/6.0.0}. Accessed November 2026.
 
 \bibitem{lowe1997hierarchy}
 Gavin Lowe.
@@ -2119,7 +2141,7 @@ An attacker who intercepts that child and
 rewrites its header gains no choice of algorithm: the verifier uses trusted
 policy and rejects an incompatible authenticated header (idea~3).
 
-And when the child's \texttt{kid} is revoked at minute three, a verifier refuses it after receiving the update. In the favorable
+And when the child's identifier \texttt{jti} is revoked at minute three, a verifier refuses it after receiving the update. In the favorable
 $1\to2\to4\to5$ schedule shown earlier, two-second rounds deliver it in
 six seconds. Random contacts need not follow that schedule. A disconnected
 verifier without a stricter freshness policy may continue accepting it for
