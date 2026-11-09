@@ -51,6 +51,8 @@ def make_fixture(path: Path) -> None:
     furniture(page, "i")
     put(page, 72, 100, "The old phrase Ren et al. prints here.")
     put(page, 72, 114, "The exfiltration bond is sized below.")
+    # A tightly justified line as the extractor sees it: no word gaps at all.
+    put(page, 72, 128, "Asinglelocalwriterputseverywritetransactioninone")
 
     page = doc.new_page(width=504, height=720)
     furniture(page, "1")
@@ -218,6 +220,15 @@ class OnTheRenderedPage(unittest.TestCase):
         self.assertEqual(findings[0].kind, "after missing")
         self.assertEqual(findings[0].nearest, "The exfiltration bond is")
         self.assertEqual(findings[0].pages, [0])
+
+    def test_an_after_on_a_line_extracted_without_spaces_still_matches(self):
+        self.assertEqual(self.findings(after="puts every write transaction"), [])
+
+    def test_a_before_on_a_line_extracted_without_spaces_still_survives(self):
+        # Without the stripped readings this would pass unseen: fail-open.
+        [finding] = self.findings(before="local writer puts every")
+        self.assertEqual(finding.kind, "before survives")
+        self.assertEqual([self.pages[i].where() for i in finding.pages], ["p1 (folio i)"])
 
     def test_a_word_hyphenated_at_a_line_end_matches_whole(self):
         self.assertEqual(self.findings(after="broken by coordination across lines"), [])

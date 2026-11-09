@@ -201,9 +201,10 @@
 - id: swk-20
   item: "Coordinator: Lampson's Protection cited as 1971, reprinted 1974 (key lampson1971)"
   file: book/single-writer-kernel.tex
-  before: "Lampson 1974, Protection"
-  after: "5th Princeton Conference on Information Sciences and Systems"
+  before: "\"Protection.\" ACM SIGOPS OS Review"
+  after: "1971; reprinted in ACM SIGOPS OS Review"
   source: "book/sealed-harbor.tex (p3-sealed) lampson1971 entry, copied verbatim"
+  note: "the first-use margin entry prints the edited form (book/citation-margin-entries.json, mega002), not the bibliography body"
 - id: swk-21
   item: "R1 minor: outdated SQLite pragma.html quotation in section 1.4"
   file: book/single-writer-kernel.tex
@@ -225,13 +226,13 @@
 - id: swk-24
   item: "R1 minor: cite Basin et al. 2013"
   file: book/single-writer-kernel.tex
-  before: "systems and properties. What this section adds"
+  before: null
   after: "can control from those it can only observe"
   source: "https://doi.org/10.1145/2487222.2487225 (record: https://ftp.math.utah.edu/pub/tex/bib/idx/tissec/16/1/3-3.html)"
 - id: swk-25
   item: "R1 minor: cite Ligatti et al. 2005"
   file: book/single-writer-kernel.tex
-  before: "systems and properties. What this section adds"
+  before: null
   after: "insert actions can enforce policies that one able only"
   source: "https://dblp.org/rec/bibtex/journals/ijisec/LigattiBW05; https://collaborate.princeton.edu/en/publications/edit-automata-enforcement-mechanisms-for-run-time-security-polici/"
 - id: swk-26
@@ -651,7 +652,7 @@
   item: "Ch. 3 minor: Lampson's Protection, bibliography entry"
   file: book/sealed-harbor.tex
   before: null
-  after: "first published in"
+  after: "Princeton Conf. on Information Sciences and Systems, 1971"
   source: "https://www.bwlampson.site/08-Protection/Abstract.html"
   note: "the entry now lists the 1974 reprint and the 1971 original; key lampson1971, margin short form 'Lampson 1971' after pd-cite-shortforms is regenerated"
 - id: sealed-23
@@ -1554,7 +1555,7 @@
 - id: fh-24
   item: "Ch. 8 repairs: 4 x 5 table of protocols against authorities (addition; before is the adjacent text the table now follows)"
   file: book/federated-harbor-whitepaper.tex
-  before: "staying valid. Operations that cross harbors"
+  before: null
   after: "makes the same check for all four protocols"
   source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (transfer / revocation / settlement / joining against the five exclusive authorities)"
 - id: fh-25
@@ -1590,13 +1591,13 @@
 - id: fh-30
   item: "Exercises: Check-rated exercise on the transfer offer (addition; before is the heading text it now follows)"
   file: book/federated-harbor-whitepaper.tex
-  before: "Capability Transfer Alice's card"
+  before: null
   after: "List the fields of message"
   source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4 (Ch. 8 has no Check tier)"
 - id: fh-31
   item: "Exercises: Check-rated three-party settlement exercise"
   file: book/federated-harbor-whitepaper.tex
-  before: "Cross-Harbor Settlement Formal Model"
+  before: null
   after: "whom the bond's terms do not list"
   source: "derivation: math-fh/settlement3.py"
 - id: fh-32
