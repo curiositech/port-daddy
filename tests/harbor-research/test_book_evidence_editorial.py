@@ -57,7 +57,7 @@ class BookEvidenceEditorial(unittest.TestCase):
         text = " ".join(source[start:source.index(r'\end{pdexample}', start)].split())
         for phrase in (r"$r(i)=90$, retaining the sanctioned identity yields $60$",
                        "ten points more than a reset",
-                       r"bears the $30$ penalty", r"r(i)=r_0+\Delta=80"):
+                       r"bears the $30$ penalty", r"r(i)=r_0+\sigma=80"):
             self.assertIn(phrase, text)
 
     def test_cue_guard_rejects_generic_and_missing_heads(self):
@@ -170,7 +170,7 @@ class BookEvidenceEditorial(unittest.TestCase):
         self.assertIn("domain=1:6,samples=6", plot)
         self.assertIn("{40}", plot)  # perfectly shared errors do not decay
         self.assertIn("{x}", plot)   # normalized budget is linear in k
-        self.assertIn("One budget unit: bounty $b$ + bond carry $c_B$", plot)
+        self.assertIn(r"One budget unit: bounty $b_{\mathrm f}$ + bond carry $c_B$", plot)
 
     def test_four_period_capacity_is_not_infinite_capacity(self):
         finite = sum(Fraction(9, 2**t) for t in range(4))

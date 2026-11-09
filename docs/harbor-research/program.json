@@ -998,7 +998,7 @@
         "id": "bonded-merkle-binding-easycrypt",
         "status": "partial",
         "method": "EasyCrypt",
-        "note": "EasyCrypt is not installed anywhere in this estate's CI; 3 `admit.` tactics remain undischarged (see binding.ec around lines 346, 371, 397 -- hashLeafE's algebraic combination). binding.run.log documents a manual proof-sketch review, not a machine-checked result."
+        "note": "EasyCrypt is not installed anywhere in this estate's CI; 3 `admit.` tactics remain undischarged (see binding.ec around lines 346, 371, 397, in hashLeafE's algebraic combination). binding.run.log documents a manual proof-sketch review, not a machine-checked result."
       },
       {
         "id": "campaign-20261106-packet-r1-proverif-historical",

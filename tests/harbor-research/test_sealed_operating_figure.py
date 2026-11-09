@@ -14,7 +14,7 @@ PDF=Path(os.environ.get('BOOK_OPERATING_PDF',ROOT/'.cache/book-operating-2026092
 def contract(source):
     text=re.sub(r'(?<!\\)%[^\n]*','',source)
     for phrase in (r'\SGMeasuredFigure{VIII/fig:sealed-operating-curve}',
-                   'canaries carried $k$ (integer)', 'conditional detection probability',
+                   'canaries carried $j$ (integer)', 'conditional detection probability',
                    'outputs to stopping decision $N$', 'xmin=0,xmax=8.5,ymin=0,ymax=1.03',
                    'domain=0:8,samples=9', '{1-0.2^x}', 'coordinates {(3,.992)}',
                    'coordinates {(431.9,1.12) (296.9,2.12)}',
