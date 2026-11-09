@@ -441,7 +441,7 @@ process can propose them gives it no permission to execute them.}
 The tuple below records the conditions that distinguished those four proposals.
 Its scope must include the acceptance-preservation rule as well as a path pattern.
 
-\begin{pdclaim}{Design invariant}{Consent Grant}
+\begin{pdclaim}{Design invariant}{Explicit, Scoped, Revocable Consent}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:consent}
 A \pdterm{consent grant} is an explicit, scoped, revocable authorization the
@@ -643,7 +643,7 @@ exact command run. Paraphrasing these is the over-flattening.
 
 The slogan: \emph{summarize the STATE, link to the WORK}.
 
-\pitfall[Artifacts cannot capture tacit knowledge]{``Zoom to the artifact'' does not fully preserve m\^etis, and a political
+\pitfall[Artifacts miss what cannot be written down]{``Zoom to the artifact'' does not fully preserve m\^etis, and a political
 theorist will say so (\S\ref{sec:consent-canon}). M\^etis in Scott is not ``the
 detailed data underneath the summary'' --- it is practitioner knowledge that
 \emph{resists codification entirely}: the operator's gut sense that ``this agent is
@@ -770,9 +770,11 @@ The chapter's subject is legibility and authority. A read-only legibility layer 
 glorified dashboard; the point of Hobbes is that the sovereign rules as well as
 sees. This section specifies the authority half: the
 mechanisms by which the consented daemon actually decides, blocks, lands, and
-gates. Table~\ref{tab:ls-authority-organs} lists the six mechanisms (roadmap,
-review, completion, landing, guard, escalation); the engineering status of
-each is in Appendix~\ref{app:honest}.
+gates. Table~\ref{tab:ls-authority-organs} lists six of them. The first is the
+\pdterm{roadmap}, a versioned, amendable statement of intent, priority and
+dependency, organized by phase, against which the swarm's output is compared.
+The other five are review, completion, landing, guard and escalation. The
+engineering status of each is in Appendix~\ref{app:honest}.
 
 \begin{table}[H]
 \centering
@@ -798,9 +800,8 @@ escalation & an interrupt & an operator decision & the question raised and the d
 
 A coordinator that prevents collisions answers ``what is the swarm doing?'' It does
 not answer ``is the swarm doing the \emph{right} thing?'' That question needs a
-single legible artifact the authority is measured against: a \pdterm{roadmap}, a
-versioned, amendable statement of intent, priority and dependency, organized by
-phase, against which the swarm's actual output can be compared. It is not truth about the
+single legible artifact the authority is measured against, and the roadmap is
+that artifact. It is not truth about the
 world; calling it that would turn every lesson the work teaches into drift. The
 authority's legitimacy is measured by \emph{whether the roadmap stays honest}: every
 unit of work keys to a plan item, amendments are recorded as amendments, and drift
@@ -837,10 +838,11 @@ Independence of stake and independence of error are different premises.
 Figure~\ref{fig:judge-dependence} gives a constructed counterexample: three
 conflict-free reviewers can inspect one flawed source and repeat the same
 mistake. Measure dependence on labeled cases before treating agreement as
-corroboration; a colluding clique requires a separate strategic test.
+corroboration; reviewers who collude as a group require a separate strategic
+test.
 \input{figures/legible-swarm-judge-dependence}
 
-\subsection{Sole-responsibility roles and the specialization boundary}\label{sec:sole-roles}
+\subsection{One agent per critical role, and the specialization boundary}\label{sec:sole-roles}
 
 The single-writer discipline (\S\ref{sec:local}) generalizes naturally from data files to system functions. When an invariant is critical, the authority assigns a \pdterm{sole-responsibility role}: one named agent identity (an avatar) that alone may write the state an invariant protects.
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt]
@@ -1052,9 +1054,11 @@ skill premium removes it, so past a point the honest fix for a slow sole role is
 a better handoff and not a better owner. The second is that the ceiling can
 bind absolutely: writing $K=W_{\mathrm{pool}}+A/(w\lambda_F)$ for the
 response-time threshold in hours,
-pooling wins at \emph{every} skill premium once $\xi/\eta$ clears the
-succession price $D^\star=\eta K/(1-\eta K)$ --- and, in the case worth
-remembering, only while $\eta K<1$. Where succession is fast enough that
+pooling wins at \emph{every} skill premium once $\xi/\eta$, the owner's failure
+rate over its replacement rate, clears the \pdterm{succession price}
+$D^\star=\eta K/(1-\eta K)$, the ratio above which no amount of skill makes up
+for the outages. That threshold exists only while $\eta K<1$, the condition
+worth remembering. Where succession is fast enough that
 $\eta K\ge 1$ there is no such threshold at all and sole ownership cannot be
 ruled out on response time, which is the more common situation in a
 well-run fleet and the one a reader is likeliest to be in.
@@ -1571,7 +1575,7 @@ inspection detects every dangerous action. A score-based policy does at least as
 well when both constant policies remain available; how much better depends on a
 fitted detector, which this table does not supply.
 
-\subsection{Trust calibration is multi-dimensional, and the vigilance decrement is real}\label{sec:calibration}
+\subsection{Trust calibration is multi-dimensional, and detection fades over a long watch}\label{sec:calibration}
 
 A readable digest is not enough, by itself, for appropriate reliance.
 \textbf{Lee \& See}\pdcite{leesee2004} distinguish trust based on performance,
@@ -1633,7 +1637,7 @@ and independent outcome evidence are proposed safeguards. Their effect on real
 decisions, and on gaming, must be evaluated.}
 
 \pagebreak
-\subsection{Situation awareness needs projection, not just perception}\label{sec:sa}
+\subsection{Perceiving, understanding and projecting the swarm's state}\label{sec:sa}
 
 Digest-with-zoom can organize current state and its supporting evidence. What
 the operator understands from it is a separate question. Endsley~\pdcite{endsley1995}
@@ -1655,7 +1659,7 @@ the past; this proposed mode would look forward.
 Figure~\ref{fig:sa-levels} stacks Endsley's three levels directly and
 contrasts current support with the proposed projection mode.
 
-\subsection{The Bainbridge--Scott convergence and the abdication gradient}\label{sec:abdication}
+\subsection{The Bainbridge--Scott convergence and the drift from doing to absence}\label{sec:abdication}
 
 \textbf{Bainbridge's} \emph{Ironies of Automation}\pdcite{bainbridge1983}
 identifies a practical tension: automating routine control can remove opportunities
@@ -1781,7 +1785,7 @@ introducing a second catalogue of product modes.
 
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Read-poverty: when inspection falls behind}\label{sec:readpoverty}
+\section{When inspection falls behind}\label{sec:readpoverty}
 % ═════════════════════════════════════════════════════════════════════════════
 
 Alice now has a rule for deciding what counts as an acceptable repair and
@@ -1817,7 +1821,7 @@ not a Shannon channel capacity or a human throughput in bits. A larger
 inspection budget changes the model's parameters, and a summary must still say
 which distinctions it preserves.
 
-\begin{pdclaim}{Empirical hypothesis}{Read-Poverty}
+\begin{pdclaim}{Empirical hypothesis}{Reading Runs Out Before Writing}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:readpoverty}
 \pdterm[read-poverty]{Read-poverty} is a regime in which legible state accumulates faster than it
@@ -2320,7 +2324,7 @@ certifies a saving over opening every flagged item?
 \end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Discovery: the directory and the split ranker}\label{sec:discovery}
+\section{Discovery: the directory and ranking for each reader}\label{sec:discovery}
 % ═════════════════════════════════════════════════════════════════════════════
 
 An agent cannot send a request to another agent until it knows which agents
@@ -2330,9 +2334,11 @@ where its records are kept.
 
 \paragraph{Three losses, named before they collide.} This section and the next
 two prove that certain read surfaces cannot share one scoring function, or
-\emph{head} (Thm.~\ref{thm:split-ranker}, Thm.~\ref{thm:split-digest}). Those are
-impossibility results, and an impossibility result is only as legible as the
-objects it says cannot be identified. Three distinct losses run through the rest
+\emph{head} (Thm.~\ref{thm:split-ranker}, Thm.~\ref{thm:split-digest}). Where
+two readers rank the same items, the remedy is a \pdterm{split ranker}, one
+shared candidate list and decay rule with a separate scoring head for each
+reader. The theorems are impossibility results, and an impossibility result is
+only as legible as the objects it says cannot be identified. Three distinct losses run through the rest
 of the chapter, and a reader who has not seen them side by side will meet them
 one at a time, several pages apart, and reasonably assume they are three
 weightings of one thing. They are not, and Table~\ref{tab:ls-three-losses} is
@@ -2556,8 +2562,8 @@ may share candidate generation and decay, but the scoring head must be chosen pe
 reader.
 \end{proof}
 
-\noindent A \pdterm{split ranker} is the arrangement the theorem calls for: one
-shared candidate list and decay rule, with a separate scoring head for each reader.
+\noindent The split ranker, one candidate list with a scoring head per reader,
+is the arrangement the theorem calls for.
 
 \begin{pdexample}{Fit and Regret for the Same Three Candidates}
 \setlength{\parskip}{4pt plus 1pt}
@@ -3642,7 +3648,7 @@ freeze-probe study (\S\ref{sec:sa}) that would tell.
 Randomize operators or time blocks among manual-practice, automation-only, projection/freeze-probe, and adaptive-practice conditions, on matched repositories with fixed surprise events. Probe without warning: next-three-effect prediction, takeover completion time, false-belief rate, Brier score, post-interruption recovery, defect catch rate, NASA-TLX, and retention weeks later. Measure disablement/avoidance as an outcome in its own right. Useful practice improves later projection/takeover after controlling for interruption cost; mere annoyance raises workload and disablement without those gains.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:readpoverty}}{Read-poverty: when inspection falls behind}
+\pdexercisesfor{\S\ref{sec:readpoverty}}{When inspection falls behind}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-readpoverty-binding}
 Under what workload conditions could read-poverty
@@ -3758,7 +3764,7 @@ above, so the obligation is to state the model before importing a bound, not to
 import one and hope.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:discovery}}{Discovery: the directory and the split ranker}
+\pdexercisesfor{\S\ref{sec:discovery}}{Discovery: the directory and ranking for each reader}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-split-ranker-statement}
 State Thm.~\ref{thm:split-ranker} in one sentence and give the loss function

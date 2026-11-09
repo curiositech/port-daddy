@@ -250,7 +250,7 @@ property ``is necessary but it is not sufficient'' for a usable
 editor~\pdcite{kleppmann2019interleaving}. Convergence is a property of the
 text, not of what either person meant by it.
 
-\subsection{Unity of command and the escalation path}\label{sec:ls-many-authors-escalation}
+\subsection{One person to report to, and the escalation path}\label{sec:ls-many-authors-escalation}
 
 Rule R8 needs a target. The incident command system's answer is
 \pdterm{unity of command}: ``each individual only reports to one person''~\pdcite{fema2017nims}.
@@ -381,7 +381,7 @@ develops the commitment checker in full; the example below needs four pieces
 of it. $\mathsf O(a,S,[t_1,t_2])$ is an obligation: action $a$ on the scopes
 $S$ must happen between minute $t_1$ and minute $t_2$.
 $\mathsf F(a,S,[t_1,t_2])$ is a prohibition: it must not happen in that
-window. A Horn rule $p\to q$ says that whenever $p$ holds, $q$ holds too. The
+window. An if-then rule $p\to q$ says that whenever $p$ holds, $q$ holds too. The
 checker applies such rules until nothing new follows, and reports a conflict
 when an obligation and a prohibition on the same action and scope have
 overlapping windows. To find who is responsible, the \pdterm{deletion filter}
@@ -405,12 +405,12 @@ constructed run, not a measurement.
 
 \textbf{Instruction time: an opposed direction.} Alice tells Wren to store
 amounts as integer cents. It compiles to the fact \texttt{cents\_requested},
-the Horn rule \texttt{cents\_requested}~$\to$~\texttt{schema\_change}, and
+the rule \texttt{cents\_requested}~$\to$~\texttt{schema\_change}, and
 Alice's rule $\texttt{schema\_change}\to
 \mathsf O(\texttt{migrate},\{\texttt{db:checkout}\},[0,120])$. Bob's standing
 release freeze is $\mathsf F(\texttt{migrate},\{\texttt{db:checkout}\},
-[0,4320])$, three days being $3\times24\times60=4320$ minutes. One Horn step
-fires the obligation, and the intervals overlap on
+[0,4320])$, three days being $3\times24\times60=4320$ minutes. Applying the
+two rules in turn fires the obligation, and the intervals overlap on
 $[\max(0,0),\min(120,4320)]=[0,120]$: a conflict. To find who is responsible
 for the clash, the deletion filter removes one person's directions at a time
 and reruns the conflict check. Remove Alice's: Bob's freeze stands alone,
