@@ -209,7 +209,7 @@ protocol. The scenarios are constructed; none describes a deployment.
 This chapter closes the book. Each owner's machine runs a harbor, the governed environment in which that owner's daemon decides what agents may do there. A \pdterm{federation} is a group of harbors with different owners that exchange cards, revocations and payments while none of them rules the others. \pdchapref{anchor}{The Anchor Protocol} supplies the signed capability cards; \pdchapref{bonded}{The Bonded Commons} supplies the economic and governance model; this chapter specifies what happens where two harbors meet. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's authorization chain from one owner to another; \S\ref{sec:fh-revocation} extends its revocation gossip; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
 The design needs no global agreement on the order of work events, unlike
 ledger-backed constructions such as ETHDKG~\pdcite{schindler2019ethdkg}.
-Without a shared chain we cannot rely on one for ordering, for settlement, or for catching \pdterm{equivocation}: one party signing two different versions of the same record and showing each version to a different audience. We build each of those from peer gossip plus a \pdterm{witness log}, an append-only log to which every harbor posts signed summaries of its records, so that anyone can check what a harbor published and catch it publishing two versions. In return, the design fits the local-first architecture of \pdchapref{he}{The Harbor Economy} and \pdchapref{bonded}{The Bonded Commons}, in which one operator runs each machine.
+Without a shared chain we cannot rely on one for ordering, for settlement, or for catching \pdterm{equivocation}: one party signing two different versions of the same record and showing each version to a different audience. We build each of those from peer gossip plus a \pdterm{witness log}, an append-only log to which every harbor posts signed summaries of its records, so that anyone can check what a harbor published, and any auditor who receives two signed versions for the same epoch holds proof that the harbor equivocated. In return, the design fits the local-first architecture of \pdchapref{he}{The Harbor Economy} and \pdchapref{bonded}{The Bonded Commons}, in which one operator runs each machine.
 \subsection{Which obligation each protocol carries}\label{sec:fh-contributions}
 Transfer determines what the destination may authorize. Revocation determines
 what it currently knows about dependencies. Evidence comparison determines
@@ -257,7 +257,7 @@ hand on a bounded right to narrow cards under its policy, but that right
 does not let anyone issue new root authority. Bob's refusal does not depend
 on whether Alice has revoked the card.
 The case also illustrates item~4: acceptance is the decision of Bob's daemon $D_B$ alone, and no amount of well-formedness at $A$ can compel it.
-Once the \pdterm{transfer ceremony} of \S\ref{sec:fh-xfer}, a four-message exchange in which $B$ checks a card offered by $A$ and then issues its own, lets $D_B$ mint a derived card, what that derived card does to $B$'s database is still $D_B$'s to govern, never $D_A$'s. The design invariant below draws exactly that boundary.
+The \pdterm{transfer ceremony} of \S\ref{sec:fh-xfer} is a four-message exchange in which $B$ checks a card offered by $A$ and then issues its own. Even after it lets $D_B$ mint a derived card, what that card does to $B$'s database is $D_B$'s to govern, never $D_A$'s. The design invariant below draws exactly that boundary.
 \end{pdexample}
 \Needspace{12\baselineskip}
 \begin{pdclaim}{Design invariant}{Harbor Sovereignty}
@@ -319,7 +319,7 @@ Acme signs that one value and posts it to the witness log.
 
 \emph{Equivocation.} Suppose Acme shows Beta's auditor one signed $R_A^{(8)}$ and the staging server's auditor a different signed $R_A^{(8)}$. Each signature verifies on its own, and any auditor who holds both holds proof that Acme signed two histories for one epoch.
 \end{pdexample}
-The list has the same shape as the five required properties of the key-management service in \pdchapref{bonded}{The Bonded Commons}. As there, the requirements are stated apart from any construction that might meet them. Section~\ref{sec:fh-formal} sketches one construction, built on Certificate Transparency-style append-only logs~\pdcite{laurie2013ct} that witness one another in the Sigstore/Rekor pattern~\pdcite{newman2022sigstore}; other constructions could meet the same list.
+The five witness-log requirements above have the same shape as the five required properties of the key-management service in \pdchapref{bonded}{The Bonded Commons}. As there, the requirements are stated apart from any construction that might meet them. Section~\ref{sec:fh-formal} sketches one construction, built on Certificate Transparency-style append-only logs~\pdcite{laurie2013ct} that witness one another in the Sigstore/Rekor pattern~\pdcite{newman2022sigstore}; other constructions could meet the same list.
 \subsection{What the federation is not}\label{sec:fh-not}
 Three things the federation is not, stated once so that the rest of the chapter need not keep refuting them.
 The federation is \emph{not} a consensus protocol. No one agrees on a global order of events. Each harbor's epoch roots only ever extend its own history, each root is published to the shared log, and equivocation can be detected. None of this needs harbors to agree on an order, and the earlier chapters' designs avoid that overhead on purpose.
@@ -396,8 +396,8 @@ compromised issuer stays exposed until the receiver invalidates it.
 \paragraph{Cartel formation across harbors.} Bonded's folk-theorem cartel-resistance argument relied on the daemon as a correlation device inside one machine. Across harbors, cartels can form offline and present a unified front to the witness log; the witness log records that all harbors agreed, which is consistent with both honest agreement and cartel collusion. \S\ref{sec:fh-limitations} states what remains to be done.
 
 \paragraph{Concentration of control.} Control over which roots are accepted can end up in a few hands even when many endpoints exist; the
-trust topologies compared by Maler and Reed~\pdcite{maler2008venn} show how,
-though they set no timetable for it. The design's response, copyable witness logs and no central coordinator, is a design choice and not a theorem. \S\ref{sec:fh-failure-modes} returns to it.
+trust topologies compared by Maler and Reed~\pdcite{maler2008venn} illustrate
+the risk, though they give no law or timetable for it. The design's response, copyable witness logs and no central coordinator, is a design choice and not a theorem. \S\ref{sec:fh-failure-modes} returns to it.
 
 \paragraph{Side channels.} Constant-time signature verification, cache-side-channel resistance, and timing-attack resistance are inherited from the underlying libraries; we do not re-prove them and we note where we trust them.
 
@@ -440,7 +440,7 @@ Each derivative $C_B'$ carries the transfer identifier of the offer that produce
 
 \subsection{Why this composes cleanly with Anchor}\label{sec:fh-xfer-compose}
 
-The Anchor Protocol's Phase-3 delegation already proves that a chain $C_{\text{daemon}} \to C_A \to C_B'$ of narrowed cards is verifiable under the issuing daemon's public key, and that an attacker cannot inflate a downstream cap to exceed an upstream one. The transfer ceremony is Phase-3 delegation across a trust boundary, with two changes:
+The Anchor Protocol's Phase-3 delegation already proves that a chain $C_{\text{daemon}} \to C_A \to C_A'$ of narrowed cards is verifiable under the issuing daemon's public key, and that an attacker cannot inflate a downstream cap to exceed an upstream one. The transfer ceremony is Phase-3 delegation across a trust boundary, with two changes:
 
 \begin{enumerate}[nosep]
 \item The second link in the chain is signed under a \emph{different} root key ($\mathit{sk}_B$ instead of $\mathit{sk}_A$), so the verifier at $B$ uses $B$'s public key $\mathit{pk}_B$, rather than $\mathit{pk}_A$.
@@ -501,7 +501,7 @@ other protocols handle the rest:
 \item \textbf{Deferred:} revocation latency (handled in \S\ref{sec:fh-revocation}); settlement disputes (handled in \S\ref{sec:fh-settlement}); new harbors joining without a bond (handled in \S\ref{sec:fh-admission}).
 \end{itemize}
 
-\pdmarginanalogy{fh-customs-seal}{}{ch08-transit-customs-seal}{Like a tamper-evident seal on cargo: any alteration of $A$'s signed offer shows when $B$ checks the signature, and the seal hides nothing. $B$ then issues its own narrower card, and only that card works at $B$.}%
+\pdmarginanalogy{fh-customs-seal}{}{ch08-transit-customs-seal}{Like a tamper-evident seal on cargo: any alteration of $A$'s signed offer shows when $B$ checks the signature, and the seal hides nothing. $B$ then issues its own card, and only that card works at $B$.}%
 The ceremony is one layer of the federation's defense, not all of it.
 
 \subsection{Mechanization status}\label{sec:fh-xfer-mech}
@@ -601,13 +601,14 @@ Table~\ref{tab:fh-revocation-rules} sets the three rules side by side: the pessi
 
 \subsection{Event Log \& Ephemeral Cuckoo Discipline}\label{sec:fh-cuckoo}
 
-Two Bloom filters over the same universe merge by a bitwise OR; two cuckoo filters cannot, because each stores a fingerprint in one of two hashed buckets that can overflow, so a union may have nowhere to place a fingerprint. The cuckoo filter is therefore only a local, disposable index for fast reads, built from the append-only event log that decides. The filter keeps Anchor's local safeguards (load capping, pollution resistance), and the cross-harbor check is strict: a filter at $B$ that holds $c \in F_B$ where $c$ was revoked at $A$ is correct only if there is a corresponding inclusion proof in $R_A^{(e+1)}$ in the witness log. A positive filter result is checked against the exact authenticated log.
+Two Bloom filters over the same universe merge by a bitwise OR; two cuckoo filters cannot, because each stores a fingerprint in one of two hashed buckets that can overflow, so a union may have nowhere to place a fingerprint. The cuckoo filter is therefore only a local, disposable index for fast reads, built from the append-only event log, which is the authoritative record of revocations. The filter keeps Anchor's local safeguards (load capping, pollution resistance), and the cross-harbor check is strict: a filter at $B$ that holds $c \in F_B$ where $c$ was revoked at $A$ is correct only if there is a corresponding inclusion proof in $R_A^{(e+1)}$ in the witness log. A positive filter result is checked against the exact authenticated log.
 Rebuilding with unchanged hash functions can reproduce the same false positive;
 rebuilding repairs a stale or damaged cache, not every fingerprint collision. Fake revocations that an attacker slips into a peer's log fail the first check against the witness log. \emph{Local filters only advise; the event log and the witness log decide.}
 
 \subsection{Visible discrepancies and their certificates}\label{sec:fh-sheaf}
 
 Here is the problem. Harbors gossip summaries of their logs to each other.
+Below, the same nodes are also called witnesses, and relays in the ring example.
 A dishonest harbor might tell one neighbor that its log head is at entry 12
 and another that it is at 15. If each pair of neighbors reports the difference
 it saw, an auditor can add those differences around any loop of harbors.
@@ -812,7 +813,7 @@ units; it is not a probability of dishonesty.
 \marginnote{\input{figures/spark-fh-cycle-radius}\par
 Unit-weight visible cycles, one altered edge. Longer loops certify a smaller
 fraction of the lie; a bridge certifies zero.}
-Six harbors in a ring ($C_6$), unit-weight edges, a lie of magnitude $|s|=3$ on one relayed cycle edge. Robinson calls the completion residual $r$ the \emph{consistency radius}~\pdcite{robinson}. The effective resistance across that edge is $R_{\mathrm{eff}}=(n-1)/n=5/6$, so by hand:
+Six harbors in a ring ($C_6$), unit-weight edges, a lie of magnitude $|s|=3$ on one relayed cycle edge. The completion residual $r$ is a least-squares form of what Robinson calls the \emph{consistency radius}~\pdcite{robinson}. The effective resistance across that edge is $R_{\mathrm{eff}}=(n-1)/n=5/6$, so by hand:
 \[
 \begin{aligned}
 r \;&=\; |s|\sqrt{1-R_{\mathrm{eff}}} \;=\; 3\sqrt{1-\tfrac56}\\
@@ -1059,7 +1060,7 @@ whole loop. Under measurement noise the certificate needs a threshold above
 the honest noise level; below it, the data are ``consistent with noise.''
 \end{pdboundary}
 
-\paragraph{Sheaf Laplacian dynamics.} On a cellular sheaf with real stalks, the Hansen--Ghrist sheaf Laplacian~\pdcite{hansengrist2019} is $\Delta_{\mathcal{F}} = \delta^* \delta$. Its kernel $\ker(\Delta_{\mathcal{F}}) \cong H^0(G; \mathcal{F})$ is the set of vertex assignments that agree on every edge, the globally synchronized states. It exists only for the vector encoding built above: signed logs grow by adding authenticated entries, not by adding and scaling vectors, and supply no inner product of their own. Its smallest nonzero eigenvalue $\lambda_{\min}^{+}(\Delta_{\mathcal{F}})$ governs how fast continuous linear diffusion $\dot{x} = -\Delta_{\mathcal{F}}x$ settles; it need not be the second eigenvalue, since the kernel can have several dimensions. Anti-entropy gossip over signed append-only logs with an equivocator is different: discrete, asynchronous, adversarial, and growing by merging records rather than averaging numbers. Epidemic dissemination (Theorem~\ref{thm:fh-conv}, a separately argued result~\pdcite{demers1987epidemic}) and sheaf diffusion are two different convergence stories, and neither proves the other.
+\paragraph{Sheaf Laplacian dynamics.} On a cellular sheaf with real stalks, the Hansen--Ghrist sheaf Laplacian~\pdcite{hansengrist2019} is $\Delta_{\mathcal{F}} = \delta^* \delta$. Its kernel $\ker(\Delta_{\mathcal{F}}) \cong H^0(G; \mathcal{F})$ is the set of vertex assignments that agree on every edge, the globally synchronized states. The sheaf Laplacian exists only for the vector encoding built above: signed logs grow by adding authenticated entries, not by adding and scaling vectors, and supply no inner product of their own. Its smallest nonzero eigenvalue $\lambda_{\min}^{+}(\Delta_{\mathcal{F}})$ governs how fast continuous linear diffusion $\dot{x} = -\Delta_{\mathcal{F}}x$ settles; it need not be the second eigenvalue, since the kernel can have several dimensions. Anti-entropy gossip over signed append-only logs with an equivocator is different: discrete, asynchronous, adversarial, and growing by merging records rather than averaging numbers. Epidemic dissemination (Theorem~\ref{thm:fh-conv}, a separately argued result~\pdcite{demers1987epidemic}) and sheaf diffusion are two different convergence stories, and neither proves the other.
 \pdscope{This chapter derives no relaxation-time bound for the federation; reconciling the two stories is open (Appendix~\ref{app:fh-mech}).}
 
 \subsection{From observations to a checkable refusal}\label{sec:fh-evidence-decision}
@@ -1371,7 +1372,7 @@ released. Six quiet months alone do not statistically establish low risk.
 That is all four items of the ceremony below, in order, under a declared illustrative probation policy.
 \end{pdexample}
 
-\pdmarginanalogy{fh-quarantine-lantern}{}{ch08-quarantine-inspection-lantern}{Unlike a ship held at anchor under a quarantine lantern, a harbor on probation works from the first day. Its cards are accepted; only the release of its sponsor's bond waits on the graduation review.}%
+\pdmarginanalogy{fh-quarantine-lantern}{}{ch08-quarantine-inspection-lantern}{A harbor on probation is not isolated. From its first day its cards are accepted and its evidence is witness-logged; only the release of its sponsor's bond waits on the graduation review.}%
 \begin{enumerate}[nosep]
 \item An existing harbor, the sponsor, posts a bond on the newcomer $N$'s behalf, sized to the declared limit on what $N$ may put at risk during probation. If no
 such limit exists, no finite sponsor bond guarantees full coverage.
@@ -1401,8 +1402,8 @@ A new harbor that cannot find a sponsor cannot join. Entry can remain restricted
 
 These are design choices, not a theorem that entry stays open. Return to
 Bob's staging job: accepting Alice's harbor must not quietly allow an unlimited
-migration scope, or let one funded sponsor reserve back unlimited concurrent
-jobs. Several witness logs give independent inspection only if their operators and accepted roots really are independent.
+migration scope, or let one sponsor's funded bond cover an unlimited number
+of concurrent jobs. Several witness logs give independent inspection only if their operators and accepted roots really are independent.
 \pdscope{None of these choices shows that sponsors will be available, that switching is cheap, or that control stays spread out; a deployment must measure those (\S\ref{sec:fh-centralization}).}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -1672,7 +1673,7 @@ A signed root proves what was committed, not who has received it or what each pa
 \setlength{\parskip}{4pt plus 1pt}
 This is a constructed example. Acme and Beta each want to migrate the shared staging database this hour. Running alone pays $+3$ to the runner and $0$ to the one who waits; if both run, each gets $-5$; if neither runs, each gets $0$. A mediator flips a fair coin and posts ``Acme goes'' or ``Beta goes''. Told to go, a harbor earns $+3$ by obeying and $0$ by waiting; told to wait, it earns $0$ by obeying and $-5$ by running. Both obey.
 
-Now let Beta see the posted root one epoch late, while the mediator posts a fresh recommendation every epoch. Beta was told to go last epoch. If $p$ is Beta's belief that a newer ``Acme goes'' has been posted, running is worth $3(1-p)-5p=3-8p$ to Beta and waiting is worth $0$, so Beta runs only if $p<3/8$. With a fresh fair coin $p=1/2$, so Beta waits; whenever the newer root in fact says ``Beta goes'', neither harbor runs.
+Now let Beta see the posted root one epoch late, while the mediator posts a fresh recommendation every epoch. Beta was told to go last epoch. If $p$ is Beta's belief that a newer ``Acme goes'' has been posted, running is worth $3(1-p)-5p=3-8p$ to Beta and waiting is worth $0$, so Beta runs only if $p<3/8$. With a fresh fair coin $p=1/2$ whatever Beta was told, so Beta always waits. Acme, told to wait, then earns $+3$ by running instead of $0$, so the late signal stops binding Acme as well.
 \end{pdexample}
 
 \subsection{Trustless settlement for non-fungible bonds}\label{sec:fh-lim-trustless}
