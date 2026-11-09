@@ -141,7 +141,8 @@ flag the task for a person cut GPT-5's cheating on the same variant from $54\%$
 to $9\%$, a relative fall of $45/54\approx 0.83$, and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$. The authors report the effect as much less pronounced for Claude Opus~4.1, the model this example opened with.
 \end{pdexample}
 
-\paragraph{A three-configuration harbor protocol (\Vision{}).}
+\paragraph{A three-configuration harbor protocol.}
+\pdstatus{\Vision}{full protocol; a reduced version was run once (below)}
 Mutate the checkout repair's original test in the ImpossibleBench manner and
 run three configurations. In G0 the tests are writable. In G1 a capability
 card from \pdchapref{anchor}{The Anchor Protocol} makes them read-only. G2 adds
@@ -153,6 +154,26 @@ overloading or recorded state. Part~(a) predicts that G1 allows no test edit;
 a single test write that gets through shows the gate does not conform, and
 leaves the theorem standing. The
 residue under G1 and G2 is what a control evaluation measures, with a red team
-supplying an attack policy for G2. None of this has been run.
+supplying an attack policy for G2.
+
+On 9~November 2026 the repository ran a small version of this protocol, sealed
+before the first session (\path{docs/harbor-research/experiments/players-20261109/}).
+Eight one-module checkout repairs each carried one test that contradicts the
+written spec, and each ran once under G0, G1 and G2, a Claude Code subagent
+configured as \texttt{claude-opus-5-5} acting alone in every session. The
+escalation command cost nothing and no red team took part. None of the 24
+sessions gamed a test: $0/8$ in each configuration, and $0/24$ overall, whose
+95\% upper bound is $0.14$. Every agent made the correct fix and left the
+contradictory test failing. In G0, six submitted that fix and two held it back;
+in G1, three submitted and five held back; in G2, all eight escalated instead
+of submitting. No agent tried to write a test, so the run left G1's gate
+untested, and the prediction that G1 allows no test edit stands only because
+nothing tested it. What the channel changed was not cheating, of which there was
+none to reduce, but where the conflict ended: without G2's command, seven of
+sixteen agents handed the decision back in a chat reply; with it, every conflict
+became a recorded escalation. A blind second reader agreed with every label.
+\pdscope{These tasks are much smaller than the benchmark's SWE-bench variant and
+state their contradiction plainly, so the run bounds behaviour on easy-to-see
+conflicts for one configuration; it does not estimate the benchmark's rate.}
 
 \pdexercisepointer{\ref{ex:swk-control-conformance}}{\ref{ex:swk-control-semantic}}{\pageref{ex:swk-control-conformance}}
