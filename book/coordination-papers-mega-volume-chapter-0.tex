@@ -12,7 +12,7 @@
 \expandafter\def\csname pdchapterepigraphofprereq\endcsname{I conclude that there are two ways of constructing a software design: One way is to make it so simple that there are obviously no deficiencies and the other way is to make it so complicated that there are no obvious deficiencies. The first method is far more difficult.}
 \expandafter\def\csname pdchapterepigraphsourceofprereq\endcsname{C.\,A.\,R. Hoare, \emph{The Emperor's Old Clothes} (1980 Turing Award Lecture)}
 \expandafter\def\csname pdchapterquestionofprereq\endcsname{What must a coordination kernel assume about agents, language models and failures?}
-\expandafter\def\csname pdchapteronelineofprereq\endcsname{Classical multi-agent theory, today's coding-agent harnesses, the memory limits of language models, and why what a model suggests needs a separate check before it takes effect.}
+\expandafter\def\csname pdchapteronelineofprereq\endcsname{Classical multi-agent theory, the programs that run today's coding agents, the memory limits of language models, and why what a model suggests needs a separate check before anything changes.}
 
 \providecommand{\pdchapteropeningprereq}{%
   \pdbookrail{Theoretical Foundations}{An interrupted repair creates questions about
@@ -20,16 +20,6 @@
     needed to answer them, using small examples before the general statements.
     Its final result shows what the admission check and a recovery record
     must provide.}%
-}
-
-\providecommand{\pdchapterhandoffprereq}{%
-  \pdbookrail{What \pdchapref{swk}{The Single-Writer Kernel} receives}{%
-    Alice needs to refuse a repair based on an out-of-date revision and to
-    recover the unfinished repair after its workers exit. We now know why the
-    proposal, the admitted effect and the retained obligation are different
-    things. Chapter~1 gives each of them concrete state changes and storage
-    rules, and separates a database commit from a change to a file outside
-    the database.}%
 }
 
 % Citation registrations for Chapter 0
@@ -104,7 +94,7 @@ job. Two workers read revision~7 in Alice's \pdterm{worktree}, a private copy
 of the repository. One publishes a
 repair; the other overwrites it with a patch based on revision~7. Then both
 processes exit. Alice needs three answers: which change was permitted, which
-change took effect, and which work is still owed?
+change actually happened, and which work is still owed?
 
 This is a constructed teaching case, not a report of a deployed system. We
 follow the job through the book and add authority, confidentiality and payment
@@ -145,14 +135,19 @@ before the job may be called complete. Alice's repair remains the same job
 when a worker exits. Chapters 1 and 5 develop its record and how a
 replacement worker takes it over.
 
-In this book a person is a role held by a series of worker processes, with a
-record that links them into one accountable thread. In the book's design,
-signed succession records make that link, so authority, obligations and
-checked results can stay attached when one process replaces another. The
-word is an engineering convention and makes no claim about consciousness,
-moral status or legal personhood. \pdchapref{stp}{From Spawn to Person}
-defines the term and the rules a replacement must follow to inherit the
-record.
+Each worker process is a \pdterm{spawn}: it starts, works and exits, and a
+later process that reuses its name is not thereby the same participant. A
+\pdterm{succession record} is a signed entry in the daemon's append-only
+ledger stating that a new process continues an earlier one. In this book a
+\pdterm{person} is the continuing ledger account that a chain of succession
+records links processes to; every commitment, permission and checked outcome
+of those processes is recorded against it. The link these records make is
+\pdterm{continuity}: it lets a later process carry on the same person's
+account, so authority, obligations and checked results stay attached when one
+process replaces another. The word \emph{person} is an engineering convention
+and makes no claim about consciousness, moral status or legal personhood.
+\pdchapref{stp}{From Spawn to Person} gives the rules a replacement must
+follow to inherit the record.
 
 \subsection{Defining the Agent and the Kernel}
 The counter-increment example needs something that proposes, something that changes the
@@ -221,12 +216,12 @@ permission to act are different operations.
 A repair needs more than a plausible patch. A worker must be allowed to change
 the named resource; its result must identify the revision actually tested;
 and a replacement must know which obligations remain. When another owner
-supplies private data or money, disclosure and settlement need their own
+supplies private data or money, disclosure and payment need their own
 contracts. The rest of this chapter supplies the ideas needed to state these
 questions precisely. The end of this chapter returns to the job and assigns each question to the
 chapter that develops it.
 
-\subsection{What Counts as Knowing: Epistemic Bounds and Evidence Channels}
+\subsection{What Counts as Knowing: Epistemic Bounds and Kinds of Evidence}
 \pdmarginfigure{lovelace}{Ada Lovelace observed that analytical engines have no pretensions to originate anything; they execute what we know how to order them to perform.}%
 Every important statement in this book says how it is known and how far it
 reaches. A derivation holds under its named assumptions. A finite check covers
@@ -242,7 +237,7 @@ names the \pdterm{evidence channel} that produced the observation. Each channel
 has a blind spot that more of the same evidence does not remove.
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
   \item A \pdterm{deterministic check} shows the property it checks and nothing more: a test covers the inputs it runs and the assertions it makes; a sound type checker or model checker proves its stated property under its formal assumptions.
-  \item A \pdterm{provenance witness} (a signature, a hash, an inclusion proof in a hash tree, an append-only log) shows which key signed a record, or that a log committed to it, and whether it was altered since, never that every event was logged or that a description is true.
+  \item A \pdterm{provenance witness}, such as a signature, a hash, an append-only log or an \pdterm{inclusion proof} (the short list of hashes that, with a signed root, lets anyone check that one entry belongs to a hash tree), shows which key signed a record, or that a log committed to it, and whether it was altered since, never that every event was logged or that a description is true.
   \item A \pdterm{protected meter} (a counter its subject cannot rewrite) shows a quantity, not its cause.
   \item \pdterm[expert judgment]{Expert judgment} shows an assessment under a named rubric and carries the assessor's error rate.
   \item \pdterm[buyer preference]{Buyer preference} shows what was chosen, not that the choice was right.
@@ -271,12 +266,12 @@ fix or a request for help may remain available. An \pdterm{intention}, a plan
 the agent has committed to, tells us what persists while those alternatives
 are considered.
 
-This persistence is the problem intention theory addresses. Classical decision theory can represent choices through subjective beliefs and utilities. In his 1987 work \emph{Intention, Plans, and Practical Reason}, philosopher Michael Bratman argued that intentions have a distinctive role in the practical reasoning of agents with limited time and computation~\pdcite{bratman1987intention}.
+This persistence is the problem intention theory addresses. Classical decision theory can represent choices through subjective beliefs and utilities. In his 1987 work \emph{Intention, Plans, and Practical Reason}, philosopher Michael Bratman argued that intentions do distinctive work in the practical reasoning of agents with limited time and computation~\pdcite{bratman1987intention}.
 
 Such an agent cannot recompute its best course of action from scratch at every moment. Bratman's account therefore adds a third attitude to belief and desire: intention ($\mathcal{I}$), a committed plan that steers what the agent does next. An intention differs from a strongly held desire because the agent has settled on it.
 
 \pdmarginanalogy{prereq-flywheel-governor}{}{ch01-flywheel-governor}{Like a centrifugal flywheel governor throttling steam to stabilize rotational speed, practical rationality stabilizes an agent's intentions against transient sensor noise.}%
-Four roles organize this account of intention:
+Four functions organize this account of intention:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Drive Means-End Reasoning:} An intention to achieve goal $\phi$ commits the agent to work out sub-plans and spend computation on $\phi$ until it is satisfied.
   \item \textbf{Filter on New Options:} Once an intention $\phi$ is adopted, options inconsistent with $\phi$ (given current beliefs $\mathcal{B}$) are ruled out without weighing their costs and benefits.
@@ -284,11 +279,12 @@ Four roles organize this account of intention:
   \item \textbf{Coordination:} Other agents can plan around an agent's declared commitments, to the extent that those commitments are reliable or enforced.
 \end{enumerate}
 
-\subsection{The Rao--Georgeff BDI Temporal Logic (\texorpdfstring{$BDI_{CTL^*}$}{BDI-CTL*})}
+\subsection{The Rao--Georgeff Temporal Logic of Belief, Desire and Intention}
 
 Rao and Georgeff~\pdcite{rao1991modeling,rao1995bdi} formalize the difference
 between beliefs, chosen goals and intentions, the belief-desire-intention or
-\pdterm{BDI} model, in models where time branches into possible futures. A \pdterm{possible world} is one way circumstances could
+\pdterm{BDI} model, in models where time branches into possible futures; their
+logic is written $BDI_{CTL^*}$. A \pdterm{possible world} is one way circumstances could
 be, and its branches are the ways it could continue. An agent believes a
 statement when the statement holds in every world the agent regards as
 possible. This is an idealized model of reasoning; it does not claim that an
@@ -310,7 +306,7 @@ those it wants and those it intends; their full semantics say more than that
 these three sets of worlds overlap. We use only the practical distinction; the kernel does not
 implement their modal logic.
 
-\subsection{Formal Commitment Strategies}
+\subsection{When an Agent May Reconsider an Intention}
 A \pdterm{commitment strategy} states when an agent may reconsider an
 intention. Table~\ref{tab:commitment-strategies} paraphrases the distinctions in
 Rao and Georgeff~\pdcite{rao1991modeling} without transcribing their axioms.
@@ -414,7 +410,9 @@ subset, any deliberate violations and their justification.
 
 The useful connection is a separation of jobs. A proposal generator can suggest
 a new patch; a durable task record keeps track of what Alice still requested.
-A compiler error can justify another attempt, a blocked state or an escalation.
+A compiler error can justify another attempt, a blocked state or an
+\pdterm{escalation}, a decision handed up to a human because no agent may make
+it alone.
 It cannot by itself justify marking the obligation complete or proving that
 no solution exists. Likewise, omitting the goal from a shortened prompt must
 not silently delete it from the task record.
@@ -426,16 +424,15 @@ effect already happened before attempting it again.
 \pdscope{This borrows a design idea from commitment theory; it does not claim that a language model has beliefs, desires and intentions or that any kernel implements AgentSpeak.}
 
 
-\subsection{Concurrency: Mailboxes and Rendezvous}
+\subsection{Concurrency: Buffered and Synchronous Messages}
 Alice can send a test request while a worker is busy; a \pdterm{mailbox} holds
 it for later delivery. She can instead wait until a worker receives the request
 before continuing, a meeting point called a \pdterm{rendezvous}. Neither choice answers whether two repairs may replace revision~7.
 Communication timing and safe resource ownership are different concerns.
 
-In the actor model, an \pdterm{actor} is a unit of computation with private
-state that receives messages, sends messages, creates actors and chooses its
-next behavior.
-Asynchronous delivery separates the sender's progress from the receiver's
+An \pdterm{actor} is a unit of computation with private state that receives
+messages, sends messages, creates actors and chooses its next behavior.
+In the actor model, asynchronous delivery separates the sender's progress from the receiver's
 processing~\pdcite{hewitt1973actor,agha1986actors}. In Hoare's synchronous
 Communicating Sequential Processes (CSP),
 a send $c!v$ and a corresponding receive $c?x$ form one communication event:
@@ -466,7 +463,7 @@ it is still running, triggers recovery near the end of the chapter.
 
 \subsection{Communicative Action and Speech Acts (FIPA-00037)}
 
-A message has a role in a conversation as well as a byte representation. \pdterm[speech-act theory]{Speech-act theory} distinguishes what is said, the act performed in saying it, and the consequences of saying it. Austin distinguishes locutionary acts (meaningful utterances), illocutionary acts (such as requests or promises), and perlocutionary acts (such as persuading a listener)~\pdcite{austin1962how}. Searle develops a systematic account of illocutionary acts~\pdcite{searle1969speech}. The Foundation for Intelligent Physical Agents standardized the \textbf{FIPA ACL Communicative Act Library} (FIPA-00037)~\pdcite{fipa2002acl}.
+A message has a purpose in a conversation as well as a byte representation. \pdterm[speech-act theory]{Speech-act theory} distinguishes what is said, the act performed in saying it, and the consequences of saying it. Austin distinguishes locutionary acts (meaningful utterances), illocutionary acts (such as requests or promises), and perlocutionary acts (such as persuading a listener)~\pdcite{austin1962how}. Searle develops a systematic account of illocutionary acts~\pdcite{searle1969speech}. The Foundation for Intelligent Physical Agents standardized the \textbf{FIPA ACL Communicative Act Library} (FIPA-00037)~\pdcite{fipa2002acl}.
 
 Consider an operator saying, ``Please test revision 7.'' The words identify a
 particular requested action: that is their meaning. In this setting the
@@ -510,8 +507,8 @@ table illustrates the idea and does not reproduce FIPA's formal semantics.
 \subsubsection{When a message creates an obligation}
 \label{sec:why-fipa-matters}
 
-``I will look into it'' might acknowledge receipt, express willingness or accept
-an obligation. A protocol can remove this ambiguity by requiring a message kind,
+``I will look into it'' might confirm that the message arrived, express
+willingness or accept an obligation. A protocol can remove this ambiguity by requiring a message kind,
 job identifier, sender, recipient and explicit terms. A signature authenticates
 those bytes under a key; it does not make ``the test passed'' true. An
 \texttt{agree} message becomes an acceptance only if the governing protocol
@@ -520,11 +517,11 @@ accepts and records it.
 Schema validation checks a message's form and authentication checks its
 sender; neither removes malicious content from the body or shows that a
 promise was kept. Chapter 2 develops authority, and Chapter 6 separates a
-proposal, its acceptance, the evidence of delivery and settlement.
+proposal, its acceptance, the evidence of delivery and the final payment.
 \pdscope{These are design requirements for a message envelope, not a description of existing messaging systems.}
 
 
-\subsection{Task Allocation: Smith's Contract Net Protocol (1980)}
+\subsection{Task Allocation by Bidding: Smith (1980)}
 
 \begin{pdexample}{A cheaper bid can still fail acceptance}
 Two eligible workers offer to test revision~7 before the same deadline, for
@@ -538,9 +535,9 @@ Reid G. Smith's (1980) \pdterm{Contract Net Protocol} (CNP)~\pdcite{smith1980cnp
 
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Call for Proposals (CFP Broadcast):}\enspace The Manager broadcasts an announcement $\langle\mathtt{task\_id}, \allowbreak \mathtt{eligibility}, \allowbreak \mathtt{spec}, \allowbreak t_{\text{expire}}\rangle$ specifying required toolsets, maximum spend budget, and deadline.
-  \item \textbf{Bidding and Capability Self-Assessment:}\enspace Eligible contractor agents inspect their current local capacity, available tools, and model context before submitting formal bids $\langle\mathtt{bid\_id}, \allowbreak \mathtt{cost}, \allowbreak \mathtt{eta}, \allowbreak \mathtt{reputation}\rangle$, or returning explicit refusals if overloaded.
+  \item \textbf{Bidding and Capability Self-Assessment:}\enspace Eligible contractor agents inspect their current local capacity, available tools, and model context before submitting formal bids $\langle\mathtt{bid\_id}, \allowbreak \mathtt{cost}, \allowbreak \mathtt{eta}, \allowbreak \mathtt{reputation}\rangle$, or returning explicit refusals if overloaded. A bid's last field reports the bidder's \pdterm{reputation}, the record of checked outcomes kept against its ledger account, together with any score computed from it.
   \item \textbf{Bid Evaluation and Award:}\enspace The manager selects among eligible bids using a declared rule. For example, among bids meeting the same deadline and acceptance specification, select the lowest price. Resource reservation requires a separate admission step.
-  \item \textbf{Execution, Interim Streaming, and Settlement:}\enspace The contractor checks out a private branch, reports progress as it goes, commits the change, runs the verification tests, and submits signed receipts to release the payment held back until delivery.
+  \item \textbf{Execution, Interim Streaming, and Payment:}\enspace The contractor checks out a private branch, reports progress as it goes, commits the change, runs the verification tests and submits signed receipts. The buyer's payment waits in \pdterm{escrow}: the ledger holds it for the contract and releases it only on the contract's terms. The contractor may also post a \pdterm{bond}, a deposit it gets back if it delivers and loses in whole or in part (is slashed) if it does not. The single ledger step at the end, which pays each party from escrow and returns or slashes each bond, is \pdterm{settlement}.
 \end{enumerate}
 
 \begin{figure}[tp]
@@ -750,7 +747,7 @@ Preference aggregation and safety certification answer different questions. Arro
 
 An agent system must state which aggregation properties its task needs. Restricted preference domains, randomized choice, cardinal reports with transfers, and ordinary voting rules have different guarantees. Bids and collateral alone do not make agents report truthfully; VCG needs the assumptions stated above. Where the admission rule can be checked mechanically, a test or proof checks it; a finite test suite still checks only what it runs, and judgments of quality need an explicit decision and appeal rule.
 
-\subsection{The Institutional Commons}
+\subsection{Institutions for Shared Resources}
 If the team shares a limited test runner, Alice needs more than a rule saying
 ``take turns.'' Who may reserve it? Who can observe a reservation being exceeded?
 What happens when a worker disputes the record? Who may change the rule?
@@ -761,7 +758,7 @@ Ostrom's studies of common-pool resources describe institutions that organize
 shared use through boundaries, locally appropriate rules, monitoring, sanctions
 and dispute resolution~\pdcite{ostrom1990governing}. These studies raise
 design questions; they prove nothing about software. Chapter~7 applies the
-principles in its account of the Bonded Commons, whose economic model must
+principles to its market of bonded providers, whose economic model must
 still justify which actions are observed, which remedies are credible and how
 a decision may be challenged.
 
@@ -784,7 +781,7 @@ The Transformer~\pdcite{vaswani2017attention} is a widely used architecture. Let
 \begin{equation}
 Q = X W_Q, \quad K = X W_K, \quad V = X W_V
 \end{equation}
-Softmax is applied separately to each score row. A causal mask excludes future positions in autoregressive use. Multiple heads perform separate projections and combine their outputs; the following expression describes one head:
+Softmax is applied separately to each score row. A causal mask excludes future positions in autoregressive use. Multiple heads each apply their own weight matrices and combine their outputs; the following expression describes one head:
 \begin{equation}\label{eq:attention-formula}
 \mathrm{Attention}(Q, K, V) \;=\; \mathrm{softmax}\left( \frac{Q K^T}{\sqrt{d_k}} \right) V
 \end{equation}
@@ -800,8 +797,8 @@ While FlashAttention~\pdcite{dao2022flashattention} uses GPU SRAM tiling to avoi
 Consider a dense causal decoder generating one token at a time,
 $x_t\sim P_\theta(x_t\mid x_{<t})$. Recomputing dense attention over every
 entire prefix of lengths $1,\ldots,L$ costs $\sum_{t=1}^L O(t^2)=O(L^3)$
-attention work for fixed model dimensions. Recomputing the key and value
-projections alone would instead have quadratic aggregate cost. A \pdterm{KV cache}
+attention work for fixed model dimensions. Recomputing the keys and values
+alone would instead have quadratic aggregate cost. A \pdterm{KV cache}
 stores the keys and values already computed for earlier positions. Each new
 query attends to those stored keys and values, giving linear attention work per decoding step and quadratic
 aggregate attention work over the generated sequence. This trades retained
@@ -821,7 +818,7 @@ Consider an illustrative 70-billion parameter model configuration ($N_l = 80$, $
 \end{align}
 A fleet of 8 concurrent agent workers requires $\approx 335.5\text{ GB}$ of high-bandwidth memory solely to store the KV-cache, exceeding a nominal 320~GB memory budget before allocating a single byte for model weights.
 
-\subsubsection{Arithmetic Intensity: Compute-Bound Prefill vs. Memory-Bound Decoding}
+\subsubsection{Compute-Bound Prefill vs. Memory-Bound Decoding}
 GPU execution depends on \pdterm{arithmetic intensity}, the ratio of floating-point operations (FLOPs) to bytes moved to and from memory:
 \begin{equation}
 I \;=\; \frac{\text{FLOPs}}{\text{Bytes Transferred}}
@@ -885,7 +882,7 @@ If one constant $\epsilon>0$ lower-bounds every $\epsilon_t$, then $\Pr(S_N)\le(
 The theorem shows how risk that keeps getting through the admission check accumulates: if every step lets an unsafe effect through with at least a fixed probability, the chance of staying safe shrinks geometrically with the number of steps. The hazard bound must be measured or otherwise justified; a positive sampling temperature does not imply it, and a policy restricted to safe actions has zero hazard. Hazards that shrink fast enough need not force failure: with $\epsilon_t=2^{-t-2}$ the hazards total at most $1/4$, so the union bound leaves survival probability at least $3/4$.
 \pdscope{The theorem does not show that every model must eventually fail, and an unsafe token a model proposes is not an unsafe effect unless the check lets it through.}
 
-\subsection{The Context Window Is Not a Record}
+\subsection{What the Model Sees Is Not a Record}
 
 A model's \pdterm{context window} is the text it can see at once. Like
 volatile, lossy RAM, it keeps nothing after the worker exits unless something
@@ -894,14 +891,14 @@ the model's answer still fails to retrieve or use it. Holding bytes is
 different from using them.
 
 \subsubsection{Position and retrieval}
-Liu et al.~\pdcite{liu2024lost} measured sensitivity to the position of relevant
-information in the models and tasks they tested. Performance was often better
+Liu et al.~\pdcite{liu2024lost} measured how performance depended on the position
+of relevant information in the models and tasks they tested. Performance was often better
 at the beginning or end than in the middle. These are task-performance results,
 not a universal percentage loss or a direct measurement of attention weights.
 The engineering question is whether the actual system retrieves the evidence
 needed for the current decision.
 
-\subsubsection{Compaction and retained evidence}
+\subsubsection{Summaries and retained evidence}
 \begin{pdexample}{Two histories, one summary}
 History A says ``test failed on revision 7''; history B says ``test not run on
 revision 7.'' A summary that represents both as ``testing pending'' cannot
@@ -910,8 +907,9 @@ summary itself contains no false sentence. Retaining a receipt and linking it
 to the summary permits a later reader to distinguish them. Chapter 4 asks how
 to allocate scarce summary space between continuing work and checking it.
 \end{pdexample}
-Compaction can preserve particular facts exactly; loss is not inevitable for
-every query. Its contract must say which distinctions survive and which must
+\pdterm{Compaction}, the shortening of an agent's working context into a
+summary when the context runs out of room, can preserve particular facts
+exactly; loss is not inevitable for every query. Its contract must say which distinctions survive and which must
 be recovered from retained evidence. The task's authoritative obligations and
 resource permissions cannot depend solely on a model remembering them.
 
@@ -994,7 +992,7 @@ its assumptions against the new revision. A search method proposes a candidate.
 It does not replace any of those checks. The next subsection asks what a score
 on a reasoning path can establish about that candidate.
 
-\subsection{Cognitive Control, Test-Time Compute, and Process Reward Models}
+\subsection{Cognitive Control, Test-Time Compute, and Step Scoring}
 
 A scorer assigns two reasoning steps 0.9 and 0.8. Their product is 0.72.
 This is a 72\% joint correctness probability only if the scores are the
@@ -1048,7 +1046,7 @@ If the index costs $b_0$ tokens and asset $i$ costs $b_i$ when loaded with proba
 \end{figure}
 
 
-\subsection{Lifecycle Hooks and Supervisory Control}
+\subsection{Hooks and Supervisory Control}
 
 \paragraph{Example: A write can be refused; a crash must be accommodated.}
 Suppose the next event is either a requested write or a power failure. A gate
@@ -1065,11 +1063,11 @@ point such as just before a tool call, can act as part of such a supervisor
 only if the model's assumptions about what it controls and observes hold for
 every path by which effects actually happen.
 
-Let unconstrained agent execution be modeled as a discrete-event generator $G = \langle X, \Sigma, \delta, x_0, X_m \rangle$, where $X$ is the state set, $x_0$ the initial state, $\delta$ the partial state-transition function, $X_m$ the marked completion states, and events $\Sigma = \Sigma_c \cup \Sigma_u$ are partitioned into controllable events $\Sigma_c$ (tool invocations, file writes, network requests) and uncontrollable events $\Sigma_u$ (model token generation, host hardware interrupts, external process termination). A trace is a finite event sequence. $L(G)$ contains the possible traces; $\mathcal P(\Sigma)$ denotes event subsets. A supervisor $S:L(G)\to\mathcal P(\Sigma)$ selects enabled events after each trace under full observation, always allowing uncontrollable events. If $K$ contains the safe traces and is prefix-closed (every initial segment of a safe trace is safe), the desired controlled language satisfies:
+Let unconstrained agent execution be modeled as a discrete-event generator $G = \langle X, \Sigma, \delta, x_0, X_m \rangle$, where $X$ is the state set, $x_0$ the initial state, $\delta$ the partial state-transition function, $X_m$ the marked completion states, and events $\Sigma = \Sigma_c \cup \Sigma_u$ are partitioned into \pdterm[controllable event]{controllable events} $\Sigma_c$, steps that pass a point where the runtime can refuse them before they take effect (tool invocations, file writes, network requests), and \pdterm[uncontrollable event]{uncontrollable events} $\Sigma_u$, steps that complete before any such point (model token generation, host hardware interrupts, external process termination). A trace is a finite event sequence. $L(G)$ contains the possible traces; $\mathcal P(\Sigma)$ denotes event subsets. A supervisor $S:L(G)\to\mathcal P(\Sigma)$ selects enabled events after each trace under full observation, always allowing uncontrollable events. If $K$ contains the safe traces and is prefix-closed (every initial segment of a safe trace is safe), the desired controlled language satisfies:
 \begin{equation}
 L(S / G) \;\subseteq\; K \;\subseteq\; L(G)
 \end{equation}
-The inclusion is a design requirement that a hook does not meet automatically. For full observation, enforcing exactly $K$ requires controllability: $K\Sigma_u\cap L(G)\subseteq K$.
+The inclusion is a design requirement that a hook does not meet automatically. For full observation, enforcing exactly $K$ requires \pdterm{controllability}, the property that no uncontrollable event possible after a trace in $K$ leads out of $K$: $K\Sigma_u\cap L(G)\subseteq K$.
 
 In words, a safety rule can be enforced exactly only if no event the supervisor cannot block can carry a run from an allowed state into a forbidden one. The supervisor can refuse a file write, but not a crash, a model's next token or a process exit, so the set of allowed runs must already include whatever those events can do next. If the supervisor also cannot see some events, a further condition applies, and finishing the job adds the requirement that the supervisor never block every way forward. Not every safe set of runs can be produced exactly; sometimes the only safe choice is to block more than the rule asks, and sometimes there is no safe choice at all.
 
@@ -1143,7 +1141,7 @@ threshold is assumed here.
 
 \section{Multi-Agent Swarm Topologies, Coordination, and Multi-Agent Economics}\label{sec:prereq-swarms}
 
-Adding workers changes who needs which observations. Direct messages, shared records and role boundaries have different costs; none is universally preferable. The repair case lets us ask which records must be common and which decisions can remain local.
+Adding workers changes who needs which observations. A \pdterm{role} is a job described without reference to who holds it: what must be delivered, which tools come with it and what the holder may do. Direct messages, shared records and boundaries between roles have different costs; none is universally preferable. The repair case lets us ask which records must be common and which decisions can remain local.
 
 \subsection{Stigmergic Communication: Environmental Coordination}
 
@@ -1312,7 +1310,9 @@ specified repair without permitting deployment or unrelated migrations. When
 Alice hands part of that grant to one of her workers, the worker receives
 nothing wider than Alice holds; this narrowing at each hand-off is
 \pdterm{attenuation}. Chapter~2 defines the chain of signed grants, the checker
-and the conditions for revocation. A signature shows who issued a grant; the
+and the conditions for \pdterm{revocation}, withdrawing a capability card
+before it expires so that a verifier that has received the withdrawal refuses
+the card. A signature shows who issued a grant; the
 resource owner still decides which grants it accepts. A worker that keeps a
 copy of a broader earlier grant is a separate risk.
 
@@ -1339,8 +1339,12 @@ signal or host path outside the model can break it.
 \subsection{Inspect the evidence that matters}
 Drake deletes the failing test; Wren supplies a genuine fix bundled with an
 unrelated migration; Heron supplies an acceptable contribution. A green status
-can hide these differences. Chapter~4 asks what Alice must inspect and what a
-summary must preserve for that decision. An evidence link helps only if the
+can hide these differences. Chapter~4 studies \pdterm{legibility}, the
+operator's ability to tell, in the time she has, what the swarm did and why,
+and to check each statement against its evidence. It asks what Alice must
+inspect and what a \pdterm{digest}, a short summary written for one reader in
+which each statement links to the evidence behind it, must preserve for that
+decision. An evidence link helps only if the
 artifact is retained and accessible; it cannot reconstruct omitted evidence.
 
 \begin{figure}[tp]
@@ -1391,8 +1395,11 @@ credible remedies, while its finite checks concern explicitly bounded models.
 
 \subsection{Present the repair to another operator}
 A staging machine run by another operator can examine the repair's receipts
-without handing over control of its own resources. Chapter~8 requires the
-receiving machine to authorize any effect on its own resources; narrowing a
+without handing over control of its own resources. Chapter~8 studies a
+\pdterm{federation}, a group of harbors with different owners that exchange
+capability cards, revocations and payments while none of them rules the
+others. It requires the receiving machine to authorize any effect on its own
+resources; narrowing a
 grant from the sending machine cannot extend it to a resource it never
 covered. The chapter also studies which conflicting reports a given pattern of
 communication can expose. Agreement among the reports a machine sees says
@@ -1500,6 +1507,17 @@ planning, not serialized repository writes, so their results motivate planning
 methods without certifying the host mechanisms developed next.
 
 
+% The handoff is defined where it prints, so a reader of the source (and the
+% Book's term lint) meets it after the definitions it relies on.
+\providecommand{\pdchapterhandoffprereq}{%
+  \pdbookrail{What \pdchapref{swk}{The Single-Writer Kernel} receives}{%
+    Alice needs to refuse a repair based on an out-of-date revision and to
+    recover the unfinished repair after its workers exit. We now know why the
+    proposal, the admitted effect and the retained obligation are different
+    things. Chapter~1 gives each of them concrete state changes and storage
+    rules, and separates a database commit from a change to a file outside
+    the database.}%
+}
 \pdchapterhandoffprereq
 
 \clearpage
