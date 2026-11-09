@@ -2119,23 +2119,32 @@ responses, but that analogy does not equate spend thresholds, process death
 and financial liability.
 
 \paragraph{Why the forfeit goes to the commons and not back to the buyer.}
-The slashed $2$ goes to $C_Q$, not to the injured counterparty. Relative to the
-two-party coalition, this makes a breach costly only if the pair cannot reclaim
-the pool payout through ownership, side payments, or governance.
+The slashed $2$ goes to $C_Q$, not to the injured counterparty.
 Holmström's team-production model \pdcite{holmstrom1982} explains why a
 \pdterm{budget breaker}, an outside party that absorbs or collects the
 difference so the team's own transfers need not balance, can matter when
-effort is hidden. It does not prove this harbor mechanism efficient or proof
-against coalitions.
+effort is hidden. The same arithmetic, applied to a colluding pair, gives the
+property below.
+
+\begin{property}[Third-Party Forfeiture]\label{prop:third-party-forfeiture}
+\pdstatus{\Designed}{an accounting property of transfers; the pool's independence is a governance assumption}
+\setlength{\parskip}{4pt plus 1pt}
+Suppose a seller and a buyer can transfer money freely between themselves. A
+forfeit of $\zeta$ paid by one to the other leaves their combined wealth
+unchanged, so it cannot make a breach they plan together cost the pair
+anything. A forfeit of $\zeta$ paid to a party outside the pair, which neither
+can reclaim through ownership, side payments or governance, lowers the pair's
+combined wealth by exactly $\zeta$.
+\end{property}
 
 Paying compensation to an injured buyer can still deter an individual seller:
-the seller loses the bond either way. What an internal transfer cannot do is
-reduce the pair's combined wealth if both participants collude and can transfer
-freely between themselves. An inaccessible commons pool is one proposed way to
-make that coalition pay; its independence is a governance assumption, not a
-consequence of calling an account a commons. Conservation still holds over
-$W_Q+E_Q+C_Q$. The accounting identity does not choose the recipient, and
-Holmström's theorem does not supply a general prohibition on compensation.
+the seller loses the bond either way. An inaccessible commons pool is one
+proposed way to make the colluding pair pay as well; its independence is a
+governance assumption, not a consequence of calling an account a commons.
+Conservation still holds over $W_Q+E_Q+C_Q$. The accounting identity does not
+choose the recipient, Holmström's theorem does not supply a general
+prohibition on compensation, and the property does not prove this harbor
+mechanism efficient or proof against larger coalitions.
 
 \pdexercisepointer*{\ref{ex:bonded-conservation-states}}{\ref{ex:bonded-conservation-weaken}}{\pageref{ex:bonded-conservation-states}}
 
