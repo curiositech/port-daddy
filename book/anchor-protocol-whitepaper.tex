@@ -232,10 +232,9 @@ signature is checked. In asymmetric identity the daemon signs with a private
 key that verifiers never hold. In delegation an agent hands part of its
 authority to another agent. \pdterm[revocation]{Revocation} withdraws a card before it
 expires. A fleet can run several daemons, one per machine for example, and a
-card issued by one may be shown to another; revocation reaches the others by
-gossip. To \pdterm{gossip}
-something, a daemon periodically sends what it knows to a few other daemons,
-which pass it on in turn, until every daemon has it. Used as an adjective, as in
+card issued by one may be shown to another. Revocation reaches the others by
+\pdterm{gossip}, in which each daemon periodically sends what it knows to a few
+other daemons, which pass it on in turn, until every daemon has it. Used as an adjective, as in
 \emph{gossip protocol} or \emph{gossip mesh}, the word names a set of daemons
 that spreads information this way, or the rules they follow to do it. The phases
 are ordered by which check depends on which. The order is not a release
@@ -725,7 +724,7 @@ A formal model proves things about the model. At run time Port Daddy also runs t
   \item \texttt{PID\_SQUATTING}: Detects when a process claims a port previously held by a different PID (the Ghost in the Harbor).
   \item \texttt{CAP\_ESCALATION}: Checks capability subsets by calling the deployed Rust code through the FFI.
   \item \texttt{NOTE\_MONOTONICITY}: Ensures the note sequence for active sessions never shrinks (the \texttt{NoteMonotonicity} invariant of the kernel's TLA$^{+}$ specification, a formal model checked by machine).
-  \item \texttt{ESCROW\_POSITIVE}: Checks that active sessions have a positive escrow, a deposit held while they run (when Float Plans, signed work orders with a budget, are in use).
+  \item \texttt{ESCROW\_POSITIVE}: Checks that active sessions have a positive escrow, a deposit held while they run (when sessions work under \pdterm[float plan]{float plans}, the signed records of a work agreement that name the task, the parties and the funds each party commits to it).
   \item \texttt{LOCK\_OWNER\_VALID}: Ensures locks are only held by registered agents with active sessions.
   \item \texttt{HEARTBEAT\_FRESHNESS}: Flags stale heartbeats as early warning for agent death.
 \end{enumerate}

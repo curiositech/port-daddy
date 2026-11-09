@@ -181,7 +181,7 @@
 \tableofcontents
 \newpage
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Introduction: The Two-Machine Problem}\label{sec:fh-intro}
+\section{Introduction: Two Machines, Two Owners}\label{sec:fh-intro}
 % ═════════════════════════════════════════════════════════════════════════════
 Alice's team has a candidate repair for Bob's checkout. Before acceptance,
 it must pass a test in a separately administered staging environment.
@@ -209,7 +209,7 @@ protocol. The scenarios are constructed; none describes a deployment.
 This chapter closes the book. Each owner's machine runs a harbor, the governed environment in which that owner's daemon decides what agents may do there. A \pdterm{federation} is a group of harbors with different owners that exchange cards, revocations and payments while none of them rules the others. \pdchapref{anchor}{The Anchor Protocol} supplies the signed capability cards; \pdchapref{bonded}{The Bonded Commons} supplies the economic and governance model; this chapter specifies what happens where two harbors meet. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's authorization chain from one owner to another; \S\ref{sec:fh-revocation} extends its revocation gossip; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
 The design needs no global agreement on the order of work events, unlike
 ledger-backed constructions such as ETHDKG~\pdcite{schindler2019ethdkg}.
-Without a shared chain we cannot rely on one for ordering, for settlement, or for catching equivocation: one party signing two different versions of the same record and showing each version to a different audience. We build each of those from peer gossip plus a \pdterm{witness log}, an append-only log to which every harbor posts signed summaries of its records, so that anyone can check what a harbor published, and any auditor who receives two signed versions for the same epoch holds proof that the harbor equivocated. In return, the design fits the local-first architecture of \pdchapref{he}{The Harbor Economy} and \pdchapref{bonded}{The Bonded Commons}, in which one operator runs each machine.
+Without a shared chain we cannot rely on one for ordering, for settlement, or for catching equivocation: one party signing two different versions of the same record and showing each version to a different audience. We build each of those from peer gossip plus a witness log, the append-only log to which every harbor posts signed summaries of its records, in which two signed versions for the same epoch prove that the harbor equivocated. In return, the design fits the local-first architecture of \pdchapref{he}{The Harbor Economy} and \pdchapref{bonded}{The Bonded Commons}, in which one operator runs each machine.
 \subsection{Which obligation each protocol carries}\label{sec:fh-contributions}
 Transfer determines what the destination may authorize. Revocation determines
 what it currently knows about dependencies. Evidence comparison determines
@@ -246,8 +246,8 @@ offer and into the grant that results.
 In \pdchapref{bonded}{The Bonded Commons}, one daemon on one machine ran the shared bond pool. It could suggest who should act when, but a suggestion only sticks if every agent, knowing only what it was told, does no better by ignoring it, and the daemon's local rules cannot guarantee that~\pdcite{owens2026bonded}. Federation makes this harder: there are several owners, each learns of events late, and their interests may conflict, so any model of the federation must include all three.
 The federation has four parts: two independently governed harbors; the witness log, where each harbor posts once per epoch (a numbered reporting period) a signed fingerprint of its card records, called its epoch root; and an escrow that holds bond money. Table~\ref{tab:fh-topology} shows the four channels that run between them. The escrow can take no more than its agreed fee only if its payment system can pay no one but the two parties and the capped fee, settles each bond once, and cannot be bypassed by its operator (\S\ref{sec:fh-escrow}). Every protocol in the rest of the chapter belongs to one of these parts.
 \input{figures/tab-fh-topology}
-\subsection{Harbor sovereignty as a property \mbox{characterization}}\label{sec:fh-sovereignty}
-\pdchapref{bonded}{The Bonded Commons} described its key-management service by a list of required properties rather than by one construction (a per-machine signing key, a per-machine SQLite database), so that its argument holds for any construction with those properties. We describe sovereignty the same way.
+\subsection{Sovereignty as a property \mbox{characterization}}\label{sec:fh-sovereignty}
+\pdchapref{bonded}{The Bonded Commons} described its key-management service by a list of required properties rather than by one construction (a per-machine signing key, a per-machine SQLite database), so that its argument holds for any construction with those properties. We describe sovereignty the same way. A daemon has \pdterm{harbor sovereignty} when it alone issues and revokes its own harbor's cards, sets the rule for narrowing them, decides which cards from other harbors to accept, and signs that harbor's epoch roots.
 \begin{pdexample}{Sovereignty over the Card Is Not Sovereignty over What It Touches}
 \setlength{\parskip}{4pt plus 1pt}
 \pdmarginanalogy{fh-local-admission-turnstile}{}{ch08-local-admission-turnstile}{Like a visitor pass presented at a locally controlled turnstile, a valid foreign credential does not compel the receiving harbor to accept it.}%
@@ -263,7 +263,7 @@ The \pdterm{transfer ceremony} of \S\ref{sec:fh-xfer} is a four-message exchange
 \begin{pdclaim}{Design invariant}{Harbor Sovereignty}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:fh-sovereignty}
-A daemon $D_A$ is sovereign over harbor $A$, the property we call \pdterm{harbor sovereignty}, if it has exclusive authority over five things:
+A daemon $D_A$ is sovereign over harbor $A$, the property we call harbor sovereignty, if it has exclusive authority over five things:
 \begin{enumerate}[nosep]
 \item \textbf{Issuance.} Only $D_A$ can mint a Harbor Card using $A$'s private signing key $\mathit{sk}_A$; its root signature verifies under the corresponding public key $\mathit{pk}_A$.
 \item \textbf{Attenuation.} $D_A$ controls the local narrowing rule $\mathrm{att}_A$. A holder may
@@ -280,7 +280,7 @@ Every later protocol is checked against Design Invariant~\ref{def:fh-sovereignty
 on its own whether $A$'s signed offer satisfies $B$'s policy, and checking
 $A$'s signature gives $A$ no authority at $B$. The new card has a local issuer
 but still depends on $A$'s original card staying valid.
-\subsection{Inter-harbor scope}\label{sec:fh-scope-property}
+\subsection{Operations that cross harbors}\label{sec:fh-scope-property}
 The second notion concerns where an operation's effects land. An operation has \pdterm{inter-harbor scope} when its effects cross from one owner's harbor into another's.
 \begin{pdclaim}{Design invariant}{Inter-Harbor Scope}
 \setlength{\parskip}{4pt plus 1pt}
@@ -291,7 +291,7 @@ Every later claim about what a protocol closes or defers (\S\ref{sec:fh-threat-m
 \end{pdclaim}
 Most operations are \emph{intra-harbor}: minting, verifying, narrowing and revoking cards under one harbor's authority, observed by agents under that same harbor. \pdchapref{anchor}{The Anchor Protocol} develops those checks under its stated model. This chapter covers the operations with inter-harbor scope, because every protocol that sets the federation's guarantees acts at that boundary.
 \subsection{The witness log}\label{sec:fh-witness}
-The witness log lets anyone audit the federation without making any harbor sovereign over the others. It does for harbors what the Merkle Forest does for daemon evidence in \pdchapref{bonded}{The Bonded Commons} (\ifpdbook\S\ref{bonded:sec:merkle-forest}\else the subsection \emph{The Merkle Forest: Cross-Daemon Inclusion Proofs}\fi). Each harbor hashes its records into a tree and signs the root, and anyone holding that signed root can cheaply check that a given record is in the tree (an inclusion proof) and that a later root extends an earlier one without rewriting it (a consistency proof).
+The witness log lets anyone audit the federation without making any harbor sovereign over the others. It does for harbors what the Merkle Forest does for daemon evidence in \pdchapref{bonded}{The Bonded Commons} (\ifpdbook\S\ref{bonded:sec:merkle-forest}\else the subsection \emph{Cross-Daemon Proofs of Inclusion}\fi). Each harbor hashes its records into a tree and signs the root, and anyone holding that signed root can cheaply check that a given record is in the tree (an inclusion proof) and that a later root extends an earlier one without rewriting it (a consistency proof).
 \pdscope{These checks do not show that the harbor recorded every relevant event, or that what it recorded is true.}
 \begin{pdclaim}{Design invariant}{Witness-Log Requirements}
 \setlength{\parskip}{4pt plus 1pt}
@@ -629,7 +629,7 @@ once and subtracted once. The test sees only the chosen number, not the whole
 signed log, and a nonzero sum can come from noise, from mismatched snapshots
 or from a dishonest report; the arithmetic alone does not say which.
 
-\begin{pdexample}{The Cochain by Hand: One Ring, One Chain, One Dark Link}
+\begin{pdexample}{Reported Differences by Hand: One Ring, One Chain, One Dark Link}
 \setlength{\parskip}{4pt plus 1pt}
 A link is a \pdterm{compared link} when its two endpoints reconcile it
 directly, a \pdterm{relayed link} when both endpoints' reports reach the
@@ -646,7 +646,7 @@ The
 auditor's \pdterm{cochain} is the list of reported differences, one per link:
 \[
 g=(g_{01},g_{12},g_{23},g_{30})=(0,0,0,3).
-\] Write $\delta x$, the \pdterm{coboundary} of $x$, for the differences that
+\] Write $\delta x$, the coboundary of $x$, for the differences that
 candidate vertex values $x$ would produce along the links, and $r$ for the
 smallest Euclidean distance from $g$ to any such $\delta x$. We call $r$ the
 \pdterm{completion residual}: \emph{completion} because severed links, met
@@ -706,7 +706,7 @@ collection of signed logs ordered by extension has no such arithmetic. We
 therefore choose which numbers each witness reports and which of them each
 channel compares. The result is a \pdterm{cellular sheaf} $\mathcal F$: a vector
 space at every vertex and edge of a graph, plus maps saying how a vertex's
-numbers are compared along each of its edges,\footnote{A standalone, submission-form version of the results folded into this subsection is \emph{The Cohomology of Equivocation} (research paper~7)~\cite{owens2026sheaf}; the harness and the sweeps cited here are its artifacts, regenerated at seed 20260816.} here on the gossip graph $G=(V,E)$ of witnesses. Witness $v$ holds a \pdterm{stalk} $\mathbb{R}^{d_v}$, the vector of numbers encoding its log state; edge $e=\{u,v\}$ holds $\mathbb{R}^{|S_e|}$, the shared prefix coordinates $S_e$ that both endpoints report; and each \pdterm{restriction map} $\rho_{v,e}$ selects from witness $v$'s state the coordinates that edge $e$ compares. Here $S_e$ is always the first $|S_e|$ coordinates, so we call these maps \pdterm{prefix restrictions}. With real numbers throughout, the coboundary $\delta$, its adjoint $\delta^*$, and the predicted edge differences $(\delta x)_e=\rho_{u,e}x_u-\rho_{v,e}x_v$
+numbers are compared along each of its edges,\footnote{A standalone, submission-form version of the results folded into this subsection is \emph{The Cohomology of Equivocation} (research paper~7)~\cite{owens2026sheaf}; the harness and the sweeps cited here are its artifacts, regenerated at seed 20260816.} here on the gossip graph $G=(V,E)$ of witnesses. Witness $v$ holds a \pdterm{stalk} $\mathbb{R}^{d_v}$, the vector of numbers encoding its log state; edge $e=\{u,v\}$ holds $\mathbb{R}^{|S_e|}$, the shared prefix coordinates $S_e$ that both endpoints report; and each restriction map $\rho_{v,e}$ selects from witness $v$'s state the coordinates that edge $e$ compares. Here $S_e$ is always the first $|S_e|$ coordinates, so we call these maps \pdterm{prefix restrictions}. With real numbers throughout, the coboundary $\delta$, its adjoint $\delta^*$, and the predicted edge differences $(\delta x)_e=\rho_{u,e}x_u-\rho_{v,e}x_v$
 are all defined. The measured vector $g_e$ comes instead from the reports made
 on that channel. An equivocator may report different values to different
 neighbors, so $g$ need not equal $\delta x$ for any single assignment $x$; if
@@ -714,7 +714,7 @@ we built the input by applying $\delta$ to one stored state per vertex, the
 residual would be zero by construction. The theorem below is about this vector encoding, not about signed logs directly.
 
 Detection depends on which edges the auditor can see, using the three tiers of the ring example. On a compared edge the auditor holds a direct cross-check and needs no loop arithmetic; on a relayed edge both endpoints' reports reach it by gossip; from a severed edge nothing reaches it. Write $K$ for the compared-plus-relayed, or \emph{visible}, edge set, and for each shared coordinate $c$ write $K_c := (V, \{e \in K : c \in S_e\})$ for the visible coordinate subgraph. Whether a cycle lies in $K_c$ or only in the full coordinate subgraph $G_c$ changes the theorem: a cycle through a severed edge constrains nothing, because the completion may give the severed edge any value.
-A \pdterm{global section} is one assignment of values to every witness that explains all visible edges at once. The \pdterm{cycle space} of $K_c$ is the set of edge vectors orthogonal to every coboundary on $K_c$; on a ring it is spanned by the vector that goes once around. Write $\Pi_K$ for the orthogonal projection onto these visible cycle spaces, and $\varepsilon_K$ for a vector of offsets on the visible edges, such as the changes one liar makes to its reports.
+Here a global section is one assignment of values to every witness that explains all visible edges at once. The \pdterm{cycle space} of $K_c$ is the set of edge vectors orthogonal to every coboundary on $K_c$; on a ring it is spanned by the vector that goes once around. Write $\Pi_K$ for the orthogonal projection onto these visible cycle spaces, and $\varepsilon_K$ for a vector of offsets on the visible edges, such as the changes one liar makes to its reports.
 
 \input{figures/fig-fh-visible-topology}
 
@@ -799,7 +799,7 @@ computation does what this section states.
 
 \input{figures/tab-fh-sheaf-harness}
 
-\paragraph{Reading effective resistance.}
+\paragraph{Edges as one-ohm resistors.}
 Give every visible edge resistance one ohm. The \pdterm{effective resistance}
 between an edge's endpoints is the voltage needed to push one ampere between
 them through the whole network.
@@ -1082,9 +1082,10 @@ witness, such as Heron, about that fact and snapshot can be compared directly.
 Different snapshots are no contradiction, and a missing receipt is missing
 evidence, not a value. When two witnesses compare notes, the receipt says
 either that they agree (without saying on what) or that one saw retained and
-the other deleted. A disagreement receipt therefore pins both witnesses'
-values. If a chain of agreement receipts links a witness pinned to retained
-with one pinned to deleted, or one witness is pinned both ways, the receipts
+the other deleted. A disagreement receipt therefore forces both witnesses'
+values, and we call such forced values \pdterm[pin]{pins}. If a chain of
+agreement receipts links a witness pinned to retained with one pinned to
+deleted, or one witness is pinned both ways, the receipts
 contradict each other, and those receipts are the proof.
 
 In symbols, write the values as the \pdterm{one-hot} vectors
@@ -1093,7 +1094,7 @@ entry is one, and let each edge record head minus tail. An agreement receipt is
 the zero difference, which forces a whole connected component to share one
 value without saying which. A disagreement receipt
 $e_{\mathsf{del}}-e_{\mathsf{ret}}=(-1,1)$ fixes its tail to $\mathsf{ret}$ and
-its head to $\mathsf{del}$; we call such forced endpoint values \pdterm[pin]{pins}.
+its head to $\mathsf{del}$, and these forced endpoint values are its pins.
 
 \begin{pdexample}{A contradiction with zero cycle residual}
 The path $0\to1\to2$ reports $e_{\mathsf{del}}-e_{\mathsf{ret}}$ on each edge. Vertex $1$ must then be
