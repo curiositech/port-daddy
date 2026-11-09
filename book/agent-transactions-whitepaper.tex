@@ -623,13 +623,13 @@ An evidence trail $N = \langle n_1, n_2, \ldots, n_k \rangle$ is an ordered sequ
 \label{lem:integrity}
 The evidence trail is append-only through the API.
 
-No API operation edits or deletes a note. Removing a session (\texttt{pd session rm}) archives it: its active claims are released, an active session is marked abandoned, a tombstone note is appended, and every earlier note is kept.
+No API operation edits or deletes a note. Removing a session (\texttt{pd session rm}) archives it: its active claims are released, an active session is marked abandoned, a tombstone note is appended (if that note is refused, the session is still archived and the call reports a warning), and every earlier note is kept.
 \end{pdclaim}
 \pdscope{The database schema still declares \texttt{ON DELETE CASCADE} from notes to their session, so someone with direct write access to the database, outside the API, could delete a session row and its notes; the theorem does not cover that.}
 
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-By code inspection of the session module (\texttt{lib/sessions.ts}): the note API performs only \texttt{INSERT INTO session\_notes}, and the module issues no \texttt{UPDATE} or \texttt{DELETE} against notes. Its one removal operation releases the session's active file claims, sets an active session's status to \emph{abandoned}, records archive metadata and appends a tombstone note; it issues no \texttt{DELETE} against \texttt{sessions}. Commit and abort update only the session's \emph{status} field. So notes survive every operation the API offers.
+By code inspection of the session module (\texttt{lib/sessions.ts}): the note API performs only \texttt{INSERT INTO session\_notes}, and the module issues no \texttt{UPDATE} or \texttt{DELETE} against notes. Its one removal operation releases the session's active file claims, sets an active session's status to \emph{abandoned}, records archive metadata and tries to append a tombstone note; it issues no \texttt{DELETE} against \texttt{sessions}. Commit and abort set the session's status, phase and timestamps, release its file claims and may append one handoff note; neither updates nor deletes a note. So notes survive every operation the API offers.
 \end{proof}
 
 \subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
