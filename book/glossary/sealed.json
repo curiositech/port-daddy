@@ -72,7 +72,7 @@
  {
   "term": "tenant",
   "sort": "tenant",
-  "definition": "One customer organization served by a shared harbor, such as a company, a clinic or a household, with its own agents, data and users."
+  "definition": "One customer organization served by a shared machine or harbor, such as a company, a clinic or a household, with its own agents, data and users."
  },
  {
   "term": "subject-level neighbors",
