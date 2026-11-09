@@ -674,7 +674,7 @@
           "name": "mutant_shortest_crimes",
           "value": "1, 2, 2, 2",
           "tag": "internal",
-          "regex": "engine-history shedding in \\$?2"
+          "regex": "engine-history shedding in \\$?2|\\$1\\$\\s+step\\s+for\\s+key-scoped\\s+sanctions\\s+and\\s+\\$2\\$\\s+each\\s+for\\s+whitewash-by-resurrection,\\s+engine-history\\s+shedding\\s+and\\s+liability\\s+stranding"
         }
       ],
       "mechanization": [],
