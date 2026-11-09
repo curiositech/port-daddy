@@ -412,7 +412,7 @@ Two older bodies of work study the property checked here more directly than maca
 \input{figures/fig-anchor-delegation-inline}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
-\pdstatus{\BuiltWeak}{the daemon and the relay look each card's ID up in an exact revocation table; per-link identifiers for offline delegations, the filter, gossip and epoch below are specified, not built}
+\pdstatus{\BuiltWeak}{the daemon and the relay look each card's ID up in an exact revocation table; per-link identifiers for offline delegations, the filter, gossip and revocation counter below are specified, not built}
 
 \pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
 Alice withdraws Heron's test-database write grant three minutes into its
@@ -547,9 +547,9 @@ so a fleet that issues revocations faster than they expire still grows; the
 load ceiling, not this rule, governs that case.
 
 Truncation also needs a restart rule. A daemon that rejoins must receive the
-current authenticated snapshot of the log, or its current \emph{epoch}, a
-number that increases with every change to the revocation state so that an
-older copy is recognizably older, before it answers checks. It must not treat
+current authenticated snapshot of the log, or its current \emph{revocation
+counter}, a number that increases with every change to the revocation state so
+that an older copy is recognizably older, before it answers checks. It must not treat
 a truncated stream of changes as the complete history. Dropping an entry from
 the active log does not permit deleting the archived evidence needed for
 disputes.
@@ -1666,7 +1666,7 @@ Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ the chec
 Constant-time signature comparison & audited \path{subtle::}\allowbreak\path{Constant}\allowbreak\path{TimeEq} library & \Partial\ no side-channel proof; library trust documented & --- \\
 Relay payload secrecy via HPKE (daemon key pinned) & ProVerif (design) & \Partial\ secrecy TRUE under pinned key; HPKE encryption not yet implemented & \path{ingress_}\allowbreak\path{hpke_}\allowbreak\path{secrecy.pv} \\
 Webhook replay-freedom + in-order delivery & TLA+ / TLC (exhaustive at bound) & \Partial\ design model-checked; runtime via ordered-chain ingest & \path{Webhook}\allowbreak\path{Delivery.tla} \\
-Card revocation finality when restoring pre-revocation state & TLA+ / TLC & \Partial\ rollback attack + revocation-epoch mitigation both model-checked & \path{Card}\allowbreak\path{Revocation.tla} \\
+Card revocation finality when restoring pre-revocation state & TLA+ / TLC & \Partial\ rollback attack and its mitigation, an external counter that a restore cannot roll back, both model-checked; the mitigation also refuses every card issued before the latest revocation, and \pdchapref{fh}{The Federated Harbor} gives the repair & \path{Card}\allowbreak\path{Revocation.tla} \\
 \midrule
 Mechanized gossip-convergence bound & --- & \Open\ standard expected asymptotics only~\pdcite{demers1987epidemic}; no partition deadline & --- \\
 \end{xltabular}}
