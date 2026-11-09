@@ -3157,8 +3157,11 @@ This is a classical result, not a new theorem about language-model quality. Its 
 
 A fixed protected set can be handled explicitly. In the unit-page case, suppose the same $n_{\mathrm{pin}}<k_{\mathrm{off}}$ pages stay pinned in both caches, and charge their common initial loading cost separately. Remove requests to those pages and run the algorithm on the remaining sequence. The capacities become $k_{\mathrm{on}}-n_{\mathrm{pin}}$ and $k_{\mathrm{off}}-n_{\mathrm{pin}}$, so the unpinned retrieval costs satisfy
 \[
-\mathrm{Cost}_{k_{\mathrm{on}}-n_{\mathrm{pin}}}\le\frac{k_{\mathrm{on}}-n_{\mathrm{pin}}}{(k_{\mathrm{on}}-n_{\mathrm{pin}})-(k_{\mathrm{off}}-n_{\mathrm{pin}})+1}\mathrm{OPT}_{k_{\mathrm{off}}-n_{\mathrm{pin}}}
-=\frac{k_{\mathrm{on}}-n_{\mathrm{pin}}}{k_{\mathrm{on}}-k_{\mathrm{off}}+1}\mathrm{OPT}_{k_{\mathrm{off}}-n_{\mathrm{pin}}}.
+\begin{aligned}
+\mathrm{Cost}_{k_{\mathrm{on}}-n_{\mathrm{pin}}}
+&\le\frac{k_{\mathrm{on}}-n_{\mathrm{pin}}}{(k_{\mathrm{on}}-n_{\mathrm{pin}})-(k_{\mathrm{off}}-n_{\mathrm{pin}})+1}\,\mathrm{OPT}_{k_{\mathrm{off}}-n_{\mathrm{pin}}}\\
+&=\frac{k_{\mathrm{on}}-n_{\mathrm{pin}}}{k_{\mathrm{on}}-k_{\mathrm{off}}+1}\,\mathrm{OPT}_{k_{\mathrm{off}}-n_{\mathrm{pin}}}.
+\end{aligned}
 \]
 This comparison requires the same fixed pins on both sides. It says nothing about how to choose the right pins, and changing or forged pins require another analysis.
 

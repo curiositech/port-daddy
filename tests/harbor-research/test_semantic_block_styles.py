@@ -170,7 +170,7 @@ class SemanticBlocks(unittest.TestCase):
         # cleanly without the former forced break. Preserve the citation-bearing
         # argument, not a pagination command invalidated by surrounding prose.
         normative = (r"\\paragraph\{Normative conflict and workflow compliance\.\}\s+"
-                     r"Nor is the pattern new in normative conflict checking specifically,"
+                     r"A tractable fragment beside an NP-complete extension is not new in normative conflict checking either,"
                      r"[^\n]*(?:\n(?!\n)[^\n]*)*")
         match = re.search(normative, body)
         source = (ROOT / "book/harbor-economy.tex").read_text()
