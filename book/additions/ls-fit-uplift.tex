@@ -4,8 +4,9 @@
 The same split applies when the items ranked are skills rather than agents.
 A skill router scores a skill against a task by a fit of the form of
 Eq.~\ref{eq:fit}: text and declared capability matched to the query. A
-settlement reader needs something else, the skill's \emph{uplift}: the
-change in expected settled outcome when the skill is made available to the
+reader who decides payment for the skill (the settlement reader) needs
+something else, the skill's \pdterm{uplift}: the change in the expected outcome,
+as finally graded and paid, when the skill is made available to the
 task, against the same task without it.
 
 \begin{pdclaim}{Theorem}{Fit Is Not Uplift}
@@ -28,7 +29,7 @@ both orders. The construction is the one in the proof of
 Theorem~\ref{thm:split-ranker}, with uplift in place of regret.
 \end{proof}
 
-\noindent The hypothesis is plausible, not proved, for real catalogs.
+\noindent For real catalogs the hypothesis is plausible and unproved.
 SkillsBench reports that curated skills raise the average pass rate from
 $33.9\%$ to $50.5\%$, with gains ranging from $+4.1$ to $+25.7$ points by
 model--harness configuration~\pdcite{li2026skillsbench}. Fit is computed
@@ -36,7 +37,7 @@ from the skill's text and the task. Uplift belongs to the skill together
 with the agent that uses it. The same study finds that focused skills of
 at most three modules beat larger bundles~\pdcite{li2026skillsbench}, so
 adding matching material can raise fit and lower value. Routing may use
-fit. Royalties and deranking should read uplift
+fit. Royalties (payments to the skill's licensor for its use) and deranking should read uplift
 (\pdchapref{he}{The Harbor Economy}%
 \ifpdbook
 , \S\ref{he:sec:he-licence-split}%
