@@ -234,8 +234,8 @@ every state of a stated model, not every deployment. A simulation estimates
 behavior under a stated random generator, a repository test exercises the
 paths it names, and running code shows that a feature exists, not that every
 action passes through it. Counterexamples stay in the record because they mark
-claims the research disproved, which differ from claims it merely failed to
-prove.
+claims the research killed by disproving them, which differ from claims it
+merely failed to prove.
 
 Evidence also comes in kinds. When a chapter reports what a harbor observed, it
 names the \pdterm{evidence channel} that produced the observation. Each channel
@@ -280,7 +280,7 @@ Four roles organize this account of intention:
 \begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
   \item \textbf{Drive Means-End Reasoning:} An intention to achieve goal $\phi$ commits the agent to work out sub-plans and spend computation on $\phi$ until it is satisfied.
   \item \textbf{Filter on New Options:} Once an intention $\phi$ is adopted, options inconsistent with $\phi$ (given current beliefs $\mathcal{B}$) are ruled out without weighing their costs and benefits.
-  \item \textbf{Stability and Commitment:} Intentions resist reconsideration unless something relevant changes in the environment or in the agent's beliefs, so the agent does not spend all its time reconsidering.
+  \item \textbf{Stability and Commitment:} Intentions resist reconsideration unless something relevant changes in the environment or in the agent's beliefs, so the agent is not paralyzed by spending all its time reconsidering.
   \item \textbf{Coordination:} Other agents can plan around an agent's declared commitments, to the extent that those commitments are reliable or enforced.
 \end{enumerate}
 
@@ -887,9 +887,11 @@ The theorem shows how risk that keeps getting through the admission check accumu
 
 \subsection{The Context Window Is Not a Record}
 
-A model's \pdterm{context window} is the text it can see at once. A prompt can
-contain an exact string and the model's answer can still fail to retrieve or
-use it; holding bytes is different from using them.
+A model's \pdterm{context window} is the text it can see at once. Like
+volatile, lossy RAM, it keeps nothing after the worker exits unless something
+outside the model stores it, and a prompt can contain an exact string while
+the model's answer still fails to retrieve or use it. Holding bytes is
+different from using them.
 
 \subsubsection{Position and retrieval}
 Liu et al.~\pdcite{liu2024lost} measured sensitivity to the position of relevant
@@ -1145,7 +1147,7 @@ Adding workers changes who needs which observations. Direct messages, shared rec
 
 \subsection{Stigmergic Communication: Environmental Coordination}
 
-Communication cost depends on who publishes, who consumes each update, and what state they need. In 1959, French biologist Pierre-Paul Grass{\'e} coined the term \pdterm{stigmergy} (from the Greek \emph{stigma}, mark, and \emph{ergon}, work) for coordination through marks left in a shared environment, to explain how termites build large mounds without a leader or direct messages.
+Communication cost depends on who publishes, who consumes each update, and what state they need. In 1959, French biologist Pierre-Paul Grass{\'e} coined the term \pdterm{stigmergy} (from the Greek \emph{stigma}, mark, and \emph{ergon}, work) for coordination through marks left in a shared environment, to explain how termites build intricate, cathedral-like mounds without a leader or direct messages.
 
 \pdmarginfigure{termites}{Cathedral termite mound (\emph{Nasutitermes triodiae}) in Litchfield National Park, Australia. Social insects construct massive architectural edifices through stigmergic environmental modification without central coordination or peer-to-peer communication.}%
 In stigmergic coordination, the shared environment carries the messages:
