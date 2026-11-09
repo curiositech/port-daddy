@@ -1458,7 +1458,10 @@ distributions fixed, moving the threshold changes misses and false alarms;
 it does not change $d'$.
 
 The second question is answered by the \pdterm{decision criterion} $\beta$, a threshold
-on the evidence score: inspect above it, otherwise permit the action. A \emph{miss} permits a dangerous action; a \emph{false alarm}
+on the evidence score: inspect above it, otherwise permit the action. Green and
+Swets state the criterion as the likelihood ratio at that threshold; for
+equal-variance Gaussian evidence the ratio rises with the score, so both
+descriptions pick the same rule. A \emph{miss} permits a dangerous action; a \emph{false alarm}
 inspects a safe one. The preferred threshold depends on prevalence and the costs
 of those outcomes. A destructive migration and an unnecessary inspection need
 not carry the same cost. The next example begins with just two available
@@ -1525,6 +1528,27 @@ and \emph{whether} an operator calibrated toward it outperforms one who is not i
 separate, empirical question this chapter does not settle (the paragraph below names
 the live rival account).
 \end{pdclaim}
+
+\paragraph{The optimal criterion, and what each mechanism moves.} Minimizing
+Eq.~\ref{eq:sdt} score by score gives the likelihood-ratio rule: inspect an
+action whose evidence score is $x$ when
+\[
+\mathrm{LR}(x)\;\ge\;\frac{1-\pi}{\pi}\cdot
+\frac{c_{\mathrm{att}}+C_{\text{fa}}}{C_{\text{miss}}-c_{\mathrm{att}}},
+\]
+where $\mathrm{LR}(x)$ is the density of score $x$ among dangerous actions
+divided by its density among safe ones, and $C_{\text{miss}}>c_{\mathrm{att}}$.
+For the equal-variance Gaussian evidence above, $\mathrm{LR}$ rises with the
+score, so the rule is a threshold $\beta$ on the score. It is the posterior
+threshold of Theorem~\ref{thm:regret-head} rewritten with Bayes' rule; that
+theorem carries the derivation, and Example~\ref{ex:inspection-bar} works the
+numbers. The chapter's mechanisms then divide the work. The legibility
+mechanisms of \S\ref{sec:zoom} raise $d'$: a digest whose claims open to
+checkable artifacts separates dangerous actions from safe ones. Consent grants
+(\S\ref{sec:consent}) set the criterion for each action class: an action inside
+a grant proceeds without inspection, and one outside it is escalated. The
+attention costs of this section and \S\ref{sec:discovery} price the criterion,
+since they fix the right-hand side above.
 
 \input{figures/legible-swarm-sdt}
 
