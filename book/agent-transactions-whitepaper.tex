@@ -475,7 +475,7 @@ The first layer of trust does not depend on agent reputation or economic incenti
 
 \pdchapref{anchor}{The Anchor Protocol} provides Harbor Cards, Ed25519-signed tokens that list the operations an agent may perform. What matters here is that a card can be narrowed without contacting the daemon (offline attenuation). When Agent~A delegates to Agent~B, it creates a new card whose permissions are a subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
 
-The capability subset check and the secret-independent comparison are implemented in a Rust core (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani harnesses check that the parser and the comparator cannot panic on bounded symbolic inputs and exercise the subset check on two concrete vectors; the every-hop attenuation property is ProVerif's, in \pdchapref{anchor}{The Anchor Protocol}; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
+\pdchapref{anchor}{The Anchor Protocol} checks $\mathrm{cap}_i \subseteq \mathrm{cap}_{i-1}$ at every hop and chains the hops by transitivity of $\subseteq$\ifpdbook\ (\S\ref{anchor:sec:delegation})\fi; it also says how the check is implemented and what its model checks and harnesses cover. This chapter uses only the result and adds one premise.
 
 For the checkout repair, a grant may permit tests and payment-module writes
 while excluding deployment. Wren's unrelated migration is refused only if the
@@ -569,22 +569,17 @@ The distinction below says which mechanism belongs where.
 % after detection. That is exactly the pre-commit/post-commit distinction drawn
 % below. Resolved here by adopting and citing rather than silently coining.
 \paragraph{Prevention and enforcement.}
-There are two ways to make a rule stick. The first is prevention, which Jones
-and Sergot call \emph{regimentation}~\pdcite{jonessergot1993regimentation}.
-The forbidden action cannot happen, because a checker sees every attempt and
-refuses it before anything changes. That needs every attempt to pass through
-the checker, and the check and the change to happen as one indivisible step.
-The second is \emph{enforcement}. The action can happen, and someone notices
-afterwards and responds. Watching a change after the fact is enforcement,
-however fast the watcher is; \pdchapref{swk}{The Single-Writer Kernel} draws
-this boundary formally. Calling an outside system does not by itself decide
-which kind you have. An operation can wait for a signed permit from a remote
-authority, bound to its payload, resource version, expiry and authorization
-epoch, and the local admission check (the guard that decides whether a
-proposed change takes effect) can verify that permit before committing; a
-timeout refuses the change. That is still prevention, at the cost of waiting.
-But when the deciding evidence arrives only after an irreversible effect, all
-you can do is detect it and compensate.
+\pdchapref{swk}{The Single-Writer Kernel} draws the boundary between the two
+ways to make a rule stick\ifpdbook\ (\S\ref{swk:sec:controllability})\fi.
+Prevention, which Jones and Sergot call
+\emph{regimentation}~\pdcite{jonessergot1993regimentation}, needs a checker
+that sees every attempt and refuses a forbidden one before anything changes.
+Enforcement lets the act happen and responds afterwards, however fast the
+watcher is. An operation that waits for a signed permit from a remote
+authority, which the local admission check (the guard that decides whether a
+proposed change takes effect) verifies before committing, is still
+prevention. When the deciding evidence arrives only after an irreversible
+effect, all that remains is to detect it and compensate.
 Figure~\ref{fig:bonded-regiment-boundary} sets the two paths side by side.
 
 \input{figures/fig-bonded-regiment-boundary}
@@ -938,22 +933,13 @@ refuse every unauthorized write before it commits. A POSIX advisory lock
 alone does not stop a process that ignores it from writing. Fencing an old
 holder and keeping a safe release path are part of the construction.
 
-\paragraph{Stigmergic Ticket-Lock.}
+\paragraph{Fair order at the exclusive writer.}
 \pdstatus{\Designed}{fair exclusion; open problem OP-1 of \pdchapref{swk}{The Single-Writer Kernel}}
-A proposed first-in, first-out ticket queue orders contenders at that writer.
-The following schema records the order; it does not itself intercept writes
-or prove eventual service:
-\begin{lstlisting}[style=pdcode]
-CREATE TABLE claim_tickets (
-  resource_id TEXT,
-  agent_id TEXT,
-  ticket_number INTEGER PRIMARY KEY AUTOINCREMENT,
-  status TEXT DEFAULT 'waiting' -- 'waiting', 'active', 'released'
-);
-\end{lstlisting}
-Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lock to the agent with the lowest \texttt{ticket\_number} where \texttt{status = 'waiting'}, changing its status to \texttt{'active'}. FIFO assignment prevents overtaking among queued tickets if holders
-eventually release or are safely reaped and assignment continues to run.
-The schema alone gives no liveness guarantee.
+Contenders at that writer would be ordered by the Stigmergic Ticket-Lock of
+\pdchapref{swk}{The Single-Writer Kernel}\ifpdbook\ (\S\ref{swk:sec:op1})\fi,
+which gives its schema and its one uncovered path: a holder that crashes
+returns the resource through the TTL sweep, which consults no queue. OP-1 is
+open there, and this chapter adds nothing to that design.
 
 \paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (a stated wall-clock interval, for example 24~hours from the recorded settlement timestamp; zero evidence growth does not pause it) by any agent with standing, meaning a counterparty to the settlement or a holder of an overlapping claim. An appeal reopens the evidence chain. The appellant posts an \pdterm{appeal bond}, a fixed fraction of the disputed settlement amount, and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit. The rule names no recipient for a forfeited appeal bond and no limit on appealing again; both are open. Deployed appeal systems escalate the stakes instead. In Kleros each appeal is heard by twice the previous number of jurors plus one, and the fees rise with the panel~\pdcite{lesaege2021kleros}. In Augur each new dispute bond is sized from the stake already posted, so in a two-way dispute the total at stake doubles with every round, and a filled bond of at least $2.5\%$ of all reputation tokens forks the system~\pdcite{peterson2020augur}.
 
@@ -1066,7 +1052,7 @@ Durable records can survive restart; destruction of their only copy is a separat
 Reputation, the persistent record of an agent's behavior across lifetimes, is a necessary penalty but not a sufficient one. As a sword it fails against three kinds of adversary:
 
 \begin{enumerate}
-  \item \textbf{One-shot defectors}: Agents spawned for a single task, with no future interactions in which reputation matters. Such an agent can create an identity, sabotage, and discard the identity. This is a Sybil attack, in which one party runs many disposable identities.
+  \item \textbf{One-shot defectors}: Agents spawned for a single task, with no future interactions in which reputation matters. Such an agent can create an identity, sabotage, and discard the identity: the whitewashing and Sybil attacks of \pdchapref{stp}{From Spawn to Person}\ifpdbook\ (\S\ref{stp:sec:identity})\fi.
   \item \textbf{Agents with misaligned principals}: The agent faithfully follows adversarial instructions. Obedience to its principal may be spotless while its independently graded
 work harms other participants.
   \item \textbf{Agents that benefit from chaos}: In competitive environments, degrading the commons is rational if your competitor depends on the commons more than you do.
@@ -1493,18 +1479,15 @@ status. Neither a missed heartbeat nor the TLA$^{+}$ excerpt itself determines
 a slash. Attribution is recorded (\S\ref{sec:attribution}), and the agreed
 appeal window permits challenge. That is most of what is needed, but it makes the daemon the verifier, the judge and the arbiter of evidence at once, a position no single component should hold. We call any evaluator whose verdict a settlement relies on an oracle. Strong evidence does not make a single oracle correct; it makes it confidently wrong in the cases where its evidence is incomplete.
 
-One proposal separates three evaluators with different costs and failure
-modes. Their agreement is useful only under an explicit rule for missing
-verdicts, correlated errors and appeals.
-
-\paragraph{Oracle 1: Automated.}
-Test-suite pass/fail, type checks, lints, coverage thresholds, and any deterministic CI signal already recorded on the session. Cheap to run, fast to return, and \emph{gameable}: a principal who knows the test surface can ship work that passes the checks while failing the intent. The daemon already produces this oracle as a side effect of normal operation; the change is to label it as one signal among three rather than the dispositive one.
-
-\paragraph{Oracle 2: Evidence-based.}
-A verifier (which may itself be a bonded agent) reviews the hash-chained attribution record (\S\ref{sec:attribution}) for the disputed transaction. The chain is append-only and cryptographically bound, so the oracle's hard problem is not authenticity of the evidence but interpretation: did the recorded actions match the Float Plan's scope, and do the diffs produced match the acceptance criteria? Medium cost; authentic records can still be incomplete or misleading, and collusion adds another failure mode (\S\ref{sec:youle:a5}).
-
-\paragraph{Oracle 3: Human audit.}
-A randomized sample of contested settlements, at a configurable rate (default $10\%$), is routed to a human auditor. Expensive, slow, and authoritative. The audit produces a labeled outcome that feeds back into reputation history and into calibrating Oracles 1 and 2: any disagreement between human audit and the cheaper oracles is a training signal for the gameable layers.
+One proposal is the 2-of-3 quorum of \pdchapref{stp}{From Spawn to Person}'s
+Option~B\ifpdbook\ (\S\ref{stp:sec:oracle})\fi: Oracle~1 is automated (tests,
+type checks, lints and other CI signals already recorded on the session;
+cheap, and gameable by a principal who knows the test surface), Oracle~2
+interprets the hash-chained record (\S\ref{sec:attribution}) against the
+Float Plan's scope and acceptance criteria, and Oracle~3 is a human audit of
+a random sample of contested settlements, by default $10\%$, whose labels
+also calibrate the other two. Their agreement is useful only under an
+explicit rule for missing verdicts, correlated errors and appeals.
 
 \paragraph{Settlement rule.}
 A sampled human audit is not a third vote on every case. The contract must
