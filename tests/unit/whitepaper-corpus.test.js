@@ -102,6 +102,7 @@ describe('proof-estate corpus manifest', () => {
     expect(cardRevocation.paths.sort()).toEqual([
       'proofs/relay/CardRevocation.tla',
       'proofs/relay/CardRevocation_baseline.cfg',
+      'proofs/relay/CardRevocation_dbepoch.cfg',
       'proofs/relay/CardRevocation_epoch.cfg',
       'proofs/relay/CardRevocation_rollback.cfg',
     ].sort());
