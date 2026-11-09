@@ -323,8 +323,8 @@ The five witness-log requirements above have the same shape as the five required
 \subsection{What the federation is not}\label{sec:fh-not}
 Three things the federation is not, stated once so that the rest of the chapter need not keep refuting them.
 The federation is \emph{not} a consensus protocol. No one agrees on a global order of events. Each harbor's epoch roots only ever extend its own history, each root is published to the shared log, and equivocation can be detected. None of this needs harbors to agree on an order, and the earlier chapters' designs avoid that overhead on purpose.
-The federation is \emph{not} built around a privileged central coordinator. The witness log can be copied: a few log instances that witness one another are enough, and any harbor can read from any of them. The risk is that one well-funded operator captures the federation by becoming everyone's only witness. \S\ref{sec:fh-failure-modes} discusses it; the design's answer is to keep several independent witnesses, compared by gossip.
-The federation is \emph{not} open to anyone. A new harbor enters through the joining ceremony of \S\ref{sec:fh-admission}, which needs a bond of its own or a sponsor among the existing harbors. Entry is therefore by invitation, and in exchange a Sybil attack (one attacker running many identities)~\pdcite{douceur2002sybil} costs the attacker as much per identity as honest entry costs.
+The federation is \emph{not} a hub-and-spoke network built around a privileged central coordinator. The witness log can be copied: a few log instances that witness one another are enough, and any harbor can read from any of them. The risk is that one well-funded operator captures the federation by becoming everyone's only witness. \S\ref{sec:fh-failure-modes} discusses it; the design's answer is to keep several independent witnesses, compared by gossip.
+The federation is \emph{not} a market in identities that anyone may enter. A new harbor enters through the joining ceremony of \S\ref{sec:fh-admission}, which needs a bond of its own or a sponsor among the existing harbors. Entry is therefore by invitation, and in exchange a Sybil attack (one attacker running many identities)~\pdcite{douceur2002sybil} costs the attacker as much per identity as honest entry costs.
 Figure~\ref{fig:fh-sovereignty-fence} returns to Alice's refused database
 request: a card can be valid at its source and still be unacceptable at its
 destination. Bob decides what may touch Bob's database.
@@ -353,7 +353,7 @@ and \texttt{badAccept} is true at the end. The restored \texttt{revoked} set no 
 
 \textbf{Epoch} (the fix: an external epoch counter that \texttt{Revoke} bumps and that \texttt{RollbackRestore} does not roll back, with \texttt{Accept} additionally requiring \texttt{cardEpoch[c] = epoch}): the same four-step trace no longer breaches, because the restored card's epoch is stale even though its \texttt{revoked} bit was rolled back, and TLC reports the invariant holding over a larger, 76-state space.
 
-The whole fix is one counter that a restore cannot roll back. It is why revocation by the issuer alone survives a backup restored by mistake, and why this chapter keeps each harbor's per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) outside the relay's own database, where a restore cannot quietly undo them.
+The whole fix is one counter that a restore cannot roll back. It is why revocation by the issuer alone survives a backup restored by mistake, and why this chapter keeps each harbor's per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) outside the relay's own database, as an external anchor that a restore cannot quietly move.
 \end{pdexample}
 
 \subsection{In-scope attacks}\label{sec:fh-attacks-in}
@@ -834,7 +834,7 @@ matching the hand value to six decimals on $C_6$, and on $P_6$ holding the print
 
 The general law is \[
 r=|s|/\sqrt n
-\] on any $C_n$: $|s|/2$ at $n{=}4$, $|s|/\sqrt6\approx0.4082|s|$ at $n{=}6$, $|s|/\sqrt8\approx0.3536|s|$ at $n{=}8$ [verified, closed form]. The residual shrinks as the ring grows, and a path gives zero for every $n$.
+\] on any $C_n$: $|s|/2$ at $n{=}4$, $|s|/\sqrt6\approx0.4082|s|$ at $n{=}6$, $|s|/\sqrt8\approx0.3536|s|$ at $n{=}8$ [verified, closed form]. The residual shrinks as the ring grows, and any path reads as silence, giving zero for every $n$.
 
 \emph{Now you try:} reproduce both printed lines and the general law against the script (Exercise~\ref{ex:fh-consistency-radius-run}), then reason about why the theorem needs a \emph{single} equivocator (Exercise~\ref{ex:fh-two-liar-boundary}).
 \end{pdexample}
@@ -1056,8 +1056,8 @@ A zero $r$ is not an all-clear, for three separate reasons: uniform offsets can
 form a consistent alternative in this edge model; severed edges allow
 consistent alternatives by construction; and real-number arithmetic can miss
 contradictions that a richer encoding would catch~\pdcite{caru}. Where no
-report crosses, nothing can be seen, and severing one link of a loop hides the
-whole loop. Under measurement noise the certificate needs a threshold above
+report crosses, nothing can be seen, and severing one link of a loop darkens
+the whole loop, hiding all of it from the residual. Under measurement noise the certificate needs a threshold above
 the honest noise level; below it, the data are ``consistent with noise.''
 \end{pdboundary}
 
@@ -1306,7 +1306,7 @@ does not prove that actual recipient transfers conserve money.
 
 This is the federation's version of Conservation in Bonded. Within each harbor, Bonded's Conservation invariants still hold (Bonded gives the proofs). The cross-harbor property adds one rule: a bond in transit, posted at $A$ and locked in escrow while it waits for a decision about damage at $B$, counts as in escrow, neither still posted at $A$ nor already paid to $B$. Because the escrow holds every bond in transit, this accounting has one place to look.
 
-Figure~\ref{fig:fh-conservation-ledger} draws the four buckets and the moves between them.
+Figure~\ref{fig:fh-conservation-ledger} draws the four buckets and the pipes between them, one pipe for each allowed move.
 
 \input{figures/fig-fh-conservation-ledger}
 
@@ -1372,7 +1372,7 @@ released. Six quiet months alone do not statistically establish low risk.
 That is all four items of the ceremony below, in order, under a declared illustrative probation policy.
 \end{pdexample}
 
-\pdmarginanalogy{fh-quarantine-lantern}{}{ch08-quarantine-inspection-lantern}{A harbor on probation is not isolated. From its first day its cards are accepted and its evidence is witness-logged; only the release of its sponsor's bond waits on the graduation review.}%
+\pdmarginanalogy{fh-quarantine-lantern}{}{ch08-quarantine-inspection-lantern}{Like a port's quarantine inspection lantern, probation marks a newcomer as under inspection, but it does not hold the newcomer at outer anchorage. From its first day its cards are accepted and its evidence is witness-logged; only the release of its sponsor's bond waits on the graduation review.}%
 \begin{enumerate}[nosep]
 \item An existing harbor, the sponsor, posts a bond on the newcomer $N$'s behalf, sized to the declared limit on what $N$ may put at risk during probation. If no
 such limit exists, no finite sponsor bond guarantees full coverage.
