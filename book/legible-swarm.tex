@@ -1554,12 +1554,12 @@ the live rival account).
 
 \paragraph{The optimal criterion, and what each mechanism moves.} Minimizing
 Eq.~\ref{eq:sdt} score by score gives the likelihood-ratio rule: inspect an
-action whose evidence score is $x$ when
+action whose evidence score is $e$ when
 \[
-\mathrm{LR}(x)\;\ge\;\frac{1-\pi}{\pi}\cdot
+\mathrm{LR}(e)\;\ge\;\frac{1-\pi}{\pi}\cdot
 \frac{c_{\mathrm{att}}+C_{\text{fa}}}{C_{\text{miss}}-c_{\mathrm{att}}},
 \]
-where $\mathrm{LR}(x)$ is the density of score $x$ among dangerous actions
+where $\mathrm{LR}(e)$ is the density of score $e$ among dangerous actions
 divided by its density among safe ones, and $C_{\text{miss}}>c_{\mathrm{att}}$.
 For the equal-variance Gaussian evidence above, $\mathrm{LR}$ rises with the
 score, so the rule is a threshold $\beta$ on the score. It is the posterior
@@ -2370,9 +2370,10 @@ Outside it flat inspection gives the simpler $F$-query guarantee, although
 adaptive inspection can still win on some inputs. At the dense end halving can
 lose: at $F{=}100$, $k{=}90$ the run costs $199$ opens against $100$ flat
 [internal], which is the unconditional $2F-1$, reached because at that density
-essentially every node of the halving tree is positive. Hwang's procedure tests
-items one at a time once the remaining items number at most $2k-2$, with $k$
-counting the positives not yet found; here that holds from the start, so it costs exactly the $100$ flat opens. The design consequence for this chapter is
+essentially every node of the halving tree is positive. Hwang's procedure stops
+grouping and tests items one at a time once the items left number at most twice
+the positives still unfound, less two; here that holds from the start, so it
+costs exactly the $100$ flat opens. The design consequence for this chapter is
 therefore conditional, and the condition is now a number: ``summarize the state,
 link to the work'' is cheap when the digest over-flags generously and the zoom is
 adaptive, and the operator's dial, which trades bits on the digest for opens on
@@ -2410,12 +2411,12 @@ $150$ placements measure a mean of $163.7$ queries at that same point, comfortab
 2500/163.7\approx15.3\times
 \]
 reduction [internal, \texttt{b1\_frontier.py}], better than the guarantee's own $12.5\times$, exactly as a worst-case bound should allow on a typical run.
-That harness runs plain halving. Hwang's worst case at the same point is
+That harness runs plain halving. Hwang's bound at the same point is
 \[
 \log_2\binom{2500}{10}+10\approx101.1
 \]
-queries, a guaranteed $24.7\times$ reduction, so Hwang's procedure on its worst
-placement beats halving's measured average.
+queries, a guaranteed $24.7\times$ reduction, so even Hwang's worst placement
+costs less than halving's measured average.
 
 \emph{Now you try:} run the script and read the $F{=}1000,k{=}20$ row (Exercise~\ref{ex:ls-b1-frontier-run}).
 \end{pdexample}
