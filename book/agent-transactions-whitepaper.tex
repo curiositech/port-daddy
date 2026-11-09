@@ -731,8 +731,8 @@ calculation excludes serialization and context metadata.
 
 Stigmergy, coordination through marks left in a shared environment, comes from biology. There pheromones only accumulate: ants deposit them and they evaporate~\pdcite{theraulaz1999stigmergy}. Software agents need more. An agent that left a hint and later found it wrong must be able to retract it while keeping the record of who left it and who retracted it. Signals must therefore be revocable, renamable and traceable to their author.
 
-For example, choose decay $S2^{-u/h}$ with strength $S=8$ and half-life
-$h=10$ minutes. After twenty minutes the view is $2$. A revocation then
+For example, choose decay $S2^{-u/h}$, where $u$ is the time since the
+spray, with strength $S=8$ and half-life $h=10$ minutes. After twenty minutes the view is $2$. A revocation then
 makes the view zero while retaining both the original spray and the revocation
 record. A late-arriving event needs a declared effective order and tie-break
 rule before replay is deterministic; a timestamp alone is not that rule.
@@ -1029,8 +1029,9 @@ in the next subsection, and posted bonds (\S\ref{sec:economic}).
 \begin{table}[H]
 \centering
 \caption{Recovery consequences differ for process loss, service outage and deletion
-of the only retained record. The destructive Dismiss below belongs to the
-abstract lifecycle excerpt; merely removing a queue entry need not delete data.}
+of the only retained record. Dismiss below is an action of the TLA$^{+}$
+model (\S\ref{sec:tlaplus}) that deletes a queued session's record; merely
+removing a queue entry need not delete data.}
 \label{tab:moral}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{.27\textwidth}
   >{\raggedright\arraybackslash}p{.225\textwidth}
@@ -1145,7 +1146,7 @@ Consider two agents $A$ and $B$ working on a shared project, deciding per round 
   \item[\textbf{F (False).}] Either claim files the agent does not intend to edit (to block a rival), or fail to claim files it does intend to edit (to avoid scrutiny). Either form of misrepresentation counts as $F$.
 \end{description}
 
-The stage-game payoffs, in expected-utility units calibrated to the cleanup cost $c$ of \S\ref{sec:cleanup-bound}, are:
+The stage-game payoffs, in expected-utility units, are below. We write $u_C=3$ for mutual truth, $u_D=4$ for a lone false signal and $u_P=1$ for mutual falsehood:
 
 \begin{table}[H]
 \centering
@@ -1170,7 +1171,7 @@ Truthful signaling can survive because the agents play the stage game many times
 They do not reveal an unrecorded intention or guarantee delivery of every action.
 The game below assumes more, namely \pdterm{perfect public monitoring}, in which
 both players see the same correct record of past actions before each round.
-  \item \textbf{Persistent identity.} The Anchor Protocol's passkey-bound device pairing~\pdcite{owens2026anchor} ties an agent ID to a hardware-rooted credential. Sybil re-registration is bounded by the per-identity onboarding cost $C_{\mathrm{kyc}}$ of \S\ref{sec:youle:a5}, so an agent cannot trivially shed a reputation by re-incarnating.
+  \item \textbf{Persistent identity.} The Anchor Protocol's passkey-bound device pairing~\pdcite{owens2026anchor} ties an agent ID to a hardware-rooted credential. Sybil re-registration is bounded by a per-identity onboarding cost $C_{\mathrm{kyc}}$, such as the non-refundable entry fee A5 lists as a candidate control (\S\ref{sec:youle:a5}; its simulation sets that cost to zero), so an agent cannot trivially shed a reputation by re-incarnating.
   \item \textbf{A discount factor $\delta$}, the weight a principal puts on the next round's payoff relative to this round's. Principals value future interactions: a development project lives over weeks; insurer relationships compound; reputation discounts (\S\ref{sec:rep-discount}) accrue. For long-lived principals we take $\delta \approx 0.9$ as a working operating point, consistent with the discount used in \S\ref{sec:youle:a6}.
 \end{itemize}
 
@@ -1197,9 +1198,9 @@ intent does not make the strategy robust to misread events or inconsistent
 observations.
 
 \paragraph{Deviation analysis.}
-Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, paid in the deviation round, is $d - c = 4 - 3 = 1$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each paying $p = 1$ instead of the cooperative $c = 3$ (a net loss of $c - p = 2$ per round). Discounted at $\delta$:
+Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, paid in the deviation round, is $u_D - u_C = 4 - 3 = 1$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each paying $u_P = 1$ instead of the cooperative $u_C = 3$ (a net loss of $u_C - u_P = 2$ per round). Discounted at $\delta$:
 \[
-\text{PV of lost cooperative payoff} \;=\; (c - p) \cdot (\delta + \delta^2 + \delta^3) \;=\; 2 \cdot (\delta + \delta^2 + \delta^3).
+\text{PV of lost cooperative payoff} \;=\; (u_C - u_P) \cdot (\delta + \delta^2 + \delta^3) \;=\; 2 \cdot (\delta + \delta^2 + \delta^3).
 \]
 At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviation's payoff advantage is $1 - 2 \cdot 2.439 = 1 - 4.878 = -3.878$, strictly negative. Deviation is strictly unprofitable.
 
@@ -1207,11 +1208,11 @@ At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 
 \marginnote{\input{figures/spark-bonded-deviation}\par
 Three-round model: net gain from deviation, in payoff units.
 Above $\delta\approx.343$, deviation loses.}
-The general sustainability condition under a $k$-round graduated trigger with stage-game payoffs $(c, d, p) = (3, 4, 1)$ is
+The general sustainability condition under a $k$-round graduated trigger with stage-game payoffs $(u_C, u_D, u_P) = (3, 4, 1)$ is
 \[
-\underbrace{d - c}_{\text{one-shot gain}} \;<\; \underbrace{(c - p) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
+\underbrace{u_D - u_C}_{\text{one-shot gain}} \;<\; \underbrace{(u_C - u_P) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
 \]
-Substituting $d - c = 1,\; c - p = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.3425$. Under grim trigger ($k \to \infty$), strict deterrence requires $\delta > 1/3 \approx 0.333$ for this payoff table. The three-round threshold is about $0.009$ higher. Finite punishment allows a return to cooperation after three compliant rounds; the calculation says nothing about crashes or mistaken observations.
+Substituting $u_D - u_C = 1,\; u_C - u_P = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.3425$. Under grim trigger ($k \to \infty$), strict deterrence requires $\delta > 1/3 \approx 0.333$ for this payoff table. The three-round threshold is about $0.009$ higher. Finite punishment allows a return to cooperation after three compliant rounds; the calculation says nothing about crashes or mistaken observations.
 
 \begin{pdclaim}{Theorem}{Claim Signaling Incentive Compatibility}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1290,7 +1291,7 @@ Then $2\delta = 0.685$, and \[
 
 That is within $3.3\times10^{-5}$ of zero, close enough to call $0.3425$ a root by hand, and the small \emph{negative} residual is exactly consistent with the more precise value \texttt{delta-threshold.expected.txt} reports, $\delta^\star \approx 0.3425080314$: since $f$ is strictly increasing for $\delta>0$ (every term has a positive coefficient), a negative value at $0.3425$ means the true root sits slightly \emph{above} it, and $0.34250803 > 0.3425$ by exactly the sliver this residual predicts.
 
-\emph{Now you try:} Exercise~\ref{ex:bonded-threshold-hand} asks you to bound the same root between two integer-grid points instead of evaluating it at the algebraic value alone.
+\emph{Now you try:} Exercise~\ref{ex:bonded-threshold-hand} asks you to bound the same root between two adjacent points of the $0.01$-step grid the model checker uses ($\delta=\texttt{DeltaNum}/100$) instead of evaluating it at the algebraic value alone.
 \end{pdexample}
 
 Figure~\ref{fig:bc-delta-threshold} plots that root where it means something:
@@ -1393,7 +1394,7 @@ Table~\ref{tab:threat-bonds} gives illustrative starting bands, not validated co
 
 \begin{table}[H]
 \centering
-\caption{Illustrative bond bands as a percentage of expected task value. These are calibration proposals, not protocol constants or loss guarantees.}
+\caption{Illustrative bond bands as a percentage of the claim ceiling. These are calibration proposals, not protocol constants or loss guarantees.}
 \label{tab:threat-bonds}
 \setlength{\tabcolsep}{3pt}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{2cm}>{\raggedright\arraybackslash}X@{}}
@@ -1408,7 +1409,7 @@ Data exfiltration & Not set & Separate confidentiality controls. \\
 \end{tabularx}
 \end{table}
 
-An abandonment reserve aims to pay for scope-note ingestion, partial-diff review and salvage handoff. Coverage requires a measured cost bound (\S\ref{sec:attribution-survives}). A sabotage reserve aims to fund reconstruction and downstream cleanup; a percentage of task value bounds neither loss, and even a bond exceeding task value may underfund reconstruction. The careless-work band likewise proposes an incentive, not a demonstrated reduction in failures. Each band requires calibration against attributable outcomes and observed costs.
+An abandonment reserve aims to pay for scope-note ingestion, partial-diff review and salvage handoff. Coverage requires a measured cost bound (\S\ref{sec:attribution-survives}). A sabotage reserve aims to fund reconstruction and downstream cleanup; a percentage of the claim ceiling bounds neither loss, and even a bond above the ceiling may underfund reconstruction. The careless-work band likewise proposes an incentive, not a demonstrated reduction in failures. Each band requires calibration against attributable outcomes and observed costs.
 
 This pricing proposal sets no bond for exfiltration. The loss or an attacker's gain can exceed collectible collateral, and a bond cannot retract disclosed information. Preventing disclosure requires mediated access and egress controls with their own threat model; ordinary worktrees do not provide confinement (\S\ref{sec:isolation}). The cleanup-cost conditions give no protection against disclosure to outsiders.
 
@@ -1544,7 +1545,7 @@ To avoid the lemons problem, in which only bad risks stay in the market because 
 \end{itemize}
 
 \paragraph{Welfare comparison (model-conditional).}\label{sec:youle:welfare}
-Under the simulation's full-information, competitive-entry assumptions and its chosen static baseline, the market-discovered premium can weakly improve the modeled principal and insurer payoffs while preserving coverage $B_T=\mu(1+s)$. This is not a claim against \emph{every} static parameter: a static price equal to the competitive price is outcome-equivalent, and transfers outside the modeled parties can change the Pareto ordering.
+Under the simulation's full-information, competitive-entry assumptions and its chosen static baseline, the market-discovered premium can weakly improve the modeled principal and insurer payoffs while preserving coverage $B_T=\mu(1+s)$, where $\mu$ is the transaction's expected loss and $s$ the protocol's safety margin. This is not a claim against \emph{every} static parameter: a static price equal to the competitive price is outcome-equivalent, and transfers outside the modeled parties can change the Pareto ordering.
 
 
 The accompanying Monte Carlo artifact sweeps 36 parameter configurations
@@ -1634,7 +1635,7 @@ V_C=\pi_C-p_dL+\delta(1-p_d)V_C,
 \qquad
 p_d^\star=\frac{\pi_C-(1-\delta)\pi_D}{L+\delta\pi_D}.
 \]
-At $\delta=0.95$ this gives $p_d^\star\approx0.0478$, and the tested grid first classifies the cartel as fragile at $p_d=0.05$. This is a falsifiable, model-conditional calibration target for bid-pattern detection; this chapter does not claim the deployed detector already attains it.
+At $\delta=0.95$, with the simulation's undercut $\varepsilon=0.01(q_{\mathrm{floor}}-\mu)$, this gives $p_d^\star\approx0.0478$ ($0.0476$ as $\varepsilon\to0$), and the tested grid first classifies the cartel as fragile at $p_d=0.05$. This is a falsifiable, model-conditional calibration target for bid-pattern detection; this chapter does not claim the deployed detector already attains it.
 
 \input{figures/fig-bonded-cartel-folk-theorem-tikz}
 
@@ -1789,7 +1790,7 @@ architecture: initialization, the complete transition relation, financial
 recipients, and monitoring rules are omitted. The bounded accounting artifact
 is identified separately in Appendix~\ref{app:mech}.
 
-Read the state machine as five English sentences before reading any syntax. An agent may not \texttt{Begin} without posting positive escrow. A file \texttt{ClaimFile} requires an active registered session; it records an advisory claim without excluding another claimant. \texttt{Commit} clears a session's claims and locks together. A \texttt{Reap} demotes an unresponsive agent to \texttt{abandoned} and queues it for \texttt{Salvage}. Notes grow monotonically while a session is active; destructive \texttt{Dismiss} is outside that property. The excerpt below expresses these lifecycle rules; a complete executable specification would still need the omitted initialization and transition definitions.
+Read the state machine as five English sentences before reading any syntax. An agent may not \texttt{Begin} without posting positive escrow. \texttt{ClaimFile} requires an active, registered session; it records an advisory claim without excluding another claimant. \texttt{Commit} clears a session's claims and locks together. A \texttt{Reap} demotes an unresponsive agent to \texttt{abandoned} and queues it for \texttt{Salvage}. Notes grow monotonically while a session is active; destructive \texttt{Dismiss} is outside that property. The excerpt below expresses these lifecycle rules; a complete executable specification would still need the omitted initialization and transition definitions.
 
 \subsection{State and Actions}
 
@@ -2255,7 +2256,7 @@ is outside that guarantee.
 \item \textbf{Exclusive locks can backfire.} If Wren locks a file just in case and Pike turns out to need it, the lock can block an outcome both of them prefer. Advisory claims block nothing; they guarantee that every overlap between registered claims is reported. An appeal can reverse a settlement only by adding a counter-record, never by rewriting one.
 \item \textbf{A crash is a social event.} Recovery is continuation of the record by whoever next holds the role, not resurrection of the process.
 \item \textbf{Intent is irrelevant to settlement}; the bond pays on the evidence, whatever the agent meant.
-\item \textbf{Claim signaling is incentive-compatible above $\delta^{\ast}\approx0.3425$}, the root of $2\delta^{3}+2\delta^{2}+2\delta-1=0$; TLC agrees on the integer grid, at $0.35$ holding and at $0.33$ producing the deviation trace.
+\item \textbf{Claim signaling is incentive-compatible above $\delta^{\ast}\approx0.3425$}, the root of $2\delta^{3}+2\delta^{2}+2\delta-1=0$; TLC agrees on the $0.01$-step grid, holding at $0.35$ and producing the deviation trace at $0.30$.
 \item \textbf{Cleanup has a lower bound}: cleanup funded entirely from a forfeited bond requires that bond to
 cover the assumed bill. Deterrence additionally depends on the principal's
 gain and probability of collectible loss.
@@ -2327,7 +2328,7 @@ Fix $A$'s choice and compare its two rows against each of $B$'s columns. Against
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-threshold-hand}
-Using $f(\delta)=2\delta(1+\delta+\delta^2)-1$ from the worked example above, evaluate $f$ by hand at the two integer-grid points $\delta=0.34$ and $\delta=0.35$. What sign does each give, and what does the sign change prove? Name the committed artifact whose result this matches.
+Using $f(\delta)=2\delta(1+\delta+\delta^2)-1$ from the worked example above, evaluate $f$ by hand at the two adjacent $0.01$-grid points $\delta=0.34$ and $\delta=0.35$. What sign does each give, and what does the sign change prove? Name the committed artifact whose result this matches.
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-threshold-hand}
 At $\delta=0.34$: $\delta^2=0.1156$, $1+\delta+\delta^2=1.4556$, $2\delta=0.68$, and $0.68\times1.4556=0.989808$, so $f(0.34)=0.989808-1=-0.010192$ [verified], which is negative. At $\delta=0.35$: $\delta^2=0.1225$, $1+\delta+\delta^2=1.4725$, $2\delta=0.7$, and $0.7\times1.4725=1.03075$, so $f(0.35)=1.03075-1=0.03075$ [verified], which is positive. $f$ is continuous and strictly increasing on $(0,1)$ (every term's coefficient is positive), so a sign change from $\delta=0.34$ to $\delta=0.35$ proves a root lies strictly between them, by the Intermediate Value Theorem.
@@ -2377,7 +2378,7 @@ crossover (smallest delta where invariant HOLDS) = 0.35
 closed-form root (delta-threshold.z3)            = 0.3425
 PASS: crossover matches closed-form within integer-grid rounding.
 \end{lstlisting}
-The script's own pass criterion (its exit code) is that the crossover lands in $\{0.34, 0.35\}$, the two integer-grid points bracketing the closed-form root $\delta^\star\approx0.3425$ from Exercise~\ref{ex:bonded-threshold-hand}. A crossover anywhere else would mean the model-checked state machine and the closed-form cubic disagree about where cooperation becomes sustainable, which is exactly the regression this script exists to catch on every PR touching \texttt{proofs/economics/} (\S\ref{app:mech}).
+The script's own pass criterion (its exit code) is that the crossover lands in $\{0.34, 0.35\}$, the two $0.01$-grid points bracketing the closed-form root $\delta^\star\approx0.3425$ from Exercise~\ref{ex:bonded-threshold-hand}. A crossover anywhere else would mean the model-checked state machine and the closed-form cubic disagree about where cooperation becomes sustainable, which is exactly the regression this script exists to catch on every PR touching \texttt{proofs/economics/} (\S\ref{app:mech}).
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-a5-coverage-bound}
@@ -2409,7 +2410,7 @@ With $x = q_{\mathrm{floor}} - \mu$, the chapter's own closed form gives $\pi_C 
 \[
 p_d^\star=\frac{\pi_C-(1-\delta)\pi_D}{L+\delta\pi_D} = \frac{x/3-(1-\delta)x}{5x+\delta x} = \frac{1/3-(1-\delta)}{5+\delta}
 \]
-after cancelling the shared factor $x$. At $\delta=0.99$: $1/3-(1-0.99)=1/3-0.01=97/300$, and $5+0.99=5.99=599/100$, so $p_d^\star = (97/300)/(599/100) = 9700/179700 = 97/1797 \approx 0.05398$ [verified], about $5.4\%$ per round, close to but distinct from the chapter's own worked point at $\delta=0.95$ ($p_d^\star\approx0.0478$): a more patient cartel ($\delta$ closer to $1$) needs a slightly \emph{higher} detection probability to stay fragile, because the discounted value of continuing the cartel is larger.
+after cancelling the shared factor $x$. At $\delta=0.99$: $1/3-(1-0.99)=1/3-0.01=97/300$, and $5+0.99=5.99=599/100$, so $p_d^\star = (97/300)/(599/100) = 9700/179700 = 97/1797 \approx 0.05398$ [verified], about $5.4\%$ per round, close to but distinct from the chapter's own worked point at $\delta=0.95$ ($p_d^\star\approx0.0476$ in the same limit): a more patient cartel ($\delta$ closer to $1$) needs a slightly \emph{higher} detection probability to stay fragile, because the discounted value of continuing the cartel is larger.
 
 Cheap fresh identities shorten the effective horizon a punished member faces and let it shed the punishment entirely by re-registering. That is the Sybil failure mode Exercise~\ref{ex:bonded-reputation-vs-bonds} names for reputation alone. A \emph{principal-bound} bond deters re-entry only when the expected forfeiture plus the onboarding and reputation-maturation cost of a fresh identity exceeds the gain from re-entering the cartel; a bond that is reusable across identities, or sized below that threshold, merely \emph{prices} re-entry rather than deterring it. The bond mechanism by itself never \emph{prevents} re-entry, because nothing in this chapter's architecture stops a new registration. The bond always puts a cost on re-entry, deters it only under that condition, and never prevents it.
 \end{pdsolution}
@@ -2420,7 +2421,7 @@ The competitive-insurance mechanism (\S\ref{sec:youle}) replaces a single bond p
 \begin{pdsolution}{ex:bonded-insurance-alt-pricing}
 This is a design obligation, not a closed theorem: no mechanism in this chapter proves a Pareto ordering for a posted-price catalog, so what follows is a defensible proposal, not a fictional derivation. A posted-price catalog quotes premiums by manifest risk class, principal history, exposure duration, and tail-capital band, recalibrated periodically against a hard reserve constraint, with no per-transaction bidding and no auction latency. It conditionally improves on the static escrow of \S\ref{sec:scope-multiplier} exactly when the posted quote sits below the principal's idle-capital cost of self-insuring via a static bond, while the insurer remains individually rational and its reserves still cover the same tail risk the competitive market would have priced. Relative to \S\ref{sec:youle}'s bid-based mechanism, a posted catalog trades away instance-specific price discovery (the model's conditional pricing of expected capped payouts, capital costs, and expenses) for lower manipulation surface and no per-transaction latency. That is the same trade the A6 cartel analysis makes salient in the other direction, since a catalog has no bid pattern for a colluding cartel to distort in the first place.
 
-The proposal depends most on \emph{calibrated loss/tail dependence}: the catalog's bands must actually track the loss distribution within each class, and its capital reserve must be enforceably adequate against the tail, or the ``conditional'' improvement collapses into either under-pricing risk (insurer insolvency) or over-pricing it (pricing capable agents out, the same failure the threat-class bands of \S\ref{sec:pricing:threats} already warn against). The CC/NC/RP/NS assumptions of \S\ref{sec:youle:welfare} would need explicit class-conditional definitions before any formal Pareto claim could be stated for this alternative; this exercise does not supply that derivation, and neither should its answer key pretend to.
+The proposal depends most on \emph{calibrated loss/tail dependence}: the catalog's bands must actually track the loss distribution within each class, and its capital reserve must be enforceably adequate against the tail, or the ``conditional'' improvement collapses into either under-pricing risk (insurer insolvency) or over-pricing it (pricing capable agents out, the same failure the threat-class bands of \S\ref{sec:pricing:threats} already warn against). The full-information, competitive-entry, coverage and static-baseline assumptions of \S\ref{sec:youle:welfare} would need explicit class-conditional definitions before any formal Pareto claim could be stated for this alternative; this exercise does not supply that derivation, and neither should its answer key pretend to.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:tlaplus}}{Formal Model}
@@ -2760,7 +2761,7 @@ Coordination channel isolation (\S\ref{sec:merkle-forest}) & ProVerif (Dolev-Yao
 Passkey device pairing & ProVerif & \Closed\ 3 properties TRUE & \texttt{passkey-pair.pv} \\
 Federated security (\S\ref{sec:federated-sovereign}) & ProVerif query audit & \Partial\ queried private constant is not the reconstructed root; intended claim unproved & \texttt{federated.pv} \\
 Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 1{,}716 reachable states (26{,}818 generated), invariant holds & \texttt{Conservation.tla} \\
-No-overdraft lemma (\S\ref{sec:economic}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
+No-overdraft lemma (\S\ref{sec:conservation}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
 Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\
 Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE & \texttt{chain-replay.pv} \\
 Magic-link single-use (\S\ref{sec:federated-sovereign}) & ProVerif (private-channel cap) & \Closed\ injective-event TRUE; 7/7 runtime conformance & \texttt{magic-link.pv} \\
