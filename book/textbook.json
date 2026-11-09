@@ -36,7 +36,7 @@
       "numeral": "III",
       "title": "What Survives the Restart",
       "color": "pdviolet",
-      "blurb": "If an agent can discard its history at restart, a sanction may not follow it. This part asks which identity, outcome, and obligation records must persist for reputation to mean anything.",
+      "blurb": "If an agent can discard its history at restart, a sanction may not follow it. This part asks which records of identity, outcomes and unfinished duties must persist for a track record to mean anything.",
       "chapters": [
         "spawn-to-person"
       ]
@@ -46,7 +46,7 @@
       "numeral": "IV",
       "title": "Trade Between Strangers",
       "color": "pdgold",
-      "blurb": "Operators who trade work need evidence of performance, rules for disputes, and limits on loss. These chapters develop the market and its settlement rules, then examine how evidence and grants pass between independently governed machines.",
+      "blurb": "Operators who trade work need evidence of performance, rules for disputes, and limits on loss. These chapters develop the market and its payment rules, then examine how evidence and grants pass between independently governed machines.",
       "chapters": [
         "harbor-economy",
         "bonded-commons",
@@ -129,7 +129,7 @@
       "source": "book/spawn-to-person.tex",
       "role": "builds",
       "formerNumeral": "III",
-      "oneLine": "An AI worker process starts, does a job and exits. Continuity links each replacement process, through a checked succession record, to one continuing account in a shared ledger, which shows what the worker owes, what it may do, which of its results an independent checker confirmed and which earlier processes it descends from. Reputation is what that record of confirmed results is worth to the next buyer.",
+      "oneLine": "An AI worker process starts, does a job and exits. A checked, signed entry links each replacement process to one continuing account in a shared ledger, which shows what the worker owes, what it may do, which of its results an independent checker confirmed and which earlier processes it descends from. The next buyer judges the worker by that record of confirmed results.",
       "question": "What remains long enough to owe anything?",
       "teaser": "Alice wants to hire Heron again after a successful job. But Heron has exited, and tomorrow's process could reuse the name without inheriting its record. What must survive the restart so Alice can recognize the same accountable participant?",
       "epigraph": {
@@ -145,9 +145,9 @@
       "source": "book/harbor-economy.tex",
       "role": "builds",
       "formerNumeral": "IV",
-      "oneLine": "Labor, rented assets and licensed skills carry different risks, but all of them settle through one shared ledger in which no transfer creates or destroys any unit of payment.",
+      "oneLine": "Labor, rented assets and licensed reusable procedures carry different risks, but all of them settle through one shared ledger in which no transfer creates or destroys any unit of payment.",
       "question": "What makes cooperation rational without making loss unbounded?",
-      "teaser": "Bob hires Alice's fleet and licenses Carol's skill for the same job. They need different evidence of performance, yet their payments and collateral must settle together. The chapter works through that transaction and the losses its rules can bound.",
+      "teaser": "Bob hires Alice's fleet and licenses Carol's packaged procedure for the same job. They need different evidence of performance, yet their payments and collateral must settle together. The chapter works through that transaction and the losses its rules can bound.",
       "epigraph": {
         "text": "The main reason why it is profitable to establish a firm would seem to be that there is a cost of using the price mechanism.",
         "source": "Ronald H. Coase, The Nature of the Firm, 1937"
@@ -162,9 +162,9 @@
       "role": "proves",
       "discharges": "harbor-economy",
       "formerNumeral": "VI",
-      "oneLine": "Some doubt about an agent's work remains even after access checks. The chapter handles it with shared rules: providers post deposits (bonds), signed records show who did what, audits sample the results, and either side can appeal a verdict. A model checker confirms, on a bounded model, that the deposit ledger never creates or loses money.",
+      "oneLine": "Some doubt about an agent's work remains even after access checks. The chapter handles it with shared rules: providers post deposits, signed records show who did what, audits sample the results, and either side can appeal a verdict. A model checker confirms, on a bounded model, that the deposit ledger never creates or loses money.",
       "question": "Who may decide, on what evidence, with what consequence?",
-      "teaser": "A disputed job leaves two questions: which evidence should decide the outcome, and whose bond may pay for it? The chapter separates admission, attribution, and settlement, then checks the ledger rules under explicit assumptions.",
+      "teaser": "A disputed job leaves two questions: which evidence should decide the outcome, and whose deposit may pay for it? The chapter separates admission, attribution, and payment, then checks the ledger rules under explicit assumptions.",
       "epigraph": {
         "text": "The power to constrain an adversary may depend on the power to bind oneself.",
         "source": "Thomas C. Schelling, The Strategy of Conflict, 1960"
@@ -181,7 +181,7 @@
       "formerNumeral": "VII",
       "oneLine": "Machines run by owners who do not trust each other can pass each other signed records, but not the power to approve actions on each other's systems. The chapter works out which information can spread from machine to machine, which decisions still need one designated approver, and why the receiving machine must issue its own permission for its own resources instead of narrowing the sender's.",
       "question": "What can cross a trust boundary without moving the authority itself?",
-      "teaser": "Alice's agent has permission to write at home. That permission does not automatically apply to Bob's database. Follow the proposed transfer, revocation, and settlement protocols to see what each owner must accept and what neither can decide for the other.",
+      "teaser": "Alice's agent has permission to write at home. That permission does not automatically apply to Bob's database. Follow the proposed protocols for transfer, withdrawal of permissions, and payment to see what each owner must accept and what neither can decide for the other.",
       "epigraph": {
         "text": "We reject: kings, presidents and voting. We believe in: rough consensus and running code.",
         "source": "David D. Clark, A Cloudy Crystal Ball: Visions of the Future, 1992"
