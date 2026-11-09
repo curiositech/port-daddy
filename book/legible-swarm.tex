@@ -587,7 +587,7 @@ systems that flatten reality to one purpose.
 
 In agent oversight, the operator is the state, the swarm the population, and the
 dashboard the cadastral map. A grid of green tiles invites the operator to
-\emph{govern the map}. The software failure is a \pdterm{Potemkin digest}, a
+\emph{govern the map}. The software failure is a \pdterm[potemkin digest]{Potemkin digest}, a
 digest whose lines assert a state nobody can check, because the summary has
 discarded the diff, test output, error and reasoning behind the work. The operator admires the
 yield table while the forest dies.
@@ -1032,8 +1032,7 @@ whole discipline exists for is the one where they do: they crash, are reaped,
 quit, or are reassigned, and a successor spins up. That case has a
 closed-form answer, derived in \pdchapref{he}{The Harbor Economy} rather than
 here because it is a condition on what a succession plan costs, an economic
-statement. The economy chapter states it as the succession price of the
-succession rule%
+statement. The economy chapter states it as its succession-price theorem%
 \ifpdbook
 \ (Thm.~\ref{he:thm:succession-price})%
 \fi
@@ -1667,9 +1666,9 @@ doing the work to approving it, then rubber-stamping it, then being absent:
 $\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$. It is
 a hypothesis; nobody has measured it.
 
-The \pdterm{Inception Canary} is a consented, blinded probe of defect
+The \pdterm[inception canary]{Inception Canary} is a consented, blinded probe of defect
 detection. It is intended to test meaningful review rather than impose arbitrary
-manual tasks. Its interruptions also have a cost that must be measured: Leroy's
+manual tasks. Its interruptions also cost something: Leroy's
 attention-residue experiments~\pdcite{leroy2009} motivate measuring the cost of
 switching away from unfinished work, case by case.
 
@@ -1804,7 +1803,8 @@ updates per minute. This calculation assumes fixed update size and inspection
 cost; it illustrates a workload, not a measured limit on human attention.
 
 Reading every record is not the only possible task. If the operator needs to
-identify the owner of an OAuth repair, a maintained directory may answer that
+identify the owner of an OAuth repair, a maintained \pdterm{directory}, a list of
+who exists and where their records live, may answer that
 question without presenting every worker's history. If the operator must decide
 whether the repair is safe to accept, an ownership label alone is inadequate:
 the relevant revision, checks and authority must remain accessible.
@@ -1820,7 +1820,7 @@ which distinctions it preserves.
 \begin{pdclaim}{Empirical hypothesis}{Read-Poverty}
 \setlength{\parskip}{4pt plus 1pt}
 \label{def:readpoverty}
-\pdterm{Read-poverty} is a regime in which legible state accumulates faster than it
+\pdterm[read-poverty]{Read-poverty} is a regime in which legible state accumulates faster than it
 can be consulted, so participants fall back to $O(n)$ eyeball search over the
 population, or, worse, act blind.
 
@@ -1841,8 +1841,7 @@ sides on the same workload. The results below are consequences of a
 specified inspection model; which bottleneck dominates a given swarm is the
 measurement question.}
 
-A \pdterm{directory}, a maintained list of who exists and where their records
-live, spends maintenance effort to make a class of lookup cheaper.
+A directory spends maintenance effort to make a class of lookup cheaper.
 Its query cost depends on its representation, the query and the result size;
 indexing alone supplies no universal complexity bound. Nor does a fast answer
 necessarily preserve what matters. ``This agent owns auth'' omits relevant
@@ -3174,8 +3173,8 @@ If two common pages are fixed and pinned in both caches, the remaining capacitie
 \end{pdexample}
 
 The most counterintuitive instance is \emph{forgetting as compaction}.
-\pdterm{Pheromone decay}, multiplying every stored coordination trace by a decay
-factor each interval, implements \pdterm{stigmergy}: coordination through
+\pdterm[pheromone decay]{Pheromone decay}, multiplying every stored coordination trace by a decay
+factor each interval, implements \textbf{stigmergy}: coordination through
 persistent traces left in a shared environment, as ants deposit evaporating
 trails (\textbf{Grass\'e 1959}~\pdcite{grasse1959}). A lazy implementation stores each trace's timestamp and evaluates its decayed score in $O(1)$ time per record. Eagerly updating all $n$ traces costs $O(n)$ per interval. Decay can reduce the prominence of stale traces; it does not by itself remove their storage or bound the work needed to rank the full map. It is legibility by subtraction, and it is the same primitive
 Invariant~\ref{prop:decay} generalizes to every read-surface.

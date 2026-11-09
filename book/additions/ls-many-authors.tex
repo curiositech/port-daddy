@@ -24,7 +24,8 @@ escalations. Each rule below states its maturity.
 \subsection{Three direct answers}\label{sec:ls-many-authors-answers}
 
 \paragraph{Does only one person have administrative access?} No, but there is
-one charter. The single-writer guarantees concern the daemon, not the people
+one \pdterm{charter}: a root object that records who delegated what to whom,
+which rule settles a clash, and how the charter itself may change. The single-writer guarantees concern the daemon, not the people
 who address it. Every mutation still passes through one writer
 (\pdchapref{swk}{The Single-Writer Kernel}%
 \ifpdbook
@@ -38,9 +39,8 @@ for any number of requesters%
 . Their requests serialize like anyone else's. What changes is the author
 slot. Several people now originate authority, so the quoted premise is
 false, and the escalation lane of \S\ref{sec:escalation} no longer knows whom
-to interrupt. The smallest repair is one \pdterm{charter}: a root object that
-records who delegated what to whom, which rule settles a clash, and how the
-charter itself may change. Several people may still hold administrative access.
+to interrupt. The smallest repair is that one charter; several people may
+still hold administrative access.
 
 \paragraph{Can one person control all the agents?} In authority, yes. Every grant descends from the charter,
 so whoever holds the charter can withdraw all of them through the override
@@ -251,8 +251,8 @@ text, not of what either person meant by it.
 
 \subsection{Unity of command and the escalation path}\label{sec:ls-many-authors-escalation}
 
-Rule R8 needs a target. The incident command system's answer is \pdterm{unity of
-command}: ``each individual only reports to one person''~\pdcite{fema2017nims}.
+Rule R8 needs a target. The incident command system's answer is
+\pdterm{unity of command}: ``each individual only reports to one person''~\pdcite{fema2017nims}.
 The theorem below states exactly when that answer is needed for escalation to
 be well defined.
 
