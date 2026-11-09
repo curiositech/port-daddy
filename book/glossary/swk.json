@@ -1,0 +1,37 @@
+[
+ {
+  "term": "upward block",
+  "sort": "upward block",
+  "definition": "The rule that refuses a hand-off of delegated work back up the line of hand-offs, to an agent that already handed the task down, so two agents cannot pass one task between them forever."
+ },
+ {
+  "term": "assurance mode",
+  "sort": "assurance mode",
+  "definition": "A grade for an enforcement mechanism, named by what an adversary would have to defeat to make the mechanism's claim false; there are five: Observed, Coordinated, Brokered, Confined and Attested."
+ },
+ {
+  "term": "Observed",
+  "sort": "Observed (assurance mode)",
+  "definition": "The assurance mode in which the act may happen anywhere and the system keeps only best-effort evidence recorded afterwards, so there is nothing for an adversary to defeat."
+ },
+ {
+  "term": "Coordinated",
+  "sort": "Coordinated (assurance mode)",
+  "definition": "The assurance mode in which cooperating clients declare their claims, roles, commitments and messages before acting, so an adversary need only decline to declare."
+ },
+ {
+  "term": "Brokered",
+  "sort": "Brokered (assurance mode)",
+  "definition": "The assurance mode in which a chosen credential or effect channel passes through a broker the daemon owns, so an adversary must defeat that broker."
+ },
+ {
+  "term": "Confined",
+  "sort": "Confined (assurance mode)",
+  "definition": "The assurance mode in which operating-system restrictions leave the process no other route to the protected effect, so an adversary must escape that confinement."
+ },
+ {
+  "term": "Attested",
+  "sort": "Attested (assurance mode)",
+  "definition": "The assurance mode in which a key is released, or a result accepted, only to an environment whose measured build matches a published identity, so an adversary must subvert the measured environment."
+ }
+]
