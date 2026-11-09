@@ -55,6 +55,16 @@ describe('check-doc-citations guard', () => {
     expect(run(documentPath).code).toBe(0);
   });
 
+  test('the sealed players manifest may name a task repo\'s own tests/conftest.py', () => {
+    const documentPath = 'docs/harbor-research/experiments/players-20261109/MANIFEST.md';
+    const bytes = readFileSync(join(repo, documentPath));
+    const documentSha256 = createHash('sha256').update(bytes).digest('hex');
+    expect(bytes.toString('utf8').split('\n')[158]).toContain('`tests/conftest.py`');
+    expect(isSealedSyntheticCitation({ documentPath, documentSha256, line: 159, token: 'tests/conftest.py' })).toBe(true);
+    expect(isSealedSyntheticCitation({ documentPath, documentSha256, line: 160, token: 'tests/conftest.py' })).toBe(false);
+    expect(documentCitationViolations(documentPath, bytes)).toEqual([]);
+  });
+
   test.each([
     ['document hash', { documentSha256: '0'.repeat(64) }],
     ['document path', { documentPath: 'docs/harbor-research/campaigns/2026-11-06/round-two/red/UNREVIEWED.md' }],
