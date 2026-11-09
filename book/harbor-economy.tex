@@ -1433,8 +1433,8 @@ so it is individually rational, and the buyer pays exactly what the seller
 receives, so its budget balances on every trade. By Theorem~\ref{thm:ms} it
 must give up efficiency, and it does: a trade with $c_{\mathrm s}<v$ is lost
 whenever the price lies outside $[c_{\mathrm s},v]$. On the uniform square of
-the example, a price $p$ yields expected gains $p(M-p)/(2M)$. They are
-largest at $p=M/2$, where they equal $M/8$, which is $75\%$ of the first-best
+the example, a price $p_{\mathrm{post}}$ yields expected gains $p_{\mathrm{post}}(M-p_{\mathrm{post}})/(2M)$.
+They are largest at $p_{\mathrm{post}}=M/2$, where they equal $M/8$, which is $75\%$ of the first-best
 $M/6$; the double auction's linear equilibrium reaches
 $27/32\approx84.4\%$. At $M=90$ the three amounts are $11.25$, $12.66$ and
 $15$\,\textsc{cr} [verified, closed form].
@@ -3038,7 +3038,10 @@ Show that merging revocation logs by set union is commutative, associative
   whatever the order, grouping or repetition of the gossip exchanges.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-calm-union}
-For sets, $L\cup M=M\cup L$, $(L\cup M)\cup N=L\cup(M\cup N)$ and $L\cup L=L$.
+For any three logs $\Lambda_1$, $\Lambda_2$ and $\Lambda_3$,
+$\Lambda_1\cup\Lambda_2=\Lambda_2\cup\Lambda_1$,
+$(\Lambda_1\cup\Lambda_2)\cup\Lambda_3=\Lambda_1\cup(\Lambda_2\cup\Lambda_3)$ and
+$\Lambda_1\cup\Lambda_1=\Lambda_1$.
 A harbor's log after any run of exchanges is the union of the events it has
 received, written in some order and grouping, with some events received more
 than once. By the three identities that union depends only on which events
@@ -3466,17 +3469,18 @@ here.
 \setlength{\parskip}{4pt plus 1pt}
 The theorem is Myerson and Satterthwaite's~\pdcite{myerson1983}; it is cited,
 not proved, here. What the chapter adds is the posted-price case. Fix a price
-$p$ before either side reports. Accepting iff $v\ge p$ is a dominant strategy
-for the buyer and accepting iff $c_{\mathrm s}\le p$ is one for the seller;
-every trade has $c_{\mathrm s}\le p\le v$; and the buyer's payment is the
+$p_{\mathrm{post}}$ before either side reports. Accepting iff $v\ge p_{\mathrm{post}}$ is a dominant
+strategy for the buyer and accepting iff $c_{\mathrm s}\le p_{\mathrm{post}}$ is one for the
+seller; every trade has $c_{\mathrm s}\le p_{\mathrm{post}}\le v$; and the buyer's payment is the
 seller's receipt. So the posted price is incentive compatible, individually
 rational ex post and exactly budget balanced, and the theorem leaves
 efficiency as the property it gives up.
 
 With $v$ and $c_{\mathrm s}$ independent and uniform on $[0,M]$, trade
-occurs with probability $\tfrac{M-p}{M}\cdot\tfrac{p}{M}$ and its expected
-gain given trade is $\tfrac{M+p}{2}-\tfrac{p}{2}=\tfrac M2$. The expected
-gains are therefore $p(M-p)/(2M)$, maximized at $p=M/2$ with value $M/8$.
+occurs with probability $\tfrac{M-p_{\mathrm{post}}}{M}\cdot\tfrac{p_{\mathrm{post}}}{M}$ and its
+expected gain given trade is $\tfrac{M+p_{\mathrm{post}}}{2}-\tfrac{p_{\mathrm{post}}}{2}=\tfrac M2$.
+The expected gains are therefore $p_{\mathrm{post}}(M-p_{\mathrm{post}})/(2M)$, maximized at
+$p_{\mathrm{post}}=M/2$ with value $M/8$.
 \end{proof}
 % ═══════════════════════════════════════════════════════════════════════════════
 \pdprintsolutions
