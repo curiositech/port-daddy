@@ -7,13 +7,13 @@
 \begin{table}[H]
 \centering
 \begin{minipage}{.96\linewidth}
-\caption{Four rails connect sovereign harbors without a shared signing root. Witnessing authorizes nothing; settlement's custody bound depends on its gate being non-bypassable. [internal]}
+\caption{Four message channels connect sovereign harbors without a shared signing root. Witnessing authorizes nothing; settlement's custody bound depends on its gate being non-bypassable. [internal]}
 \label{tab:fh-topology}
 \small
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{@{}>{\bfseries\raggedright\arraybackslash}p{2cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
-Rail & \textbf{What crosses / direction} & \textbf{What it does not do} \\
+Channel & \textbf{What crosses / direction} & \textbf{What it does not do} \\
 \midrule
 witness & signed epoch roots $R_A{}^{(e)},R_B{}^{(e)}$ plus equivocation evidence; both ways & authorize work: correlation is not authorization \\
 capability & $B$-bound attenuated card $C^{\prime}$ from $C_A$, with $C^{\prime}\subseteq C_A$; A to B & widen scope or lifetime at any hop \\

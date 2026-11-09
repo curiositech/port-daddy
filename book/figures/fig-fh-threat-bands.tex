@@ -25,8 +25,8 @@
     {assurance advances only when a threat acquires an artifact or theorem};
 
   \foreach \y/\lab in {3.30/{identity + replay},1.90/{revocation},0.50/{equivocation},
-    -0.90/{settlement},-2.30/{cold-start admission},-3.70/{cartel monitoring},
-    -5.40/{centralization}}
+    -0.90/{settlement},-2.30/{cold-start joining},-3.70/{cartel monitoring},
+    -5.40/{concentration of control}}
     {\node[pd label,anchor=east,text width=2.7cm,align=right] at (\lx,\y) {\lab};
      \draw[pd hairline] (\x0,\y) -- (\x0+\pw,\y);}
 
@@ -85,7 +85,7 @@
 \caption{Cross-realm identity and replay remain conditional on signature
 checks and fresh roots; their protocol proof is pending. The available
 capability models concern a single harbor. Revocation and settlement depend
-on connectivity and custody assumptions. Admission, cartel monitoring, and
-centralization remain open. Positions indicate qualitative assurance. [internal]}
+on connectivity and custody assumptions. Joining, cartel monitoring and
+concentration of control remain open. Positions indicate qualitative assurance. [internal]}
 \label{fig:fh-threat-bands}
 \end{figure*}
