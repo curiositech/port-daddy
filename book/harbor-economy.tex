@@ -457,22 +457,22 @@ W_\infty&=\frac{\xi}{\eta(\xi+\eta)}.
 \end{aligned}
 \]
 decreasing in $\mu_s$ with infimum $W_\infty$, never attained: no amount of
-skill buys back residual downtime.
+skill removes the residual downtime.
 
 Consequently, with
 $K=A/(w\lambda)+W_{\mathrm{pool}}$ the pool's cost line, pooling dominates at
-every finite skill premium iff the floor has reached that line,
+every finite skill premium iff the lower bound $W_\infty$ has reached that line,
 $W_\infty\ge K$; equivalently, provided $\eta K<1$, iff
 \[
 \frac{\xi}{\eta}\;\ge\;D^\star=\frac{\eta K}{1-\eta K}.
 \]
-When $\eta K\ge1$ the floor never reaches the cost line, there is no cap
+When $\eta K\ge1$ the lower bound $W_\infty$ never reaches the cost line, there is no cap
 ($D^\star=+\infty$) and only the premium test binds; the closed form must not
 be read outside its domain.
 \end{pdclaim}
 \begin{proof}[Proof sketch]
 \setlength{\parskip}{4pt plus 1pt}
-Between deaths the server works at rate $\mu_s$ and is unavailable a fraction
+Between failures the server works at rate $\mu_s$ and is unavailable a fraction
 $\xi/(\xi+\eta)$ of the time, which gives the effective rate.
 
 The mean response
@@ -560,7 +560,7 @@ reputation, even when the same person sells all three services.
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The float plan: agreeing before reserving funds}\label{sec:float-plan}
 
-\pdmarginanalogy{he-dockyard-cargo-sling}{}{ch06-dockyard-cargo-sling}{Like a woven dockyard cargo sling lifting wooden crates together in a single hoist, a float plan bundles labor, rented tools, and licensed skills into a unified settlement.}%
+\pdmarginanalogy{he-dockyard-cargo-sling}{}{ch06-dockyard-cargo-sling}{A float plan bundles labor, rented tools, and licensed skills into one settlement.}%
 Every side settles through the same float plan.
 
 \begin{pdexample}{A reduced contract, settled partly}
@@ -662,7 +662,6 @@ debits a project wallet into an escrow row before spawn, refunds on clean exit, 
 slashes on breach, splitting the slash between the wallet and a commons pool. It
 guards two invariants:
 
-\pdmarginanalogy{he-grain-tally-board}{}{ch06-grain-tally-board}{Like a dockmaster's pegged tally board tracking every sack unloaded from a hold, discrete ledger accounting conserves each native unit without synthetic slippage.}%
 \begin{pdclaim}{Design invariant}{Conservation}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:conservation}\pdprovedon{prop:conservation}
@@ -714,8 +713,8 @@ authorizes transfers; a signed record alone does not derive a grade.}
 \textbf{Success}  & escrow $\to$ worker (bond refund) $+$ bounty $\to$ worker &
   $+1$ completion \\
 \textbf{Partial}  & earned bounty and collateral return follow the agreed milestone rule;
-  specified forfeiture $\to$ salvage fund & salvage recorded \\
-\textbf{Sabotage} & bond $\to$ reconstruction commons (100\% slash) &
+  specified forfeiture $\to$ commons & salvage recorded \\
+\textbf{Sabotage} & bond $\to$ commons (100\% slash) &
   failure recorded; ban on threshold \\
 \textbf{Dispute}  & escrow $\to$ arbitration hold; 2-of-3 multi-oracle
   (automated / evidence / human) & none until resolved \\
@@ -961,18 +960,20 @@ dimension that makes it checkable by interval overlap.
 \begin{pdclaim}{Theorem}{In-Fragment Conflict Detection Is Polynomial and Witness-Producing}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:deontic-detect}
-Let $H$ count ground facts, Horn and trigger-body occurrences, $I$ the fired
-(token, scope-atom) incidences, $X$ exclusive claims, and $(V,E)$ the deadline
-graph. An indexed existence check takes
-$O(H+I\log(I+1)+X\log(X+1)+V\cdot E)$ and returns one witness. If every
-distinct interval clash must be emitted, let $Q$ count overlapping
-opposite-polarity keyed incidence pairs plus overlapping same-resource claim
-pairs, including repeat sightings of one token pair at several scope atoms.
-A deterministic sort-and-deduplicate enumerator adds $O(Q\log(Q+1))$; $n$
-obligations and $n$ prohibitions on one scope and interval give $Q=n^2$.
-Unit propagation computes the least Horn model in $O(H)$, the statuses forced
-in every world~\pdcite{dg84}; keyed interval indexes find an overlap, while
-enumeration pays for all overlapping keyed pairs. Bellman--Ford returns a
+Let $H$ be the number of atom occurrences in the facts, the Horn rules and
+the deontic-rule bodies, $I$ the number of (fired token, scope atom it names)
+pairs, $X$ the number of exclusive claims, and $(V,E)$ the deadline graph.
+Deciding with indexes whether any conflict exists takes
+$O(H+I\log(I+1)+X\log(X+1)+V\cdot E)$ and returns one witness. To list every
+distinct interval clash, let $Q$ be the number of obligation-prohibition
+pairs that share an action and a scope atom and overlap in time, counted once
+per shared scope atom, plus the number of overlapping claim pairs on one
+resource. A deterministic enumerator that sorts and removes duplicates adds
+$O(Q\log(Q+1))$; $n$ obligations and $n$ prohibitions on one scope and
+interval give $Q=n^2$. Unit propagation computes in $O(H)$ the least Horn
+model, the smallest set of facts closed under the Horn rules, whose facts
+hold in every model~\pdcite{dg84}; keyed interval indexes find one overlap, while
+listing them all must visit every overlapping pair. Bellman--Ford returns a
 negative cycle iff the deadline system is infeasible in $O(V\cdot E)$.
 The witnesses are a derivation chain, the fired rules and overlap interval,
 the claims, or a negative cycle. The reference
@@ -1018,9 +1019,9 @@ difference. Read together, the theorems locate a tractable fragment and a strict
 expressive language with an NP-complete decision problem. This follows the
 study of satisfiability boundaries exemplified by Schaefer~\pdcite{schaefer78}.
 The same
-step is familiar one formalism over, where the simple temporal problem is
-polynomial and allowing disjunctions of difference constraints makes
-consistency NP-complete~\pdcite{dmp91,sk00}; what is new here is where the
+jump appears in a related formalism: the simple temporal problem (difference
+constraints only) is polynomial, and allowing disjunctions of difference
+constraints makes its consistency NP-complete~\pdcite{dmp91,sk00}; what is new here is where the
 boundary falls, not the pattern.
 \pdscope{The pair does not classify every intermediate restriction, and
 particular instances outside the fragment may still be solved quickly.}
@@ -1056,11 +1057,11 @@ is the standard example of such a miss.
 answer to which decisions need a trusted authority. Spotting conflicts among
 commitments written in $\mathcal{L}_c$ needs none. It is an algorithm, and when
 it finds a conflict it returns the evidence: the rules involved and the
-overlapping time interval. Every new commitment is accepted through one write
-that the daemon controls (\pdchapref{swk}{The Single-Writer Kernel}), so the
+overlapping time interval. If every new commitment is accepted through the one
+write that the daemon controls (\pdchapref{swk}{The Single-Writer Kernel}), the
 daemon can run this check at that moment, refuse a commitment that conflicts
-with the facts known then, and attach the evidence. No standing reviewer is
-needed for conflict detection. Choosing among either-or obligations needs no
+with the facts known then, and attach the evidence. Then no standing reviewer
+is needed for conflict detection. Choosing among either-or obligations needs no
 authority either, although it is NP-complete in the worst case: a bounded
 search either returns a choice anyone can check or times out, and the
 admission check refuses on a timeout. Deciding which norms are right, which
@@ -1130,8 +1131,9 @@ sweep, covers scale.
 
 Everything above assumes that a counterparty's identity is real. That
 assumption is the market's main unsolved dependency. Inside one harbor, the
-daemon is the only program that can write the identity table, so no agent can
-pose as another. That protects an operator from her own agents. A market is
+design makes the daemon the only program that can write the identity table, so
+no agent can pose as another; today this is only partly enforced (see the
+definition below). That protects an operator from her own agents. A market is
 different: the counterparty runs its own daemon, and that daemon can issue as
 many identities as it likes. Alice's harbor can check that a key was signed by
 Bob's harbor, but not that it belongs to one real, distinct principal.
@@ -1154,7 +1156,9 @@ attestation, which it does not yet have.
 This is a constructed example. Bob's harbor presents $100$ keys to Alice's
 market. Each key shows $3$ settled jobs and a five-star rating from the other
 $99$. Every signature verifies, and the witness log shows no rewritten
-history. Alice's market caps a newcomer at $50$\,\textsc{cr} of work and raises
+history. (The witness log is a shared append-only log where each harbor posts
+signed summaries of its records, so others can check that its history was not
+rewritten.) Alice's market caps a newcomer at $50$\,\textsc{cr} of work and raises
 the cap to $400$\,\textsc{cr} after $3$ clean jobs, so it treats the keys as
 $100$ veterans. One principal, Bob, can now hold
 $100\times400=40{,}000$\,\textsc{cr} of Alice's work at once, and a slash on any
@@ -1212,9 +1216,9 @@ presented as Bob really belongs to the one principal she has been building a
 reputation history against. The market thesis depends on solving it.
 \end{definition}
 
-\keyidea[Cross-operator trust remains a design task]{This chapter does not
-describe the federation boundary as one that neither party controls while
-resting on a single trusted root. Either cross-operator attestation gets built,
+\keyidea[Cross-operator trust remains a design task]{This chapter will not
+call the federation boundary one that neither party controls while its
+identity guarantee still depends on one operator's trusted daemon. Either cross-operator attestation gets built,
 or the market's scope shrinks to federation among \emph{semi-trusted}
 operators. We take building it as the goal and flag every claim
 that depends on it.}
@@ -1286,14 +1290,14 @@ portfolio total additionally requires a valuation map $v_t$ at a named instant
 $t$, plus explicit fee and slippage accounts.
 
 If rates move between legs, the
-mark-to-market difference is economic exposure, not a failure of functoriality.
+mark-to-market difference is economic exposure, not a failure of the composition law for $\Delta$.
 Bounding that exposure by $\varphi$ requires a separate oracle-latency and price-move
 assumption that this chapter has not proved, so that bound is an open problem.
 \end{property}
 
 \pdthesis{Conservation is exact per unit of account. A cross-currency scalar is a
 valuation, and every valuation must name its rate source, time, fees, and exposure
-bound. Calling the map a lax functor does not supply those data.}
+bound.}
 
 \subsection{The Myerson--Satterthwaite impossibility}\label{sec:ms}
 
@@ -1301,7 +1305,13 @@ Conservation accounts for every transfer across a named system boundary.
 A bilateral mechanism additionally asks whether buyer and seller transfers
 can balance without an outside subsidy while eliciting private values. The
 following rental example exposes a lost trade before the general impossibility
-result states the hypotheses under which some tradeoff is unavoidable.
+result states the hypotheses under which some tradeoff is unavoidable. Four
+properties are at stake. A mechanism is \emph{incentive compatible} when
+reporting your true value is a best response; \emph{individually rational}
+when each side, knowing its own value, expects to gain by taking part;
+\emph{ex-post efficient} when trade happens whenever the buyer values the
+good more than it costs the seller; and \emph{budget balanced} when payments
+in equal payments out, with no outside subsidy.
 
 \begin{pdexample}{Efficient Trade That the Mechanism Still Refuses}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1313,8 +1323,8 @@ example sets the scale; the distribution itself is constructed for illustration.
 
 Any mechanism satisfying
 incentive compatibility, interim individual rationality, and balance on this
-bilateral slice is, by the
-theorem, not ex-post efficient; the canonical incentive-compatible,
+bilateral slice is, by
+Theorem~\ref{thm:ms} below, not ex-post efficient; the canonical incentive-compatible,
 individually-rational, budget-balanced instance is the
 Chatterjee--Samuelson double auction~\pdcite{chatterjee1983}, whose \mbox{linear}
 equilibrium on $[0,M]$ has Bob bid and Alice ask, respectively,
@@ -1366,9 +1376,6 @@ expected gains, lost gains, and the lost share of first-best gains are
 \end{aligned}
 \]
 [internal; algebra shown].
-
-These numbers belong to this uniform-prior equilibrium only; they are not
-measurements of the harbor market.
 \end{pdexample}
 
 \begin{pdclaim}{Theorem}{Conditional Bilateral-Trade Boundary}
@@ -1392,8 +1399,7 @@ holds $7/32$ of all draws.
 
 \input{figures/fig-he-ms-wedge}
 
-The current design establishes a conservation goal and voluntary entry; it has not
-proved truthfulness. An AGV-style mechanism (the expected-externality
+An AGV-style mechanism (the expected-externality
 mechanism of Arrow and of d'Aspremont and G\'erard-Varet) changes the incentive and participation
 notions and generally offers expected rather than ex-post balance. Comparing those
 alternatives requires a fully specified type and transfer model, which remains open.
@@ -1424,9 +1430,9 @@ that \pdchapref{fh}{The Federated Harbor} walks through
 \input{figures/fig-fh-xfer-ceremony}%
 drawn in Figure~\ref{fig:fh-xfer} and written out as Protocol~\ref{prot:xfer}.
 \fi
-One property matters for the market. After message (3), Bob's harbor never
-needs to contact Alice's again, because it checks the new card $C_B'$ it
-issued with its own key. The exchange also records which signed snapshot of
+One property matters for the market. After message (3), Bob's harbor checks
+every later use of the new card $C_B'$ with its own key, with no further live
+exchange with Alice's harbor. The exchange also records which signed snapshot of
 Alice's harbor the card was issued against: the \pdterm{epoch root}
 $R_A^{(e)}$, a value Alice's harbor signs that commits to every card it has
 issued, narrowed or revoked up to epoch $e$. If Alice later revokes the parent
@@ -1757,8 +1763,9 @@ Every argument in this chapter that honest work pays in the long run rests on
 one assumption: the grade a job receives is a fair signal of what the worker
 did. But something produces that grade (a test runner, a reviewer, an LLM
 judge), and it can be bribed, biased or gamed. The repeated-game results we
-rely on (Green--Porter; Abreu--Pearce--Stacchetti~\pdcite{aps1990}) hold only
-when the model says how likely each grade is, given what each worker actually
+rely on (Green--Porter; Abreu--Pearce--Stacchetti~\pdcite{aps1990}) show that
+patient players can sustain cooperation in a repeated game; results of this
+kind are called folk theorems. They hold only when the model says how likely each grade is, given what each worker actually
 did; the setting where players see only such a noisy public grade is called
 imperfect public monitoring. If a grader who can choose the grade is left out
 of the model, those probabilities are not pinned down, and the result does
@@ -1814,8 +1821,9 @@ For a risk-neutral judge receiving an immediate bribe $b$ that is retained
 if caught, detection probability $p$, no delay, and no other payoff change,
 this deviation has expected gain $b-50p$. At $b=10$ and $p=0.1$ it remains
 profitable; at $p=0.3$ it does not. Detection and collection must themselves
-be credible. The terminal panel's identical input artifacts do not make
-its preferences exogenous or machine-checkable.
+be credible. The final appeal panel sees the same diff and test results, but
+its verdict is still a judgment; its preferences stay part of the game, and
+no machine can check them.
 
 \emph{Now you try:} distinguish a reversible settlement decision, a proved
 conflict of interest, and an honest disagreement. Which one does each
@@ -1840,8 +1848,7 @@ Bob choose a provider, but its economic value needs measurement.
 
 For illustration, consider charging $2$--$5\%$ of a successful labor payment.
 This is a candidate fee band, not an estimated optimum. A fee on forfeitures
-also gives the platform an interest in slashing; limiting that share does not
-remove the need for independent adjudication.
+would also give the platform an interest in slashing.
 
 \begin{pdexample}{A proposed fee on the labor payment}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1981,10 +1988,11 @@ becomes $2\,U_B$, then $6\,U_C$, then $6\times0.2=1.2\,U_A$.
 Try to write one price list in units of $U_A$. Fix $U_A=1$; then $U_B=0.5$
 and $U_C=0.5/3=1/6\approx0.167$, but the C-to-A quote says $U_C=0.2$. No
 single price list matches every pair, and that mismatch is the obstruction.
-In trader's terms it is a $20\%$ arbitrage loop. In \v{C}ech terms, when the
-three harbors overlap only in pairs, the logarithms of the rates form a
-$1$-cocycle that is not a coboundary: they sum to $\log 1.2\ne0$ around the
-loop. This illustrates the shape; the chapter proves nothing about it.
+In trader's terms it is a $20\%$ arbitrage loop. In the language of sheaf
+theory, with the three harbors overlapping only in pairs, the logarithms of
+the rates form a $1$-cocycle that is not a coboundary: they cannot be written
+as differences of one log-price per harbor, because they sum to
+$\log 1.2\ne0$ around the loop. This illustrates the shape; the chapter proves nothing about it.
 Settlement and equivocation may fail the same way, with views that each check
 out but cannot be stitched into one.
 \end{pdexample}
@@ -2111,7 +2119,7 @@ can hold up against what the bug would have cost him in production.
 
 Raise $k$ to $5$
 and the survival probability falls to \[
-(0.4)^5 = 0.01024;
+(0.4)^5 = 0.01024.
 \] That is the whole mechanism: Bob
 pays for assurance in units of $k$, and each unit costs one bounty plus the
 cost of holding one bond.
@@ -2332,7 +2340,7 @@ attempts.}
 \section*{Review of the key ideas}
 \addcontentsline{toc}{section}{Review of the key ideas}
 
-What this chapter leaves coupled, in the order the rest of the book will lean on it:
+The chapter's main results, in the order later chapters use them:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \textbf{One market for three kinds of trade.} The chapter distinguishes three contract types: labor, agent rental, and skill licensing. They share an escrow abstraction; operators, buyers, and insurers are participant roles, not a competing classification of those markets.
@@ -2346,7 +2354,7 @@ the full response-time comparison still matters.
 \item \textbf{Cross-operator identity is missing, and the chapter says so.} Cross-operator attestation is what the market depends on and does not yet have; the local identity boundary remains partial.
 \item \textbf{Single-unit conservation composes}; bilateral trade across a boundary is conditional, and the condition is stated.
 \item \textbf{Evidence accumulates; scores can change}: compensation does not erase reliance, and the monitoring model must include the evaluator.
-\item \textbf{Trust services have participation costs}: the cold-start pricing proposal identifies a supplier participation threshold $\lambda^{\ast}$, conditional on its payoff model; the cartel game says which regime detection and loss put an insurer in.
+\item \textbf{Trust services have participation costs}: the cold-start pricing proposal identifies a supplier participation threshold $\lambda^{\ast}$, conditional on its payoff model; the cartel game shows how the chance of detection and the penalty decide whether a cartel can hold together.
 \item \textbf{Assurance depends on joint detection.} Independent reviewers
 miss a fixed flaw with probability $(1-d)^k$. Shared blind spots require a
 joint model; an audit bond deters dishonesty only under its detection and

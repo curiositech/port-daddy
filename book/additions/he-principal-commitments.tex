@@ -13,15 +13,14 @@ is metadata. It adds no atom and changes no clause of the conflict definition.
 Write $P=P_1\uplus\cdots\uplus P_M$ for the tagged union of the principals'
 accepted sentences.
 
-When the tagged set is in conflict, the \pdterm{blame set} is a set of
-principals whose commitments together cause the conflict, with no member
-redundant; the deletion filter below finds one.
-\pdchapref{ls}{The Legible Swarm} uses the blame set
-to route escalations%
+When the tagged set is in conflict, a blame set, as defined in
+\pdchapref{ls}{The Legible Swarm}%
 \ifpdbook
 \ (\S\ref{ls:sec:ls-many-authors})%
 \fi
-.
+, is a set of principals whose commitments together cause the conflict,
+with no member redundant; the deletion filter below finds one. That chapter
+uses the blame set to route escalations.
 
 \begin{pdclaim}{Theorem}{Principal-Tagged Detection and Minimal Blame}
 \setlength{\parskip}{4pt plus 1pt}
