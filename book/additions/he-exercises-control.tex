@@ -2,5 +2,7 @@
 A panel of nine language-model reviewers reports each of $200$ seeded flaws with average rate $\hat d=0.6$, and all nine miss $32$ of them. Compute the miss probability Theorem~\ref{thm:assurance} predicts under independence, the measured all-miss rate, and $k_{\mathrm{eff}}$. Why would the panel's average pairwise error correlation not do the same job?
 \end{pdexercise}
 \begin{pdsolution}{ex:he-effective-reviewers}
-Independence predicts $0.4^9=0.000262$. The measured all-miss rate is $\hat m=32/200=0.16$. Then $k_{\mathrm{eff}}=\log0.16/\log0.4=(-1.833)/(-0.916)=2.0$, because $0.16=0.4^2$: nine reviewers deliver the assurance of two. A pairwise correlation does not determine the all-miss event: the counterexample in \S\ref{sec:assurance-correlation} has two panels with the same rate and zero pairwise correlation whose all-miss probabilities are $1/4$ and $0$. The bound needs the joint event, so measure it.
+Independence predicts $0.4^9=0.000262$. The measured all-miss rate is $\hat m=32/200=0.16$. Then $k_{\mathrm{eff}}=\log0.16/\log0.4=(-1.833)/(-0.916)=2.0$, because $0.16=0.4^2$: on these seeded flaws, nine reviewers all miss as often
+as two independent ones would. That describes the seeded set; it is not a
+guarantee for a new flaw unless new flaws are drawn like these. A pairwise correlation does not determine the all-miss event: the counterexample in \S\ref{sec:assurance-correlation} has two panels with the same rate and zero pairwise correlation whose all-miss probabilities are $1/4$ and $0$. The bound needs the joint event, so measure it.
 \end{pdsolution}

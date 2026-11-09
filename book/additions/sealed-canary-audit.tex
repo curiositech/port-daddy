@@ -25,13 +25,16 @@ $(\varepsilon,\delta)$-private under the person-level neighboring relation.
 $\Pr[\text{flag}\mid\text{included}]\le
 e^{\varepsilon}\Pr[\text{flag}\mid\text{excluded}]+\delta$.
 
-(ii) If an auditor makes $r$ include-or-exclude guesses from the artifact and
-gets $W$ of them right, then for every $v$,
+(ii) Fix $r\le m$ before the audit. If an auditor guesses include or exclude for
+$r$ distinct canaries, at most one guess each, and gets $W$ of them right, then
+for every $v$,
 $\Pr[W\ge v]$ is at most
 $\Pr\bigl[\mathrm{Bin}(r,\tfrac{e^\varepsilon}{1+e^\varepsilon})\ge v\bigr]$
 plus a term in $\delta$ that is at most $2m\delta$ \pdcite{steinke2023onerun}.
 If that bound, evaluated at the observed $W$, falls below a significance level
-$\gamma$, the declaration is refuted at level $\gamma$.
+$\gamma$, the declaration is refuted at level $\gamma$. The two conditions
+matter: twenty guesses about one canary are one coin, not twenty, and would
+refute a pipeline that releases nothing.
 \end{pdclaim}
 
 \paragraph{Proof sketch.}

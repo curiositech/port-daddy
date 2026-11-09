@@ -65,9 +65,12 @@ No. Suppose one of person $u$'s records contains a token $w$ that appears
 nowhere else in the log. With $u$'s records present, the output contains $w$
 with probability at least $\tfrac12$; with them removed, with probability
 $0$. The ratio of the two probabilities is unbounded, so no finite
-$\varepsilon$ holds. Randomization is necessary for a finite $\varepsilon$
-(Theorem~\ref{thm:sealed-no-scrubber}) but not sufficient: the output
-distribution must change by a bounded ratio on every neighbor pair.
+$\varepsilon$ holds. For a scrubber whose output depends on whose records are
+present, randomization is necessary for a finite $\varepsilon$
+(Theorem~\ref{thm:sealed-no-scrubber}); a scrubber that always returns the
+empty log is deterministic and $0$-private, and useless. Randomization is not
+sufficient either: the output distribution must change by a bounded ratio on
+every neighbor pair.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-tenant-cache}
@@ -83,7 +86,8 @@ that prefix, so $B$ learns that the named patient was recently seen. A tenant
 key isolates tenants but violates Design invariant~\ref{inv:sealed-label-keyed}:
 the entry extending past the template carries the patient's label and $A$'s
 scope, and $B$ is not authorized. Key entries by owner label instead. The
-operator-class template can still be cached across the tenant, or globally,
+template itself carries no owner's data, so it can still be cached across the
+tenant, or globally,
 so only the patient-specific suffix loses its hits. Timing inside an
 authorized scope remains a residual (Table~\ref{tab:sealed-not-promised}).
 \end{pdsolution}
@@ -99,10 +103,13 @@ on one of $A$'s records can and cannot retract.
 Partition episodic memory by owner label and mount only the partitions the
 work order authorizes. Anything written while $A$'s partition is mounted
 carries $A$'s label, including summaries and embeddings derived from $A$'s
-records, so none of it enters $B$'s jobs. Identity and outcome grades are
-operator-class and may be shared; statistics aggregated over owners may leave
-through the ledger; a learned skill may be shared only as operator-reviewed
-text of operator integrity. A tombstone on one of $A$'s records removes it
+records, so none of it enters $B$'s jobs. Identity and outcome grades may be
+shared when they carry no owner's data; one that reveals $A$'s data keeps
+$A$'s label, whoever signed it. Statistics aggregated over owners may leave
+through the ledger. A learned skill may cross tenants only if it carries no
+owner's data or each owner has released it, and, because it will be read as
+instructions, only as operator-reviewed text; the review settles integrity,
+not confidentiality. A tombstone on one of $A$'s records removes it
 from $A$'s partition, its index and every cache entry carrying its label. It
 cannot retract the record's influence from trained weights
 \pdcite{thudi2021unlearning}: a per-tenant adapter must be retrained without
