@@ -244,15 +244,15 @@ itself Heron to use this history, and what prevents a process calling itself
 Drake from escaping the rejected outcome by changing its name? A log can retain
 the events while leaving that binding unresolved.
 
-A \pdterm{spawn} is a temporary process that starts, works, and exits. A name
+A spawn is a temporary process that starts, works, and exits. A name
 reused after exit does not make a later process the same participant. A
-\pdterm{succession record} is a signed entry in the daemon's append-only ledger
+succession record is a signed entry in the daemon's append-only ledger
 stating that a new process continues an earlier one. This chapter's
-\pdterm{person} is the continuing ledger account that a chain of succession
+person is the continuing ledger account that a chain of succession
 records links processes to: every process on the chain works under that
 account, and every commitment, permission and checked outcome is recorded
 against it. The word is an engineering convention and claims no consciousness
-or legal status. In this chapter, \pdterm{reputation} is the record of checked
+or legal status. In this chapter, reputation is the record of checked
 outcomes kept against a person's account, together with any score computed
 from it. The account must carry obligations and adverse findings as well as
 useful credit, so that Bob can inspect what a later delivery inherits from the
@@ -270,7 +270,7 @@ daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 \emph{see} the swarm. None of that yet gives other operators a person whose
 record they can trade on. This chapter builds the bridge from the
 single-operator tool to the market by supplying what the market needs:
-\pdterm{continuity}, the link that lets a later process
+continuity, the link that lets a later process
 carry on the same person's account as an earlier one, and the reputation it makes possible.
 % --- FIGURE 1: the L0->L3 stack map, placing Chapter III ---
 \subsection{What this chapter claims, and what it refuses to claim}
@@ -310,7 +310,7 @@ exactly one of them.
 Heron's current job is to deliver the authorized checkout repair with the
 original test intact. Suppose its process exits after writing a candidate
 patch but before the protected acceptance run. A replacement process may
-receive the same \pdterm{role}: the job itself, described without reference to
+receive the same role: the job itself, described without reference to
 whoever holds it. Here the role is the obligation to finish the repair, the
 tools to edit and test, and the narrower permission to touch the authorized
 module. Those job requirements survive whichever process fills the role.
@@ -2610,7 +2610,7 @@ application, and revise it. A reputation window is a jointly governed
 parameter, not a rivalrous stock consumed by use. A harbor should state who
 sets the weighting rule, which evidence remains available, and how disputes
 and rule changes are handled; these are policy choices to evaluate, and the
-commons literature does not settle them.
+research on shared resources does not settle them.
 
 \pitfall[Retention is not endorsement]{Keeping an outcome in an audit ledger
 does not require counting it forever in a score. Conversely, aging its score

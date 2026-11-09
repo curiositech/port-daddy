@@ -1290,8 +1290,8 @@ policy (``no ill intent inside'') cannot be enforced from the door alone;
 removing someone after observable misconduct is a different policy. The daemon's effect boundary is the door. Writes, egress, tool execution,
 pushes, spawns, and API calls cross it, so each can be refused; token emission, in-context
 reads, plan formation, and hidden activations complete inside the model, so none can.
-A step that crosses the door is a \pdterm{controllable event}; a step that
-completes inside the model is an \pdterm{uncontrollable event}. The analogy
+A step that crosses the door is a controllable event; a step that
+completes inside the model is an uncontrollable event. The analogy
 matches how the parts relate, so it makes a prediction: a
 \emph{compound} rule that mentions thought but gates only the door (``no entry for anyone
 who arrived after the fight started'') should still be preventable, because the bouncer need
@@ -1324,7 +1324,7 @@ nothing in $\Sigma_u$, the \emph{uncontrollable alphabet} of the rest. The
 attached. A supervisor \emph{regiments} $K$ when the closed loop equals $K$
 exactly: nothing forbidden happens and nothing permitted is lost. Both halves
 matter, since a supervisor that achieves safety by disabling everything is not a
-solution. A policy has \pdterm{controllability}, and is called
+solution. A policy has controllability, and is called
 \emph{controllable}, when no uncontrollable event that the plant allows after a
 permitted history leads out of the policy. The name is Ramadge and Wonham's, and
 the theorem below shows that controllable policies are exactly the ones a
