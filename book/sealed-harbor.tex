@@ -1236,13 +1236,18 @@ soon? If canaries are missed independently, a leak escapes only when every
 canary it carries is missed; if the gate's outputs are independent and
 identically distributed, Wald's formula gives the expected number of outputs
 a sequential test watches before it decides. When each canary is missed 20\%
-of the time, a leak
-carrying 3 canaries is caught with probability 0.992.}
+of the time, a leak carrying 3 canaries is caught with probability 0.992 if
+the misses are independent. A worker that disguises the whole leak at once
+makes its misses move together, and then the same leak is caught with
+probability 0.8.}
 
 \paragraph{Intuition: dye packs and quality control.}
 Dye packs\marginnote{\input{figures/spark-canary-power}\par
-\emph{Detection power:} $1-\beta^j$ as captured canary count $j$ scales ($\beta=0.2, 0.5$).} in bank bundles: each pack fails alone with probability $\beta$, so
-grabbing $j$ dyed bundles fails to stain with probability $\beta^j$. How many
+\emph{Detection power with independent misses:} $1-\beta^j$ as captured canary count $j$ scales ($\beta=0.2, 0.5$). Misses that move together hold it at $1-\beta$.} in bank bundles: each pack fails alone with probability $\beta$, so
+grabbing $j$ dyed bundles fails to stain with probability $\beta^j$. That
+holds only while packs fail one at a time. A thief who knows how to disarm one
+pack disarms them all, and then $j$ packs fail together with probability
+$\beta$. How many
 dyed bundles a thief grabs depends on how much he takes and how densely packs
 are planted. The sequential half is quality control. Each gate output is a
 yes-or-no trial, and a sequential probability ratio test accumulates evidence
@@ -1260,6 +1265,14 @@ a carried canary; a false alarm flags an innocent output. These are different
 errors. The power calculation first conditions on $j$ canaries actually being
 carried. The hypergeometric model then accounts for not knowing $j$: it is the
 count of marked spans in a sample drawn without replacement.
+
+Misses on different canaries need not be independent. Write $Z_1,\dots,Z_j$
+for the miss indicators of the carried canaries, each equal to $1$ with
+probability $\beta$. They are \pdterm{positively associated} when every two
+functions of $(Z_1,\dots,Z_j)$ that never decrease as a coordinate rises from
+$0$ to $1$ have nonnegative covariance \pdcite{epw67}. Informally, missing
+some canaries never makes missing the others less likely. Independent misses
+are a special case, and so are misses that always occur together.
 
 For the sequential test, let $X_i=1$ mean that observed output $i$ is flagged,
 and $X_i=0$ otherwise. Under the null hypothesis these independent observations
@@ -1297,6 +1310,9 @@ The operating curve at $m=100$:
 1-(1-0.01\times0.8)^{100}=1-0.992^{100}\approx0.552
 \]
 by the binomial approximation, against $0.554$ exact\pdprov{a4\_canary\_sprt.py}{20260816}{internal}.
+If the misses are perfectly correlated instead, a leak carrying two or three
+canaries is caught with probability $0.8$, and the exact operating curve at
+$m=100$ falls to $0.8\Pr(J\ge1)\approx0.509$ [verified arithmetic].
 
 \emph{Now you try:} at the
 same $\beta$, what does a five-canary leak survive with, and can you recover
@@ -1314,17 +1330,43 @@ leak carrying $j$ canary spans is detected with probability
 \[
 1-\beta^j.
 \]
+Without independence the detection probability is at least $1-\beta$, its
+value when the misses are perfectly correlated. If the misses are positively
+associated, it is at most $1-\beta^j$.
 
 Under\marginnote{\input{figures/spark-canary-hypergeom}\par
-\emph{Approximate operating curve:} detection vs.\ leak size $m$, with $\frac{c}{n}(1-\beta)=0.04$. The exact fixed-count planting model samples without replacement.} uniform planting of $c$ canaries in an $n$-span corpus, a leak of $m$ spans
+\emph{Approximate operating curve, independent misses:} detection vs.\ leak size $m$, with $\frac{c}{n}(1-\beta)=0.04$. The exact fixed-count planting model samples without replacement.} uniform planting of $c$ canaries in an $n$-span corpus, a leak of $m$ spans
 chosen independently of their hidden locations
 carries $J\sim\mathrm{Hypergeom}(n,c,m)$ canaries, so
 \[
 \Pr(\text{detect}\mid m)=1-\mathbb{E}[\beta^J]\approx
 1-\bigl(1-\tfrac{c}{n}(1-\beta)\bigr)^m,
 \]
-the operating curve.
+the operating curve. With misses that are not independent, the curve is at
+least $(1-\beta)\Pr(J\ge1)$, and if the misses are positively associated
+given each value of $J$, it is at most $1-\mathbb{E}[\beta^J]$.
 \end{pdclaim}
+
+\paragraph{When misses move together.}
+Independent misses describe an accidental leak, in which each carried canary
+is mangled or overlooked on its own. The adversary this chapter is built
+against is a deliberate exfiltrator. It rewrites the whole leak with one
+transformation, a paraphrase or an encryption, so a detector that misses one
+of its canaries misses them all. Its misses are perfectly correlated, and the
+leak is caught with probability $1-\beta$ however many canaries it carries:
+$0.8$ at $\beta=0.2$, against $0.992$ for three independent misses. The
+transformation can also push $\beta$ itself towards one, since an encrypted
+canary is not recognizable at all. Against this adversary a contract should
+quote $1-\beta$, with $\beta$ measured against it. The independent figure
+$1-\beta^j$ belongs to accidental leaks.
+
+Both bounds have short proofs. A leak escapes only if every carried canary
+is missed, and that event lies inside the miss of any one canary, so its
+probability is at most $\beta$. Under positive association the product
+$Z_1\cdots Z_{j-1}$ never decreases as a coordinate rises, so its covariance
+with $Z_j$ is nonnegative, and induction on $j$ gives
+$\Pr(Z_1=\dots=Z_j=1)\ge\beta^j$. Averaging either bound over the
+hypergeometric $J$ gives the operating-curve bounds.
 
 \paragraph{One flag does not decide the test.}
 For the accumulated log-likelihood $L_\tau$ defined above, take null flag
@@ -1399,9 +1441,10 @@ A4 is the detection script \texttt{a4\_canary\_sprt.py} of
 Table~\ref{tab:sealed-four-links}.
 The chapter's recorded A4 example uses $n=10^4$ records with $c=100$ canaries (density
 one percent), against a channel through which each smuggled canary evades the
-detector with probability $\beta=0.2$: a 100-span leak is
-caught with exact hypergeometric probability $0.554$, an 800-span leak at
-$0.999$. The recorded conditional-power comparisons at
+detector with probability $\beta=0.2$: with independent misses, a 100-span
+leak is caught with exact hypergeometric probability $0.554$, an 800-span
+leak at $0.999$. With perfectly correlated misses the same two leaks are
+caught with probability about $0.509$ and $0.800$ [verified arithmetic]. The recorded conditional-power comparisons at
 $j=1,2,5$ (analytic $0.800$, $0.960$, $0.99968$ against simulated $0.8016$,
 $0.9608$, $0.99967$) are simulation reports, not new measurements here.
 At $p_0=10^{-3}$, $p_1=10^{-2}$, $\alpha=0.01$, $\gamma=0.05$, the
@@ -1419,7 +1462,8 @@ runs terminated [internal, \texttt{a4\_canary\_sprt.py}].
 
 \paragraph{What it shows.}
 Once the model is validated and the errors calibrated, a contract could
-quote detection power and stopping latency under stated conditions. The
+quote detection power and stopping latency under stated conditions. Against
+a deliberate exfiltrator the power to quote is $1-\beta$, not $1-\beta^j$. The
 exfiltration bond of \pdchapref{bonded}{The Bonded Commons} is scoped to
 funding detection and response, and does not claim to cover unbounded breach
 damage.
@@ -1431,7 +1475,8 @@ damage.
 \setlength{\parskip}{4pt plus 1pt}
 Independence and \emph{secrecy} of planting are decisive: an adversary who
 obtains the canary list with probability $0.3$ and strips all of them drops
-reported simulated power from $0.9997$ to $0.698$ at $j=5$ [internal,
+reported simulated power with independent misses from $0.9997$ to $0.698$ at
+$j=5$ [internal,
 \texttt{a4\_canary\_sprt.py}]; canary secrecy is part of the security
 boundary.
 
@@ -1623,7 +1668,7 @@ The chapter's main ideas, in the order the rest of the book relies on them:
 \item \textbf{Noninterference is checked by running the world twice} (self-composition, in the verification literature's word): identical except for the secret, the two runs must agree on everything that leaves through the slot, modulo the declassification the gate performs. The finite clean-room model passes this check to depth seven.
 \item \textbf{Enforcement is relative to a plant and observations}: this gate can refuse egress, and an observed read can tell it when to do so. Internal events declared uncontrollable cannot be disabled at that boundary; their detection needs separate evidence.
 \item \textbf{The privacy budget is a ledger that conserves}: every release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance.
-\item \textbf{Canaries have conditional power}: a leak carrying $j$ canaries escapes all their independent detections with probability $\beta^{j}$ ($0.008$ at $\beta=0.2$, $j=3$). The sequential model estimates outputs until either decision, not a guaranteed alarm deadline.
+\item \textbf{Canaries have conditional power}: a leak carrying $j$ canaries escapes with probability $\beta^{j}$ if their misses are independent ($0.008$ at $\beta=0.2$, $j=3$), and with probability $\beta$ whatever $j$ if the misses move together, as a deliberate exfiltrator's do. The sequential model estimates outputs until either decision, not a guaranteed alarm deadline.
 \item Erin's payload channel is bounded before timing: \textbf{$q \cdot b$ bits} may leave through $q$ releases of $b$ bits each, and the room's guarantee for that channel is that budget, not silence. The receipt and the other fields Erin can observe are separate channels with their own count.
 \item \textbf{A shared store needs labels, not a budget}: retrieval releases records exactly, so it has no finite $\varepsilon$; training can release through a ledger keyed by data subject, and scrubbing removes no owner's label.
 \end{enumerate}
@@ -1804,8 +1849,11 @@ undetected? Then use the binomial approximation of the operating curve at
 $n=10^4$, $c=100$, $m=100$ and compare with the exact value $0.554$.
 \end{pdexercise}
 \begin{pdsolution}{ex:sealed-power}
-$\beta^5=0.00032$, so detection is $0.99968$ [verified]; the script's analytic
-line reads \texttt{k=5: analytic 0.99968 simulated 0.99967}. The approximation
+With independent misses, $\beta^5=0.00032$, so detection is $0.99968$
+[verified]; the script's analytic line reads
+\texttt{k=5: analytic 0.99968 simulated 0.99967}. If the five misses are
+perfectly correlated, as for a deliberate exfiltrator, the leak survives with
+probability $\beta=0.2$ and detection is $0.8$. The approximation
 gives $1-(1-0.01\times0.8)^{100}=1-0.992^{100}\approx0.552$.
 The exact hypergeometric probability is approximately $0.554$; before rounding,
 the approximation is lower by about $0.00143$\pdprov{a4\_canary\_sprt.py}{20260816}{internal}.
@@ -1842,10 +1890,12 @@ planting list is a breach with its own bond, and the list is regenerated per
 job. The mechanism: plant per job from a fresh seed held by Derek's gateway
 alone, so a stolen list need not expose later jobs. Rotation alone does not lower
 a fixed per-job compromise probability: if that probability remains $0.3$,
-unconditional power is still $0.7(1-\beta^j)$, about $0.699776$ at $j=5$.
+unconditional power with independent misses is still $0.7(1-\beta^j)$,
+about $0.699776$ at $j=5$.
 Restoring most lost power requires a separately justified reduction in list
 compromise or a detector not dependent on that list. Conditional on an
-uncompromised list, power remains $1-\beta^j$. What no redesign
+uncompromised list, power remains $1-\beta^j$ with independent misses, and
+$1-\beta$ if they move together. What no redesign
 restores is power against an adversary who holds \emph{this} job's list: with
 the canaries stripped the leak carries none and Theorem~\ref{thm:sealed-power}
 gives $1-\beta^0=0$, which is why detection is backed by a bounded bond and is
@@ -2072,6 +2122,9 @@ Statistics}, 16(2):117--186, 1945.
 
 \bibitem{wald-wolfowitz} A.~Wald and J.~Wolfowitz. Optimum character of the sequential probability
 ratio test. \emph{Annals of Mathematical Statistics}, 19(3):326--339, 1948.
+
+\bibitem{epw67} J.~D. Esary, F.~Proschan, and D.~W. Walkup. Association of random variables, with
+applications. \emph{Annals of Mathematical Statistics}, 38(5):1466--1474, 1967.
 
 \bibitem{denning77} D.~E. Denning and P.~J. Denning. Certification of programs for secure
 information flow. \emph{Communications of the ACM}, 20(7):504--513, 1977.

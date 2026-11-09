@@ -108,5 +108,10 @@
   "term": "contextual integrity",
   "sort": "contextual integrity",
   "definition": "Nissenbaum's account of privacy: information flows carry norms of appropriateness and distribution tied to their context, and privacy is violated when either is breached."
+ },
+ {
+  "term": "positively associated",
+  "sort": "positively associated",
+  "definition": "Said of random variables such as canary misses when any two functions of them that never decrease as one of them rises have nonnegative covariance; missing some canaries then never makes missing the others less likely."
  }
 ]
