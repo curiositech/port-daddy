@@ -1298,7 +1298,11 @@ reports about itself against the registration table. The operating system does
 not vouch for that identity, and no process start time is compared.
 
 A stronger binding must authenticate the caller and tell the original process
-apart from a later one that reuses its PID. In the opening trace,
+apart from a later one that reuses its PID. Linux has offered such a binding
+since version 6.5: the socket option \texttt{SO\_PEERPIDFD} gives the daemon a
+pidfd, a file descriptor that refers to the connected process itself rather
+than to its number~\pdcite{corbet2023merge65}, so a later process that reuses
+the number is a different process. In the opening trace,
 comparing only 4021 accepts the replacement; checking the binding recorded at
 issue and the later start time would reject it. Such a mechanism needs
 evidence from the source and from conformance tests. The symbolic model has no
@@ -1306,7 +1310,7 @@ processes, so none of its queries can show that the deployed socket path
 performs these checks. This is the same local-identity limit that
 \pdchapref{swk}{The Single-Writer Kernel} identifies.
 
-  \item \textbf{\texttt{localhost} is a real network.} \texttt{localhost}, the machine's own network address, is not a trust boundary. On a shared machine any local process, including one belonging to another user or a browser page pointed at \texttt{127.0.0.1}, can open a TCP connection to a loopback port, and an unprotected transport exposes bearer credentials to any attacker who can watch the traffic. Having a different local account does not by itself let an attacker capture packets, so the transport's threat model must say which access the attacker has. The example above puts the exposure at fourteen minutes of the victim agent's full authority. The recommended deployment is a Unix domain socket, a local connection that appears as a file, whose parent directory has mode \texttt{0700} and belongs to the daemon's own user, so that file permissions, not the protocol, keep other users out. Where users genuinely must share the daemon, the alternative is TLS, the standard encrypted connection, over loopback with a pinned daemon certificate. The Anchor Protocol does not \emph{enforce} either; the daemon speaks over whatever transport it is configured with. Securing the transport is therefore the deployer's job, and it is one of the few places in this chapter where a wrong configuration silently cancels a property the rest of the chapter proves.
+  \item \textbf{\texttt{localhost} is a real network.} \texttt{localhost}, the machine's own network address, is not a trust boundary. On a shared machine any local process, including one belonging to another user or a browser page pointed at \texttt{127.0.0.1}, can open a TCP connection to a loopback port, and an unprotected transport exposes bearer credentials to any attacker who can watch the traffic. Having a different local account does not by itself let an attacker capture packets, so the transport's threat model must say which access the attacker has. The example above puts the exposure at fourteen minutes of the victim agent's full authority. The recommended deployment is a Unix domain socket, a local connection that appears as a file, whose parent directory has mode \texttt{0700} and belongs to the daemon's own user, so that file permissions, not the protocol, keep other users out. Where users genuinely must share the daemon, the alternative is TLS, the standard encrypted connection, over loopback with a pinned daemon certificate. The Anchor Protocol does not \emph{enforce} either; the daemon speaks over whatever transport it is configured with. Securing the transport is therefore the deployer's job, and it is one of the few places in this chapter where a wrong configuration silently cancels a property the rest of the chapter proves. Requiring the holder to sign each request, as specified below, would make a copied card useless without the holder's key.
   \item \textbf{Algorithm confusion at the token-encoding layer.} The delegation models of \S\ref{sec:correct} check chain authenticity and the soundness of the subset check; attacks on JWT deployments also target the encoding underneath. RFC~8725 catalogues the \texttt{alg:none} downgrade and the confusion that makes a verifier treat an asymmetric \emph{public} key as an HMAC secret~\pdcite{rfc8725jwtbcp}.
   \path{proofs/anchor/token-verify/algconfusion.pv} compares a pinned and a naive
   verifier under an adversary given the second algorithm's symmetric key.
@@ -1324,6 +1328,29 @@ performs these checks. This is the same local-identity limit that
   Table~\ref{tab:properties} checks only the paths its stubs reach, so that
   requirement on the decoder stays open.
 \end{enumerate}
+
+\paragraph{Signing each request with the holder's key.}\label{sec:pop}
+\pdstatus{\Designed}{specified here; the daemon does not implement it, and no model in this chapter covers it}
+The fourteen-minute window exists because presenting a card proves only that
+the presenter holds its bytes. A card in an authorization chain already names
+its holder's public key, since the next hop is checked under it
+(Figure~\ref{fig:anchor-handshake-ladder}). Under \pdterm{proof of possession},
+every card names one, and the presenter must also sign each request with the
+matching private key. The
+signature covers a hash of the request, a nonce the verifier supplied, and the
+identifier of the chain's last link, and the verifier checks it under the key
+that link names. Copied card bytes are then useless without the private key,
+which never crosses the socket, and a process that takes over a dead agent's
+PID gains nothing unless it also holds that agent's key. The cost is one more
+signature check per request. OAuth's DPoP standard binds tokens to a client
+key in the same way: the client signs each request, naming its method and
+target, with the key its token is bound to, and the server may supply a
+nonce~\pdcite{rfc9449dpop}. Identity systems for running services meet the
+same limit. SPIFFE's JWT-SVID, a signed identity document carried as a JWT, is
+also a bearer token, and its specification warns that it is open to replay and
+recommends a short expiry~\pdcite{spiffe2026jwtsvid}. Proof of possession does
+not help against an attacker who can read the agent's memory, where the
+private key is kept.
 
 \pdexercisepointerone*{\ref{ex:anchor-security-envelope}}{\pageref{ex:anchor-security-envelope}}
 \begin{pdrecitation}
@@ -1435,6 +1462,22 @@ Yaron Sheffer, Dick Hardt, and Michael Jones.
 \newblock JSON Web Token Best Current Practices.
 \newblock RFC 8725 (BCP 225), IETF, February 2020.
 \newblock \url{https://doi.org/10.17487/RFC8725}
+
+\bibitem{rfc9449dpop}
+D. Fett, B. Campbell, J. Bradley, T. Lodderstedt, M. Jones, and D. Waite.
+\newblock OAuth 2.0 Demonstrating Proof of Possession (DPoP).
+\newblock RFC 9449, IETF, September 2023.
+\newblock \url{https://www.rfc-editor.org/rfc/rfc9449}
+
+\bibitem{spiffe2026jwtsvid}
+SPIFFE.
+\newblock JWT-SVID.
+\newblock SPIFFE standard, \url{https://spiffe.io/docs/latest/spiffe-specs/jwt-svid/}. Accessed November 2026.
+
+\bibitem{corbet2023merge65}
+Jonathan Corbet.
+\newblock The first half of the 6.5 merge window.
+\newblock \textit{LWN.net}, 30 June 2023. \url{https://lwn.net/Articles/936418/}
 
 \bibitem{saltzer1975protection}
 Jerome H. Saltzer and Michael D. Schroeder.
@@ -2279,7 +2322,7 @@ A Harbor Card verifies: \texttt{Ed25519.Verify} returns true. Trace what else mu
 \begin{pdsolution}{ex:anchor-security-envelope}
 A valid signature proves exactly one thing: the holder of the signing key produced these bytes. It says nothing, by itself, about canonical decoding (did the verifier parse the \emph{same} bytes the signer meant, under one canonical encoding); key-to-principal binding (whose key is this, and is that binding itself authenticated? \S\ref{sec:limitations}'s PID-reuse case is a binding failure downstream of a perfectly valid signature); audience and resource semantics (was this token issued for \emph{this} harbor and \emph{this} action); freshness (\texttt{exp} checked against a clock the bearer does not control); ancestor revocation (\S\ref{sec:revocation}: a signature does not know its own chain was withdrawn upstream); or that every consequential effect actually consults the verifier at all. Table~\ref{tab:properties} lists only the cryptographic set as ProVerif-verified; authorization is the larger claim built on top of it, not a synonym for it.
 
-Because Harbor Cards are bearer credentials, so that whoever presents the bytes gets the capability with no further proof of possession, a card sniffed off loopback (\S\ref{sec:limitations}, ``\texttt{localhost} is a real network'') is exactly as usable to an attacker as to its intended holder for the remainder of its TTL. Re-checking per request narrows the window in which a \emph{revoked} card is still honored (\S\ref{sec:revocation}); it does nothing against a card that is merely stolen and still technically valid, because the verifier cannot distinguish the two bearers by the token alone.
+Because Harbor Cards are bearer credentials, so that whoever presents the bytes gets the capability with no further proof of possession, a card sniffed off loopback (\S\ref{sec:limitations}, ``\texttt{localhost} is a real network'') is exactly as usable to an attacker as to its intended holder for the remainder of its TTL. Proof of possession at presentation (\S\ref{sec:pop}), specified but not built, would close that gap: the thief would also need the holder's private key. Re-checking per request narrows the window in which a \emph{revoked} card is still honored (\S\ref{sec:revocation}); it does nothing against a card that is merely stolen and still technically valid, because the verifier cannot distinguish the two bearers by the token alone.
 
 A status table sharper than this chapter's three tiers (\Closed, \Partial, \Open) would keep four things distinct rather than folding them into one word: symbolic protocol correspondence at a fixed modeled hop depth (what ProVerif proved); bounded implementation policy, memory, and control-flow checks (the scope of Kani); runtime verifier integration (whether the deployed path actually calls the verified routine on every effect); and system-level complete mediation (whether every effect-producing path is reachable only through that call). This chapter's artifacts presently evidence the first two; the last two remain separate integration and enforcement obligations, not consequences of the harness results (\S\ref{sec:implementation}). Reading any result in this chapter as more than it is means collapsing exactly this distinction.
 \end{pdsolution}
