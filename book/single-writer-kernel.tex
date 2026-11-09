@@ -1109,7 +1109,7 @@ deontic logic for computer systems of Jones and
 Sergot~\pdcite{jonessergot1993}. Two kinds need machinery of their own. A
 \emph{prohibition} says what a worker must not do: the kernel either refuses
 the act before it is recorded (\emph{regimented}) or notices it afterwards and
-responds (\emph{enforced}). An \emph{obligation} says what a worker must do:
+responds (\emph{detected}). An \emph{obligation} says what a worker must do:
 the kernel records it as a \emph{commitment} that can be closed only by a piece
 of evidence the kernel can re-check itself, an \pdterm{oracle}, such as a
 passing test ID. A \emph{permission} says what a worker may do and is simply
@@ -1147,8 +1147,8 @@ permission & a grant is issued & a recorded capability row, attenuable, never wi
 \setlength{\parskip}{4pt plus 1pt}
 The kernel realizes three deontic modalities with three mechanisms:
 
-\emph{prohibition} is regimented (rejected pre-commit) or enforced (detected
-post-commit); \emph{obligation} is enforced by oracle-bound commitments;
+\emph{prohibition} is regimented (rejected pre-commit) or detected (noticed
+post-commit and compensated); \emph{obligation} is enforced by oracle-bound commitments;
 \emph{permission} is a recorded capability. The coordination layer reuses this
 split unchanged.
 \end{definition}
@@ -3464,7 +3464,7 @@ problem, on the scale of Table~\ref{tab:honestkey}.}
 \textbf{\#} & \textbf{Problem} & \textbf{Status} & \textbf{Design in this chapter} \\
 \midrule
 OP-1 & Fair exclusion without a scheduler & \Open & Stigmergic ticket-lock, \Designed{} (\S\ref{sec:resource}) \\
-OP-2 & Regimentation vs.\ enforcement & \Closed & Theorem~\ref{thm:decidability} + Theorem~\ref{thm:regimentation-controllability} \\
+OP-2 & Regimentation vs.\ detection & \Closed & Theorem~\ref{thm:decidability} + Theorem~\ref{thm:regimentation-controllability} \\
 OP-3 & Cross-runtime soundness (I11) & \Open & Differential fuzzing, \Designed{} (\S\ref{sec:invariants}) \\
 OP-4a & Checkpoint that restores work: durable lineage replay & \Open & Event-sourced rehydration, \Designed{} (\S\ref{sec:continuity}) \\
 OP-4b & Checkpoint that restores work: inference-state recovery & \Open & --- \\
@@ -3487,7 +3487,7 @@ ticket-lock that would do it for cooperatively released claims and leaves the la
 TTL-sweep path, the one that matters when an agent dies, unfair. Nothing of it
 ships. Is a FIFO wait-list of time-to-live'd reservations enough once the sweep is
 included?
-\item[$\bigstar$ OP-2: Regimentation vs.\ enforcement boundary.] Status: \Closed{} under the stated models.
+\item[$\bigstar$ OP-2: Regimentation vs.\ detection boundary.] Status: \Closed{} under the stated models.
 Theorem~\ref{thm:decidability} supplies a synchronous database-guard
 construction. Theorem~\ref{thm:regimentation-controllability} gives the exact
 realization condition under full observation: a prefix-closed safety language
@@ -3634,7 +3634,7 @@ refinements this chapter introduces (see \S\ref{sec:durability} and
 \Vision & Named as a direction; no design yet. \\
 \midrule
 \textbf{I1a / I1b} & Durability \emph{split by fault class}: I1a (process-crash) is \Built; I1b (power-loss) is \NotGuar{} under the default WAL configuration. A claim that conflates fault classes cannot carry one grade. \\
-\textbf{regimented / enforced} & Prohibition split by interception point: \emph{regimented} = rejected pre-commit, truly unreachable (a uniqueness constraint / boot gate); \emph{enforced} = post-commit detection and possible remedy (the policy monitor); a bounded response time requires additional observation and scheduling assumptions. ``Physically unreachable'' is reserved for the regimented set. \\
+\textbf{regimented / detected} & Prohibition split by interception point: \emph{regimented} = rejected pre-commit, truly unreachable (a uniqueness constraint / boot gate); \emph{detected} = post-commit detection and possible remedy (the policy monitor); a bounded response time requires additional observation and scheduling assumptions. ``Physically unreachable'' is reserved for the regimented set. \\
 \bottomrule
 \end{tabularx}
 \end{table}
