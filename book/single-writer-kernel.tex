@@ -178,7 +178,7 @@ commitments, stigmergy, local-first coordination, multi-agent systems
 place to start; \pdchapref{stp}{From Spawn to Person} builds an
 identity-and-reputation bridge on top of this kernel; \pdchapref{he}{The Harbor
 Economy} carries the cross-machine market, including
-cross-machine capability transfer --- which belongs to the cross-machine layer and
+cross-machine capability transfer, which belongs to the cross-machine layer and
 lives there, not here. Any chapter can be read first, but every later layer rests on
 this one.}
 \tableofcontents
@@ -657,12 +657,12 @@ symbol-path & file path + a syntactic symbol identifier & \texttt{claim(lib/webh
 \end{tabularx}
 \end{table}
 \paragraph{Worked dramatization: \texttt{claude:worker-1} and \texttt{codex:bench} race for one port.}
-Two developer agents, \texttt{claude:worker-1} (feature development) and \texttt{codex:bench} (integration testing), started a millisecond apart, both attempt to bind a development server to port~7421. Each issues \texttt{acquire(7421)} (Algorithm \ref{alg:acquire}). Both requests reach the single daemon, which serializes them: one insert lands first. Say \texttt{claude:worker-1}'s does. Its insert succeeds and it is granted the port (lease token \texttt{tk\_94a2}, epoch $e=1$). \texttt{codex:bench}'s insert, arriving an instant later ($t = +1\,\text{ms}$), hits the database uniqueness constraint on key~\texttt{port:7421} and is rejected \emph{atomically}: there is no moment at which both rows exist. Crucially, \texttt{codex:bench} does not get a bare error. The catch path reads back the row and hands \texttt{codex:bench} the \emph{identity and lease metadata of the holder}: ``\texttt{port:7421} is held by \texttt{claude:worker-1}, epoch 1, TTL remaining 59s.'' \texttt{codex:bench} can now pick fallback port~7422, wait, or message \texttt{claude:worker-1}.
+Two developer agents, \texttt{claude:worker-1} (feature development) and \texttt{codex:bench} (integration testing), started a millisecond apart, both attempt to bind a development server to port~7421. Each issues \texttt{acquire(7421)} (Algorithm \ref{alg:acquire}). Both requests reach the single daemon, which serializes them: one insert lands first. Say \texttt{claude:worker-1}'s does. Its insert succeeds and it is granted the port (lease token \texttt{tk\_94a2}, epoch $e=1$). \texttt{codex:bench}'s insert, arriving an instant later ($t = +1\,\text{ms}$), hits the database uniqueness constraint on key~\texttt{port:7421} and is rejected \emph{atomically}: there is no moment at which both rows exist. \texttt{codex:bench} does not get a bare error. The catch path reads back the row and hands \texttt{codex:bench} the \emph{identity and lease metadata of the holder}: ``\texttt{port:7421} is held by \texttt{claude:worker-1}, epoch 1, TTL remaining 59s.'' \texttt{codex:bench} can now pick fallback port~7422, wait, or message \texttt{claude:worker-1}.
 The service cannot grant both agents the same fresh key. Preventing a direct,
 unmediated port bind is a separate operating-system obligation. The daemon's
 request queue puts these operations in order; primary-key uniqueness rejects
 the second row, and the file lock still orders writes if a second writer
-appears. One writer, one constraint, one holder.
+appears, so the key ends with exactly one holder.
 
 \input{figures/fig-swk-race-dramatization}
 
@@ -1497,8 +1497,8 @@ compound: no \texttt{net\_egress} after a secret \texttt{in\_context\_read} & mi
 \subsubsection{The compound case: gate the channel, never the token}
 \label{sec:gate-the-channel}
 
-The last row of Table~\ref{tab:policy-classification} is the one a whole product line
-depends on. The policy \emph{no network egress after an in-context read of a secret} mentions an
+The last row of Table~\ref{tab:policy-classification} is the one every agent that
+handles a secret depends on. The policy \emph{no network egress after an in-context read of a secret} mentions an
 uncontrollable event, so a naive reading of the single-event rows predicts detect-only. The
 checker says otherwise, and the mechanism is visible in the policy automaton
 (Figure~\ref{fig:swk-taint-automaton}): two states,
@@ -1649,7 +1649,7 @@ $\Sigma_o \subseteq \Sigma$, through the projection $P : \Sigma^{*} \to \Sigma_o
 erases every unobservable event.
 
 A regimentation mechanism for $K$ whose decisions depend
-only on what it observed --- a supervisor that factors through $P$ --- exists if and only if
+only on what it observed (a supervisor that factors through $P$) exists if and only if
 $K$ is controllable with respect to $L$ and $\Sigma_u$ \emph{and} $K$ is
 \emph{observable} with respect to $L$, $P$ and $\Sigma_c$: for all $s, s' \in \overline{K}$
 with $P(s) = P(s')$ and every $\sigma \in \Sigma_c$,
@@ -1764,9 +1764,8 @@ because EAL scores the evaluation and the assurance mode scores the mechanism.
 \end{pdclaim}
 
 \pdscope{The modes are a design vocabulary, not a measured scale: no procedure assigns a mode by measurement, and no inter-rater agreement stands behind the assignments.}
-The five modes are not claimed to be evenly spaced, and they are not totally
-ordered. Brokered
-and Confined defeat different adversaries; neither is a harder version of the
+The five modes are not totally ordered: Brokered
+and Confined defeat different adversaries, and neither is a harder version of the
 other, which is why the appendix says these modes are not a maturity staircase.
 The modes name which part of the system a claim depends on, and they are useful
 only if applied consistently.
@@ -2214,7 +2213,7 @@ shortest such runs take from one to seven steps.}
 Nothing enters the folder without the right stamp: an active grant carrying the
 \emph{current} role epoch, so a clerk who was replaced yesterday finds that today's stamp
 rejects him. No payment leaves twice: each external operation carries an idempotency key,
-honored at most once. And ``verified'' is not a feeling: it means the acceptance policy and
+honored at most once. And ``verified'' means that the acceptance policy and
 the inspector's receipt are physically in the folder. Then we do something a paper folder
 cannot: enumerate every state the machine can ever reach and check all six promises in each.
 One misreading to avoid: a model checker does not prove the daemon correct. It proves the
@@ -2281,8 +2280,8 @@ There is no proof to read; there is a search to rerun. The checker performs a br
 enumeration of the reachable states from the initial state, evaluates the six predicates in
 each, and stops at the first violation. The mutation suite then disables one guard at a
 time and reports the shortest violating trace it finds. A checker that has never caught a
-seeded bug is an unvalidated checker; the five traces below show that this one has
-teeth and catches seeded bugs.
+seeded bug is an unvalidated checker; the five traces below show that this one
+catches them.
 
 \begin{pdexample}{The Crimes, and Their Shortest Scripts}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2612,8 +2611,8 @@ are therefore one class of tool seen three times. They work at the \pdassurance{
 and for the cooperative agents they steer, and they do nothing about an agent that
 declines them.
 
-Closing this gap takes several layers, and only the last one is a real wall
-that actually confines.
+Closing this gap takes several layers, and only the last one actually
+confines.
 A server-side branch-protection-plus-push-broker layer (\Designed) prevents the most
 damaging direct pushes to protected branches, but not same-user tricks; a credential
 broker that meters and injects credentials per request (\Vision) reduces the tokens
@@ -2639,7 +2638,7 @@ on the menu of layers. The guard and the shim are interim tools at the Observed 
 kept because they leave a transcript, and the book does not build its argument on
 them. The boundary does \emph{not} settle whether the single-writer design is also
 the right way for several agents to share a repository, compared with a worktree
-per agent and a merge queue. That is an empirical question the authors cannot yet
+per agent and a merge queue. That is an empirical question this book cannot yet
 answer, and a pre-registered study outside the product
 (\texttt{studies/substrate-study}) is testing it. Until it reports, the
 single-writer design is a design invariant for confinement and a hypothesis for
@@ -2844,7 +2843,7 @@ what it explicitly does \emph{not} provide, so higher layers do not assume too m
 \addcontentsline{toc}{section}{Review of the key ideas}
 % ══════════════════════════════════════════════════════════════════
 
-What this chapter leaves coupled, in the order the rest of the book will lean on it:
+The chapter's main results, in the order the rest of the book relies on them:
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item One writer, one file. Every mutation reaches the daemon and is committed in one
@@ -2873,7 +2872,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
   evidence and remedies.
 \item Done means re-checkable. A commitment closes only through a reference from the
   finite oracle vocabulary; free text bounces back and the commitment stays open.
-\item Continuity narrows downstream, so later layers are limited by it. Memory survives a crash; checkpoint keeps notes,
+\item Continuity is incomplete, and later layers inherit its limits. Memory survives a crash; checkpoint keeps notes,
   not execution state; the outcome ledger is partial. Nothing built on top can be more
   certain than that.
 \item The kernel reports its own coverage. Enforced, degraded or stubbed, per rule, so
@@ -3655,7 +3654,7 @@ Feng Lin and W. Murray Wonham.
 Peter J. Ramadge and W. Murray Wonham.
 \newblock Supervisory Control of a Class of Discrete Event Processes.
 \newblock \textit{SIAM Journal on Control and Optimization}, 25(1):206--230, 1987.
-\newblock (Controllability and the supremal controllable sublanguage --- the general
+\newblock (Controllability and the supremal controllable sublanguage: the general
 boundary used here to distinguish exact realization from safe restriction;
 the synchronous guard theorem gives a separate sufficient implementation condition.)
 
@@ -3673,7 +3672,7 @@ Andrew J. I. Jones and Marek Sergot.
 Jim Gray and Andreas Reuter.
 \newblock \textit{Transaction Processing: Concepts and Techniques}.
 \newblock Morgan Kaufmann, 1992.
-\newblock (Atomicity/consistency vs.\ durability --- the ground for I1a/I1b.)
+\newblock (Atomicity/consistency vs.\ durability, the ground for I1a/I1b.)
 
 \bibitem{mohan1992aries}
 C. Mohan, Don Haderle, Bruce Lindsay, Hamid Pirahesh, and Peter Schwarz.
@@ -3762,7 +3761,7 @@ Jeffrey O. Kephart and David M. Chess.
 Daniel J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.
 \newblock High-Speed High-Security Signatures.
 \newblock \textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.
-\newblock (Ed25519 --- the signature scheme underlying the authorization chain.)
+\newblock (Ed25519, the signature scheme underlying the authorization chain.)
 
 \bibitem{blanchet2016modeling}
 Bruno Blanchet.
