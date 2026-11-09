@@ -153,7 +153,7 @@
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} distributed systems security, formal verification, capability-based security, multi-agent coordination, symbolic protocol analysis, ProVerif, JWT security, Ed25519
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 30 minutes end-to-end. \pdchapref{bonded}{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026) carries the economic and governance argument; either paper can be read first.}
+\noindent\textit{Reading time: approximately 30 minutes end-to-end. \pdchapref{bonded}{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} carries the economic and governance argument; either chapter can be read first.}
 \vspace{0.6cm}
 % --- Series locator box -------------------------------------------------------
 % Page furniture, not a conceptual figure: no chapter hue, the house neutral
@@ -392,7 +392,7 @@ store its denials correctly, and the denials must reach the other verifiers.
 
 Cards expire on their own, but sometimes that is too late. Two events force earlier withdrawal: (i) \emph{compromise}, when a Harbor Card leaks from its agent's process and the attacker holds real authority until the card expires; and (ii) \emph{policy reversal}, when the person who granted a right decides an agent should no longer hold \texttt{db:write} and waiting for expiry is unacceptable. Checking a card against a plain list of $n$ revoked IDs takes time proportional to $n$. A hash set of the IDs answers in constant expected time but stores every ID in full. The design instead keeps a smaller, approximate index called a \pdterm{cuckoo filter}~\pdcite{fan2014cuckoo}, explained below. As long as every insertion succeeded and deletions are handled correctly, the filter never misses a revoked ID, but it occasionally reports a card as revoked when it is not, a \pdterm{false positive}; the daemon settles each such hit by looking the ID up in its authoritative revocation table. Daemons gossip the log of revoked IDs, which is append-only while its cards are live (an entry is dropped only once its card has expired; see the truncation rule below) and ordered with \pdterm[vector clock]{vector clocks}. A vector clock is a list of counters, one per daemon, recording how many of that daemon's updates a copy of the log has seen. Daemons do not gossip their filters, because two filters cannot be merged by OR-ing their bits. Each daemon rebuilds its own filter from the log.
 
-\paragraph{How a cuckoo filter works.} A cuckoo filter is a compact, approximate set that, unlike older designs, supports deletion. Each inserted key is reduced to a \emph{fingerprint}, a few bits of its hash, and stored in one of two candidate \emph{buckets}, small groups of slots chosen by hashing the key. If both buckets are full, a stored fingerprint is moved to its other bucket, as a cuckoo chick pushes an egg out of the nest, until a slot opens or the insertion fails. A lookup inspects both buckets, so its expected cost is constant. With buckets of $B$ slots and $f$-bit fingerprints, the chance of a false positive is at most about $2B/2^f$ when collisions are rare. The fuller the filter, the more insertions fail; the daemon then rejects the insertion or rebuilds the filter, and never silently drops a revocation. Two keys can share a fingerprint, so deletion must be counted or checked against the authoritative table; otherwise removing one key could remove the other's entry and reanimate a revoked card, making it look valid again.
+\paragraph{How a cuckoo filter works.} A cuckoo filter is a compact, approximate set that, unlike older designs, supports deletion. Each inserted key is reduced to a \emph{fingerprint}, a few bits of its hash, and stored in one of two candidate \emph{buckets}, small groups of slots chosen by hashing the key. If both buckets are full, a stored fingerprint is moved to its other bucket, as a cuckoo chick pushes an egg out of the nest, until a slot opens or the insertion fails. A lookup inspects both buckets, so its expected cost is constant. With buckets of $s$ slots and $f$-bit fingerprints, the chance of a false positive is at most about $2s/2^f$ when collisions are rare. The fuller the filter, the more insertions fail; the daemon then rejects the insertion or rebuilds the filter, and never silently drops a revocation. Two keys can share a fingerprint, so deletion must be counted or checked against the authoritative table; otherwise removing one key could remove the other's entry and reanimate a revoked card, making it look valid again.
 
 \paragraph{Why filters cannot be merged bitwise.} A cuckoo-filter slot holds
 a fingerprint, not a single yes-or-no bit. Consider two one-slot
@@ -435,7 +435,7 @@ $p_{\mathrm{fp}} = 10^{-6}$ the same fleet needs
 $\approx 287{,}500$ bytes, or $281$\,KiB. Making the filter a thousand times more
 accurate costs less than twice the memory, so memory is not the scarce resource.
 What matters is how full the filter gets. The false-positive bound of about
-$2B/2^f$ holds for a filter kept below a maximum fill fraction, its
+$2s/2^f$ holds for a filter kept below a maximum fill fraction, its
 \pdterm{load ceiling}; above that, insertions begin to fail, and the daemon
 must reject the insertion or rebuild the filter rather than silently drop a
 revocation. Port Daddy's cuckoo-filter library, which the revocation check
@@ -464,7 +464,7 @@ The design keeps the filter as an index only, never as the authority, and that i
 \end{pdclaim}
 \pdscope{A passing check means only that this daemon has no record of the revocation; no check can use a revocation that has not yet reached the daemon.}
 
-\paragraph{Spreading revocations by gossip.} Daemons exchange new revocations by \pdterm{anti-entropy} gossip~\pdcite{demers1987epidemic}: in each round a daemon compares its log with that of a randomly chosen peer, and each copies what the other lacks. Suppose every daemon can reach every other (a complete overlay), picks its partner uniformly at random (uniform peers), and every round's messages arrive (reliable rounds). Then a revocation spreads like an epidemic, reaching all $m$ daemons in an expected number of rounds that grows in proportion to $\log m$, written $\Theta(\log m)$. That is an average, not a deadline. Lost messages, the network's shape and scheduling change the constant, and a \emph{partition}, a split that cuts some daemons off from the rest, stops the spread until it heals. Security-critical revocations can also be pushed at once, on a best-effort basis. Figure~\ref{fig:anchor-revocation-gossip} contrasts a local revocation with a remote verifier that has not received it.
+\paragraph{Spreading revocations by gossip.} Daemons exchange new revocations by \pdterm{anti-entropy} gossip~\pdcite{demers1987epidemic}: in each round a daemon compares its log with that of a randomly chosen peer, and each copies what the other lacks. Suppose every daemon can reach every other (a complete overlay), picks its partner uniformly at random (uniform peers), and every round's messages arrive (reliable rounds). Then a revocation spreads like an epidemic, reaching all $D$ daemons in an expected number of rounds that grows in proportion to $\log D$, written $\Theta(\log D)$. That is an average, not a deadline. Lost messages, the network's shape and scheduling change the constant, and a \emph{partition}, a split that cuts some daemons off from the rest, stops the spread until it heals. Security-critical revocations can also be pushed at once, on a best-effort basis. Figure~\ref{fig:anchor-revocation-gossip} contrasts a local revocation with a remote verifier that has not received it.
 
 \input{figures/fig-anchor-revocation-gossip}
 
@@ -549,7 +549,7 @@ reaching all five after three rounds, or six seconds.
 
 This is one possible trace, not the expected time of random gossip. When
 daemons contact peers that already know, the spread takes longer, and
-$\Theta(\log m)$ gives neither its constants nor an exact expectation for five
+$\Theta(\log D)$ gives neither its constants nor an exact expectation for five
 daemons.
 
 Isolate the fifth
@@ -560,7 +560,7 @@ Figure~\ref{fig:anchor-revocation-gossip}. [internal; illustrative schedule]
 \begin{pdclaim}{Theorem}{Conditional Gossip Expectation}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:fresh}
-Let $\Delta$ be the duration of one gossip round. Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $m$ daemons in expected $\Theta(\Delta\log m)$ time.\marginnote{\input{figures/spark-revocation-gossip}\par
+Let $\Delta$ be the duration of one gossip round. Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $D$ daemons in expected $\Theta(\Delta\log D)$ time.\marginnote{\input{figures/spark-revocation-gossip}\par
 An ideal schedule informs $1,2,4,8$ of eight peers in rounds $0,1,2,3$. Random contacts need not attain it.}
 
 No finite worst-case freshness bound holds under an unbounded partition.
@@ -1488,7 +1488,7 @@ Agent Payments Protocol (AP2): Mandates.
 \end{tabularx}
 \end{table}
 
-\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. \pdchapref{bonded}{The Bonded Commons} carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. \pdchapref{bonded}{The Bonded Commons} carries the cross-chapter status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 
 The markers summarize different kinds of evidence; they are not
 interchangeable units of security. Marking the constant-time row \Closed, for
@@ -1500,9 +1500,9 @@ source argument nor the no-panic harness provides.
 % \footnotesize, not \small: widening the Result column at the other
 % three's expense (tried first) only moved the overflow INTO those three
 % at their own longest unwrapped content -- the inline math this column
-% carries ($2B/2^f$, $A$, $B$, the pinned/naive verifier phrases) is
+% carries ($2s/2^f$, $X$, $Y$, the pinned/naive verifier phrases) is
 % simply too dense for \small at any column split this table's four
-% fields admit. Shrinking every column by shrinking the type clears it
+% fields allow. Shrinking every column by shrinking the type clears it
 % instead of trading it around.
 {\footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -1522,9 +1522,9 @@ source argument nor the no-panic harness provides.
 Authentication correspondence in the listed phase models (\S\ref{sec:algorithms}) & ProVerif 2.05 & \Closed\ non-injective correspondence queries TRUE & \path{harbor_}\allowbreak\path{card_v*.pv} \\
 Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \path{alg}\allowbreak\path{confusion.pv} \\
 Delegation chain authenticity (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ chain authenticity TRUE; 17-case runtime conformance & \path{chain-}\allowbreak\path{replay.pv} \\
-Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
+Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2s/2^f$ at load $0.95$ & cuckoo property tests \\
 GitHub-App webhook origin authentication & ProVerif (Dolev-Yao relay) & \Closed\ origin auth TRUE; daemon re-verifies GitHub HMAC (runtime conformance) & \path{ingress_}\allowbreak\path{origin_}\allowbreak\path{auth.pv} \\
-Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $A$ cannot publish into $B$; \texttt{HARBOR\allowbreak\_MISMATCH} conformance & \path{ingress_}\allowbreak\path{tenant_}\allowbreak\path{isolation.pv} \\
+Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $X$ cannot publish into $Y$; \texttt{HARBOR\allowbreak\_MISMATCH} conformance & \path{ingress_}\allowbreak\path{tenant_}\allowbreak\path{isolation.pv} \\
 \midrule
 Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ the check only narrows acceptance; delivery time rests on assumptions & runtime test \\
 Constant-time signature comparison & audited \path{subtle::}\allowbreak\path{Constant}\allowbreak\path{TimeEq} library & \Partial\ no side-channel proof; library trust documented & --- \\
@@ -1539,7 +1539,7 @@ Mechanized gossip-convergence bound & --- & \Open\ standard expected asymptotics
 
 \paragraph{GitHub-App relay ingress.}
 \pdstatus{\Designed}{the HPKE encryption of item (ii) is specified, not implemented}
-GitHub delivers webhooks (event notifications) to the daemon through a relay that is not trusted. The model makes the relay the Dolev-Yao attacker and checks three properties that hold whatever the relay is, each paired with a negative control (\texttt{*\_vuln.pv}) that removes the defense and shows the attack getting through. (i)~\emph{Origin authentication}: the daemon dispatches a fleet event only if GitHub signed it, even when the attacker holds the forwarder's transport credential; the control omits the daemon's own HMAC re-check and the property fails (a forged dispatch). This is \emph{non-injective} agreement on origin, not freedom from replay: a captured genuine $(\textit{payload},\textit{mac})$ may be delivered again, and the origin query does not rule that out. This project checks ordering and replay separately in TLA$^{+}$ (\texttt{proofs/relay/WebhookDelivery.tla}), whose model checker TLC explores every reachable state up to a bound. A daemon consuming the \emph{ordered} per-publisher chain (dispatch iff $\textit{seq}=\textit{tip}+1$) is checked to dispatch each event at most once \emph{and} with no gaps, against a relay that reorders, duplicates and redelivers; the unguarded daemon is the counterexample, and TLC shows it dispatching twice. The requirement this names: the daemon must take webhooks from the relay's ordered \texttt{from\_seq} subscription, not from the raw forward. (ii)~\emph{Payload secrecy}: with HPKE, a standard scheme for encrypting to a public key, aimed at the daemon's \emph{pinned} X25519 key, the relay never learns the plaintext; the control takes the key from the relay, and secrecy collapses to a man-in-the-middle key substitution, so pinning the key out of band is required. (iii)~\emph{Namespace isolation}: a member of tenant $A$ cannot publish into tenant $B$, because harbor membership is checked against the authoritative record; the control trusts the issuer the card declares for itself and crosses the tenant boundary. Two limits remain. HMAC-SHA256 proves origin only to someone who holds the shared key (it is unforgeable under chosen-message attack, EUF-CMA) and gives no proof a third party could check; HPKE base mode is assumed secure against chosen-ciphertext attack (IND-CCA2).
+GitHub delivers webhooks (event notifications) to the daemon through a relay that is not trusted. The model makes the relay the Dolev-Yao attacker and checks three properties that hold whatever the relay is, each paired with a negative control (\texttt{*\_vuln.pv}) that removes the defense and shows the attack getting through. (i)~\emph{Origin authentication}: the daemon dispatches a fleet event only if GitHub signed it, even when the attacker holds the forwarder's transport credential; the control omits the daemon's own HMAC re-check and the property fails (a forged dispatch). This is \emph{non-injective} agreement on origin, not freedom from replay: a captured genuine $(\textit{payload},\textit{mac})$ may be delivered again, and the origin query does not rule that out. This project checks ordering and replay separately in TLA$^{+}$ (\texttt{proofs/relay/WebhookDelivery.tla}), whose model checker TLC explores every reachable state up to a bound. A daemon consuming the \emph{ordered} per-publisher chain (dispatch iff $\textit{seq}=\textit{tip}+1$) is checked to dispatch each event at most once \emph{and} with no gaps, against a relay that reorders, duplicates and redelivers; the unguarded daemon is the counterexample, and TLC shows it dispatching twice. The requirement this names: the daemon must take webhooks from the relay's ordered \texttt{from\_seq} subscription, not from the raw forward. (ii)~\emph{Payload secrecy}: with HPKE, a standard scheme for encrypting to a public key, aimed at the daemon's \emph{pinned} X25519 key, the relay never learns the plaintext; the control takes the key from the relay, and secrecy collapses to a man-in-the-middle key substitution, so pinning the key out of band is required. (iii)~\emph{Namespace isolation}: a member of tenant $X$ cannot publish into tenant $Y$, because harbor membership is checked against the authoritative record; the control trusts the issuer the card declares for itself and crosses the tenant boundary. Two limits remain. HMAC-SHA256 proves origin only to someone who holds the shared key (it is unforgeable under chosen-message attack, EUF-CMA) and gives no proof a third party could check; HPKE base mode is assumed secure against chosen-ciphertext attack (IND-CCA2).
 
 \pdthesis{We err toward listing fewer items as closed rather than more.}
 
@@ -2212,12 +2212,12 @@ A status table sharper than this chapter's three tiers (\Closed, \Partial, \Open
 \pdexercisesfor{\S\ref{app:phase3}}{Phase 3: Multi-hop Delegation}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-multihop-induction}
-Trace the chain $A{:}\texttt{write} \to B{:}\texttt{read} \to C{:}\texttt{write}$ through two verifiers by hand: (i) one that checks only the final capability against the root, and (ii) the per-hop verifier of Algorithm~\ref{alg:delegation}. Which one accepts $C$? Then say precisely why checking every $\mathrm{cap}_i \subseteq \mathrm{cap}_{i-1}$ proves $\mathrm{cap}_k \subseteq \cdots \subseteq \mathrm{cap}_0$, where checking only $\mathrm{cap}_i \subseteq \mathrm{cap}_0$ at each hop does not.
+Trace the chain $A{:}\texttt{write} \to B{:}\texttt{read} \to C{:}\texttt{write}$ through two verifiers by hand: (i) one that checks only the final capability against the root, and (ii) the per-hop verifier of Algorithm~\ref{alg:delegation}. Which one accepts $C$? Then say precisely why checking every $\mathrm{cap}_i \subseteq \mathrm{cap}_{i-1}$ proves $\mathrm{cap}_N \subseteq \cdots \subseteq \mathrm{cap}_0$, where checking only $\mathrm{cap}_i \subseteq \mathrm{cap}_0$ at each hop does not.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-multihop-induction}
 (i)~A root-vs-final verifier asks only \texttt{is\_subset(cap\_write, cap\_root)}: since the root itself holds write, this is true, and $C$ is accepted with write, an authority $B$ never held and never legitimately re-delegated. (ii)~Algorithm~\ref{alg:delegation}'s loop checks each hop against the one immediately before it: hop~1, \texttt{is\_subset(cap\_read, cap\_root)}, holds, so $B$'s grant stands; hop~2, \texttt{is\_subset(cap\_write, cap\_read)}, fails, because write is not inside what $B$ was actually handed, so $C$ is rejected at the exact hop where authority tries to grow back. Only the root-vs-final verifier accepts; the per-hop verifier does not.
 
-The induction: if every hop satisfies $\mathrm{cap}_i \subseteq \mathrm{cap}_{i-1}$, transitivity of $\subseteq$ chains them directly into $\mathrm{cap}_k \subseteq \mathrm{cap}_{k-1} \subseteq \cdots \subseteq \mathrm{cap}_0$. Checking $\mathrm{cap}_i \subseteq \mathrm{cap}_0$ independently at each hop supplies no such chain: it only asks whether each capability fits inside the \emph{root}, which a re-escalating middle hop can satisfy (write $\subseteq$ root) while still expanding relative to what that hop's own parent actually held (write $\not\subseteq$ $B$'s read). This is why the security note after Algorithm~\ref{alg:delegation} credits Property~\ref{thm:attn-sound} with the single hop only. The multi-hop result comes from checking every hop, by transitivity, and its machine-checked confirmation at depth two is the v6/v7 pair in the next two exercises, not a restatement of the property at greater depth.
+The induction: if every hop satisfies $\mathrm{cap}_i \subseteq \mathrm{cap}_{i-1}$, transitivity of $\subseteq$ chains them directly into $\mathrm{cap}_N \subseteq \mathrm{cap}_{N-1} \subseteq \cdots \subseteq \mathrm{cap}_0$. Checking $\mathrm{cap}_i \subseteq \mathrm{cap}_0$ independently at each hop supplies no such chain: it only asks whether each capability fits inside the \emph{root}, which a re-escalating middle hop can satisfy (write $\subseteq$ root) while still expanding relative to what that hop's own parent actually held (write $\not\subseteq$ $B$'s read). This is why the security note after Algorithm~\ref{alg:delegation} credits Property~\ref{thm:attn-sound} with the single hop only. The multi-hop result comes from checking every hop, by transitivity, and its machine-checked confirmation at depth two is the v6/v7 pair in the next two exercises, not a restatement of the property at greater depth.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-multihop-attack}
 Read \path{analyses/harbor_card_v6_multihop_attack.pv}. State the attack in words: who forges what, at which hop, and why does a verifier that checks only the final capability against the root accept it?
