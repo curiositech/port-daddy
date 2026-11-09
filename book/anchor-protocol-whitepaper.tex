@@ -243,8 +243,8 @@ schedule, and not every mechanism is deployed
 
 Each later phase keeps the earlier checks. In Figure~\ref{fig:anchor-four-phases},
 for example, Phase~2 separates signing from verification and still needs
-Phase~1's pinned algorithm. Table~\ref{tab:anchor-four-phases} in
-Appendix~\ref{app:anchor-mech} restates the figure one phase per row.
+Phase~1's pinned algorithm. Table~\ref{tab:anchor-four-phases}, at the end of
+the chapter, restates the figure one phase per row.
 One rule runs through every phase, capability \pdterm{attenuation}: a card handed on to another agent never carries more authority than the card it came from. Each handing-on is a \pdterm{hop}, one step from a parent card's holder to a child card's holder. A child's expiry is the earlier of its parent's expiry and the requested expiry, so a request for twenty minutes under a parent with ten minutes left produces a ten-minute card, and an already-signed child claiming the longer expiry must fail verification. Rights and expiry can narrow or stay the same; they never widen. Figure~\ref{fig:anchor-capability-attenuation} shows a valid child, a request shortened before signing, and a refused extra right.
 \pdmarginanalogy{anchor-reduced-key}{A smaller set of permissions}{reduced-key}{Removing teeth suggests removing authority. A capability must also bind that restriction cryptographically.}
 \begin{pdexample}{A Child Card under a Parent with Ten Minutes Left}
@@ -580,7 +580,33 @@ No finite worst-case freshness bound holds under an unbounded partition.
 \section{How we know it is correct}\label{sec:correct}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Following the industry standard set by AWS (s2n-tls~\pdcite{aws2022s2n}) and Microsoft (Project Everest~\pdcite{bhargavan2017everest}), we decoupled the verification of the \textit{protocol design} from the verification of the \textit{implementation}. The full stack has three layers (Table~\ref{tab:anchor-verification-stack}): symbolic protocol analysis at the top, bounded model checking on the Rust source in the middle, and runtime conformance tests against the deployed binary at the bottom. Each layer's obligations flow downward; each layer's evidence flows back up. The stack is sound only if every bridge --- symbolic-to-source and source-to-deployed --- holds.
+Following the practice of AWS (s2n-tls~\pdcite{aws2022s2n}) and Microsoft (Project Everest~\pdcite{bhargavan2017everest}), we verify the \textit{protocol design} separately from the \textit{implementation}. There are three layers (Table~\ref{tab:anchor-verification-stack}). At the top, ProVerif analyses the protocol's messages \emph{symbolically}, treating the cryptography as perfect. In the middle, \pdterm{Kani}, a verification tool for Rust, checks the source by \pdterm{bounded model checking}: instead of running a function on a few test inputs, it considers every input within stated limits and reports any input that breaks an assertion. At the bottom, conformance tests run known attacks against the deployed binary. Each layer proves part of a claim and hands the rest down as a requirement on the layer below; each layer's evidence comes back up. The whole is sound only if the model matches the source and the source matches the running binary.
+
+\begin{pdexample}{One Obligation through Three Layers}
+\setlength{\parskip}{4pt plus 1pt}
+Trace one obligation, \emph{no hop may widen rights}, down the stack.
+
+(1)~Model. The ProVerif model \texttt{harbor\_card\_v7} checks
+\texttt{is\_subset(mid, root)} and \texttt{is\_subset(final, mid)}. Its RESULT
+line is true, so the escalating chain is never accepted, provided
+\texttt{is\_subset} is the right order.
+
+(2)~Source. The Rust counterpart is the predicate
+\texttt{harbor\_verify\_caps\_subset\_json}. Its Kani \emph{harness}, the small
+program that sets up the inputs and assertions Kani checks, covers lists of
+at most two entries drawn from four one-byte rights and compares acceptance
+with bit-set inclusion. Longer lists and arbitrary strings are not covered.
+
+(3)~Binary. The daemon's Arbiter, a monitor described below, loads that
+function through the FFI, the foreign-function interface that lets the
+TypeScript daemon call compiled Rust (the FFI listings are in
+Appendix~\ref{app:anchor-mech}), and calls it in its \texttt{CAP\_ESCALATION}
+rule.
+
+Two gaps remain where a person, not a tool, must vouch. Gap~1: is the model's
+two-atom order the same relation as the Rust predicate? Gap~2: is the library
+the daemon loads built from this crate? [internal]
+\end{pdexample}
 
 % Give the open-font proof a fresh margin for this table and its citations.
 \ifdefined\pdbookfontprofile
@@ -604,7 +630,7 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 \end{tabularx}
 \end{table}
 
-\paragraph{Table~\ref{tab:anchor-verification-stack} is this section's map.} Read down the rows for what each layer hands the next as an obligation it cannot discharge itself; read the third column for what has actually been checked about the running code. The last column names two important correspondence gaps where evidence must connect one layer to the next --- which is exactly why they are listed as assumption gaps rather than as inferences. Figure~\ref{fig:anchor-verification-stack} draws the same table as one directed bridge: obligations descending the left rail, evidence climbing the right, the two gaps sitting where a human bridges the claim.
+\paragraph{Reading Table~\ref{tab:anchor-verification-stack}.} Each row is one layer. Its \emph{What it shows} entry is what that layer's tool has checked, and its \emph{What it cannot show} entry is what it leaves to the next layer down. Two of those entries are gaps that no tool closes: whether the modeled protocol is this source code (the specification gap), and whether the inspected source is this running binary (the deployment gap). A person asserts each one. Figure~\ref{fig:anchor-verification-stack} draws the same table with requirements passing down from model to source to binary, evidence passing back up, and the two gaps marked where a person must vouch.
 
 \input{figures/fig-anchor-verification-stack}
 % Keep the verification-stack exhibit before the claim it introduces.
@@ -612,7 +638,7 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 
 \subsection{Symbolic Analysis with ProVerif}
 
-To prove the protocol's logical soundness against a Dolev-Yao adversary~\pdcite{dolev1983security} (an attacker who controls the entire network), we modeled the Anchor Protocol in \textbf{ProVerif}~\pdcite{blanchet2016modeling}. ProVerif represents protocols as Horn clauses and uses resolution to prove security properties for an unbounded number of sessions.
+To check the protocol's logic against a Dolev-Yao adversary~\pdcite{dolev1983security}, we modeled the Anchor Protocol in ProVerif~\pdcite{blanchet2016modeling}. ProVerif writes the protocol and the attacker's abilities as logical rules (Horn clauses) and works out, by a mechanical inference procedure called resolution, whether the attacker can reach a forbidden event in any number of protocol runs.
 
 \begin{pdclaim}{Model-checked property}{Authentication Correspondence in the Modeled Phase}
 \setlength{\parskip}{4pt plus 1pt}
@@ -624,19 +650,20 @@ For the modeled delegation phase, ProVerif confirmed the correspondence:
 & \lor \ \text{IssuedRoot}(b, h, cap).
 \end{align}
 
-The displayed query is a non-injective authentication correspondence: every accepted event has a matching modeled \mbox{issuance/delegation} event. It does not by itself prove replay freedom, capability attenuation, or arbitrary-depth transitivity; those are separate queries and bounds.
+In words: every card accepted for $b$ was either issued to $b$ by the daemon, or issued to some $a$ who then delegated it to $b$. The match is \emph{non-injective}: one issuance can match several acceptances.
 \end{pdclaim}
+\pdscope{It does not show freedom from replay, attenuation, or safety for chains of any depth; those are separate queries.}
 
-The three baseline protocol phases were independently verified in ProVerif 2.05.
-Table~\ref{tab:proverif-results} adds two encoding tests for the algorithm-confusion
-boundary; full models are reproduced in Appendices~\ref{app:proverif},
-\ref{app:phase2}, and~\ref{app:phase3}.
+Each of the three protocol phases was checked separately in ProVerif 2.05.
+Table~\ref{tab:proverif-results} adds two tests of algorithm confusion;
+Appendices~\ref{app:proverif}, \ref{app:phase2} and~\ref{app:phase3}
+reproduce the full models.
 
 \begin{table}[H]
 \centering
 \caption{Five baseline queries and two algorithm-confusion tests.
 Pinned verification passes; the naive verifier fails as intended.
-The delegation-depth bound still applies.}
+The delegation query covers a single hop.}
 \label{tab:proverif-results}
 \small
 \renewcommand{\arraystretch}{1.12}
@@ -679,55 +706,54 @@ RESULT event(Accepted(b_2,harbor_id[],cap_1))
 
 \subsection{Runtime Enforcement: The Arbiter}
 
-Formal models establish properties of their abstractions. At runtime, Port Daddy deploys the \textbf{Arbiter}---an ambient monitor that subscribes to the daemon's post-commit activity log and checks six derived invariants:
+A formal model proves things about the model. At run time Port Daddy also runs the Arbiter, a monitor inside the daemon that reads the activity log after each change is committed and checks six rules:
 
 \begin{enumerate}
-  \item \texttt{PID\_SQUATTING}: Detects when a process claims a port previously held by a different PID (the ``Ghost in the Harbor'').
-  \item \texttt{CAP\_ESCALATION}: Verifies capability subsets via the deployed Rust FFI enforcer.
-  \item \texttt{NOTE\_MONOTONICITY}: Ensures the note sequence for active sessions never shrinks (from the TLA$^{+}$ \texttt{NoteMonotonicity} invariant).
-  \item \texttt{ESCROW\_POSITIVE}: Validates that active sessions have positive escrow (when Float Plans are active).
+  \item \texttt{PID\_SQUATTING}: Detects when a process claims a port previously held by a different PID (the Ghost in the Harbor).
+  \item \texttt{CAP\_ESCALATION}: Checks capability subsets by calling the deployed Rust code through the FFI.
+  \item \texttt{NOTE\_MONOTONICITY}: Ensures the note sequence for active sessions never shrinks (the \texttt{NoteMonotonicity} invariant of the kernel's TLA$^{+}$ specification, a formal model checked by machine).
+  \item \texttt{ESCROW\_POSITIVE}: Checks that active sessions have a positive escrow, a deposit held while they run (when Float Plans, signed work orders with a budget, are in use).
   \item \texttt{LOCK\_OWNER\_VALID}: Ensures locks are only held by registered agents with active sessions.
   \item \texttt{HEARTBEAT\_FRESHNESS}: Flags stale heartbeats as early warning for agent death.
 \end{enumerate}
 
-Violations are logged and can trigger the ``man overboard'' salvage protocol: the daemon revokes the offending agent's active Harbor Cards (\S\ref{sec:revocation}), releases any locks and port reservations it held, and, for supervised sessions, notifies the parent agent or the human operator. Because this path observes \emph{committed} events, it detects and compensates; only a pre-commit native guard can prevent a transition in the first place. The Arbiter API provides visibility, not a proof that every security-relevant operation was mediated.
+Violations are logged and can trigger a cleanup: the daemon revokes the offending agent's active Harbor Cards (\S\ref{sec:revocation}), releases its locks and port reservations, and, for supervised sessions, notifies the parent agent or the human operator. Because the Arbiter sees changes only after they are \emph{committed}, it can detect a violation and repair the damage but cannot prevent it; only a check that runs before the commit can do that.
+\pdscope{The Arbiter shows what happened; it is not evidence that every security-relevant operation passed through the daemon.}
 
-\paragraph{Where the kernel's boundary places this chapter.} The controllability theorem of \pdchapref{swk}{The Single-Writer Kernel} sorts every rule by whether the event it prohibits is one the mediator can refuse. Card verification is such an event: accept or reject happens on the daemon's own socket, before any effect, so these checks can be enforced at that gate when their inputs are available. A remote revocation that has not arrived is an observation gap, not something a local refusal mechanism can infer. The symbolic queries establish their named checks under the modeled information assumptions. What the Anchor cannot regiment is what a holder does with authority it legitimately has. Exercising a valid \texttt{db:write} to write the wrong thing is an uncontrollable event at this boundary; detecting it requires an observation or evaluation rule beyond token validity, and any remedy belongs to the separate audit and slashing mechanisms in \pdchapref{bonded}{The Bonded Commons}.
+\paragraph{What the daemon can refuse.} The controllability theorem of \pdchapref{swk}{The Single-Writer Kernel} sorts every rule by whether the daemon can refuse the event the rule forbids. The daemon accepts or rejects a card on its own socket, the local connection agents use to reach it, before the agent can act, so it can refuse a bad card outright, provided it has the information the check needs. It cannot refuse a card because of a revocation it has not yet received. The ProVerif results hold only under the model's assumptions about who knows what. And no check on a card can stop an agent from misusing authority it legitimately holds: an agent with a valid \texttt{db:write} can still write the wrong rows. Catching that takes inspection of the result, and any penalty comes from the audit and slashing rules of \pdchapref{bonded}{The Bonded Commons}, where slashing takes part of a misbehaving agent's posted bond.
 
 \subsection{Implementation Verification}
 
-A secure protocol is useless if the implementation contains buffer overflows or timing leaks. The Rust core isolates token verification and capability predicates so that each can be checked under a stated input domain. A proof of one predicate does not certify the whole core.
+A secure protocol design is no help if the code has memory errors, such as reading past the end of a buffer, or leaks secrets through how long it takes. The Rust core keeps card verification and the capability checks in separate functions, so that each can be checked over a stated range of inputs. A proof about one function covers that function only.
 
 \begin{pdclaim}{Design invariant}{Memory Safety within the Harness Bound}
 \setlength{\parskip}{4pt plus 1pt}
 \label{inv:anchor-memory-safety}
-The \textbf{Kani} Rust Verifier~\pdcite{aws2022kani} harness bounds the token input to 32 bytes of valid UTF-8 containing a dot, with an unwind bound of 128.
+Kani~\pdcite{aws2022kani} checks the card parser on every token of at most 32 bytes of valid UTF-8 text containing a dot, unrolling each loop at most 128 times (its \emph{unwind bound}).
 
-Key decoding returns a fixed key; base64 decoding returns either an error or 32 zero bytes; signature verification returns success or failure.
+The harness replaces three functions with simple stand-ins, or \emph{stubs}: key decoding returns a fixed key; base64 decoding, which turns the card's text back into bytes, returns either an error or 32 zero bytes; signature verification returns success or failure.
 
-The reported absence of panics and out-of-bounds accesses applies only to paths reached under these stubs.
-
-In particular, the zero-byte decoded header is not valid header JSON: this harness does not exercise successful card acceptance. Longer tokens and the real cryptographic primitives lie outside its claim.
+On every path these stubs allow, the code neither panics (aborts with a runtime error) nor reads or writes out of bounds.
 \end{pdclaim}
+\pdscope{The stubbed header of 32 zero bytes is not valid JSON, so this harness never reaches successful card acceptance, and longer tokens and the real cryptography lie outside it.}
 
 \begin{pdclaim}{Design invariant}{Secret-Independent Source Control Flow}
 \setlength{\parskip}{4pt plus 1pt}
 \label{inv:anchor-ct-source}
-The Rust comparator (\texttt{constant\_time\_compare}) folds the XOR of every byte pair into one accumulator and tests the accumulator once, so no source-level branch depends on secret bytes.
+The Rust comparator \texttt{constant\_time\_compare} combines every byte pair with XOR into one accumulator and tests the accumulator once at the end, so no branch in the source depends on the secret bytes, and the comparison takes the same steps however early the inputs differ.
 
-That is a property of the source text, established by inspection; Kani's harness adds only that the comparator cannot panic on any pair of 16-byte inputs.
-
-Neither is a hardware-level constant-time proof: compiler transformations, memory behavior, and microarchitecture remain outside both.
+This is a property of the source text, established by reading it; Kani adds only that the comparator cannot panic on any pair of 16-byte inputs.
 \end{pdclaim}
+\pdscope{Neither shows constant time on real hardware, where the compiler, memory and processor can still make timing depend on the data.}
 
 \subsection{The procedures, precisely}\label{sec:algorithms}
 
-The following pseudocode isolates signature authentication and per-hop rights
-attenuation. It is deliberately not a complete card-verification API: the
-expiry, audience, schema, process-binding, and revocation checks remain
-required. The symbols $\bot$ and $\top$ mean rejection and acceptance.
-\texttt{Encode} names a fixed, unambiguous encoding; the symbolic models in
-Appendix~\ref{app:proverif} abstract its parsing obligations.
+The pseudocode below shows only signature checking and per-hop attenuation. A
+complete card verifier must also check expiry, audience, format, the calling
+process and revocation. The symbols $\bot$ and $\top$ mean rejection and
+acceptance. \texttt{Encode} is a fixed encoding with exactly one way to read
+any message; the symbolic models in Appendix~\ref{app:proverif} assume that
+parsing it is correct.
 
 To read a chain, keep two keys separate. The daemon signs a root card naming
 Alice's public key. Alice signs Heron's child card, so that child must be
@@ -737,7 +763,7 @@ and supplies the authenticated identity needed for the next one.
 
 \subsubsection{Phase 1: Symmetric HS256 with Algorithm Pinning}
 
-Algorithm~\ref{alg:symmetric} presents the secure verification procedure that is immune to algorithm confusion attacks (CVE-2015-9235~\pdcite{cve20159235}).
+Algorithm~\ref{alg:symmetric} is the verification procedure that resists algorithm confusion (CVE-2015-9235~\pdcite{cve20159235}).
 
 \begin{lstlisting}[caption={Algorithm 1: Secure Harbor Verification (HS256 with Algorithm Pinning)},label={alg:symmetric}]
 Require: Pinned Algorithm: hs256
@@ -773,11 +799,10 @@ k_{\mathit{master}})$ under the algorithm fixed by policy and compares that
 against $\sigma$, and no branch below it consults the header at all.
 
 So an
-attacker who rewrites the header from \texttt{hs256} to \texttt{none} --- the
-move the algorithm-confusion CVEs catalogued in Appendix~\ref{app:related} all
-make in one form or another --- has changed one field the
-procedure consults zero times, and still faces the same comparison, which
-needs $k_{\mathit{master}}$.
+attacker who rewrites the header from \texttt{hs256} to \texttt{none}, the
+move every algorithm-confusion attack in Appendix~\ref{app:related} makes in
+some form, has changed a field the procedure reads zero times, and still faces
+the same comparison, which needs $k_{\mathit{master}}$.
 
 One binding, zero reads. The naive verifier of
 \texttt{proofs/anchor/token-verify/}\allowbreak\texttt{algconfusion.pv} is the same procedure with
@@ -785,7 +810,7 @@ that count changed to one, and the one read is what decides its whole
 verification. [internal]
 \end{pdexample}
 
-\textbf{Security Property:} The algorithm ignores the user-provided $alg_{header}$ (line 15), preventing algorithm confusion attacks where an attacker sets $alg = \text{``none''}$ or attempts HS256/RS256 confusion~\pdcite{mclean2015critical}.
+\textbf{Security Property:} The procedure never reads the attacker-supplied $alg_{header}$ after unpacking it (the line marked \texttt{CRITICAL}), which stops algorithm confusion, whether the attacker sets $alg = \text{``none''}$ or tries HS256/RS256 confusion~\pdcite{mclean2015critical} (RS256 being an RSA public-key algorithm).
 
 \subsubsection{Phase 2: Asymmetric Ed25519}
 
@@ -870,13 +895,13 @@ function Harbor.VerifyChain(chain, pk_daemon):
     return T
 \end{lstlisting}
 
-\textbf{Security property.} Monotonic per-hop attenuation ($\text{cap}_i \subseteq \text{cap}_{i-1}$) prevents capability expansion across transitive delegations, including the \texttt{write} $\to$ \texttt{read} $\to$ \texttt{write} re-escalation. Property~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}) mechanizes the single hop, where the subset guard is necessary and sufficient. Depth beyond one is the per-hop discipline chained by transitivity of $\subseteq$; its mechanized confirmation at depth two is the attack-and-fix pair in the same section, which checks each hop against its immediate parent rather than against the root.
+\textbf{Security property.} Checking $\text{cap}_i \subseteq \text{cap}_{i-1}$ at every hop stops rights from growing along a chain of delegations, including the \texttt{write} $\to$ \texttt{read} $\to$ \texttt{write} re-escalation. Property~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}) proves the single hop by machine: there the subset check is necessary and sufficient. Longer chains follow because $\subseteq$ is transitive. At depth two the v6 attack model and the v7 fixed model, in the same appendix section, confirm this by machine; the fix checks each hop against its immediate parent rather than against the root.
 
 \pdexercisepointer*{\ref{ex:anchor-algconfusion}}{\ref{ex:anchor-chain-replay}}{\pageref{ex:anchor-algconfusion}}
 \begin{pdrecitation}
 \item Without looking: name the three layers of Table~\ref{tab:anchor-verification-stack}, and the two gaps between them that are asserted by a human rather than a tool.
 \item What can the Arbiter's post-commit invariants do that ProVerif cannot, and what can they never do that a pre-commit guard could?
-\item Why does a finite channel grammar still leave a proof obligation for arbitrary strings? Give a two-hop escalation that a root-only check accepts and an immediate-parent check rejects.
+\item Why does checking every channel name from a small fixed set still leave arbitrary channel names unproved? Give a two-hop escalation that a root-only check accepts and an immediate-parent check rejects.
 \end{pdrecitation}
 
 
@@ -884,13 +909,39 @@ function Harbor.VerifyChain(chain, pk_daemon):
 \section{One source crate, different verification scopes}\label{sec:implementation}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The \texttt{harbor-card-rs} crate supplies both the source compiled into the
-C dynamic library and the bounded Kani harnesses. Sharing source reduces one
-kind of drift; it does not make their coverage identical. The harnesses use \texttt{cfg(kani)}. One parser harness replaces three
-primitives and bounds token input to 32 bytes; the decoded-claims harnesses
-call the production predicates without cryptographic or decoding stubs. The deployed library still needs compiler, FFI, and calling-path
-evidence. The source excerpts below let the reader trace exactly where the
-harness stops, using the three-layer map of Table~\ref{tab:anchor-verification-stack}.
+The \texttt{harbor-card-rs} crate, a Rust package, supplies both the source
+compiled into the shared library the daemon loads and the Kani harnesses.
+Sharing source keeps the checked code and the shipped code from drifting apart,
+but the harnesses still cover different parts of it. The harnesses are
+compiled only under \texttt{cfg(kani)}. One parser harness replaces three
+functions with stubs and limits tokens to 32 bytes; the decoded-claims
+harnesses call the production functions with no stubs. A Kani \pdterm{cover
+statement} asks the tool to find at least one input that reaches a stated
+outcome, which shows that a harness whose assertions pass is not passing
+merely because no input reaches the code. The deployed library still needs
+evidence about the compiler, the FFI and the calling path. The source excerpts
+below show exactly where each harness stops, using the three layers of
+Table~\ref{tab:anchor-verification-stack}.
+
+\begin{pdexample}{Two Harnesses Side by Side}
+\setlength{\parskip}{4pt plus 1pt}
+The decoded-claims harness states the lifetime rule as a formula: accept
+exactly when the version is 2, issued-at $\le$ expiry, issued-at $\le$
+now $+\,60$\,s, now $\le$ expiry, and not-before is absent, zero or $\le$ now.
+It checks that the Rust function agrees with the formula for every 64-bit value
+of every field, far too many cases to enumerate. Its covers demand that each
+verdict be reachable. The version-2 card worked again after the harness
+listing, issued at 950, expiring at 1000 and valid from 980, gives one of each:
+it is accepted at 990 ($980 \le 990 \le 1000$ and $950 \le 990 + 60$),
+rejected at 1001 (expired) and rejected at 979 (not yet valid).
+
+The parser harness, by contrast, runs the real \texttt{verify()} on tokens of
+at most 32 bytes. Its base64 stub returns either an error or 32 zero bytes, and
+32 zero bytes are not valid JSON, so every run stops at the header decode and
+never reaches the algorithm check or the claims check. The one harness that
+runs \texttt{verify()} never reaches the lines the other harnesses prove things
+about. [internal]
+\end{pdexample}
 
 \subsection{Core Verification Logic}
 
@@ -935,19 +986,19 @@ The private \texttt{validate\_decoded\_claims} function enforces version,
 issued-at, expiry, and not-before guards. It is reached only after signature
 verification and JSON decoding in this path. Channel authorization is a
 further call; revocation requires the caller's authoritative store. Calling
-the decoded predicate by itself does not authenticate a card.
+the decoded function on its own does not authenticate a card.
 
-Key implementation details: \texttt{zeroize} requests that cryptographic material be overwritten when dropped, reducing residual-secret exposure without proving that no copy survives. The comparator avoids source-level early return on secret byte values. That is useful hygiene, not a hardware constant-time guarantee; compiler, cache, and microarchitectural behavior remain outside this source argument.
+Two details matter. \texttt{zeroize} overwrites secret material in memory once it is no longer needed, which shortens how long a secret lingers but cannot prove that no copy survives. The comparator never returns early on a secret byte, for the reason given under Secret-Independent Source Control Flow in the previous section.
 
 \subsection{Kani Verification Harnesses}
 
-Six harnesses address distinct obligations. The four in
-\path{core/harbor-card-rs/src/kani_claims.rs} quantify over decoded policy
-inputs and capability structures. The parser and comparator harnesses live
-in \path{core/harbor-card-rs/src/lib.rs}. For the decoded-policy and capability harnesses, CI requires assertions
-that hold on every admitted input and reachable examples of the behaviors
-being claimed. A \texttt{cover!} obligation asks the solver to
-find such an example; it is not an assumption restricting the input.
+Six harnesses check six different things. The four in
+\path{core/harbor-card-rs/src/kani_claims.rs} range over decoded policy
+inputs and capability structures; the parser and comparator harnesses live
+in \path{core/harbor-card-rs/src/lib.rs}. For the decoded-policy and capability harnesses, the continuous-integration checks (CI, run on every proposed change) require both assertions
+that hold on every input in range and covers that find an example of each
+claimed behavior. A \texttt{cover!} statement only searches for an example;
+it never narrows the inputs.
 
 \begin{lstlisting}[style=rust, caption={Decoded lifetime policy: an excerpt of the executable Kani harness. The helper constructs actual HarborCardClaims; the predicate is called by the signed-token verifier.}]
 #[kani::proof]
@@ -970,13 +1021,13 @@ fn proof_decoded_claims_policy() {
 }
 \end{lstlisting}
 
-The temporal oracle uses widened arithmetic, so it checks the production
-function's saturating clock-skew calculation against a different expression.
-All signed 64-bit timestamps and version values are admitted, including the
-clock boundary. The seven reachability obligations include successful
-acceptance and each rejection class. Empty identity strings in this harness
-are deliberate: this predicate checks time and version, not issuer,
-audience, or subject semantics.
+The harness's reference formula, its \emph{oracle}, computes in 128-bit
+arithmetic, so it checks the production function's capped 64-bit clock-skew
+arithmetic against an independent expression. Every signed 64-bit timestamp
+and version value is in range, including the extremes where the arithmetic
+caps. The seven covers include successful acceptance and each kind of
+rejection. The harness leaves identity strings empty on purpose: this
+function checks time and version, not issuer, audience or subject.
 
 \begin{pdexample}{A valid lifetime does not grant an operation}
 \setlength{\parskip}{4pt plus 1pt}
@@ -986,9 +1037,9 @@ its lifetime checks pass and \texttt{sub} on \texttt{logs.build} matches.
 At 1001 it is expired; at 979 it is not yet valid. Publishing to
 \texttt{logs.build} is unauthorized even at 990. An ordinary Rust test
 signs these claims, runs the real decoder and signature verifier, and checks
-these outcomes. The Kani policy harness instead quantifies over decoded
-fields. The test connects one real signed card to those predicates; it is
-not a proof of the decoder or signature algorithm.
+these outcomes. The Kani policy harness instead ranges over every value of
+the decoded fields. The test connects one real signed card to those
+functions; it is not a proof of the decoder or the signature algorithm.
 
 Now let a root grant \texttt{admin} on \texttt{a*}, a child receive only
 \texttt{sub} on \texttt{ab}, and a grandchild ask for \texttt{pub} on
@@ -999,25 +1050,27 @@ the two-hop harness requires to be reachable. [internal]
 \end{pdexample}
 
 \paragraph{The domains, explicitly.}
-The channel harness admits one grant with operation
+The channel harness ranges over one grant with operation
 \texttt{pub}, \texttt{sub}, \texttt{admin}, or \texttt{other}; its pattern is
 one of $\{\epsilon,\texttt{a},\texttt{ab},\texttt{b},\texttt{*},
 \texttt{a*},\texttt{ab*},\texttt{b*}\}$, where $\epsilon$ is the empty string.
 Requests use \texttt{pub} or \texttt{sub} on one of
 $\{\epsilon,\texttt{a},\texttt{ab},\texttt{aba},\texttt{b},\texttt{ba}\}$.
-An independent finite-case oracle checks the actual channel matcher, and
-three covers require authorized, unauthorized, and lifetime-invalid cases.
+An independent oracle that lists the finite cases checks the actual channel
+matcher, and three covers require an authorized, an unauthorized and an
+expired case.
 
-The two-hop harness uses the same operation and pattern grammar, one grant
-at each of root, child, and grandchild, and arbitrary absent or unsigned
-64-bit rate and payload ceilings. It asks whether two accepted immediate-parent
-checks imply direct root coverage and preserve both ceilings. Five covers
-require accepted chains, rejected second hops, the root-only blind spot,
-and accepted chains with each kind of ceiling. These are predicates over
-decoded grants; the crate has no signed delegation-chain verifier.
+The two-hop harness uses the same operations and patterns, one grant
+at each of root, child and grandchild, and rate and payload ceilings that are
+either absent or any unsigned 64-bit value. It asks whether two accepted
+immediate-parent checks imply that the root covers the grandchild directly and
+that both ceilings are preserved. Five covers require accepted chains, a
+rejected second hop, the case a root-only check wrongly accepts, and accepted
+chains with each kind of ceiling. These are checks on decoded grants; the
+crate has no verifier for signed delegation chains.
 
-The flat-string FFI predicate has its own contract: opaque rights, with no
-channel-glob interpretation. Its harness quantifies over lists of at most
+The flat-string FFI predicate has its own contract: rights are opaque
+strings, with no channel-pattern matching. Its harness ranges over lists of at most
 two entries drawn from four one-byte rights, including duplicates and empty
 lists, and compares acceptance to bit-set inclusion. Two covers require a
 nonempty accepted child and a rejected escalation. Neither finite capability
@@ -1025,31 +1078,32 @@ harness establishes the result for arbitrary strings or arbitrary list sizes.
 
 \paragraph{The remaining bounds.}
 The comparator harness calls the real comparator on all pairs of 16-byte
-arrays and checks absence of panic, not constant time on hardware. The
-32-byte parser harness has unwind bound 128 and stubs key construction,
-base64 decoding, and signature verification. Its decoder returns an error
-or 32 zero bytes; the zero-byte header is invalid JSON. Consequently that
-harness reaches neither decoded claims nor successful card acceptance.
-The decoded-policy proofs do not remove this parser-refinement obligation.
+arrays and checks only that it cannot panic. The parser harness, described under
+Memory Safety within the Harness Bound and in the example at the start of
+this section, never reaches the decoded claims. So the decoded-policy
+proofs leave open whether the real parser turns bytes into exactly the claims
+those proofs assume.
 
 \paragraph{Evidence that can fail.}
-The proof workflow runs the comparator and four decoded/capability harnesses
-on pull requests; the parser runs only in its separate manually dispatched job.
-A log checker requires all 17 cover obligations to be satisfied as well as
-successful assertion checks. Two negative controls rerun actual harnesses
-on isolated source copies: deleting expiry rejection must falsify the
-named temporal assertion, and deleting ceiling attenuation must falsify
-the named rate-preservation assertion. A compilation failure does not count
-as a successful control. The run logs and mutation receipt are retained as
-workflow artifacts. Source presence and workflow wiring are not a passing
-run: the recorded verdict and the bounds in \path{book/corpus.json} govern
-what can be claimed. Local validation with Kani~0.67.0 passes all five
-per-change harnesses and all 17 covers. Both negative controls produce the
-required named counterexamples. The native Rust suite passes 103 tests,
-including the signed-card example and an exhaustive check that all 256
-selector values generate exactly the documented finite grammars. These
-results establish the stated bounded obligations; they do not certify
-cryptographic primitives, arbitrary strings, or daemon integration.
+The proof workflow runs the comparator harness and the four decoded and
+capability harnesses on every pull request; the parser harness runs only in a
+separate job started by hand. A log checker requires all 17 covers to be
+satisfied and every assertion to pass. Two \pdterm{negative controls},
+deliberate breakages that a working check must catch, rerun real harnesses on
+isolated copies of the source: deleting the expiry rejection must make the
+named time assertion fail, and deleting the ceiling attenuation must make the
+named rate-preservation assertion fail. A compilation failure does not count
+as a caught breakage. The run logs and the record of the deliberate changes
+are kept as workflow artifacts. Code that exists and is wired into the
+workflow is not a passing run; the recorded verdict and the bounds in
+\path{book/corpus.json} decide what can be claimed. Run locally with
+Kani~0.67.0, all five per-change harnesses and all 17 covers pass, and both
+negative controls produce the required named counterexamples. The ordinary
+Rust test suite passes 103 tests, including the signed-card example and a
+check that the 256 possible selector values together generate exactly the
+documented finite input sets. These results establish the stated bounded
+checks.
+\pdscope{They do not certify the cryptographic primitives, arbitrary strings, or the daemon's use of the library.}
 
 \pdexercisepointer{\ref{ex:anchor-kani-scope}}{\ref{ex:anchor-model-vs-code}}{\pageref{ex:anchor-kani-scope}}
 
