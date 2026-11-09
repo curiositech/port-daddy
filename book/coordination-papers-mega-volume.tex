@@ -96,8 +96,8 @@
 {\bfseries\pdeditionclaim}\par\vspace{6pt}
 {\color{hhgray}This book follows that claim from one machine run by one human to work shared
 across several owners, economic interests, and mutually distrustful systems. Its \pdchaptercountword{}
-chapters are ordered by what they stand on; each proof chapter follows the chapter whose promises it
-keeps.}\par\vspace{12pt}
+chapters are ordered by dependency: each chapter that proves a property comes after
+the chapter that relies on it.}\par\vspace{12pt}
 Erich Owens \textperiodcentered\ Curiositech LLC \textperiodcentered\ \texttt{engineering@portdaddy.dev}\par
 Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\ \textperiodcentered\ \url{https://portdaddy.dev/whitepaper}\par
 \end{minipage}
@@ -219,6 +219,7 @@ makes the check in the write path described above: for each change an agent
 proposes, it decides whether the change goes ahead. That check is
 \pdterm{admission}, and to admit a change is to let it pass the check and go
 ahead. In this book \emph{admit} and \emph{admission} always carry this sense.
+
 The shared record includes a
 \pdterm{ledger}, the authoritative account of who holds which resources, who
 owes what and what has been paid. A \pdterm{grant} states what its holder may
@@ -229,10 +230,10 @@ daemon and its database are this book's implementation of the kernel.
 \newcommand{\pdreaderleftprose}{%
 On a first reading, follow the chapter sequence and the running example, a
 constructed checkout repair that Chapter~0 introduces and later chapters
-revisit. Each stage adds one contract the next stage needs. For a selective
-reading, use the route tables here, then read a claim's assumptions and evidence label. If the notation is unfamiliar, start with the worked
-example and return to the formal statement. When resuming after a break,
-the chapter question and the last example provide a useful starting point.
+revisit. Each chapter adds a contract that the next chapter needs. For a selective
+reading, find your row in the route table on these two pages, then read each claim's assumptions and evidence label. If the notation is unfamiliar, start with the worked
+example and return to the formal statement. After a break, restart from the
+chapter question and the last example.
 Worked numbers name their evidence. \textsf{[verified]} refers to the stated
 check or reproducible calculation; \textsf{[verified arithmetic]} certifies
 only the calculation. \textsf{[internal]} denotes a chapter derivation or a

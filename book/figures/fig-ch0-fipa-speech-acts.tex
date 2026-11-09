@@ -11,7 +11,7 @@
   \def\rowdy{3.20}\def\branch{0.65}
   \foreach \i/\act/\kind in {0/request/directive,1/inform/assertive,2/propose/commissive}{
     \node[pd title,anchor=west] at (0.05,{-\i*\rowdy+1.20})
-      {\number\numexpr\i+1\relax. \texttt{\act} --- \kind};}
+      {\number\numexpr\i+1\relax. \texttt{\act} (\kind)};}
   \node[pd state,minimum width=2.2cm] (R1) at (\colA,0) {\texttt{request}};
   \node[pd state,minimum width=2.0cm] (R2) at (\colB,0) {\texttt{agree}};
   \node[pd ready state,minimum width=3.0cm] (R3) at (\colC,\branch) {\texttt{inform-done}};
