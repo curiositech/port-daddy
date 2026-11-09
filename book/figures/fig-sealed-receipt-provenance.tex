@@ -8,10 +8,10 @@
     {Bind the reported run};
   \SGDocument{sbprovwork}{(1,26)}{70}{38}{sgViolet!9}{work order $C$}
   \node[sg/check,minimum width=70pt] (sbprovatt) at (110,45) {attestation};
-  \node[sg/check,minimum width=70pt] (sbprovinputs) at (196,45) {inputs $I$};
+  \node[sg/check,minimum width=70pt] (sbprovinputs) at (196,45) {inputs};
   \node[sg/check,minimum width=70pt] (sbprovmodel) at (286,45) {model $M$};
   \node[sg/hash,minimum width=132pt] (sbprovhashes) at (92,111)
-    {$H(C),H(\mathrm{attest.}),H(I),H(M)$};
+    {$H(C),H(\mathrm{attest.}),H(\mathrm{in}),H(M)$};
   \SGDocument{sbprovout}{(203,78)}{104}{48}{sgRed!7}{output ciphertext\\$H(\mathrm{out})$}
   \draw[sg/arrow,draw=sgBlue] (sbprovwork.south)--(36,87)--(sbprovhashes.north west);
   \draw[sg/arrow,draw=sgBlue] (sbprovatt.south)--(110,87)--(sbprovhashes.north);

@@ -134,8 +134,7 @@
 \vspace{1cm}
 % ---------------------------------------------------------------------------
 % The Sealed Harbor: chapter body, part 1 (problem, design, noninterference,
-% enforceability). Folds research paper 4 (R9, R10, R11) and the clean-room
-% appendix into the chapter's own voice. Part 2 carries conservation,
+% enforceability). Part 2 carries conservation,
 % detection, the leakage budget, limitations, recitation, and exercises.
 % ---------------------------------------------------------------------------
 \section{Two owners, one answer}\label{sec:sealed-problem}
@@ -982,10 +981,10 @@ Section~\ref{sec:sealed-design}, which is why the enforceability link comes
 first.
 
 \paragraph{Differential privacy in one paragraph.}
-Fix which datasets count as neighbors: here they differ in one record. A randomized mechanism $A$ is $\varepsilon$-private if, for every
+Fix which datasets count as neighbors: here they differ in one record. A randomized mechanism $\mathcal{M}$ is $\varepsilon$-private if, for every
 neighbor pair $D,D'$ and every output event $S$,
 \[
-\Pr[A(D)\in S]\le e^\varepsilon\Pr[A(D')\in S].
+\Pr[\mathcal{M}(D)\in S]\le e^\varepsilon\Pr[\mathcal{M}(D')\in S].
 \]
 The inequality also applies with $D,D'$ reversed. It compares distributions,
 not the visual similarity of two answers. For a one-bit record, a mechanism
@@ -1219,8 +1218,8 @@ carrying 3 canaries is caught with probability 0.992.}
 
 \paragraph{Intuition: dye packs and quality control.}
 Dye packs\marginnote{\input{figures/spark-canary-power}\par
-\emph{Detection power:} $1-\beta^k$ as captured canary count $k$ scales ($\beta=0.2, 0.5$).} in bank bundles: each pack fails alone with probability $\beta$, so
-grabbing $k$ dyed bundles fails to stain with probability $\beta^k$. How many
+\emph{Detection power:} $1-\beta^j$ as captured canary count $j$ scales ($\beta=0.2, 0.5$).} in bank bundles: each pack fails alone with probability $\beta$, so
+grabbing $j$ dyed bundles fails to stain with probability $\beta^j$. How many
 dyed bundles a thief grabs depends on how much he takes and how densely packs
 are planted. The sequential half is quality control. Each gate output is a
 yes-or-no trial, and a sequential probability ratio test accumulates evidence
@@ -1235,8 +1234,8 @@ calculation, and not by the sequential test.
 Precisely, a canary is a deliberately planted, recognizable span whose
 presence in an observed output is evidence of a specified leak. A false negative misses
 a carried canary; a false alarm flags an innocent output. These are different
-errors. The power calculation first conditions on $k$ canaries actually being
-carried. The hypergeometric model then accounts for not knowing $k$: it is the
+errors. The power calculation first conditions on $j$ canaries actually being
+carried. The hypergeometric model then accounts for not knowing $j$: it is the
 count of marked spans in a sample drawn without replacement.
 
 For the sequential test, let $X_i=1$ mean that observed output $i$ is flagged,
@@ -1244,7 +1243,7 @@ and $X_i=0$ otherwise. Under the null hypothesis these independent observations
 have flag probability $p_0$; under the leak hypothesis, $p_1>p_0$. The
 accumulated log-likelihood ratio is
 \[
-L_n=\sum_{i=1}^n\left[X_i\ln\frac{p_1}{p_0}
+L_\tau=\sum_{i=1}^{\tau}\left[X_i\ln\frac{p_1}{p_0}
  +(1-X_i)\ln\frac{1-p_1}{1-p_0}\right].
 \]
 A flag pushes the score up; a non-flag pushes it down. The sequential
@@ -1288,26 +1287,26 @@ stopping counts and reported capped means.
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sealed-power}
 With per-canary false-negative rate $\beta$, independent across canaries, a
-leak carrying $k$ canary spans is detected with probability
+leak carrying $j$ canary spans is detected with probability
 \[
-1-\beta^k.
+1-\beta^j.
 \]
 
 Under\marginnote{\input{figures/spark-canary-hypergeom}\par
 \emph{Approximate operating curve:} detection vs.\ leak size $m$, with $\frac{c}{n}(1-\beta)=0.04$. The exact fixed-count planting model samples without replacement.} uniform planting of $c$ canaries in an $n$-span corpus, a leak of $m$ spans
 chosen independently of their hidden locations
-carries $K\sim\mathrm{Hypergeom}(n,c,m)$ canaries, so
+carries $J\sim\mathrm{Hypergeom}(n,c,m)$ canaries, so
 \[
-\Pr(\text{detect}\mid m)=1-\mathbb{E}[\beta^K]\approx
+\Pr(\text{detect}\mid m)=1-\mathbb{E}[\beta^J]\approx
 1-\bigl(1-\tfrac{c}{n}(1-\beta)\bigr)^m,
 \]
 the operating curve.
 \end{pdclaim}
 
 \paragraph{One flag does not decide the test.}
-For the accumulated log-likelihood $L_n$ defined above, take null flag
+For the accumulated log-likelihood $L_\tau$ defined above, take null flag
 probability $p_0=0.001$ and leak flag probability $p_1=0.01$. A flagged output adds
-$\ln10\approx2.303$ to $L_n$; a non-flag adds
+$\ln10\approx2.303$ to $L_\tau$; a non-flag adds
 $\ln(0.99/0.999)\approx-0.00905$. Thus one flag followed by one non-flag
 leaves the score near $2.294$. For nominal targets $\alpha=0.01$ and
 $\gamma=0.05$, the usual upper boundary is $\ln95\approx4.554$, so this
@@ -1322,7 +1321,7 @@ promise for the checkout diagnosis.
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:sealed-latency}%
 \marginnote{\input{figures/spark-wald-sprt}\par
-\emph{Wald stopping boundary:} Sequential ratio walk with thresholds $A, B$.}%
+\emph{Wald stopping boundary:} Sequential ratio walk with thresholds $\theta_1, \theta_0$.}%
 Assume i.i.d. Bernoulli gate outputs under two fixed, simple hypotheses,
 with rates $0<p_0<p_1<1$.
 
@@ -1341,12 +1340,12 @@ the SPRT minimizes both expected sample sizes.
 \end{pdclaim}
 
 For fixed nominal targets\pdcite{wald,wald-wolfowitz} $\alpha,\gamma>0$, $\alpha+\gamma<1$, the usual
-thresholds are $A=(1-\gamma)/\alpha$ and $B=\gamma/(1-\alpha)$.
-Replacing the terminal log-likelihood by $\ln A$ or $\ln B$ and the actual
+thresholds are $\theta_1=(1-\gamma)/\alpha$ and $\theta_0=\gamma/(1-\alpha)$.
+Replacing the terminal log-likelihood by $\ln \theta_1$ or $\ln \theta_0$ and the actual
 error probabilities by the targets gives the \emph{no-overshoot approximation}
 \[
 \mathbb{E}_1[N]\approx
-\frac{(1-\gamma)\ln A+\gamma\ln B}{\mathrm{KL}(p_1\Vert p_0)}.
+\frac{(1-\gamma)\ln \theta_1+\gamma\ln \theta_0}{\mathrm{KL}(p_1\Vert p_0)}.
 \]
 Here $\alpha$ targets false alarms; $\gamma$ targets misses and is distinct
 from the per-canary miss rate $\beta$ and the
@@ -1380,7 +1379,7 @@ one percent), against a channel through which each smuggled canary evades the
 detector with probability $\beta=0.2$: a 100-span leak is
 caught with exact hypergeometric probability $0.554$, an 800-span leak at
 $0.999$. The recorded conditional-power comparisons at
-$k=1,2,5$ (analytic $0.800$, $0.960$, $0.99968$ against simulated $0.8016$,
+$j=1,2,5$ (analytic $0.800$, $0.960$, $0.99968$ against simulated $0.8016$,
 $0.9608$, $0.99967$) are simulation reports, not new measurements here.
 At $p_0=10^{-3}$, $p_1=10^{-2}$, $\alpha=0.01$, $\gamma=0.05$, the
 no-overshoot approximations are $296.9$ outputs under leak and $431.9$ under
@@ -1409,7 +1408,7 @@ damage.
 \setlength{\parskip}{4pt plus 1pt}
 Independence and \emph{secrecy} of planting are decisive: an adversary who
 obtains the canary list with probability $0.3$ and strips all of them drops
-reported simulated power from $0.9997$ to $0.698$ at $k=5$ [internal,
+reported simulated power from $0.9997$ to $0.698$ at $j=5$ [internal,
 \texttt{a4\_canary\_sprt.py}]; canary secrecy is part of the security
 boundary.
 
@@ -1479,9 +1478,9 @@ values, giving a $b$-bit upper bound per fixed-length output. This is a bound
 on permitted distinguishability, not a claim that every workload leaks that
 much, and it is a different result from the committed-input noninterference
 property. Across $q$ jobs the raw capacity is $q\cdot b$ bits; choosing among
-$s$ timing slots adds up to $\log_2 s$ bits per event, which is why timing sits
-outside the possibilistic model. The $\log_2 s$ expression is a finite-alphabet
-upper bound: across at most $q$ events, at most $s^q$ slot sequences are
+$w$ timing slots adds up to $\log_2 w$ bits per event, which is why timing sits
+outside the possibilistic model. The $\log_2 w$ expression is a finite-alphabet
+upper bound: across at most $q$ events, at most $w^q$ slot sequences are
 distinguishable. Predictive mitigation \pdcite{azm10} provides a framework for
 controlling timing observations; the slot count here is not a proof for an
 arbitrary scheduler.
@@ -1597,7 +1596,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item \textbf{Noninterference is checked by running the world twice} (self-composition, in the verification literature's word): identical except for the secret, the two runs must agree on everything that leaves through the slot, modulo the declassification the gate performs. The finite clean-room model passes this check to depth seven.
 \item \textbf{Enforcement is relative to a plant and observations}: this gate can refuse egress, and an observed read can tell it when to do so. Internal events declared uncontrollable cannot be disabled at that boundary; their detection needs separate evidence.
 \item \textbf{The privacy budget is a ledger that conserves}: every release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance.
-\item \textbf{Canaries have conditional power}: a leak carrying $k$ canaries escapes all their independent detections with probability $\beta^{k}$ ($0.008$ at $\beta=0.2$, $k=3$). The sequential model estimates outputs until either decision, not a guaranteed alarm deadline.
+\item \textbf{Canaries have conditional power}: a leak carrying $j$ canaries escapes all their independent detections with probability $\beta^{j}$ ($0.008$ at $\beta=0.2$, $j=3$). The sequential model estimates outputs until either decision, not a guaranteed alarm deadline.
 \item The whole channel is bounded before timing: \textbf{$q \cdot b$ bits} may leave through $q$ queries of $b$ bits each, and the room's guarantee is that budget, not silence.
 \item \textbf{A shared store needs labels, not a budget}: retrieval releases records exactly, so it has no finite $\varepsilon$; training can release through a ledger keyed by data subject, and scrubbing removes no owner's label.
 \end{enumerate}
@@ -1618,9 +1617,9 @@ $2\binom{4}{2}=12$; those must stay indistinguishable forever. The remaining
 $\binom{8}{2}-12=16$ pairs have different parities and may differ at explicit
 gate-release steps only. Table~\ref{tab:sealed-parity-pairs} shows how this
 scales: doubling the secret count roughly quadruples both counts, since
-both grow quadratically in $n$ while the equal-parity share of the total
-approaches one half. For even $n$, the exact share is $(n-2)/(2(n-1))$,
-which gives $1/3$ at $n=4$ and $3/7$ at $n=8$.
+both grow quadratically in $h$ while the equal-parity share of the total
+approaches one half. For even $h$, the exact share is $(h-2)/(2(h-1))$,
+which gives $1/3$ at $h=4$ and $3/7$ at $h=8$.
 \end{pdsolution}
 
 \begin{table}[H]\centering\footnotesize
@@ -1804,7 +1803,7 @@ Stopping counts include either decision; no wall-clock arrival model is specifie
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:sealed-canary-secrecy}
 An adversary obtains the canary list with probability $0.3$ and strips every
-canary it knows. Reported simulated power at $k=5$ falls from $0.9997$ to $0.698$.
+canary it knows. Reported simulated power at $j=5$ falls from $0.9997$ to $0.698$.
 Propose one contract clause and one mechanism change that restore most of the
 lost power, and say what no redesign can restore.
 \end{pdexercise}
@@ -1814,10 +1813,10 @@ planting list is a breach with its own bond, and the list is regenerated per
 job. The mechanism: plant per job from a fresh seed held by Derek's gateway
 alone, so a stolen list need not expose later jobs. Rotation alone does not lower
 a fixed per-job compromise probability: if that probability remains $0.3$,
-unconditional power is still $0.7(1-\beta^k)$, about $0.699776$ at $k=5$.
+unconditional power is still $0.7(1-\beta^j)$, about $0.699776$ at $j=5$.
 Restoring most lost power requires a separately justified reduction in list
 compromise or a detector not dependent on that list. Conditional on an
-uncompromised list, power remains $1-\beta^k$. What no redesign
+uncompromised list, power remains $1-\beta^j$. What no redesign
 restores is power against an adversary who holds \emph{this} job's list: with
 the canaries stripped the leak carries none and Theorem~\ref{thm:sealed-power}
 gives $1-\beta^0=0$, which is why detection is backed by a bounded bond and is
