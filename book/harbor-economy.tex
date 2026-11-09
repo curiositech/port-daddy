@@ -1380,11 +1380,14 @@ expected gains, lost gains, and the lost share of first-best gains are
 \text{Lost / first-best:}\quad &5/32=15.625\%.
 \end{aligned}
 \]
-[internal; algebra shown].
+[internal; algebra shown]. For these uniform priors Myerson and Satterthwaite
+show that this equilibrium gives the highest expected gains from trade of any
+mechanism that is incentive compatible, individually rational and budget
+balanced~\pdcite{myerson1983}, so $5/32$ is the smallest loss such a mechanism
+can have here.
 
-\pdscope{These are properties of this uniform-prior equilibrium, not a universal
-inefficiency percentage supplied by Theorem~\ref{thm:ms},
-and not measurements of the harbor market.}
+\pdscope{These percentages hold for this uniform prior only. They are not
+measurements of the harbor market.}
 \end{pdexample}
 
 \begin{pdclaim}{Theorem}{Conditional Bilateral-Trade Boundary}
@@ -1396,9 +1399,9 @@ whose interiors overlap. No mechanism simultaneously achieves Bayesian incentive
 compatibility, interim individual rationality, ex-post efficient trade, and
 expected budget balance without outside subsidy~\pdcite{myerson1983}.
 \end{pdclaim}
-\pdscope{The theorem constrains such a slice; it does not prove that the
-harbor mechanism is incentive compatible, or say which of the four properties
-the full market gives up.}
+\pdscope{The theorem constrains such a slice. It does not prove that the
+harbor mechanism is incentive compatible, and it does not say which property
+a given mechanism gives up; that depends on how the mechanism sets its price.}
 
 
 
@@ -1407,6 +1410,24 @@ $(v,c_{\mathrm s})=(70,60)$ sits inside the shaded band the mechanism refuses. T
 holds $7/32$ of all draws, so the lost trades are no rare corner of the square.
 
 \input{figures/fig-he-ms-wedge}
+
+\paragraph{Which property the harbor's prices give up.} The chapter's
+contracts trade at posted prices. Bob's $400$\,\textsc{cr} bounty, the
+$90$\,\textsc{cr} rent and Carol's flat licence fee are each written into the
+float plan before the other side reports anything, and that side takes the
+price or leaves it. A posted price keeps three of the four properties. Bob
+accepts exactly when his value is at least the price and Alice exactly when
+her cost is at most it; each is a best response whatever the other does, so
+the price is incentive compatible. Nobody trades at a loss,
+so it is individually rational, and the buyer pays exactly what the seller
+receives, so its budget balances on every trade. By Theorem~\ref{thm:ms} it
+must give up efficiency, and it does: a trade with $c_{\mathrm s}<v$ is lost
+whenever the price lies outside $[c_{\mathrm s},v]$. On the uniform square of
+the example, a price $p$ yields expected gains $p(M-p)/(2M)$. They are
+largest at $p=M/2$, where they equal $M/8$, which is $75\%$ of the first-best
+$M/6$; the double auction's linear equilibrium reaches
+$27/32\approx84.4\%$. At $M=90$ the three amounts are $11.25$, $12.66$ and
+$15$\,\textsc{cr} [verified, closed form].
 
 The expected-externality mechanism of Arrow and of d'Aspremont and
 G\'erard-Varet (AGV)~\pdcite{dagv1979} keeps efficiency instead. It is
@@ -3199,9 +3220,11 @@ cross-currency totals require time-indexed valuation and an explicit exposure mo
 computed from retained outcomes and their tombstones; compensation cannot erase past reliance. Every
 folk-theorem result rests on a grading process included in the monitoring model.
 Myerson and Satterthwaite showed that a two-party trading mechanism cannot
-have all four of its desirable properties at once. That applies here only
-where their assumptions hold, and this chapter has not shown which property
-the full market gives up. Today the bond ledger is built and never creates or
+have all four of its desirable properties at once. Where their assumptions
+hold, the chapter's posted prices keep incentive compatibility, individual
+rationality and budget balance, and give up efficiency: on uniform values a
+posted price captures at most $75\%$ of the possible gains, against $84.4\%$
+for the best mechanism with the same three properties. Today the bond ledger is built and never creates or
 loses value. Two pieces are partly built: identities that agents cannot forge
 inside one harbor, and the record of each job's outcome. Two are not built: a
 reputation score, and a way for one harbor to verify identities issued by
@@ -3355,18 +3378,21 @@ rate movement, oracle delay, fees, and slippage; those assumptions are not suppl
 here.
 \end{proof}
 
-\begin{proof}[Proof of Theorem~\ref{thm:ms} (which property is given up)]
+\begin{proof}[Note on Theorem~\ref{thm:ms} (which property is given up)]
 \setlength{\parskip}{4pt plus 1pt}
-Restrict attention to a bilateral slice satisfying the assumptions stated in
-Theorem~\ref{thm:ms}.
+The theorem is Myerson and Satterthwaite's~\pdcite{myerson1983}; it is cited,
+not proved, here. What the chapter adds is the posted-price case. Fix a price
+$p$ before either side reports. Accepting iff $v\ge p$ is a dominant strategy
+for the buyer and accepting iff $c_{\mathrm s}\le p$ is one for the seller;
+every trade has $c_{\mathrm s}\le p\le v$; and the buyer's payment is the
+seller's receipt. So the posted price is incentive compatible, individually
+rational ex post and exactly budget balanced, and the theorem leaves
+efficiency as the property it gives up.
 
-The Myerson--Satterthwaite impossibility then rules out the
-simultaneous achievement of all four desiderata.
-
-The implication is conditional:
-before declaring which property the harbor gives up, a mechanism must specify its
-types and transfers and prove its incentive and participation properties. This
-chapter has not done so, hence makes no stronger allocation claim.
+With $v$ and $c_{\mathrm s}$ independent and uniform on $[0,M]$, trade
+occurs with probability $\tfrac{M-p}{M}\cdot\tfrac{p}{M}$ and its expected
+gain given trade is $\tfrac{M+p}{2}-\tfrac{p}{2}=\tfrac M2$. The expected
+gains are therefore $p(M-p)/(2M)$, maximized at $p=M/2$ with value $M/8$.
 \end{proof}
 % ═══════════════════════════════════════════════════════════════════════════════
 \pdprintsolutions
