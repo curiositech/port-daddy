@@ -1,0 +1,92 @@
+{
+ "source_pdf": "Suisse publication build of branch book/research-agenda-additions (head 6727ca859 content), 897 pages",
+ "dpi": 150,
+ "scale": "1.0x",
+ "pages": [
+  {
+   "slug": "swk-control-game",
+   "pdf_page": 131,
+   "label": "105",
+   "file": "00-swk-control-game-p105.png",
+   "in_repo": true
+  },
+  {
+   "slug": "ls-many-authors",
+   "pdf_page": 400,
+   "label": "374",
+   "file": "01-ls-many-authors-p374.png",
+   "in_repo": false
+  },
+  {
+   "slug": "ls-many-authors-example",
+   "pdf_page": 409,
+   "label": "383",
+   "file": "02-ls-many-authors-example-p383.png",
+   "in_repo": true
+  },
+  {
+   "slug": "sealed-person-ledger",
+   "pdf_page": 278,
+   "label": "252",
+   "file": "03-sealed-person-ledger-p252.png",
+   "in_repo": true
+  },
+  {
+   "slug": "sealed-canary-audit",
+   "pdf_page": 287,
+   "label": "261",
+   "file": "04-sealed-canary-audit-p261.png",
+   "in_repo": false
+  },
+  {
+   "slug": "sealed-tenants",
+   "pdf_page": 291,
+   "label": "265",
+   "file": "05-sealed-tenants-p265.png",
+   "in_repo": false
+  },
+  {
+   "slug": "stp-consolidation",
+   "pdf_page": 455,
+   "label": "429",
+   "file": "06-stp-consolidation-p429.png",
+   "in_repo": false
+  },
+  {
+   "slug": "stp-skill-attribution",
+   "pdf_page": 497,
+   "label": "471",
+   "file": "07-stp-skill-attribution-p471.png",
+   "in_repo": false
+  },
+  {
+   "slug": "stp-transmission",
+   "pdf_page": 508,
+   "label": "482",
+   "file": "08-stp-transmission-p482.png",
+   "in_repo": false
+  },
+  {
+   "slug": "he-licence-split",
+   "pdf_page": 558,
+   "label": "532",
+   "file": "09-he-licence-split-p532.png",
+   "in_repo": false
+  },
+  {
+   "slug": "app-isolation",
+   "pdf_page": 863,
+   "label": "837",
+   "file": "10-app-isolation-p837.png",
+   "in_repo": false
+  },
+  {
+   "slug": "app-players",
+   "pdf_page": 893,
+   "label": "867",
+   "file": "11-app-players-p867.png",
+   "in_repo": false
+  }
+ ],
+ "video": "new-sections-page-through.mp4: the opening page of each new section, two seconds each, same renders"
+}
