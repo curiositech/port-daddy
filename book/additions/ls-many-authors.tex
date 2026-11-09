@@ -3,6 +3,7 @@
 % unnumbered "Review of the key ideas". Everything below is unbuilt.
 
 \section{Many authors, one sovereign}\label{sec:ls-many-authors}
+\pdstatus{\Vision}{nothing in this section is implemented; its experiments are protocols, not results}
 
 Until now one person has authorized the swarm. Section~\ref{sec:roles} read
 that requirement off the grant lifecycle: the four steps need ``exactly one
@@ -14,10 +15,11 @@ asks what survives when $M$ people direct $N$ agents through one daemon,
 what the single-operator design must add, and which conflicts between their
 directions can be found before any agent acts.
 
-The answer reuses the kernel, the grant, the commitment checker and the claim.
+The answer reuses the kernel, the grant, the claim, and the commitment checker
+of \pdchapref{he}{The Harbor Economy}, a procedure that tests whether a set of
+obligations and prohibitions can all hold at once.
 What it adds is an owner table, a precedence rule, and a routing rule for
-escalations. Nothing in this section exists in the reference implementation.
-Each rule below states its maturity; experiments are protocols, not results.
+escalations. Each rule below states its maturity.
 
 \subsection{Three direct answers}\label{sec:ls-many-authors-answers}
 
@@ -36,9 +38,9 @@ for any number of requesters%
 . Their requests serialize like anyone else's. What changes is the author
 slot. Several people now originate authority, so the quoted premise is
 false, and the escalation lane of \S\ref{sec:escalation} no longer knows whom
-to interrupt. The smallest repair is not one administrator. It is one
-\emph{charter}: a root object that records who delegated what to whom, which
-rule settles a clash, and how the charter itself may change.
+to interrupt. The smallest repair is one \pdterm{charter}: a root object that
+records who delegated what to whom, which rule settles a clash, and how the
+charter itself may change. Several people may still hold administrative access.
 
 \paragraph{Can one person control all the agents?} In authority, yes. Every grant descends from the charter,
 so whoever holds the charter can withdraw all of them through the override
@@ -68,7 +70,7 @@ entitled to decide how they fit together.
 \subsection{Nine rules for many authors}\label{sec:ls-many-authors-rules}
 
 The rules below are the smallest set we found that keeps one sovereign while
-admitting several authors. A rule marked \Designed{} is specified completely
+allowing several authors. A rule marked \Designed{} is specified completely
 here and reuses a check the book already specifies. A rule marked \Vision{}
 needs policy content or mechanisms not yet written down.
 
@@ -161,12 +163,12 @@ posterior inside a single normative theory and leave merging across
 individuals to future work. Between two people, lateness measures only who
 spoke second.
 
-Rule R8 has a price. Routing every escalation in a scope to its one owner is
+Rule R8 has a cost. Routing every escalation in a scope to its one owner is
 the sole-owner arm of the queueing boundary (Theorem~\ref{thm:specialization});
 letting any of several owners answer is the pooled arm. GitHub's code-owner
 review takes the pooled arm: ``an approval from any of the owners is
-sufficient''~\pdcite{githubcodeowners}. Theorem~\ref{thm:specialization} prices
-that choice. It is not free in either direction.
+sufficient''~\pdcite{githubcodeowners}. Theorem~\ref{thm:specialization} computes
+what that choice costs, and both arms have a cost.
 
 Rule R9 bounds the override. An unconditional global stop held by each of $M$
 people gives the swarm $M$ independent ways to halt. Exit stays inalienable
@@ -224,22 +226,22 @@ row 6 to row 7 and is absent in row 9.}
 \end{tabularx}
 \end{table}
 
-Four rows deserve a sentence. Row~1's completeness is real but narrow. The
+Four rows deserve a sentence. Row~1, claim overlap, has real but narrow completeness. The
 advisory-claim theorem of \pdchapref{bonded}{The Bonded Commons} reports every
 overlap%
 \ifpdbook
 \ (Theorem~\ref{bonded:thm:advisory})%
 \fi
 , and its overlap relation is about files. A signature change in one file and a
-call in another overlap nowhere, so row~6 lies outside that guarantee
-entirely. Row~6's mechanisms exist in practice. Speculative analysis performs
+call in another overlap nowhere, so row~6, a clean merge with a broken build,
+lies outside that guarantee entirely. Row~6's mechanisms exist in practice. Speculative analysis performs
 the likely merge, build and test ahead of time on clones and reports only the
 conflicts those steps reveal~\pdcite{brun2011proactive}; at larger scale, two
 changes are flagged when they affect a common set of build
-targets~\pdcite{ananthanarayanan2019keeping}. Horwitz, Prins and Reps state row~7's limit precisely: ``it is
+targets~\pdcite{ananthanarayanan2019keeping}. Horwitz, Prins and Reps state the limit of row~7, merged code that meets one specification, precisely: ``it is
 undecidable whether a program modification actually leads to'' a change in
 behavior, so their integration algorithm computes ``a safe
-approximation''~\pdcite{horwitz1989integrating}. Row~8 is the collaborative
+approximation''~\pdcite{horwitz1989integrating}. Row~8, live co-editing of one text, is the collaborative
 editor's version of the same gap. Strong eventual consistency guarantees that
 replicas which have delivered the same updates have equivalent
 state~\pdcite{shapiro2011crdt}, and Kleppmann and colleagues show that this
@@ -249,7 +251,7 @@ text, not of what either person meant by it.
 
 \subsection{Unity of command and the escalation path}\label{sec:ls-many-authors-escalation}
 
-Rule R8 needs a target. The incident command system's answer is \emph{unity of
+Rule R8 needs a target. The incident command system's answer is \pdterm{unity of
 command}: ``each individual only reports to one person''~\pdcite{fema2017nims}.
 The theorem below states exactly when that answer is needed for escalation to
 be well defined.
@@ -296,6 +298,23 @@ for $q$. Both reach $s$ through $v$, so both lie in $C(\{s\})$, which is
 therefore not a chain.
 \end{proof}
 
+\begin{pdexample}{A Diamond in the Delegation Graph}
+\setlength{\parskip}{4pt plus 1pt}
+This is a constructed example. Bob holds the charter and delegates to Alice,
+to Carol and to \texttt{tests/}. Alice and Carol each delegate
+\texttt{payments/}. A conflict that touches only \texttt{tests/} has common
+authorities $C=\{\text{Bob}\}$, a line of one, so it goes to Bob. A conflict on
+\texttt{payments/} has $C=\{\text{Alice},\text{Carol},\text{Bob}\}$. Bob is above
+both, but Alice and Carol do not reach each other, so the set is not a line
+and there is no first hop.
+
+Three repairs restore one. Let Carol's authority come through Alice (Bob to
+Alice to Carol to \texttt{payments/}), so the line is Carol, Alice, Bob. Split
+the scope into \texttt{payments/api} under Alice and \texttt{payments/db} under
+Carol. Or fix a tie-break order between Alice and Carol, as GitHub's code-owner
+file does when its last matching line wins.
+\end{pdexample}
+
 The theorem is elementary; its use is to name the design rule. A tie-break
 that picks one parent per node restores a unique path, and it does so by
 choosing a spanning tree: the rule is unity of command again, chosen by an
@@ -309,7 +328,7 @@ patterns into one owning line per file.
 Chapter~0 applied Arrow's theorem to agents voting on proposals. In a
 many-author harbor the aggregation problem belongs to the people.
 
-The admission rule above aggregates by conjunction: a plan is admissible when
+The admission rule above aggregates by conjunction: a plan is allowed when
 it satisfies every accepted commitment of every principal. That rule is not a
 dictatorship, but it is partial. When the commitments cannot all hold, it
 refuses to choose, and something else must. Suppose that something must rank
@@ -341,14 +360,17 @@ locks%
 ~\pdcite{sen1970impossibility}. With people in place of agents the warning
 reads the same way: an owner who cannot be asked to yield can block an outcome
 everyone prefers. That is why R5 makes precedence waivable, and why the
-direct-release step of that chapter's dispute ladder comes first. Money does
-not dissolve the problem either. When several principals pay one agent,
-Bernheim and Whinston find the aggregate incentive scheme cost-minimizing, but
-noncooperative principals induce an efficient action only if collusion among
-them would implement the first-best action at first-best
-cost~\pdcite{bernheim1986common}. ``Account, don't auction''
-(\S\ref{sec:account}) was a single-operator rule. With several operators it
-becomes an open question.
+direct-release step of that chapter's dispute ladder comes first.
+
+Paying the agent does not make the conflict go away. Bernheim and Whinston
+studied one agent paid by several bosses at once~\pdcite{bernheim1986common}.
+They found that the bosses' combined payments get the chosen work done at the
+lowest cost. But when each boss sets pay separately, the work chosen is
+efficient only if the bosses, acting together, could reach the ideal outcome:
+the work and the cost they would choose if they could observe and pay for the
+agent's effort directly (the \emph{first-best}). So ``Account, don't auction''
+(\S\ref{sec:account}), keep accounts and run no internal auctions, was a rule
+for one operator; with several paying operators it is an open question.
 
 \paragraph{Notation for the example.} \pdchapref{he}{The Harbor Economy}
 develops the commitment checker in full; the example below needs four pieces
@@ -358,10 +380,10 @@ $\mathsf F(a,S,[t_1,t_2])$ is a prohibition: it must not happen in that
 window. A Horn rule $p\to q$ says that whenever $p$ holds, $q$ holds too. The
 checker applies such rules until nothing new follows, and reports a conflict
 when an obligation and a prohibition on the same action and scope have
-overlapping windows. To find who is responsible, the \emph{deletion filter}
+overlapping windows. To find who is responsible, the \pdterm{deletion filter}
 removes one principal's commitments at a time and reruns the check, keeping a
 principal whenever the conflict disappears without them. The principals left
-at the end form the \emph{blame set}: a group whose directions still conflict
+at the end form the \pdterm{blame set}: a group whose directions still conflict
 on their own, from which no one can be dropped.
 
 \begin{pdexample}{Two Authors, Three Agents, One Afternoon}
@@ -381,11 +403,15 @@ Alice's rule $\texttt{schema\_change}\to
 release freeze is $\mathsf F(\texttt{migrate},\{\texttt{db:checkout}\},
 [0,4320])$, three days being $3\times24\times60=4320$ minutes. One Horn step
 fires the obligation, and the intervals overlap on
-$[\max(0,0),\min(120,4320)]=[0,120]$: a conflict. The deletion filter makes two
-checker calls. Without Alice the set holds no obligation, so no conflict, and
-Alice stays. Without Bob it holds no prohibition, and Bob stays. The blame set
-is $\{\text{Alice},\text{Bob}\}$. The scope \texttt{db:checkout} is Bob's, so
-precedence (R7) keeps the freeze. The daemon refuses Wren's plan before Wren
+$[\max(0,0),\min(120,4320)]=[0,120]$: a conflict. To find who is responsible
+for the clash, the deletion filter removes one person's directions at a time
+and reruns the conflict check. Remove Alice's: Bob's freeze stands alone,
+nothing requires a migration, so there is no conflict; Alice's directions are
+part of the cause. Remove Bob's: Alice's requirement to migrate stands alone,
+nothing forbids it, so again no conflict; Bob's are part of the cause too. The
+blame set is $\{\text{Alice},\text{Bob}\}$: both people share responsibility.
+Because \texttt{db:checkout} belongs to Bob, the precedence rule R7 keeps his
+freeze. The daemon refuses Wren's plan before Wren
 starts, and Alice receives the witness. Nobody had to decide anything.
 
 \textbf{Instruction time: an infeasible schedule.} Alice asks Bob for one
