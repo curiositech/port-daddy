@@ -224,7 +224,7 @@
 Bob's checkout repair now has a contract. Alice's team may work, and both
 parties have reserved funds, but they still need rules for conflicts,
 interruptions and disputed results. Wren's genuine patch includes an
-unrelated migration; Pike makes the failing test disappear. Neither a passing
+unrelated migration; Drake makes the failing test disappear. Neither a passing
 test count nor a payment promise settles those cases.
 
 Take one local conflict. Wren (Agent~A in
@@ -591,7 +591,7 @@ Figure~\ref{fig:bonded-regiment-boundary} sets the two paths side by side.
 \section{Layer 2: Append-Only Attribution}\label{sec:attribution}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Pike may hold permission to edit a test file and still violate Bob's
+Drake may hold permission to edit a test file and still violate Bob's
 acceptance rule by deleting the regression. The scope layer answers ``was this
 edit allowed?'' It cannot answer ``did this allowed edit break the deal?'' To
 settle that, the adjudicator needs a record of exactly which diff the session
@@ -621,14 +621,15 @@ An evidence trail $N = \langle n_1, n_2, \ldots, n_k \rangle$ is an ordered sequ
 \begin{pdclaim}{Theorem}{Append-Only Trail}
 \setlength{\parskip}{4pt plus 1pt}
 \label{lem:integrity}
-The evidence trail is append-only by construction.
+The evidence trail is append-only through the API.
 
-No \texttt{UPDATE} or targeted \texttt{DELETE} operation exists in the system's API surface. Notes are destroyed only by explicit administrative deletion of the whole parent session (CASCADE), which is a logged administrative act distinct from normal transaction lifecycle operations.
+No API operation edits or deletes a note. Removing a session (\texttt{pd session rm}) archives it: its active claims are released, an active session is marked abandoned, a tombstone note is appended, and every earlier note is kept.
 \end{pdclaim}
+\pdscope{The database schema still declares \texttt{ON DELETE CASCADE} from notes to their session, so someone with direct write access to the database, outside the API, could delete a session row and its notes; the theorem does not cover that.}
 
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-By code inspection of the session module: the note insertion API performs only \texttt{INSERT INTO session\_notes}. The only deletion path is \texttt{DELETE FROM sessions WHERE id = ?}, which triggers \texttt{ON DELETE CASCADE}. Since transaction completion (commit or abort) updates the session's \emph{status} field but does not delete the session row, notes survive all normal lifecycle transitions.
+By code inspection of the session module (\texttt{lib/sessions.ts}): the note API performs only \texttt{INSERT INTO session\_notes}, and the module issues no \texttt{UPDATE} or \texttt{DELETE} against notes. Its one removal operation releases the session's active file claims, sets an active session's status to \emph{abandoned}, records archive metadata and appends a tombstone note; it issues no \texttt{DELETE} against \texttt{sessions}. Commit and abort update only the session's \emph{status} field. So notes survive every operation the API offers.
 \end{proof}
 
 \subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
@@ -652,7 +653,7 @@ The collection $\{R_{\text{harbor},\ell}\}_{\ell}$ is the \emph{Merkle forest}: 
 \end{definition}
 
 \begin{pdexample}{Following a deleted test through the trail}
-This is a constructed example. Pike's session \texttt{s-41} records four
+This is a constructed example. Drake's session \texttt{s-41} records four
 notes: $n_1$ ``claim \texttt{tests/checkout.spec.ts}'', $n_2$ ``diff: delete
 test \texttt{checkout\_regression}'', $n_3$ ``tests pass 41/41'' and $n_4$
 ``handoff''. The hashes chain: $h_1=H(n_1)$, $h_2=H(n_2 \| h_1)$,
@@ -669,10 +670,11 @@ one.
 
 The proof has limits. It shows that $n_2$ was recorded in \texttt{s-41} at
 epoch~9. It does not show that $n_2$ describes the real diff; for that, the
-diff itself must pass through the checked write path. An administrator can
-still delete \texttt{s-41} outright (CASCADE), and that deletion is logged.
-So the trail is append-only through the API: notes can be added, never edited
-or removed one at a time.
+diff itself must pass through the checked write path. Removing \texttt{s-41}
+through the API only archives it and appends a tombstone note; $n_1$ to $n_4$
+stay. Someone with direct access to the database could still delete the
+session row and its notes, but the epoch-9 root already sent to the outside
+witness (below) would then no longer match the record.
 \end{pdexample}
 
 Figure~\ref{fig:bonded-merkle-forest} follows the inclusion check: start with
