@@ -725,9 +725,13 @@ Reverting either mutation restores the property [internal,
 
 The clause about committed input is a real hypothesis. It makes the property
 an instance of \emph{delimited release} \pdcite{sm03}, a policy that lets
-only stated expressions of the secret leave, in the special case where
-delimited release reduces to noninterference. Delimited release requires that
-no variable used in a declassification is updated before it. The boundary
+only stated expressions of the secret leave; Sabelfeld and Myers call those
+expressions escape hatches. The property has exactly one, the parity $g(s)$,
+so secrets with the same parity must look the same to Erin. It is not the
+degenerate case with no escape hatch, which is plain noninterference and
+would forbid even the parity release. Their enforcement requires that no
+variable used in a declassification is updated before it, and the
+committed-input clause is what gives the model that guarantee. The boundary
 below states what the hypothesis leaves out, and
 Section~\ref{sec:sealed-budget} measures it. In Sabelfeld and Sands' later
 taxonomy \pdcite{ss09}, the release ledger of \S\ref{sec:sealed-budget}
