@@ -69,7 +69,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync, existsSync } from 'node:fs'
-import { dirname, resolve, join } from 'node:path'
+import { dirname, resolve, join, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { publicBookAssetPath } from './stage-book-public-assets.mjs'
 
@@ -325,8 +325,12 @@ function buildIndex(root, files) {
     if (extOf(f) === 'tex') {
       for (const m of text.matchAll(TEX_INCLUDE_RE)) {
         for (const part of m[1].split(',')) {
-          const t = normalizeToken(part)
-          if (!t || ASSET_EXTS.includes(extOf(t))) continue
+          let t = normalizeToken(part)
+          // TeX resolves an \input relative to the including file's directory, so
+          // \input{../figures/fig-x} in book/additions/ reaches book/figures/fig-x.
+          // Resolve it the same way rather than dropping the reference.
+          if (t && t.startsWith('../')) t = posix.normalize(posix.join(dirname(f), t))
+          if (!t || t.startsWith('..') || ASSET_EXTS.includes(extOf(t))) continue
           if (hasPlaceholder(t)) {
             const re = compilePattern(t)
             if (re) patterns.push({ re, token: t, from: f, stem: true })
