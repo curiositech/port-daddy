@@ -50,7 +50,9 @@ class SAEvidenceTests(unittest.TestCase):
 
     def test_owning_argument_keeps_study_and_proposal_distinct(self):
         text=CHAPTER.read_text()
-        text=text[text.index(r'\subsection{Situation awareness'):text.index(r'\subsection{The Bainbridge')]
+        # Anchored on the label: the heading's wording changed in the plain-language
+        # rewrite (it now defines situation awareness in the prose below it).
+        text=text[text.index(r'\label{sec:sa}'):text.index(r'\subsection{The Bainbridge')]
         for token in (r'\pdcite{endsley1995}',r'\pdcite{endsleykiris1995}',
                       'navigation experiment', 'no significant perception',
                       'design hypothesis', 'no human-performance',

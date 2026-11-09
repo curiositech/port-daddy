@@ -135,7 +135,7 @@ class BookEvidenceEditorial(unittest.TestCase):
             "ch05-continuity-rope-splice",
             "ch05-stagecoach-relay-post", "ch05-stepped-surveyors-pole",
             "ch05-wax-seal-signet",
-            "ch06-dockyard-cargo-sling",
+            "ch06-dockyard-cargo-sling", "ch06-grain-tally-board",
             "ch06-reusable-printing-block",
             "ch07-cleanup-repair-kit", "ch07-dual-control-escrow-box",
             "ch07-shear-pin-fuse",
@@ -146,11 +146,7 @@ class BookEvidenceEditorial(unittest.TestCase):
         self.assertEqual(set(placed), expected_placed)
         # The explanatory passage carries these ideas without a second object
         # analogy. Retain the art provenance, but do not restore decoration.
-        # The tally board left the bond-ledger section in the plain-language
-        # rewrite (Erich's decision to cut nautical metaphors that stand in for
-        # a mechanism); its plate and sidecar stay in the tree.
-        for unplaced in ("movable-type", "ch05-episodic-card-file", "ch06-wharf-steelyard-scale",
-                         "ch06-grain-tally-board"):
+        for unplaced in ("movable-type", "ch05-episodic-card-file", "ch06-wharf-steelyard-scale"):
             self.assertNotIn(unplaced, placed)
             self.assertTrue((WEB / "plates/margin-evidence" / (unplaced + ".pdf")).is_file())
             self.assertTrue((WEB / "plates/margin-evidence" / (unplaced + ".json")).is_file())
