@@ -800,7 +800,7 @@ procedure for a stated acceptance criterion, controlled independently of the
 actor being graded. A closure is \emph{witnessed} when it binds that
 procedure's result to the exact task and artifact. A pointer alone is
 insufficient, and a witnessed grade can still be wrong. Re-audit and the
-\pdterm{tombstone}, a record that retracts an earlier outcome without deleting
+tombstone, a record that retracts an earlier outcome without deleting
 it (see the section on revocation below), address that possibility.
 
 The ledger is the Parfitian chain of \S\ref{sec:continuity}
@@ -931,9 +931,14 @@ different quantity: the earnings forgone while a replacement identity is
 restricted.
 \end{pdexample}
 
+A score-based access mechanism is \pdterm{sanction-respecting} when every
+actor that produces a specified dishonest outcome ends up with a lower
+available score than its own clean continuation, counting every identity it
+can route work through, so that no reset escapes the sanction.
+
 \begin{definition}[Sanction-respecting reputation]\label{def:sanction-respecting}
 \pdstatus{\Designed}{for the stated access model and clean continuation}
-Fix a score-based access mechanism and a sanction window. It is \pdterm{sanction-respecting} if some $\Delta>0$ lowers the score available to every actor producing a specified dishonest outcome by at least $\Delta$, relative to that same actor's clean continuation over the same window. Include every identity through which the actor can route work when computing its available score.
+Fix a score-based access mechanism and a sanction window. It is sanction-respecting if some $\Delta>0$ lowers the score available to every actor producing a specified dishonest outcome by at least $\Delta$, relative to that same actor's clean continuation over the same window. Include every identity through which the actor can route work when computing its available score.
 \end{definition}
 
 \begin{pdclaim}{Theorem}{The Newcomer-Score Escape}
@@ -1768,7 +1773,11 @@ owner in a way that an operator who does not run the issuing harbor can
 verify. It is an \emph{unsolved} problem: it needs a way to distribute and
 attest keys between operators who distrust each other.
 
-A federated witness log gives log-\emph{integrity}, not
+A federated \pdterm{witness log} is an append-only log to which every harbor
+posts a signed summary of its records each epoch, so that anyone can check
+what a harbor published, and an auditor holding two different signed
+summaries from one harbor for the same epoch has proof that the harbor signed
+two histories. It gives log-\emph{integrity}, not
 identity-\emph{binding}: it can prove an entry was recorded, but not that the
 key behind it belongs to the owner it names across a trust boundary.
 \pdchapref{he}{The Harbor Economy} needs this binding; the local identity
@@ -1943,7 +1952,7 @@ TrueSkill's uncertainty and a UCB bonus both recognize incomplete evidence, but 
 \pdexercisepointer{\ref{ex:stp-four-broken-assumptions}}{\ref{ex:stp-arms-race}}{\pageref{ex:stp-four-broken-assumptions}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The multi-dimensional reputation protocol}\label{sec:adr0049}
+\section{A reputation protocol with one score per quality}\label{sec:adr0049}
 \pdstatus{\Designed}{specified to proposed; the reference system has no reputation component yet, only the witnessed outcomes it would score}
 % ═════════════════════════════════════════════════════════════════════════════
 
@@ -3289,7 +3298,7 @@ vectors, nontransferable evidence, and taxes/bonds on negative externalities.
 No cap is generically efficient without those payoff assumptions.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:adr0049}}{The multi-dimensional reputation protocol}
+\pdexercisesfor{\S\ref{sec:adr0049}}{A reputation protocol with one score per quality}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:stp-judge-competence}
 For each of accuracy / aesthetics / efficiency, name a competent judge and an

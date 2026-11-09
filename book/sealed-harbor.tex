@@ -248,7 +248,7 @@ estimate of how many outputs detection takes
 the four into one leakage account, and Section~\ref{sec:sealed-limitations}
 states what none of this promises.
 
-\section{One work order, two fences, two gates}\label{sec:sealed-design}
+\section{One signed contract, two fences, two gates}\label{sec:sealed-design}
 
 \paragraph{A diagnostic subtask for the checkout repair.}
 Bob's failing checkout test may require a diagnosis using confidential
@@ -1000,11 +1000,13 @@ additive allowance $\delta$; that parameter is not a number of leaked bits
 Under \pdterm{basic composition}, the privacy losses of successive releases
 add. For $k$ conditionally
 $\varepsilon$-private releases with caps and horizon fixed in advance,
-advanced composition gives $(\varepsilon',\delta')$-privacy for $0<\delta'<1$, where
+\pdterm{advanced composition} bounds the total loss by an $\varepsilon'$ that
+can be smaller than the sum, giving $(\varepsilon',\delta')$-privacy for
+$0<\delta'<1$, where
 \[
 \varepsilon'=\varepsilon\sqrt{2k\ln(1/\delta')}+k\varepsilon(e^{\varepsilon}-1).
 \]
-This is \pdterm{advanced composition}. A possibly smaller $\varepsilon'$
+The possibly smaller $\varepsilon'$
 comes with a positive $\delta'$, so it is a different guarantee from pure DP
 ($\delta=0$), not a stronger one. The ledger records declared costs and
 refuses an overdraw. The reference system's ledger is called A3 below; the
