@@ -25,7 +25,7 @@ that the licensor can change without changing the outcome.}
 Per load & the skill's instructions entering the agent's context & a broader description, so the skill triggers on more tasks \\
 Per file & reference files opened, or buyer files touched & a line telling the agent to read every reference first; more, smaller files \\
 Shapley share & the average marginal contribution of each component & split one needed component into several needed pieces; duplicate a substitute \\
-Leave-one-out & $v(N)-v(N\setminus\{i\})$ for each component $i$ & split a needed component; each piece is paid the whole marginal value \\
+Leave-one-out & $\mathrm{val}(N)-\mathrm{val}(N\setminus\{i\})$ for each component $i$ & split a needed component; each piece is paid the whole marginal value \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -37,7 +37,7 @@ licensor partly writes the behaviour the meter records.
 \begin{property}[Meter steering]\label{prop:he-meter-steering}
 \pdstatus{\Designed}{a boundary on the licence contract}
 \setlength{\parskip}{4pt plus 1pt}
-Let a licence pay $m(\tau)$, where $\tau$ is the trace of a run. The skill's
+Let a licence pay $\mathrm{meter}(\tau)$, where $\tau$ is the trace of a run. The skill's
 text changes the distribution of $\tau$. Suppose two versions of a skill have
 the same distribution of settled outcomes but different expected meter
 values. Then a licensor who maximizes payment prefers the version with the
@@ -54,18 +54,18 @@ signal itself.
 The last two rules read outcomes, not traces, so they survive
 Property~\ref{prop:he-meter-steering}. They fail differently. Fix a set $N$
 of licensed components that may be made available to a task, each owned by
-one licensor. Let $v(S)$ be the expected settled value when exactly the
-components in $S$ are available, so $v(\emptyset)$ is the value with none
+one licensor. Let $\mathrm{val}(\mathcal S)$ be the expected settled value when exactly the
+components in $\mathcal S$ are available, so $\mathrm{val}(\emptyset)$ is the value with none
 of them. A royalty is what a licensor is paid for the use of its
-components, and a \emph{royalty rule} $\phi$ assigns each component a share of
-$v(N)-v(\emptyset)$. The first two properties below are among the Shapley
+components, and a \emph{royalty rule} $\psi$ assigns each component a share of
+$\mathrm{val}(N)-\mathrm{val}(\emptyset)$. The first two properties below are among the Shapley
 fairness conditions used for data marketplaces; the third is the condition
 under which their replication result holds~\pdcite{agarwal2019market}:
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt]
-  \item \textbf{Balance:} the shares sum to $v(N)-v(\emptyset)$.
+  \item \textbf{Balance:} the shares sum to $\mathrm{val}(N)-\mathrm{val}(\emptyset)$.
   \item \textbf{Symmetry:} two components that add the same value to every
   coalition receive equal shares.
-  \item \textbf{Anonymity:} the rule reads $v$ and the component names only,
+  \item \textbf{Anonymity:} the rule reads $\mathrm{val}$ and the component names only,
   not which licensor owns which component.
 \end{itemize}
 A rule is \pdterm{split-proof} if no licensor can raise its total share by
@@ -81,7 +81,7 @@ split-proof on every game, whether or not it is anonymous.
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
 \emph{Complements.} Let a task succeed only when every component in $N$ is
-available, with $v(N)=1$ and $v(S)=0$ otherwise. Every component is then
+available, with $\mathrm{val}(N)=1$ and $\mathrm{val}(\mathcal S)=0$ otherwise. Every component is then
 symmetric to every other, so Balance and Symmetry force a share of $1/n$
 each. A licensor owning $k<n$ of them receives $k/n$. If it cuts one of its
 components into two pieces that work only together, the game has $n+1$
@@ -105,14 +105,14 @@ holds $2/3$.
 \begin{pdclaim}{Theorem}{Leave-One-Out Royalties}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:he-loo-royalty}
-The leave-one-out rule $\phi_i=v(N)-v(N\setminus\{i\})$ is not balanced. A
+The leave-one-out rule $\psi_i=\mathrm{val}(N)-\mathrm{val}(N\setminus\{i\})$ is not balanced. A
 licensor can multiply its leave-one-out royalty by cutting a needed
 component into needed pieces, and a component with an identical substitute
 is paid nothing.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
-In the complements game every component's leave-one-out value is $v(N)-0=1$,
+In the complements game every component's leave-one-out value is $\mathrm{val}(N)-0=1$,
 so $n$ components are paid $n$ against a total of $1$. Cutting one component
 into $j$ needed pieces gives each piece the value $1$, so its owner's royalty
 rises from $1$ to $j$. If two components are identical, removing either
@@ -171,9 +171,9 @@ licensors' components share one context.
 For each task that settles green and in which the harbor assigned the
 licensor's components to be available, release
 \[
-  r \;=\; p\cdot\max\bigl(0,\;L\bigr),
+  p\cdot\max\bigl(0,\;\mathrm{LCB}\bigr),
 \]
-where $p$ is the agreed price per point of effect and $L$ is the lower
+where $p$ is the agreed price per point of effect and $\mathrm{LCB}$ is the lower
 confidence bound, at a level fixed in the licence, on the licensor's pooled
 availability effect. That effect is estimated from availability that the
 harbor randomizes on comparable tasks, as \pdchapref{stp}{From Spawn to Person}
@@ -182,18 +182,18 @@ specifies%
 \ (\S\ref{stp:sec:stp-skill-attribution})%
 \fi
 . The release stays in escrow through the dispute window and is clawed back
-if a re-audit lowers $L$ or reverses the settlement. Loads, opens and
-touched files are recorded as telemetry only; they never set or cap $r$. A cap,
+if a re-audit lowers $\mathrm{LCB}$ or reverses the settlement. Loads, opens and
+touched files are recorded as telemetry only; they never set or cap the release. A cap,
 if the licence has one, is a fixed amount per task written in the licence,
 because a cap computed from the trace can be raised by the licensor's own text.
 \end{definition}
 
 \noindent Take an illustrative price of $p=0.5$\,\textsc{cr} per point and a
-lower bound of $L=12$ points. Carol's release is $0.5\times12=6$\,\textsc{cr}.
+lower bound of $\mathrm{LCB}=12$ points. Carol's release is $0.5\times12=6$\,\textsc{cr}.
 With a licence cap of $8$\,\textsc{cr} per task, fixed in the contract, the
 release is $\min(8,6)=6$\,\textsc{cr}, and $10-6=4$\,\textsc{cr} returns to
 Bob. The
-one-line check becomes $-456+400+50+6+0=0$. If $L\le0$, Carol receives
+one-line check becomes $-456+400+50+6+0=0$. If $\mathrm{LCB}\le0$, Carol receives
 nothing however many files the skill opened.
 
 \pdexercisepointer{\ref{ex:he-meter-steering-edit}}{\ref{ex:he-sybil-licensor}}{\pageref{ex:he-meter-steering-edit}}

@@ -1,7 +1,7 @@
 % IV/fig:he-succession-price: analytical queue comparison, not measured data.
 % Inputs: lambda=1 task/h, xi=.5/h, eta=.25/h; stability requires mu_s>3.
 % Exact forms: W_bd=8/3+11/(mu_s-3), W_naive=8/3+3/(mu_s-3).
-% Read the canary at mu_s=5 and the common limiting floor above pool cost.
+% Read the canary at mu_s=5 and the common limiting lower bound above pool cost.
 % Right-hand labels have their own gutter; leaders never replace data marks.
 \begin{figure}[H]
 \centering
@@ -38,7 +38,7 @@
   \draw[pdinkmuted,line width=.5pt,dotted] (axis cs:12,8/3)
     --(axis description cs:1.08,.16);
   \node[pd label,anchor=west,inner sep=3pt]
-    at (axis description cs:1.08,.16) {floor $2.67$ h};
+    at (axis description cs:1.08,.16) {lower bound $2.67$ h};
   \draw[pdinkmuted,line width=.5pt] (axis cs:12,1.0362)
     --(axis description cs:1.08,.03);
   \node[pd label,anchor=west,inner sep=3pt]
@@ -51,7 +51,7 @@
 \end{axis}
 \end{tikzpicture}
 \caption{Chosen rates: $\lambda=1$ task/h, $\xi=.5$/h and $\eta=.25$/h.
-The limiting floor exceeds the pool's $K=1.04$ h-equivalent cost, so
+The limiting lower bound exceeds the pool's $K=1.04$ h-equivalent cost, so
 increased skill alone cannot win here. Analytic model, not measurements.}
 \label{fig:he-succession-price}
 \end{figure}

@@ -4,7 +4,7 @@
 % Reader question: why does asking "who judges the judges" not go on
 % forever in this design?
 % Claim: appeal only ever moves down one rank at a time from a starting
-% rank K, and rank 0 is a protected oracle or a named final authority;
+% top rank, and rank 0 is a protected oracle or a named final authority;
 % each appeal strictly decreases a natural-number rank, so no infinite
 % appeal chain is possible.
 % Evidence: hand-worked exercise solution (ex:he-rate-the-raters); the
@@ -27,8 +27,8 @@
   \def\dy{1.35}
   \node[pd title,anchor=west,text width=10.4cm] at (-1.10,5.35)
     {appeal moves down one rank at a time, and stops at rank 0};
-  \node[pd state,minimum width=3.2cm] (K) at (0,{3*\dy}) {rank $K$};
-  \node[pd state,minimum width=3.2cm] (K1) at (0,{2*\dy}) {rank $K-1$};
+  \node[pd state,minimum width=3.2cm] (K) at (0,{3*\dy}) {top rank};
+  \node[pd state,minimum width=3.2cm] (K1) at (0,{2*\dy}) {next rank down};
   \node[pd label] (dots) at (0,{1*\dy}) {$\vdots$};
   \node[pd state,minimum width=3.2cm] (R1) at (0,{0}) {rank $1$};
   \node[pd ready state,minimum width=3.2cm] (R0) at (0,{-1*\dy}) {rank $0$};

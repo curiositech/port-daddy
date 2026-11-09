@@ -369,8 +369,8 @@ need separate terms.
 $a_2$, or send the job to a pool of interchangeable agents?
 \pdchapref{ls}{The Legible Swarm} answered this for a specialist who never
 disappears: the specialist wins when its skill premium (its service rate
-divided by a pool worker's) reaches a threshold $g_A(\rho,c)$ that depends on
-how busy the pool is ($\rho$) and how many workers it has ($c$). Real
+divided by a pool worker's) reaches a threshold $g_A(\rho_{\mathrm{pool}},c)$ that depends on
+how busy the pool is ($\rho_{\mathrm{pool}}$) and how many workers it has ($c$). Real
 specialists are mortal: sessions die, containers are reaped, providers
 leave. So we now add failure and replacement to the model. The specialist
 fails at rate $\xi$, and a successor takes over after an $\mathrm{Exp}(\eta)$
@@ -415,9 +415,9 @@ D^\star=\eta K/(1-\eta K)\quad(\eta K<1):
 \] no amount of skill in $a_2$ makes up for a ratio of failure rate to
 replacement rate above $D^\star$.
 
-At the program's
-own worked instance --- $\lambda=1$, a $c{=}4$-server pool at $\mu_g=1.2$
-($\rho=0.208$), hire/monitor cost $A=0.2$, wait-cost weight $w=1$, succession
+At the worked instance of \texttt{b8\_specialization.py}
+--- $\lambda=1$, a $c{=}4$-server pool at $\mu_g=1.2$
+($\rho_{\mathrm{pool}}=0.208$), hire/monitor cost $A=0.2$, wait-cost weight $w=1$, succession
 rate $\eta=0.25$ --- $W_{\mathrm{pool}}=0.8362$, so \[
 \begin{aligned}
 K &=0.2/1+0.8362=1.0362,\\
@@ -444,7 +444,7 @@ succession plan --- raise $\eta$ --- to double $D^\star$ and make sole ownership
 of a slower-succeeding $a_2$ viable again.
 \end{pdexample}
 
-\begin{pdclaim}{Theorem}{The Price of the Succession Rule}
+\begin{pdclaim}{Theorem}{The Threshold of the Succession Rule}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:succession-price}
 With effective rate $\mu_{\mathrm{eff}}=\mu_s\eta/(\xi+\eta)$, the sole owner's
@@ -461,13 +461,13 @@ skill removes the residual downtime.
 
 Consequently, with
 $K=A/(w\lambda)+W_{\mathrm{pool}}$ the pool's cost line, pooling dominates at
-every finite skill premium iff the lower bound $W_\infty$ has reached that line,
+every finite ratio of service rates iff the lower bound $W_\infty$ has reached that line,
 $W_\infty\ge K$; equivalently, provided $\eta K<1$, iff
 \[
 \frac{\xi}{\eta}\;\ge\;D^\star=\frac{\eta K}{1-\eta K}.
 \]
 When $\eta K\ge1$ the lower bound $W_\infty$ never reaches the cost line, there is no cap
-($D^\star=+\infty$) and only the premium test binds; the closed form must not
+($D^\star=+\infty$) and only the service-rate test binds; the closed form must not
 be read outside its domain.
 \end{pdclaim}
 \begin{proof}[Proof sketch]
@@ -850,10 +850,7 @@ which party's preferred rule ought to prevail.
 
 Detection is cheap because of how the input language is designed; this is not
 a claim about deontic logic in general. The commitment fragment
-$\mathcal{L}_c$ makes detection cheap by restricting what a policy can express.\footnote{A standalone treatment of
-these results and the succession price of \S\ref{sec:three-sides} is
-\emph{What Needs an Authority} (research paper~6)~\cite{paper6}; the sweeps
-cited here are its artifacts, regenerated at seed 20260816.}
+$\mathcal{L}_c$ makes detection cheap by restricting what a policy can express.
 We first derive one conflict by hand, then state the input grammar, the
 polynomial decision procedure, and the expressive extension that changes
 its complexity.
@@ -864,14 +861,14 @@ The conflict is visible once all the accepted rules have been applied.
 Three rules over two intervals show why the checker must derive the facts
 that activate an obligation before comparing it with a prohibition.
 
-Here $O$ means obligatory and $F$ means forbidden. A \pdterm{Horn rule}
+Here $\mathsf O$ means obligatory and $\mathsf F$ means forbidden. A \pdterm{Horn rule}
 is an if--then rule with one conclusion: once all its premises hold, add that
 conclusion. We retain already established facts while deriving new ones.
 
 \emph{Fact:} \texttt{agent\_deployed}. \emph{Horn rule:}
 \texttt{agent\_deployed}~$\to$~\texttt{prod\_access}. \emph{Two deontic rules:}
-$O(\texttt{write\_prod},\{\texttt{env:prod}\},[0,10])$ once \texttt{prod\_access}
-holds, and $F(\texttt{write\_prod},\{\texttt{env:prod}\},[5,15])$ unconditionally.
+$\mathsf O(\texttt{write\_prod},\{\texttt{env:prod}\},[0,10])$ once \texttt{prod\_access}
+holds, and $\mathsf F(\texttt{write\_prod},\{\texttt{env:prod}\},[5,15])$ unconditionally.
 
 Apply the Horn rule first (this step is called unit propagation):
 \texttt{prod\_access} is derived, so the obligation fires. Both deontic rules now govern the same action and the same
@@ -1083,8 +1080,8 @@ $\{\varnothing,\{a\},\{b\}\}$ are safe: either branch fires only one rule.
 Their union $\{a,b\}$ is conflicting but unreachable. Conversely,
 $c\to a$ and $c\to b$ are dormant now and conflict as soon as reachable
 fact $c$ arrives.
-Let $F$ be today's facts and $\mathcal R$ a nonempty, finite, explicit family
-of fact sets that can actually be reached, each containing $F$. Hold positive
+Let $F_{\mathrm{now}}$ be today's facts and $\mathcal R$ a nonempty, finite, explicit family
+of fact sets that can actually be reached, each containing $F_{\mathrm{now}}$. Hold positive
 Horn and deontic rules, scopes, intervals, resources and deadlines fixed.
 \begin{pdclaim}{Theorem}{Admission against reachable maximal fact sets}
 \label{thm:he-reachable-admission}
@@ -1149,7 +1146,7 @@ and cross-operator attestation, which it leaves open. The table is not
 reprinted here; this section says what the market does about the open one.
 \else
 Table~\ref{tab:keystone-split} separates the two identity problems: local
-non-forgeable identity, which this paper relies on, and cross-operator
+non-forgeable identity, which this chapter relies on, and cross-operator
 attestation, which it does not yet have.
 
 \input{figures/tab-keystone-split}
@@ -1295,7 +1292,7 @@ $t$, plus explicit fee and slippage accounts.
 
 If rates move between legs, the
 mark-to-market difference is economic exposure, not a failure of the composition law for $\Delta$.
-Bounding that exposure by $\varphi$ requires a separate oracle-latency and price-move
+Bounding that exposure by $\Phi$ requires a separate oracle-latency and price-move
 assumption that this chapter has not proved, so that bound is an open problem.
 \end{property}
 
@@ -1320,7 +1317,7 @@ in equal payments out, with no outside subsidy.
 \begin{pdexample}{Efficient Trade That the Mechanism Still Refuses}
 \setlength{\parskip}{4pt plus 1pt}
 This particular double auction gives up some efficient trades. Suppose Bob's value $v$ for renting
-Alice's specialist $a_2$ and Alice's opportunity cost $c$ of foregoing $a_2$ for
+Alice's specialist $a_2$ and Alice's opportunity cost $c_{\mathrm s}$ of foregoing $a_2$ for
 that stretch are each drawn independently and uniformly from $[0,90]$\,\textsc{cr}.
 The $90$\,\textsc{cr} lease fee of \S\ref{sec:three-sides}'s running
 example sets the scale; the distribution itself is constructed for illustration.
@@ -1334,13 +1331,13 @@ Chatterjee--Samuelson double auction~\pdcite{chatterjee1983}, whose \mbox{linear
 equilibrium on $[0,M]$ has Bob bid and Alice ask, respectively,
 \[
 \begin{aligned}
-\beta(v)&=\tfrac{2}{3}v+\tfrac{M}{12},\\
-\sigma(c)&=\tfrac{2}{3}c+\tfrac{M}{4},
+\mathrm{bid}(v)&=\tfrac{2}{3}v+\tfrac{M}{12},\\
+\mathrm{ask}(c_{\mathrm s})&=\tfrac{2}{3}c_{\mathrm s}+\tfrac{M}{4},
 \end{aligned}
 \]
 trading iff
 \[
-\beta(v)\ge\sigma(c) \iff v-c\ge M/4.
+\mathrm{bid}(v)\ge\mathrm{ask}(c_{\mathrm s}) \iff v-c_{\mathrm s}\ge M/4.
 \]
 At $M=90$ that threshold is $22.5$\,\textsc{cr}.
 
@@ -1348,12 +1345,12 @@ Take Bob's value
 at $70$\,\textsc{cr} and Alice's cost at $60$\,\textsc{cr}: trade is efficient
 (a $10$\,\textsc{cr} surplus sits on the table) but
 \[
-v-c=10<22.5,
+v-c_{\mathrm s}=10<22.5,
 \]
 so the mechanism reports no trade, and the efficient rental does not happen.
 
 Integrating over the whole square, the no-trade-but-efficient region
-$\{0\le v-c<M/4\}$ has probability
+$\{0\le v-c_{\mathrm s}<M/4\}$ has probability
 \[
 \dfrac{a(2M-a)}{2M^2}
 \]
@@ -1401,8 +1398,8 @@ the full market gives up.}
 
 
 
-Figure~\ref{fig:he-ms-wedge} draws the whole $(v,c)$ square. The worked point
-$(v,c)=(70,60)$ sits inside the shaded band the mechanism refuses. The band
+Figure~\ref{fig:he-ms-wedge} draws the whole $(v,c_{\mathrm s})$ square. The worked point
+$(v,c_{\mathrm s})=(70,60)$ sits inside the shaded band the mechanism refuses. The band
 holds $7/32$ of all draws, so the lost trades are no rare corner of the square.
 
 \input{figures/fig-he-ms-wedge}
@@ -1639,8 +1636,8 @@ This is an asymptotic expectation, not an exact constant or a partition-tolerant
 \textbf{State:} each harbor $X$ keeps a revocation filter $F_X$ and a current epoch
 root $R_X^{(e)}$ published to a shared witness log.
 \begin{enumerate}[leftmargin=2.0em,itemsep=1pt,topsep=2pt]
-  \item \emph{Revoke.} An operator revokes card $c$ at its home harbor $A$:
-    $F_A \leftarrow F_A \cup \{c\}$; $A$ advances to $R_A^{(e+1)}$ and publishes it.
+  \item \emph{Revoke.} An operator revokes card $\kappa$ at its home harbor $A$:
+    $F_A \leftarrow F_A \cup \{\kappa\}$; $A$ advances to $R_A^{(e+1)}$ and publishes it.
   \item \emph{Gossip.} Every $\Delta$, each harbor picks a peer and exchanges filter
     deltas (anti-entropy). A card present in either filter becomes present in both.
   \item \emph{Audit.} Any third party compares each harbor's published roots in the
@@ -1658,12 +1655,12 @@ unbounded partition there is no finite global-learning bound.
 
 \begin{pdexample}{The Revocation Race, Traced Hop by Hop}
 \setlength{\parskip}{4pt plus 1pt}
-Alice revokes $a_2$'s card $c$ at
+Alice revokes $a_2$'s card $\kappa$ at
 $t=0$ (say she discovers it was misbehaving). Harbor~$B$, which rented $a_2$, has not
-yet heard: for the interval $[0,\Delta]$, $B$'s filter is stale and $c$ is still
+yet heard: for the interval $[0,\Delta]$, $B$'s filter is stale and $\kappa$ is still
 spendable there.
 
-At $t=\Delta$ gossip reaches $B$, which adds $c$ to $F_B$ and
+At $t=\Delta$ gossip reaches $B$, which adds $\kappa$ to $F_B$ and
 refuses further use. Harbor~$C$, two hops away, learns at $t=2\Delta$.
 
 This is one
@@ -1671,7 +1668,7 @@ illustrated execution; a different schedule or partition produces a different
 window.
 
 Conjecture~\ref{conj:eq-bound} says
-the bond Alice posted on $c$ must exceed whatever $a_2$ could spend at $B$ inside
+the bond Alice posted on $\kappa$ must exceed whatever $a_2$ could spend at $B$ inside
 that window, or a well-capitalized Bob could rationally race the gossip.
 
 \emph{Now you try:} extend this same illustrated schedule one more hop. At
@@ -1688,7 +1685,7 @@ supplies an expectation within that model, not an adversarial deadline.}
 
 Detection-after-the-fact deters only if the slashed bond exceeds the value
 extractable during the detection window. This is the analogue of the
-\emph{cleanup lower bound} (the companion result that a cleanup bond must cover the
+Cleanup Lower Bound of \pdchapref{bonded}{The Bonded Commons} (a cleanup bond must cover the
 worst-case cost of the damage it underwrites), and we state it as a target:
 
 \begin{conjecture}[Equivocation Lower Bound]\label{conj:eq-bound}
@@ -1828,10 +1825,10 @@ Suppose instead that an authenticated record proves Judy accepted Bob's
 bribe, breaching the declared conflict rule. The contract can slash Judy's
 bond on that evidence and compensate Alice up to the funded remedy.
 It cannot promise that $50$ makes every possible loss whole.
-For a risk-neutral judge receiving an immediate bribe $b$ that is retained
-if caught, detection probability $p$, no delay, and no other payoff change,
-this deviation has expected gain $b-50p$. At $b=10$ and $p=0.1$ it remains
-profitable; at $p=0.3$ it does not. Detection and collection must themselves
+For a risk-neutral judge receiving an immediate bribe $G$ that is retained
+if caught, detection probability $p_d$, no delay, and no other payoff change,
+this deviation has expected gain $G-50p_d$. At $G=10$ and $p_d=0.1$ it remains
+profitable; at $p_d=0.3$ it does not. Detection and collection must themselves
 be credible. The final appeal panel sees the same diff and test results, but
 its verdict is still a judgment; its preferences stay part of the game, and
 no machine can check them.
@@ -1891,9 +1888,8 @@ produce the first settled outcomes and so the first reputation data. Phase~2 imp
 work history for partial credit, so new agents are not frozen out. Phase~3 switches to
 charging the demand side once a liquidity threshold (not a calendar date) is met.
 Figure~\ref{fig:he-cold-start} draws the schedule against realized liquidity:
-charging starts when liquidity crosses the threshold $\lambda^\star$, whatever
-the date. Here $\lambda^\star$ is a level of liquidity, not the job arrival
-rate $\lambda$ of \S\ref{sec:three-sides}.
+charging starts when liquidity crosses the threshold $\nu^\star$, whatever
+the date.
 
 \input{figures/fig-he-cold-start}
 
@@ -1917,9 +1913,9 @@ capital, or another explicitly liable party.
 \begin{proposition}[Underwriting reframes the bond as reserve adequacy]\label{prop:reserve}
 \pdstatus{\Designed}{}
 This is a conditional funding obligation on the proposed contract.
-If the contract promises to pay every covered cleanup bill up to $c$, its
+If the contract promises to pay every covered cleanup bill up to $c_{\max}$, its
 collectible resources at settlement must cover each such bill. Replacing a
-posted bond by an insurance premium below $c$ preserves that promise only
+posted bond by an insurance premium below $c_{\max}$ preserves that promise only
 when additional collectible coverage supplies the shortfall. Expected payouts
 alone do not establish this pathwise funding condition.
 
@@ -1949,15 +1945,15 @@ is circular as stated, because that reputation's value is set by the same
 market. The fix changes the structure: make settled outcomes between a counterparty \emph{pair} exhibit sharply diminishing
 reputation returns with an explicit cap, plus sampled adversarial re-audit
 of high-velocity pairs. Concavity alone does not impose a cap: $\sqrt n$ is
-concave and unbounded. For example, $R_{\mathrm{pair}}(n)=R_{\max}(1-e^{-n/\tau})$
-with $\tau>0$ caps credit from one pair at $R_{\max}$. This caps that pair's
+concave and unbounded. For example, $R_{\mathrm{pair}}(n)=R_{\max}(1-e^{-n/n_0})$
+with $n_0>0$ caps credit from one pair at $R_{\max}$. This caps that pair's
 score contribution, not its economic value or the gain from forging new pairs;
 principal binding and a payoff model are still required.
 
 Whether a cartel of colluding operators can actually hold its agreed minimum
 rating is a \emph{repeated} game, and that is what \ifpdbook the cartel game in \pdchapref{bonded}{The Bonded Commons}\else Figure~\ref{fig:cartel-game-inline}\fi draws.
 Each round a member either \emph{colludes} (holds the agreed minimum
-$q_{\mathrm{floor}}$, collecting the cartel payoff $\pi_C$) or \emph{defects}
+$q_{\min}$, collecting the cartel payoff $\pi_C$) or \emph{defects}
 (undercuts it by $\varepsilon$ for a one-time gain $\pi_D$, after which the
 cartel unravels and everyone drops to the competitive payoff $\pi_N \approx 0$). A
 \pdterm{grim trigger} strategy is the crudest way to punish that: \emph{cooperate
@@ -2159,8 +2155,8 @@ These are behavioral and measurement hypotheses, not consequences of posting a
 bond. A separate audit policy can make truthful reporting a best response under
 specified payoffs; at indifference, honesty still needs a selection assumption.
 
-Figure~\ref{fig:he-assurance} reserves one bounty $b$ and an allowance
-$c_B$ for the cost of holding a bond, per reviewer, for a fixed flaw. Its $k(b+c_B)$ line is a planned
+Figure~\ref{fig:he-assurance} reserves one flaw bounty $b_{\mathrm f}$ and an allowance
+$c_B$ for the cost of holding a bond, per reviewer, for a fixed flaw. Its $k(b_{\mathrm f}+c_B)$ line is a planned
 budget, not realized payout: payment depends on which findings qualify and how
 duplicate reports settle.
 
@@ -2192,7 +2188,7 @@ being caught times the penalty) is at least the gain from cheating.
 \begin{pdclaim}{Theorem}{Becker Deterrence for the Panel}
 \setlength{\parskip}{4pt plus 1pt}
 \label{prop:becker-deterrence}
-\pdstatus{\Designed}{imported from the companion paper, not proved here}
+\pdstatus{\Designed}{proof sketch below}
 For a risk-neutral test-writer with exactly two available actions, honest
 reporting (normalized incremental payoff zero) and one misreport yielding
 $G$, assume the latter is detected and fully sanctioned with probability
@@ -2207,12 +2203,18 @@ expected punishment is at least the deviation gain --- the Becker deterrence con
 equivalently, the platform must commit to a re-audit rate at or above the
 critical rate $\rho^\star = G/(d_{\mathrm a}B)$.
 \end{pdclaim}
+\begin{proof}[Proof sketch]
+Honest reporting pays zero. The misreport pays $G$ and, with probability
+$\rho d_{\mathrm a}$, forfeits the bond $B$ while keeping $G$, so its expected
+payoff is $G-\rho d_{\mathrm a}B$. Honest reporting is a weak best response
+iff $0\ge G-\rho d_{\mathrm a}B$, which is Equation~\ref{eq:becker};
+dividing by $d_{\mathrm a}B>0$ gives $\rho\ge\rho^\star$.
+\end{proof}
 
-\noindent The companion technical paper \emph{Reputation is Amortized
-Verification}~\pdcite{harbor3} derives $\rho^\star = G/(d_{\mathrm a}B)$ as the
+\noindent The critical rate $\rho^\star$ is the
 one-round threshold of a bonded inspection game, the same game
-\S\ref{sec:ic} plays when it bonds and slashes a judge. At the program's
-running parameters, $G=10$, $d_{\mathrm a}=0.8$ and $B=50$ give $\rho^\star = 10/(0.8 \cdot 50)
+\S\ref{sec:ic} plays when it bonds and slashes a judge. With
+$G=10$, $d_{\mathrm a}=0.8$ and $B=50$, $\rho^\star = 10/(0.8 \cdot 50)
 = 0.25$. Audit one report in four and the cheat payoff is exactly zero. Double the
 bond to $B=100$ and $\rho^\star$ halves to $0.125$: capital and vigilance are
 substitutes along the frontier $\rho d_{\mathrm a} B = G$.
@@ -2220,7 +2222,7 @@ substitutes along the frontier $\rho d_{\mathrm a} B = G$.
 \noindent In the notation of the audit tower of \pdchapref{stp}{From Spawn to
 Person}, this is the single-level case. There the quantity $\rho d_{\mathrm a}B$
 is written $\beta$, the gain at level $k$ is $G_k$, and level $k{+}1$ audits level
-$k$ across $C$ sealed cliques, so the condition here reads $\beta\ge G_0$ and
+$k$ by sealed sampling across disjoint cliques, so the condition here reads $\beta\ge G_0$ and
 the contraction $G_{k+1}=(1-\rho d_{\mathrm a})\,G_k$ is what makes a finite stack of
 audited auditors converge. The letter $k$ is overloaded between the two
 chapters: here it counts the panel, there it indexes the level.
@@ -2232,7 +2234,7 @@ also claws the gain back, the forfeiture is $G+B$ and the critical rate drops to
 $\rho^\star_c = G/\bigl(d_{\mathrm a}(G+B)\bigr) = 0.2083$ at the same parameters. A platform
 whose settlement does claw back but which budgets audits at $G/(d_{\mathrm a}B)$ is over-auditing; one
 that does not claw back but budgets at $G/(d_{\mathrm a}(G{+}B))$ is under-deterring. The
-convention is a property of the slashing contract, not a modeling taste~\pdcite{harbor3}.}
+convention is a property of the slashing contract, not a modeling taste.}
 
 Figure~\ref{fig:he-deterrence-convention} puts the two critical rates, $0.25$
 and $0.208$, side by side at $G=10$, $d_{\mathrm a}=0.8$, $B=50$.
@@ -2246,30 +2248,29 @@ instances of the same model family with the same blind spot, do not give
 $k$ independent draws; they give something closer to one draw and two echoes.
 A buyer of assurance therefore has to pay for \emph{diversity} (distinct principals,
 distinct model families, sealed submissions) and not merely count $k$; otherwise the
-assurance level paid for overstates the one delivered. The same
-requirement appears in the companion inspection-game analysis~\pdcite{harbor3}
-as the sealed multi-clique sampling hypothesis,
-where it is likewise required rather than hygienic.}
+assurance level paid for overstates the one delivered. The audit tower of
+\pdchapref{stp}{From Spawn to Person} makes the same requirement: it samples
+its auditors sealed from disjoint cliques, and there too the result needs it.}
 
 \subsection{A parameter for correlated reviewers}\label{sec:assurance-correlation}
 
 One draw and two echoes is an intuition, not yet a number, and an operator who
 pays for assurance by the reviewer needs the number. Give the echo a
-model. Let the panel's per-reviewer detection-and-report rate be a \emph{random} quantity $D$
+model. Let the panel's per-reviewer detection-and-report rate be a \emph{random} quantity $\tilde d$
 with mean $d$, drawn once per panel and shared by its members. That is what a
 common blind spot is: a draw the panel makes together rather than one each.
-Assume truthful flaw reports are independent Bernoulli trials \emph{conditional on $D$}. Then
-the miss probability is $\mathbb{E}\bigl[(1-D)^k\bigr]$, and a one-line
+Assume truthful flaw reports are independent Bernoulli trials \emph{conditional on $\tilde d$}. Then
+the miss probability is $\mathbb{E}\bigl[(1-\tilde d)^k\bigr]$, and a one-line
 inequality shows which way the error runs:
 \begin{equation}\label{eq:assurance-jensen}
-\Pr(\text{defect undetected}) \;=\; \mathbb{E}\bigl[(1-D)^k\bigr] \;\ge\; (1-d)^k ,
+\Pr(\text{defect undetected}) \;=\; \mathbb{E}\bigl[(1-\tilde d)^k\bigr] \;\ge\; (1-d)^k ,
 \end{equation}
 by Jensen, since $x \mapsto (1-x)^k$ is convex. The independent bound is
 therefore \emph{optimistic} for every mixing distribution with the same mean in
 this common-rate mixture model; the inequality says nothing about other
 dependence structures.
 
-To get a closed form take $D \sim \mathrm{Beta}(a,b)$, whose intra-panel
+To get a closed form take $\tilde d \sim \mathrm{Beta}(a,b)$, whose intra-panel
 correlation is $\theta = 1/(a+b+1)$ and whose mean is $d = a/(a+b)$, so a target
 $(d,\theta)$, with $0<d,\theta<1$, pins
 $a = d(1/\theta - 1)$ and $b = (1-d)(1/\theta - 1)$. The
@@ -2278,7 +2279,7 @@ reader can evaluate on paper (written this way it also avoids a clash with
 the bond $B$):
 \begin{equation}\label{eq:assurance-beta}
 \Pr(\text{defect undetected})
-  \;=\; \mathbb{E}\bigl[(1-D)^k\bigr]
+  \;=\; \mathbb{E}\bigl[(1-\tilde d)^k\bigr]
   \;=\; \prod_{j=0}^{k-1}\frac{b+j}{a+b+j}.
 \end{equation}
 
@@ -2375,7 +2376,7 @@ the full response-time comparison still matters.
 \item \textbf{Cross-operator identity is missing, and the chapter says so.} Cross-operator attestation is what the market depends on and does not yet have; the local identity boundary remains partial.
 \item \textbf{Single-unit conservation composes}; bilateral trade across a boundary is conditional, and the condition is stated.
 \item \textbf{Evidence accumulates; scores can change}: compensation does not erase reliance, and the monitoring model must include the evaluator.
-\item \textbf{Trust services have participation costs}: the cold-start pricing proposal identifies a supplier participation threshold $\lambda^{\ast}$, conditional on its payoff model; the cartel game shows how the chance of detection and the penalty decide whether a cartel can hold together.
+\item \textbf{Trust services have participation costs}: the cold-start pricing proposal identifies a supplier participation threshold $\nu^{\ast}$, conditional on its payoff model; the cartel game shows how the chance of detection and the penalty decide whether a cartel can hold together.
 \item \textbf{Assurance depends on joint detection.} Independent reviewers
 miss a fixed flaw with probability $(1-d)^k$. Shared blind spots require a
 joint model; an audit bond deters dishonesty only under its detection and
@@ -2513,13 +2514,13 @@ The four states assume the acceptance criteria were \emph{right}.
   top-up/refund delta), preserving Design Invariant~\ref{prop:conservation}. (Gap, \S\ref{sec:gaps}.)
 \end{pdexercise}
 \begin{pdsolution}{ex:he-floatplan-amendment}
-Pause at a mediated safe point and propose amendment $v{+}1$: it must
-reference plan $v$ by hash, state the changed criteria, budget, and bounty/bond
+Pause at a mediated safe point and propose an amended plan: it must
+reference the current plan by hash, state the changed criteria, budget, and bounty/bond
 deltas, and say how already-produced evidence is treated. Both principals must
-countersign $v{+}1$ before it takes effect; only then does the daemon atomically
+countersign the amendment before it takes effect; only then does the daemon atomically
 top up or refund each party's own escrow bucket and activate the new plan,
-retaining $v$ and the causal link to it. A timeout on the proposal either
-continues settlement under the original $v$ or cancels under $v$'s own terms ---
+retaining the old plan and the causal link to it. A timeout on the proposal either
+continues settlement under the original plan or cancels under its own terms ---
 never does one party get to unilaterally rewrite acceptance criteria after seeing
 the work.
 \end{pdsolution}
@@ -2543,7 +2544,7 @@ Show that adding a lease line item and a metered-license line item to a float
 \end{pdexercise}
 \begin{pdsolution}{ex:he-conservation-lineitems}
 Adding a lease line item of amount $\ell$ or a metered-license line item of
-amount $m$ leaves conservation intact for any $\ell,m\ge0$, because each is still
+amount $\ell'$ leaves conservation intact for any $\ell,\ell'\ge0$, because each is still
 just a balanced transfer: it debits a pre-funded escrow bucket and credits an
 explicit recipient or refund bucket within the same atomic transaction. The
 wallet--escrow--commons identity never references the size of any one line item,
@@ -2657,7 +2658,7 @@ controls, the counterparty's daemon is exactly the adversary that a
 single-operator identity mechanism was never built to withstand.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:he-principal-binding}
-Specify a cryptographic binding tying $N$ agents to one principal
+Specify a cryptographic binding tying any number of agents to one principal
   such that spawning fresh agents does not reset the minimum bond, and that survives
   into the cross-operator world (where the single-operator ``trusted credential''
   shortcut is unavailable). This is the hard half of cross-operator attestation.
@@ -2712,17 +2713,17 @@ Property~\ref{thm:lax}'s whole point.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:he-phi-exposure-bound}
 Specify an oracle-latency and price-move model that yields a valid
-  $\varphi$ exposure bound for Property~\ref{thm:lax}.
+  exposure bound $\Phi$ for Property~\ref{thm:lax}.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-phi-exposure-bound}
-Assume every quote used is at most $L$ seconds stale and that log-price
+Assume every quote used is at most $T_{\mathrm q}$ seconds stale and that log-price
 moves at a bounded deterministic speed, $|\log(v_t/v_s)|\le\sigma|t-s|$. For
-notional $X$ exposed in the second unit, the worst-case stale-quote error is then
-bounded by $\varphi = X\,(e^{\sigma L}-1)$, plus fees and rounding. A stochastic
+notional $X_0$ exposed in the second unit, the worst-case stale-quote error is then
+bounded by $\Phi = X_0\,(e^{\sigma T_{\mathrm q}}-1)$, plus fees and rounding. A stochastic
 model such as GBM or a historical-volatility estimate instead yields a
 confidence interval or VaR figure, and must state its tail probability
 explicitly --- without some deterministic bound on how fast the price can move,
-no finite worst-case $\varphi$ exists at all, only a probabilistic one.
+no finite worst-case $\Phi$ exists at all, only a probabilistic one.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:anchor}}{The Anchor Protocol proper: cross-harbor capability transfer}
@@ -2861,8 +2862,8 @@ predicate and for a subjective preference. Explain why termination does
 not establish accuracy.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-rate-the-raters}
-Use a well-founded appeal procedure: assign the original grade rank $K$, allow an appeal only to rank
-$K{-}1$, and stop at rank $0$ --- either a protected oracle for an objective
+Use a well-founded appeal procedure: assign the original grade the top rank, allow an appeal only to the
+next rank down, and stop at rank $0$ --- either a protected oracle for an objective
 predicate, or a named final authority or quorum for a matter of preference.
 Each appeal strictly decreases a natural-number rank, so no infinite appeal
 chain is possible. For aesthetic judgments the rank-$0$ base is
@@ -3279,8 +3280,8 @@ Skill licensing (metered $+$ clawback $+$ Merkle proof) & \Designed{} &
   cross-harbor verifiability undeployed \\
 Adversarial test market (Purchased Assurance Bound, Thm.~\ref{thm:assurance}) &
   \Vision{} & no mutation-testing oracle and no bounty-per-killed-mutant contract
-  shipped; the deterrence threshold is proved in the inspection-game
-  analysis~\pdcite{harbor3} \\
+  shipped; the deterrence threshold has a proof sketch
+  (Theorem~\ref{prop:becker-deterrence}) \\
 Federation: witness log, capability transfer & \Designed{} & \pdchapref{fh}{The Federated Harbor} \\
 Recipient-whitelisted escrow custody & \Designed{} (conditional property) &
   requires non-bypassable authority; no runtime conformance \\
@@ -3343,7 +3344,7 @@ A scalar valuation $V_t(x)=\sum_j v_{t,j}x_j$ changes either when
 native balances change or when the valuation vector $v_t$ changes.
 
 The second term
-is mark-to-market exposure. No finite $\varphi$ follows without assumptions bounding
+is mark-to-market exposure. No finite $\Phi$ follows without assumptions bounding
 rate movement, oracle delay, fees, and slippage; those assumptions are not supplied
 here.
 \end{proof}
@@ -3484,19 +3485,6 @@ Debate.'' arXiv:1805.00899, 2018.
 
 \bibitem{becker1968} G. Becker. ``Crime and Punishment: An Economic Approach.''
 \emph{Journal of Political Economy} 76(2):169--217, 1968.
-
-\bibitem{harbor3} \emph{Reputation is Amortized Verification: Inspection Games for
-Agent Economies.} Paper~3 of the Port Daddy Harbor research program, 2026. (The
-companion technical paper: proves the bonded-inspection stage-game threshold
-$\rho^\star = G/(dB)$, its confiscation-convention fork
-$\rho^\star_c = G/(d(G{+}B))$, and the audit-tower contraction under sealed
-multi-clique sampling.)
-
-\bibitem{paper6} E. Owens. \emph{What Needs an Authority: Mechanical Detection,
-Chartered Resolution, and the Exact Price of Sole Ownership.} The Harbor Research
-Program, Paper~6, 2026. (Theorems 1a and 1b are the detection theorem and its
-frontier; Theorem~3 is the succession price; the sweeps are
-\texttt{b4\_deontic\_fragment.py} and \texttt{b8\_specialization.py}.)
 
 \bibitem{dg84} W. F. Dowling \& J. H. Gallier. ``Linear-Time Algorithms for Testing
 the Satisfiability of Propositional Horn Formulae.'' \emph{Journal of Logic
