@@ -2374,9 +2374,10 @@ current epochs; W2 concerns at-most-once settlement per key; W3 requires both
 an acceptance policy and a verifier receipt; W4 checks delegation narrowing;
 and W6 binds settlement to its owner and receipt.
 The model illustrates how the mechanisms compose; it does not prove all
-properties of those subsystems. The continuity chapter's checkpoint and the market chapters'
-settlement inherit the same object, which is why the book can name the work unit as its
-primitive in the front matter without a definition per chapter.
+properties of those subsystems. Chapter~0 names the work unit as the book's case
+file for a job, and the contract in \pdchapref{sealed}{The Sealed Harbor} is one.
+The continuity and market chapters keep checkpoint and settlement records of their
+own and do not yet build them on this machine.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
