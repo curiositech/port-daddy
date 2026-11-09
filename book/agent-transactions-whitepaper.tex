@@ -2769,7 +2769,7 @@ Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE
 Magic-link single-use (\S\ref{sec:federated-sovereign}) & ProVerif (private-channel cap) & \Closed\ injective-event TRUE; 7/7 runtime conformance & \texttt{magic-link.pv} \\
 Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate within Chapter~2's bound at load $0.95$ & cuckoo property tests \\
 \midrule
-Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal version not in scope & \texttt{binding.ec} \\
+Merkle-tree binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ 3 admits; not in CI. EasyCrypt has never checked the file; the evidence is the fast-check property test & \texttt{binding.ec} \\
 Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\
 Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \path{simulation-}\allowbreak\path{sybil.mjs} \\
 Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \path{simulation-}\allowbreak\path{cartel.mjs} \\
@@ -2780,7 +2780,7 @@ Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{pa
 Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet & \texttt{federated.pv} \\
 \end{xltabular}}
 
-\paragraph{Limitations.} Four mechanizations are out of scope for this chapter but explicitly named so a reader can audit what is and is not proved: a PROM-formal Merkle binding in EasyCrypt; a Coq or Lean mechanization of the Pareto strategic game; a formal analysis of the composite Sybil-deterrence mechanism ($C_{\mathrm{kyc}}$ $+$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); and a multi-class generalization of the repeated-game cartel result to heterogeneous coordination classes (\S\ref{sec:taxonomy}). The present claims stand on the evidence stated in Table~\ref{tab:verification-status}.
+\paragraph{Limitations.} Four mechanizations are out of scope for this chapter but explicitly named so a reader can audit what is and is not proved: an EasyCrypt proof of Merkle-tree binding with its three admits closed, in the programmable random oracle model (PROM), which treats SHA-256 as a random function whose answers on chosen inputs the proof may fix; a Coq or Lean mechanization of the Pareto strategic game; a formal analysis of the composite Sybil-deterrence mechanism ($C_{\mathrm{kyc}}$ $+$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); and a multi-class generalization of the repeated-game cartel result to heterogeneous coordination classes (\S\ref{sec:taxonomy}). The present claims stand on the evidence stated in Table~\ref{tab:verification-status}.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Scope Boundary Checklist}\label{sec:bonded-limitations-boundaries}
