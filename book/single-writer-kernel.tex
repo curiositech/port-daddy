@@ -238,8 +238,9 @@ record of who granted which permission to whom. A fault in these records can
 therefore affect supervision, attribution, or settlement; each guarantee below
 states the conditions it needs.
 \subsection{The one-sentence thesis}
-\pdthesis{The kernel is a single-writer transactional reference monitor over a
-local SQLite/WAL database. One process accepts every change to coordination
+\pdthesis{The kernel is a single-writer transactional \pdterm{reference monitor},
+a component that checks every change to protected state, over a local SQLite/WAL
+database. One process accepts every change to coordination
 state and records the order of those changes. Its ledger is authoritative for
 those changes and for nothing else about the world outside it.}
 The two guarantees require different qualifications:
@@ -264,7 +265,7 @@ The two guarantees require different qualifications:
 \fi
 
 \subsection{Why ``reference monitor,'' and why \emph{not} \mbox{consensus}}
-The right mental model is the \pdterm{reference monitor} of Anderson and
+The right mental model is the reference monitor of Anderson and
 Lampson~\pdcite{anderson1972,lampson1974}: a component that checks every access
 to protected state (\emph{always invoked}, or complete mediation), that other
 programs cannot alter (\emph{tamper-resistant}), and that is \emph{small enough
@@ -900,7 +901,8 @@ In the communication subsystem (Table~\ref{tab:swk-comm-organ}), stored
 records become messages between agents. The kernel implements the message
 carrier; the \emph{meaning} carried on top of it (typed speech acts, protocol
 state machines) belongs to the coordination layer. Three pieces matter here:
-the bus, the stigmergic markers, and the two records of delegation.
+the bus, the shared markers that fade over time, and the two records of
+delegation.
 
 \subsection{The bus: a durable carrier envelope}
 
