@@ -332,7 +332,7 @@ fills it.
 
 \begin{definition}[Person]\label{def:person}
 \setlength{\parskip}{4pt plus 1pt}
-\pdstatus{\Designed}{a design invariant, intended to hold once memory, checkpoint and outcome ledger are complete; none is complete yet}
+\pdstatus{\Designed}{a design invariant, intended to hold once the checkpoint and the outcome ledger are complete; only memory is built}
 At a given time, describe a \textbf{person}, the ledger account of
 \S\ref{sec:intro}, by the pair $(R,\kappa)$. Here $R$ is the role it currently
 fills, and $\kappa$ is its \pdterm{continuity witness}: the chain of signed
@@ -405,8 +405,9 @@ coordinates of a role and must stay separate.
   \item \textbf{Capability} is \emph{ability}: what the runtime makes
   \emph{possible}. In a coordination daemon this is bounded by a
   \pdterm{capability jail}, a per-agent tool allowlist and scoped filesystem
-  (specified, not built). It is the ``residual control right'' (Grossman \&
-  Hart~\pdcite{grossmanhart1986}) that makes renting an agent contractible at all.
+  (specified, not built). In Grossman and Hart's terms~\pdcite{grossmanhart1986},
+  the residual control rights (what the holder may decide where the contract is
+  silent) belong to the authority set $A$, not to $C$.
   \item \textbf{Permission} is \emph{normative status}: what the permission
   rules \emph{allow}. ``You \emph{may} deploy to production'' is a permission; whether
   you \emph{can} is a capability.
@@ -428,7 +429,7 @@ action is not a reason to leave an avoidable bypass enabled.
 
 \pitfall[Access is not permission]{``Capability'' in capability-based security (a Dennis--Van~Horn
 unforgeable token granting \emph{access}~\pdcite{dennis1966programming}) is about
-\emph{ability}, and that is the sense the Arbiter jail uses. It is \emph{not} the
+\emph{ability}, and that is the sense the capability jail uses. It is \emph{not} the
 ``may'' of a permission rule. When this chapter says an attenuated capability can only
 \emph{narrow} authority across a delegation hop, it means the \emph{ability}
 shrinks; whether the recipient is \emph{permitted} to use even that is a separate,
@@ -554,7 +555,8 @@ successors, so the ledger faces the same case and \emph{does} answer it, with
 the \pdterm{no-mint} rule: credit passed to successors is debited in full from
 the source, and each successor receives a discounted share, so splitting a
 record never creates credit. That answer is a decision, imposed because an
-economy needs the total reputation available to spend to stay fixed. It is no
+economy needs the total reputation available to spend never to grow except
+when a new outcome is checked. It is no
 discovery about identity, and it settles by fiat the case Parfit argues cannot
 be settled.
 
@@ -613,8 +615,9 @@ fork DAGs (chains, diamonds, multi-parent merges, re-derivation cycles) shows
 $0$ violations [internal, \texttt{a6\_no\_mint.py}, seed 20260816].
 
 The copy-full mutant, in which forks inherit the record without debiting it,
-creates credit in the recorded two-fork trace, and an 8-way copy-fork turns one
-checked episode into $8.2\times$ its quorum weight.
+creates credit in the recorded two-fork trace. An 8-way copy-fork leaves the
+source's $1$ live and gives each fork $0.9$, so one checked unit becomes a live
+total of $1+8\times0.9=8.2$.
 
 A counterexample to local grant budgets alone:
 per-outcome budgets $\sum w \le 1$ without debiting do not conserve live
@@ -695,7 +698,7 @@ After Heron's process exits, ask three separate questions. Can its successor
 recover the reason for a design choice? Can it resume the pending work without
 repeating an external effect? Can Bob still check which delivery was accepted
 and who remains responsible? Memory, task-state recovery, and the outcome ledger
-answer these questions respectively. A success in one column does not imply a
+answer these questions respectively. A success in one subsystem does not imply a
 success in the other two. Table~\ref{tab:stp-organs} separates their contents;
 Appendix~\ref{app:status} records implementation maturity once, component by
 component.
@@ -1033,7 +1036,7 @@ Let $W$ be the earnings forgone after a reset relative to keeping the establishe
 identity, under the same stipulated stream of opportunities. It is a sum you can
 do on paper. Set the newcomer's earnings ceiling (the most it may earn in a
 period) at $\bar{c}_0=10$, the steady-state ceiling $\bar{c}^\star=100$, a
-linear five-period climb $\bar{c}_t = 10 + 18t$, and per-period surplus
+linear five-period climb $\bar{c}_t = 10 + 18t$ for $t=1,\ldots,5$, and per-period surplus
 $\pi(\bar{c})=0.1\bar{c}$. Table~\ref{tab:whitewash-numbers} sums the five
 surplus gaps to $W=18$ for this illustrative schedule.
 
@@ -1047,11 +1050,12 @@ The schedule, monitoring probability, and time preference all matter.
 
 Note also what this
 instance fixes for the next theorem: the largest \emph{holdback} (the cut in a
-newcomer's earnings) that any single period can carry here is
+newcomer's earnings) that the newcomer ceiling allows in any one period is
 \[
 L=\pi(\bar{c}^\star)-\pi(\bar{c}_0)=10-1=9,
 \]
-and that $L$ is precisely
+a bound the table never reaches (its largest gap is $7.2$, since the climb
+starts at $t=1$), and that $L$ is precisely
 the per-period ceiling that Theorem~\ref{thm:probation-dominance}, stated a
 page below, must respect.
 
@@ -1060,8 +1064,9 @@ What is $W$? ($\bar{c}_t=10+9t$, so the gaps are $9-0.9t$ and
 \[
 W=90-0.9\cdot 55=40.5:
 \]
-doubling the window more than doubles the bill, because
-the early gaps are the expensive ones.)
+doubling the window more than doubles the bill, because the last gap is
+always zero, so five periods carry four nonzero gaps and ten carry nine, each
+averaging $4.5$.)
 \end{pdexample}
 
 \begin{pdclaim}{Theorem}{Whitewashing Cost under Fixed Continuation Payoffs}
@@ -1145,9 +1150,9 @@ $t\in\{0,1,\dots,T\}$.
 Let honest participants have patient discount factor
 $\delta_h\in(0,1)$ while strategic whitewashers (who seek short-term defection gains
 $G_{\max}\ge0$) have impatient discount factor $0<\delta_f<\delta_h$. Take
-$T\ge0$ finite and $L>0$. Because $g_t$ is the
-amount by which a newcomer's economic \emph{ceiling} is reduced, it is bounded above
-by that ceiling: the schedule is constrained by
+$T\ge0$ finite and $L>0$. Because $g_t$ is a cut
+in the newcomer's per-period surplus, it can be no larger than the gap between
+full and newcomer surplus: the schedule is constrained by
 \[
   0 \;\le\; g_t \;\le\; L, \qquad L \;:=\; \pi(\bar{c}^\star)-\pi(\bar{c}_0),
 \]
@@ -1307,7 +1312,8 @@ The cap adds $5.41$ to the honest newcomer's cost and gives the cliff
 \[
 8\sum_{t=0}^{T}0.6^t<20.
 \]
-For $L<8$, probation alone is insufficient.)
+For any $L\le 8$, probation alone is insufficient; deterring $20$ needs
+$L>8$ and a long enough horizon.)
 \end{pdexample}
 
 \begin{pdexample}{The Probation Cliff: Falsifying the Schedule Shape}
@@ -1611,8 +1617,8 @@ principal. The same rule closes
 skill-versioning's escape (a sanctioned \texttt{v1} must not act clean through
 \texttt{v2}), so one rule closes both escapes. The resume button and provider migration
 therefore require the stated security property and its three migration
-safeguards. The composition with the no-mint law of
-\S\ref{sec:continuity} is exact: migration moves a score whole, with its
+safeguards. Migration and the no-mint law of
+\S\ref{sec:continuity} fit together on paper: migration moves a score whole, with its
 sources closed, and forking splits one with a debit. Both must preserve their respective obligations. A joint implementation still
 needs to prove that migration cannot bypass the debit or duplicate a live
 balance; the separate model checks do not establish that composition.
@@ -1716,7 +1722,7 @@ escape possible?
 \item Is the whitewashing-cost bound's design lever the size of the penalty
 or the shape of the ceiling schedule?
 \item Why must a resurrection/migration protocol sanction by principal rather
-than by (identity, engine)?
+than by (principal, engine)?
 \item Under attestation, when does an engine swap still pay, and why is that
 the intended outcome rather than a failure of the mechanism?
 \end{pdrecitation}
@@ -2800,7 +2806,7 @@ different part of that escape.
 \item \textbf{Whitewashing has a conditional price.} A reset costs the discounted continuation gap $W_\delta$; a deviation that triggers it with probability $p$ after delay $\tau$ faces expected cost $p\delta^\tau W_\delta$. The worked schedule costs $18$ without discounting. Front-loading minimizes honest-newcomer friction only under the stated relative discount factors, ceiling, and deterrence constraint.
 \item \textbf{Engine substitution can occur within one identity.} The one-delivery
 payoff comparison shows when a cheaper engine is profitable. The example's
-attested prices reverse that comparison ($0.5$ against $0.2$); they do not prove
+attested prices reverse that comparison (keeping the strong engine earns $0.5$, swapping earns $0.2$); they do not prove
 that buyers will offer those prices or that attestation is the only remedy.
 \item \textbf{Resurrection preserves sanctions only under the stated checks.}
 The migration model requires authenticated lineage, outcome engine attestations,
@@ -3136,7 +3142,7 @@ states\pdprov{b5\_engine\_substitution.py}{20260816}{internal};
 the four mutants (drop scope, drop clause (i), drop clause (ii), drop clause
 (iii)) are each caught with shortest counterexamples $1, 2, 2, 2$ steps. The
 one-step break is the scope mutant \texttt{m0}: keying sanctions by
-\emph{(identity, engine)} instead of by identity alone lets a single dishonest
+\emph{(principal, engine)} instead of by principal alone lets a single dishonest
 outcome escape through a sibling engine key inside the \emph{same} identity,
 with no migration needed at all. By hand: this is why the intact protocol
 sanctions per \emph{principal} while pricing per \emph{(principal, engine)};
