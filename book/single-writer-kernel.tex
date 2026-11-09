@@ -3137,7 +3137,7 @@ A content-addressed task capsule sealed at a safe tool or message boundary: base
 The escalated delegation takes one step (Table~\ref{tab:workunit-crimes}). Which transition is it, and which invariant does it break?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-crimes}
-\texttt{delegate} from the initial state with a child scope not contained in the root grant's scope $\{\texttt{a},\texttt{b}\}$, for instance $\{\texttt{a},\texttt{b},\texttt{c}\}$: with the attenuation guard off the grant is created and I4 fails immediately. No other guard can be broken in one step, because effects need the executing phase, settlement needs the verified phase, and a double settlement needs two operations.
+\texttt{delegate} from the initial state with a child scope not contained in the root grant's scope $\{\texttt{a},\texttt{b}\}$, for instance $\{\texttt{a},\texttt{b},\texttt{c}\}$: with the attenuation guard off the grant is created and W4 fails immediately. No other guard can be broken in one step, because effects need the executing phase, settlement needs the verified phase, and a double settlement needs two operations.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-seventh-invariant}
 Propose a seventh invariant that the six of Theorem~\ref{thm:workunit} do not imply, add the guard that enforces it to \texttt{c0\_workunit.py}, and report the shortest crime the checker finds with your guard disabled.
