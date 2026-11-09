@@ -1897,7 +1897,7 @@ Figure~\ref{fig:bonded-conservation-ledger} draws the three buckets and five ope
 
 \input{figures/fig-bonded-conservation-ledger}
 
-\paragraph{The checked model.} Listing~\ref{lst:bonded-conservation} is the
+\paragraph{The checked model.} Listing~\ref{alg:bonded-conservation} is the
 committed model, \path{proofs/bonded/conservation/Conservation.tla}, with its
 header comment omitted. It uses different names from the theorem, and
 Table~\ref{tab:bonded-conservation-dictionary} gives the correspondence. The
@@ -1912,7 +1912,7 @@ depth $9$, and the invariants \texttt{Conservation}, \texttt{NoNegative} and
 \texttt{Safety} hold in all of them. The run covers those bounds only; the
 theorem for every sequence rests on the induction above.
 
-\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: the checked ledger model, \texttt{Conservation.tla}, header comment omitted}, label={lst:bonded-conservation}]
+\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: the checked ledger model, \texttt{Conservation.tla}, header comment omitted}, label={alg:bonded-conservation}]
 --------------------------- MODULE Conservation ---------------------------
 EXTENDS Naturals, FiniteSets, Sequences, TLC
 
@@ -2513,7 +2513,7 @@ The invariant named in \texttt{Conservation.cfg}'s \texttt{INVARIANTS} block tha
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-conservation-weaken}
-Suppose the \texttt{Mint} action of Listing~\ref{lst:bonded-conservation} were changed to credit \texttt{free} without also incrementing \texttt{minted}; that is, \texttt{free' = [free EXCEPT ![a] = @ + amt]} stays, but \texttt{minted' = minted + amt} is replaced by \texttt{minted' = minted}. Predict, from the listing alone, what a TLC run would show. Which of the checked invariants catches it, which does not, and how deep is the shortest counterexample?
+Suppose the \texttt{Mint} action of Listing~\ref{alg:bonded-conservation} were changed to credit \texttt{free} without also incrementing \texttt{minted}; that is, \texttt{free' = [free EXCEPT ![a] = @ + amt]} stays, but \texttt{minted' = minted + amt} is replaced by \texttt{minted' = minted}. Predict, from the listing alone, what a TLC run would show. Which of the checked invariants catches it, which does not, and how deep is the shortest counterexample?
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-conservation-weaken}
 No run is needed to predict this: it follows from the definitions already in the spec. \texttt{Conservation} asserts $\mathit{TotalFree} + \mathit{TotalEscrow} + \mathit{burned} = \mathit{minted}$. Immediately after \texttt{Init} (all four quantities zero, satisfying the invariant trivially), the very first enabled \texttt{Mint}$(a, \mathit{amt})$ step increases $\mathit{TotalFree}$ by $\mathit{amt}$ while leaving $\mathit{minted}$ at $0$ under the stated weakening, so the left side becomes $\mathit{amt} > 0$ while the right side stays $0$. \texttt{Conservation} fails at depth~$1$, the shallowest possible counterexample, one step past the initial state, with no need to explore further.
