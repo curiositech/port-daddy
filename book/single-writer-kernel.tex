@@ -848,6 +848,14 @@ to the effect. A message cursor answers ``which messages have I read?''; it
 does not answer ``did this tool already act?'' The distinction will recur
 when a crashed worker is recovered in \S\ref{sec:continuity}.
 
+Delegated work needs a record of its own. When Heron hands part of the test
+run to Wren, the system records that Wren's task came from Heron's, so it can
+tell which agents already sit above Wren in the line of hand-offs. An
+\pdterm{upward block} is the rule that uses this record to refuse a hand-off
+back up the line: Wren may not pass the task to Heron, or to anyone who handed
+it down to Heron, so two agents cannot pass one task between them while
+neither finishes it.
+
 % ═════════════════════════════════════════════════════════════════════════════
 
 \begin{table}[H]
@@ -864,7 +872,7 @@ answer two different questions and are checked by two different mechanisms.}
 \midrule
 the bus envelope & version tag, time-to-live, message kind, typed act with its conversation id, actor, reason and event reference; ordered by a durable history cursor & \Built \\
 authorization chain & the cryptographic object: who authorized whom, hop-bound, attenuation-monotonic, anti-replay & \Built\ (ProVerif) \\
-coordination lineage & the coordination object: what work is already in flight, so loops and upward blocks can be detected & \Designed \\
+coordination lineage & the coordination object: what work is already in flight, so loops can be detected and upward blocks applied & \Designed \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1597,6 +1605,28 @@ failure of exact controllability.
 % Flush a pending top float as well: a paragraph pagebreak alone can leave
 % its caption on the comparison's supposedly fresh margin.
 \pdmarginpagebreak
+A rule enforced at a gate is only as strong as the route an action is forced
+to take. This book grades each enforcement mechanism by its
+\pdterm{assurance mode}: what an adversary would have to defeat to make the
+mechanism's claim false. There are five modes.
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+  \item \pdterm{Observed}: the act may happen anywhere, and the system keeps
+  best-effort evidence recorded afterwards, so there is nothing to defeat.
+  \item \pdterm{Coordinated}: cooperating clients declare their claims, roles,
+  commitments and messages before acting, so an adversary need only decline to
+  declare.
+  \item \pdterm{Brokered}: a chosen credential or effect channel passes through
+  a broker that the daemon owns, so an adversary must defeat that broker.
+  \item \pdterm{Confined}: operating-system restrictions leave the process no
+  other route to the protected effect, so an adversary must escape that
+  confinement.
+  \item \pdterm{Attested}: a key is released, or a result accepted, only to an
+  environment whose measured build matches a published identity, so an
+  adversary must subvert the measured environment.
+\end{itemize}
+Appendix~\ref{app:volume-status} lists the five modes again with the
+book's implementation boundary.
+
 The ladder these modes form has two obvious public neighbours, and since the
 resemblance is real it's worth saying exactly what each of the three grades
 before somebody assumes they're the same instrument in different clothes.
