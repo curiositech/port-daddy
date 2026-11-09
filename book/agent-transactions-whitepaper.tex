@@ -1383,15 +1383,15 @@ $\alpha$ is calibrated from observed cleanup per scope unit. Low-$\alpha$ projec
 If a calibrated model predicts lower future damage for a principal with
 clean settlements, a proposed discount is:
 \[
-\pi(\mathcal{F}, p) \;=\; \max\{c,\,\pi(\mathcal{F})(1-\kappa(p))\},
-\quad \kappa(p) \in [0, r_{\max}],\; r_{\max} \leq 0.5,
+\pi(\mathcal{F}, p) \;=\; \max\{c,\,\pi(\mathcal{F})(1-r(p))\},
+\quad r(p) \in [0, r_{\max}],\; r_{\max} \leq 0.5,
 \]
 while keeping the bond at or above $c$. A raw quote of $6$ with a $50\%$
-discount would be $3$; if $c=5$, the posted bond is $5$, not $3$. $\kappa$ increases with clean settlements, decreases with breaches, decays over time. The functional form is left open.
+discount would be $3$; if $c=5$, the posted bond is $5$, not $3$. $r$ increases with clean settlements, decreases with breaches, decays over time. The functional form is left open.
 
 \subsubsection{Threat-Class Bond Sizing}\label{sec:pricing:threats}
 
-The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - \kappa)\}$ prices every threat from the same cleanup-cost curve. One calibration may not serve every task: a price intended to deter costly sabotage can exclude providers from low-exposure work, while an accessible price may leave severe losses underfunded. Task permissions, recoverability and loss estimates therefore matter alongside the multiplier.
+The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - r)\}$ prices every threat from the same cleanup-cost curve. One calibration may not serve every task: a price intended to deter costly sabotage can exclude providers from low-exposure work, while an accessible price may leave severe losses underfunded. Task permissions, recoverability and loss estimates therefore matter alongside the multiplier.
 
 Table~\ref{tab:threat-bonds} gives illustrative starting bands, each a share of the \pdterm{claim ceiling} (the most that will be paid out on a claim), not validated coverage levels. Careless work means an attempted result that is sloppy, partial or fails review; abandonment means leaving accepted work unfinished; sabotage means deliberate damage to shared state. These descriptions classify outcomes for analysis; they do not test intent.
 
@@ -1430,7 +1430,7 @@ The marketplace operator posts real tasks at above-market rates and invites a sm
 selection, loss severity and uncertainty.
 
 \paragraph{Phase 2 --- Complexity-proportional pricing with graduated access.}
-The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - \kappa)\}$ activates, with $\alpha$ calibrated from Phase~1 cleanup data and $\kappa$ initialized from the Phase~1 reputation table. New principals enter a tier with limited permissions and task value, using the lower bands of Table~\ref{tab:threat-bonds} as pricing proposals. Access to greater exposure is reconsidered after accumulated clean settlements, mirroring the A5 composite mechanism (\S\ref{sec:youle:a5}); neither the bond band nor the history rules out malicious conduct.
+The closed-form bond $\pi(\mathcal{F}, p) = \max\{c,c(1 + \alpha s)(1 - r)\}$ activates, with $\alpha$ calibrated from Phase~1 cleanup data and $r$ initialized from the Phase~1 reputation table. New principals enter a tier with limited permissions and task value, using the lower bands of Table~\ref{tab:threat-bonds} as pricing proposals. Access to greater exposure is reconsidered after accumulated clean settlements, mirroring the A5 composite mechanism (\S\ref{sec:youle:a5}); neither the bond band nor the history rules out malicious conduct.
 
 Reputation bootstrapping is the hard problem of this phase. A principal with verifiable work history from another deployment should not start at zero, but the operator cannot verify external histories directly. The proposed mechanism imports attestations: external audit trails signed under an Anchor-issued key (\S\ref{sec:attribution}) earn partial reputation credit, capped well below an equivalent in-system history. The credit is partial because cross-deployment reputation does not control for local cleanup cost, and capped because a fraudulent attestation issuer is a single point of failure.
 
