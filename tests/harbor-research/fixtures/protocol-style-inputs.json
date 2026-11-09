@@ -5,7 +5,7 @@
   "changes_reviewed": {
     "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged. Loads makeidx and opens the index of defined terms (printed as the Book's last leaf); protocol environments unchanged. Contents opening names Chapter 0 beside the chapter count; protocol environment definitions unchanged. Inputs figures/pd-weld.tex (the \\weld cross-chapter pointer) and figures/pd-buildid.tex (\\pdbuildid) after \\pdbooktrue; protocol environment definitions unchanged.",
     "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence. Chapter 1 landmark title now reads 'Proposals, Effects and Recovery' (plain-language rewrite drops the bedrock metaphor); protocol environments unchanged. Landmark 04's pull-quote says 'entry rule', so 'admission' keeps its single write-path meaning.",
-    "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance. Regenerated after the Book stopped citing the author's research papers; protocol environments unchanged.",
+    "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance. Regenerated after the Book stopped citing the author's research papers; protocol environments unchanged. Regenerated after the third-pass corrections added and re-dated sources; protocol environments unchanged.",
     "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged. \\pdterm now labels each definition and enters it in the index; \\pdstatus prints its grade and note as a margin tag beside the heading or claim; the glossary appendix's entry layout is defined here; protocol environments unchanged.",
     "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter one-line summaries regenerated from book/textbook.json after the plain-language rewrite; chapter structure and protocol environments unchanged. Regenerated again after the define-before-use pass rephrased chapter blurbs; chapter structure and protocol environments unchanged.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
@@ -39,8 +39,8 @@
     },
     {
       "path": "book/figures/pd-cite-shortforms.tex",
-      "sha256": "46359dfc9781f2605f2a8a698e7f6bb004a59e96b7901002b492d643391a2bc7",
-      "bytes": 31775
+      "sha256": "53d71d5247cd555358d39e7a550b4b2c33bbf13c4cbf13f194df60edf33e1375",
+      "bytes": 34168
     },
     {
       "path": "book/figures/pd-discharges.tex",

@@ -60,6 +60,20 @@ export function makeFixture() {
   if (existsSync(resolve(subjectRoot, glossaryRelative))) {
     cpSync(resolve(subjectRoot, glossaryRelative), resolve(root, glossaryRelative));
   }
+  // The generator lints \weld cross-references before TeX runs, so it imports
+  // the weld lint; a subject from before \weld has no such file.
+  const weldsRelative = 'scripts/lint/check-welds.mjs';
+  if (existsSync(resolve(subjectRoot, weldsRelative))) {
+    mkdirSync(resolve(root, 'scripts/lint'), { recursive: true });
+    cpSync(resolve(subjectRoot, weldsRelative), resolve(root, weldsRelative));
+  }
+  // The build renders each chapter's status table from book/corpus.json after
+  // generation; a subject from before the generated tables has no such script.
+  const statusRelative = 'scripts/harbor-research/render_status_tables.py';
+  if (existsSync(resolve(subjectRoot, statusRelative))) {
+    mkdirSync(resolve(root, 'scripts/harbor-research'), { recursive: true });
+    cpSync(resolve(subjectRoot, statusRelative), resolve(root, statusRelative));
+  }
   copyTexTree(resolve(subjectRoot, 'book'), resolve(root, 'book'));
   return root;
 }
