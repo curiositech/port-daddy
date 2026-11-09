@@ -20,7 +20,9 @@ set of data subjects, and fix an order $\alpha>1$ of
 \pdterm[Renyi differential privacy]{R\'enyi differential privacy} (RDP): a mechanism
 is $(\alpha,\rho)$-RDP if the R\'enyi divergence of order $\alpha$ between its
 output distributions on any two neighbors, in either direction, is at most
-$\rho$ \pdcite{feldman2020renyi}. Each training round $t$ declares a
+$\rho$ \pdcite{feldman2020renyi}. The R\'enyi divergence of order $\alpha$ of
+$P$ from $Q$ is $\frac{1}{\alpha-1}\ln\mathbb{E}_{x\sim Q}\bigl[(P(x)/Q(x))^{\alpha}\bigr]$;
+it is $0$ when $P=Q$ and grows as the two distributions separate. Each training round $t$ declares a
 per-subject cost $\rho_t\ge0$, chosen from public information and previous
 outputs.
 
