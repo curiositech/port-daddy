@@ -29,7 +29,7 @@
   %4: proof-bound claim to a separate adjudicator.
   \draw[pd protocol arrow] (5.3,-.85)--(7.6,-.85);
   \node[pd badge] at (6.45,-.85) {4};
-  \node[pd tag,anchor=south] at (6.45,-.65) {claim + proof};
+  \node[pd tag,anchor=south] at (6.45,-.65) {claim + two proofs};
   %5: one adjudicated decision; two monetary recipients and a log receipt.
   \node[pd focus badge] at (7.6,-2.0) {5};
   \node[pd tag,anchor=west] at (7.95,-2.0) {clear};
@@ -46,9 +46,10 @@
 \end{tikzpicture}
 \caption{One constructed incident across five authorities.
 (1) Acme offers a transfer. (2) Staging authorizes its own resource mapping
-and executes. (3--4) Beta detects the mismatch and submits evidence.
-(5) Escrow adjudicates under the signed acceptance policy, pays cleanup
-cost and refunds the remainder. (6) Acme publishes revocation; later gossip
+and executes. (3--4) Beta detects the mismatch and submits evidence, with
+inclusion proofs against the staging root and its own. (5) The adjudicator
+named in the bond's terms rules; the escrow, as custodian, pays the cleanup
+cost to Beta, the listed beneficiary, and refunds the remainder. (6) Acme publishes revocation; later gossip
 has no guaranteed delivery deadline. Inclusion proves record membership,
 not causation. [internal; constructed example]}
 \label{fig:fh-worked-example}
