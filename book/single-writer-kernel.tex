@@ -711,6 +711,7 @@ does not check overlapping line ranges, and the listing has no fencing epoch.
 The next result therefore states the assumptions of a stronger protocol that
 covers both.
 
+\pdstatus{\Designed}{fencing (I2b): no per-resource epoch is kept and no effect broker checks one; exact-key exclusion is built}
 The second half of the theorem below uses a \pdterm{fencing token}, an idea
 this design borrows. Kleppmann states the rule: ``a number that increases every
 time a client acquires the lock'' is handed to the resource with every write,
@@ -729,7 +730,9 @@ expires; Wren receives epoch~2. Heron resumes with a patch computed against
 revision~7. A database with only one current claim can still be paired with a
 filesystem that accepts Heron's stale patch. The stronger design therefore
 requires the effect broker to compare the submitted lease and epoch against
-the current allocation: epoch~1 is refused once epoch~2 is current.
+the current allocation: epoch~1 is refused once epoch~2 is current. That design is
+not built: the reference implementation keeps no per-resource epoch, and no
+effect broker checks one (I2b in Table~\ref{tab:invariants}).
 Figure~\ref{fig:swk-fencing-epoch} shows the same late effect with two other
 agents, \texttt{claude:auth} and \texttt{codex:worker}, and epochs 104 and 105
 in place of 1 and 2. A file write that
@@ -766,15 +769,19 @@ write; the lock alone would not.
 
 \pdmarginanalogy{swk-railway-token-staff}{}{ch01-railway-token-staff}{Like an English railway token staff, possession of the token is the sole physical authority to occupy the single track, preventing collision without distributed consensus.}%
 
-The setting differs from Chubby's, and the problem here is much smaller.
+The setting differs from Chubby's, and the problem here is smaller.
 Chubby's sequencer and Raft's leader term fence across machines that cannot
 otherwise agree on who is alive; the danger they answer is a paused JVM or a
-partitioned node still acting on a lease everyone else has moved past. Here the
-epoch fences one process's own asynchronous handlers against each other, so the
-race it defends against is between handlers on one machine, and the whole
-mechanism fits inside one SQLite transaction. That is why the kernel does not
-need Raft (the related-work section makes the argument by way of Fischer, Lynch
-and Paterson). The fencing token itself is still borrowed, not new.
+partitioned node still acting on a lease everyone else has moved past. The race
+the epoch answers here is that same paused-client race: in
+Figure~\ref{fig:swk-fencing-epoch}, \texttt{claude:auth} is a separate client
+process that slept past its lease. What is smaller is everything around it. One
+machine has no network partition and no second clock to disagree with, and the
+single writer orders the daemon's own request handlers
+(Definition~\ref{def:single-writer}), so the epoch is needed only against
+clients. That is why the kernel
+does not need Raft (the related-work section makes the argument by way of
+Fischer, Lynch and Paterson). The fencing token itself is still borrowed, not new.
 
 \pitfall[Reclamation needs its own atomic protocol]{The exact-key listing
 shows how uniqueness rejects a second active row. It does not implement the
@@ -2160,7 +2167,8 @@ maturity scale to the theorems themselves.
 \begin{table}[H]
 \centering
 \caption{The kernel invariants. I1 is split by fault class (I1a/I1b) per
-\S\ref{sec:durability}; I7--I9 carry the regimentation/detection correction per
+\S\ref{sec:durability}; I2b grades the fencing half of
+Theorem~\ref{thm:exclusion}; I7--I9 carry the regimentation/detection correction per
 \S\ref{sec:enforcement}.}
 \label{tab:invariants}
 \small
@@ -2171,6 +2179,7 @@ maturity scale to the theorems themselves.
 I1a & Process-crash durability & WAL + OS page cache & \Built \\
 I1b & Power-loss durability & (needs full synchronization) & \NotGuar \\
 I2 & Mutual exclusion (1 holder/key) & uniqueness constraint + busy-wait & \Built \\
+I2b & Fencing of a stale holder at the effect gate & per-resource epoch checked by an effect broker & \Designed{} (no epoch is kept or checked) \\
 I3 & Idempotence of re-claim/re-release & upsert / delete-if-exists & \Built \\
 I4 & Liveness reclamation (TTL sweep) & lazy expiry on read + ticks & \Built \\
 I5 & Metric-control separation (Law 1) & daemon-derived deadline & \Built \\
@@ -2929,7 +2938,7 @@ The chapter's main results, in the order the rest of the book relies on them:
 \item A fenced lease adds an epoch to the ownership record. The stronger
   theorem requires atomic conflict checks and allocation, plus an effect broker
   checking the active lease and epoch. An exact-key claim alone does not supply
-  those extra guarantees.
+  those extra guarantees, and fencing is designed, not built.
 \item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
   idempotency key the coordination layer has yet to supply; only protocol violations raise alarms.
 \item Two chains, never one name. The authorization chain proves who authorized whom;
