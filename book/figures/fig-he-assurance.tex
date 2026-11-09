@@ -2,7 +2,7 @@
 % Source mapping: harbor-economy.tex around the Adversarial Test Market,
 % Purchased Assurance Bound, and the shared-error boundary. Inputs are analytic:
 % d=.6, independent per-reviewer detection, one perfectly shared error draw,
-% and C_k=k*(b+c_B). No observations or fitted measurements are plotted.
+% and C_k=k*(b_f+c_B). No observations or fitted measurements are plotted.
 \begin{figure}[H]
 \centering
 \SGMeasuredFigure{he-assurance}{%
@@ -69,13 +69,13 @@
     xlabel={reviewer count $k$},
     clip=false,
   ]
-    % C_k=k*(b+c_B), normalized so the unknown bond carry is not fabricated.
+    % C_k=k*(b_f+c_B), normalized so the unknown bond carry is not fabricated.
     \addplot[pd series,domain=1:6,samples=6] {x};
   \end{axis}
   % Reserved between-panel rail: this is provisioning, not payout accounting.
   \node[pd label,anchor=center,inner sep=0pt,text width=263pt,align=center]
     at (131.5pt,-13pt)
-    {One budget unit: bounty $b$ + bond carry $c_B$};
+    {One budget unit: bounty $b_{\mathrm f}$ + bond carry $c_B$};
 \end{tikzpicture}
 }
 \caption{In this analytic model, more independent reviewers reduce miss probability; perfectly shared outcomes do not.

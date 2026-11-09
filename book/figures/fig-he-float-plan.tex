@@ -1,6 +1,6 @@
 % Figure IV.3 --- atomicity shown as synchronized state traces on a commit rail.
 %
-% Reader question: at what instant does a worker become admissible to run --
+% Reader question: at what instant may a worker start to run --
 % a signed plan, an attempted debit, or something else?
 % Claim: the wallet debit and the escrow-row write happen at the same
 % serialized commit; the worker only starts later, once it has verified that
@@ -31,7 +31,7 @@
   \def\tworker{6.30} \def\tclear{8.40}
   % ---- title --------------------------------------------------------------
   \node[pd title,anchor=west] at (\lx,5.30)
-    {execution becomes admissible at one committed transition};
+    {a worker may run only after one committed transition};
   % ---- the commit rail: the figure's subject ----------------------------
   \draw[pd spine] (\tcommit,-1.55) -- (\tcommit,4.30);
   \node[pd tag,anchor=south] at (\tcommit,4.35) {atomic commit boundary};
