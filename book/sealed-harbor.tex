@@ -1006,7 +1006,9 @@ advanced composition gives $(\varepsilon',\delta')$-privacy for $0<\delta'<1$, w
 This is \pdterm{advanced composition}. A possibly smaller $\varepsilon'$
 comes with a positive $\delta'$, so it is a different guarantee from pure DP
 ($\delta=0$), not a stronger one. The ledger records declared costs and
-refuses an overdraw.
+refuses an overdraw. The reference system's ledger is called A3 below; the
+script \texttt{a3\_epsilon\_ledger.py} of Table~\ref{tab:sealed-four-links}
+checks it.
 
 \paragraph{Three requests against a budget of four.}
 Use the two-client instance below, with programs $(2,2)$ and $(1,2)$, and let
@@ -1365,6 +1367,8 @@ including any boundary overshoot. It is the approximation above, not the
 identity, that replaces that value by the boundary.
 
 \paragraph{Reported checks.}
+A4 is the detection script \texttt{a4\_canary\_sprt.py} of
+Table~\ref{tab:sealed-four-links}.
 The chapter's recorded A4 example uses $n=10^4$ records with $c=100$ canaries (density
 one percent), against a channel through which each smuggled canary evades the
 detector with probability $\beta=0.2$: a 100-span leak is
