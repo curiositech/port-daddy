@@ -27,7 +27,7 @@ at $94\%$, usefulness in each case scaled between the trusted and the
 untrusted model~\pdcite{greenblatt2024control}. In a multi-step shell setting,
 resampling suspicious actions before execution cut attack success from $58\%$
 to $7\%$ at a $5\%$ cost in usefulness~\pdcite{bhatt2025ctrlz}. Every one of
-these measures acts before the effect: defer, resample, audit, shut down. In
+these levers acts before the effect: defer, resample, audit, shut down. In
 this section's terms, a protocol is a supervisor.
 
 \begin{pdclaim}{Theorem}{What a Control Evaluation Can Measure}\label{thm:swk-control-game}
@@ -136,7 +136,7 @@ pass every write rule and still violate the specification: ``this diff
 special-cases the tests'' is not a function of the observed write, so no gate
 over this alphabet regiments it.
 
-The paper's other measure is an escalation channel. Letting the agent stop and
+The paper's other lever is an escalation channel. Letting the agent stop and
 flag the task for a person cut GPT-5's cheating on the same variant from $54\%$
 to $9\%$, a relative fall of $45/54\approx 0.83$, and o3's from $49\%$ to $12\%$, a fall of $37/49\approx 0.76$. The authors report the effect as much less pronounced for Claude Opus~4.1, the model this example opened with.
 \end{pdexample}
