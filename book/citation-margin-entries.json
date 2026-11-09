@@ -110,7 +110,7 @@
   {
     "key": "mega015",
     "original": "Michael J. Fischer, Nancy A. Lynch, and Michael S. Paterson.\n\\newblock Impossibility of Distributed Consensus with One Faulty Process.\n\\newblock \\textit{Journal of the ACM}, 32(2):374--382, 1985.",
-    "margin": "M. J. Fischer, N. A. Lynch, and M. S. Paterson. ``Impossibility of Distributed Consensus with One Faulty Process.'' \\emph{J. ACM} 32(2):374--382, 1985.",
+    "margin": "M. J. Fischer et al. ``Impossibility of Distributed Consensus with One Faulty Process.'' \\emph{J. ACM} 32(2), 1985.",
     "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator."
   },
   {
@@ -122,7 +122,7 @@
   {
     "key": "mega002",
     "original": "Butler W. Lampson. Protection. Reprinted in \\emph{ACM SIGOPS Operating\nSystems Review}, 8(1):18--24, January 1974; first published in \\emph{Proc.\\ 5th Princeton\nConference on Information Sciences and Systems}, Princeton, 1971.",
-    "margin": "B. W. Lampson. ``Protection.'' \\emph{Proc.\\ 5th Princeton Conf.\\ on Information Sciences and Systems}, 1971; reprinted in \\emph{ACM SIGOPS OS Review} 8(1):18--24, 1974.",
+    "margin": "B. W. Lampson. ``Protection.'' 1971; reprinted in \\emph{ACM SIGOPS OS Review} 8(1), 1974.",
     "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator. Third pass: Protection is dated to its 1971 first publication, with the 1974 reprint."
   },
   {
@@ -934,5 +934,35 @@
     "original": "D. Richard Hipp et al.\n\\newblock Pragma Statements Supported by SQLite.\n\\newblock SQLite Documentation, accessed November 2026.\n\\newblock \\url{https://www.sqlite.org/pragma.html}\n\\newblock (The entry for \\texttt{PRAGMA synchronous}.)",
     "margin": "D. R. Hipp et al. \\emph{Pragma Statements Supported by SQLite} (\\texttt{synchronous}). SQLite documentation, 2026. \\url{https://www.sqlite.org/pragma.html}",
     "reason": "Third pass: the long annotation moves out of the margin so Figure 1.3's and Table 1.3's captions stay beside their exhibits; author list shortened, title and online source kept."
+  },
+  {
+    "key": "biscuit2026",
+    "original": "Eclipse Biscuit.\n\\newblock Biscuit: a delegated, decentralized, capabilities-based authorization token.\n\\newblock Specification, \\url{https://github.com/eclipse-biscuit/biscuit}; per-block revocation identifiers as implemented in \\texttt{biscuit-auth} 6.0.0, \\url{https://docs.rs/biscuit-auth/6.0.0}. Accessed November 2026.",
+    "margin": "Eclipse Biscuit. \\emph{Biscuit: a delegated, capabilities-based authorization token}. 2026. \\url{https://github.com/eclipse-biscuit/biscuit}",
+    "reason": "Third pass: the second link and the access note move out of the margin so Figure 2.5's caption and the status note fit beside the text; title, version and online source kept."
+  },
+  {
+    "key": "basin2013enforceable",
+    "original": "David Basin, Vincent Jugé, Felix Klaedtke, and Eugen Zălinescu.\n\\newblock Enforceable Security Policies Revisited.\n\\newblock \\textit{ACM Transactions on Information and System Security}, 16(1), Article 3, June 2013.\n\\newblock \\url{https://doi.org/10.1145/2487222.2487225}",
+    "margin": "D. Basin et al. \\emph{Enforceable Security Policies Revisited}. \\textit{ACM TISSEC} 16(1), 2013. \\url{https://doi.org/10.1145/2487222.2487225}",
+    "reason": "Third pass: the author list is shortened to the first author so first-use notes fit the publication edition's margin; title, venue, year and online source kept."
+  },
+  {
+    "key": "ligatti2005edit",
+    "original": "Jay Ligatti, Lujo Bauer, and David Walker.\n\\newblock Edit Automata: Enforcement Mechanisms for Run-time Security Policies.\n\\newblock \\textit{International Journal of Information Security}, 4(1--2):2--16, 2005.\n\\newblock \\url{https://doi.org/10.1007/s10207-004-0046-8}",
+    "margin": "J. Ligatti et al. \\emph{Edit Automata: Enforcement Mechanisms for Run-time Security Policies}. \\textit{Int.\\ J. Inf.\\ Secur.} 4(1--2), 2005. \\url{https://doi.org/10.1007/s10207-004-0046-8}",
+    "reason": "Third pass: the author list is shortened to the first author so first-use notes fit the publication edition's margin; title, venue, year and online source kept."
+  },
+  {
+    "key": "bhargavan2017everest",
+    "original": "Karthikeyan Bhargavan, Barry Bond, Antoine Delignat-Lavaud, Cédric Fournet, Chris Hawblitzel, et al.\n\\newblock Everest: Towards a Verified, Drop-in Replacement of HTTPS.\n\\newblock In \\textit{2nd Summit on Advances in Programming Languages (SNAPL 2017)}, LIPIcs 71, pages 1:1--1:12, 2017.\n\\newblock \\url{https://doi.org/10.4230/LIPIcs.SNAPL.2017.1}",
+    "margin": "K. Bhargavan et al. \\emph{Everest: Towards a Verified, Drop-in Replacement of HTTPS}. \\textit{SNAPL 2017}, LIPIcs 71. \\url{https://doi.org/10.4230/LIPIcs.SNAPL.2017.1}",
+    "reason": "Third pass: the author list is shortened to the first author so first-use notes fit the publication edition's margin; title, venue, year and online source kept."
+  },
+  {
+    "key": "chudnov2018continuous",
+    "original": "Andrey Chudnov, Nathan Collins, Byron Cook, Joey Dodds, Brian Huffman, Colm MacC\\'arthaigh, Stephen Magill, Eric Mertens, Eric Mullen, Serdar Tasiran, Aaron Tomb, and Eddy Westbrook.\n\\newblock Continuous Formal Verification of Amazon s2n.\n\\newblock In \\textit{Computer Aided Verification (CAV 2018)}, LNCS 10982, pages 430--446, 2018.\n\\newblock \\url{https://doi.org/10.1007/978-3-319-96142-2_26}",
+    "margin": "A. Chudnov et al. \\emph{Continuous Formal Verification of Amazon s2n}. \\textit{CAV 2018}, LNCS 10982. \\url{https://doi.org/10.1007/978-3-319-96142-2_26}",
+    "reason": "Third pass: the author list is shortened to the first author so first-use notes fit the publication edition's margin; title, venue, year and online source kept."
   }
 ]

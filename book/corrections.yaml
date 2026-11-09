@@ -295,7 +295,7 @@
   item: "Blocker 4: Everest venue is SNAPL 2017"
   file: book/anchor-protocol-whitepaper.tex
   before: "Replacement of HTTPS. In Logic in Computer Science"
-  after: "Summit on Advances in Programming Languages"
+  after: "SNAPL 2017, LIPIcs 71"
   source: "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SNAPL.2017.1"
 - id: anchor-7
   item: "Ch. 2 repairs: define the capability order once, as a partial order"
@@ -652,7 +652,7 @@
   item: "Ch. 3 minor: Lampson's Protection, bibliography entry"
   file: book/sealed-harbor.tex
   before: null
-  after: "Princeton Conf. on Information Sciences and Systems, 1971"
+  after: "1971; reprinted in ACM SIGOPS OS Review"
   source: "https://www.bwlampson.site/08-Protection/Abstract.html"
   note: "the entry now lists the 1974 reprint and the 1971 original; key lampson1971, margin short form 'Lampson 1971' after pd-cite-shortforms is regenerated"
 - id: sealed-23
@@ -1728,3 +1728,202 @@
   before: "used to close a commitment"
   after: "whether a commitment is met"
   source: "repo: book/coordination-papers-mega-volume.tex front-matter key"
+
+# --- swk2 (third pass, Wave 1: Chapter 1 corrections found by the companion code) ---
+- id: swk2-1
+  item: "Ch. 1 code finding 1: I1a credited to WAL + OS page cache (invariants table)"
+  file: book/single-writer-kernel.tex
+  before: "WAL + OS page cache"
+  after: "reply only after commit"
+  source: "https://sqlite.org/pragma.html#pragma_synchronous"
+- id: swk2-2
+  item: "Ch. 1 code finding 1: I1a mechanism in Property prop:durability"
+  file: book/single-writer-kernel.tex
+  before: "the write survives: the data is in the"
+  after: "the daemon replies only after the transaction commits"
+  source: "https://sqlite.org/pragma.html#pragma_synchronous"
+- id: swk2-3
+  item: "Ch. 1 code finding 1: the configuration decides durability only for OS crash and power loss"
+  file: book/single-writer-kernel.tex
+  before: 'survives a crash" reduces entirely to what WAL'
+  after: "rests on the daemon replying only after commit"
+  source: "https://sqlite.org/pragma.html#pragma_synchronous"
+- id: swk2-4
+  item: "Ch. 1 code finding 1: recovery paragraph called WAL recovery I1a's mechanism"
+  file: book/single-writer-kernel.tex
+  before: "On daemon restart with a WAL"
+  after: "not on WAL as such"
+  source: "https://sqlite.org/wal.html"
+- id: swk2-5
+  item: "Ch. 1 code finding 1: key idea credited the durable audit log to the WAL"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "survives a daemon crash because the reply waits"
+  source: "https://sqlite.org/pragma.html#pragma_synchronous"
+  note: "the wording it replaces was itself introduced earlier in this pass and never printed on main"
+- id: swk2-6
+  item: "Ch. 1 code finding 1: Review item 2"
+  file: book/single-writer-kernel.tex
+  before: "The setting is the durability claim"
+  after: "because the reply follows the commit"
+  source: "https://sqlite.org/pragma.html#pragma_synchronous"
+- id: swk2-7
+  item: "Ch. 1 code finding 2: fenced-lease theorem checked the lease and omitted binding"
+  file: book/single-writer-kernel.tex
+  before: "checks both the active lease and its epoch"
+  after: "rejects the current epoch from anyone but its holder"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-8
+  item: "Ch. 1 code finding 2: fenced-lease proof sketch"
+  file: book/single-writer-kernel.tex
+  before: "preventing stale or paused holders from producing side effects"
+  after: "The lease is never consulted"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-9
+  item: "Ch. 1 code finding 2: what each fenced-lease hypothesis buys"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "Each hypothesis is needed"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-10
+  item: "Ch. 1 code finding 2: the paused-holder example before the theorem"
+  file: book/single-writer-kernel.tex
+  before: "compare the submitted lease and epoch against"
+  after: "and the agent submitting it"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-11
+  item: "Ch. 1 code finding 2: reclamation pitfall"
+  file: book/single-writer-kernel.tex
+  before: "check the resulting lease and epoch"
+  after: "the resulting epoch and the agent it was issued to"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-12
+  item: "Ch. 1 code finding 2: invariants table, I2b mechanism"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "checked by the process that issues it"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+  note: "the wording it replaces was itself introduced earlier in this pass and never printed on main"
+- id: swk2-13
+  item: "Ch. 1 code finding 2: fencing figure caption"
+  file: book/figures/fig-swk-fencing-epoch.tex
+  before: null
+  after: "not from the writes it happens to see"
+  source: "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html"
+- id: swk2-14
+  item: "Ch. 1 code finding 2: Review item 3"
+  file: book/single-writer-kernel.tex
+  before: "checking the active lease and epoch"
+  after: "the gate need not check the lease"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-15
+  item: "Ch. 1 code finding 2: OP-1 ticket-lock solution"
+  file: book/single-writer-kernel.tex
+  before: "or an expired holder can still act"
+  after: "a holder whose lease passed to the next ticket"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-16
+  item: "Ch. 1 code finding 3: acquire listing checked the holder before expiry"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "Expiry is checked before the holder"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-17
+  item: "Ch. 1 code finding 3: why the order of the two checks matters"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "the late write that epochs exist to stop"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-18
+  item: "Ch. 1 code finding 3: I3 scoped to live claims (invariants table)"
+  file: book/single-writer-kernel.tex
+  before: "Idempotence of re-claim/re-release"
+  after: "live claims only"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-19
+  item: "Ch. 1 code finding 3: lifecycle summary scoped re-claim to live claims"
+  file: book/single-writer-kernel.tex
+  before: "re-claim and release are idempotent, an expired"
+  after: "re-claim of a live claim and release are"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-20
+  item: "Ch. 1 code finding 3: theorem epoch hypothesis covers a re-claim after expiry"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "a holder's own claim after its lease expired included"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-21
+  item: "Ch. 1 code finding 3: claim-lifecycle figure, renew row"
+  file: book/figures/fig-swk-claim-lifecycle.tex
+  before: "Fully idempotent; extends TTL"
+  after: "Idempotent while the claim is live"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-22
+  item: "Ch. 1 code finding 3: claim-lifecycle figure caption"
+  file: book/figures/fig-swk-claim-lifecycle.tex
+  before: "re-claim and release are idempotent; expiry moves"
+  after: "even by its holder, is a new acquire"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-23
+  item: "Ch. 1 code finding 3: timed claims object names the expired-lease branch"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "look the same in it; under fencing they differ"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+  note: "the wording it replaces was itself introduced earlier in this pass and never printed on main"
+- id: swk2-24
+  item: "Ch. 1 code finding 3: Review item 3, re-claim after expiry"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "even by the same holder, is a new acquisition"
+  source: "derivation: math-swk2/fenced_lease_check.py"
+- id: swk2-25
+  item: "Ch. 1 code finding 4: W5 has no predicate of its own (claim box)"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "the checker tests it with W1's predicate"
+  source: "derivation: math-swk2/w5_check.py"
+- id: swk2-26
+  item: "Ch. 1 code finding 4: proof idea counted six predicates"
+  file: book/single-writer-kernel.tex
+  before: "evaluates the six predicates in"
+  after: "evaluates five predicates in each"
+  source: "derivation: math-swk2/w5_check.py"
+- id: swk2-27
+  item: "Ch. 1 code finding 4: boundary said six invariants each catch a seeded bug"
+  file: book/single-writer-kernel.tex
+  before: "shows that these six have teeth"
+  after: "No mutant targets W5 alone"
+  source: "derivation: math-swk2/w5_check.py"
+- id: swk2-28
+  item: "Ch. 1 code finding 4: the transcript's six means five predicates"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "it has evaluated five predicates"
+  source: "derivation: math-swk2/w5_check.py"
+- id: swk2-29
+  item: "Ch. 1 code finding 4: work-unit figure caption"
+  file: book/figures/fig-swk-workunit-machine.tex
+  before: null
+  after: "predicates check (W5 follows from W1)"
+  source: "derivation: math-swk2/w5_check.py"
+- id: swk2-30
+  item: "Ch. 1 code finding 5: thm:consistency reads the clock inside the transaction"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "reads the daemon's clock itself, once, after it begins"
+  source: "derivation: math-swk2/timed_clock_read_check.py"
+  note: "the wording it replaces was itself introduced earlier in this pass and never printed on main"
+- id: swk2-31
+  item: "Ch. 1 code finding 5: why the clock read belongs inside the transaction"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "The clock read belongs inside the transaction"
+  source: "derivation: math-swk2/timed_clock_read_check.py"
+- id: swk2-32
+  item: "Ch. 1 code finding 5: solution to ex:swk-linearizability-assumptions"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "which reads the clock itself, once, after it begins"
+  source: "derivation: math-swk2/timed_clock_read_check.py"
+  note: "the wording it replaces was itself introduced earlier in this pass and never printed on main"

@@ -850,8 +850,8 @@ Source edges are nonzero and do not overlap the zero path; when both pins
 come from one source edge, charge that edge once.
 \end{proof}
 
-The categorical oracles in \texttt{test\_claim\_audit.py} and
-\mbox{\texttt{test\_costed\_claim\_certificates.py}} check these decisions
+The categorical oracles in \path{test_claim_audit.py} and
+\path{test_costed_claim_certificates.py} check these decisions
 independently of the production checker; neither authenticates the producer.
 A certificate shows that the receipts held cannot all be right. It does not
 show which agent caused harm, and choosing which new observation to request
