@@ -82,7 +82,8 @@ A harbor directed by principals $1,\dots,M$ satisfies:
 \item \textbf{One charter root} (\Vision). One charter is the root of every
 delegation and holds the precedence table. An amendment may require $k$ of $M$
 signatures; each amendment is one proposal, accepted or rejected.
-\item \textbf{A delegation tree} (\Designed). After transitive reduction, every
+\item \textbf{A delegation tree} (\Designed). After transitive reduction (removing
+every edge $u\to v$ already implied by a longer path from $u$ to $v$), every
 scope, invariant and agent grant, and every principal with a delegation path
 to one of them, has exactly one delegating parent. The daemon refuses a grant
 that would give such a node a second parent.
@@ -338,10 +339,10 @@ irrelevant alternatives. Arrow's theorem, as stated in Chapter~0, says it is
 then a dictatorship. The Gibbard--Satterthwaite theorem, stated in the same
 place, adds that a deterministic single-winner rule over at least three
 outcomes is dictatorial or open to manipulation at some profile. Fickinger and colleagues carry the point to
-assistants serving several humans. When the humans' own demonstrations count
-for little against what the assistant then does, the only straightforward
-deterministic mechanisms are those restricted to two outcomes and
-dictatorships~\pdcite{fickinger2020multi}.
+assistants serving several humans. When what the assistant does afterward
+matters much more to the humans than their own demonstrations, the only
+deterministic mechanisms in which no one gains by misreporting their
+preferences are dictatorships and rules with two outcomes~\pdcite{fickinger2020multi}.
 
 The design consequence is the shape of rules R1, R5 and R8. Escalations are put
 as one proposal to accept or reject, which keeps every decision to two
@@ -479,11 +480,12 @@ priors.
 The harbor should not let an agent learn such shifting weights silently.
 Authority that drifts toward whoever predicted better is a change of authority
 nobody consented to. The proposal (\Vision) is to make the bet explicit, as a
-float plan of \pdchapref{he}{The Harbor Economy}%
+float plan (the record of a work agreement and its funding commitments;
+\pdchapref{he}{The Harbor Economy}%
 \ifpdbook
-\ (\S\ref{he:sec:float-plan})%
+, \S\ref{he:sec:float-plan}%
 \fi
-: each person posts a bond against the observable outcome, the terms appear in
+): each person posts a bond against the observable outcome, the terms appear in
 the digest, and settlement follows the outcome, not the agent's inference.
 Exercise~\ref{ex:ls-many-authors-bets} works the cake by hand.
 

@@ -380,8 +380,9 @@ sovereign making its own judgments legible --- ``all good'' becomes ``a claim wi
 verifier, not vibes.''
 \pitfall[Ranking can hide urgent work]{There is a regress hiding here, and Scott would press it. If every act of
 authority must be legible, the \emph{legibility apparatus itself} is an exercise of
-authority --- the digest decides what is surfaced and what is buried. The Attention
-Queue ranker (\S\ref{sec:discovery}) is \emph{the} sovereign act: it decides what
+authority --- the digest decides what is surfaced and what is buried. The ranker of the
+Attention Queue, the ranked list of items the daemon puts in front of the operator for
+review (\S\ref{sec:discovery}), is \emph{the} sovereign act: it decides what
 the operator sees \emph{right now}. A ranker that silently buries an escalation is
 governing opaquely. The rule is therefore not complete until the ranker's
 \emph{omissions} are themselves legible, through a \pdterm{counter-surface}:
@@ -389,7 +390,7 @@ a view that lists what the queue did not show the operator, and why. Ranking is 
 \S\ref{sec:consent-canon}.}
 \begin{pdexample}{Three Omissions, and How Many of Them a Score Explains}
 \setlength{\parskip}{4pt plus 1pt}
-Take the three suppressed items tabulated below and try to audit the queue the cheap way, by score alone. Each item's score is its \pdterm{regret}, an estimate of the harm of leaving it unseen, and the distress threshold for this action class is $0.45$.
+Take the three suppressed items tabulated below and try to audit the queue the cheap way, by score alone. Each item's score is its \pdterm{regret}, an estimate of the harm of leaving it unseen, and the queue shows an item of this kind of action (its action class) only if its regret reaches the distress threshold of $0.45$.
 The first item, \texttt{agent-7}'s escalation, scores $0.31$; since $0.31<0.45$ it sits below the bar and the threshold explains it, and an auditor with nothing but the scores reconstructs that omission correctly.
 The second scores $0.12$, which is also below $0.45$ --- so the score-only auditor thinks the threshold explains that one too, and is wrong: it was dropped because its recency weight decayed below the cutoff, and a rule that consults the clock rather than the score would have aged it out at any score at all.
 The third is the one that should end the argument: it scores $0.58$, above the only threshold the screen names, and it was suppressed anyway, by de-duplication into an earlier occurrence --- another rule that never looks at the number.
@@ -602,7 +603,7 @@ Every summary is a lens onto the real artifact, never a replacement for it.
 Summarize the \textbf{state}; link to the \textbf{work}.
 
 A digest you cannot zoom is
-a high-modernist map. A digest that reaches the underlying artifact preserves
+the kind of map Scott warns about, a simplified picture used in place of the thing it shows. A digest that reaches the underlying artifact preserves
 access to recorded evidence: the operator can descend from abstraction and check
 the claim. Tacit practitioner knowledge, or m\^etis, is a further requirement;
 not all of it can be recorded.
@@ -616,7 +617,7 @@ $\zeta$ is a Potemkin digest.
 \input{figures/legible-swarm-zoom-vs-potemkin}
 
 Figure~\ref{fig:zoom-vs-potemkin} puts the two digests side by side: one that zooms
-to a verifiable artifact and one that only asserts. Three disciplines converge on
+to a verifiable artifact and one that only asserts. Three requirements combine into
 this one principle: summaries must be indexes, not
 replacements; a reported result must be a checked result, not an asserted one; and
 every summary must reach the artifact it summarizes. This chapter supplies the
@@ -704,8 +705,8 @@ return to adversarial review as one such mechanism in
 \needspace{6\baselineskip}
 \subsection{The four design questions (a decision procedure)}\label{sec:four-questions}
 
-For any read-surface (the Attention Queue, a briefing, a resurrection digest, a
-terminal pane), Table~\ref{tab:ls-four-questions} turns the rule into four checks, asked in order: the effect's
+For any read-surface (the Attention Queue, a briefing, a resurrection digest, which is
+the handoff a successor agent reads after its predecessor crashed, or a terminal pane), Table~\ref{tab:ls-four-questions} turns the rule into four checks, asked in order: the effect's
 consequence, the information preserved, the evidence behind the claim, and the
 authority for the decision. Apply them to Drake's row: a green summary cannot
 justify landing when the preserved acceptance test is absent. The protocol
@@ -1486,10 +1487,12 @@ $\mathbb{E}[\text{zooms}(\beta)]$ is the inspection probability. The objective i
    \;+\; c_{\mathrm{att}}\,\mathbb{E}[\text{zooms}(\beta)] \,\Big].
 \end{equation}
 
-The forced-zoom policy $p(r,s,v)$ is calibrated against this loss after specifying
+The forced-zoom policy $p(r,s,v)$, the probability that the daemon makes the
+operator open an action before it proceeds, given the agent's reputation $r$, the
+action's stakes $s$ and its reversibility $v$, is calibrated against this loss after specifying
 the score distributions that determine $P_{\text{miss}}$ and $P_{\text{fa}}$.
 An imperfect inspection requires an additional residual-harm term; the displayed
-loss does not price that error.
+loss does not include that error.
 
 Equation~\ref{eq:sdt} is a decision objective, not by itself a fitted detector: what
 the design commits to is that operator friction is set by this loss and not by taste,
@@ -1516,9 +1519,7 @@ harm of zero review, but it does not always rule zero review out. If inspection
 costs more than the expected harm it prevents, zero review can minimize this
 objective, as the formatting example shows.
 
-Write $p(r,s,v)$ for the forced-zoom policy: the probability that the daemon
-makes Alice open an action before it proceeds, given the agent's reputation $r$,
-the action's stakes $s$ and its reversibility $v$. We would like $p$ to rise
+We would like the forced-zoom policy $p$ to rise
 with stakes, to rise as reversibility falls, and to fall as reputation rises.
 The attention objective above does not guarantee this; it follows only from a
 model linking $r$, $s$ and $v$ to the distributions of evidence scores, so it
@@ -1675,7 +1676,7 @@ switching away from unfinished work, case by case.
 \pdstatus{\Vision}{no implementation}
 The proposed protocol measures detection of known defects on sandboxed replays; whether training with it improves real supervision is an empirical question. Operators enroll knowingly: the program's existence, rate $\rho_{\text{canary}}$, and stakes are disclosed at onboarding; only the \emph{which} and \emph{when} are blinded:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
-\item \textbf{Blinded holdout replay.} An out-of-band summarizer, the sidecar model of \S\ref{sec:tokens-digest}, draws from a curated holdout of \emph{historical, already-fixed} defects (an off-by-one boundary condition, an unindexed query, a removed regression test), re-materializes one inside a sandboxed replay of a past work item at rate $\rho_{\text{canary}}$, and routes it through the review surface indistinguishably from live traffic. No anomaly is injected into a live pull request or pending action: the replay cannot directly modify production. Interruptions and score-driven changes to future grants can still affect real work and require evaluation.
+\item \textbf{Blinded holdout replay.} An out-of-band summarizer (a separate small model that works from kernel records and diffs; \S\ref{sec:tokens-digest} proposes it) draws from a curated holdout of \emph{historical, already-fixed} defects (an off-by-one boundary condition, an unindexed query, a removed regression test), re-materializes one inside a sandboxed replay of a past work item at rate $\rho_{\text{canary}}$, and routes it through the review surface indistinguishably from live traffic. No anomaly is injected into a live pull request or pending action: the replay cannot directly modify production. Interruptions and score-driven changes to future grants can still affect real work and require evaluation.
 \item \textbf{Attention queue surfacing.} The item is placed in the Attention Queue with standard high-regret scoring.
 \item \textbf{Illustrative adjudication cases:}
 \begin{itemize}[leftmargin=1.2em,nosep]
@@ -1772,7 +1773,7 @@ introducing a second catalogue of product modes.
 \pdexercisepointer*{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
 
 \begin{pdrecitation}
-\item Recall the regret head's three factors and its calibration premise.
+\item Name the three cost terms in the operator's attention objective.
 \item When can a pooled review rate hide class differences?
 \item Can canary scores improve without better defect detection? Why is a safeguard no guarantee?
 \end{pdrecitation}
@@ -2773,7 +2774,7 @@ inspection \emph{threshold} falls; whether that means more opens depends entirel
 on where the posterior mass sits. An uncalibrated anomaly score does not justify treating its numerical
 value as $a$. Miscalibration changes the estimated passing loss by
 $C_{\mathrm{miss}}(\mathrm{anomaly}-a)$ and can change the selected actions.
-Fitting $g$ from the audit log is a measured obligation of the design.
+Fitting the calibration map from anomaly score to danger probability $a$, using the audit log, is an obligation of the design that needs measurement.
 
 \begin{pdclaim}{Theorem}{Reputation under Fixed Inspection Costs}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2841,8 +2842,8 @@ debit for an adjudicated false escalation could make manipulation costly.
 Mere dismissal is insufficient evidence of falsity: penalizing it may suppress
 valid warnings. The design therefore owes an adjudication rule, an appeal path,
 and tests of both manipulation and missed warnings. This proposed sanction is
-not EigenTrust's pretrusted-peer mechanism and has no guarantee from that
-algorithm.
+not the pretrusted-peer mechanism of EigenTrust, a peer-to-peer reputation
+algorithm (\S\ref{sec:related}), and has no guarantee from that algorithm.
 
 \subsection{Staleness and decay on every read-surface}\label{sec:staleness}
 
@@ -3022,7 +3023,7 @@ F(k)=\log_2\!\frac{2k+1}{k+1}\longrightarrow1.
 Consequently $R(2k+1,k,2k)\to\infty$ as $k\to\infty$.
 \end{pdclaim}
 
-Read the ratio with care. Each of the two separate readers may open $m$
+Read the ratio $R(N,k,m)$, which is unrelated to the rate $R(\delta,f)$, with care. Each of the two separate readers may open $m$
 items, $2m$ in all; the joint digest may open only $m$. What the theorem
 shows: one digest that must serve two readers with disjoint critical sets
 inside one reader's opening budget needs more bits than the two
@@ -3055,7 +3056,7 @@ The sum of the two single-reader floors is
 \[
 2F(2)\approx11.9644 \text{ bits},
 \]
-with eight opens allowed per reader. Hence the plotted ratio is
+with eight opens allowed per reader. Hence the ratio plotted in Figure~\ref{fig:split-penalty} is
 \[
 R(60,2,8)\approx1.0670:
 \]
@@ -3105,9 +3106,10 @@ under a fixed policy and schema, holds no tool authority, and must cite a
 kernel-recorded source for every line it emits. What can be proved of it is
 syntactic (schema conformance, provenance closure, absence of authority); whether
 its digests are faithful is an empirical question requiring independently graded audits.
-The deterrence rate $\rho^\star=G/(dB)$ from
-\pdchapref{stp}{From Spawn to Person} applies only when an accountable
-party has the modeled gain $G$ and actually forfeits bond $B$ on detection.
+The deterrence rate of \pdchapref{stp}{From Spawn to Person}, the audit rate
+$\rho^\star=G/(dB)$ at which cheating stops paying for a party with gain $G$,
+detection probability $d$ and bond $B$, applies only when an accountable
+party really has that gain and actually forfeits the bond on detection.
 A local model without that payoff mechanism is not made truthful by the formula.
 
 \pdmarginanalogy{ls-tide-gauge}{}{ch04-tide-gauge-staff}{Like a mechanical tide gauge recording drum smoothing choppy waves into a clean tidal curve, reader projections synthesize continuous noisy activity into legible, actionable summaries.}%
@@ -3192,9 +3194,9 @@ adequately, and whether the reader may act on it, are separate questions.
 
 \subsection{The context-degradation cascade (the shared failure surface)}\label{sec:cascade}
 
-Compaction can fail in four distinguishable ways. A fact may be present but
-poorly retrieved; a long context may impair the tested task; successive summaries
-may accumulate unsupported claims; or a digest may leave no usable route to the
+Compaction can fail in four distinguishable ways: (1) a fact may be present but
+poorly retrieved; (2) a long context may impair the tested task; (3) successive summaries
+may accumulate unsupported claims; or (4) a digest may leave no usable route to the
 source. None is cured merely by changing the display from graphical to textual.
 
 For Alice's job, the check is concrete: after each compaction, can the reader
@@ -3214,7 +3216,7 @@ not guaranteed cures for every model or task.
 \toprule
 \textbf{Strategy} & \textbf{What it drops} & \textbf{Failure if abused} & \textbf{When it is the right tool} \\
 \midrule
-Recursive summary & Older prose, re-summarized & Confident fabrication (rung 3) & Never as the \emph{only} record; only over durable artifacts re-read each round \\
+Recursive summary & Older prose, re-summarized & Confident fabrication (failure 3) & Never as the \emph{only} record; only over durable artifacts re-read each round \\
 Edge-placement & Nothing; reorders & --- & Whenever a fact is critical: put it first or last (counters lost-in-the-middle) \\
 External note-taking & In-context detail, kept on disk & Notes nobody reads & Decisions and rationale that a successor must recover \\
 Sub-agent isolation & Child context the parent never sees & Parent loses zoomability into the child & Bounded sub-tasks whose only output the parent needs is a result \\
@@ -3248,7 +3250,7 @@ reputation requires the additional continuity developed in
 
 \begin{pdrecitation}
 \item Why derive both digest and compaction from artifacts rather than earlier summaries?
-\item Name the four context-degradation stages and a remedy for each.
+\item Name the four context-degradation failures and a remedy for each.
 \item Evaluate $k/(k-h+1)$ at $h=k$. Why is this the hardest comparator?
 \end{pdrecitation}
 
@@ -3547,8 +3549,8 @@ The route: with death at rate $\xi$ and succession at rate $\eta$ the sole
 owner's mean wait decreases in skill to an infimum
 $W_\infty=\xi/(\eta(\xi+\eta))$, the residual downtime a request meets when it
 arrives during an outage, which it never attains, so no amount of skill removes
-downtime below that floor. Writing $K=A/(w\lambda)+W_{\mathrm{pool}}$ for the
-pool's cost line, pooling dominates at \emph{every} skill premium iff the floor
+downtime below $W_\infty$. Writing $K=A/(w\lambda)+W_{\mathrm{pool}}$ for the
+pool's cost line, pooling dominates at \emph{every} skill premium iff $W_\infty$
 has reached that line, $W_\infty\ge K$, which rearranges to
 $\xi/\eta\ge D^\star=\eta K/(1-\eta K)$. Whether that threshold sits above or
 below what an operator can promise is an empirical question about the concrete
@@ -3557,7 +3559,7 @@ promised $\eta$ implies $\xi/\eta>D^\star$, no amount of hiring a better
 specialist recovers sole ownership, and the honest fix is a succession plan,
 not a stronger specialist.
 
-The threshold $D^\star$ is defined only when $\eta K<1$. If $\eta K\ge1$, the downtime floor cannot reach the cost line and this obstruction does not arise. The model assumes failures can occur even while the server is idle, with preemptive-resume service after repair. Under failures only during active service, the infinite-skill floor is zero instead. The failure model therefore belongs in the answer, not merely in a numerical implementation. Exercise~\ref{ex:ls-b8-specialization-run} checks the never-failing boundary; the companion economy chapter develops the breakdown model.
+The threshold $D^\star$ is defined only when $\eta K<1$. If $\eta K\ge1$, the lower limit $W_\infty$ cannot reach the cost line and this obstruction does not arise. The model assumes failures can occur even while the server is idle, with preemptive-resume service after repair. Under failures only during active service, $W_\infty$ is zero instead. The failure model therefore belongs in the answer, not merely in a numerical implementation. Exercise~\ref{ex:ls-b8-specialization-run} checks the never-failing boundary; the companion economy chapter develops the breakdown model.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b8-specialization-run}
 Run \texttt{b8\_specialization.py} with \texttt{python3} from the
@@ -3575,7 +3577,7 @@ off the feasible debit band $[\delta_{\min},\delta_{\max}]$ at $A=3.3$ and at
 $A=2.0$. Confirm $u^\star(0.05)$ by hand first.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-b7-escalation-run}
-By hand, at $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\delta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w\allowbreak/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the R3 constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = \mbox{0.071975} -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = \mbox{0.071975} -> band EMPTY} [internal, \texttt{b7\allowbreak\_escalation\allowbreak\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A=3.3$ against an empty feasible set at $A=2.0$ because $\delta_{\min}>\delta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A$ or lower $C_{\mathrm{miss}}$), never forcing a $\delta$ that does not exist.
+By hand, at $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\delta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w\allowbreak/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = \mbox{0.071975} -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = \mbox{0.071975} -> band EMPTY} [internal, \texttt{b7\allowbreak\_escalation\allowbreak\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A=3.3$ against an empty feasible set at $A=2.0$ because $\delta_{\min}>\delta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A$ or lower $C_{\mathrm{miss}}$), never forcing a $\delta$ that does not exist.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:operator}}{The operator as a modeled entity}
@@ -3620,7 +3622,7 @@ distort it. Propose one change that reduces the distortion without removing the
 governor.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-canary-campbell}
-Campbell pressure appears when canaries are selected (recognizable templates), exposed (agents/operators learn signatures), scored (catch rate substitutes for real defect discovery), and acted on (friction creates an incentive to optimize the metric). Time-on-task and breaks also confound the score. Test a blinded, refreshed holdout drawn from real failure transformations; separate probe generation from scoring; stratify by exposure time, difficulty, and base rate; and compare against independent real-defect outcomes. These measures may reduce distortion but do not guarantee it. The test must also price interruption costs and the consequences of changing grants.
+Campbell pressure appears when canaries are selected (recognizable templates), exposed (agents/operators learn signatures), scored (catch rate substitutes for real defect discovery), and acted on (friction creates an incentive to optimize the metric). Time-on-task and breaks also confound the score. Test a blinded, refreshed holdout drawn from real failure transformations; separate probe generation from scoring; stratify by exposure time, difficulty, and base rate; and compare against independent real-defect outcomes. These measures may reduce distortion but do not guarantee it. The test must also measure interruption costs and the consequences of changing grants.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-pareto-digest}
 Formalize the operator-attention objective (Eq.~\ref{eq:sdt})
@@ -3863,7 +3865,7 @@ name the reader, what it drops, and what it keeps.
 Briefing: reader is an arriving agent; drops old conversational detail; keeps current roles, work, constraints, decisions, and source links. Attention queue: reader is agent/operator now; drops low-value candidates from the immediate view; keeps highest value-of-inspection items plus the suppression ledger. Episodic memory: reader is a future incarnation; drops transient chatter; keeps typed incidents, decisions, outcomes, and retrieval features. Pheromone: reader is the swarm; continuously drops stale coordination weight; keeps fresh shared traces. Resurrection handoff: reader is a successor; drops nonessential transcript detail; keeps the task capsule, artifacts, obligations, pending operations, and provenance.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-cascade-cures}
-Walk the four-rung cascade
+Walk the four failures of the cascade
 (\S\ref{sec:cascade}) and name an intervention for each and one check needed before calling it effective.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-cascade-cures}
@@ -4047,9 +4049,9 @@ Theorem~1 in the same $N,k,m$ notation, and puts it through a pre-registered
 falsification sweep this chapter only sketches; its comonotone characterization explains the rank-order conflict in
 Thm.~\ref{thm:split-ranker}. The extractive counterexample in
 Thm.~\ref{thm:split-digest} additionally states a feasible summary class and
-budget; it does not forbid shared storage. The split-floor comparison uses
-different total opening budgets and must be read with that qualification; its regret-head section is the formal version of the
-decision-theoretic derivation in \S\ref{sec:relevance}; and its zoom theorem
+budget; it does not forbid shared storage. The comparison in Thm.~\ref{thm:split-penalty} uses
+different total opening budgets and must be read that way. The paper's regret-head section is the formal version of the
+decision-theoretic derivation in \S\ref{sec:relevance}, and its zoom theorem
 ($2k\lceil\log_2(F/k)\rceil+4k$ adaptive opens) is the algorithm that makes
 digest-with-zoom affordable at scale. \emph{What Needs an Authority}~\pdcite{paper6}
 supplies Thm.~\ref{thm:specialization}'s Erlang-C boundary and, as
