@@ -789,8 +789,8 @@ machine has no network partition and no second clock to disagree with, and the
 single writer orders the daemon's own request handlers
 (Definition~\ref{def:single-writer}), so the epoch is needed only against
 clients. That is why the kernel
-does not need Raft (the related-work section makes the argument by way of
-Fischer, Lynch and Paterson). The fencing token itself is still borrowed, not new.
+does not need Raft (the related-work section says why Fischer, Lynch and
+Paterson's result does not apply). The fencing token itself is still borrowed, not new.
 
 \pitfall[Reclamation needs its own atomic protocol]{The exact-key listing
 shows how uniqueness rejects a second active row. It does not implement the
@@ -3369,10 +3369,11 @@ guarantees vary widely across popular Linux filesystems, and that many
 application update protocols carry crash vulnerabilities their own APIs do not
 disclose~\pdcite{pillai2014allfilesystems}. Our choice of a single writer over a
 replicated state machine follows the single-leader default that Kleppmann argues
-for~\pdcite{kleppmann2017}: use consensus only when the problem forces it. We make that argument formal
-via the consensus impossibility of Fischer, Lynch, and
-Paterson~\pdcite{flp1985}: there is no agreement to reach, so the impossibility never
-applies. Linearizability, the external guarantee we claim for claims and locks, is
+for~\pdcite{kleppmann2017}: use consensus only when the problem forces it. The
+impossibility result of Fischer, Lynch, and Paterson~\pdcite{flp1985} concerns two or
+more asynchronous processes that must agree on a value while one of them may crash.
+A single writer has no one to agree with, so the result does not apply, and the
+chapter draws nothing formal from it. Linearizability, the external guarantee we claim for claims and locks, is
 Herlihy and Wing's~\pdcite{herlihywing1990}. Cross-subsystem atomicity, where we decline
 the distributed solution, is exactly the setting Garcia-Molina and Salem's
 Sagas~\pdcite{garciamolina1987} were designed for, and because every step here is
