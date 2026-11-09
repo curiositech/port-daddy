@@ -21,16 +21,16 @@ difference in read rates would credit reading with the mention's effect.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-prompt-contrast}
 A harbor runs two system prompts on two models with equal numbers of tasks.
-Pass rates: model $M_1$ scores $0.60$ with $P$ and $0.50$ with $P'$; model
-$M_2$ scores $0.40$ with $P$ and $0.55$ with $P'$. Compute the effect of
+Pass rates: model~1 scores $0.60$ with $P$ and $0.50$ with $P'$;
+model~2 scores $0.40$ with $P$ and $0.55$ with $P'$. Compute the effect of
 switching from $P'$ to $P$ on each model, the average effect in this design,
-and the effect if $80\%$ of production tasks go to $M_1$. What should the
+and the effect if $80\%$ of production tasks go to model~1. What should the
 report state, following the rule in the box above?
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-prompt-contrast}
-On $M_1$ the switch gives $0.60-0.50=+0.10$; on $M_2$ it gives
+On model~1 the switch gives $0.60-0.50=+0.10$; on model~2 it gives
 $0.40-0.55=-0.15$. With equal weights the average is
-$\tfrac12(0.10)+\tfrac12(-0.15)=-0.025$. With $80\%$ of tasks on $M_1$ it is
+$\tfrac12(0.10)+\tfrac12(-0.15)=-0.025$. With $80\%$ of tasks on model~1 it is
 $0.8\times0.10+0.2\times(-0.15)=0.08-0.03=+0.05$. The sign depends on the
 model mix, as Lewontin's argument predicts: there is no fixed ``share due to
 the prompt''. The interaction contrast is

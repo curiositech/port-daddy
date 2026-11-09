@@ -49,42 +49,41 @@ caught judge forfeits $B$ but keeps the gain $G_k$): each
 grade is a honeypot independently with probability $\rho\in(0,1)$, a corrupt
 grade yields gain $G_k$, and a corrupt honeypot grade is detected with
 probability $d$ and forfeits $B$. Suppose the judge sees, for each item, a
-label that reads ``honeypot'' with probability $\alpha$ on honeypots and $\beta$
-on ordinary items (a false-label rate, unrelated to the bribe price $\beta$
-above), $0\le\beta<\alpha<1$, and corrupts according to the label
+label that reads ``honeypot'' with probability $\alpha$ on honeypots and $\phi$
+on ordinary items (a false-label rate), $0\le\phi<\alpha<1$, and corrupts according to the label
 alone. A corrupt grade on an item labeled ordinary falls on a honeypot with
 probability
 \[
-\rho_{\mathrm{eff}}=\frac{\rho(1-\alpha)}{\rho(1-\alpha)+(1-\rho)(1-\beta)}<\rho ,
+\rho_{\mathrm{eff}}=\frac{\rho(1-\alpha)}{\rho(1-\alpha)+(1-\rho)(1-\phi)}<\rho ,
 \]
 and every label-dependent strategy is weakly deterred iff
 $\rho_{\mathrm{eff}}\,dB\ge G_k$. With $\rho^\star=G_k/(dB)<1$ this reads
 \[
-\frac{\rho}{1-\rho}\;\ge\;\frac{\rho^\star}{1-\rho^\star}\cdot\frac{1-\beta}{1-\alpha}.
+\frac{\rho}{1-\rho}\;\ge\;\frac{\rho^\star}{1-\rho^\star}\cdot\frac{1-\phi}{1-\alpha}.
 \]
-At $\alpha=\beta$ it is the chapter's condition $\rho\ge\rho^\star$.
+At $\alpha=\phi$ it is the chapter's condition $\rho\ge\rho^\star$.
 \end{pdclaim}
 
 \begin{proof}
 Bayes' rule gives $\rho_{\mathrm{eff}}$ for the label ``ordinary'' and
-$\rho_{\mathrm{hp}}=\rho\alpha/(\rho\alpha+(1-\rho)\beta)$ for ``honeypot''.
+$\rho_{\mathrm{hp}}=\rho\alpha/(\rho\alpha+(1-\rho)\phi)$ for ``honeypot''.
 Clearing denominators, $\rho_{\mathrm{eff}}<\rho$ iff
-$(1-\rho)(1-\alpha)<(1-\rho)(1-\beta)$, that is iff $\alpha>\beta$, and
+$(1-\rho)(1-\alpha)<(1-\rho)(1-\phi)$, that is iff $\alpha>\phi$, and
 likewise $\rho_{\mathrm{hp}}>\rho$. A corrupt grade on an item with label
-$\ell$ has expected payoff $G_k-p_\ell dB$, where $p_\ell$ is that label's
+$\ell$ has expected payoff $G_k-\rho_\ell dB$, where $\rho_\ell$ is that label's
 honeypot probability. A strategy corrupts each label with some probability,
 so its payoff is linear in those probabilities and is nonpositive for every
-choice iff $G_k\le p_\ell dB$ for both labels. The smaller probability is
+choice iff $G_k\le \rho_\ell dB$ for both labels. The smaller probability is
 $\rho_{\mathrm{eff}}$, which gives the condition. The odds map
 $x\mapsto x/(1-x)$ is increasing on $[0,1)$, and
 $\rho_{\mathrm{eff}}/(1-\rho_{\mathrm{eff}})
-=\tfrac{\rho}{1-\rho}\cdot\tfrac{1-\alpha}{1-\beta}$, which gives the odds form.
+=\tfrac{\rho}{1-\rho}\cdot\tfrac{1-\alpha}{1-\phi}$, which gives the odds form.
 \end{proof}
 
 \begin{pdexample}{The Running Parameters, Recognized}
 \setlength{\parskip}{4pt plus 1pt}
 The chapter's $\rho^\star=10/(0.8\cdot50)=0.25$ has odds $0.25/0.75=1/3$. At
-$(\alpha,\beta)=(0.8,0.2)$ the factor is $0.8/0.2=4$, so the odds must reach
+$(\alpha,\phi)=(0.8,0.2)$ the factor is $0.8/0.2=4$, so the odds must reach
 $4/3$:
 \[
 \rho\ge\frac{4/3}{1+4/3}=\frac47\approx0.571 .
@@ -95,7 +94,7 @@ reach $3$, and $\rho\ge3/4$. At the chapter's own $\rho=0.25$ and $(0.8,0.2)$,
 $\rho_{\mathrm{eff}}=0.05/(0.05+0.6)\approx0.077$, so the expected forfeiture is
 $0.077\times0.8\times50\approx3.1$, below the gain of $10$: corruption pays.
 These operating points are illustrative; an area under the curve does not fix
-one. Measure $\alpha$ and $\beta$ on the deployed honeypot pool.
+one. Measure $\alpha$ and $\phi$ on the deployed honeypot pool.
 \end{pdexample}
 
 If part~(b) of the hypothesis fails, the conditions of this chapter bind the

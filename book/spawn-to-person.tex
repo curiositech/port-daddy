@@ -324,8 +324,8 @@ credit. The following definitions separate the job from that continuing record.
 \begin{definition}[Role]\label{def:role}
 \setlength{\parskip}{4pt plus 1pt}
 \pdstatus{\Designed}{a design invariant; a modeling choice, not a measured fact}
-A \textbf{role} is an ordered bundle $R = (O, C, A)$ where $O$ is a set of
-\emph{obligations} (what the role-holder must deliver), $C$ is a
+A \textbf{role} is an ordered bundle $R = (O, E, A)$ where $O$ is a set of
+\emph{obligations} (what the role-holder must deliver), $E$ is a
 \emph{capability} set (what the role-holder is technically able to do), and $A$
 is an \emph{authority} set (what the role-holder is permitted to do, including
 the residual control rights the role carries).
@@ -357,15 +357,15 @@ depends on what the successor is expected to resume.
 \setlength{\parskip}{4pt plus 1pt}
 \label{ex:stp-heron-role-person}
 This is a constructed example. Fill in the definition of a role for
-``checkout repairer'', $R=(O,C,A)$:
+``checkout repairer'', $R=(O,E,A)$:
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt]
 \item $O$: deliver the session-token fix; keep
 \texttt{tests/checkout\_acceptance.py} unchanged; due Friday 17:00.
-\item $C$: edit files, run the test suite, push to branch \texttt{heron/checkout}.
+\item $E$: edit files, run the test suite, push to branch \texttt{heron/checkout}.
 \item $A$: may modify \texttt{src/checkout/*}; may not modify \texttt{tests/*};
 may not merge to \texttt{main}.
 \end{itemize}
-$C$ lets the holder edit the acceptance test and $A$ forbids it. That is the
+$E$ lets the holder edit the acceptance test and $A$ forbids it. That is the
 capable-but-forbidden state of the next subsection, and it is the gap Drake
 used.
 
@@ -412,7 +412,7 @@ coordinates of a role and must stay separate.
   \pdterm{capability jail}, a per-agent tool allowlist and scoped filesystem
   (specified, not built). In Grossman and Hart's terms~\pdcite{grossmanhart1986},
   the residual control rights (what the holder may decide where the contract is
-  silent) belong to the authority set $A$, not to $C$.
+  silent) belong to the authority set $A$, not to $E$.
   \item \textbf{Permission} is \emph{normative status}: what the permission
   rules \emph{allow}. ``You \emph{may} deploy to production'' is a permission; whether
   you \emph{can} is a capability.
@@ -533,7 +533,7 @@ one level. This subsection writes the map down and names the three places
 where it breaks.
 
 \pdwrapanalogy[r][0.42\textwidth]{stp-splice-continuity}{The Overlapping Strand}{ch05-continuity-rope-splice}{Like the overlapping strands of a wire rope splice, continuity can persist across successive connections without one strand spanning the whole history.}%
-A small chain makes the engineering relation concrete. Suppose incarnation $a$ signs a permitted succession to $b$, and $b$ signs one to $c$. The direct-successor relation contains $(a,b)$ and $(b,c)$, but need not contain $(a,c)$: direct succession is one step. Its transitive closure, written $\mathsf{succ}^{*}$, records reachability along validated links, including $a$ to $c$. This is the mathematical operation we borrow for lineage. Psychological continuity has richer conditions, including the right causal connections; it is not defined here by signatures.
+A small chain makes the engineering relation concrete. Suppose incarnation $x$ signs a permitted succession to $y$, and $y$ signs one to $z$. The direct-successor relation contains $(x,y)$ and $(y,z)$, but need not contain $(x,z)$: direct succession is one step. Its transitive closure, written $\mathsf{succ}^{*}$, records reachability along validated links, including $x$ to $z$. This is the mathematical operation we borrow for lineage. Psychological continuity has richer conditions, including the right causal connections; it is not defined here by signatures.
 
 \begin{pdclaim}{Design invariant}{Accountable Lineage Uses Validated Succession}
 \label{inv:parfit-lineage}
@@ -607,10 +607,10 @@ quantities; the sum under each row states which is being counted.
 \setlength{\parskip}{4pt plus 1pt}
 The branching rule of Exercise~\ref{ex:stp-fork-inheritance} has a
 no-mint argument (research-ledger item A6). Treat inheritance as a
-\textbf{transfer}, not a copy. When a share $w_p$ of a source $p$'s
+\textbf{transfer}, not a copy. When a share $w$ of a source's
 reputation passes to a successor (a \emph{child}), the child receives
-$\gamma\,w_p$, here 90\% of the share ($\gamma=0.9$), and the source's balance
-goes down by the full $w_p$. So the total reputation that all descendants can
+$\gamma\,w$, here 90\% of the share ($\gamma=0.9$), and the source's balance
+goes down by the full $w$. So the total reputation that all descendants can
 spend never exceeds the value that was actually checked, and that total can
 grow only when a new outcome is checked. (In probability terms, the total is a
 supermartingale under derivation.)
@@ -895,11 +895,11 @@ between an obligation and the party expected to discharge it.
 \label{ex:newcomer-floor}
 The expression
 \[
-\max(r(i)-\Delta,\ r_0)
+\max(r(i)-\sigma,\ r_0)
 \]
 gives the better of keeping the penalized identity and resetting; check it.
 Let the newcomer score, the score every fresh identity starts with, be
-$r_0=50$, and let a dishonest outcome cost $\Delta=30$.
+$r_0=50$, and let a dishonest outcome cost $\sigma=30$.
 
 Table~\ref{tab:necessity-numbers} compares three records. At $r(i)=50$, a new
 identity restores the score from $20$ to $50$, erasing the sanction. At
@@ -922,7 +922,7 @@ escape.
 \emph{Now you try:} at what prior score does the actor
 become exactly indifferent?
 \[
-r(i)=r_0+\Delta=80;
+r(i)=r_0+\sigma=80;
 \]
 below that a reset reduces the effective score loss, and at the newcomer
 score it erases the loss entirely. Above it, resetting does not improve the
@@ -938,7 +938,7 @@ can route work through, so that no reset escapes the sanction.
 
 \begin{definition}[Sanction-respecting reputation]\label{def:sanction-respecting}
 \pdstatus{\Designed}{for the stated access model and clean continuation}
-Fix a score-based access mechanism and a sanction window. It is sanction-respecting if some $\Delta>0$ lowers the score available to every actor producing a specified dishonest outcome by at least $\Delta$, relative to that same actor's clean continuation over the same window. Include every identity through which the actor can route work when computing its available score.
+Fix a score-based access mechanism and a sanction window. It is sanction-respecting if some $\sigma>0$ lowers the score available to every actor producing a specified dishonest outcome by at least $\sigma$, relative to that same actor's clean continuation over the same window. Include every identity through which the actor can route work when computing its available score.
 \end{definition}
 
 \begin{pdclaim}{Theorem}{The Newcomer-Score Escape}
@@ -946,7 +946,7 @@ Fix a score-based access mechanism and a sanction window. It is sanction-respect
 Assume fresh identities obtain a fixed score $r_0$, creating and using one is free, and the mechanism cannot connect it to the actor's existing liability. Assume further that an actor whose clean continuation has available score $r_0$ can produce the dishonest outcome, and access depends only on its available identity score. Then an identity-local score penalty cannot make this mechanism sanction-respecting.
 \end{pdclaim}
 \begin{proof}
-After the outcome, the actor can obtain a fresh identity and continue with score $r_0$. Its available score is therefore at least $r_0$, equal to its stipulated clean continuation. No positive reduction $\Delta$ persists. One such actor is enough to violate the universal requirement in Definition~\ref{def:sanction-respecting}.
+After the outcome, the actor can obtain a fresh identity and continue with score $r_0$. Its available score is therefore at least $r_0$, equal to its stipulated clean continuation. No positive reduction $\sigma$ persists. One such actor is enough to violate the universal requirement in Definition~\ref{def:sanction-respecting}.
 \end{proof}
 
 \pdscope{The theorem concerns this access model only; it does not rule out principal-wide sanctions, escrow, entry restrictions, or excluding newcomers from consequential actions.}
@@ -960,7 +960,7 @@ $50$ by resetting.
 \centering\small\renewcommand{\arraystretch}{1.25}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X r r r@{}}
 \toprule
-\textbf{Record} & $r(i)$ & $r(i)-\Delta$ & \textbf{Accessible score} \\
+\textbf{Record} & $r(i)$ & $r(i)-\sigma$ & \textbf{Accessible score} \\
 \midrule
 Newcomer & $50$ & $20$ & $\max(20,50)=50$ \\
 Mid-record & $70$ & $40$ & $\max(40,50)=50$ \\
@@ -1054,7 +1054,7 @@ surplus gaps to $W=18$ for this illustrative schedule.
 Let $\delta$ be the discount factor, the value now of one unit earned a period
 later. With certain immediate detection and $\delta=1$, a deviation gain of
 $15$ is deterred ($15<18$), while $25$ is not. At detection probability
-$p=0.1$, the expected cost is only $1.8$, so the same gain of $15$ is
+$d=0.1$, the expected cost is only $1.8$, so the same gain of $15$ is
 profitable. At $\delta=0.9$, the reset cost is $W_{0.9}=14.65938$;
 even certain immediate detection then fails to deter gain $15$.
 The schedule, monitoring probability, and time preference all matter.
@@ -1100,11 +1100,11 @@ benefit or cost, resetting rather than retaining the sanctioned identity
 has gain $S-W_\delta$.
 
 For a distinct comparison, suppose a one-shot deviation gives immediate
-incremental gain $G$, is detected with probability $p$, and detection after
+incremental gain $G$, is detected with probability $d$, and detection after
 $\tau$ periods forces this reset. Assume no other payoff differences and
 no escape from the probation policy. The deviation is weakly deterred iff
 \[
- G\le p\delta^\tau W_\delta.
+ G\le d\delta^\tau W_\delta.
 \]
 This compares one specified deviation with its honest continuation; it is
 not a dominant-strategy claim against arbitrary counterpart strategies.
@@ -1115,7 +1115,7 @@ the time at which the decision is made. At reset the difference is
 $W_\delta$, so avoiding a sanction contributes $S-W_\delta$. Before a
 possible detection, the reset cost is incurred only on the detection event
 and is discounted a further $\tau$ periods. The incremental deviation
-payoff is therefore $G-p\delta^\tau W_\delta$. With random detection time,
+payoff is therefore $G-d\delta^\tau W_\delta$. With random detection time,
 replace the latter cost by
 $\mathbb E[\mathbf1_{\{\mathrm{detected}\}}\delta^\tau W_\delta]$.
 \end{proof}
@@ -1205,14 +1205,14 @@ for work and living costs before later earnings arrive. A capital-poor honest
 entrant may decline a schedule that a well-financed attacker can tolerate.
 
 Two constraints answer different questions. Ex-ante participation requires
-$\sum_{t=0}^T\delta_h^t(\pi_t-g_t-u_t)\ge0$, where $\pi_t$ is earnings before
-the holdback and $u_t$ the outside option. This lifetime inequality does not
-imply any particular period's income floor. If a policy \emph{also} requires
-$\pi_t-g_t\ge u_t$ in every period, with $\pi_t\ge u_t$, the available cap
-becomes $L_t=\min(L,\pi_t-u_t)$. The same increasing cost-per-deterrence ratio
+$\sum_{t=0}^T\delta_h^t(\pi_t-g_t-\omega_t)\ge0$, where $\pi_t$ is earnings before
+the holdback and $\omega_t$ the outside option. This lifetime inequality does not
+imply a lower bound on any particular period's income. If a policy \emph{also} requires
+$\pi_t-g_t\ge \omega_t$ in every period, with $\pi_t\ge \omega_t$, the available cap
+becomes $L_t=\min(L,\pi_t-\omega_t)$. The same increasing cost-per-deterrence ratio
 then fills these date-specific caps from the earliest date; feasibility is
 exactly $G_{\max}\le\sum_{t=0}^T\delta_f^tL_t$. If earnings fall below the
-required floor even at $g_t=0$, no holdback schedule meets it.
+required lower bound even at $g_t=0$, no holdback schedule meets it.
 
 \pdscope{The theorem takes earnings and discount factors as given, so it does not show that entrants can finance the work or that the policy improves the mix of participants.}
 Testing that needs an entry-and-cash-flow model with work costs, outside
@@ -1248,7 +1248,7 @@ $0$. The honest cost, meanwhile, changes by
 \]
 strictly, because $\delta_h>\delta_f$ makes $\delta_h^{\,t}>\delta_f^{\,t}$. So
 deterrence-preserving mass movement toward $t=0$ strictly lowers the honest tax.
-Equivalently: a unit of deterrence bought at period $t$ costs the honest newcomer
+Equivalently: a unit of deterrence placed at period $t$ costs the honest newcomer
 $\delta_h^{\,t}/\delta_f^{\,t}=(\delta_h/\delta_f)^t$, strictly increasing in $t$,
 so deterrence should always be placed at the cheapest available date.
 
@@ -1329,8 +1329,8 @@ $L>8$ and a long enough horizon.)
 
 \begin{pdexample}{The Probation Cliff: Falsifying the Schedule Shape}
 \setlength{\parskip}{4pt plus 1pt}
-The research paper \emph{Continuity Without Metaphysics} gives the same
-conditional probation result \pdcite{harborpaper5}. The numerical check below covers a narrower class.
+The numerical check below covers a narrower class than
+Theorem~\ref{thm:probation-dominance}.
 
 Exchange
 argument verified numerically across randomized
@@ -1353,7 +1353,7 @@ corner solution is the exact answer.
 exchange steps; it does not prove the universal statement or test the bang-bang shape under a binding $L$; re-running it
 with $g_t\le L$ is an open verification debt.
 
-The economic interpretation is specific: a returning whitewasher pays this
+The economic interpretation is specific: a returning whitewasher faces this
 hurdle on every reset. The exchange proof needs no comparison with a
 deferred-compensation contract.
 
@@ -1412,10 +1412,8 @@ created.
 
 \pdmarginanalogy{stp-stagecoach-relay}{}{ch05-stagecoach-relay-post}{Like a stagecoach team swap at a relay post, fresh horses are hitched while the passengers, luggage, and route remain unchanged: hot-swapping an LLM engine preserves the agent's identity and contract.}%
 Everything above binds a record to a name the actor cannot re-pick. It says
-nothing yet about what is running \emph{behind} the name.\footnote{A
-standalone, submission-form version of this section is \emph{Continuity
-Without Metaphysics} (research paper~5)~\cite{harborpaper5}; the sweeps and the
-migration model check cited here are its artifacts, regenerated by
+nothing yet about what is running \emph{behind} the name.\footnote{The
+sweeps and the migration model check cited in this section are regenerated by
 \texttt{b5\_engine\_substitution.py} at seed 20260816.} Two operations that
 are routine for software and exotic for people force the question. An
 identity can swap the model engine behind its name between one witnessed
@@ -1658,14 +1656,14 @@ granted to the successor. The next case shows why a preserved transcript alone i
 enough to continue safely.
 
 \paragraph{A timeout is an unknown outcome, not a retry receipt.}\label{sec:stp-unknown-effect}
-Suppose the old body sent a non-idempotent payment under stable operation ID
-$O$, then died before recording the result. The successor cannot infer from a
+Suppose the old body sent a non-idempotent payment under a stable operation ID,
+then died before recording the result. The successor cannot infer from a
 missing local acknowledgment whether the payment occurred or the old request
 is still in flight. Its continuation decision depends on the external
 adapter's effect-boundary contract:
 \begin{description}[leftmargin=1.8em,itemsep=2pt]
   \item[Atomic deduplication and result.] If the remote side atomically binds
-  a stable key $K$ to the effect and durable result, retry $O,K$ or fetch that
+  a stable key $K$ to the effect and durable result, retry with the same operation ID and $K$, or fetch that
   result. Retain the record while either old or successor calls can arrive.
   \item[Ordered readback and fence.] If the service can durably reject every
   request from the old actor's epoch \emph{at the effect boundary} (an epoch
@@ -1688,7 +1686,7 @@ is an adapter requirement, not a measured Harbor deployment guarantee.
 \setlength{\parskip}{4pt plus 1pt}
 \label{ex:stp-unknown-payment}
 This is a constructed example. Heron\#2 inherits a task in which heron\#1 sent
-``charge 49.00 USD, operation $O$ = \texttt{pay-7731}'' at 10:02:01 and
+``charge 49.00 USD, operation \texttt{pay-7731}'' at 10:02:01 and
 crashed at 10:02:03. No receipt reached the ledger. The missing receipt could
 mean the charge went through, failed, or is still on its way.
 
@@ -1860,7 +1858,7 @@ claimed by this architecture.
 \begin{pdexample}{Two Kinds of Evidence Need Two Models}
 Suppose Heron wins three of four blinded pairwise comparisons against Wren on one declared task class. In a Bradley--Terry model,
 \[
-P(\text{Heron preferred})=\frac{\exp(s_H)}{\exp(s_H)+\exp(s_W)}.
+\Pr(\text{Heron preferred})=\frac{\exp(s_H)}{\exp(s_H)+\exp(s_W)}.
 \]
 With only these comparisons and no ties, the fitted probability is $3/4$ and the fitted strength difference is $s_H-s_W=\log 3$. Four comparisons are weak evidence; the value is neither a universal quality score nor proof of future success. By contrast, three passes in four protected acceptance tests describe success frequency against a criterion, not preference over Wren. The test specification and task distribution belong with that record. A directed assertion ``Alice trusts Bob'' is different again: it is the kind of input a trust-propagation model consumes.
 \end{pdexample}
@@ -1872,7 +1870,7 @@ observation and intended decision, then test its assumptions on that task.
 
 \begin{itemize}[leftmargin=1.4em]
   \item \textbf{Pairwise / tournament signal $\to$ Bradley--Terry / Elo /
-  TrueSkill.} For observations such as ``$A$ beat $B$ on this task,''
+  TrueSkill.} For observations such as ``Heron beat Wren on this task,''
   \textbf{Bradley--Terry}~\pdcite{bradleyterry1952} models pairwise probabilities
   through relative strengths. A full-history likelihood fit needs suitable
   comparison data; separation can prevent a finite maximum-likelihood estimate.
@@ -1965,14 +1963,14 @@ state it formally as a design.
 
 \noindent The evidence behind it is weaker than behind the earlier results. The
 identity theorems of \S\ref{sec:identity}, the no-mint result of
-\S\ref{sec:continuity}, and the audit-tower theorem of \S\ref{sec:oracle} each
-have a numbered, verified result in a companion formal paper. The quality
+\S\ref{sec:continuity}, and the audit-tower theorem of \S\ref{sec:oracle} come
+with proofs, proof sketches, or a hand calculation and a scripted sweep. The quality
 vector, the neutral-judge ceremony, and the bandit-versus-reputation argument
 of \S\ref{sec:not-bandit} are design arguments, drawn from the prior art cited
 here and consistent with the proven parts. Read the claims in
 \S\ref{sec:not-bandit} and \S\ref{sec:adr0049} that way, with the
 theorem-grade register turned down one notch.
-\pdscope{Nothing in this chapter or its companions proves that the three-axis decomposition is the right one or that the judge ceremony is incentive-compatible.}
+\pdscope{Nothing in this chapter proves that the three-axis decomposition is the right one or that the judge ceremony is incentive-compatible.}
 
 \subsection{S3 --- a graded job, end to end}
 
@@ -2102,16 +2100,16 @@ bonded job, so the harbor that runs the market also runs the hiring of the judge
 who keep it honest. We state the hiring as a numbered protocol.
 
 \begin{protocol}[The judge-hiring ceremony]\label{proto:judge}
-To grade a submitted outcome $o$ produced by actor $a$ under principal $p$:
+To grade a submitted outcome $o$ produced by an actor:
 \begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
   \item \textbf{Eligibility filter.} The daemon assembles the candidate judge pool
-  and removes every judge sharing a principal-link, bond, or stake with $p$
-  (conflict-free), and every judge in $a$'s model family for the \mbox{aesthetics} axis
+  and removes every judge sharing a principal-link, bond, or stake with the actor's principal
+  (conflict-free), and every judge in the actor's model family for the \mbox{aesthetics} axis
   (de-biasing). \emph{Capability $\ne$ permission}: a candidate may be \emph{able}
   to grade and still be \emph{ineligible}.
   \item \textbf{Selection.} A judge $J$ is drawn from the eligible pool by a public,
   conflict-free policy (e.g.\ reputation-weighted sampling on the judging axis), so
-  neither $a$ nor $p$ can choose their own grader.
+  neither the actor nor its principal can choose their own grader.
   \item \textbf{Bond post.} $J$ posts a bond $B_J$ before seeing the work. The bond
   is recorded in the outcome ledger and locked for the dispute window.
   \item \textbf{Blind grading.} $J$ scores the relevant axis under the de-biasing
@@ -2142,7 +2140,7 @@ skill, a reusable unit of agent know-how (a structured instruction document,
 its referenced material, and any scripts it carries), actually \emph{helped} an
 agent, \emph{especially when that skill's content was loaded into the agent's
 context window}. The witnessed event is concrete: skill $s$ was loaded
-(\emph{grafted}) into agent $a$'s context at task $t$; $t$ later settled with
+(\emph{grafted}) into an agent's context for a task, and that task later settled with
 quality vector $\mathbf{q}$. Over many such events we estimate a
 \emph{skill-helpfulness} effect: did loading $s$ raise $\mathbf{q}$ relative to
 comparable tasks without it? This
@@ -2210,9 +2208,9 @@ $B=50$, the rate is one grade in four.
 \begin{property}[The grading-oracle hole]\label{prop:hole}
 \setlength{\parskip}{4pt plus 1pt}
 \pdstatus{\Designed}{a boundary on the evaluation contract, not a theorem that all settlement mechanisms share the vulnerability}
-If a mechanism accepts evaluator $J$'s grade $g$ as decisive evidence, with no independent check or remedy, its settlement inherits errors or manipulation in that grade. A proof that assumes truthful grades cannot by itself establish that a bribable evaluator will provide them.
+If a mechanism accepts evaluator $J$'s grade as decisive evidence, with no independent check or remedy, its settlement inherits errors or manipulation in that grade. A proof that assumes truthful grades cannot by itself establish that a bribable evaluator will provide them.
 
-The design obligation is to identify how $g$ is checked, contested, or backed by enforceable incentives. A mechanism that tolerates a faulty input may discharge this obligation differently from one that trusts every grade.
+The design obligation is to identify how that grade is checked, contested, or backed by enforceable incentives. A mechanism that tolerates a faulty input may discharge this obligation differently from one that trusts every grade.
 \end{property}
 
 \noindent Two candidate mechanisms illustrate the design choices; neither is an exhaustive
@@ -2235,7 +2233,7 @@ scarce, expensive, capturable resource in its own right (the economics of
 arbitration capacity is a named open problem, below).
 
 \paragraph{Correlated failure and the conditions for a finite audit depth}
-A judge can repeat an error made by the judge it reviews. More levels do not help if every level shares the same blind spot. The companion paper \emph{Reputation is Amortized Verification}~\pdcite{harborpaper3} gives a conditional bound, restated below. Its premises include prepaid bribes, uniform sealed sampling, a detection bound after every history of misses, and a separate trustworthy root. Diverse judges and verifiable sampling are possible components of that design, not proofs of all its premises. Figure~\ref{fig:rate-raters} shows the resulting model calculation.
+A judge can repeat an error made by the judge it reviews. More levels do not help if every level shares the same blind spot. Theorem~\ref{thm:tower-imported} below gives a conditional bound. Its premises include prepaid bribes, uniform sealed sampling, a detection bound after every history of misses, and a separate trustworthy root. Diverse judges and verifiable sampling are possible components of that design, not proofs of all its premises. Figure~\ref{fig:rate-raters} shows the resulting model calculation.
 
 ``Who audits the auditor'' is not a question
 this book invented, and two literatures had it before us. Economics has studied
@@ -2277,7 +2275,7 @@ the expected-forfeiture inequality
   \rho \;\ge\; \rho^\star \;=\; \frac{G_k}{d\,B},
 \]
 which is Becker's condition, and note that the detector term $d$ belongs in it: the
-$d$-free form $P(\text{honeypot}) > G_k/B$ is the perfect-detector special case
+$d$-free form $\Pr(\text{honeypot}) > G_k/B$ is the perfect-detector special case
 $d=1$ and under-quotes the required injection rate by a factor of $1/d$.
 
 % Keep the numerical substitution and its interpretation together, even when
@@ -2290,22 +2288,18 @@ At the program's running parameters ($G=10$, $d=0.8$, $B=50$) the honest number 
 Audit one grade in four. The $d$-free form would have said $0.2$, a $20\%$
 under-quote.
 
-\begin{pdclaim}{Theorem}{Tower Contraction; Imported from the Companion Paper}
+\begin{pdclaim}{Theorem}{Tower Contraction}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:tower-imported}
-\emph{(Theorem `tower contraction' of \emph{Reputation is Amortized
-Verification}~\pdcite{harborpaper3}, restated; proof and verification artifacts
-live there.)}
-
 Let level $k{+}1$ audit level-$k$ auditors, each audit sampled
 \emph{sealed} from a pool spanning $C$ disjoint cliques, each auditor bonded at $B$
 with audit parameters $(\rho,d)$ and stipulated bribe price
 $\beta=\rho d B>0$. Assume one clique is sampled uniformly after the briber
-commits, buying $c$ cliques prevents detection with probability $c/C$, and
-all $c$ payments are made regardless of the draw. Relative to buying none,
+commits, buying $j$ cliques prevents detection with probability $j/C$, and
+all $j$ payments are made regardless of the draw. Relative to buying none,
 the briber's expected gain is
-\[c\left(G_k\rho d/C-\beta\right).\]
-It is affine in $c$, so an optimum buys either none or all (with ties
+\[j\left(G_k\rho d/C-\beta\right).\]
+It is affine in $j$, so an optimum buys either none or all (with ties
 resolved against bribery). Buying all is profitable iff
 \[
   G_k\,\rho d \;>\; C\beta
@@ -2333,6 +2327,17 @@ $0<u\le G_0$ --- a depth
 $B$ times this depth; total capital reserved by all eligible judges depends
 on whether their bonds can be reused and is not determined by that count.
 \end{pdclaim}
+\begin{proof}[Proof sketch]
+The gain $j(G_k\rho d/C-\beta)$ is linear in $j$, so its maximum over
+$0\le j\le C$ lies at an endpoint; since $\beta=\rho dB$ and $\rho d>0$, its
+slope is positive exactly when $G_k>CB$. Below the threshold nobody bribes, and
+the value only falls, so every later level stays below it. By the chain rule for
+conditional probabilities a corrupt grade then survives $k$ levels with
+probability $(1-\rho d)^k$, so its expected surviving value is $(1-\rho
+d)^kG_0$. Requiring this to fall below $u$ and taking the least such number of
+levels gives the displayed depth. A per-level marginal detection rate would not
+be enough: a fault that no level can detect would survive every level.
+\end{proof}
 
 \begin{pdexample}{Diversity and Audit Depth}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2349,7 +2354,7 @@ bribes are paid.
 With a heterogeneous pool of $C=8$ groups, bribing all eight costs
 $8\times10=80$ and avoids an expected loss of $400\times0.2=80$: a tie,
 resolved against bribery. (Every number of bribed groups gives the briber
-zero expected gain, since the gain is affine in $c$.) The bribery threshold
+zero expected gain, since the gain is affine in $j$.) The bribery threshold
 $G_k > CB = 400$ is unmet even at level 0, so nobody is bribed and the value
 at risk falls $400\to320\to256\to205\to\cdots$. After $27$ levels it is
 $400\times0.8^{27}\approx0.97$, below one unit; the tower needs
@@ -2391,20 +2396,18 @@ statistical version%
 \fi
 : let a panel's
 detection rate be a random $D$ with mean $d$ drawn once and shared, write
-$\theta$ for the resulting intra-panel correlation, and the probability that a
-panel of $k$ all miss is $\mathbb{E}[(1-D)^k] \ge (1-d)^k$ by Jensen,
+$\eta$ for the resulting intra-panel correlation, and the probability that a
+panel of $m$ all miss is $\mathbb{E}[(1-D)^m] \ge (1-d)^m$ by Jensen,
 assuming detections are independent conditional on $D$.
 Within that mixture class, independence is optimistic. Sampling across disjoint
 principal cliques does not itself establish statistical independence: shared
 models, evidence, or tasks can preserve common blind spots.
 The tower's geometric recurrence needs the stated conditional detection rate,
 not just the same marginal rate at each level. With level-specific conditional
-rates the surviving-value bound is $G_0\prod_j(1-\rho_jd_j)$; without such
+rates the surviving-value bound is $G_0\prod_k(1-\rho_kd_k)$; without such
 bounds, neither the geometric contraction nor its depth follows.
 Calibrating them requires labeled outcomes, including grades previous levels
-missed. Here $\theta$ is a correlation, not the engine quality
-$\theta_H,\theta_L$ of the engine-swap theorem; $\rho$ is the audit rate in
-both chapters.
+missed. Here $\rho$ is the audit rate in both chapters.
 
 \begin{pdexample}{Amortized Verification: Sums and Their Integral Approximations}
 Let periods be $t=0,\ldots,T-1$, audit cost $a=1$, corrupt gain $G=10$, detection probability $d=0.8$, bond $B=50$, and forfeitable continuation value $vt$ with $v=0.6$ per period. These are illustrative payoff assumptions. Flat auditing uses $\rho=G/(dB)=0.25$, costing $aT\rho=50$ over $T=200$ periods.
@@ -2420,11 +2423,11 @@ makes the expected sanction equal $G$ at every period. The discrete cost is $\su
 \]
 is a lower approximation to this sum, not its exact value. For fixed positive $v$, both grow logarithmically with $T$.
 
-Model~B instead stipulates expected automatic forfeiture $rvt$, with $r=0.05$, in addition to the audited bond loss. Under that additive payoff model,
+Model~B instead stipulates expected automatic forfeiture $\zeta vt$, with $\zeta=0.05$, in addition to the audited bond loss. Under that additive payoff model,
 \[
-\rho_t=\max\{0,(G-rvt)/(dB)\}.
+\rho_t=\max\{0,(G-\zeta vt)/(dB)\}.
 \]
-Its first zero-audit integer period is $\lceil G/(rv)\rceil=334$; the real-valued crossing is $333\tfrac13$. The first $200$ periods cost $35.075\approx35.08$. Summing all positive terms gives $41.79175$, whereas the triangular integral is $aG^2/(2dBrv)=41.666\ldots$. Thus the lifetime sum is bounded, but it does not converge to that integral. Automatic forfeiture requires its own evidence and enforcement mechanism; a growing score alone cannot supply it.
+Its first zero-audit integer period is $\lceil G/(\zeta v)\rceil=334$; the real-valued crossing is $333\tfrac13$. The first $200$ periods cost $35.075\approx35.08$. Summing all positive terms gives $41.79175$, whereas the triangular integral is $aG^2/(2dB\zeta v)=41.666\ldots$. Thus the lifetime sum is bounded, but it does not converge to that integral. Automatic forfeiture requires its own evidence and enforcement mechanism; a growing score alone cannot supply it.
 
 \emph{Now you try:} calculate $\rho_0$ and $\rho_{100}$ for each schedule. Model~A gives $0.25$ and $10/88\approx0.114$; Model~B gives $0.25$ and $7/40=0.175$. Explain what loss the judge actually risks in each case before comparing costs.
 \end{pdexample}
@@ -2536,9 +2539,9 @@ To retract a witnessed outcome $o$ later found fraudulent:
   harbor applies step 3 on receipt; an expired view must refuse decisions
   requiring current reputation.
   \item \textbf{Bound the damage.} Separate publication-to-detection delay from tombstone-to-enforcement
-  delay. A bound $\tau$ on the latter requires bounded delivery or fail-closed
+  delay. A bound $\tau_{\mathrm{rev}}$ on the latter requires bounded delivery or fail-closed
   expiry. Neither the pre-detection period nor an unbounded partition is
-  automatically bounded by $\tau$.
+  automatically bounded by $\tau_{\mathrm{rev}}$.
 \end{enumerate}
 \end{protocol}
 
@@ -2664,7 +2667,7 @@ The multi-dimensional score the market reads; the licensing side's signal. \\
 Neutral-judge market & \begin{tabular}[t]{@{}l@{}}\DESIGNED\\to \VISION\end{tabular} &
 Proposed evaluation institutions; competent, honest grading remains an obligation. \\
 Grading-oracle hole (Prop.~\ref{prop:hole}) & \DESIGNED &
-Theorem~\ref{thm:tower-imported}~\pdcite{harborpaper3} bounds recursion under conditional detection and incentive assumptions. Oracle completeness, a competent honest root, and calibrated cross-clique detection remain owed. \\
+Theorem~\ref{thm:tower-imported} bounds recursion under conditional detection and incentive assumptions. Oracle completeness, a competent honest root, and calibrated cross-clique detection remain owed. \\
 Cross-operator attestation (Def.~\ref{def:cross-operator-attestation}) & \VISION &
 \emph{Open dependency of cross-operator exchange}; not assumed here. \\
 Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
@@ -2825,7 +2828,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 can still be disposable. The newcomer-score theorem states when a reset erases
 a score sanction; principal-wide entry and exposure rules address a
 different part of that escape.
-\item \textbf{Whitewashing has a conditional price.} A reset costs the discounted continuation gap $W_\delta$; a deviation that triggers it with probability $p$ after delay $\tau$ faces expected cost $p\delta^\tau W_\delta$. The worked schedule costs $18$ without discounting. Front-loading minimizes honest-newcomer friction only under the stated relative discount factors, ceiling, and deterrence constraint.
+\item \textbf{Whitewashing has a conditional price.} A reset costs the discounted continuation gap $W_\delta$; a deviation that triggers it with probability $d$ after delay $\tau$ faces expected cost $d\delta^\tau W_\delta$. The worked schedule costs $18$ without discounting. Front-loading minimizes honest-newcomer friction only under the stated relative discount factors, ceiling, and deterrence constraint.
 \item \textbf{Engine substitution can occur within one identity.} The one-delivery
 payoff comparison shows when a cheaper engine is profitable. The example's
 attested prices reverse that comparison (keeping the strong engine earns $0.5$, swapping earns $0.2$); they do not prove
@@ -2940,34 +2943,34 @@ role is authorized to deploy, but the incumbent has no deploy
 credential/network route.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-reputation-attachment}
-In Definition~\ref{def:person}, which of $\{O,C,A\}$ does reputation attach to:
+In Definition~\ref{def:person}, which of $\{O,E,A\}$ does reputation attach to:
 the role's, or the person's? Justify using the spawn-that-cannot-be-paid
 argument of \S\ref{sec:intro}.
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-reputation-attachment}
 Reputation attaches to the person's account, through its continuity witness and
-witnessed outcomes, not to the abstract role's $O$, $C$, or $A$. A role is fillable and
+witnessed outcomes, not to the abstract role's $O$, $E$, or $A$. A role is fillable and
 history-free; otherwise a fresh spawn could inherit the prior holder's credit
 merely by taking the same job title, exactly the attribution Alice loses in
 \S\ref{sec:intro}.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-ought-implies-can}
 ``Ought implies can'': the legitimate obligation set $O$ should be bounded by
-the capability set $C$. But \emph{capable-but-forbidden} must remain
+the capability set $E$. But \emph{capable-but-forbidden} must remain
 representable. Sketch a representation of a role that keeps both true without
 collapsing permission into capability.
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-ought-implies-can}
 Keep a role template $(O_{\text{required}}, A_{\text{role}})$ separate from an
-incumbent capability set $C_{\text{subject}}$. At assignment require each
+incumbent capability set $E_{\text{subject}}$. At assignment require each
 current obligation to satisfy
 an authorized feasible plan: for each obligation $o$, there must be a plan
-whose actions lie in $A_{\text{role}}\cap C_{\text{subject}}$ and whose
+whose actions lie in $A_{\text{role}}\cap E_{\text{subject}}$ and whose
 success satisfies $o$. Obligations and actions are different types of object,
 so do not take their set intersection directly. Keep
-$C_{\text{subject}} \setminus A_{\text{role}}$ as capable-but-forbidden and
-$A_{\text{role}} \setminus C_{\text{subject}}$ as authorized-but-unavailable,
-which triggers provisioning or reassignment. Never equate $C$ with $A$.
+$E_{\text{subject}} \setminus A_{\text{role}}$ as capable-but-forbidden and
+$A_{\text{role}} \setminus E_{\text{subject}}$ as authorized-but-unavailable,
+which triggers provisioning or reassignment. Never equate $E$ with $A$.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:continuity}}{Continuity is a personal-identity problem}
@@ -3108,7 +3111,7 @@ better without a participation and payoff model. Under
 Theorem~\ref{thm:whitewash-cost}'s fixed continuation payoffs, resetting to
 avoid a sanction of present value $S$ is unprofitable when $S\le W_\delta$.
 For its separate one-shot deviation model, weak deterrence instead requires
-$G\le p\delta^\tau W_\delta$. Preserving access to work does not by itself
+$G\le d\delta^\tau W_\delta$. Preserving access to work does not by itself
 establish either condition or remove the newcomer's liquidity constraint.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:stp-bond-farming}
@@ -3487,16 +3490,14 @@ bound exists during an unbounded partition.
 % The retired duplicate source inventory is retained in the editorial archive.
 
 \begin{sloppypar}
-\paragraph{This series' own companion results, by script and seed.} The
-audit-tower theorem of \S\ref{sec:oracle} is imported from \emph{Reputation is
-Amortized Verification}~\pdcite{harborpaper3}; its numbers regenerate from
+\paragraph{This chapter's results, by script and seed.} The numbers of the
+audit-tower theorem of \S\ref{sec:oracle} regenerate from
 \texttt{b2\_tower.py} (seed 20260816). The no-mint theorem of
 \S\ref{sec:continuity} regenerates from \texttt{a6\_no\_mint.py} (same seed).
 The engine-substitution and resurrection-soundness results of
-\S\ref{sec:identity} state this chapter's form of \emph{Continuity Without
-Metaphysics}~\pdcite{harborpaper5}; they regenerate from
-\texttt{b5\_engine\_substitution.py}. The probation-cliff theorem shares that
-paper's number and regenerates from \texttt{b6\_probation.py} (same seed
+\S\ref{sec:identity} regenerate from
+\texttt{b5\_engine\_substitution.py}. The probation-cliff theorem
+regenerates from \texttt{b6\_probation.py} (same seed
 throughout, 20260816).
 \end{sloppypar}
 
@@ -3535,7 +3536,7 @@ this chapter's own.
   Binding identity keys across harbors you do not own. It is the market's most
   consequential unbuilt dependency.
   \item\label{op:root} \textbf{The grading oracle's honest root and its telemetry
-  (\S\ref{sec:oracle}).} Theorem~\ref{thm:tower-imported}~\pdcite{harborpaper3} solves the stated
+  (\S\ref{sec:oracle}).} Theorem~\ref{thm:tower-imported} solves the stated
   conditional recurrence with a
   derived contraction factor $\lambda = 1-\rho d$ and a computed depth ($27$ levels /
   \$1{,}350 at $C{=}8$; $53$ / \$2{,}650 at $C{=}1$). What remains open is what that
@@ -3804,20 +3805,6 @@ Thomas Hobbes.
 Silvio Micali, Michael Rabin, and Salil Vadhan.
 \newblock Verifiable Random Functions.
 \newblock In \textit{Proceedings of the 40th Annual Symposium on Foundations of Computer Science (FOCS)}, pages 120--130. IEEE, 1999.
-
-\bibitem{harborpaper3}
-Port Daddy Harbor research program.
-\newblock \textit{Reputation is Amortized Verification: Inspection Games for Agent Economies}.
-\newblock Companion formal paper (Paper~3), August 2026.
-\newblock Source of the stage-deterrence and tower-contraction theorems restated in
-the section on grading-oracle incentive compatibility.
-
-\bibitem{harborpaper5}
-Port Daddy Harbor research program.
-\newblock \textit{Continuity Without Metaphysics}.
-\newblock Companion formal paper (Paper~5), August 2026.
-\newblock Source of the no-mint, resurrection-soundness, and probation-cliff
-theorems restated in the sections on continuity and identity.
 
 \bibitem{ucp2026}
 Universal Commerce Protocol.

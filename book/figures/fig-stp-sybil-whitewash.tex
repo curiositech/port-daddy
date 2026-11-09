@@ -3,8 +3,8 @@
 % count one vote; free unlinkable resets and per-label votes do not.
 % Evidence: the two illustrative policies named beside fig:sybil in
 % spawn-to-person.tex, not deployment traces or an authentication theorem.
-% Exact discrete data, n=0,1,2,3: A retained/Delta=(1,1,1,1),
-% reset/Delta=(1,0,0,0); B principal votes=(1,1,1,1), label votes=1+n.
+% Exact discrete data, n=0,1,2,3: A retained/sigma=(1,1,1,1),
+% reset/sigma=(1,0,0,0); B principal votes=(1,1,1,1), label votes=1+n.
 % The sanction is imposed at the newcomer baseline before the first reset.
 % Must distinguish: time-indexed reset from alias-count inflation; linkage
 % from enforcement. Grammar: two small multiples on one x grid, equal plot
@@ -24,7 +24,7 @@
     xlabel style={pd label,yshift=-1pt}]
   \nextgroupplot[
     title={A. Retained penalty},ylabel={Penalty},xlabel={Respawns, $n$},
-    ymin=-0.12,ymax=1.24,ytick={0,1},yticklabels={$0$,$\Delta$}]
+    ymin=-0.12,ymax=1.24,ytick={0,1},yticklabels={$0$,$\sigma$}]
     % Right-continuous reset: the first respawn removes the old sanction.
     % The shared initial point is drawn once, by the principal series.
     \addplot[pd breach series,const plot,mark indices={2,3,4}]
