@@ -1911,6 +1911,17 @@ Different observations answer different questions. Choose the model for the
 observation and intended decision, then test its assumptions on that task.
 
 \begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Pass/fail signal $\to$ beta-Bernoulli.} For observations such
+  as ``Heron's delivery passed the protected acceptance test,'' the beta
+  reputation system of Jøsang and Ismail~\pdcite{josang2002beta} counts $r$
+  passes and $s$ failures and estimates the chance of the next pass as
+  $(r+1)/(r+s+2)$, the mean of a uniform prior updated by the record. Heron's
+  three passes in four give $4/6=2/3$. The estimate treats outcomes in one
+  declared task class as draws with one fixed success rate; drifting skill or
+  a changing task mix breaks that assumption. A tombstone that retracts one
+  outcome subtracts one from $r$ or $s$, so recomputing this estimate is
+  constant work. Jøsang and Ismail also discount old feedback with a
+  forgetting factor, which is the memory-horizon choice of \S\ref{sec:revoke}.
   \item \textbf{Pairwise / tournament signal $\to$ Bradley--Terry / Elo /
   TrueSkill.} For observations such as ``Heron beat Wren on this task,''
   \textbf{Bradley--Terry}~\pdcite{bradleyterry1952} models pairwise probabilities
@@ -2601,7 +2612,8 @@ To retract a witnessed outcome $o$ later found fraudulent:
   with $o$ nullified by $\bar{o}$. A local incremental update may be cheap,
   but removing an older observation can require replaying retained history or
   refitting a coupled estimator. Cost depends on the estimator and dependency
-  indexes; it is not bounded here by the cost of one forward update.
+  indexes; it is not bounded here by the cost of one forward update. For the
+  beta-Bernoulli count of \S\ref{sec:substrate} it is one decrement.
   \item \textbf{Propagate.} $\bar{o}$ gossips to every harbor that imported $o$,
   under the federation's declared delivery and freshness assumptions. Each
   harbor applies step 3 on receipt; an expired view must refuse decisions
@@ -3311,8 +3323,10 @@ only by a human's aesthetic preference. Which estimator fits each, and why
 does EigenTrust fit neither directly?
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-estimator-fit}
-A binary protected acceptance test can update a beta-Bernoulli reliability
-estimate (or a calibrated per-task success model). Human aesthetic preference
+A binary protected acceptance test fits the beta-Bernoulli estimate of
+\S\ref{sec:substrate}: $r$ passes and $s$ failures give $(r+1)/(r+s+2)$, and a
+retraction removes one count (a calibrated per-task success model is the
+richer alternative). Human aesthetic preference
 is naturally pairwise and may use Bradley--Terry/TrueSkill with judge
 effects. EigenTrust expects a who-trusts-whom graph and therefore fits
 neither raw task-outcome signal directly.
@@ -3785,6 +3799,11 @@ Arpad E. Elo.
 Ralf Herbrich, Tom Minka, and Thore Graepel.
 \newblock TrueSkill: A Bayesian Skill Rating System.
 \newblock In \textit{Advances in Neural Information Processing Systems (NeurIPS)}, 2007.
+
+\bibitem{josang2002beta}
+Audun Jøsang and Roslan Ismail.
+\newblock The Beta Reputation System.
+\newblock In \textit{Proceedings of the 15th Bled Electronic Commerce Conference}, Bled, Slovenia, June 2002.
 
 \bibitem{kamvar2003eigentrust}
 Sepandar D. Kamvar, Mario T. Schlosser, and Hector Garcia-Molina.
