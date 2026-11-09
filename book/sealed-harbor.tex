@@ -1780,10 +1780,9 @@ policies and cross-job accounting. Table~\ref{tab:sealed-ryoan} compares those
 chosen mechanisms with Ryoan's request-oriented model; it ranks neither
 adoption nor overall security. A single writer orders accounting but supplies
 neither confinement nor a proof of what an output reveals.
-% The open-font proof needs an empty margin queue here; Suisse keeps its layout.
-\ifdefined\pdbookfontprofile
-  \ifdefstring{\pdbookfontprofile}{open-proof}{\pdmarginpagebreak}{}%
-\fi
+% Both editions need an empty margin queue here: the Ryoan and SCONE
+% references above would otherwise push Table 3.9's caption down its exhibit.
+\pdmarginpagebreak
 
 \begin{table}[H]\centering\footnotesize
 \caption{Different workload and observation models. Ryoan uses request-oriented
