@@ -141,7 +141,9 @@ forged card. Attenuation is proved for one hop
 delegations. Longer chains rest on the per-hop subset argument, not on a
 machine check. No proof of possession is built. Cards are bearer credentials,
 so whoever presents a card's bytes holds its authority until it expires or is
-revoked. Six Kani harnesses check the deployed Rust crate on bounded inputs.
+revoked. The transfer ceremony of \pdchapref{fh}{The Federated Harbor}
+requires a holder key and proof of possession at presentation, a design
+requirement no model yet checks. Six Kani harnesses check the deployed Rust crate on bounded inputs.
 Four range over decoded inputs: the flat-string subset check, compared with a
 bitset reference; the version and lifetime guards; the channel authority of
 one grant; and a structured subset across two hops. The other two show that
@@ -411,10 +413,11 @@ contract; none of them can be assumed.
 \paragraph{7. Uncertainty needs an institution (\pdchapref{bonded}{The Bonded Commons}).}
 Atomic ledgers keep conservation. The supply changes only when money is added,
 and two concurrent escrow requests cannot together overdraw a wallet when
-balance checks and debits commit atomically. Truthful claim signaling is an
-equilibrium of the repeated claim game when the discount factor, how much
-players weigh future rounds, is above the mechanized threshold
-$\delta^{\star}$. The theorem states the strategy, identities, payoffs and
+balance checks and debits commit atomically. Truthful claim signaling is a
+subgame-perfect equilibrium of the repeated claim game when the discount
+factor, how much players weigh future rounds, is above the mechanized
+threshold $\delta^{\star}$, and a bond that forfeits $p_{\mathrm f}b$ on each
+false claim lowers the threshold. The theorem states the strategy, identities, payoffs and
 monitoring it assumes. Evidence can justify a remedy without being proof.
 \begin{description}[leftmargin=1.4em,itemsep=1pt]
   \item[Result] Theorem~\ref{bonded:thm:conservation};
@@ -446,7 +449,7 @@ authenticates events. Witness logs, secrecy, liveness, custody and local
 authorization still need their own mechanisms.
 \begin{description}[leftmargin=1.4em,itemsep=1pt]
   \item[Result] Theorem~\ref{fh:thm:sheaf-equivocation};
-  Theorem~\ref{fh:thm:radius-soundness}; Design
+  Design invariant~\ref{fh:prop:fh-witness}; Design
   invariant~\ref{fh:def:fh-sovereignty}; Theorem~\ref{fh:thm:fh-conv} for
   revocation.
   \item[Artifact] \texttt{sheaf\_consistency\_radius.py}; for the Relay,
@@ -493,7 +496,8 @@ open.
   whether a commitment is met or to adjudicate an outcome. Its trust model must
   be named.
   \item[Epoch] A version or freshness counter, with chapter-specific meaning.
-  Chapter 2 uses revocation epochs; Chapter 3 uses attestation freshness to
+  Chapter 2 calls its revocation-state number a revocation counter, not an
+  epoch; Chapter 3 uses attestation freshness to
   detect rollback. A credential's time-to-live is a validity duration, not
   another epoch counter. None substitutes for the others.
   \item[Round] A model step in a dissemination or protocol analysis, not
