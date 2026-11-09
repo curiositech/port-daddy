@@ -145,7 +145,7 @@ paper_sources() {
       # so a deleted or newly added input still invalidates selection and epoch.
       printf '%s\n' "$srcdir" "scripts/build-whitepapers.sh" \
         "scripts/generate-mega-whitepaper.mjs" "scripts/generate-book-glossary.mjs" \
-        "scripts/prepare-book-fonts.py"
+        "scripts/lint/check-welds.mjs" "scripts/prepare-book-fonts.py"
       find "$srcdir" -type f ! -name '*.aux' ! -name '*.log' ! -name '*.out' \
         ! -name '*.toc' ! -name '*.fls' ! -name '*.fdb_latexmk' ! -name '*.synctex.gz' | sort
       return
