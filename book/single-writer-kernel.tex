@@ -2799,10 +2799,11 @@ Three facts limit what that design achieves, and none of them closes OP-9.
 \begin{itemize}[leftmargin=1.4em,itemsep=2pt]
   \item \textbf{It is not what the kernel does today.} The reference implementation
   neither spawns agents into ephemeral-UID sandboxes nor reads the peer
-  credential. The credential matters only after the first change: while every
-  agent runs as the daemon's own user, it reports that same user for all of
-  them and cannot tell one agent from another. Table~\ref{tab:threat-model},
-  not this section, states the kernel's current posture.
+  credential. Reading it would help only once agents run under UIDs of their
+  own: while every agent runs as the daemon's user, the credential names that
+  one user for all of them, and a process ID names a process, not an agent.
+  Table~\ref{tab:threat-model}, not this section, states the kernel's current
+  posture.
   \item \textbf{The peer credential is not a cryptographic binding.} It is a
   kernel-recorded uid/gid/pid triple attached to a socket connection. It is strong
   because the kernel supplies it, not the peer, and \emph{weak} in the way any
@@ -3428,8 +3429,7 @@ Theorems~\ref{thm:exclusion} and~\ref{thm:consistency} assume, among them
 checking and mutating in one transaction and replying only after commit. Complete mediation holds only for
 writes that reach the daemon (\S\ref{sec:threatmodel}), and the durable audit
 log is a property of the write-ahead log. The contribution is that reduction,
-with its conditions stated, together with stating exactly where it stops
-working.}
+with its conditions, and an exact account of where it stops working.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Open problems}
