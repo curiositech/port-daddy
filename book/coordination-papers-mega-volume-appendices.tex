@@ -116,9 +116,10 @@ checked paths are outside the transaction.
 \pdstatus{\BuiltWeak}{}
 The product builds the operator's summary views from the event and
 coordination records, and each item links back to the records it came from.
-No view can beat the minimum-information limit proved in \pdchapref{ls}{The
-Legible Swarm}, so each view's coverage, what it leaves out, and how long a
-reviewer takes to see an event still have to be measured.
+No view can beat the legibility lower bound proved in \pdchapref{ls}{The
+Legible Swarm}, the fewest bits a summary needs to guarantee that no critical
+item is missed. Each view's coverage, what it leaves out, and how long a
+reviewer takes to see an event therefore still have to be measured.
 
 \paragraph{Durable work records.}
 \pdstatus{\BuiltWeak}{}
@@ -231,9 +232,9 @@ models; they do not certify an arbitrary dashboard.
 
 \paragraph{5. An agent's record follows its owner, not its process (R7, R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
 Reputation is worth something because checking an agent's history once
-replaces re-checking every job it does. Swapping an agent's skills or identity
-cannot create new permissions: the replacement inherits exactly what its
-predecessor had. Because budgets and exposure are tracked on the responsible
+replaces re-checking every job it does. Under the no-mint rule a replacement
+inherits no more than its predecessor had, so swapping an agent's skills or
+identity cannot create new permissions. Because budgets and exposure are tracked on the responsible
 principal's case file rather than on the process name, an owner cannot shed
 debts or a bad record by restarting the agent under a new name. This depends
 on the rules for registering principals and tracking exposure: a valid key
@@ -256,9 +257,11 @@ into a contract; none of them can be assumed.
 
 \paragraph{7. Uncertainty needs an institution (the $\delta^{*}$ claim-signaling
 game, the conservation model; R11 as instrument) --- \pdchapref{bonded}{The Bonded Commons}.}
-Atomic ledgers keep conservation. Truthful claim signaling is each player's
-best strategy (incentive-compatible) when the discount factor, how much
-players weigh future rounds, is above the mechanized threshold $\delta^{*}$.
+Atomic ledgers keep conservation. Truthful claim signaling is
+incentive-compatible when the discount factor, how much players weigh future
+rounds, is above the mechanized threshold $\delta^{*}$. If the other player
+signals truthfully and punishes a lie for three rounds, signaling truthfully
+is each player's best response (a Nash equilibrium).
 Audit sampling and canaries use the detection-power curve of the sealed room's
 detector. Any claimed benefit of
 randomized adjudication depends on how judges are selected, how independent
@@ -368,7 +371,7 @@ question without closing it.}
 \toprule
 \textbf{Where} & \textbf{Problem} & \textbf{What bears on it elsewhere} \\
 \midrule
-ch.~1, \textsf{OP-1}--\textsf{OP-11} & The kernel's eleven, stated once in its own status table; \textsf{OP-4} splits into \textsf{OP-4a} (durable lineage replay) and \textsf{OP-4b} (inference-state recovery). & \textsf{OP-4b} is graded on ch.~5's scale of what survives an agent's death, at level 5; \textsf{OP-5} (oracle \emph{completeness}) is not addressed by ch.~5's inspection tower, which concerns oracle \emph{incentives}. \\
+ch.~1, \textsf{OP-1}--\textsf{OP-11} & The kernel's eleven, stated once in its own status table; \textsf{OP-4} splits into \textsf{OP-4a} (durable lineage replay) and \textsf{OP-4b} (inference-state recovery). & \textsf{OP-4b} is graded on ch.~5's scale of what survives an agent's death, at level 5; \textsf{OP-5} (oracle \emph{completeness}) is not addressed by ch.~5's audit tower, which concerns oracle \emph{incentives}. \\
 ch.~5 & Its own list, deliberately outside the kernel's numbering: death taxonomy, neutral graded outcomes, judge conflict of interest, correlated auditors. & The correlated-auditor question shares ch.~6's mixing model and its unmeasured $\theta$. \\
 ch.~8 & Deployment-specific propagation tails; the relationship between sheaf diffusion and anti-entropy gossip. & No spectral alarm-time law is established. A tree can have a positive diffusion gap and no detectable cycle residual. Visibility and a noise threshold must enter any proposed law. \\
 Cross-chapter & Claim signalling under \emph{private} monitoring: ch.~7 assumes both players see the same action history before the next round. & One ledger does not ensure timely shared observation. Gossip, hidden actions, resettable identities, and delayed views need their own incentive analysis. \\
