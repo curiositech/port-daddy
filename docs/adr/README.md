@@ -58,6 +58,7 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0142](0142-r2-media-offload.md) | Review-evidence media moves to R2 — content-addressed, manifest derived from the tree | Proposed | 2026-09 |
 | [0143](0143-book-is-the-only-published-whitepaper-edition.md) | The Book is the only published whitepaper edition | Accepted | 2026-09 |
 | [0144](0144-book-r2-mirror-with-one-mutable-pointer.md) | Book release mirror uses one conditional manifest pointer | Proposed | 2026-09 |
+| [0145](0145-publication-book-built-and-deployed-in-ci.md) | CI sets the publication Book in Suisse and deploys it with the site | Accepted | 2026-11 |
 
 > **Numbering authority.** The machine-authoritative number → file map is
 > [`adr-numbering-registry.json`](adr-numbering-registry.json), a pure projection

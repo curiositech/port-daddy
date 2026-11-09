@@ -158,6 +158,10 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 % Begin folios on physical page v with the abstract.
 \setcounter{page}{5}
 \renewcommand{\thepage}{\roman{page}}
+% From here every folio is unique, so pages get their page.<folio> anchors
+% again. Terms defined on pages v and vii are indexed there, and without
+% these anchors their index links pointed at destinations that did not exist.
+\hypersetup{pageanchor=true}
 \begin{abstract}
 \noindent This book studies the mechanisms that make coordinated work by
 autonomous programs inspectable and recoverable.

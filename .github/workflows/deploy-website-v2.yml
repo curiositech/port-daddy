@@ -26,8 +26,8 @@ name: Deploy website-v2 (snap + wrangler)
 # committed ones and records their page count, size and digest in the site's
 # metadata before building, so the site always carries the Book as merged.
 # When the fonts are not configured it hands back nothing and the committed
-# Book ships as before. When it fails, nothing deploys: a Book that failed its
-# page checks is not published, and the previous deployment stays live.
+# Book ships as before. When it fails, this workflow deploys nothing: a Book
+# that failed its page checks is not published.
 #   - BOOK_SUISSE_00..11 — the licensed fonts, set once with
 #     `python3 scripts/book-fonts/ci_fonts.py upload`. Optional.
 
