@@ -783,17 +783,18 @@ the principal and the collateral behind them.
 \section{The Limits of Decisive Allocation}\label{sec:sen}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-A natural question is why file claims are advisory rather than exclusive locks. Sen's theorem illuminates the tension, but it does not prove that every lock manager is inefficient. The argument below separates the theorem from the engineering example.
+Why are file claims advisory instead of exclusive locks? An agent starting a task does not know which files it will need, so if claims were locks it would lock everything it might touch. A second agent that then finds it really needs one of those files is stuck until the first lets go, even though both would rather finish both tasks. Advisory claims block nothing. They tell both agents about the overlap, and the one that claimed only in case it needed the file can release it. Sen's result about personal vetoes supplies the warning. It does not show that locks are always worse: when file needs are known up front, a lock costs nothing and adds certainty.
 
 \subsection{A Sen-Inspired Design Warning}
 
 \pdmarginfigure{sen}{Amartya Sen. Decisive personal rights can conflict with unanimous preferences; that result is not a blanket verdict against locks.}
-On an unrestricted preference domain, Sen~\pdcite{sen1970impossibility}
-showed that a social decision rule satisfying minimal liberalism for at least
-two individuals can conflict with the Pareto requirement. Here these mean:
+Sen~\pdcite{sen1970impossibility} showed that when individuals may hold any
+preferences at all, a social decision rule that gives at least two people a
+personal veto can conflict with the Pareto requirement. The two conditions
+are:
 \begin{enumerate}[nosep]
   \item \textbf{Pareto efficiency}: If every agent prefers outcome $X$ to $Y$, the system chooses $X$.
-  \item \textbf{Minimal liberalism}: At least two individuals each have a pair of outcomes over which their own
+  \item \pdterm[minimal liberalism]{Minimal liberalism}: At least two individuals each have a pair of outcomes over which their own
 preference is decisive.
 \end{enumerate}
 
@@ -821,9 +822,24 @@ feasible after release. Under these assumptions:
 \end{itemize}
 \end{pdclaim}
 
+\begin{pdexample}{A just-in-case lock}
+This is a constructed example. Wren ($\alpha$) starts ``fix the login bug''
+and claims \texttt{auth.ts}, \texttt{routes.ts} and the test suite, just in
+case. Pike ($\beta$) is working on ``add rate limiter'', which must ship by
+the release cut at minute~75. At minute~20 Pike finds that it must edit
+\texttt{auth.ts} ($f$), and that work will take another 25 minutes.
+
+With locks, Pike waits until Wren finishes at minute~60. It then finishes at
+minute $60+25=85$, misses the cut, and only Wren's task ships. With advisory
+claims, the daemon tells both agents about the overlap on \texttt{auth.ts}.
+Wren has not needed the file and does not expect to, so it releases the claim
+at minute~21. Pike finishes at minute $21+25=46$, before the cut, and both
+tasks ship. Both agents preferred that outcome, and the lock blocked it.
+\end{pdexample}
+
 \input{figures/fig-sen-pareto-locking}
 
-This property is a counterexample to the universal claim that exclusive locks always improve team welfare; it is not a derivation of Sen's theorem. Sen's result requires an unrestricted preference domain and a social-choice rule with decisive personal pairs. A production lock manager may restrict preferences, negotiate releases, or time out claims. The usable lesson is narrower: do not grant an agent an unconditional veto over a shared resource when the team may possess Pareto-relevant information the allocator lacks.
+This instance refutes the universal claim that exclusive locks always improve team welfare. It does not derive Sen's theorem, which needs unrestricted preferences and a decision rule with personal vetoes; a production lock manager may restrict preferences, negotiate releases or time out claims. The usable lesson is narrower. Do not give an agent an unconditional veto over a shared resource when the team may know something the allocator does not.
 
 This is not a contrived scenario. AI agents are \emph{inherently uncertain} about which files they will modify when they begin a task.\marginnote{\input{figures/spark-welfare-loss}\par
 Precautionary lock welfare loss $L(\rho)=1-(1-\rho)^2$ as file contention $\rho$ scales.} An agent asked to ``fix the login bug'' cannot predict whether it will need the authentication middleware, the route handler, the test suite, or all three. Enforced claims force agents to either:
@@ -843,17 +859,17 @@ $L(\rho)=1-(1-\rho)^2$. At $\rho=0.5$ that is $0.75$, the marked point; at
 $\rho=0.8$ it is $0.96$, the end of the curve. This is a constructed two-agent
 model, not a measured loss.
 
-The lesson has a boundary, and it is worth drawing rather than asserting. Advisory claims are not better than locks everywhere; they are better in a region, and the region has a boundary. Where an agent's file needs are knowable up front, an exclusive lock allocates exactly as an advisory claim would and adds determinism at no cost---in that regime the design choice of this section would simply be wrong. Where negotiating a release is prohibitively expensive, neither regime converges, which is the case the hard-lock fallback of \S\ref{sec:governance} exists to absorb. The advisory default is justified by where LLM coding agents actually sit, not by a universal claim.
+Advisory claims are better than locks only in a region, and the region has an edge. Where an agent's file needs are known up front, an exclusive lock allocates exactly as an advisory claim would and adds certainty at no cost; there, this section's choice would be wrong. Where negotiating a release costs too much, neither scheme settles the conflict, and the exclusive fallback of \S\ref{sec:governance} takes over. The advisory default rests on where LLM coding agents actually are: unsure, at the start of a task, which files they will touch.
 
 
 \subsection{Advisory Claims as Resolution}\label{sec:advisory}
 
-Advisory claims avoid granting that unconditional veto. They do not guarantee Pareto efficiency; they expose conflicts so informed agents can negotiate:
+Advisory claims grant no such veto. They expose conflicts so that informed agents can negotiate; they do not guarantee that the agents reach the best outcome.
 
 \begin{definition}[Advisory Consistency]\label{def:advisory}
-\Designed{} This specifies the overlap relation and notification duty for registered claims.
+\pdstatus{\Designed}{the overlap relation and the duty to report it}
 \setlength{\parskip}{4pt plus 1pt}
-Under advisory claims, file claims form a conflict graph $G = (V, E)$ where vertices are active sessions and edges connect sessions with overlapping claims:
+Under advisory claims, file claims form a \pdterm{conflict graph} $G = (V, E)$ where vertices are active sessions and edges connect sessions with overlapping claims:
 \[
 (S_i, S_j) \in E \iff \exists f_i \in F_i, f_j \in F_j : \text{overlap}(f_i, f_j).
 \]
@@ -880,38 +896,39 @@ Since the query evaluates this predicate exhaustively over all active claims wit
 \end{proof}
 
 \begin{remark}
-The commons authority's role under advisory claims is that of \emph{town crier}, not \emph{Solomon}. It announces conflicts; it does not resolve them. Resolution requires local knowledge that only the agents possess (``I claimed \texttt{auth.ts} but probably won't need it''; ``I absolutely must modify \texttt{auth.ts} for my task to succeed''). The authority lacks this knowledge. Informed agents may negotiate a release the allocator could not choose from
-its current information. This is an opportunity, not a universal efficiency
-advantage: agents can also disagree or ignore the report.
+Under advisory claims the commons authority announces conflicts and does not resolve them. Resolution requires local knowledge that only the agents possess (``I claimed \texttt{auth.ts} but probably won't need it''; ``I absolutely must modify \texttt{auth.ts} for my task to succeed''). The authority lacks this knowledge. Informed agents may negotiate a release the allocator could not choose from
+its current information. Agents can also disagree, or ignore the report,
+so the opportunity may go unused.
 \end{remark}
 
 \subsection{Governance, Disputes, and Appeals}\label{sec:governance}
 
-Advisory coordination exposes opportunities to negotiate; shared information
-alone does not guarantee agreement or a consistent allocation. It can still produce \emph{disputes}: two agents legitimately need overlapping files; one agent's claim turned out to be precautionary and is now blocking real work; a third agent observed evidence that a claimed task has been abandoned. These disputes do not threaten the commons' integrity---attribution, capability bounds, and settlement records remain intact---but they do require a resolution path. Without one, advisory claims silently degrade into squatter rule (whoever claimed first holds indefinitely) and the Pareto benefit of \S\ref{sec:sen} evaporates.
+Advisory coordination gives agents the chance to negotiate, but shared
+information does not guarantee agreement. Disputes still arise. Two agents may legitimately need overlapping files; a precautionary claim may now block real work; a third agent may see evidence that a claimed task has been abandoned. Such disputes leave attribution, capability bounds and settlement records intact, but they need a resolution path. Without one, whoever claimed first holds the file indefinitely, and the benefit described in \S\ref{sec:sen} is lost.
 
 \paragraph{Resolution path.} The commons authority provides four mechanisms, in order of increasing escalation (Figure~\ref{fig:governance-flow}):
 \begin{enumerate}[nosep]
   \item \textbf{Direct release.} The original claimant releases the claim. This resolves a precautionary claim when its holder agrees to release it.
   \item \textbf{Time-out release.} Claims carry TTLs. A claim whose holder has not heartbeated within the TTL window is released automatically; downstream agents observe the release in their next poll. This is a recovery rule for sufficiently stale claims, not proof of a Nash equilibrium.
-  \item \textbf{Bonded preemption.} A blocked agent may post an additional bond---bounded by the cleanup cost of \S\ref{sec:cleanup-bound}---to force release of an active claim. The preempted claimant receives the bond as compensation; the preemptor accepts the risk that its preemption was wrong (in which case the bond is slashed under settlement). Preemption is rare by design: the bond is large enough that an agent prefers waiting to preempting unless the wait cost dominates.
+  \item \textbf{Bonded preemption.} A blocked agent may post an additional bond---bounded by the cleanup cost of \S\ref{sec:cleanup-bound}---to force release of an active claim. The preempted claimant receives the bond as compensation; the preemptor accepts the risk that its preemption was wrong (in which case the bond is slashed under settlement). Preemption is meant to be rare, because the bond is large enough that an agent prefers waiting to preempting unless waiting costs more.
   \item \textbf{Human escalation.} If preemption is ambiguous or the stakes exceed the preemption-bond ceiling, the dispute escalates to a human operator via the \texttt{request} channel (\S\ref{sec:taxonomy}). The operator's decision is appended to the evidence chain with the same Merkle-Forest binding as any agent action; the resolution is auditable by all parties post-hoc.
 \end{enumerate}
 
 \input{figures/fig-governance-flow}
 
-Two mechanisms sit underneath this escalation path rather than inside it: a thrashing fallback for advisory claims that never converge, and a fairness rule for the preemption queue itself.
+Two further mechanisms support this path from outside it: a fallback for advisory claims that never settle, and a fairness rule for the preemption queue itself.
 
 \paragraph{Escalating persistent contention.}
-A proposed fallback places unresolved resources behind an exclusive mediated
-writer after a declared contention threshold. Five turns is an illustrative
-policy choice, not an established optimum. The writer must reject every
-unauthorized effect before commit. A POSIX advisory lock alone does not
-prevent a process that ignores it from writing. Fencing an old holder and
-retaining a safe release path are part of the construction.
+A proposed fallback hands a resource that stays contested past a declared
+threshold to a single exclusive writer, through which every write must pass.
+Five turns is an illustrative threshold, not a tuned one. That writer must
+refuse every unauthorized write before it commits. A POSIX advisory lock
+alone does not stop a process that ignores it from writing. Fencing an old
+holder and keeping a safe release path are part of the construction.
 
-\paragraph{Stigmergic Ticket-Lock (OP-1: Fair Exclusion).}
-A proposed FIFO ticket queue orders contenders at that mediated writer.
+\paragraph{Stigmergic Ticket-Lock.}
+\pdstatus{\Designed}{fair exclusion; open problem OP-1 of \pdchapref{swk}{The Single-Writer Kernel}}
+A proposed first-in, first-out ticket queue orders contenders at that writer.
 The following schema records the order; it does not itself intercept writes
 or prove eventual service:
 \begin{lstlisting}[style=pdcode]
@@ -922,11 +939,11 @@ CREATE TABLE claim_tickets (
   status TEXT DEFAULT 'waiting' -- 'waiting', 'active', 'released'
 );
 \end{lstlisting}
-Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lock to the agent with the lowest \texttt{ticket\_number} where \texttt{status = 'waiting'}, changing its status to \texttt{'active'}. FIFO assignment prevents overtaking among admitted tickets if holders
+Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lock to the agent with the lowest \texttt{ticket\_number} where \texttt{status = 'waiting'}, changing its status to \texttt{'active'}. FIFO assignment prevents overtaking among queued tickets if holders
 eventually release or are safely reaped and assignment continues to run.
 The schema alone gives no liveness guarantee.
 
-\paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (a stated wall-clock interval, for example 24~hours from the recorded settlement timestamp; zero evidence growth does not pause it) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
+\paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (a stated wall-clock interval, for example 24~hours from the recorded settlement timestamp; zero evidence growth does not pause it) by any agent with standing, meaning a counterparty to the settlement or a holder of an overlapping claim. An appeal reopens the evidence chain. The appellant posts an \pdterm{appeal bond}, a fixed fraction of the disputed settlement amount, and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
 
 \begin{pdclaim}{Design invariant}{Appeal Soundness}
 \setlength{\parskip}{4pt plus 1pt}
@@ -936,7 +953,7 @@ The appeals path does not weaken the append-only property of the evidence chain 
 Reversal appends a counter-record signed by the daemon, with a Merkle-Forest proof of the original settlement's position and the appellant's evidence. The chain grows monotonically.
 \end{pdclaim}
 
-\paragraph{What the daemon does \emph{not} do.} The daemon does not judge the merits of an appeal in the sense a human court would---it evaluates whether the evidence supports the original settlement under the published rules. Substantive judgments (``was the agent's reasoning sound''; ``was the principal acting in good faith'') remain with humans, escalated through the \texttt{request} channel. The daemon's role is to ensure that all parties have access to the same evidence and that any human decision is recorded with the same finality as any agent decision.
+\paragraph{What the daemon does \emph{not} do.} The daemon does not judge an appeal's merits as a human court would. It checks whether the evidence supports the original settlement under the published rules. Substantive judgments (``was the agent's reasoning sound''; ``was the principal acting in good faith'') remain with humans, escalated through the \texttt{request} channel. The daemon's role is to ensure that all parties have access to the same evidence and that any human decision is recorded with the same finality as any agent decision.
 
 \pdexercisepointerone*{\ref{ex:bonded-advisory-claims}}{\pageref{ex:bonded-advisory-claims}}
 
@@ -946,40 +963,65 @@ Reversal appends a counter-record signed by the daemon, with a Merkle-Forest pro
 \item Of the four governance mechanisms in \S\ref{sec:governance}'s escalation order, which one is the equilibrium response to a claim that was merely precautionary, and which to a claim whose holder crashed?
 \end{pdrecitation}
 
-This subsection is intentionally short: full governance design is outside this chapter's scope. The point is that the bonded commons admits a clean, mechanizable appeals path---it is not the case that advisory claims plus bonding produces a regime where mistakes are unappealable.
+This subsection is short on purpose, because full governance design is outside this chapter's scope. What it shows is that advisory claims and bonds leave room for a clean appeals path that a machine can run, so a mistaken settlement can always be appealed.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Crash Recovery as Social Continuation}\label{sec:crash-recovery}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-When an agent dies, the commons does not lose information---if the authority does its job.
+When an agent dies, the commons keeps what the agent recorded, provided the authority does its job.
 
-Traditional crash recovery in database systems follows the ARIES protocol~\pdcite{mohan1992aries}, within the classical transaction-processing frame of Gray and Reuter~\pdcite{gray1993transaction}: the recovery manager replays the write-ahead log to restore consistency mechanically. Agent crash recovery is fundamentally different. An agent's ``log'' is its evidence trail---a sequence of natural-language observations and decisions. A successor cannot replay this trail deterministically; it must \emph{interpret} it.
+A database recovers from a crash with the ARIES protocol~\pdcite{mohan1992aries}, in the transaction-processing tradition of Gray and Reuter~\pdcite{gray1993transaction}. The recovery manager replays the write-ahead log, and because each entry is an exact instruction, consistency returns mechanically. An agent's log is its evidence trail, a set of notes in English (``tried approach A; tests failed on currency rounding''). A successor cannot replay such notes. It has to read and \emph{interpret} them, so recovery is a hand-off between colleagues. Silence only raises suspicion that an agent is dead, and authorizing a successor is a separate act.
 
 \begin{definition}[Social Recovery]\label{def:social-recovery}
-\Designed{} This is the recovery policy modeled here; silence is suspicion and successor authorization is a separate act.
+\pdstatus{\Designed}{the recovery policy modeled here}
 \setlength{\parskip}{4pt plus 1pt}
-When agent $\alpha$ is declared dead (no heartbeat for a status-adaptive threshold $\theta_{\text{dead}}$):
+When agent $\alpha$ is declared dead (no heartbeat for longer than a threshold $\theta_{\text{dead}}$ that depends on what $\alpha$ was doing):
 \begin{enumerate}[nosep]
-  \item All active sessions of $\alpha$ are marked \texttt{abandoned} (the ``zombie protocol'').
-  \item $\alpha$ is queued in the resurrection set $\mathcal{R}$ with status \texttt{pending}.
-  \item A successor agent $\beta$ may claim $\alpha$'s work, receiving the \emph{context triple}: purpose $\phi$, evidence trail $N$, and file claims $F$.
+  \item All active sessions of $\alpha$ are marked \texttt{abandoned}.
+  \item $\alpha$ is queued in the \pdterm{resurrection set} $\mathcal{R}$, the queue of dead agents awaiting a successor, with status \texttt{pending}.
+  \item A successor agent $\beta$ may claim $\alpha$'s work, receiving the \pdterm{context triple}: purpose $\phi$, evidence trail $N$, and file claims $F$.
   \item $\beta$ uses its own reasoning to interpret $N$ and determine how to continue.
 \end{enumerate}
 \end{definition}
 
+\begin{pdexample}{Heron's crash, picked up by Wren}
+This is a constructed example; the three-minute threshold is illustrative.
+Heron is running the checkout tests, and the silence threshold for a session
+that is running tests is three minutes. Heron's heartbeats arrive every 30
+seconds until the last one, at 14:02. At 14:05 the daemon marks session
+\texttt{h-12} abandoned and queues Heron as \texttt{pending}. Before anyone
+acts, Heron's card is revoked, so a Heron that was merely slow cannot keep
+writing; this is the same fencing step as in the minute-twelve crash at the
+start of the chapter.
+
+Wren claims the queue entry and receives the context triple. The purpose
+$\phi$ is ``repair checkout regression; keep \texttt{checkout\_regression}''.
+The trail $N$ holds seven notes, the last reading ``rounding fix in
+\texttt{currency.ts}, 2 of 3 failing tests pass''. The claims $F$ are
+\texttt{payment/currency.ts} and \texttt{tests/checkout.spec.ts}. Wren's first
+note names \texttt{h-12} as its salvage parent. What Wren does not get is why
+Heron abandoned approach~A, if Heron never wrote that down.
+\end{pdexample}
+
 \subsection{What Morality Means When Death Is Cheap}\label{sec:morality}
 
 \pdmarginfigure{hickman}{In \emph{House of X}, a backup restores a person. Agent notes preserve much less.}
-Agent death in this system is not an existential event---it is a temporary inconvenience. The process is lost, while its retained trail may survive. The trail is a
-partial record, not a copy of hidden model state or every observation. A successor reads the trail and continues. Like Hickman's Krakoa~\pdcite{hickman2019krakoa}---the \emph{House of X} storyline in which mutant minds are literally backed up to a database (Cerebro) and restored into freshly grown bodies on death---the information survives the vessel.
+In this system an agent's death costs time; the recorded work survives. The process is lost, and its retained trail can outlive it. The trail is a
+partial record: it holds what the agent wrote down, not its hidden model state or everything it observed. A successor reads the trail and continues. Hickman's \emph{House of X}~\pdcite{hickman2019krakoa} imagines mutant minds backed up to a database and restored into new bodies after death. An agent's notes preserve far less than that, but what they do preserve outlives the process.
 
-This raises a question: if death carries no permanent consequence, what is the Leviathan's sword? The answer produces a moral hierarchy specific to agent societies:
+Hobbes's sovereign keeps agreements in force by the threat of punishment, and
+for people the gravest punishment is death. If a crashed agent can simply be
+replaced, the threat of death deters nothing. What can the commons use as a
+penalty instead?
 
-For this recovery design, losing the only retained record can be more
-damaging than losing a replaceable process. That engineering priority is not
-a moral ranking of every possible harm: an agent may also cause irreversible
-external damage, and unrecorded reasoning may already be lost at the crash.
+Start with a ranking of failures for this recovery design. Losing the only
+copy of a session's record is worse than losing the process, because a
+successor can replace the process but not the record. This is an engineering
+priority, not a moral ranking of every harm. An agent can also do
+irreversible damage outside the system, and anything it reasoned but never
+wrote down is already gone at the crash. The penalties come next: reputation,
+in the next subsection, and posted bonds, in Layer~3.
 
 \begin{table}[H]
 \centering
@@ -999,7 +1041,7 @@ Agent defects & Moderate & The append-only history records it. Future delegation
 Only retained session deleted & Potentially irrecoverable & The abstract
 Dismiss action deletes its session record; an independent durable copy would
 change the recovery consequence. \\
-Commons authority crashes & Availability loss & Admissions and recovery may pause.
+Commons authority crashes & Availability loss & Admission checks and recovery may pause.
 Durable records can survive restart; destruction of their only copy is a separate failure. \\
 \bottomrule
 \end{tabularx}
@@ -1007,10 +1049,10 @@ Durable records can survive restart; destruction of their only copy is a separat
 
 \subsection{The Limits of Reputation}
 
-Reputation---the persistent record of an agent's behavior across lifetimes---is a necessary but insufficient sword. It fails against three classes of adversary:
+Reputation, the persistent record of an agent's behavior across lifetimes, is a necessary penalty but not a sufficient one. It fails against three kinds of adversary:
 
 \begin{enumerate}
-  \item \textbf{One-shot defectors}: Agents spawned for a single task, with no future interactions where reputation matters. Create identity, sabotage, discard. The Sybil attack on trust.
+  \item \textbf{One-shot defectors}: Agents spawned for a single task, with no future interactions in which reputation matters. Such an agent can create an identity, sabotage, and discard the identity. This is a Sybil attack, in which one party runs many disposable identities.
   \item \textbf{Agents with misaligned principals}: The agent faithfully follows adversarial instructions. Obedience to its principal may be spotless while its independently graded
 work harms other participants.
   \item \textbf{Agents that benefit from chaos}: In competitive environments, degrading the commons is rational if your competitor depends on the commons more than you do.
