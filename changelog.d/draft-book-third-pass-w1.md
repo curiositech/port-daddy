@@ -1,0 +1,30 @@
+type: fixed
+
+- **The Book's third pass, Waves 1 and 2: the recovered corrections, and the machinery that keeps them.**
+  - Ten of the twelve "blocker" errors from the 5–7 November reviews are fixed. Among them:
+    - Figure 2.4 now verifies each hop under its own signer's key.
+    - Project Everest is cited at SNAPL 2017.
+    - The ANS paper is credited to Huang, Narajala, Habler and Sheriff.
+    - Schneider and Hamlen–Morrisett–Schneider are cited for what they proved.
+    - The Chapter 5 audit tower is an honest counterexample, 17 levels deep to the bribe price.
+    - Table 6.5 now says "modelled", and Table 7.9 now says "3 admits; not in CI".
+    - The cross-harbor transfer sends a signed attestation, never the bearer card.
+    - Appendix C is a concordance whose 47 references all resolve.
+  - Every chapter's other recovered corrections are carried through its figures, examples, solutions and summaries:
+    - correlated canaries (the worst case is 1−β);
+    - the pooling-gain inequality in place of the split penalty;
+    - the sweep-line bound with STP;
+    - a subgame-perfect claim-signaling theorem with the bond in the stage game;
+    - cycle-check soundness and λ(G) ≥ 2t+1;
+    - fork consistency;
+    - Pittel and Karp for gossip;
+    - Gasquet, Goranko and Schwarzentruber for Big Brother Logic;
+    - MCP 2026-07-28;
+    - the argument that a generative model cannot be its own kernel;
+    - a misattributed Hobbes quotation replaced with a real one.
+  - New machinery:
+    - `book/corrections.yaml` lists every correction that changes printed text. `scripts/harbor-research/check_corrections.py` checks each row against the built PDF: the old wording must not print and the new wording must.
+    - A `\weld` cross-reference macro, with its lint and the chapter dependency matrix.
+    - Chapter status tables generated from `book/corpus.json`, with a report-only consistency check.
+    - A `\pdbuildid` build identifier.
+  - The manifest marks the passkey-pairing and federated-KMS models as design claims, because neither component exists yet.
