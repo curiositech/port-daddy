@@ -1627,7 +1627,7 @@ source argument nor the no-panic harness provides.
 {\footnotesize
 \setlength{\tabcolsep}{4pt}
 \begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.18\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
-\caption{The twelve rows carry six \Closed, five \Partial, and one \Open{} marker. These summarize the named evidence; they are not twelve interchangeable proofs of system security. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}\label{tab:anchor-status}\\
+\caption{The twelve rows carry four \Closed, seven \Partial, and one \Open{} marker. These summarize the named evidence; they are not twelve interchangeable proofs of system security. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}\label{tab:anchor-status}\\
 \toprule
 \textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
 \midrule
@@ -1639,13 +1639,13 @@ source argument nor the no-panic harness provides.
 \endhead
 \bottomrule
 \endlastfoot
-Authentication correspondence in the listed phase models (\S\ref{sec:algorithms}) & ProVerif 2.05 & \Closed\ non-injective correspondence queries TRUE & \path{harbor_}\allowbreak\path{card_v*.pv} \\
-Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \path{alg}\allowbreak\path{confusion.pv} \\
+Algorithm-confusion immunity & ProVerif pinned vs.\ naive + runtime & \Closed\ pinned TRUE; counter-trace witnessed; runtime conformance: 7 attack cases against the daemon's TypeScript card verifier pass & \path{alg}\allowbreak\path{confusion.pv} \\
 Delegation chain authenticity (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ non-injective chain authenticity TRUE; the model never reads its consumed-nonce table, so it does not prove a replayed chain is refused (the 17-case runtime conformance suite tests that) & \path{chain-}\allowbreak\path{replay.pv} \\
-Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2s/2^f$ at load $0.95$ & cuckoo property tests \\
 GitHub-App webhook origin authentication & ProVerif (Dolev-Yao relay) & \Closed\ origin auth TRUE; daemon re-verifies GitHub HMAC (runtime conformance) & \path{ingress_}\allowbreak\path{origin_}\allowbreak\path{auth.pv} \\
 Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $X$ cannot publish into $Y$; \texttt{HARBOR\allowbreak\_MISMATCH} conformance & \path{ingress_}\allowbreak\path{tenant_}\allowbreak\path{isolation.pv} \\
 \midrule
+Authentication correspondence in the listed phase models (\S\ref{sec:algorithms}) & ProVerif 2.05 & \Partial\ non-injective correspondence queries TRUE; no runtime conformance suite maps them to the daemon's TypeScript card verifier, whose unit tests are empirical & \path{harbor_}\allowbreak\path{card_v*.pv} \\
+Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Partial\ no model; the property test finds the FP rate within $2s/2^f$ at load $0.95$, for a library the revocation check does not yet use & cuckoo property tests \\
 Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ the check only narrows acceptance; delivery time rests on assumptions & runtime test \\
 Constant-time signature comparison & audited \path{subtle::}\allowbreak\path{Constant}\allowbreak\path{TimeEq} library & \Partial\ no side-channel proof; library trust documented & --- \\
 Relay payload secrecy via HPKE (daemon key pinned) & ProVerif (design) & \Partial\ secrecy TRUE under pinned key; HPKE encryption not yet implemented & \path{ingress_}\allowbreak\path{hpke_}\allowbreak\path{secrecy.pv} \\
