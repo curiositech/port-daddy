@@ -46,8 +46,9 @@
  * align environments), verbatim and listings, TikZ pictures, the
  * bibliography, and the arguments of reference-like commands (\label, \ref,
  * \pageref, \cref, \pdcite, \cite, \url, \path, \code, \texttt, \index,
- * \includegraphics, \hyperlink's target, \pdchapref's prefix and the like) are
- * ignored. Captions, margin notes and headings are scanned.
+ * \includegraphics, \hyperlink's target, \pdchapref's prefix, both arguments
+ * of \weld and the like) are ignored. Captions, margin notes and headings are
+ * scanned.
  *
  *   node scripts/lint/check-book-terms.mjs            # advisory: report, exit 0
  *   node scripts/lint/check-book-terms.mjs --strict   # exit 1 on any finding
@@ -120,6 +121,9 @@ const ARGUMENTS = {
   pdgeneratedinput: ['m!', 'm!'], input: ['m!'], include: ['m!'], usetikzlibrary: ['m!'],
   definecolor: ['m!', 'm!', 'm!'], pdterm: ['o!', 'm'],
   pdbookreference: ['m!', 'm!', 'm!', 'm!'],
+  // \weld{label}{keyword} (figures/pd-weld.tex) prints a section number; its
+  // keyword is for scripts/lint/check-welds.mjs and never reaches the page.
+  weld: ['m!', 'm!'],
 };
 
 // ---------------------------------------------------------------------------

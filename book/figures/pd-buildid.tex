@@ -1,0 +1,29 @@
+% figures/pd-buildid.tex -- \pdbuildid: which build this PDF is.
+%
+%   \pdbuildid  ->  "dfce4990d · open-proof · 9 November 2026"
+%
+% The short commit the Book was built from, the font profile, and the date of
+% SOURCE_DATE_EPOCH. It is meant for the colophon and the how-to-cite line,
+% where a hand-written date ("5 November 2026" in textbook.json) goes stale
+% the day after it is typed; placing it there is the front matter's call.
+%
+% Where the parts come from:
+%   \pdbuildcommit  scripts/generate-mega-whitepaper.mjs, from Git (HEAD, with
+%                   "+modified" when a Book input has uncommitted changes), or
+%                   from SOURCE-MANIFEST.json in the source archive, or from
+%                   PD_BOOK_COMMIT when it is set;
+%   \pdbuilddate    the same generator, from SOURCE_DATE_EPOCH, which
+%                   scripts/build-whitepapers.sh computes per build and the
+%                   source archive pins;
+%   \pdbuildfontprofile  scripts/prepare-book-fonts.py's \pdbookfontprofile
+%                   (open-proof or suisse), read when \pdbuildid is used.
+% The generator writes the first two into mega-volume-build-id.tex. Outside a
+% Book build (a figure compiled alone) that file may be absent, and the parts
+% say "unversioned" and "undated" rather than stopping the compile.
+\IfFileExists{../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-build-id.tex}
+  {\input{../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-build-id.tex}}{}
+\providecommand\pdbuildcommit{unversioned}
+\providecommand\pdbuildepoch{}
+\providecommand\pdbuilddate{undated}
+\newcommand\pdbuildfontprofile{\ifdefined\pdbookfontprofile\pdbookfontprofile\else unknown\fi}
+\newcommand\pdbuildid{\pdbuildcommit\ \textperiodcentered\ \pdbuildfontprofile\ \textperiodcentered\ \pdbuilddate}

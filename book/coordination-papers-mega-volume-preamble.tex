@@ -1136,6 +1136,14 @@
 % figure the Book prints once and cross-references, which the paper carries
 % its own copy of.
 \pdbooktrue
+% \weld{label}{keyword}: a cross-chapter pointer that prints "§N, p. P" when
+% its target is three or more pages away and "§N" when it is nearer. After
+% hyperref (its links and PDF strings) and \pdbooktrue (it resolves labels
+% the Book's way). scripts/lint/check-welds.mjs checks every one.
+\input{figures/pd-weld}
+% \pdbuildid: commit, font profile and SOURCE_DATE_EPOCH date of this build,
+% for the colophon and the how-to-cite line.
+\input{figures/pd-buildid}
 
 % ---------------------------------------------------------------------------
 % Captioned exhibits must fit the text column: the outside margin is reserved
