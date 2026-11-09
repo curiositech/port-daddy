@@ -1,0 +1,66 @@
+% Reader question: what is the "person" that reputation attaches to, if every
+% process that does the work eventually exits? Claim: processes come and go;
+% the ledger account they write to persists, and that account is what the book
+% calls a person. Evidence: the chapter's constructed job -- three successive
+% processes (PID 48213, 51007, 60122) bound by signed succession records, each
+% writing one entry (a delivery accepted, a grant used and a note filed, a
+% claim taken) into Heron's account, which then holds obligations, permissions,
+% confirmed outcomes and lineage. Must distinguish: the short-lived process
+% (subordinate, ends in an exit mark) from the account (the focus, outlives
+% all three). Grammar: a lifeline row over one ledger band, the UML
+% destruction cross marking each exit; rejected: a portrait of an agent (no
+% mechanism) and a single box per process with arrows between them (hides
+% that the record lives somewhere else). Five-second test: "the processes
+% die; the account underneath keeps everything they wrote."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  proc/.style={pd artifact,minimum width=2.9cm,minimum height=.62cm,anchor=west},
+  event/.style={pd label,anchor=west,align=left},
+  field/.style={pd title,anchor=north west,align=left},
+  entry/.style={pd label,anchor=north west,align=left}]
+  \node[pd title,anchor=west] at (0,3.02) {Processes come and go};
+  % ---- three processes, each ending in an exit cross -----------------------
+  \node[proc] (p1) at (0.00,1.00) {PID 48213};
+  \node[proc] (p2) at (3.90,1.00) {PID 51007};
+  \node[proc] (p3) at (7.80,1.00) {PID 60122};
+  \foreach \p in {p1,p2} {
+    \draw[pd rule] ($(\p.east)+(.10,.15)$) -- ($(\p.east)+(.40,-.15)$);
+    \draw[pd rule] ($(\p.east)+(.10,-.15)$) -- ($(\p.east)+(.40,.15)$);
+  }
+  \draw[pd arrow,shorten <=2pt] (p3.east) -- ++(.62,0);
+  % ---- signed succession: each successor names its predecessor -----------
+  \draw[pd focus arrow,shorten <=2pt,shorten >=2pt]
+    ($(p1.north east)+(-.35,0)$) to[out=70,in=110] ($(p2.north west)+(.35,0)$);
+  \draw[pd focus arrow,shorten <=2pt,shorten >=2pt]
+    ($(p2.north east)+(-.35,0)$) to[out=70,in=110] ($(p3.north west)+(.35,0)$);
+  \node[pd focus label,anchor=south,text width=3.3cm] at (3.45,1.78)
+    {signed:\ 51007 succeeds 48213};
+  \node[pd focus label,anchor=south,text width=3.3cm] at (7.35,1.78)
+    {signed:\ 60122 succeeds 51007};
+  % ---- what each process writes into the account ---------------------------
+  \foreach \x/\w/\what in {1.20/2.6/{delivery accepted},5.10/3.3/{grant used, note filed},
+                          9.00/1.9/{claim taken}} {
+    \draw[pd arrow,shorten <=2pt,shorten >=3pt] (\x,.69) -- (\x,-.80);
+    \node[event,text width=\w cm] at (\x+.14,-.05) {\what};
+  }
+  % ---- the account: the one thing that persists ----------------------------
+  \draw[pd focus fill] (0,-.80) rectangle (11.15,-3.12);
+  \node[pd title,anchor=west] at (.20,-1.12) {Ledger account:\ Heron, the person};
+  % Each field sits under the process that wrote it; lineage under the
+  % succession records.
+  \foreach \x/\w/\k/\v in {
+      .20/2.70/confirmed/{1 delivery, passed on Bob's runner},
+      3.05/2.55/may/{edit the checkout module},
+      5.75/2.65/lineage/{3 processes, each succession signed},
+      8.60/2.35/owes/{1 open claim}} {
+    \node[field,text width=\w cm] at (\x,-1.50) {\k};
+    \node[entry,text width=\w cm] at (\x,-1.92) {\v};
+  }
+\end{tikzpicture}
+\caption{Processes come and go; the account they write to is what the book
+calls a person. Reputation is what that account's confirmed record is worth to
+the next buyer. [constructed example]}
+\label{fig:audit-person}
+\end{figure}

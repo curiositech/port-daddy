@@ -1,0 +1,40 @@
+% Reader question: how can every pair of harbors agree and the whole still
+% fail to fit together? Claim: three pairwise exchange rates, each one agreed
+% and balanced by its own pair, multiply to 1.2 around the loop A -> B -> C ->
+% A, so no single price list is consistent with all three; this is the
+% local-to-global shape the gluing analogy points at. Evidence: rates A->B 2,
+% B->C 3, C->A 0.2; 2 x 3 x 0.2 = 1.2 (exactly 6/5), not 1. Must distinguish:
+% each edge (locally fine) from the cycle (globally inconsistent). Grammar: a
+% three-node directed cycle with the rate on each edge and the product in the
+% middle; rejected: a 3 x 3 rate table (hides the loop that carries the
+% failure) and sheaf notation (the chapter does not define the site or
+% coefficients). Five-second test: "each arrow is fine; going round gives
+% 1.2, not 1."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  harbor/.style={pd state,circle,minimum size=.85cm,inner sep=0pt},
+  rate/.style={pd focus arrow,shorten <=3pt,shorten >=3pt},
+  side/.style={pd label,align=left,text width=2.9cm}]
+  \node[harbor] (A) at (5.575,3.2) {A};
+  \node[harbor] (B) at (7.90,0) {B};
+  \node[harbor] (C) at (3.25,0) {C};
+  \draw[rate] (A) -- (B);
+  \draw[rate] (B) -- (C);
+  \draw[rate] (C) -- (A);
+  \node[pd label,anchor=west] at (6.95,1.75) {$\times 2$};
+  \node[pd label,anchor=north] at (5.575,-.28) {$\times 3$};
+  \node[pd label,anchor=east] at (4.20,1.75) {$\times 0.2$};
+  \node[pd breach label,align=center] at (5.575,1.02)
+    {around the loop:\\$2\times3\times0.2=1.2\neq1$};
+  \node[side,anchor=west] at (0,1.60)
+    {Each pair of harbors agrees on a rate, and each pair's books balance.};
+  \node[side,anchor=west] at (8.25,1.60)
+    {No single price list matches all three pairs. That is ``local-to-global''.};
+\end{tikzpicture}
+\caption{Every pair agrees, yet the whole does not: the loop returns 1.2, not
+1. Settlement and equivocation across harbors can fail the same way, which is
+all the chapter's sheaf vocabulary is pointing at. [constructed example]}
+\label{fig:audit-loop}
+\end{figure}
