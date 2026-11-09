@@ -438,7 +438,11 @@ fn build_fixture() -> Value {
         {"name": "op-mismatch-refused", "cap": [{"op": "sub", "channel": "*"}], "required_op": "pub", "required_channel": "anything", "expected_match": false},
         {"name": "unrecognised-op-is-skipped-not-fatal", "cap": [{"op": "delete", "channel": "*"}, {"op": "pub", "channel": "alerts"}], "required_op": "pub", "required_channel": "alerts", "expected_match": true},
         {"name": "empty-cap-grants-nothing", "cap": [], "required_op": "sub", "required_channel": "anything", "expected_match": false},
-        {"name": "literal-star-channel-matched-by-equality", "cap": [{"op": "pub", "channel": "a*"}], "required_op": "pub", "required_channel": "a*", "expected_match": true}
+        {"name": "literal-star-channel-matched-by-equality", "cap": [{"op": "pub", "channel": "a*"}], "required_op": "pub", "required_channel": "a*", "expected_match": true},
+        {"name": "double-star-matches-channels-starting-with-a-star", "cap": [{"op": "sub", "channel": "**"}], "required_op": "sub", "required_channel": "*x", "expected_match": true},
+        {"name": "double-star-refuses-a-plain-channel", "cap": [{"op": "sub", "channel": "**"}], "required_op": "sub", "required_channel": "x", "expected_match": false},
+        {"name": "inner-star-is-a-literal-byte-hit", "cap": [{"op": "sub", "channel": "a**"}], "required_op": "sub", "required_channel": "a*b", "expected_match": true},
+        {"name": "inner-star-is-a-literal-byte-miss", "cap": [{"op": "sub", "channel": "a**"}], "required_op": "sub", "required_channel": "ab", "expected_match": false}
     ]);
 
     // ── Rust-only structured attenuation vectors ─────────────────────────────
@@ -453,7 +457,14 @@ fn build_fixture() -> Value {
         {"name": "op-escalation-to-admin", "root": [{"op": "sub", "channel": "*"}], "sub": [{"op": "admin", "channel": "*"}], "expected_subset": false},
         {"name": "dropping-a-rate-ceiling", "root": [{"op": "pub", "channel": "*", "rate_per_min": 60}], "sub": [{"op": "pub", "channel": "*"}], "expected_subset": false},
         {"name": "raising-a-payload-ceiling", "root": [{"op": "pub", "channel": "*", "max_payload_bytes": 1024}], "sub": [{"op": "pub", "channel": "*", "max_payload_bytes": 4096}], "expected_subset": false},
-        {"name": "tightening-a-rate-ceiling", "root": [{"op": "pub", "channel": "*", "rate_per_min": 60}], "sub": [{"op": "pub", "channel": "*", "rate_per_min": 10}], "expected_subset": true}
+        {"name": "tightening-a-rate-ceiling", "root": [{"op": "pub", "channel": "*", "rate_per_min": 60}], "sub": [{"op": "pub", "channel": "*", "rate_per_min": 10}], "expected_subset": true},
+        {"name": "double-star-does-not-cover-star", "root": [{"op": "pub", "channel": "**"}], "sub": [{"op": "pub", "channel": "*"}], "expected_subset": false},
+        {"name": "a-double-star-does-not-cover-a-star", "root": [{"op": "pub", "channel": "a**"}], "sub": [{"op": "pub", "channel": "a*"}], "expected_subset": false},
+        {"name": "b-double-star-does-not-cover-b-star", "root": [{"op": "pub", "channel": "b**"}], "sub": [{"op": "pub", "channel": "b*"}], "expected_subset": false},
+        {"name": "triple-star-does-not-cover-double-star", "root": [{"op": "pub", "channel": "***"}], "sub": [{"op": "pub", "channel": "**"}], "expected_subset": false},
+        {"name": "star-covers-double-star", "root": [{"op": "pub", "channel": "*"}], "sub": [{"op": "pub", "channel": "**"}], "expected_subset": true},
+        {"name": "a-star-covers-a-double-star", "root": [{"op": "pub", "channel": "a*"}], "sub": [{"op": "pub", "channel": "a**"}], "expected_subset": true},
+        {"name": "a-double-star-covers-a-star-b-glob", "root": [{"op": "pub", "channel": "a**"}], "sub": [{"op": "pub", "channel": "a*b*"}], "expected_subset": true}
     ]);
 
     json!({
