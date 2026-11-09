@@ -68,8 +68,8 @@ component cut into pieces that act only together, or one component copied.
 \begin{pdclaim}{Theorem}{Licence-Split Impossibility}
 \setlength{\parskip}{4pt plus 1pt}
 \label{thm:he-licence-split}
-No royalty rule that satisfies Balance, Symmetry and Anonymity is
-split-proof on every game.
+No royalty rule that satisfies Balance and applies Symmetry to components is
+split-proof on every game, whether or not it is anonymous.
 \end{pdclaim}
 \begin{proof}
 \setlength{\parskip}{4pt plus 1pt}
@@ -83,8 +83,9 @@ $(k+1)/(n+1)$, and
 \[
 \frac{k+1}{n+1}-\frac{k}{n}=\frac{n-k}{n(n+1)}>0 .
 \]
-Anonymity is used here: the rule cannot see that two components share an
-owner. With $n=2$ and $k=1$ the share rises from $1/2$ to $2/3$.
+Knowing the owners does not help: the components are still interchangeable,
+so Symmetry still forces equal shares. With $n=2$ and $k=1$ the share rises
+from $1/2$ to $2/3$.
 
 \emph{Substitutes.} Agarwal, Dahleh and Sarkar prove that when seller
 identities are anonymized, balance and robustness to replication cannot hold
@@ -138,10 +139,11 @@ and after the split. Each receives $6$\,\textsc{cr} both times.
 \end{pdexample}
 
 \paragraph{The escape: pool by licensor.}
-The impossibility depends on Anonymity. Drop it: merge each licensor's
-components into one player before applying any rule. A re-packaging inside
-one licensor then leaves the game the rule sees unchanged, so no share can
-move. The remaining attack is a false name: register a second licensor key
+The impossibility treats components as the players. Change the players: merge
+each licensor's components into one player before applying any rule, so that
+Symmetry compares licensors, not components. This needs the rule to read
+ownership, which an anonymous rule cannot do. A re-packaging inside one
+licensor then leaves the game the rule sees unchanged, so no share can move. The remaining attack is a false name: register a second licensor key
 and move a component to it. Pooling therefore turns the split attack into a
 Sybil attack on the licensor key (\S\ref{sec:keystone}). Whether it is
 deterred is the question that \pdchapref{stp}{From Spawn to Person} prices
@@ -173,14 +175,17 @@ specifies%
 \fi
 . The release stays in escrow through the dispute window and is clawed back
 if a re-audit lowers $L$ or reverses the settlement. Loads, opens and
-touched files are recorded as telemetry and may cap $r$. They never set it.
+touched files are recorded as telemetry only; they never set or cap $r$. A cap,
+if the licence has one, is a fixed amount per task written in the licence,
+because a cap computed from the trace can be raised by the licensor's own text.
 \textbf{Status:} \Designed{}; not implemented in the reference system.
 \end{definition}
 
 \noindent Take an illustrative price of $p=0.5$\,\textsc{cr} per point and a
 lower bound of $L=12$ points. Carol's release is $0.5\times12=6$\,\textsc{cr}.
-Kept as a cap, the per-file count allows $16\times0.5=8$, so the release is
-$\min(8,6)=6$\,\textsc{cr}, and $10-6=4$\,\textsc{cr} returns to Bob. The
+With a licence cap of $8$\,\textsc{cr} per task, fixed in the contract, the
+release is $\min(8,6)=6$\,\textsc{cr}, and $10-6=4$\,\textsc{cr} returns to
+Bob. The
 one-line check becomes $-456+400+50+6+0=0$. If $L\le0$, Carol receives
 nothing however many files the skill opened.
 

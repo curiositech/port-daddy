@@ -141,9 +141,11 @@ inventory must list files and compaction summaries as well as the memory tool.
 A consolidation $\Gamma:(M,L)\mapsto M'$ is \textbf{ledger-faithful} when:
 \begin{enumerate}[label=F\arabic*,leftmargin=2.2em,itemsep=2pt]
 \item \emph{No mint.} Every note asserting a commitment, closure, grant,
-revocation, outcome or debt has a nonempty $\mathsf{ptr}$ into $L$ and states
-its events' current status. A note with empty $\mathsf{ptr}$ is texture, with
-authority no higher than its least authoritative source.
+revocation, outcome or debt has a nonempty $\mathsf{ptr}$ into $L$ and carries
+its status (scope, amounts, deadlines, open or closed) as structured fields
+that must equal what $L$ gives for those events. Free text in such a note is
+texture. A note with empty $\mathsf{ptr}$ is texture, with authority no higher
+than its least authoritative source.
 \item \emph{Coverage.} Every element of $\mathrm{Owed}(L)$, and every live grant
 and restriction in $\mathrm{Auth}(L)$, within the role's scope reaches the
 successor with its full terms: counterparty, scope, deadline, conditions.
@@ -157,7 +159,9 @@ Prop.~\ref{prop:tombstone}. Texture may be compacted freely.
 \end{enumerate}
 \emph{Kind:} \Designed{} design invariant --- a requirement on any consolidator
 admitted to the memory path. F1 and F4 can be checked deterministically against
-$L$; F2 needs a declared list of required records, like the coverage test of
+$L$ because they compare pointers and structured fields, not prose; no check
+of free text is claimed, and none is needed, since free text never carries
+authority. F2 needs a declared list of required records, like the coverage test of
 Figure~\ref{fig:stp-handoff-coverage}.
 \end{pdclaim}
 
@@ -228,8 +232,9 @@ permits. False authority has formed.
 Stipulate one open commitment, Friday's catering, before and after the update:
 $|\mathrm{Owed}|=1$ both times, and no outcome was added or removed. The
 tempting test passes, and the memory is wrong. F1 catches it: the grant note
-rests on $\mathsf{ptr}=\{g_1,g_2\}$, whose current scope is $S_L$, and the ERP
-text has an empty $\mathsf{ptr}$, so it cannot widen the grant note. P2 catches
+rests on $\mathsf{ptr}=\{g_1,g_2\}$, its scope field must equal the current
+scope in $L$, which is $S_L$, and the ERP text has an empty $\mathsf{ptr}$, so it
+is texture and cannot widen the grant note. P2 catches
 it independently, because admission evaluates $S_L$.
 
 \emph{Now you try:} a 6{,}000 USD and a 6{,}001 USD lunch order. (Both views
@@ -246,8 +251,10 @@ assigned by the platform from the arrival channel, never inferred from the text.
 on the memory path; they enter only through ledger operations, so P1 holds by
 construction.
 \item A consolidation is one batch proposal over a snapshot of $M$. A
-deterministic checker, not the consolidator, tests F1 and F4 against $L$ and
-rejects a failing batch whole.
+deterministic checker, not the consolidator, tests F1 and F4 against $L$,
+comparing pointers and structured status fields, and rejects a failing batch
+whole. Notes are served with those fields rendered from $L$, so prose in a note
+cannot restate a grant more widely than the ledger does.
 \item A note with imperative force and empty $\mathsf{ptr}$ is served as a claim
 labelled with its author and session, not as an instruction.
 \item Summaries are rebuilt from $L$ and retained episodes, never from the
@@ -261,14 +268,19 @@ Code's documentation states the read half for its own files: they are context,
 and blocking an action regardless of the model's decision takes a
 hook~\pdcite{anthropic2026memory}.
 
-\paragraph{The consolidation receipt.} Each consolidation the checker decides
-appends one record to the succession log: digests of $M$ before and after, the
-consolidator's identity and engine, the consolidation-policy version, the
-verdict, and the pointer-bearing notes superseded. The checker, not $\Gamma$,
-writes it, so P1 is untouched. The receipt does not make memory authoritative;
-it records \emph{what the successor loaded}, the witness
-\S\ref{sec:parfit-lineage-map} found missing, for the notes at least.
-\emph{Kind:} \Vision{}.
+\paragraph{The consolidation and load receipts.} Each consolidation the checker
+decides appends one record to the succession log: digests of $M$ before and
+after, the consolidator's identity and engine, the consolidation-policy
+version, the verdict, and the pointer-bearing notes superseded. The checker,
+not $\Gamma$, writes it, so P1 is untouched. This receipt records what the
+memory store became, not what any successor read: a successor that loaded
+stale notes, a subset, or nothing would leave it unchanged. The witness
+\S\ref{sec:parfit-lineage-map} found missing needs a second record, a
+\emph{load receipt} the daemon writes when it injects notes into a successor's
+context: the successor's identity, the digest of the memory state it was
+given, and the digests of the notes actually injected. Together the two
+receipts say what was kept and what was handed on. Neither makes memory
+authoritative. \emph{Kind:} \Vision{}.
 
 \paragraph{Aggressive consolidation is an engine swap.} Mem0 reports lower
 latency and token cost than reasoning over the full

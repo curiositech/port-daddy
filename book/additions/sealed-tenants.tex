@@ -10,7 +10,8 @@ so it has no finite $\varepsilon$, and only labels can decide what a shared stor
 may hold. Training can release data in a measured way, through the
 person-keyed ledger of Section~\ref{sec:sealed-person-ledger}. Scrubbing changes no
 label, and a scrubber that removes text by fixed rules has no finite
-$\varepsilon$ either (Theorem~\ref{thm:sealed-no-scrubber}).}
+$\varepsilon$ either, unless its output never depends on whose records are
+present (Theorem~\ref{thm:sealed-no-scrubber}).}
 
 \paragraph{The scene, widened.}
 The room so far has two owners; a harbor that sells agents serves many. A
@@ -130,7 +131,7 @@ derivative enters as the first row. A proposed policy, not a measured one.}
 \toprule
 Data class & Tenant memory & Shared memory & Tenant adapter & Shared training & Cache \\
 \midrule
-Public or operator-signed (empty label) & yes & yes & yes & yes & shared \\
+Public (empty label) & yes & yes & yes & yes & shared \\
 Tenant-confidential, no person & yes & release & yes & ledger, tenant as unit & tenant key \\
 The requesting person's data & release, person scope & no & release if one person, else ledger & ledger & person key \\
 Third parties named in content & the discloser's & no & no & no & person key \\
@@ -231,7 +232,11 @@ reputation. Under whole-worker labeling, an agent that served tenant $A$
 carries $A$'s label into its next job unless its memory is partitioned, so a
 persistent person's episodic memory is partitioned by owner label and only
 the partitions the work order authorizes are mounted. Its identity and
-outcome record need not be: an outcome grade is operator-class. A tombstone retracts a
+outcome record need not be partitioned when they carry no owner's data. An
+outcome grade has operator integrity, since the operator's oracle wrote it,
+but integrity says who wrote a record, not that it is safe to disclose: a
+grade that reveals a tenant's data keeps that tenant's label and leaves only
+by the owner's release. A tombstone retracts a
 record from an index and from a cache, but not its influence from trained
 weights. The same model can be reached by training runs with and without a
 given point, so unlearning is well defined only at the algorithmic level

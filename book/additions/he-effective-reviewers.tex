@@ -13,12 +13,17 @@ not restore independence in that panel.
 At this section's $d=0.6$, nine independent reviewers would miss a fixed flaw
 with probability $0.4^9\approx2.6\times10^{-4}$. If the panel behaved like two
 independent reviewers, it would miss the flaw with probability $0.4^2=0.16$,
-about $610$ times as often. Replace $k$ in the bound by an \emph{effective number} measured on
-the panel itself: seed flaws with known answers, estimate the all-miss rate
-$\hat m$ and the per-reviewer rate $\hat d$, and set
-$k_{\mathrm{eff}}=\log\hat m/\log(1-\hat d)$. This uses the joint event the
+about $610$ times as often. A panel can be summarized by an \emph{effective
+number} measured on the panel itself: seed flaws with known answers, estimate
+the all-miss rate $\hat m$ and the per-reviewer rate $\hat d$, and set
+$k_{\mathrm{eff}}=\log\hat m/\log(1-\hat d)$. It uses the joint event the
 bound needs; a pairwise statistic cannot replace it, by the counterexample in
-\S\ref{sec:assurance-correlation}. (\Vision{}.)
+\S\ref{sec:assurance-correlation}. But it describes the seeded flaws and
+nothing more. Put back into the bound, it returns the measured average
+all-miss rate, not a bound for any particular flaw, and a panel can miss one
+kind of flaw every time while catching the rest. An assurance claim that uses
+it must report its confidence interval and state the assumption that future
+flaws are drawn like the seeded ones. (\Vision{}.)
 \end{remark}
 
 \pdexercisepointerone{\ref{ex:he-effective-reviewers}}{\pageref{ex:he-effective-reviewers}}

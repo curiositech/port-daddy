@@ -14,9 +14,10 @@ harder, not worse served. Second, the file can act without being opened,
 through its mention in \texttt{SKILL.md}, and an opened file need not be
 followed. The masked-asset protocol hides the file and its mention at random,
 before the run, on an audit share of runs. The difference in outcomes between
-masked and shown runs estimates the file's effect, and dividing by the
-difference in read rates estimates the effect of reading it, provided the
-mask acts only through reading.
+masked and shown runs estimates the effect of the file and its mention
+together. It does not isolate the effect of reading the file: the mask also
+removes the mention, which can act without any read, so dividing by the
+difference in read rates would credit reading with the mention's effect.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-prompt-contrast}
 A harbor runs two system prompts on two models with equal numbers of tasks.

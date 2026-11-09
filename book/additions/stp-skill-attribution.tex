@@ -43,7 +43,8 @@ Extend each event of Protocol~\ref{proto:skill} as follows.
   \item \textbf{Asset mask.} On an audit share of runs, each asset is hidden
   independently with probability $\tfrac12$. Hiding removes the file
   \emph{and} its mention in \texttt{SKILL.md}, so a dangling reference does
-  not itself change behaviour.
+  not itself change behaviour. What the mask estimates is therefore the effect
+  of the file and its mention together, not of reading the file.
   \item \textbf{Commitment.} The draws are committed to the evidence trail
   before the run starts.
 \end{enumerate}
@@ -61,7 +62,7 @@ system, and no result from it is reported here.
 \midrule
 Availability effect & skill available vs.\ unavailable, all tasks & deranking and settlement \\
 Asset main effects & each asset shown vs.\ masked, audit share & naming a helpful asset, if interactions are small \\
-Effect of reading & the mask as an instrument for reading: its effect on outcome divided by its effect on the read rate & a claim about reading itself; it needs the mask to act only through reading, which is why the mention is masked too \\
+Effect of reading & the mask as an instrument for reading: its effect on outcome divided by its effect on the read rate & not supported here: the mask also removes the mention, which can act without any read, so report the joint file-and-mention effect \\
 Edit effect & two content hashes, randomized & ``this edit improved the skill'' \\
 \bottomrule
 \end{tabularx}

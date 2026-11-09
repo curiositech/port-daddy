@@ -91,11 +91,15 @@ grant of the principal it acts for%
 \ (Invariant~\ref{anchor:def:offline-attn})%
 \fi
 .
-\item \textbf{One principal per action} (\Designed). Every admitted action
-names exactly one grant. The witness of the consent-grant lifecycle
-(\S\ref{sec:consent}) becomes $(p, g, x, \text{reason}, \text{artifact})$,
-with $p$ the issuing principal. An agent may hold grants from two people; the
-guard checks each action against the one grant it names, never their union.
+\item \textbf{One principal per action} (\Designed). Every work order is bound,
+when it is accepted, to the principal who requested it. Every admitted action
+belongs to one work order and names exactly one grant, and the guard admits it
+only if that grant descends from the work order's principal. The witness of the
+consent-grant lifecycle (\S\ref{sec:consent}) becomes
+$(p, g, x, \text{reason}, \text{artifact})$, with $p$ that principal. An agent
+may hold grants from two people; the guard checks each action against the one
+grant it names, never their union, and never a grant from someone the work was
+not done for.
 \item \textbf{One owner per scope and per joint invariant} (\Vision). This
 includes an \emph{integration owner} for ``the combined head builds and the
 preserved tests pass.'' Owner precedence is a default the owner may waive.
@@ -141,8 +145,12 @@ Rule R4 is the capability answer to an old failure. Hardy's compiler wrote its
 billing file on a user's behalf because, in his words, ``the compiler runs with
 authority stemming from two sources''~\pdcite{hardy1988confused}. An agent that
 works for Alice and Bob is in the compiler's position. Naming one grant per
-action is the fix capabilities supplied: the action states which authority it
-exercises, so it cannot spend Bob's authority on Alice's request. Grants
+action is half of the fix capabilities supplied: the action states which
+authority it exercises. The other half is binding that grant to the person the
+work is for. An agent holding both grants could otherwise do Alice's work while
+naming Bob's grant; because each work order carries its requester and the guard
+checks the grant against it, Bob's authority cannot be spent on Alice's
+request. Grants
 themselves are already capabilities with caveats~\pdcite{macaroons2014}.
 
 Rule R7 deliberately refuses ``last direction wins'' between people. The norm
@@ -384,18 +392,22 @@ starts, and Alice receives the witness. Nobody had to decide anything.
 exception. Bob will allow the migration if he reviews it. Let $s$ be the
 migration's start, $m$ its end and $e$ the end of Bob's review. Wren
 estimates thirty minutes, so $m-s\ge30$, that is $s-m\le-30$. Bob's rule needs
-sixty minutes of review, so $e-m\ge60$, that is $m-e\le-60$. Alice's demo
-needs it done within eighty minutes: $e-s\le80$. Summing the three
-inequalities, the left side cancels to $0$ and the right side is
+sixty minutes of review, so $e-m\ge60$, that is $m-e\le-60$. Let $z$ be the
+present moment, minute $0$. The migration cannot start before now, $z-s\le0$,
+and Alice's demo is at minute eighty, so the review must end by then:
+$e-z\le80$. Summing the four inequalities, the left side cancels to $0$ and the
+right side is
 \[
--30-60+80=-10,
+-30-60+0+80=-10,
 \]
-so $0\le-10$ is required. The cycle $s\to e\to m\to s$ has weight $-10$, and
-the schedule is infeasible. Each constraint is needed, so the blame set is
+so $0\le-10$ is required. The cycle $z\to e\to m\to s\to z$ has weight $-10$,
+and the schedule is infeasible. (Bounding only $e-s$ would not do: it limits
+how long the work takes, not when it ends.) Each constraint is needed, so the blame set is
 again both people. The witness touches Alice's demo and Bob's review rule; the
 only common authority is Bob. He receives one proposal: shorten the review to
-fifty minutes? The cycle weight becomes $-30-50+80=0$, which is feasible, with
-no slack. Bob accepts.
+fifty minutes? The cycle weight becomes $-30-50+0+80=0$, which is feasible with
+no slack: start now, finish at minute thirty, review until minute eighty. Bob
+accepts.
 
 \textbf{Claim time: a warning.} Heron plans to change \texttt{charge(amount)}
 to \texttt{charge(amount\_cents)} in \texttt{payments/}. Pike plans a refund
