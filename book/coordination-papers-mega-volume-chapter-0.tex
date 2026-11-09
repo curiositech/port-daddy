@@ -155,7 +155,7 @@ defines the term and the rules a replacement must follow to inherit the
 record.
 
 \subsection{Defining the Agent and the Kernel}
-The counter example needs something that proposes, something that changes the
+The counter-increment example needs something that proposes, something that changes the
 resource, and a rule between them. An \pdterm{actuator} is the component that
 actually changes a resource, for example by writing a file. The kernel
 definition below mentions a \pdterm{lease}, a grant that one worker holds alone
@@ -174,7 +174,7 @@ A log that only records requests makes no choices, so it is not an agent in
 this model. A proposal or a reported belief tells us what the agent intends or
 thinks, not what the machine's state actually is.
 
-\begin{definition}[Operating Kernel]\label{def:kernel}
+\begin{definition}[Coordination Kernel]\label{def:kernel}
 The \textbf{coordination kernel} is the trusted application component that
 admits changes to specified resources and retains coordination state. Its
 contract names the operations it mediates, the invariants it checks, the
@@ -307,7 +307,7 @@ observation returns in Chapters~3 and~4.
 An intention should still be checked against what is feasible. Rao and
 Georgeff's realism conditions relate the worlds an agent believes possible to
 those it wants and those it intends; their full semantics say more than that
-three lists overlap. We use only the practical distinction; the kernel does not
+these three sets of worlds overlap. We use only the practical distinction; the kernel does not
 implement their modal logic.
 
 \subsection{Formal Commitment Strategies}
@@ -359,8 +359,9 @@ down, selecting that plan and successfully running it are different questions.
 Failure handling here follows the Jason variant of AgentSpeak~\pdcite{jasonfaq,jasonfailureimplementation}.
 An empty applicable-plan set is a plan-selection failure, not evidence that a
 host action was attempted and failed; reported action failure is a separate cause.
-For an intention pursuing achievement goal $g$, Jason can seek a matching
-$-!g$ handler in that goal's context or an enclosing goal's context. A handler
+For an intention pursuing a goal $g$ that it must achieve, Jason can seek a
+$-!g$ handler, a plan triggered by the event that $g$ has failed, in that
+goal's context or an enclosing goal's context. A handler
 is usable only if its trigger matches and its context holds under the current
 beliefs. Failure can propagate, and an intention without a usable handler may be
 dropped; these cases follow separate interpreter paths. A failure event or an
@@ -556,7 +557,7 @@ The winning bid names a contractor. Execution still needs a grant and a
 reservation of the resource; acceptance still needs the specified artifact and
 its evidence. A signed test receipt shows which key signed which run, not that
 the code is correct. Chapter~6 gives these events separate ledger entries.
-\pdscope{The dispatch and claim mechanisms listed in the implementation appendix do not implement bidding or escrow settlement.}
+\pdscope{The dispatch mechanism and the \pdterm[claim (on work)]{claim} mechanism (a claim is a record announcing that a worker intends to work on something) listed in the implementation appendix do not implement bidding or escrow settlement.}
 
 \subsection{Dynamic Epistemic Logic and Big Brother Logic}
 
@@ -594,7 +595,7 @@ Seeing another agent is not the same as seeing all that agent's evidence.
 \subsubsection{Why Big Brother Logic Matters: Who Can See What}
 \label{sec:why-bbl-matters}
 
-Derek may permit Alice to learn the diagnosis while withholding the underlying checkout records. The hidden-bit example shows why the permitted observation must be stated precisely: restricting one file path does not control every way its contents can affect an output.
+Suppose Derek owns confidential checkout records that the diagnosis needs. He may permit Alice to learn the diagnosis while withholding the records themselves. The hidden-bit example shows why the permitted observation must be stated precisely: restricting one file path does not control every way its contents can affect an output.
 
 Observation models help separate three engineering obligations:
 \begin{itemize}[leftmargin=1.8em,itemsep=2pt]
@@ -793,7 +794,7 @@ The matrix product $Q K^T$ forms an $L \times L$ attention matrix representing t
 \begin{equation}
 \mathrm{Compute} \;=\; O(L^2 \cdot d), \qquad \mathrm{Memory} \;=\; O(L^2 + L \cdot d)
 \end{equation}
-While FlashAttention~\pdcite{dao2022flashattention} uses GPU SRAM tiling to avoid materializing the full $L \times L$ matrix in High-Bandwidth Memory (HBM), the underlying FLOP count remains quadratic in context length $L$. For an agent maintaining an uncompacted context of $L = 128{,}000$ tokens, a single attention pass requires evaluating $\approx 1.63 \times 10^{10}$ token-pair affinities per attention head.
+While FlashAttention~\pdcite{dao2022flashattention} uses GPU SRAM tiling to avoid materializing the full $L \times L$ matrix in High-Bandwidth Memory (HBM), the underlying FLOP count remains quadratic in context length $L$. For an agent holding $L = 128{,}000$ tokens of context that has never been compacted (shortened by replacing earlier turns with a summary), a single attention pass requires evaluating $\approx 1.63 \times 10^{10}$ token-pair affinities per attention head.
 
 \subsubsection{The Key-Value (KV) Cache and Memory Bandwidth Bottlenecks}
 Consider a dense causal decoder generating one token at a time,
@@ -843,7 +844,7 @@ but their loss functions do not enter any proof in this book.
 For Alice's job, training might make a worker more likely to request a test
 before claiming success. An admission rule can separately require a receipt
 for the specified revision. Improving the request probability and checking the
-receipt solve different problems. This is the counter example's distinction
+receipt solve different problems. This is the counter-increment example's distinction
 again: a good proposal is not yet a change safely made.
 
 
@@ -852,7 +853,8 @@ Preference training can improve observed behavior, but its objective does not pr
 
 \subsection{Sampling and Conditional Failure Hazards}
 
-For finite logits $z$ and temperature $T>0$, softmax assigns
+For finite logits $z$ (the model's raw score for each candidate token) and
+temperature $T>0$, softmax assigns
 \begin{equation}
 P(w_i\mid x_{<t})=\frac{\exp(z_i/T)}{\sum_j\exp(z_j/T)}.
 \end{equation}
@@ -913,7 +915,7 @@ resource permissions cannot depend solely on a model remembering them.
 
 
 \begin{pdclaim}{Design invariant}{Externalized Durable State}\label{req:external-state}
-An agent operating kernel must never rely on the model's context window as the system of record. Authoritative locks, capabilities, claims, balances and evidence references need durable storage with a stated consistency and recovery contract. Chapter 1 studies a transactional database implementation; other implementations must discharge the same obligations. Prompt buffers contain working views of that state.
+The coordination kernel must never rely on the model's context window as the system of record. Authoritative locks, capabilities, claims, balances and evidence references need durable storage with a stated consistency and recovery contract. Chapter 1 studies a transactional database implementation; other implementations must discharge the same obligations. Prompt buffers contain working views of that state.
 \end{pdclaim}
 
 \section{Modern Coding Agent Architectures, Planning, and Search}\label{sec:prereq-coding-agents}
@@ -1065,7 +1067,7 @@ Let unconstrained agent execution be modeled as a discrete-event generator $G = 
 \begin{equation}
 L(S / G) \;\subseteq\; K \;\subseteq\; L(G)
 \end{equation}
-where $K$ is a prefix-closed language of safe traces. The inclusion is a design requirement that a hook does not meet automatically. For full observation, enforcing exactly $K$ requires controllability: $K\Sigma_u\cap L(G)\subseteq K$.
+The inclusion is a design requirement that a hook does not meet automatically. For full observation, enforcing exactly $K$ requires controllability: $K\Sigma_u\cap L(G)\subseteq K$.
 
 In words, a safety rule can be enforced exactly only if no event the supervisor cannot block can carry a run from an allowed state into a forbidden one. The supervisor can refuse a file write, but not a crash, a model's next token or a process exit, so the set of allowed runs must already include whatever those events can do next. If the supervisor also cannot see some events, a further condition applies, and finishing the job adds the requirement that the supervisor never block every way forward. Not every safe set of runs can be produced exactly; sometimes the only safe choice is to block more than the rule asks, and sometimes there is no safe choice at all.
 
@@ -1176,8 +1178,8 @@ Multiplying unconditional stage error rates instead would require the stages to 
 
 \subsection{Runtime Task Overlap Detection, Solely Responsible Agent Patterns, and Sandboxing}
 
-A cooperative \pdterm[claim (on work)]{claim} is a record announcing that a
-worker intends to work on something. It prevents a collision only if every
+A cooperative claim announces that a worker intends to work on
+something. It prevents a collision only if every
 conflicting effect must pass an enforced admission rule. Different file
 paths can refer to overlapping state, while disjoint edits in one file need
 not conflict; the resource model must specify what overlaps.
@@ -1186,7 +1188,7 @@ There are two common designs. In one, a single owner is in charge of a scarce
 resource and other workers send it proposals. In the other, any worker may
 write, but a write is accepted only if the version it was based on is still
 current. Either way, the check must happen at the moment the change is
-applied, as in the opening counter example where two workers both read 0 and
+applied, as in the opening counter-increment example where two workers both read 0 and
 both wrote 1. A sandbox limits what a worker can reach; it does not pick the
 right owner, and it does not stop an out-of-date update to something the
 worker is allowed to reach. Chapters 1--3 treat these as separate guarantees,
@@ -1244,7 +1246,7 @@ Suppose an agent may propose any tool call. Theorem~\ref{thm:kernel-gap} has thr
 \begin{pdclaim}{Theorem}{Mediation and durable recovery boundaries}\label{thm:kernel-gap}
 Let $I$ be a state invariant, $s_0\in I$, and $f(s,a)$ the effect of admitted action $a$.
 \begin{enumerate}[leftmargin=1.5em,itemsep=1.5pt]
-  \item \textbf{Complete mediation:} Suppose every state transition is checked at an indivisible admission-and-effect boundary against its current state, and every admitted pair satisfies $f(s,a)\in I$ whenever $s\in I$. Then every execution remains in $I$, regardless of the proposal policy. Conversely, if a reachable safe state has an unmediated admissible action leading outside $I$, universal safety over the admissible executions fails.
+  \item \textbf{Complete mediation:} Suppose every state transition is checked at an indivisible admission-and-effect boundary against its current state, and every admitted pair satisfies $f(s,a)\in I$ whenever $s\in I$. Then every execution remains in $I$, regardless of the proposal policy. Conversely, if some reachable safe state allows an action that takes effect without passing the check and leads outside $I$, then not every possible execution stays in $I$.
   \item \textbf{Conflicting updates:} If two actors may each implement an increment by a separate read and unconditional write, with no validation of the read version, their allowed interleavings include a lost update. Serializing the writes alone does not exclude that trace.
   \item \textbf{Crash recovery:} Suppose two pre-crash histories require different recovered obligation states, but erasure leaves identical surviving state and observations. No recovery procedure using only that information can recover the correct obligation state with certainty in both cases.
 \end{enumerate}
