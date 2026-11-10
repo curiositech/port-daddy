@@ -478,7 +478,7 @@ ITEMS: list[Item] = [
             Check(
                 "book/single-writer-kernel.tex",
                 "alg:close comment marks DELTA_ORACLE/AST_ASSERTION as not-yet-shipped",
-                present=r"\(OP-5, specified only\) would add DELTA_ORACLE and AST_ASSERTION here",
+                present=r"\(OP-5, specified only\) would add (?:\\texttt\{)?DELTA\\?_ORACLE\}? and (?:\\texttt\{)?AST\\?_ASSERTION\}? here",
             ),
             Check(
                 "book/single-writer-kernel.tex",
