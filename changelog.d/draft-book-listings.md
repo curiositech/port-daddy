@@ -1,0 +1,3 @@
+type: changed
+
+- **The Book's code listings are easier to read.** Every listing is set on a faint sand ground behind a teal rule, under a head strip that names what it is (pseudocode, Rust, ProVerif, TLA+, recorded output) and the file it comes from. In the three pseudocode algorithms the Book owns (claim acquisition, the closure oracle, chain verification), trailing comments that used to wrap are now numbered badges with full-sentence notes below the code. Listings quoted from model and source files are unchanged character for character. Recorded tool output no longer sets ordinary words bold as keywords.

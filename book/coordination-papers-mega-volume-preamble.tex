@@ -351,20 +351,30 @@
         {{\scshape\bfseries\textcolor{hhink}{Exercises.}}\par\vspace{3pt}#1};
   \end{tikzpicture}\par\vspace{6pt}}
 
-% Code and pseudocode as a printed book sets them: an indented block in a
-% dense monospace with tight leading, keywords bold, comments italic grey,
-% small grey line numbers, no frame, no background, no stripes. A wrapped
-% line continues under a small grey hook.
-\lstdefinestyle{pdcode}{language=C,backgroundcolor={},frame=none,
-  basicstyle=\ttfamily\fontsize{8.6}{10.6}\selectfont,columns=fullflexible,keepspaces=true,
-  keywordstyle=\bfseries,commentstyle=\color{hhgray}\itshape,
-  stringstyle=\color{hhink!70!hhgray},numbers=left,numberstyle=\fontsize{6.5}{7}\selectfont\color{hhgray},
+% Code and pseudocode: a dense monospace with tight leading on a faint sand
+% ground behind a teal rule, keywords bold, comments italic grey, small grey
+% line numbers. A wrapped line continues under a small grey hook. The head
+% strip and the numbered callouts that go with a listing are in
+% figures/pd-listing.tex.
+\lstdefinestyle{pdcode}{language=C,backgroundcolor=\color{hhsand!16},
+  frame=leftline,framerule=2.2pt,rulecolor=\color{hhteal},framesep=3pt,
+  framexleftmargin=1.9em,
+  basicstyle={\ttfamily\fontsize{8.6}{10.6}\selectfont\lineskip=0pt\relax\lineskiplimit=-\maxdimen},columns=fullflexible,keepspaces=true,
+  keywordstyle=\bfseries\color{hhink},commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhamber},numbers=left,numberstyle=\fontsize{6.5}{7}\selectfont\color{hhgray},
   numbersep=7pt,breaklines=true,breakatwhitespace=false,breakindent=1.6em,
   postbreak=\mbox{\textcolor{hhgray}{\fontsize{7}{7}\selectfont$\hookrightarrow$}\space},
   showstringspaces=false,tabsize=2,aboveskip=7pt,belowskip=5pt,
-  xleftmargin=1.9em,xrightmargin=0pt,captionpos=b}
+  xleftmargin=\dimexpr1.9em+5.2pt\relax,xrightmargin=0pt,captionpos=b,
+  escapeinside={(*@}{@*)}}
 \lstdefinestyle{pseudocode}{style=pdcode,
-  morekeywords={function,return,if,then,else,for,while,do,begin,end,atomic,transaction,reject,commit,assert,raise}}
+  morekeywords={function,return,if,then,else,for,while,do,begin,end,atomic,transaction,reject,commit,assert,raise},
+  emph={GRANTED,DENIED,REFUSED,CLOSED,ACCEPT,REJECT},emphstyle=\bfseries\color{hhteal},
+  emph={[2]INSERT,SELECT,DELETE,UPDATE,WHERE,SET,AND,FROM},emphstyle={[2]\color{hhcobalt}}}
+% Recorded tool output, quoted exactly: no language, so no word is set bold
+% as a keyword, and no line numbers.
+\lstdefinestyle{pdoutput}{style=pdcode,language={},numbers=none,
+  framexleftmargin=4pt,xleftmargin=9.2pt}
 \lstdefinestyle{proverif}{style=pdcode}
 \lstdefinestyle{rust}{style=pdcode,tabsize=4}
 \lstdefinestyle{tlaplus}{style=pdcode,

@@ -1141,10 +1141,12 @@ context. They state design requirements and are not measured production runs.
 \begin{description}[leftmargin=1.5em,style=sameline,font=\normalfont]
 \item[\textbf{Case A: Pre-tool refusal.}]
 An agent proposes a destructive command:
+\begin{pdlisting}{Shell}{}
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\small,breaklines=true]
 git checkout main &&
   git reset --hard origin/main
 \end{lstlisting}
+\end{pdlisting}
 A configured admission hook identifies a forbidden protected-branch mutation
 and refuses the tool call. In Claude Code, a blocking \texttt{PreToolUse}
 command hook can return exit code~2 with a reason on standard error.

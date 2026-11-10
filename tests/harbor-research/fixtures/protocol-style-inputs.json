@@ -3,10 +3,10 @@
   "scope": "Current protocol fixture inputs; exact hashes are not a rendered acceptance receipt. The September checkpoint remains historical.",
   "reviewed_source_head": "856b3ccb156ae243e9e438cb1f8787a6d087f953",
   "changes_reviewed": {
-    "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged. Loads makeidx and opens the index of defined terms (printed as the Book's last leaf); protocol environments unchanged. Contents opening names Chapter 0 beside the chapter count; protocol environment definitions unchanged. Inputs figures/pd-weld.tex (the \\weld cross-chapter pointer) and figures/pd-buildid.tex (\\pdbuildid) after \\pdbooktrue; protocol environment definitions unchanged.",
+    "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged. Loads makeidx and opens the index of defined terms (printed as the Book's last leaf); protocol environments unchanged. Contents opening names Chapter 0 beside the chapter count; protocol environment definitions unchanged. Inputs figures/pd-weld.tex (the \\weld cross-chapter pointer) and figures/pd-buildid.tex (\\pdbuildid) after \\pdbooktrue; protocol environment definitions unchanged. The shared listing style gains a sand ground behind a teal rule, callout escapes and a pdoutput style for recorded tool output; protocol environment definitions unchanged.",
     "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence. Chapter 1 landmark title now reads 'Proposals, Effects and Recovery' (plain-language rewrite drops the bedrock metaphor); protocol environments unchanged. Landmark 04's pull-quote says 'entry rule', so 'admission' keeps its single write-path meaning.",
     "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance. Regenerated after the Book stopped citing the author's research papers; protocol environments unchanged. Regenerated after the third-pass corrections added and re-dated sources; protocol environments unchanged.",
-    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged. \\pdterm now labels each definition and enters it in the index; \\pdstatus prints its grade and note as a margin tag beside the heading or claim; the glossary appendix's entry layout is defined here; protocol environments unchanged.",
+    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged. \\pdterm now labels each definition and enters it in the index; \\pdstatus prints its grade and note as a margin tag beside the heading or claim; the glossary appendix's entry layout is defined here; protocol environments unchanged. Inputs figures/pd-listing.tex (listing head strip and numbered callouts) and closes the interline gap under a listing's margin caption; protocol environments unchanged.",
     "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter one-line summaries regenerated from book/textbook.json after the plain-language rewrite; chapter structure and protocol environments unchanged. Regenerated again after the define-before-use pass rephrased chapter blurbs; chapter structure and protocol environments unchanged.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
     "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required."
@@ -24,8 +24,8 @@
     },
     {
       "path": "book/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "94bd5a6fd7efa3d0b2f55baeab7601c4312bec24ffa678963e4bfd453bfef30c",
-      "bytes": 66671
+      "sha256": "02f5cf3e7c2ed4dc883509e731db8eef0c9d52e86a10fc1bf8c976a2c42dd180",
+      "bytes": 67324
     },
     {
       "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
@@ -69,8 +69,8 @@
     },
     {
       "path": "book/figures/pd-pedagogy.tex",
-      "sha256": "c8a8ec107ec244e4facab7d62f2d577dfc62bacbcddb7f1527d1d63000688eec",
-      "bytes": 90793
+      "sha256": "6bbc8739972730c54bbbab0e98e7e9a33d92da4ba9de5df120f6c18f925b378d",
+      "bytes": 91061
     },
     {
       "path": "book/figures/pd-semantic-blocks.tex",

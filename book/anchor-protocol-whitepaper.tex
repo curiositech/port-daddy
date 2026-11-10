@@ -749,13 +749,15 @@ $\text{AcceptedNaive}(m) \implies \text{Issued}_A(m)$ & \textbf{FALSE} \\
 
 The following is the verbatim ProVerif 2.05 output for the authorization chain query (Phase~3), the most complex property:
 
-\begin{lstlisting}[caption={ProVerif 2.05 Terminal Output for the Phase 3 Authorization Chain}]
+\begin{pdlisting}{Output}{ProVerif 2.05}
+\begin{lstlisting}[style=pdoutput,caption={ProVerif 2.05 Terminal Output for the Phase 3 Authorization Chain}]
 RESULT event(Accepted(b_2,harbor_id[],cap_1))
   ==> (event(IssuedRoot(a_3,harbor_id[],cap_1))
        && event(Delegated(a_3,b_2,cap_1)))
       || event(IssuedRoot(b_2,harbor_id[],cap_1))
   is true.
 \end{lstlisting}
+\end{pdlisting}
 
 \subsection{Runtime Enforcement: The Arbiter}
 
@@ -841,7 +843,8 @@ holder's key, used only after the link's signature has passed.
 
 Algorithm~\ref{alg:symmetric} is the verification procedure that resists algorithm confusion (CVE-2015-9235~\pdcite{cve20159235}).
 
-\begin{lstlisting}[caption={Algorithm 1: Secure Harbor Verification (HS256 with Algorithm Pinning)},label={alg:symmetric}]
+\begin{pdlisting}{Pseudocode}{}
+\begin{lstlisting}[style=pseudocode,caption={Algorithm 1: Secure Harbor Verification (HS256 with Algorithm Pinning)},label={alg:symmetric}]
 Require: Pinned Algorithm: hs256
 Require: Master Key: k_master (secret)
 
@@ -863,6 +866,7 @@ function Harbor.VerifyToken(tok, expected_harbor):
     emit Accepted(a, h, j, cap)
     return (a, h, j, cap)
 \end{lstlisting}
+\end{pdlisting}
 
 \begin{pdexample}{Counting the Reads of the Algorithm Header}
 \setlength{\parskip}{4pt plus 1pt}
@@ -892,7 +896,8 @@ verification. [internal]
 
 Algorithm~\ref{alg:asymmetric} presents the Ed25519-based verification. This phase removes the need for shared HMAC secrets between distributed Harbors.
 
-\begin{lstlisting}[caption={Algorithm 2: Asymmetric Harbor Verification (Ed25519)},label={alg:asymmetric}]
+\begin{pdlisting}{Pseudocode}{}
+\begin{lstlisting}[style=pseudocode,caption={Algorithm 2: Asymmetric Harbor Verification (Ed25519)},label={alg:asymmetric}]
 Require: Harbor Keypair: (sk_harbor, pk_harbor)
 Require: Key Distribution Channel: c_key (private)
 
@@ -914,6 +919,7 @@ function Harbor.VerifyToken(tok, pk_h, expected_harbor):
     emit Accepted(a, h, j, cap)
     return (a, h, j, cap)
 \end{lstlisting}
+\end{pdlisting}
 
 \textbf{Security Property:} The secrecy of $sk_{harbor}$ and the unforgeability of Ed25519~\pdcite{bernstein2012high} ensure that only the legitimate Daemon can issue valid Harbor Cards.
 
@@ -934,48 +940,64 @@ authenticated; the subset check then uses that link's immediate parent.
 
 Algorithm~\ref{alg:delegation} presents the authorization chain verification, inspired by Macaroons~\pdcite{birgisson2014macaroons}.
 
-\begin{lstlisting}[caption={Algorithm 3: Authorization Chain Verification},label={alg:delegation}]
+\begin{pdlisting}{Pseudocode}{}
+\begin{lstlisting}[style=pseudocode,caption={Algorithm 3: Authorization Chain Verification},label={alg:delegation}]
 Require: Daemon Public Key: pk_daemon
 Require: Order: subseteq, inclusion of grants
-Require: Revocation table: revoked (root jti values and link ids H(sigma_i))
+Require: Revocation table: revoked
+         (root jti values and link ids H(sigma_i))
 
-function Agent.Delegate(token_parent, sk_parent, agent_child, pk_child, cap_sub):
+function Agent.Delegate(token_parent, sk_parent,
+                        agent_child, pk_child, cap_sub):
     (msg_parent, sigma_parent) <- token_parent
-    agent_parent <- Subject(msg_parent)  // root card or delegation
+    agent_parent <- Subject(msg_parent)  (*@\pdco{1}@*)
     cap_parent <- ExtractCaps(msg_parent)
     if cap_sub not_subseteq cap_parent:
-        return _|_  // Cannot escalate capabilities
-    msg_delegate <- Encode_delegation(msg_parent, sigma_parent, agent_child, pk_child, cap_sub)
+        return _|_  (*@\pdco{2}@*)
+    msg_delegate <- Encode_delegation(msg_parent, sigma_parent,
+                        agent_child, pk_child, cap_sub)
     sigma_delegate <- Ed25519.Sign(msg_delegate, sk_parent)
     emit Delegated(agent_parent, agent_child, cap_sub)
-    return (msg_delegate, sigma_delegate)  // revocation id: H(sigma_delegate)
+    return (msg_delegate, sigma_delegate)  (*@\pdco{3}@*)
 
 function Harbor.VerifyChain(chain, pk_daemon, revoked):
     tok_root <- chain[0]
     (msg_0, sigma_0) <- tok_root
     if not Ed25519.Verify(msg_0, sigma_0, pk_daemon):
-        return _|_  // Invalid root signature
+        return _|_  (*@\pdco{4}@*)
     if Jti(msg_0) in revoked:
-        return _|_  // Root card revoked
+        return _|_  (*@\pdco{5}@*)
     cap_prev <- ExtractCaps(msg_0)
     pk_current <- AuthenticatedSubjectKey(msg_0)
     for i <- 1 to |chain| - 1:
         (msg_i, sigma_i) <- chain[i]
         if ParentLink(msg_i) != chain[i-1]:
-            return _|_  // Child must bind this authenticated parent
+            return _|_  (*@\pdco{6}@*)
         if not Ed25519.Verify(msg_i, sigma_i, pk_current):
-            return _|_  // Invalid delegation signature
+            return _|_  (*@\pdco{7}@*)
         if H(sigma_i) in revoked:
-            return _|_  // This link revoked: jti_i = H(sigma_i)
+            return _|_  (*@\pdco{8}@*)
         cap_i <- ExtractCaps(msg_i)
         if cap_i not_subseteq cap_prev:
-            return _|_  // Per-hop capability escalation detected
+            return _|_  (*@\pdco{9}@*)
         cap_prev <- cap_i
         pk_current <- AuthenticatedSubjectKey(msg_i)
     (agent_final, harbor) <- AuthenticatedSubjectAndHarbor(chain)
     emit Accepted(agent_final, harbor, cap_prev)
     return T
 \end{lstlisting}
+\begin{pdcallouts}
+\pdnote{1}{The parent is the subject of a root card or of an earlier delegation.}
+\pdnote{2}{\textbf{Cannot escalate capabilities.} The delegator refuses to sign for more than it holds.}
+\pdnote{3}{\textbf{The link's revocation id} is $H(\sigma_{\mathrm{delegate}})$.}
+\pdnote{4}{\textbf{Invalid root signature.}}
+\pdnote{5}{\textbf{Root card revoked.}}
+\pdnote{6}{\textbf{The child must bind this authenticated parent.}}
+\pdnote{7}{\textbf{Invalid delegation signature.} Each link is checked under its own signer's key.}
+\pdnote{8}{\textbf{This link is revoked:} $\mathit{jti}_i = H(\sigma_i)$.}
+\pdnote{9}{\textbf{Per-hop capability escalation detected.} The verifier repeats the check the delegator made.}
+\end{pdcallouts}
+\end{pdlisting}
 
 \textbf{Security property.} Checking $\text{cap}_i \subseteq \text{cap}_{i-1}$ at every hop stops rights from growing along a chain of delegations, including the \texttt{write} $\to$ \texttt{read} $\to$ \texttt{write} re-escalation. Property~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}) proves the single hop by machine: there the subset check is necessary and sufficient. Longer chains follow because $\subseteq$ is transitive. At depth two the v6 attack model and the v7 fixed model, also in \S\ref{sec:attn-soundness}, confirm this by machine; the fix checks each hop against its immediate parent rather than against the root.
 
@@ -1036,6 +1058,7 @@ about. [internal]
 
 \subsection{Core Verification Logic}
 
+\begin{pdlisting}{Rust}{\path{core/harbor-card-rs/src/lib.rs}}
 \begin{lstlisting}[style=rust, caption={Rust Implementation of the Harbor Card Verifier (abridged from the \texttt{harbor-card-rs} crate)}]
 pub fn verify(&self, token: &str, now_ts: i64)
     -> Result<HarborCardClaims, HarborError> {
@@ -1072,6 +1095,7 @@ pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
     result == 0
 }
 \end{lstlisting}
+\end{pdlisting}
 
 The private \texttt{validate\_decoded\_claims} function enforces version,
 issued-at, expiry, and not-before guards. It is reached only after signature
@@ -1091,6 +1115,7 @@ that hold on every input in range and covers that find an example of each
 claimed behavior. A \texttt{cover!} statement only searches for an example;
 it never narrows the inputs.
 
+\begin{pdlisting}{Rust}{Kani harness}
 \begin{lstlisting}[style=rust, caption={Decoded lifetime policy: an excerpt of the executable Kani harness. The helper constructs actual HarborCardClaims; the predicate is called by the signed-token verifier.}]
 #[kani::proof]
 fn proof_decoded_claims_policy() {
@@ -1111,6 +1136,7 @@ fn proof_decoded_claims_policy() {
     // and acceptance at the saturating clock boundary.
 }
 \end{lstlisting}
+\end{pdlisting}
 
 The crate's function adds the 60-second clock-skew allowance in 64-bit
 arithmetic that stops at the largest 64-bit value instead of overflowing. The
@@ -1685,6 +1711,7 @@ GitHub delivers webhooks (event notifications) to the daemon through a relay tha
 
 The Rust crate exports two functions with a C calling interface, which the TypeScript daemon calls:
 
+\begin{pdlisting}{Rust}{\path{harbor-card-rs}, FFI}
 \begin{lstlisting}[style=rust, caption={FFI Exports Called from the Daemon's Arbiter Module}]
 #[no_mangle]
 pub extern "C" fn harbor_constant_time_compare(
@@ -1698,9 +1725,11 @@ pub extern "C" fn harbor_verify_caps_subset_json(
     sub_json: *const c_char, sub_len: usize
 ) -> bool { /* ... */ }
 \end{lstlisting}
+\end{pdlisting}
 
 The daemon's \texttt{arbiter} module binds these at startup:
 
+\begin{pdlisting}{TypeScript}{daemon arbiter}
 \begin{lstlisting}[caption={TypeScript FFI Binding (daemon-side Arbiter)}]
 constantTimeCompare: lib.func(
   'bool harbor_constant_time_compare(
@@ -1711,6 +1740,7 @@ verifyCapsSubset: lib.func(
      const char *root_json, size_t root_len,
      const char *sub_json, size_t sub_len)')
 \end{lstlisting}
+\end{pdlisting}
 
 
 \section{Full ProVerif Models}\label{app:proverif}
@@ -1744,6 +1774,7 @@ key accepts only tokens the daemon issued. [internal]
 
 \subsection{Phase 1: Symmetric HS256}
 
+\begin{pdlisting}{ProVerif}{\path{harbor_card_v1_refined.pv}}
 \begin{lstlisting}[caption={\texttt{harbor\_card\_v1\_refined.pv}}]
 (* Port Daddy: Harbor Card v1 (HS256) Formal Model *)
 type id. type key. type jti. type capability. type alg_type.
@@ -1789,6 +1820,7 @@ process
   (!Daemon(master_key, agent_id, harbor_id, token_jti, secret_cap) |
    !SecureHarbor(master_key, harbor_id))
 \end{lstlisting}
+\end{pdlisting}
 
 \section{Phase 2: Asymmetric Ed25519}\label{app:phase2}
 
@@ -1822,6 +1854,7 @@ public channel. They are not evidence that the protocol keeps it secret.
 [internal]
 \end{pdexample}
 
+\begin{pdlisting}{ProVerif}{\path{harbor_card_v2_asymmetric.pv}}
 \begin{lstlisting}[caption={\texttt{harbor\_card\_v2\_asymmetric.pv} (verified in ProVerif 2.05)}]
 (* Port Daddy: Harbor Card v2 (Ed25519 / EdDSA) Formal Model *)
 type id. type skey. type pkey. type jti. type capability.
@@ -1876,9 +1909,11 @@ process
     (!out(k_dist, secret_key))
   )
 \end{lstlisting}
+\end{pdlisting}
 
 \section{Phase 3: Multi-hop Delegation}\label{app:phase3}
 
+\begin{pdlisting}{ProVerif}{\path{harbor_card_v3_delegation.pv}}
 \begin{lstlisting}[caption={\texttt{harbor\_card\_v3\_delegation.pv}, the reflexive-order model (see §\ref{sec:attn-soundness} for the soundness caveat and the enriched v5 proof)}]
 (* Port Daddy: Harbor Card v3 (Delegation Chains) Formal Model *)
 type id. type skey. type pkey. type capability.
@@ -1953,6 +1988,7 @@ process
     (!Harbor(pk_a))
   )
 \end{lstlisting}
+\end{pdlisting}
 
 \subsection{Hop Binding and Replay}\label{sec:anchor-chain-replay}
 
@@ -1965,6 +2001,7 @@ Listing~\ref{alg:anchor-chain-replay} gives the verifier and the query.
 ProVerif~2.05 reports the query true
 (\path{proofs/anchor/delegation/chain-replay.run.log}).
 
+\begin{pdlisting}{ProVerif}{\path{chain-replay.pv}}
 \begin{lstlisting}[caption={\texttt{chain-replay.pv} (excerpt): the final verifier and the query},label={alg:anchor-chain-replay}]
 table issued_nonce(nonce).
 table consumed_nonce(nonce).
@@ -1992,6 +2029,7 @@ query idP : id, idA : id, idB : id, idC : id, m : message;
   event(chain_accepted(idP, idA, idB, idC, m)) ==>
   event(chain_authorized(idP, idA, idB, idC, m)).
 \end{lstlisting}
+\end{pdlisting}
 
 \subsection{Soundness of the Attenuation Proof (v5)}\label{sec:attn-soundness}
 
@@ -2044,6 +2082,7 @@ holding a valid \texttt{cap\_read} root token that signs an over-broad
 \texttt{cap\_write} delegation with no self-restraint. The verifier's
 \texttt{is\_subset} guard is the sole defense under test.
 
+\begin{pdlisting}{ProVerif}{\path{harbor_card_v5_attenuation.pv}}
 \begin{lstlisting}[caption={\texttt{harbor\_card\_v5\_attenuation.pv} (excerpt, verified in ProVerif 2.05)}]
 (* Sound order: reflexive + read <= write; write <= read NOT derivable *)
 fun is_subset(capability, capability): bool
@@ -2066,6 +2105,7 @@ query b: id; event(Accepted(b, harbor_id, cap_write, cap_read)) ==> false.
 query a: id, r: capability, s: capability;
   event(EscalationAttempted(a, r, s)) ==> false.
 \end{lstlisting}
+\end{pdlisting}
 
 \begin{pdclaim}{Model-checked property}{Attenuation Soundness, Mechanized}
 \setlength{\parskip}{4pt plus 1pt}
@@ -2096,6 +2136,7 @@ of the attack model. The daemon issues \texttt{cap\_write} to $A$, and an
 honest $A$ delegates only \texttt{cap\_read} to $B$. The v7 model is
 identical except for the line marked \texttt{BUG}.
 
+\begin{pdlisting}{ProVerif}{\path{harbor_card_v6_multihop_attack.pv}}
 \begin{lstlisting}[caption={\texttt{harbor\_card\_v6\_multihop\_attack.pv} (excerpt): the middle holder and the verifier},label={alg:anchor-v6-excerpt}]
 (* Malicious B: holds cap_read from A, re-delegates cap_write to C (escalation). *)
 let MaliciousB(b: id, b_sk: skey, cc: id) =
@@ -2117,6 +2158,7 @@ let NaiveVerifier(a_pk: pkey, b_pk: pkey) =
 
 query cc: id; event(Accepted(cc, harbor_id, cap_write)) ==> false.
 \end{lstlisting}
+\end{pdlisting}
 
 \paragraph{Multi-hop scope and evidence.}
 Property~\ref{thm:attn-sound} is single-hop (Daemon $\to A\to$ verifier).
@@ -2368,10 +2410,12 @@ Read \path{proofs/anchor/token-verify/algconfusion.pv}. State the algorithm-conf
 The model hands the attacker \emph{both} the honest issuer's public key \texttt{vkA} and the HMAC key \texttt{vkB} in the clear, the worst case for a verifier that is only supposed to trust Ed25519-shaped tokens. \texttt{VerifierNaive} does not pin an algorithm; it pattern-matches on whichever type tag arrives, \texttt{tokenA} or \texttt{tokenB}, and calls that tag's own verification routine. Knowing \texttt{vkB}, the attacker builds \texttt{tokenB(ALG\_B, m, hmacB(vkB, m))} for any message \texttt{m}, including one the honest \texttt{IssuerA} never signed; the naive verifier's second branch matches the \texttt{tokenB} shape, the HMAC checks out under a key the attacker already holds, and \texttt{accepted\_naive(m)} fires with no matching \texttt{issued\_A(m)}. \texttt{VerifierPinnedA}, by contrast, only ever destructures the \texttt{tokenA} constructor; a \texttt{tokenB} token is a shape the pinned verifier never attempts to read. Pinning means fixing, out of band, which single verification routine and key a given context accepts, so the token's own header or shape can never be the thing that chooses how it gets checked. That is exactly the rule of Design invariant~\ref{prop:alg-pinning}, mechanized here against an attacker who already holds every key the naive path would trust.
 
 Pinned verdict (\path{proofs/anchor/token-verify/algconfusion.run.log}):
-\begin{lstlisting}
+\begin{pdlisting}{Output}{\path{algconfusion.run.log}}
+\begin{lstlisting}[style=pdoutput]
 RESULT event(accepted_pinned(m_4)) ==> event(issued_A(m_4)) is true.
 RESULT event(accepted_naive(m_4)) ==> event(issued_A(m_4)) is false.
 \end{lstlisting}
+\end{pdlisting}
 The first line is the property this chapter relies on; the second is the negative control, checked in the same file so the true result is not vacuous.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-chain-replay}
@@ -2381,9 +2425,11 @@ Listing~\ref{alg:anchor-chain-replay} excerpts the verifier of \path{proofs/anch
 The query states that every chain $C$ accepts corresponds to one $P$ actually authorized, with the \emph{same} $(P,A,B,C,m)$ tuple: no hop can be replayed against a different message, and no hop can be spliced out of one chain into another, because each signature binds \texttt{hopBind(nonce, prev\_id, next\_id, message)}. The code does not do what its comments promise. It reads \texttt{issued\_nonce} three times, so every nonce must have been issued, but it only inserts into \texttt{consumed\_nonce} and never reads that table before acceptance. A chain presented a second time passes every check and is accepted again. The query cannot notice: it is non-injective, so the one \texttt{chain\_authorized} event matches every acceptance of that chain. Refusing a replay needs a check that no nonce is already in \texttt{consumed\_nonce}, and showing it needs an injective query. The runtime conformance suite tests replay rejection; no model in this chapter proves it, which is what Table~\ref{tab:anchor-status} records. Message substitution and duplicate acceptance are different questions.
 
 Pinned verdict (\path{proofs/anchor/delegation/chain-replay.run.log}):
-\begin{lstlisting}
+\begin{pdlisting}{Output}{\path{chain-replay.run.log}}
+\begin{lstlisting}[style=pdoutput]
 RESULT event(chain_accepted(idP_4,idA_3,idB_2,idC_1,m_4)) ==> event(chain_authorized(idP_4,idA_3,idB_2,idC_1,m_4)) is true.
 \end{lstlisting}
+\end{pdlisting}
 This is a different property from Property~\ref{thm:attn-sound}'s capability-subset soundness: chain replay says who signed what is delivered intact; attenuation soundness says authority never grows along the way. \S\ref{sec:limitations} cites this exact artifact as the depth-3 evidence behind the ``Delegation-chain depth'' boundary.
 \end{pdsolution}
 
@@ -2468,11 +2514,13 @@ The root holds \texttt{cap\_write}. Honest $A$ correctly attenuates to \texttt{c
 
 \Needspace{6\baselineskip}
 Pinned output (\path{analyses/harbor_card_v6_results.txt}):
-\begin{lstlisting}
+\begin{pdlisting}{Output}{\path{harbor_card_v6_results.txt}}
+\begin{lstlisting}[style=pdoutput]
 The event Accepted(id_c_1,harbor_id,cap_write) is executed at {43} in copy a_10.
 A trace has been found.
 RESULT not event(Accepted(cc_2,harbor_id[],cap_write)) is false.
 \end{lstlisting}
+\end{pdlisting}
 ProVerif reports the query false and also exhibits the concrete trace above as a witness.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-multihop-fix}
@@ -2483,9 +2531,11 @@ Both models already check each link's signature under its signer's key, so the o
 
 \Needspace{6\baselineskip}
 Pinned output (\path{analyses/harbor_card_v7_results.txt}):
-\begin{lstlisting}
+\begin{pdlisting}{Output}{\path{harbor_card_v7_results.txt}}
+\begin{lstlisting}[style=pdoutput]
 RESULT not event(Accepted(cc_2,harbor_id[],cap_write)) is true.
 \end{lstlisting}
+\end{pdlisting}
 The identical escalation attempt v6 accepted is now rejected at the \texttt{is\_subset(cap\_write, cap\_read)} step, because write is not a subset of what $B$ was actually holding.
 \end{pdsolution}
 \pdmarginanalogy{anchor-couriers-pouch}{}{ch02-couriers-dispatch-pouch}{Like a diplomatic courier pouch requiring a designated officer to break the seal, a third-party caveat requires a distinct witness to issue its discharge.}%
@@ -2499,14 +2549,18 @@ Folding \texttt{g\_sig} into the binding, as v1 does, makes a discharge bound to
 
 \Needspace{6\baselineskip}
 Pinned output, v1 (\path{analyses/macaroon_discharge_v1_results.txt}):
-\begin{lstlisting}
+\begin{pdlisting}{Output}{\path{macaroon_discharge_v1_results.txt}}
+\begin{lstlisting}[style=pdoutput]
 RESULT event(RelayAuthorizes(s)) ==> event(DaemonIssuesDischarge(s)) is true.
 \end{lstlisting}
+\end{pdlisting}
 \Needspace{6\baselineskip}
 Pinned output, v2 (\path{analyses/macaroon_discharge_v2_naive_unsound_results.txt}):
-\begin{lstlisting}
+\begin{pdlisting}{Output}{\path{macaroon_discharge_v2_naive_unsound_results.txt}}
+\begin{lstlisting}[style=pdoutput]
 RESULT event(RelayAuthorizesNaive(s)) ==> event(DaemonIssuesDischarge(s)) is false.
 \end{lstlisting}
+\end{pdlisting}
 Both discharges are unforgeable without the caveat key; in v2 the gap is that the binding forgets which grant the discharge was issued for.
 \end{pdsolution}
 
