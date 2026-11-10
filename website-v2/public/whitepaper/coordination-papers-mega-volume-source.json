@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40409054,
+    "bytes": 40409063,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/8082c277cc765877515b242e52a9e853c8cfcf0be57b5fe1cfbdd3b4800de9db.tar.gz",
-    "sha256": "8082c277cc765877515b242e52a9e853c8cfcf0be57b5fe1cfbdd3b4800de9db",
-    "url": "https://media.portdaddy.dev/book/source/sha256/8082c277cc765877515b242e52a9e853c8cfcf0be57b5fe1cfbdd3b4800de9db.tar.gz"
+    "key": "book/source/sha256/d5f6956aa9fe60e885ea4ea45bd7c8d5a0eabaa694189af7e96fd1d3602afc1b.tar.gz",
+    "sha256": "d5f6956aa9fe60e885ea4ea45bd7c8d5a0eabaa694189af7e96fd1d3602afc1b",
+    "url": "https://media.portdaddy.dev/book/source/sha256/d5f6956aa9fe60e885ea4ea45bd7c8d5a0eabaa694189af7e96fd1d3602afc1b.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "0395f2c54e6bb914b0558301661ab878a38df7bc91025a0240d48be4e4b283fd",
+  "manifestSha256": "10a572449b595022abd8555deff4cd6b3f62331ddc0a8b2d2a32c27fc3bd0d24",
   "schemaVersion": 1,
   "source": {
     "fileCount": 560,
@@ -3310,10 +3310,10 @@
         "sha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6"
       },
       {
-        "bytes": 267643,
+        "bytes": 267651,
         "mode": 420,
         "path": "book/single-writer-kernel.tex",
-        "sha256": "83a783483398b159981958b535147346e53523ec16248200b3c968239570cc0e"
+        "sha256": "e79e22b679ef3cb2de763ad79ff5ab9aed705b9399cd45d4903036b7599950ab"
       },
       {
         "bytes": 247412,
@@ -3382,6 +3382,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "97f293dd5b721ad893cf2ccde1e4307038dc1c0ea4bac8bec815402bf2d2fb1e"
+    "sha256": "ea7143041c6e430d16b98631115a83272fb415c712a870d75aceff7af36af1a4"
   }
 }
