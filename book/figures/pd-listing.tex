@@ -1,0 +1,81 @@
+% figures/pd-listing.tex -- code listings a reader can take in at a glance.
+%
+% A listing is set on a faint sand ground behind a teal rule. Three pieces,
+% each optional beyond the listing itself:
+%
+%   \begin{pdlisting}{KIND}{where it lives}
+%   \begin{lstlisting}[caption={...},label={alg:...}]
+%   if lease.expired:  (*@\pdco{1}@*)
+%   \end{lstlisting}
+%   \begin{pdcallouts}
+%   \pdnote{1}{\textbf{Expiry before holder.} Why the order matters.}
+%   \end{pdcallouts}
+%   \end{pdlisting}
+%
+% THE HEAD names the kind of text (PSEUDOCODE, RUST, PROVERIF, TLA+, OUTPUT)
+% and, at the right, the file it is drawn from or the artifact it mirrors.
+% The listing's number and caption stay where every other exhibit's are.
+%
+% THE CALLOUTS replace trailing comments. A comment at the end of a code
+% line does not fit the Book's column and wraps under a hook; a numbered
+% badge fits, and its note is set below in the text face, where it can say
+% in a full sentence which decision the line makes. Use them in pseudocode
+% the Book owns. A listing quoted from a model or source file is quoted
+% exactly, comments included, and takes no badges.
+%
+% \pdco{n} is escaped into a listing with (*@ ... @*), which the shared
+% listing style enables. figures/pd-pedagogy.tex loads this file, so every
+% chapter has the macros; the colours are the palette's and are looked up
+% when a listing is set.
+\edef\pdlistingrestoreat{\catcode`\noexpand\@=\the\catcode`\@\relax}
+\makeatletter
+\providecommand{\pdco}[1]{%
+  \tikz[baseline=(pdco.base)]\node[circle,fill=hhteal,inner sep=0.6pt,
+    minimum size=8.6pt,font=\sffamily\bfseries\fontsize{6.2}{6.2}\selectfont,
+    text=white](pdco){#1};}
+\newlength{\pd@listingrule}\setlength{\pd@listingrule}{2.2pt}
+% One band of the listing's ground, the rule at its left: #1 is its content,
+% set in a \vtop of the remaining width.
+\newcommand{\pd@listingband}[1]{%
+  \par\nointerlineskip\noindent\begingroup\setlength{\fboxsep}{0pt}%
+  {\color{hhteal}\vrule width\pd@listingrule}%
+  \colorbox{hhsand!16}{\begin{minipage}[t]{\dimexpr\linewidth-\pd@listingrule\relax}#1\end{minipage}}%
+  \endgroup\par\nointerlineskip}
+\newif\ifpd@listingclosed
+\newenvironment{pdlisting}[2]{%
+  % Keep the head with its listing: a captioned listing asks for room for
+  % its margin caption and may break the page after the head otherwise.
+  \par\ifinner\else\Needspace{9\baselineskip}\fi
+  \par\addvspace{9pt}\begingroup\global\pd@listingclosedfalse
+  \pd@listingband{\vspace{4pt}\hspace{6pt}%
+    {\sffamily\bfseries\fontsize{7.2}{9}\selectfont\textcolor{hhteal}{\MakeUppercase{#1}}}\hfill
+    {\ttfamily\fontsize{7}{9}\selectfont\textcolor{hhgray}{#2}}\hspace{6pt}\par\vspace{1pt}%
+    \hspace{6pt}{\color{hhgray!40}\rule{\dimexpr\linewidth-12pt\relax}{0.3pt}}\par\vspace{2.5pt}}%
+  % The listing style puts 7pt above a listing and 5pt below it. Inside this
+  % environment the bands abut the listing, so both are taken back: above,
+  % behind a zero rule so that listings' \addvspace cannot cancel it.
+  \nobreak\vskip-7pt\nobreak\nointerlineskip
+  % A margin caption can leave a point or two between the head and the first
+  % line. Paint the ground and the rule 4pt down from the head first (the
+  % head ends 7pt below this point, where the listing skip is restored); the
+  % listing is set over them.
+  \hbox{\smash{\lower11pt\hbox{{\color{hhteal}\vrule width\pd@listingrule height4pt}%
+    {\color{hhsand!16}\vrule width\dimexpr\linewidth-\pd@listingrule\relax height4pt}}}}%
+  \nobreak\hrule height0pt\nobreak\nointerlineskip}{%
+  \par\ifpd@listingclosed\else\nobreak\vskip-5pt\fi
+  \pd@listingband{\vspace{2pt}\mbox{}}\endgroup\par\addvspace{9pt}}
+\newsavebox{\pd@calloutbox}
+\newenvironment{pdcallouts}{%
+  \par\nobreak\vskip-5pt\global\pd@listingclosedtrue
+  \begin{lrbox}{\pd@calloutbox}\begin{minipage}[t]{\dimexpr\linewidth-\pd@listingrule\relax}%
+    \vspace{3pt}%
+    \hspace{6pt}{\color{hhgray!40}\rule{\dimexpr\linewidth-12pt\relax}{0.3pt}}\par\vspace{3pt}%
+    \leftskip=6pt\rightskip=6pt plus 2em\relax
+    \sffamily\fontsize{8.2}{10.6}\selectfont\setlength{\parindent}{0pt}}{%
+  \par\end{minipage}\end{lrbox}%
+  \par\nobreak\nointerlineskip\noindent\begingroup\setlength{\fboxsep}{0pt}%
+  {\color{hhteal}\vrule width\pd@listingrule}\colorbox{hhsand!16}{\usebox{\pd@calloutbox}}%
+  \endgroup\par\nointerlineskip}
+\newcommand{\pdnote}[2]{\noindent\hangindent=\dimexpr\leftskip+1.5em\relax\hangafter=1
+  \makebox[1.5em][l]{\pdco{#1}}#2\par\vspace{1.5pt}}
+\pdlistingrestoreat

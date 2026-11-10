@@ -1177,6 +1177,7 @@ The formal program has two layers: ProVerif~\pdcite{blanchet2016modeling} proof 
 
 A proposed extension of Anchor's models introduces a second signing key and an epoch-root binding. Its intended cross-realm authenticity condition has the following shape:
 
+\begin{pdlisting}{ProVerif}{sketch}
 \begin{lstlisting}[caption={Cross-realm authenticity query (sketch)},style=proverif]
 query b: id, ha: id, hb: id, cap: capability, e: epoch;
   event(AcceptedAtB(b, hb, cap, e))
@@ -1184,13 +1185,15 @@ query b: id, ha: id, hb: id, cap: capability, e: epoch;
        event(EnvelopeAtoB(ha, hb, cap, e)) &&
        event(RootCurrent(ha, e))).
 \end{lstlisting}
+\end{pdlisting}
 
 The condition asks that every acceptance at $B$ be preceded by matching issuance, envelope and root events. It is a specification target. A past \texttt{RootCurrent} event does not show that the root was still current at acceptance, so a complete model must also express epoch order and stale-root rejection, key compromise, the resource mapping, the recipient binding, the holder's proof of possession, and a compromised receiving daemon.
 
 No executable cross-harbor model or run transcript exists; Appendix~\ref{app:fh-mech} records the gap.
 
 The separate artifact \path{proofs/bonded/federated/federated.pv} has a committed successful ProVerif transcript with daemon, KMS, and email shares exposed. Its query, however, concerns a fresh private constant \texttt{account\_root} that is never bound to \texttt{combine4} of those shares or published. The success establishes secrecy of that unused constant; it does not establish the intended four-principal reconstruction claim. The query is vacuous: it would still report true if all four shares were published, because nothing connects them to the queried name. The recorded result is:
-\begin{lstlisting}[caption={\texttt{proofs/bonded/federated/federated.pv}, actual ProVerif output},style=proverif]
+\begin{pdlisting}{Output}{\path{proofs/bonded/federated/federated.pv}}
+\begin{lstlisting}[caption={\texttt{proofs/bonded/federated/federated.pv}, actual ProVerif output},style=pdoutput]
 Starting query not attacker(account_root[])
 RESULT not attacker(account_root[]) is true.
 --------------------------------------------------------------
@@ -1198,6 +1201,7 @@ Verification summary:
 
 Query not attacker(account_root[]) is true.
 \end{lstlisting}
+\end{pdlisting}
 Exercise~\ref{ex:fh-proverif-federation} diagnoses this vacuous query and specifies the missing positive and negative controls.
 
 \pdexercisepointerone{\ref{ex:fh-proverif-federation}}{\pageref{ex:fh-proverif-federation}}
@@ -1206,6 +1210,7 @@ Exercise~\ref{ex:fh-proverif-federation} diagnoses this vacuous query and specif
 
 The executable Bonded Commons Conservation specification models an abstract single-machine bond pool. A cross-harbor extension would need per-harbor pools, escrow custody, and in-transit transfers. This sketch names only lifecycle buckets and a witness log:
 
+\begin{pdlisting}{TLA+}{sketch; it checks nothing}
 \begin{lstlisting}[caption={Cross-Harbor Conservation specification (sketch; it checks nothing)},style=tlaplus]
 CONSTANTS Harbors, MaxBonds, Capabilities
 VARIABLES Bucket, WitnessLog
@@ -1221,6 +1226,7 @@ BucketPartition ==
 
 Spec == Init /\ [][Next]_<<Bucket, WitnessLog>>
 \end{lstlisting}
+\end{pdlisting}
 
 The listing verifies nothing. \texttt{BucketPartition} holds for every function into the four labels, so it is a typing fact that no transition could break. The sketch defines neither \texttt{Init} nor \texttt{Next}, and a one-hot bucket label says nothing about recipient balances. A useful model needs both transitions out of escrow and an invariant that a bad transition can break: the payments of a cleared bond sum to its amount, and each bond closes once. It also needs a negative control, an operator bypass that pays an unlisted party, which the model checker must catch. No executable cross-harbor specification, configuration or Apalache run exists, so the cross-harbor partition remains a conditional design invariant. Appendix~\ref{app:fh-tla} identifies the narrower executable Conservation model and its recorded TLC result.
 
@@ -1457,13 +1463,15 @@ The ``only-issuer-revokes'' rule above is trustworthy only if a harbor's own loc
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-revocation-finality}
 All four configurations share one module; only the \texttt{Rollback}, \texttt{Epoched} and \texttt{DbEpoched} constants change. The committed results (\path{proofs/relay/CardRevocation.md}, ``Results (TLC 2026.11.06.222357 nightly, OpenJDK 21, \texttt{-deadlock})''), quoted exactly:
-\begin{lstlisting}
+\begin{pdlisting}{Output}{\path{proofs/relay/CardRevocation.md}}
+\begin{lstlisting}[style=pdoutput]
 baseline:  Model checking completed. No error has been found.   (13 distinct states)
 rollback:  Invariant RevocationFinal is violated.               (backup-restore re-accepts a revoked card)
 epoch:     Invariant Availability is violated.                  (12 traces under -continue; RevocationFinal,
                                                                   EpochHeadroom and TypeOK hold on all 76 states)
 dbepoch:   Model checking completed. No error has been found.   (197 distinct states, depth 10)
 \end{lstlisting}
+\end{pdlisting}
 \textbf{Baseline} (\texttt{Rollback=FALSE, Epoched=FALSE}, \path{CardRevocation_baseline.cfg}): no adversary action is available, so a card in \texttt{revoked} stays revoked and \texttt{RevocationFinal} holds trivially over 13 reachable states. \textbf{Rollback} (\texttt{Rollback=TRUE, Epoched=FALSE}, \path{CardRevocation_rollback.cfg}): \texttt{RollbackRestore} can drop a card from the DB's \texttt{revoked} set while \texttt{everRevoked} (ground truth) stays set; \texttt{Accept} then only checks \texttt{revoked}, so the restored card is accepted again and \texttt{badAccept} fires. The invariant is violated \emph{by design}, as the negative control for the attack. \textbf{Epoch} (\texttt{Rollback=TRUE, Epoched=TRUE}, \path{CardRevocation_epoch.cfg}): the mitigation adds an external epoch that \texttt{Revoke} bumps and that a restore does \emph{not} roll back; \texttt{Accept} now additionally requires \texttt{cardEpoch[c] = epoch}, so a restored card's stale epoch disables acceptance even though \texttt{revoked} was rolled back, and the invariant holds again over the larger 76-state space (the mitigation adds reachable states without reintroducing the breach). The same rule disables every other card minted before the latest revocation. With $c_1$ and $c_2$ issued and only $c_1$ revoked, $c_2$ is refused, and TLC is silent because it checks \texttt{badAccept} alone. An availability property (every unexpired, never-revoked card is accepted while the database is current) would catch this, and the \texttt{dbEpoch} rule of \S\ref{sec:fh-threat-model} is designed to keep both.
 
 The rollback configuration tests whether a restored database can resurrect a revoked capability. A relay revokes card $c$ (an agent's leaked capability); the relay's database is later restored from a backup taken before the revocation; the restored \texttt{revoked} set no longer contains $c$; the relay's own \texttt{Accept} check, consulting only that set, accepts a presentation of $c$ it had already promised to refuse. TLC's counterexample trace is exactly \texttt{Issue(c)} $\to$ \texttt{Revoke(c)} $\to$ \texttt{RollbackRestore(c)} $\to$ \texttt{Accept(c)}, four transitions, \texttt{badAccept} true at the end. The failure is intended: a baseline or an untested mitigation would give false comfort, and this negative control is what gives the epoch configuration's clean pass its meaning. This chapter's own per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) are the same design move at the federation layer: an external, monotonic anchor that a local rollback cannot touch lets a cross-harbor verifier rely on ``only-issuer-revokes'' instead of taking the issuer's word for it.
@@ -1524,9 +1532,11 @@ Read \path{proofs/bonded/federated/federated.pv} and its committed run log. Iden
 The four shares belong to the daemon, KMS, email provider, and passphrase holder. The process exposes the first three and computes a term using the public constructor \texttt{combine4}. A public constructor is also available to the attacker: anyone who learns all four arguments can construct their combination. Absence of a destructor prevents extracting shares from the result; it does not prevent forward computation.
 
 The query instead names \texttt{account\_root}, declared as a separate fresh private constant. No equation binds it to \texttt{combine4} of the shares. The conditional \texttt{if r = account\_root then 0} makes no such binding and publishes nothing. Consequently the recorded
-\begin{lstlisting}
+\begin{pdlisting}{Output}{\path{proofs/bonded/federated/federated.pv}}
+\begin{lstlisting}[style=pdoutput]
 RESULT not attacker(account_root[]) is true.
 \end{lstlisting}
+\end{pdlisting}
 is compatible with a model that would keep answering true even if all four shares were exposed. It proves secrecy of an unused constant, not the intended reconstruction boundary.
 
 A meaningful model must query the reconstructed term, encode each claimed compromise scenario, and demonstrate an all-four-compromised negative control that reveals it. Exposing daemon, email, and KMS shares covers subsets of that particular exposure set; it does not alone test the other three-principal sets that include passphrase compromise. The Shamir recovery path requires its own encoding. The four-principal security claim remains unproved by this artifact.

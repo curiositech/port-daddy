@@ -641,7 +641,10 @@
           \vtop{\vskip0pt\hbox{\usebox{\pd@listingcaptionbox}}}}%
       \else
         \llap{\vtop{\vskip0pt\hbox{\usebox{\pd@listingcaptionbox}}}\hskip\marginparsep}%
-      \fi}\hfil}\nobreak}
+      \fi}\hfil}\nobreak%
+  % The caption is a zero-height line. Without this the listing's first line
+  % is set a baseline below it, which opens a gap under a listing head.
+  \nointerlineskip}
 \AtBeginDocument{%
   \let\pd@lstMakeCaption\lst@MakeCaption
   \let\pd@lstmakecaption\lst@makecaption
@@ -666,6 +669,9 @@
     \else\pd@lstmakecaption{#1}{#2}\fi}%
   \lst@AddToHook{DeInit}{\ifpdmargincolumn\ifpd@captionfloat\else\pd@clearcaptionband\fi\fi}}
 
+
+% Listing head strip and numbered callouts (\begin{pdlisting}, \pdco).
+\input{figures/pd-listing}
 
 % ---------------------------------------------------------------------------
 % Marginalia (Wave 16): citations, provenance, and proved-on pointers at the

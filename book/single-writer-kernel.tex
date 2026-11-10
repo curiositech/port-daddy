@@ -702,27 +702,35 @@ path is small enough to state as an algorithm (Listing~\ref{alg:acquire}); we
 then give the central property as a theorem.
 \begin{figure}[H]
 \centering
-\begin{minipage}{0.92\textwidth}
+\begin{minipage}{0.96\textwidth}
+\begin{pdlisting}{Pseudocode}{}
 \lstset{style=pseudocode}
 \begin{lstlisting}[caption={Claim acquisition. The whole acquire is a single
 insert against a uniqueness constraint; the loser is handed the current holder,
 not an error to retry blindly. Expiry is checked before the holder, so a
 holder's own claim after its lease expired is a new acquisition.},label={alg:acquire},captionpos=b]
 function acquire(key, requester, ttl):
-  // single atomic statement; the uniqueness constraint is the mutex
-  try:
+  try:  (*@\pdco{1}@*)
     INSERT row (key, holder=requester, expires_at = now()+ttl)
-    return GRANTED(holder=requester)         // we won
+    return GRANTED(holder=requester)
   catch UNIQUE_CONSTRAINT_VIOLATION:
     existing = SELECT row WHERE row.key = key
-    if existing.expires_at < now():          // expired, whoever held it
+    if existing.expires_at < now():  (*@\pdco{2}@*)
       DELETE row WHERE key = key AND expires_at < now()
-      return acquire(key, requester, ttl)    // new acquisition; one retry
-    if existing.holder == requester:         // live, and the requester's
-      UPDATE row SET expires_at = now()+ttl  // idempotent re-claim
+      return acquire(key, requester, ttl)  (*@\pdco{3}@*)
+    if existing.holder == requester:
+      UPDATE row SET expires_at = now()+ttl  (*@\pdco{4}@*)
       return GRANTED(holder=requester)
-    return DENIED(holder=existing.holder)    // loser learns the winner
+    return DENIED(holder=existing.holder)  (*@\pdco{5}@*)
 \end{lstlisting}
+\begin{pdcallouts}
+\pdnote{1}{\textbf{The uniqueness constraint is the mutex.} The insert is a single atomic statement, and whoever's insert succeeds has won.}
+\pdnote{2}{\textbf{Expiry is checked before the holder.} The row has expired, whoever held it, the requester included.}
+\pdnote{3}{\textbf{A new acquisition, with one retry.} The delete removes only an expired row, and the second insert settles who won.}
+\pdnote{4}{\textbf{Idempotent re-claim.} The claim is live and it is the requester's own.}
+\pdnote{5}{\textbf{The loser learns the winner.} A denial names the current holder.}
+\end{pdcallouts}
+\end{pdlisting}
 \end{minipage}
 \end{figure}
 The listing shows the exact-key claim protocol. Its uniqueness constraint
@@ -890,6 +898,7 @@ to the lowest ticket. It is specified here in enough detail to build and to
 attack. No \texttt{claim\_tickets} table exists in the reference
 implementation, and the kernel still runs the lifecycle above. It would introduce a \texttt{claim\_tickets} table:
 \pdmarginanalogy{batch3-ch01-ticket-dispenser}{}{ch01-fairness-ticket-dispenser}{Like a ticket dispenser, the proposed lock would assign turns instead of making contenders race again.}%
+\begin{pdlisting}{SQL}{}
 \begin{lstlisting}[language=SQL]
 CREATE TABLE claim_tickets (
   resource_id TEXT NOT NULL,
@@ -897,15 +906,18 @@ CREATE TABLE claim_tickets (
   seq_num INTEGER PRIMARY KEY AUTOINCREMENT
 );
 \end{lstlisting}
+\end{pdlisting}
 When Agent~$B$'s claim acquisition failed against the primary-key \texttt{UNIQUE} constraint, the error handler would insert an entry into \texttt{claim\_tickets}. When Agent~$A$ then called \texttt{release('auth.ts')}, the daemon would execute a single atomic transaction:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item Delete Agent~$A$'s active claim row: \texttt{DELETE FROM claims WHERE resource = :r;}
 \item Read the lowest ticket:
+\begin{pdlisting}{SQL}{}
 \begin{lstlisting}[language=SQL,basicstyle=\small\ttfamily]
 SELECT agent_id, seq_num FROM claim_tickets
 WHERE resource_id = :r
 ORDER BY seq_num ASC LIMIT 1;
 \end{lstlisting}
+\end{pdlisting}
 \item Atomically re-grant the claim: \texttt{INSERT INTO claims (resource, holder, ttl) VALUES (:r, :next\_agent, :ttl);}
 \item Remove the claimed ticket: \texttt{DELETE FROM claim\_tickets WHERE seq\_num = :next\_seq;}
 \end{enumerate}
@@ -1969,26 +1981,35 @@ regressed.
 
 \begin{figure}[H]
 \centering
-\begin{minipage}{0.92\textwidth}
+\begin{minipage}{0.96\textwidth}
+\begin{pdlisting}{Pseudocode}{}
 \lstset{style=pseudocode}
 \begin{lstlisting}[caption={The commitment-closure oracle. Closure requires a
 reference from a finite vocabulary that the daemon re-verifies at closure time; free
 text is rejected by construction, not by inspection.},label={alg:close},captionpos=b]
 function close(commitment, status, oracle_ref):
   if status != 'done':
-    return apply_drop_strategy(commitment, status)   // abandon / supersede
+    return apply_drop_strategy(commitment, status)  (*@\pdco{1}@*)
   if oracle_ref is empty:
-    return REFUSED("done requires a verifiable oracle reference")
-  kind = classify(oracle_ref)                         // structured field, not NLP
-  // the four kinds below are the SHIPPED vocabulary. State-Machine Assertions
-  // (OP-5, specified only) would add DELTA_ORACLE and AST_ASSERTION here.
-  if kind not in {RELEASED_CLAIM, MERGED_COMMIT, PASSING_TEST, POLICY_SUBCHECK}:
-    return REFUSED("oracle reference outside the finite vocabulary")
-  if not verify_holds_now(kind, oracle_ref):          // re-check at closure time
+    return REFUSED(
+      "done requires a verifiable oracle reference")
+  kind = classify(oracle_ref)  (*@\pdco{2}@*)
+  if kind not in {RELEASED_CLAIM, MERGED_COMMIT,
+                  PASSING_TEST, POLICY_SUBCHECK}:  (*@\pdco{3}@*)
+    return REFUSED(
+      "oracle reference outside the finite vocabulary")
+  if not verify_holds_now(kind, oracle_ref):  (*@\pdco{4}@*)
     return REFUSED("named oracle does not currently hold")
   transition(commitment, DONE, witnessed_by = oracle_ref)
   return CLOSED
 \end{lstlisting}
+\begin{pdcallouts}
+\pdnote{1}{\textbf{Not done.} The commitment is abandoned or superseded, and no oracle is consulted.}
+\pdnote{2}{\textbf{A structured field, not NLP.} The reference's kind is read from the reference, not inferred from prose.}
+\pdnote{3}{\textbf{The shipped vocabulary.} These four kinds are what the daemon checks today. State-Machine Assertions (OP-5, specified only) would add \texttt{DELTA\_ORACLE} and \texttt{AST\_ASSERTION} here.}
+\pdnote{4}{\textbf{Re-checked at closure time.} A reference that held when it was written is refused if it does not hold now.}
+\end{pdcallouts}
+\end{pdlisting}
 \end{minipage}
 \end{figure}
 
