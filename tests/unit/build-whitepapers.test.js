@@ -56,7 +56,10 @@ describe('reproducible whitepaper source scoping', () => {
     // 34 since the plain-language audit: the introduction inputs
     // figures/fig-audit-person.tex, one of the six audit figures, which is
     // this chapter's own drawing although its name does not carry stp-.
-    expect(sources).toHaveLength(34);
+    // 35 since the listing treatment: pd-pedagogy inputs figures/pd-listing.tex
+    // (the listing head strip and numbered callouts).
+    expect(sources).toHaveLength(35);
+    expect(sources).toContain('book/figures/pd-listing.tex');
     expect(sources).toContain('book/figures/fig-audit-person.tex');
     for (const addition of [
       'book/additions/stp-consolidation.tex',
