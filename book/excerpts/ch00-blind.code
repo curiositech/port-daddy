@@ -1,0 +1,6 @@
+/** Add one, the obvious way: read the number, write one more. */
+export function* blind(cell: Shared, me: string, think = 1) {
+  const seen = cell.read(me);
+  yield* thinking(think);
+  cell.put(me, seen.value + 1);
+}

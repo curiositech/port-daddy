@@ -1,0 +1,40 @@
+$ harbor survival --design blind
+# design blind, workload steady: the workers overlap in 1 round of
+#   50
+# 1000 jobs of 600 rounds, seed 20261111; a worker thinks for 8
+#   turns
+# a round that overlaps loses an update with chance 255/256
+# the chance a job is still safe is a half or less from round 35
+# safe: jobs with no update lost yet; share: safe / jobs
+# low, high: the 95% Wilson interval for the chance a job is safe
+#   this long
+# exact: that chance, worked out from the workload and every order
+# bound: the Book's survival bound, taken from the calmest rounds
+#   alone
+rounds  safe   share     low    high   exact   bound
+     0  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+    25   591  0.5910  0.5602  0.6211  0.6047  0.6047
+    50   382  0.3820  0.3524  0.4125  0.3656  0.3656
+    75   245  0.2450  0.2194  0.2726  0.2211  0.2211
+   100   152  0.1520  0.1311  0.1756  0.1337  0.1337
+   125    92  0.0920  0.0756  0.1115  0.0808  0.0808
+   150    63  0.0630  0.0495  0.0798  0.0489  0.0489
+   175    26  0.0260  0.0178  0.0378  0.0296  0.0296
+   200    17  0.0170  0.0106  0.0271  0.0179  0.0179
+   225    13  0.0130  0.0076  0.0221  0.0108  0.0108
+   250     8  0.0080  0.0041  0.0157  0.0065  0.0065
+   275     6  0.0060  0.0028  0.0130  0.0040  0.0040
+   300     4  0.0040  0.0016  0.0102  0.0024  0.0024
+   325     2  0.0020  0.0005  0.0073  0.0014  0.0014
+   350     2  0.0020  0.0005  0.0073  0.0009  0.0009
+   375     2  0.0020  0.0005  0.0073  0.0005  0.0005
+   400     1  0.0010  0.0002  0.0056  0.0003  0.0003
+   425     1  0.0010  0.0002  0.0056  0.0002  0.0002
+   450     0  0.0000  0.0000  0.0038  0.0001  0.0001
+   475     0  0.0000  0.0000  0.0038  0.0001  0.0001
+   500     0  0.0000  0.0000  0.0038  0.0000  0.0000
+   525     0  0.0000  0.0000  0.0038  0.0000  0.0000
+   550     0  0.0000  0.0000  0.0038  0.0000  0.0000
+   575     0  0.0000  0.0000  0.0038  0.0000  0.0000
+   600     0  0.0000  0.0000  0.0038  0.0000  0.0000
+# exact is inside the interval in 23 of 25 rows

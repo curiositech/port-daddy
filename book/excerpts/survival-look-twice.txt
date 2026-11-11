@@ -1,0 +1,40 @@
+$ harbor survival --design look-twice
+# design look-twice, workload steady: the workers overlap in 1
+#   round of 50
+# 1000 jobs of 600 rounds, seed 20261111; a worker thinks for 8
+#   turns
+# a round that overlaps loses an update with chance 12155/65536
+# the chance a job is still safe is a half or less from round 187
+# safe: jobs with no update lost yet; share: safe / jobs
+# low, high: the 95% Wilson interval for the chance a job is safe
+#   this long
+# exact: that chance, worked out from the workload and every order
+# bound: the Book's survival bound, taken from the calmest rounds
+#   alone
+rounds  safe   share     low    high   exact   bound
+     0  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+    25   905  0.9050  0.8852  0.9217  0.9113  0.9113
+    50   835  0.8350  0.8107  0.8567  0.8304  0.8304
+    75   768  0.7680  0.7408  0.7931  0.7567  0.7567
+   100   697  0.6970  0.6678  0.7247  0.6896  0.6896
+   125   647  0.6470  0.6169  0.6760  0.6284  0.6284
+   150   587  0.5870  0.5562  0.6171  0.5727  0.5727
+   175   517  0.5170  0.4860  0.5478  0.5219  0.5219
+   200   478  0.4780  0.4472  0.5090  0.4756  0.4756
+   225   445  0.4450  0.4145  0.4760  0.4334  0.4334
+   250   406  0.4060  0.3760  0.4367  0.3949  0.3949
+   275   381  0.3810  0.3514  0.4115  0.3599  0.3599
+   300   350  0.3500  0.3211  0.3801  0.3280  0.3280
+   325   319  0.3190  0.2909  0.3485  0.2989  0.2989
+   350   292  0.2920  0.2647  0.3209  0.2723  0.2723
+   375   266  0.2660  0.2395  0.2942  0.2482  0.2482
+   400   244  0.2440  0.2184  0.2716  0.2262  0.2262
+   425   216  0.2160  0.1916  0.2426  0.2061  0.2061
+   450   196  0.1960  0.1726  0.2217  0.1878  0.1878
+   475   172  0.1720  0.1499  0.1966  0.1711  0.1711
+   500   163  0.1630  0.1414  0.1872  0.1560  0.1560
+   525   152  0.1520  0.1311  0.1756  0.1421  0.1421
+   550   143  0.1430  0.1227  0.1661  0.1295  0.1295
+   575   129  0.1290  0.1096  0.1512  0.1180  0.1180
+   600   116  0.1160  0.0976  0.1373  0.1076  0.1076
+# exact is inside the interval in 25 of 25 rows

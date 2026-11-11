@@ -1,0 +1,73 @@
+% Reader question: if each round has only a small chance of losing an update,
+% how many long jobs get through with none lost? And does a worker that
+% checks its own work change the answer?
+% Claim: any fixed chance per round empties the jobs geometrically; looking
+% twice slows the fall and does not stop it; a check at the write keeps
+% every job.
+% Evidence: 1,000 seeded jobs of 600 rounds per design, counted every 25
+% rounds, with the exact curve from the workload and every order of turns
+% [internal, harbor survival; sessions survival-*.txt, plotted as printed].
+% Must distinguish: counted from exact; the three designs; in the right
+% panel, the theorem's bound from the exact curve under it, and the bursty
+% curve from the steady one, which keeps its grey from the left panel.
+% Grammar chosen: two panels on one vertical scale; a line for what is
+% worked out, dots with interval bars for what was counted; each line named
+% at the line.
+% Grammar rejected: a logarithmic scale, which makes the falls straight and
+% cannot show a share of zero or a design that stays at one.
+% Five-second test: which line never leaves the top?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdslate}%
+\begin{tikzpicture}[pd figure]
+  \pgfplotsset{
+    counted/.style={only marks,mark size=1.15pt,
+      error bars/y dir=both,error bars/y explicit,
+      error bars/error bar style={line width=.5pt},
+      error bars/error mark options={rotate=90,mark size=1.1pt,line width=.5pt}},
+  }
+  % The tables are the recorded runs, set as they were printed: the first
+  % line is the command, and every remark starts with '#'.
+  \pgfplotstableset{
+    as printed/.style={skip first n=1,x=rounds},
+    bars/.style={y=share,y error plus expr=\thisrow{high}-\thisrow{share},
+      y error minus expr=\thisrow{share}-\thisrow{low}},
+  }
+  \begin{axis}[pd axis,at={(0,0)},width=3.85cm,height=4.6cm,
+    xmin=0,xmax=600,ymin=0,ymax=1.04,
+    xtick={0,200,400,600},ytick={0,0.25,0.5,0.75,1},yticklabels={0,.25,.5,.75,1},
+    title={steady overlap},xlabel={rounds},ylabel={share of jobs with no update lost}]
+    \addplot[pd muted series,smooth] table[as printed,y=exact] {excerpts/survival-blind.txt};
+    \addplot[counted,draw=pdinkmuted!70,mark options={fill=pdinkmuted!70,draw=pdpage,line width=.3pt}]
+      table[as printed,bars] {excerpts/survival-blind.txt};
+    \addplot[draw=pdink,smooth,mark=none] table[as printed,y=exact] {excerpts/survival-look-twice.txt};
+    \addplot[counted,draw=pdink,mark options={fill=pdink,draw=pdpage,line width=.3pt}]
+      table[as printed,bars] {excerpts/survival-look-twice.txt};
+    \addplot[draw=pdfocus,line width=1.6pt,mark=none] table[as printed,y=exact] {excerpts/survival-checked.txt};
+    \addplot[counted,draw=pdfocus,mark options={fill=pdfocus,draw=pdpage,line width=.3pt}]
+      table[as printed,bars] {excerpts/survival-checked.txt};
+    \node[pd focus label,anchor=north east] at (axis cs:600,0.955) {checked};
+    \node[pd label,anchor=south west] at (axis cs:255,0.40) {look twice};
+    \node[pd label,text=pdinkmuted,anchor=south west] at (axis cs:75,0.23) {blind};
+  \end{axis}
+  \begin{axis}[pd axis,at={(5.1cm,0)},width=3.85cm,height=4.6cm,
+    xmin=0,xmax=600,ymin=0,ymax=1.04,
+    xtick={0,200,400,600},ytick={0,0.25,0.5,0.75,1},yticklabels={},
+    title={the same overlap, in bursts},xlabel={rounds}]
+    \addplot[pd guide,smooth,mark=none] table[as printed,y=bound] {excerpts/survival-bursty.txt};
+    \addplot[pd muted series,smooth] table[as printed,y=exact] {excerpts/survival-blind.txt};
+    \addplot[draw=pdink,smooth,mark=none] table[as printed,y=exact] {excerpts/survival-bursty.txt};
+    \addplot[counted,draw=pdink,mark options={fill=pdink,draw=pdpage,line width=.3pt}]
+      table[as printed,bars] {excerpts/survival-bursty.txt};
+    \node[pd label,anchor=south west] at (axis cs:300,0.56) {the bound};
+    \node[pd label,anchor=south west] at (axis cs:118,0.25) {blind, in bursts};
+  \end{axis}
+\end{tikzpicture}
+\caption{\textbf{A small chance of loss in every round leaves almost no long
+job safe, and no chance leaves all of them.} The share of 1,000 simulated
+jobs with no update lost yet. Lines are exact; dots are counts with 95\%
+intervals. On the right, the grey line repeats the blind curve from the
+left and the dotted line is the bound of
+Theorem~\ref{thm:non-determinism}. [internal, \texttt{harbor survival}]}
+\label{fig:prereq-survival}
+\end{figure}

@@ -1,8 +1,80 @@
 {
   "schema": 1,
-  "commit": "21c4755f05429f2da3626105041899bc94a284c7",
+  "commit": "df0b8c945a776c2e69806dc33c3762ac1c1a695f",
   "scan": "harbord",
   "excerpts": [
+    {
+      "name": "ch00-blind",
+      "path": "harbord/src/cell/workers.ts",
+      "firstLine": 26,
+      "lastLine": 31,
+      "lines": 6,
+      "language": "TypeScript",
+      "sha256": "d5e4ed52480caf119563fa3402ebc048e82ecf0f0247707877c4819998175534"
+    },
+    {
+      "name": "ch00-checked",
+      "path": "harbord/src/cell/workers.ts",
+      "firstLine": 51,
+      "lastLine": 59,
+      "lines": 9,
+      "language": "TypeScript",
+      "sha256": "ae4cf8c7dbbe4fcc9c639408f6d365e25c9023bf6294d1524c7693ff3993b030"
+    },
+    {
+      "name": "ch00-current",
+      "path": "harbord/core/src/cell.rs",
+      "firstLine": 64,
+      "lastLine": 75,
+      "lines": 12,
+      "language": "Rust",
+      "sha256": "b2b9ffb298195bb72b5e9597359f09b3309a2555406a283da7e1a0a55f9890a1"
+    },
+    {
+      "name": "ch00-job",
+      "path": "harbord/src/cell/survival.ts",
+      "firstLine": 64,
+      "lastLine": 83,
+      "lines": 20,
+      "language": "TypeScript",
+      "sha256": "4394d4433dd1e47dacb67e91bbc1a80bd346803c229516334b25be4eb5444c16"
+    },
+    {
+      "name": "ch00-look-twice",
+      "path": "harbord/src/cell/workers.ts",
+      "firstLine": 35,
+      "lastLine": 47,
+      "lines": 13,
+      "language": "TypeScript",
+      "sha256": "d2f4a23e5b6cf0cd116e5f7c1ee695788105ee72c35cde5b25681ee8bbd82de4"
+    },
+    {
+      "name": "ch00-put",
+      "path": "harbord/core/src/cell.rs",
+      "firstLine": 46,
+      "lastLine": 60,
+      "lines": 15,
+      "language": "Rust",
+      "sha256": "a8a934f5d22b9627116fb3b0fc14e2a5b2d2f54f976f2e50abbf5c60afe37421"
+    },
+    {
+      "name": "ch00-run",
+      "path": "harbord/src/cell/schedule.ts",
+      "firstLine": 13,
+      "lastLine": 21,
+      "lines": 9,
+      "language": "TypeScript",
+      "sha256": "0cec5ea221bc47fc34c3c1e98c7ca7163955567b62994c4439c33e6d6d9c44d7"
+    },
+    {
+      "name": "ch00-shared-put",
+      "path": "harbord/src/cell/shared.ts",
+      "firstLine": 40,
+      "lastLine": 51,
+      "lines": 12,
+      "language": "TypeScript",
+      "sha256": "c02f8b70609a001e38c27efbdef5d155eb93ac9440d7280f9b317d198028e3b5"
+    },
     {
       "name": "ch01-check-then-write",
       "path": "harbord/src/agents/honest.ts",
@@ -69,8 +141,8 @@
     {
       "name": "ch01b-guard",
       "path": "harbord/core/src/admission.rs",
-      "firstLine": 45,
-      "lastLine": 84,
+      "firstLine": 50,
+      "lastLine": 89,
       "lines": 40,
       "language": "Rust",
       "sha256": "75d685e70194b9ec277a437c83f64ade9c39da77ceefa88cce12c514219fd429"
@@ -96,6 +168,24 @@
   ],
   "sessions": [
     {
+      "name": "increments-blind",
+      "path": "harbord/sessions/increments-blind.txt",
+      "lines": 11,
+      "sha256": "bf4abc425b157b6f996bccf0d99892839ee3d56a532b5c837ea3c9601090ea72"
+    },
+    {
+      "name": "increments-checked",
+      "path": "harbord/sessions/increments-checked.txt",
+      "lines": 15,
+      "sha256": "6d319c08224d1223410722d2f7d09ad35b17182cbad699a83a02036cf64af3e5"
+    },
+    {
+      "name": "increments-look-twice",
+      "path": "harbord/sessions/increments-look-twice.txt",
+      "lines": 13,
+      "sha256": "c89d7d3a161773244c836257b3c0e174c54993541d44095868e30ed73c728a14"
+    },
+    {
       "name": "lock-demo",
       "path": "harbord/sessions/lock-demo.txt",
       "lines": 17,
@@ -120,6 +210,36 @@
       "sha256": "6e651e010035c595baa286c02907e81e00e6aff6909d73c62403924e5fbdafdd"
     },
     {
+      "name": "orders-blind-put",
+      "path": "harbord/sessions/orders-blind-put.txt",
+      "lines": 12,
+      "sha256": "f31681130af89bd19021140783bc6eca459ba41c767ea614d80361e31963ba60"
+    },
+    {
+      "name": "orders-blind",
+      "path": "harbord/sessions/orders-blind.txt",
+      "lines": 12,
+      "sha256": "676a5d1baec19673b8bdc6976d2d9b39be6a1ee1d38bc0a94dde9a71872b7cd6"
+    },
+    {
+      "name": "orders-think-8",
+      "path": "harbord/sessions/orders-think-8.txt",
+      "lines": 11,
+      "sha256": "3dd398e26c47ad21d02fce4fe3bb17d901b58cea0cdcecc0c9e9c125696427f8"
+    },
+    {
+      "name": "orders-three",
+      "path": "harbord/sessions/orders-three.txt",
+      "lines": 11,
+      "sha256": "fd23cfdc2bef60fb3c36eda9a1f8c10c840c8748be8ab15fc6d4e2367788c5d6"
+    },
+    {
+      "name": "orders",
+      "path": "harbord/sessions/orders.txt",
+      "lines": 11,
+      "sha256": "acd10641649614d5738d8288a992bef694b4d6645c275be4744086f8e7b1cbf1"
+    },
+    {
       "name": "promise-demo",
       "path": "harbord/sessions/promise-demo.txt",
       "lines": 20,
@@ -142,9 +262,34 @@
       "path": "harbord/sessions/roads-rewrite.txt",
       "lines": 56,
       "sha256": "be5b4664d0b6b364237a26ba8eac48553c8ee1259b1f0074e00414d80ae048ec"
+    },
+    {
+      "name": "survival-blind",
+      "path": "harbord/sessions/survival-blind.txt",
+      "lines": 40,
+      "sha256": "92da3210aa8c7b3a8f0af6838958792cecb06653df15cf95c39e2e82c02d91ab"
+    },
+    {
+      "name": "survival-bursty",
+      "path": "harbord/sessions/survival-bursty.txt",
+      "lines": 40,
+      "sha256": "c8d4de096d222bdb93ab8d1570db3951869b4c7b4b464321118931bf74ac27b5"
+    },
+    {
+      "name": "survival-checked",
+      "path": "harbord/sessions/survival-checked.txt",
+      "lines": 41,
+      "sha256": "9704ceb0135bd47ca2103e1f307ca46c742bc8faaaa544138b4a62415825265b"
+    },
+    {
+      "name": "survival-look-twice",
+      "path": "harbord/sessions/survival-look-twice.txt",
+      "lines": 40,
+      "sha256": "281c943bc3f15a5f2bb825808d64774b4204ef5886940bf8d25dac69fed05652"
     }
   ],
   "printedLines": {
+    "ch00": 96,
     "ch01": 136,
     "ch01b": 147
   }

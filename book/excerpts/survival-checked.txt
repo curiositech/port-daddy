@@ -1,0 +1,41 @@
+$ harbor survival --design checked
+# design checked, workload steady: the workers overlap in 1 round
+#   of 50
+# 1000 jobs of 600 rounds, seed 20261111; a worker thinks for 8
+#   turns
+# a round that overlaps loses an update with chance 0
+# the chance a job is still safe is a half or less in no round up
+#   to 600
+# safe: jobs with no update lost yet; share: safe / jobs
+# low, high: the 95% Wilson interval for the chance a job is safe
+#   this long
+# exact: that chance, worked out from the workload and every order
+# bound: the Book's survival bound, taken from the calmest rounds
+#   alone
+rounds  safe   share     low    high   exact   bound
+     0  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+    25  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+    50  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+    75  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   100  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   125  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   150  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   175  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   200  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   225  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   250  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   275  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   300  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   325  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   350  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   375  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   400  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   425  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   450  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   475  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   500  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   525  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   550  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   575  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+   600  1000  1.0000  0.9962  1.0000  1.0000  1.0000
+# exact is inside the interval in 25 of 25 rows

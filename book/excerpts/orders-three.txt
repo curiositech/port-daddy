@@ -1,0 +1,11 @@
+$ harbor orders --workers 3
+every order in which three workers can take their turns, each
+  adding one to a shared number; a worker thinks for 1 turn
+
+design      orders  lose an update  chance of a loss
+blind           90              84  5/6
+look-twice    2544            2088  151/216
+checked        198               0  0
+
+chance of a loss: when each turn goes to one of the workers still
+  at work, all equally likely

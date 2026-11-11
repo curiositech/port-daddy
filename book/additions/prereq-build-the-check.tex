@@ -1,0 +1,354 @@
+% Build the layer, Chapter 0: two increments, and a check where the number
+% changes. Inserted at the end of \S\ref{pre:sec:kernel-gap}, after the
+% subsection on why a model cannot be its own kernel.
+%
+% No code or output in this file is typed. \pdexcerpt and \pdrun set files
+% under excerpts/, which the kernel's tools/excerpts.mjs cuts from its
+% source and its recorded runs (see figures/pd-listing.tex). The figure
+% plots four of those recorded runs as they were printed. To change a
+% listing or a curve, change the kernel and cut again. The prose names
+% functions, never line numbers, so that a listing which moves in its file
+% does not make a sentence wrong.
+\subsection{Build the layer: two increments, both kept}
+\label{sec:prereq-build}
+
+\noindent\emph{Express lane: the chapter's opening example is built and run.
+A worker that checks its own reading still loses an update. A check made
+where the number changes loses none, in any order the workers can move in.
+A simulation then follows each design through 600 rounds.}
+
+The chapter opened with two workers and a counter, and one update went
+missing. Theorem~\ref{thm:kernel-gap} has since said where the check must
+sit, and \S\ref{sec:prereq-no-self-kernel} has argued that the worker cannot
+be the one to make it. This section runs both claims. The code is part of
+\pdkernelname{}, a small kernel written for this book, which gains a layer
+in each chapter. Its source is not yet published. The layer here needs none
+of the kernel's machinery. It is a number held in memory, and a rule that
+decides whether a worker's write to it lands.
+
+Every chapter after this one has a section of the same shape, in four beats.
+\emph{Naive} builds the design most people reach for first, and builds it
+with care. \emph{Break} is a run that makes it fail, the same way every
+time. \emph{Fix} is the chapter's mechanism. \emph{Verify} runs the break
+against the fix, and then against the fix with its guard taken out, to show
+that the guard is what stopped it.
+
+None of the code below was typed into the book. A script cuts each listing
+from the kernel's source. The listing's head names the file and the lines,
+and the numbers beside the code are the file's own. Each run is a recording,
+and one of the kernel's tests compares a fresh run with it. The kernel's
+repository also checks these listings against its source and fails when the
+two differ.
+
+\subsubsection{Naive: read, then write}
+
+The number is kept by a small object that we will call the \emph{cell}. It
+holds the number and a \emph{version}, a count of the writes that have
+landed. A worker can \texttt{read} the cell, which returns both, and can ask
+it to \texttt{put} a new number. The cell takes one request at a time and
+finishes it before it looks at the next, so two writes never land at once.
+That is the queue of the opening example.
+
+A worker that adds one does the obvious thing
+(Listing~\ref{alg:prereq-build-blind}).
+
+\pdexcerpt[caption={The obvious worker. It reads the number and, after
+thinking, writes the number plus one.},label={alg:prereq-build-blind}]{ch00-blind}
+
+The line \texttt{yield* thinking(think)} is why the worker is written as a
+generator. Everything a worker does between two \texttt{yield}s is one
+\emph{turn}: it runs to its end with nothing else running. At a
+\texttt{yield} the worker stops, and another worker may take a turn before
+it goes on. With \texttt{think} at 1, as it is until the long run below,
+the blind worker takes 2 turns: it reads in the first and writes in the
+second. A real worker has no such marks in its source, and it stops all
+the same, whenever it waits for a model to answer or for a request to come
+back. Writing the stops down lets us choose who moves next. That choice is a
+function, the \pdterm{scheduler}, and the loop that applies it is short
+(Listing~\ref{alg:prereq-build-run}).
+
+\pdexcerpt[caption={One turn at a time. The scheduler \texttt{next} picks
+who moves.},label={alg:prereq-build-run}]{ch00-run}
+
+\subsubsection{Break: the workers take turns}
+
+Start the number at 0 and let Heron and Wren each add one, moving in turn
+with Heron first.
+
+\pdrun[caption={The break. Both workers read 0, and both write
+1.},label={alg:prereq-build-run-blind}]{increments-blind}
+
+Both writes were taken. The version went to 2, so two writes landed, one
+after the other, and the number is 1. No two writes collided, and each
+worker wrote exactly what it had worked out. Wren worked it out from a
+reading that Heron's write had already made old.
+
+One bad order could be bad luck. Two workers with two turns each can move in
+only six orders, so \pdkernelname{} tries them all
+(Listing~\ref{alg:prereq-build-orders-blind}).
+
+\pdrun[caption={Every order of the blind workers' turns: who moved, turn by
+turn, and the number at the end.},label={alg:prereq-build-orders-blind}]{orders-blind}
+
+Four of the six lose an update. The two that keep both are the orders in
+which one worker finishes before the other starts. This is part~(2) of
+Theorem~\ref{thm:kernel-gap}. The queue puts the writes in order and says
+nothing about the readings they were worked out from.
+
+\subsubsection{Break again: the worker checks its own reading}
+
+The first repair most people try is to have the worker look again. Just
+before it writes, it reads the cell a second time. If the version has moved,
+it throws its work away and starts over
+(Listing~\ref{alg:prereq-build-look-twice}).
+
+\pdexcerpt[caption={Looking twice. The worker compares a second reading
+with its first, and writes if they agree.},label={alg:prereq-build-look-twice}]{ch00-look-twice}
+
+\pdrun[caption={Looking twice, with the workers taking turns. Steps 3 and 4
+are the second looks.},label={alg:prereq-build-run-look-twice}]{increments-look-twice}
+
+Each worker looked again, saw version 0 as before, and wrote. The second
+look caught nothing because, when it was made, there was nothing to catch:
+the other write came after it. The \texttt{yield} between the look and the
+\texttt{put} is not a slip that better code would remove. The look and the
+write are two requests, and the cell is free to serve another worker between
+them. A worker can move its check closer to its write. It cannot move the
+check into the write, because the write happens in the cell.
+
+This is the first argument of \S\ref{sec:prereq-no-self-kernel} as a
+program. A model that reviews its own tool call is looking twice: it judges
+the state that its prompt described, and the call takes effect later.
+\pdchaplink{swk}{Chapter~1} meets the same gap with a lease and a clock in
+it (\weld{swk:sec:swk-build}{lease}). \emph{Now you try:}
+Exercise~\ref{ex:prereq-build-orders} asks which orders defeat the second
+look.
+
+\subsubsection{Fix: the write says what it read}
+
+The fix changes one call. A worker's \texttt{put} now carries the version
+that the worker read, and a refused \texttt{put} sends the worker back to
+read again (Listing~\ref{alg:prereq-build-checked}). This worker is not more
+careful than the last one. It does less. What changed is on the other side
+of the call. The cell hands each \texttt{put} to the kernel's
+\pdterm{decision core}, the one function through which every proposal in
+this book's code is decided. The cell passes its own state at that moment,
+and keeps what the core returns
+(Listing~\ref{alg:prereq-build-shared-put}).
+
+\Needspace{12\baselineskip}
+\pdexcerpt[caption={The checked worker. Its write names the version it
+read.},label={alg:prereq-build-checked}]{ch00-checked}
+
+\Needspace{14\baselineskip}
+\pdexcerpt[caption={The cell's \texttt{put}. It asks the core, and stores
+the answer before it returns.},label={alg:prereq-build-shared-put}]{ch00-shared-put}
+
+The decision for a \texttt{put} is a few lines of Rust
+(Listing~\ref{alg:prereq-build-put}). Unless the cell's policy is the blind
+one of the first two designs, it calls the guard, and then it counts the
+write.
+
+\Needspace{16\baselineskip}
+\pdexcerpt[caption={The decision for a write to the
+cell.},label={alg:prereq-build-put}]{ch00-put}
+
+The guard is \texttt{current} (Listing~\ref{alg:prereq-build-current}). It
+compares the version that the write names with the version the cell is at.
+If they differ, something was written after the worker read, and the write
+is refused with both numbers in the reason. A write that names no version is
+refused as well. The cell cannot tell an old reading from no reading, and a
+check that a caller can skip by leaving out a field does not cover every
+write.
+
+\Needspace{14\baselineskip}
+\pdexcerpt[caption={The guard: nothing has been written since the writer
+read.},label={alg:prereq-build-current}]{ch00-current}
+
+The comparison and the change are one step. \texttt{decide} returns the new
+cell or a reason, and the cell's \texttt{put} stores the answer before it
+returns, so no worker's turn can fall between the two. Part~(1) of
+Theorem~\ref{thm:kernel-gap} asks for exactly this boundary.
+
+\keyidea[A write is good for the version it read]{A worker cannot know,
+when it writes, whether what it read is still current. The cell can. So the
+write names the version it was worked out from, and the cell compares that
+with its own in the same step as the change. The fencing epoch of Chapter~1
+is this idea applied to who holds a file
+(\weld{swk:sec:swk-build}{fence}), and its rule for a test run applies it
+to a result (\weld{swk:sec:swk-roads}{revision}).}
+
+The idea is old. Databases have called it optimistic concurrency control
+since Kung and Robinson~\pdcite{kung1981optimistic}: let the work go ahead
+without a lock, and validate it at the moment of writing. HTTP carries it as
+the \texttt{If-Match} header, where the version is an entity tag and the
+refusal is status 412~\pdcite{rfc9110}.
+
+\subsubsection{Verify: every order, then the guard removed}
+
+The same two workers, taking turns as before:
+
+\Needspace{16\baselineskip}
+\pdrun[caption={The fix. Wren's write from version 0 is refused, and Wren
+starts over.},label={alg:prereq-build-run-checked}]{increments-checked}
+
+Step 4 is the refusal. Wren read at version 0, and by the time its write
+arrived the cell was at version 1. Wren reads again and writes 2 from the 1
+it finds.
+
+One good run proves as little as one bad run did, so here is every order
+for each design (Listing~\ref{alg:prereq-build-orders}).
+
+\pdrun[caption={Every order, for each design, with two
+workers.},label={alg:prereq-build-orders}]{orders}
+
+The checked design loses no update in any order. Looking twice has 20 orders
+because each worker now takes three turns, and it loses an update in 12 of
+them. The last column weighs the orders by how likely they are when each
+turn goes to either worker with equal chance. Under that rule some orders
+are likelier than others, which is why 12 orders of 20 come to a chance of
+3/8.
+
+A third worker changes the counts and leaves the conclusion where it was
+(Listing~\ref{alg:prereq-build-orders-three}). Looking twice gets worse with
+more workers, and the checked design still loses nothing in any of its 198
+orders.
+
+\pdrunlines[caption={Every order with three
+workers.},label={alg:prereq-build-orders-three}]{orders-three}{1-8}{1\textendash 8}
+
+Last, the guard. \pdkernelname{} keeps a second build of its core in which
+\texttt{current} returns at once, at the line marked \texttt{MUTANT} in
+Listing~\ref{alg:prereq-build-current}. With that build in place of the real
+one, the checked design loses the same four orders that the blind design
+loses (Listing~\ref{alg:prereq-build-orders-mutant}).
+
+\pdrunlines[caption={The fix with its guard
+removed.},label={alg:prereq-build-orders-mutant}]{orders-blind-put}{1-9}{1\textendash 9}
+
+So the comparison in \texttt{current} is what keeps the update, and nothing
+else about the checked design does.
+
+\subsubsection{The long run: how long a job stays safe}
+
+A chance of 3/8 is smaller than a chance of 1/2.
+Theorem~\ref{thm:non-determinism} says what a smaller chance buys over a
+long job. If every step has at least a chance $\epsilon$ of letting a bad
+effect through, the chance of getting through $H$ steps is at most
+$(1-\epsilon)^H$, and that goes to zero for any $\epsilon$ above zero. We
+can watch it happen.
+
+\paragraph{The workload.}
+This part is a model, and its numbers are our choice. A job is 600 rounds.
+In each round Heron and Wren each add one to the number. In most rounds one
+of them finishes before the other starts, and nothing can be lost. In 1
+round of 50 their turns overlap, and each turn then goes to either worker
+with equal chance. Listing~\ref{alg:prereq-build-job} is one job. After
+every round it compares the number with the count of increments so far, and
+it returns the first round in which the number has fallen behind.
+
+\pdexcerpt[caption={One job. In a round that overlaps, the scheduler is
+\texttt{atRandom}.},label={alg:prereq-build-job}]{ch00-job}
+
+A worker thinks for 8 turns between reading and writing, because working
+out an edit takes far longer than looking at a number. Longer thinking
+changes the count of orders (Listing~\ref{alg:prereq-build-orders-think}).
+
+\pdrunlines[caption={Every order when a worker thinks for 8
+turns.},label={alg:prereq-build-orders-think}]{orders-think-8}{1-8}{1\textendash 8}
+
+A round that overlaps loses an update with chance 255/256 under the blind
+design. Looking twice cuts that to 12155/65536, a little under 1/5.
+\emph{Now you try:} Exercise~\ref{ex:prereq-build-walk} derives both
+chances and shows how slowly the second one falls as the workers think
+longer. With 1 round in 50 overlapping, a round loses an update with chance
+about 0.020 for the blind design and 0.0037 for looking twice. The checked
+design has no order that loses one.
+
+\pdkernelname{} runs 1,000 such jobs for each design. Every job draws from
+its own stream of a seeded generator, so the command prints the same table
+each time it is run, and Figure~\ref{fig:prereq-survival} draws those
+tables as they were printed.
+
+\input{figures/fig-ch0-survival}
+
+Read the left panel first. Under the blind design the chance that a job is
+still safe is a half or less from round 35, and no job of the 1,000 is safe
+at round 600. Looking twice moves the halfway point to round 187 and leaves
+116 jobs safe at round 600. It bought about five times as long and the same
+end. Under the checked design all 1,000 jobs are safe at every row.
+Listing~\ref{alg:prereq-build-survival} is part of the table behind the
+blind curve.
+
+\pdrunlines[caption={Part of what \texttt{harbor survival} prints for the
+blind design. The figure plots this
+file.},label={alg:prereq-build-survival}]{survival-blind}{1,6-7,14-19,39-40}{1, 6\textendash 7, 14\textendash 19 and 39\textendash 40}
+
+\paragraph{Why simulate what can be worked out.}
+The lines in the figure were not fitted to the dots. The chance of loss in
+one round is exact, so the share of jobs safe after $h$ rounds is
+$(1-\epsilon)^h$, with equality because here every round has the same chance
+whatever came before. The simulation was run for another reason. It
+executes the workers of Listings~\ref{alg:prereq-build-blind}
+to~\ref{alg:prereq-build-checked} and the guard of
+Listing~\ref{alg:prereq-build-current}, turn by turn, and so it would expose a
+mistake in that code, which the arithmetic could never see. Each checks the
+other, and they agree. The exact value lies inside the counted interval in
+23 of the 25 rows for the blind design and in all 25 for looking twice. A
+95\% interval is built to miss about one row in twenty, so one or two misses
+in 25 rows are what agreement looks like.
+
+\paragraph{What the dots cannot show.}
+The bars are Wilson's 95\% intervals~\pdcite{wilson1927probable}. The usual
+interval, the share plus or minus two standard errors, shrinks to a single
+point when every job comes out the same way, and it is unreliable well
+before that~\pdcite{brown2001interval}. Every job coming out the same way is
+exactly the case of the checked design. Wilson's interval for 1,000 safe
+jobs of 1,000 runs from 0.9962 to 1. That is all the simulation supports:
+fewer than four jobs in a thousand lose an update. A thousand runs cannot
+show that the chance is zero, and a million could not either. The count of
+every order shows it for two workers that think for 8 turns, and part~(1)
+of Theorem~\ref{thm:kernel-gap} shows it for any number of workers. A sample
+can bound a chance. It takes the count or the proof to make the chance zero.
+
+\paragraph{When the rounds are not alike.}
+The theorem does not ask for independent steps, and the right panel is a
+workload that has none. The overlap is still 1 round in 50 on average, and
+it arrives in bursts. In a calm spell 1 round of 500 overlaps, and in a busy
+spell 1 round of 5. A calm spell lasts 50 rounds on average and a busy one
+5, so whether a round overlaps depends on the rounds before it.
+
+The theorem's premise is a floor: after any safe history, the chance of loss
+in the next step is at least $\epsilon$. The floor here is the chance in a
+calm round, and the dotted line is the bound it gives. The blind design
+falls far below it. At round 600 the bound allows a share of 0.30, and the
+exact share is 0.0005. A bound that knows only the calmest rounds is loose
+when busy rounds are common.
+
+The grey line is the steady workload again, with the same average overlap,
+and it lies below the bursty curve. At round 100 the exact shares are 0.13
+when the overlap is steady and 0.29 when it comes in bursts. A job can be
+lost only once, so overlaps crowded into a burst are partly spent on jobs
+that are lost already. Someone who puts the average chance into the
+theorem's product gets the grey line, and the truth is above it. An average
+is not a floor.
+\pdscope{The curves describe one model of a workload. Change the scheduler
+or the thinking time and every number in the figure moves. Two conclusions
+do not move: a chance of loss above zero in every round empties the jobs,
+and a chance of zero keeps them.}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+The cell is one number held in memory. Nothing here survives a crash, so
+part~(3) of Theorem~\ref{thm:kernel-gap} is not built in this section.
+Chapter~1 keeps its state in a database and kills the process to test it.
+The checked design promises that no update is lost. It does not promise
+every worker a turn. A worker can be refused again and again while other
+writes land, and Herlihy's name for a design that rules this out is
+wait-free~\pdcite{herlihy1991waitfree}. The checked cell is not wait-free:
+each refusal means that some write landed, so the workers as a group always
+move forward, and one of them can still starve. A version over one number is
+also easy to define. Real work reads several things and changes one, and
+Exercise~\ref{ex:prereq-build-skew} shows what a version on each thing
+separately lets through.
+\end{pdboundary}

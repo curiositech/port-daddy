@@ -5,7 +5,8 @@ tools/excerpts.mjs, which also checks the files against the kernel's source.
 That check cannot run here: the kernel's repository is private. What this
 repository can hold is its own half: nobody edits an excerpt by hand, the
 Book prints nothing the manifest does not list, and no line is wider than
-the column that sets it.
+the column that sets it. A figure may plot a recorded run as it was
+printed, and that counts as printing it.
 """
 import hashlib
 import json
@@ -22,6 +23,7 @@ TRANSCRIPT_COLUMN = 54  # characters a terminal transcript line holds
 CODE = re.compile(r'\\pdexcerpt(?:\[[^\]]*\])?\{([^}]+)\}', re.S)
 RUN = re.compile(r'\\pdrun(?:lines)?(?:\[[^\]]*\])?\{([^}]+)\}', re.S)
 TRANSCRIPT = re.compile(r'\\pdsessionfile(?:\[[^\]]*\])?\{([^}]+)\}', re.S)
+PLOT = re.compile(r'\{excerpts/([a-z0-9-]+)\.txt\}')
 
 
 def sha256(path):
@@ -36,6 +38,12 @@ def printed(pattern):
     """Every name the chapters pass to a macro matching `pattern`."""
     sources = sorted(BOOK.glob('*.tex')) + sorted((BOOK / 'additions').glob('*.tex'))
     return [name for source in sources for name in pattern.findall(uncommented(source.read_text()))]
+
+
+def plotted():
+    """Every recorded run a figure reads as a table."""
+    figures = sorted((BOOK / 'figures').glob('*.tex'))
+    return [name for figure in figures for name in PLOT.findall(uncommented(figure.read_text()))]
 
 
 class BookExcerpts(unittest.TestCase):
@@ -80,7 +88,8 @@ class BookExcerpts(unittest.TestCase):
 
     def test_the_book_prints_what_the_manifest_lists_and_nothing_else(self):
         self.assertEqual(sorted(printed(CODE)), sorted(self.excerpts))
-        self.assertEqual(sorted(set(printed(RUN)) | set(printed(TRANSCRIPT))), sorted(self.sessions))
+        shown = set(printed(RUN)) | set(printed(TRANSCRIPT)) | set(plotted())
+        self.assertEqual(sorted(shown), sorted(self.sessions))
         self.assertEqual(len(printed(CODE)), len(set(printed(CODE))), 'an excerpt is printed twice')
 
     def test_no_build_section_prints_more_code_than_its_budget(self):
@@ -104,6 +113,24 @@ class BookExcerpts(unittest.TestCase):
             column = TRANSCRIPT_COLUMN if name in transcripts else LISTING_COLUMN
             for line in (EXCERPTS / f'{name}.txt').read_text().splitlines():
                 self.assertLessEqual(len(line), column, f'{name}.txt: {line}')
+
+    def test_a_plotted_run_is_a_table_as_it_was_printed(self):
+        # The figure skips the first line, which is the command, and reads
+        # the rest: remarks that start with '#', one row of column names,
+        # then rows of numbers. Anything else would stop the build or, worse,
+        # be plotted.
+        self.assertTrue(plotted(), 'no figure plots a recorded run')
+        for name in set(plotted()):
+            lines = (EXCERPTS / f'{name}.txt').read_text().splitlines()
+            self.assertTrue(lines[0].startswith('$ harbor '), name)
+            table = [line for line in lines[1:] if not line.startswith('#')]
+            columns = table[0].split()
+            self.assertEqual(columns[0], 'rounds', name)
+            for row in table[1:]:
+                cells = row.split()
+                self.assertEqual(len(cells), len(columns), f'{name}: {row}')
+                for cell in cells:
+                    float(cell)
 
 
 if __name__ == '__main__':

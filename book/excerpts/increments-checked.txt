@@ -1,0 +1,15 @@
+$ harbor scenario two-increments --design checked
+scenario two-increments, design checked: two workers each add one
+  to a shared number, taking turns
+
+step 1   heron  read -> 0, version 0
+step 2   wren   read -> 0, version 0
+step 3   heron  put 1 (read at version 0) -> ok, now version 1
+step 4   wren   put 1 (read at version 0)
+                -> refused: stale-read (read at version 0; the
+                   number is now at version 1)
+step 5   wren   read -> 1, version 1
+step 6   wren   put 2 (read at version 1) -> ok, now version 2
+
+verdict: no lost update: two workers added one each, and the
+         number is 2
