@@ -245,6 +245,7 @@ results:
     book_home: ["IV", "VI"]
     evidence:
       - {kind: internal, locator: "skills/harbor-results/scripts/b8_specialization.py", seed: 20260816}
+      - {kind: internal, locator: "skills/harbor-results/scripts/b8_heavy_tails.py", seed: 20261111}
     wrong_turn: "The earlier specialization threshold was falsified in both directions and replaced by the Erlang-C boundary."
 
   - id: R16

@@ -989,6 +989,7 @@
         "skills/harbor-results/scripts/b6_probation.py",
         "skills/harbor-results/scripts/b7_escalation_band.py",
         "skills/harbor-results/scripts/b8_specialization.py",
+        "skills/harbor-results/scripts/b8_heavy_tails.py",
         "skills/harbor-results/scripts/b9_context_paging.py",
         "skills/harbor-results/scripts/c0_workunit.py",
         "skills/harbor-results/scripts/c1_noninterference.py",

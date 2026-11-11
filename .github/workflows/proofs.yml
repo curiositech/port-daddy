@@ -493,6 +493,16 @@ jobs:
             echo "::endgroup::"
           done
 
+      # The heavy-tail sweep takes about 17 minutes, so CI does not re-run it.
+      # --check recomputes every derived number from the stored delays and
+      # compares the Book's figure, table and quoted numbers with them;
+      # --smoke runs the simulator live against two exact answers.
+      - name: Heavy-tail sweep, stored results and a live smoke run
+        run: |
+          set -euo pipefail
+          python3 -B skills/harbor-results/scripts/b8_heavy_tails.py --check
+          python3 -B skills/harbor-results/scripts/b8_heavy_tails.py --smoke
+
       - name: Check categorical claims and retained-evidence certificates
         run: |
           set -euo pipefail

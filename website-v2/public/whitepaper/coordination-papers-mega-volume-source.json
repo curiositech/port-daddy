@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40411988,
+    "bytes": 40413838,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/3c28b82f3a7ad44a64253df4a67dc672b3a194e67941fe848ccbc8d5a175a8f3.tar.gz",
-    "sha256": "3c28b82f3a7ad44a64253df4a67dc672b3a194e67941fe848ccbc8d5a175a8f3",
-    "url": "https://media.portdaddy.dev/book/source/sha256/3c28b82f3a7ad44a64253df4a67dc672b3a194e67941fe848ccbc8d5a175a8f3.tar.gz"
+    "key": "book/source/sha256/36ced8b2f053fc979e5e002dbe4cc788b85ddd8b3be63ed33930a97276e9d818.tar.gz",
+    "sha256": "36ced8b2f053fc979e5e002dbe4cc788b85ddd8b3be63ed33930a97276e9d818",
+    "url": "https://media.portdaddy.dev/book/source/sha256/36ced8b2f053fc979e5e002dbe4cc788b85ddd8b3be63ed33930a97276e9d818.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,10 +16,10 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "062fe5a371415dd31b1b8d2b4ad6d9407142764a23a94d1bafd72f78de0e8b16",
+  "manifestSha256": "4adc8895ab4038517ba4cb776867ed96b798de18392e07f7177ba1d3d71bb074",
   "schemaVersion": 1,
   "source": {
-    "fileCount": 560,
+    "fileCount": 562,
     "files": [
       {
         "bytes": 1202,
@@ -310,10 +310,10 @@
         "sha256": "37ea3c1ca2519e5e3412f5df6f5d5201a4b4e52938653a56f33424aa3a596fa4"
       },
       {
-        "bytes": 54727,
+        "bytes": 54786,
         "mode": 420,
         "path": "book/corpus.json",
-        "sha256": "3097bdde1d1ddb57a31e8b3b12a4fc8578d1363b6dd872cc6b1c3a31b140369f"
+        "sha256": "c2d6d34c1134d2781bd344e0690332fd49d936da1df46947e0c32c6313a6f48c"
       },
       {
         "bytes": 5235,
@@ -322,10 +322,10 @@
         "sha256": "7360e70e81810b7e9f764a4381fb22a94bd006d0707aa1fa2a862f2cde893f84"
       },
       {
-        "bytes": 107098,
+        "bytes": 107935,
         "mode": 420,
         "path": "book/corrections.yaml",
-        "sha256": "003a953aab41601348736a0c3ee927232f58e88497a3efaa796d3aaaab9ef83e"
+        "sha256": "37d6e908333310bf43535c28fc4974cc240ac3a09b32a52a50cb82026a1d44fa"
       },
       {
         "bytes": 176223,
@@ -1444,6 +1444,18 @@
         "sha256": "1967daa1c01619e72e5eebfddbfe6a1d24744621eb57b7c81840701a681b98ea"
       },
       {
+        "bytes": 1111,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-heavy-tails-crossing.tex",
+        "sha256": "988a33290ba2b442e8fd41cde580b6bd75686c6771e7936978758b01cdc887c0"
+      },
+      {
+        "bytes": 3594,
+        "mode": 420,
+        "path": "book/figures/legible-swarm-heavy-tails.tex",
+        "sha256": "866cd016117a698ffb3d84ac775886d419347ea227a2443a6b2358566bbc8212"
+      },
+      {
         "bytes": 2844,
         "mode": 420,
         "path": "book/figures/legible-swarm-inception-canary.tex",
@@ -1696,10 +1708,10 @@
         "sha256": "32676d02892e3082939985c162ec30e02118b1f38618685fd5f1f477cd211a86"
       },
       {
-        "bytes": 34166,
+        "bytes": 34316,
         "mode": 420,
         "path": "book/figures/pd-cite-shortforms.tex",
-        "sha256": "9fdd5992ada7dabbe09538679ecf0d9f6a768a2e1fc69dd964883611316fe142"
+        "sha256": "a266fdbcf35f93b5feb77bb31ae0cd5d2939e8f9171f541bcb37edfe5155ade5"
       },
       {
         "bytes": 906,
@@ -2164,10 +2176,10 @@
         "sha256": "6c3884e46fe7685494a10279e1ad17bfc0e463d091e53107ef09a32155a5948e"
       },
       {
-        "bytes": 309334,
+        "bytes": 313830,
         "mode": 420,
         "path": "book/legible-swarm.tex",
-        "sha256": "e59449b868bd09cd661c886acb945f34b7489fa3004e71acfb96cafa58d38d92"
+        "sha256": "f9b3bfacc146b94ebf8b367f7c805874304b2392dd8b6c67dab17b12f3775567"
       },
       {
         "bytes": 1076,
@@ -3382,6 +3394,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "48290db2172fbcfce30ce7f2546c76cbd0c9326aec9b5b3035289ae56f5d2a48"
+    "sha256": "f6d000f56dcd5b84928613b6bffdc8956cc669746ed31fb95c34d61b324dc3e4"
   }
 }
