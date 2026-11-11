@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "536f03deafec0aef98bb01aa5c248fa11a989db1",
+  "commit": "01b8b9864ae90613b57c0476520de2aa3eca91a7",
   "scan": "harbord",
   "excerpts": [
     {
@@ -204,8 +204,8 @@
     {
       "name": "ch02b-gate",
       "path": "harbord/src/cards/gate.ts",
-      "firstLine": 137,
-      "lastLine": 162,
+      "firstLine": 138,
+      "lastLine": 163,
       "lines": 26,
       "language": "TypeScript",
       "sha256": "336ae27928cc3438777ae5d70354f529ab10a5afa94a730aabc9735ad8b38df6"
@@ -308,6 +308,42 @@
       "lines": 22,
       "language": "Rust",
       "sha256": "f5fa0b9f8e84d0c39ea7de640cf9e3275dbef081b3cf34499db482dbe293ee41"
+    },
+    {
+      "name": "ch02d-hearsay",
+      "path": "harbord/src/naive/told.ts",
+      "firstLine": 34,
+      "lastLine": 49,
+      "lines": 16,
+      "language": "TypeScript",
+      "sha256": "670c00cd6096a292c09997bea4e6180ee66050ab6a19e86e4eede9319f186107"
+    },
+    {
+      "name": "ch02d-quiet",
+      "path": "harbord/src/cards/spread.ts",
+      "firstLine": 50,
+      "lastLine": 73,
+      "lines": 24,
+      "language": "TypeScript",
+      "sha256": "2aaaae0dfad347af7eecc36781035aed6c97b48d3165bb52f97a4524db346f51"
+    },
+    {
+      "name": "ch02d-round",
+      "path": "harbord/src/cards/gossip.ts",
+      "firstLine": 18,
+      "lastLine": 34,
+      "lines": 17,
+      "language": "TypeScript",
+      "sha256": "5d45ee30057e2e916e5b2cfe9469162ba344e4a2fd48c663aea5a1d621770502"
+    },
+    {
+      "name": "ch02d-tell",
+      "path": "harbord/src/cards/telling.ts",
+      "firstLine": 43,
+      "lastLine": 66,
+      "lines": 24,
+      "language": "TypeScript",
+      "sha256": "a8061a28d800bc398321c62f6ca7f8ca5e8ad025a156d3d2dfe749e5f387cd68"
     }
   ],
   "sessions": [
@@ -366,6 +402,12 @@
       "sha256": "f2b619c4f9ec7c743853f15dfae452d27e55b1450e7da0d8fff1922290b6d588"
     },
     {
+      "name": "fits",
+      "path": "harbord/sessions/fits.txt",
+      "lines": 28,
+      "sha256": "3da7b5c7507d2718df2bb63be8427640b9334a91b17a9bb9dc007325be2bf8f0"
+    },
+    {
       "name": "forgotten-aged",
       "path": "harbord/sessions/forgotten-aged.txt",
       "lines": 21,
@@ -376,6 +418,30 @@
       "path": "harbord/sessions/forgotten-core.txt",
       "lines": 21,
       "sha256": "eed17ce766b02f916e7272b15ad15172b4a4eaf64f2d90866668660de4cf3a93"
+    },
+    {
+      "name": "gossip-cut",
+      "path": "harbord/sessions/gossip-cut.txt",
+      "lines": 16,
+      "sha256": "c6239fdde54fda7c9163ca7d7400965500795ca6b742fadeb5bac9ca72a18582"
+    },
+    {
+      "name": "gossip-each",
+      "path": "harbord/sessions/gossip-each.txt",
+      "lines": 21,
+      "sha256": "03f42b3927aabdd3262aecd579b102e60ac60f85af2d257c38b5e8756cfa24c1"
+    },
+    {
+      "name": "gossip-loss",
+      "path": "harbord/sessions/gossip-loss.txt",
+      "lines": 22,
+      "sha256": "655d3ba74dc01fe17629363354143694038a086f8fb1cce1a2864e939335acfd"
+    },
+    {
+      "name": "gossip",
+      "path": "harbord/sessions/gossip.txt",
+      "lines": 22,
+      "sha256": "083b3b9e6a66e79e49853837eb312fe14b50ea19b540a1c064b419bb63826777"
     },
     {
       "name": "handing-on-naive",
@@ -564,6 +630,24 @@
       "sha256": "be5b4664d0b6b364237a26ba8eac48553c8ee1259b1f0074e00414d80ae048ec"
     },
     {
+      "name": "rumour-core",
+      "path": "harbord/sessions/rumour-core.txt",
+      "lines": 30,
+      "sha256": "6b1dcd3d1be7886d086b8c1f61810b5b037e3fb974c86a1cfe37e604d7c424c7"
+    },
+    {
+      "name": "rumour-hearsay",
+      "path": "harbord/sessions/rumour-hearsay.txt",
+      "lines": 31,
+      "sha256": "42c4939636d1fb043f5d503a0ba338289a7cc168023c082922d36177185681db"
+    },
+    {
+      "name": "rumour-unsigned",
+      "path": "harbord/sessions/rumour-unsigned.txt",
+      "lines": 30,
+      "sha256": "946d6fe51e0ee93cc96025ba1502ab856b488492b4c26684f4e070cbc1e76272"
+    },
+    {
       "name": "showings-core",
       "path": "harbord/sessions/showings-core.txt",
       "lines": 11,
@@ -580,6 +664,12 @@
       "path": "harbord/sessions/showings-lookup.txt",
       "lines": 15,
       "sha256": "c6656d7463cb6bc8082a08cf501c8fb102c55ae6288b1ac9c17222c981d29faa"
+    },
+    {
+      "name": "spread",
+      "path": "harbord/sessions/spread.txt",
+      "lines": 26,
+      "sha256": "955e87c2f7d27555391f84d012527166e06c006c47603532840104c3a4182cf3"
     },
     {
       "name": "survival-blind",
@@ -618,6 +708,18 @@
       "sha256": "9e215665f3570f14b22d85880e1c494e87668b4c776f72f327cd9608cbb149af"
     },
     {
+      "name": "unheard-core",
+      "path": "harbord/sessions/unheard-core.txt",
+      "lines": 29,
+      "sha256": "44f7b27c4114921dc4188e4080f9b55ef9899bf6605e1e1cc808e974ae1c220c"
+    },
+    {
+      "name": "unheard-silent",
+      "path": "harbord/sessions/unheard-silent.txt",
+      "lines": 30,
+      "sha256": "c28637e0c0d6f1bdd3f7d205baba9c530e54e98edd028647d86af6c0584fd258"
+    },
+    {
       "name": "withdrawn-core",
       "path": "harbord/sessions/withdrawn-core.txt",
       "lines": 28,
@@ -636,6 +738,7 @@
     "ch01b": 147,
     "ch02": 147,
     "ch02b": 122,
-    "ch02c": 118
+    "ch02c": 118,
+    "ch02d": 81
   }
 }

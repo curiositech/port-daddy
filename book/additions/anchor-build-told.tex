@@ -1,0 +1,305 @@
+% Build the layer, Chapter 2, fourth build: a card taken back at every gate.
+% Inserted after the third build (\S\ref{sec:anchor-build-taken-back}),
+% whose gate it builds on. The design it builds part of is
+% \S\ref{sec:revocation}'s: "Spreading revocations by gossip".
+%
+% No code or output in this file is typed. \pdexcerpt, \pdrun and
+% \pdrunlines set files under excerpts/, which the kernel's
+% tools/excerpts.mjs cuts from its source and its recorded runs (see
+% figures/pd-listing.tex). To change a listing, change the kernel and cut
+% again. The prose names functions, never line numbers, so that a listing
+% which moves in its file does not make a sentence wrong.
+%
+% \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
+% listing changes length, change the number with it.
+\subsection{Build the layer: a card taken back at every gate}
+\label{sec:anchor-build-told}
+
+\noindent\emph{Express lane: a gate that has not heard of a card being
+taken back still honours it. Gates that tell each other must not write
+down what they are told. The gate that holds sends the chain the card was
+taken back on, and each gate checks it for itself. Among five gates the
+news takes $2.37$ rounds on average to reach them all, and until it
+reaches a gate the card is good there.}
+
+\S\ref{sec:anchor-build-taken-back} built one gate, and said so. A harbor
+has several, and \S\ref{sec:revocation} says how they should learn of a
+card taken back: each compares records with another, picked at random,
+round after round. That section gives the time this takes as about
+$\log D$ rounds for $D$ gates and marks the figure as unproved. This
+section builds the telling in \pdkernelname{}, and then counts the rounds.
+
+\subsubsection{Break: a gate that was not told}
+
+Two gates trust one harbor. Call the one a card is taken back at the near
+gate, and the other the far gate. Each is the gate of
+Listing~\ref{alg:anchor-taken-gate}. Heron's key has leaked to Wren, as
+before, and Alice takes his card back at the near gate.
+
+\pdlistingroom{21}
+\pdrunlines[caption={A card taken back at one gate is honoured at the
+other.},label={alg:anchor-told-break}]{unheard-silent}{1,11-30}{1 and 11\textendash 30}
+
+The near gate refuses the card and the far gate honours it. A minute later
+the gates compare records, and nothing changes, because these gates have
+no way to say what their records hold. Wren only has to walk to the other
+gate.
+
+\subsubsection{A first repair: send the record}
+
+A gate's record is a list of entries, and
+\S\ref{sec:anchor-build-taken-back} said what an entry is: a card's id,
+and the moment the card ends. So let each gate send its entries, and
+write down the ones it is sent.
+
+\pdlistingroom{16}
+\pdexcerpt[caption={The first try. What a gate hears, it writes
+down.},label={alg:anchor-told-hearsay}]{ch02d-hearsay}
+
+\texttt{news} is what a gate sends, and \texttt{hear} is what it does
+with another gate's news. Run the break again with these gates and it is
+mended: once the two have compared records, the far gate refuses Heron's
+card as the near gate does.
+
+\subsubsection{Break again: a stranger's word}
+
+\texttt{hear} takes whatever arrives. Nothing in an entry shows that a
+gate sent it, or that anyone ever held the card it names. Wren can send
+entries too. She knows the id of Heron's card, because she has the card.
+She knows the id of Finch's as well, without ever seeing it: the harbor
+numbers its own cards, and his is \texttt{card-2}.
+
+\pdlistingroom{20}
+\pdrunlines[caption={A gate that writes down what it is sent, and a
+stranger who sends it two entries.},label={alg:anchor-told-rumour}]{rumour-hearsay}{1,13-31}{1 and 13\textendash 31}
+
+Each of the two entries does its own harm. The entry for Finch's card has
+him refused, on a card nobody took back. The entry for Heron's card says
+that the card ends at $t=180000$, which is now. When the true entry comes
+from the near gate, the far gate has one for that id and keeps the one it
+has. A millisecond later the rule of
+Listing~\ref{alg:anchor-taken-spent} lets that entry go, since the card
+it describes has ended, and Heron's card is good again at the far gate
+with seven minutes left. This is the forgetful record of
+\S\ref{sec:anchor-build-taken-back}, made to forget by a stranger.
+
+One line of Listing~\ref{alg:anchor-told-rumour} is easy to pass over:
+when the gates compare records, the near gate hears of one card. That is
+Finch's. The far gate has passed the false entry on as its own.
+
+The listing also shows something Wren tried that did not work, and it is
+the way to the fix. She sent Heron's real cards as news, with the end of
+his card changed. This gate ignored them, because it expects entries.
+
+\subsubsection{Fix: send the chain}
+
+An entry is a claim about a card. The chain is the card itself, with the
+cards above it. So the news becomes the chain a card was taken back on,
+and a gate that hears a chain treats it as it would a chain shown at its
+own window.
+
+\pdlistingroom{24}
+\pdexcerpt[caption={The gate that tells. The news is the chain, and each
+gate checks it.},label={alg:anchor-told-tell}]{ch02d-tell}
+
+\texttt{withdraw} is the third build's, and it also keeps the chain.
+\texttt{hear} hands each chain it has not seen to \texttt{withdraw}. That
+is all of it. The core's check of a chain taken back
+(\S\ref{sec:anchor-build-taken-back}) now runs at every gate that hears,
+and each gate writes its own entry, with the end that the core read from
+the card. No gate takes another gate's word, so no gate needs to know who
+is speaking.
+
+Two earlier results make this safe to do. Since
+\S\ref{sec:anchor-build-holder} a card is no secret: without its holder's
+key it opens nothing, so sending cards from gate to gate gives nobody a
+way in. And a card's signature covers what the card says. Wren's changed
+card has the real card's id, because the id is the hash of the signature
+and she left the signature alone. The signature no longer matches the
+words, and the core refuses the chain.
+
+% A page may break here. See the note in anchor-build-the-verifier.tex.
+\pagebreak[0]
+\keyidea[Send the evidence, not the verdict]{A gate that is told ``this
+card was taken back'' has to decide whom to believe. A gate that is shown
+the chain has nothing to decide. It runs the check it would have run
+anyway.}
+
+\subsubsection{Verify: the same runs}
+
+The gate that was not told, first
+(Listing~\ref{alg:anchor-told-heard}).
+
+\pdlistingroom{15}
+\pdrunlines[caption={Two gates that tell. The far gate refuses the card
+once it has heard.},label={alg:anchor-told-heard}]{unheard-core}{1,16-29}{1 and 16\textendash 29}
+
+Read the first three lines after the command with care. Before the gates
+compare records, the far gate lets Wren through, under this design as
+under every other. A gate cannot refuse for a reason that has not reached
+it. The verdict says so, and the rest of this section measures how long
+that lasts.
+
+Then the stranger (Listing~\ref{alg:anchor-told-refused}).
+
+\pdlistingroom{17}
+\pdrunlines[caption={The stranger's news, against the fix. Nothing she
+sends is written down.},label={alg:anchor-told-refused}]{rumour-core}{1,15-30}{1 and 15\textendash 30}
+
+Her entries are not chains, and her changed chain does not pass the
+check. Finch is let through. The far gate hears the true chain from the
+near gate, and its entry stays for the life of the card.
+
+This build added no check of its own, so it has no guard of its own to
+remove. The guard it relies on is the signature check of
+\S\ref{sec:anchor-build}. Build the core without that
+(Listing~\ref{alg:anchor-told-mutant}).
+
+\pdlistingroom{14}
+\pdrunlines[caption={The fix with the signature check removed. The
+changed chain is written down, and the card comes
+back.},label={alg:anchor-told-mutant}]{rumour-unsigned}{1,18-30}{1 and 18\textendash 30}
+
+\subsubsection{How long the news takes}
+
+What is left is the line in Listing~\ref{alg:anchor-told-heard} where the
+far gate lets Wren through. How long does a gate go on not knowing?
+\S\ref{sec:revocation} describes the rounds, and here they are as code.
+
+\pdlistingroom{17}
+\pdexcerpt[caption={One round. Every gate picks another, and the two
+compare records.},label={alg:anchor-told-round}]{ch02d-round}
+
+The records are read once, before anyone hears anything. So news goes one
+gate further in a round and no further: a gate cannot pass on in round
+three what it heard in round three.
+
+Three gates can be done by hand. One has heard. In the first round it
+picks one of the other two and tells it. The remaining gate also hears in
+that round if the gate it picks is the one that began with the news, and
+it picks that gate half the time. If it does not, it picks a gate that has
+heard in the next round, whichever it picks. So the news takes one round
+or two, each half the time, and $\tfrac32$ rounds on average.
+Exercise~\ref{ex:anchor-told-three} asks for the wait of a single gate.
+
+For more gates the same reasoning needs one chance, and the kernel works
+it out exactly, in fractions.
+
+\pdlistingroom{24}
+\pdexcerpt[caption={The chance that a named set of gates all end a round
+still not having heard.},label={alg:anchor-told-quiet}]{ch02d-quiet}
+
+Only the number of gates that have heard matters, because the gates are
+alike, and that number never falls. From \texttt{quiet} the kernel gets
+the chance of every step up, and from those the expected number of rounds
+(Listing~\ref{alg:anchor-told-spread}). For three to six gates it also
+tries every choice of peers the gates could make, and the two agree.
+
+\pdlistingroom{18}
+\pdrunlines[caption={The expected rounds, worked out
+exactly.},label={alg:anchor-told-spread}]{spread}{1,10-26}{1 and 10\textendash 26}
+
+The column \texttt{all} is the wait until every gate has heard, and
+\texttt{one} is the wait of a gate named beforehand, which is how long a
+card taken back stays good at that gate. With five gates they are $2.37$
+and $1.68$ rounds. From 4 gates to 64, each doubling adds about one round,
+and a little less each time. That is the $\log D$ of
+\S\ref{sec:revocation}, with its constants. The last remark in the
+listing sets the exact figures beside the growth that is proved for large
+networks, $\log_3 D + \log_2 \ln D$ up to a constant~\pdcite{doerr2017rumor}:
+from 8 gates to 64 the two differ by a steady sixth of a round.
+
+A model can be wrong about the code it describes. So the kernel also runs
+its gates, the ones of Listing~\ref{alg:anchor-told-tell}, in the rounds
+of Listing~\ref{alg:anchor-told-round}, 400 times for each of six sizes,
+and counts the rounds. Every run starts from a seed, so the counts are the
+same each time they are made.
+
+The average of 400 runs is not the true figure: another 400 runs would
+give another average. Runs are independent, so their mean scatters around
+the true figure by about one standard error, which is the spread of the
+runs divided by the square root of their number, and it lies within
+$1.96$ of those 19 times in 20. Listing~\ref{alg:anchor-told-gossip}
+gives that range for each size as \texttt{low} and \texttt{high}. If the
+model describes the gates, its figure, \texttt{exact}, should fall inside
+the range in most rows.
+
+\pdlistingroom{12}
+\pdrunlines[caption={400 runs of the gates at each of six sizes, beside
+the model.},label={alg:anchor-told-gossip}]{gossip}{1,12-22}{1 and 12\textendash 22}
+
+It does in all six. Figure~\ref{fig:anchor-gossip-rounds} draws them,
+with the same runs made again while one exchange in four is lost. Loss
+slows the news and does not stop it.
+
+\input{figures/fig-anchor-gossip-rounds}
+
+A cut does stop it. Divide the gates into two halves that cannot reach
+each other for five rounds (Listing~\ref{alg:anchor-told-cut}).
+
+\pdlistingroom{4}
+\pdrunlines[caption={The gates cut in two for five
+rounds.},label={alg:anchor-told-cut}]{gossip-cut}{1,14-16}{1 and 14\textendash 16}
+
+\texttt{least} is the fewest rounds any of 400 runs took, and it is 6:
+no run finished while the cut stood. \S\ref{sec:revocation} calls its
+figure an average and not a deadline, and this is the reason.
+
+A mean can agree while the shape behind it is wrong. So take five gates,
+make 4{,}000 runs, and count how many took each number of rounds
+(Listing~\ref{alg:anchor-told-each}).
+
+\pdlistingroom{12}
+\pdrunlines[caption={The rounds five gates took in 4{,}000 runs, against
+the runs the model expects.},label={alg:anchor-told-each}]{gossip-each}{1,11-21}{1 and 11\textendash 21}
+
+The model says one run in 64 ends in the first round. The gate that has
+heard tells one other, and the remaining three must each pick it, with a
+chance of a quarter each. $4000/64$ is the $62.50$ under \texttt{due}. The runs gave 45. Chi-square adds up, over the rows, how
+far \texttt{seen} is from \texttt{due}, squared and divided by
+\texttt{due}, and the sum is $10.65$. A sum that size is not likely: when
+runs do follow the model, chance alone gives one that large or larger
+about once in 72 tries.
+
+That number deserves a plain reading. It was not chosen. The seed is the
+one every count in this book uses. The mark for a fit worth looking into,
+once in 100 tries, was set before any run. The size was fixed at 4{,}000
+after a first look at half as many, which had also come out unusual, and
+the larger run was made once. Once in 72 is not past the mark, and it is
+close. A figure like this is a reason to measure again where nothing is
+shared with the first measurement, and it is no reason to change the
+seed. So the kernel
+makes the same fit for seeds 1 to 200. The right of
+Figure~\ref{fig:anchor-gossip-rounds} shows where their chances fall. If
+the model were wrong they would crowd toward zero. They are level, and 3
+of the 200 are smaller than this book's, where chance alone puts $2.8$.
+The fit of Listing~\ref{alg:anchor-told-each} is what one draw in 72
+looks like.
+\pdscope{The exact figures assume that every gate can reach every other
+and picks uniformly among them, in rounds that begin together. The runs
+cover 3 to 32 gates in one process on one clock. Nothing here is a
+machine-checked proof, and nothing bounds the time under a cut.}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+A gate that has not heard yet honours the card. Telling shortens that
+time, to $1.68$ rounds on average for one gate among five, and no design
+of this kind ends it. A card whose misuse cannot wait that long needs a
+short life, which is \S\ref{sec:anchor-build}'s tool and not this one's.
+
+Sending chains has a price that \S\ref{sec:anchor-build-taken-back}
+warned of. The gate still does not ask who is taking a card back, and now
+every gate that hears a chain holds the cards above the one taken back,
+as does anyone who can read the wire. Each of those cards is a chain of
+its own, and whoever holds it can have it taken back at every gate
+(Exercise~\ref{ex:anchor-told-above}). Nobody gains a right this way, and
+a holder can be locked out until a new card is signed. Deciding who may
+take a card back is the next thing this kernel needs.
+
+A chain also says more than an id does: who holds which rights under
+whom. \S\ref{sec:revocation} suggests sending salted hashes of ids when
+that matters, and a hash cannot be checked the way a chain can. The
+rounds here begin together on one clock, and every gate can reach every
+other. Real gates differ in both ways, and the figures above are for the
+simplest case.
+\end{pdboundary}
