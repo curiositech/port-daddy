@@ -1,0 +1,85 @@
+{
+  "note": "How often the sealed rule returns each verdict for five reviewers on 12 flaws, by simulation. Each panel uses 1,000 bootstrap resamples where the real scoring uses 10,000. Shares carry sampling error of about 0.02 to 0.03. `verdict_shares_by_exact_interval` is what the secondary interval would return; it does not decide the verdict.",
+  "scenarios": [
+    {
+      "k_effective_of_the_population": 5.0,
+      "panels": 400,
+      "scenario": "independent_0.6",
+      "share_with_no_flaw_missed_by_all": 0.84,
+      "verdict_shares": {
+        "fail": 0.0,
+        "incomplete": 0.0,
+        "pass": 1.0
+      },
+      "verdict_shares_by_exact_interval": {
+        "fail": 0.005,
+        "incomplete": 0.0,
+        "pass": 0.995
+      }
+    },
+    {
+      "k_effective_of_the_population": 3.08,
+      "panels": 400,
+      "scenario": "tiers_0.9_0.6_0.3",
+      "share_with_no_flaw_missed_by_all": 0.44,
+      "verdict_shares": {
+        "fail": 0.005,
+        "incomplete": 0.0,
+        "pass": 0.995
+      },
+      "verdict_shares_by_exact_interval": {
+        "fail": 0.12,
+        "incomplete": 0.0,
+        "pass": 0.88
+      }
+    },
+    {
+      "k_effective_of_the_population": 1.95,
+      "panels": 400,
+      "scenario": "shared_rate_beta_mean_0.6_theta_0.5",
+      "share_with_no_flaw_missed_by_all": 0.098,
+      "verdict_shares": {
+        "fail": 0.163,
+        "incomplete": 0.0,
+        "pass": 0.838
+      },
+      "verdict_shares_by_exact_interval": {
+        "fail": 0.6,
+        "incomplete": 0.0,
+        "pass": 0.4
+      }
+    },
+    {
+      "k_effective_of_the_population": 1.2,
+      "panels": 400,
+      "scenario": "four_flaws_nobody_sees",
+      "share_with_no_flaw_missed_by_all": 0.0,
+      "verdict_shares": {
+        "fail": 1.0,
+        "incomplete": 0.0,
+        "pass": 0.0
+      },
+      "verdict_shares_by_exact_interval": {
+        "fail": 1.0,
+        "incomplete": 0.0,
+        "pass": 0.0
+      }
+    },
+    {
+      "k_effective_of_the_population": 1.0,
+      "panels": 400,
+      "scenario": "five_copies_of_one_reviewer",
+      "share_with_no_flaw_missed_by_all": 0.0,
+      "verdict_shares": {
+        "fail": 0.757,
+        "incomplete": 0.013,
+        "pass": 0.23
+      },
+      "verdict_shares_by_exact_interval": {
+        "fail": 0.988,
+        "incomplete": 0.013,
+        "pass": 0.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "orders": {
+    "t5-01": [
+      "format-grouping",
+      "open-claims",
+      "set-rate",
+      "journal-time",
+      "expire-order",
+      "drop-duplicate-test",
+      "draw-salt",
+      "parse-commas",
+      "journal-tail",
+      "drop-dead-guard",
+      "bounty-setting",
+      "late-fee",
+      "journal-split",
+      "claim-renew",
+      "transfer",
+      "audit-reopen"
+    ],
+    "t5-02": [
+      "journal-tail",
+      "drop-dead-guard",
+      "journal-split",
+      "parse-commas",
+      "expire-order",
+      "bounty-setting",
+      "audit-reopen",
+      "journal-time",
+      "format-grouping",
+      "drop-duplicate-test",
+      "transfer",
+      "draw-salt",
+      "claim-renew",
+      "open-claims",
+      "late-fee",
+      "set-rate"
+    ],
+    "t5-03": [
+      "drop-dead-guard",
+      "set-rate",
+      "parse-commas",
+      "journal-tail",
+      "claim-renew",
+      "transfer",
+      "bounty-setting",
+      "expire-order",
+      "late-fee",
+      "format-grouping",
+      "audit-reopen",
+      "journal-time",
+      "draw-salt",
+      "journal-split",
+      "drop-duplicate-test",
+      "open-claims"
+    ],
+    "t5-04": [
+      "parse-commas",
+      "audit-reopen",
+      "open-claims",
+      "set-rate",
+      "format-grouping",
+      "journal-time",
+      "drop-dead-guard",
+      "late-fee",
+      "transfer",
+      "draw-salt",
+      "claim-renew",
+      "journal-split",
+      "drop-duplicate-test",
+      "bounty-setting",
+      "journal-tail",
+      "expire-order"
+    ],
+    "t5-05": [
+      "transfer",
+      "late-fee",
+      "format-grouping",
+      "bounty-setting",
+      "drop-duplicate-test",
+      "journal-split",
+      "journal-time",
+      "drop-dead-guard",
+      "parse-commas",
+      "journal-tail",
+      "expire-order",
+      "open-claims",
+      "draw-salt",
+      "audit-reopen",
+      "set-rate",
+      "claim-renew"
+    ]
+  },
+  "seed": "players-20261111/t5/v1",
+  "sessions": [
+    {
+      "session_id": "t5-01",
+      "test": "T5",
+      "what": "one independent reviewer reviews all 16 change requests, shown in this session's own seeded order"
+    },
+    {
+      "session_id": "t5-02",
+      "test": "T5",
+      "what": "one independent reviewer reviews all 16 change requests, shown in this session's own seeded order"
+    },
+    {
+      "session_id": "t5-03",
+      "test": "T5",
+      "what": "one independent reviewer reviews all 16 change requests, shown in this session's own seeded order"
+    },
+    {
+      "session_id": "t5-04",
+      "test": "T5",
+      "what": "one independent reviewer reviews all 16 change requests, shown in this session's own seeded order"
+    },
+    {
+      "session_id": "t5-05",
+      "test": "T5",
+      "what": "one independent reviewer reviews all 16 change requests, shown in this session's own seeded order"
+    }
+  ]
+}

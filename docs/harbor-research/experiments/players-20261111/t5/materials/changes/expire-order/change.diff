@@ -1,0 +1,41 @@
+--- a/harborledger/claims.py
++++ b/harborledger/claims.py
+@@ -88,12 +88,13 @@
+         self._journal.append("claim.done", {"claim": claim_id, "at": now})
+ 
+     def expire(self, now):
+-        """Expire every open claim whose deadline has come (R6). Returns their ids."""
++        """Expire every open claim whose deadline has come (R6). Returns their ids, earliest deadline first."""
+         expired = []
+-        for claim in self._claims.values():
+-            if claim.state == OPEN and now >= claim.deadline():
+-                self._bonds.get(claim.agent).release(claim.stake)
+-                claim.state = EXPIRED
+-                self._journal.append("claim.expire", {"claim": claim.claim_id, "at": now})
+-                expired.append(claim.claim_id)
++        for claim in sorted(self._claims.values(), key=Claim.deadline):
++            if now < claim.deadline():
++                break
++            self._bonds.get(claim.agent).release(claim.stake)
++            claim.state = EXPIRED
++            self._journal.append("claim.expire", {"claim": claim.claim_id, "at": now})
++            expired.append(claim.claim_id)
+         return expired
+--- a/tests/test_claims.py
++++ b/tests/test_claims.py
+@@ -83,6 +83,15 @@
+         self.assertEqual(sorted(claims.expire(now=6)), [2, 3])
+         self.assertEqual(claims.holder("task-1").claim_id, 1)
+ 
++    def test_expire_goes_in_deadline_order(self):
++        _, journal, claims = make_book()
++        claims.open("heron", "task-1", 100, now=0, ttl=9)
++        claims.open("finch", "task-2", 100, now=0, ttl=3)
++        claims.open("heron", "task-3", 100, now=0, ttl=5)
++        self.assertEqual(claims.expire(now=6), [2, 3])
++        self.assertEqual([e["payload"]["claim"] for e in journal.entries("claim.expire")], [2, 3])
++        self.assertEqual(claims.holder("task-1").claim_id, 1)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

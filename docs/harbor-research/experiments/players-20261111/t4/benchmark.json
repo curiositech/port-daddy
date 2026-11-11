@@ -1,0 +1,64 @@
+{
+  "auc_bar": 0.6,
+  "note": "How often the sealed rule returns each verdict. `random` is the uniform random control: six sessions of independent whole numbers from 0 to 100. `power` draws entry means from two normal curves with a known true area. Shares carry sampling error of about 0.03 to 0.05.",
+  "power": [
+    {
+      "panels": 300,
+      "true_auc": 0.5,
+      "verdict_shares": {
+        "fail": 0.0,
+        "incomplete": 0.87,
+        "pass": 0.13
+      }
+    },
+    {
+      "panels": 300,
+      "true_auc": 0.6,
+      "verdict_shares": {
+        "fail": 0.04,
+        "incomplete": 0.933,
+        "pass": 0.027
+      }
+    },
+    {
+      "panels": 300,
+      "true_auc": 0.7,
+      "verdict_shares": {
+        "fail": 0.24,
+        "incomplete": 0.76,
+        "pass": 0.0
+      }
+    },
+    {
+      "panels": 300,
+      "true_auc": 0.8,
+      "verdict_shares": {
+        "fail": 0.737,
+        "incomplete": 0.263,
+        "pass": 0.0
+      }
+    },
+    {
+      "panels": 300,
+      "true_auc": 0.9,
+      "verdict_shares": {
+        "fail": 0.987,
+        "incomplete": 0.013,
+        "pass": 0.0
+      }
+    }
+  ],
+  "random": {
+    "auc_median": 0.4975,
+    "auc_q05": 0.3575,
+    "auc_q95": 0.6625,
+    "bootstrap_resamples": 1000,
+    "panels": 500,
+    "sessions_per_panel": 6,
+    "verdict_shares": {
+      "fail": 0.002,
+      "incomplete": 0.816,
+      "pass": 0.182
+    }
+  }
+}

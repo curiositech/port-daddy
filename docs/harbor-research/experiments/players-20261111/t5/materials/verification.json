@@ -1,0 +1,271 @@
+{
+  "all_ok": true,
+  "changes": [
+    {
+      "changed_lines": 18,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "transfer",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 16,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "set-rate",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 22,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "parse-commas",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 17,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "journal-split",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 26,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "bounty-setting",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 49
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 49
+      }
+    },
+    {
+      "changed_lines": 24,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "expire-order",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 15,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "journal-tail",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 20,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "audit-reopen",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 22,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "claim-renew",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 29,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "late-fee",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 19,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "journal-time",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 18,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": true,
+      "key": "draw-salt",
+      "ok": true,
+      "probe_fails_on_change": true,
+      "probe_passes_on_fix": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      },
+      "tests_on_fix": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 7,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": false,
+      "key": "drop-duplicate-test",
+      "ok": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 46
+      }
+    },
+    {
+      "changed_lines": 2,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": false,
+      "key": "drop-dead-guard",
+      "ok": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 47
+      }
+    },
+    {
+      "changed_lines": 16,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": false,
+      "key": "open-claims",
+      "ok": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      }
+    },
+    {
+      "changed_lines": 15,
+      "diff_reproduces_the_changed_files": true,
+      "flawed": false,
+      "key": "format-grouping",
+      "ok": true,
+      "tests_on_change": {
+        "ok": true,
+        "ran": 48
+      }
+    }
+  ],
+  "counts": {
+    "adversarial": 4,
+    "by_tier": {
+      "moderate": 4,
+      "plain": 4,
+      "subtle": 4
+    },
+    "changed_lines_limit": 600,
+    "changed_lines_total": 286,
+    "changes": 16,
+    "clean": 4,
+    "flawed": 12
+  },
+  "note": "Checks run by design.py before sealing. `tests_on_change` runs the code base's tests together with the tests the change adds. A probe is a test that fails on the change and passes once the flaw is fixed.",
+  "tests_on_base": {
+    "ok": true,
+    "ran": 47
+  }
+}

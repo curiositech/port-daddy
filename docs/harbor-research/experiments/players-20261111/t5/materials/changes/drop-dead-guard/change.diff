@@ -1,0 +1,11 @@
+--- a/harborledger/bonds.py
++++ b/harborledger/bonds.py
+@@ -46,8 +46,6 @@
+     def slash(self, amount):
+         """Take held money for good and return the amount taken (R4)."""
+         require_cents(amount)
+-        if amount < 0:
+-            raise BondError(f"{self.agent}: cannot slash a negative amount")
+         if amount > self.held:
+             raise BondError(f"{self.agent}: cannot slash {amount}, held {self.held}")
+         self.held -= amount

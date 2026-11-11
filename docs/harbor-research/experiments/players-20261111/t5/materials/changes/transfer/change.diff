@@ -1,0 +1,36 @@
+--- a/harborledger/bonds.py
++++ b/harborledger/bonds.py
+@@ -76,6 +76,14 @@
+         except KeyError:
+             raise BondError(f"{agent} has no bond") from None
+ 
++    def transfer(self, source, target, amount):
++        """Move available money from one agent's bond to another's."""
++        require_cents(amount)
++        giver = self.get(source)
++        taker = self.get(target)
++        giver.withdraw(amount)
++        giver.top_up(amount)
++
+     def total(self):
+         """Posted money across all bonds, less what was slashed."""
+         return sum(b.posted - b.slashed for b in self._bonds.values())
+--- a/tests/test_bonds.py
++++ b/tests/test_bonds.py
+@@ -84,6 +84,16 @@
+         book.get("heron").slash(100)
+         self.assertEqual(book.total(), 700)
+ 
++    def test_transfer_moves_available_money_only(self):
++        book = BondBook()
++        book.post("heron", 500)
++        book.post("finch", 100)
++        book.get("heron").hold(200)
++        with self.assertRaises(BondError):
++            book.transfer("heron", "finch", 301)
++        book.transfer("heron", "finch", 300)
++        self.assertEqual(book.total(), 600)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

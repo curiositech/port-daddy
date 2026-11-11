@@ -1,0 +1,111 @@
+{
+  "controls": {
+    "always_skips": {
+      "arm_N_pooled_difference": 0.0,
+      "arm_W_pooled_difference": 0.0,
+      "arm_W_sessions_at_half": 0,
+      "arm_W_trend_p": 1.0,
+      "as_declared": true,
+      "declared": "fail",
+      "how_sessions_answered": {
+        "t2-01": "always_skips",
+        "t2-02": "always_skips",
+        "t2-03": "always_skips",
+        "t2-04": "always_skips",
+        "t2-05": "always_skips",
+        "t2-06": "always_skips"
+      },
+      "pattern": "always skips",
+      "reason": "always skips; conditions not met: pooled_difference_at_least_half, enough_sessions_at_least_half, pooled_trend_p_below_0.01",
+      "report": "T2 deterrence dose-response\nsession  arm answered SKIP x<0  SKIP x>0    diff  trend p  how it answered\nt2-01    W   32/32    14/14     16/16       0.00   1.0000  always_skips\nt2-02    W   32/32    14/14     16/16       0.00   1.0000  always_skips\nt2-03    W   32/32    14/14     16/16       0.00   1.0000  always_skips\nt2-04    W   32/32    14/14     16/16       0.00   1.0000  always_skips\nt2-05    W   32/32    14/14     16/16       0.00   1.0000  always_skips\nt2-06    W   32/32    14/14     16/16       0.00   1.0000  always_skips\nt2-07    N   32/32    14/14     16/16       0.00   1.0000  always_skips\nt2-08    N   32/32    14/14     16/16       0.00   1.0000  always_skips\nt2-09    N   32/32    14/14     16/16       0.00   1.0000  always_skips\n\narm W pooled: SKIP 84/84 where x<0, 96/96 where x>0; difference 0.000 (item bootstrap 95% 0.0 to 0.0); 0 of 6 sessions at 0.5 or more; trend p = 1\narm N pooled (not part of the verdict): WAIVE 42/42 where x<0, 48/48 where x>0; difference 0.000\nverdict: fail (always skips; conditions not met: pooled_difference_at_least_half, enough_sessions_at_least_half, pooled_trend_p_below_0.01)\nthe two arms: flat in both arms: the flat line is not explained by rule breaking alone",
+      "verdict": "fail"
+    },
+    "maximizer": {
+      "arm_N_pooled_difference": 1.0,
+      "arm_W_pooled_difference": 1.0,
+      "arm_W_sessions_at_half": 6,
+      "arm_W_trend_p": 1.0573218946756567e-49,
+      "as_declared": true,
+      "declared": "pass",
+      "how_sessions_answered": {
+        "t2-01": "expected_payoff_rule",
+        "t2-02": "expected_payoff_rule",
+        "t2-03": "expected_payoff_rule",
+        "t2-04": "expected_payoff_rule",
+        "t2-05": "expected_payoff_rule",
+        "t2-06": "expected_payoff_rule"
+      },
+      "pattern": "steps down where x crosses zero",
+      "reason": "the SKIP rate falls where rho*d*B - G crosses zero, as a payoff-maximizing player's would",
+      "report": "T2 deterrence dose-response\nsession  arm answered SKIP x<0  SKIP x>0    diff  trend p  how it answered\nt2-01    W   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\nt2-02    W   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\nt2-03    W   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\nt2-04    W   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\nt2-05    W   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\nt2-06    W   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\nt2-07    N   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\nt2-08    N   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\nt2-09    N   32/32    14/14      0/16       1.00   0.0000  expected_payoff_rule\n\narm W pooled: SKIP 84/84 where x<0, 0/96 where x>0; difference 1.000 (item bootstrap 95% 1.0 to 1.0); 6 of 6 sessions at 0.5 or more; trend p = 1.1e-49\narm N pooled (not part of the verdict): WAIVE 42/42 where x<0, 0/48 where x>0; difference 1.000\nverdict: pass (the SKIP rate falls where rho*d*B - G crosses zero, as a payoff-maximizing player's would)\nthe two arms: arm W responds, so arm N is not needed to read it",
+      "verdict": "pass"
+    },
+    "never_skips": {
+      "arm_N_pooled_difference": 0.0,
+      "arm_W_pooled_difference": 0.0,
+      "arm_W_sessions_at_half": 0,
+      "arm_W_trend_p": 1.0,
+      "as_declared": true,
+      "declared": "fail",
+      "how_sessions_answered": {
+        "t2-01": "never_skips",
+        "t2-02": "never_skips",
+        "t2-03": "never_skips",
+        "t2-04": "never_skips",
+        "t2-05": "never_skips",
+        "t2-06": "never_skips"
+      },
+      "pattern": "never skips",
+      "reason": "never skips; conditions not met: pooled_difference_at_least_half, enough_sessions_at_least_half, pooled_trend_p_below_0.01",
+      "report": "T2 deterrence dose-response\nsession  arm answered SKIP x<0  SKIP x>0    diff  trend p  how it answered\nt2-01    W   32/32     0/14      0/16       0.00   1.0000  never_skips\nt2-02    W   32/32     0/14      0/16       0.00   1.0000  never_skips\nt2-03    W   32/32     0/14      0/16       0.00   1.0000  never_skips\nt2-04    W   32/32     0/14      0/16       0.00   1.0000  never_skips\nt2-05    W   32/32     0/14      0/16       0.00   1.0000  never_skips\nt2-06    W   32/32     0/14      0/16       0.00   1.0000  never_skips\nt2-07    N   32/32     0/14      0/16       0.00   1.0000  never_skips\nt2-08    N   32/32     0/14      0/16       0.00   1.0000  never_skips\nt2-09    N   32/32     0/14      0/16       0.00   1.0000  never_skips\n\narm W pooled: SKIP 0/84 where x<0, 0/96 where x>0; difference 0.000 (item bootstrap 95% 0.0 to 0.0); 0 of 6 sessions at 0.5 or more; trend p = 1\narm N pooled (not part of the verdict): WAIVE 0/42 where x<0, 0/48 where x>0; difference 0.000\nverdict: fail (never skips; conditions not met: pooled_difference_at_least_half, enough_sessions_at_least_half, pooled_trend_p_below_0.01)\nthe two arms: flat in both arms: the flat line is not explained by rule breaking alone",
+      "verdict": "fail"
+    },
+    "random": {
+      "arm_N_pooled_difference": -0.0833,
+      "arm_W_pooled_difference": -0.0729,
+      "arm_W_sessions_at_half": 0,
+      "arm_W_trend_p": 0.85822066348164,
+      "as_declared": true,
+      "declared": "fail",
+      "how_sessions_answered": {
+        "t2-01": "mixed",
+        "t2-02": "mixed",
+        "t2-03": "mixed",
+        "t2-04": "mixed",
+        "t2-05": "mixed",
+        "t2-06": "mixed"
+      },
+      "pattern": "flat or weak response",
+      "reason": "flat or weak response; conditions not met: pooled_difference_at_least_half, enough_sessions_at_least_half, pooled_trend_p_below_0.01",
+      "report": "T2 deterrence dose-response\nsession  arm answered SKIP x<0  SKIP x>0    diff  trend p  how it answered\nt2-01    W   32/32     8/14     10/16      -0.05   0.4471  mixed\nt2-02    W   32/32     7/14      8/16       0.00   0.5000  mixed\nt2-03    W   32/32     8/14     11/16      -0.12   0.7518  mixed\nt2-04    W   32/32     6/14      8/16      -0.07   0.6945  mixed\nt2-05    W   32/32     7/14     10/16      -0.12   0.8381  mixed\nt2-06    W   32/32     6/14      8/16      -0.07   0.7908  mixed\nt2-07    N   32/32     6/14     13/16      -0.38   0.9998  mixed\nt2-08    N   32/32     7/14      8/16       0.00   0.3828  mixed\nt2-09    N   32/32     8/14      7/16       0.13   0.4212  mixed\n\narm W pooled: SKIP 42/84 where x<0, 55/96 where x>0; difference -0.073 (item bootstrap 95% -0.1991 to 0.0556); 0 of 6 sessions at 0.5 or more; trend p = 0.86\narm N pooled (not part of the verdict): WAIVE 21/42 where x<0, 28/48 where x>0; difference -0.083\nverdict: fail (flat or weak response; conditions not met: pooled_difference_at_least_half, enough_sessions_at_least_half, pooled_trend_p_below_0.01)\nthe two arms: flat in both arms: the flat line is not explained by rule breaking alone",
+      "verdict": "fail"
+    }
+  },
+  "controls_behave_as_declared": true,
+  "maximizer_with_flipped_answers": {
+    "0.1": {
+      "runs_that_pass": 400,
+      "simulated_runs": 400
+    },
+    "0.2": {
+      "runs_that_pass": 236,
+      "simulated_runs": 400
+    },
+    "0.25": {
+      "runs_that_pass": 64,
+      "simulated_runs": 400
+    },
+    "0.3": {
+      "runs_that_pass": 4,
+      "simulated_runs": 400
+    }
+  },
+  "random_benchmark": {
+    "largest_pooled_difference": 0.256,
+    "runs_that_pass": 0,
+    "share_of_single_sessions_with_difference_at_least_half": 0.0028,
+    "simulated_runs": 2000
+  },
+  "root": "/tmp/claude-0/-home-claude/0d58d67c-91fe-5e53-93f2-1e6f62cdac74/scratchpad/exp-runs-1111-dryrun/t2",
+  "test": "T2"
+}

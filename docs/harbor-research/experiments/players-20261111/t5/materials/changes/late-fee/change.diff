@@ -1,0 +1,85 @@
+--- a/RULES.md
++++ b/RULES.md
+@@ -20,7 +20,8 @@
+ 
+ **R6. Deadlines.** A claim's deadline is `opened_at + ttl`. The claim is past
+ its deadline at every time `now >= deadline`. From then on its holder can do
+-nothing more with it, and `expire` returns its stake.
++nothing more with it, and `expire` returns its stake less a late fee of 5%,
++which the ledger keeps.
+ 
+ **R7. Audits.** When the holder completes a claim, the stake stays held until
+ the claim is closed. Closing a claim draws for an audit. The draw is fixed by
+--- a/harborledger/claims.py
++++ b/harborledger/claims.py
+@@ -2,7 +2,7 @@
+ 
+ from dataclasses import dataclass
+ 
+-from .money import require_cents
++from .money import require_cents, share
+ 
+ OPEN = "open"            # the agent is working on the task
+ RELEASED = "released"    # the agent gave the task up; the stake is back
+@@ -11,6 +11,8 @@
+ IN_AUDIT = "in_audit"    # an audit was drawn; the stake stays held
+ SETTLED = "settled"      # closed without a slash; the stake is back
+ FORFEITED = "forfeited"  # closed by a failed audit; the stake was slashed
++
++LATE_FEE = 5  # percent of the stake that an expired claim pays
+ 
+ 
+ class ClaimError(Exception):
+@@ -36,6 +38,7 @@
+         self._bonds = bonds
+         self._journal = journal
+         self._claims = {}
++        self.late_fees = 0  # fees paid by expired claims
+ 
+     def get(self, claim_id):
+         try:
+@@ -92,8 +95,12 @@
+         expired = []
+         for claim in self._claims.values():
+             if claim.state == OPEN and now >= claim.deadline():
+-                self._bonds.get(claim.agent).release(claim.stake)
++                bond = self._bonds.get(claim.agent)
++                fee = share(claim.stake, LATE_FEE)
++                bond.slash(fee)
++                bond.release(claim.stake - fee)
++                self.late_fees += fee
+                 claim.state = EXPIRED
+-                self._journal.append("claim.expire", {"claim": claim.claim_id, "at": now})
++                self._journal.append("claim.expire", {"claim": claim.claim_id, "at": now, "fee": fee})
+                 expired.append(claim.claim_id)
+         return expired
+--- a/tests/test_claims.py
++++ b/tests/test_claims.py
+@@ -1,8 +1,9 @@
+ import unittest
+ 
+ from harborledger.bonds import BondBook, BondError
+-from harborledger.claims import DONE, EXPIRED, OPEN, RELEASED, ClaimBook, ClaimError
++from harborledger.claims import DONE, EXPIRED, LATE_FEE, OPEN, RELEASED, ClaimBook, ClaimError
+ from harborledger.journal import Journal
++from harborledger.money import share
+ 
+ 
+ def make_book():
+@@ -83,6 +84,16 @@
+         self.assertEqual(sorted(claims.expire(now=6)), [2, 3])
+         self.assertEqual(claims.holder("task-1").claim_id, 1)
+ 
++    def test_expire_charges_late_fee(self):
++        bonds, journal, claims = make_book()
++        claims.open("heron", "task-1", 1000, now=0, ttl=5)
++        claims.expire(now=5)
++        fee = share(1000, LATE_FEE)
++        self.assertEqual(bonds.get("heron").slashed, fee)
++        self.assertEqual(bonds.get("heron").available(), 1000 - fee)
++        self.assertEqual(claims.late_fees, fee)
++        self.assertEqual(journal.entries("claim.expire")[0]["payload"]["fee"], fee)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
