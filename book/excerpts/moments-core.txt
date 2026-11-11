@@ -1,0 +1,22 @@
+$ harbor moments --design core
+a card good for ten minutes, taken back at one minute and shown at
+  another, design core
+
+taken back  shown at minute
+at minute    0  1  2  3  4  5  6  7  8  9 10
+     0       .  .  .  .  .  .  .  .  .  .  .
+     1          .  .  .  .  .  .  .  .  .  .
+     2             .  .  .  .  .  .  .  .  .
+     3                .  .  .  .  .  .  .  .
+     4                   .  .  .  .  .  .  .
+     5                      .  .  .  .  .  .
+     6                         .  .  .  .  .
+     7                            .  .  .  .
+     8                               .  .  .
+     9                                  .  .
+    10                                     .
+
+0 of 66 showings let the card through after it was taken back
+
+. refused, ! let through. Before each showing the gate drops what
+  its record lets it drop.

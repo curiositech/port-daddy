@@ -1,0 +1,33 @@
+/** Decide one showing. Every card of the chain is looked up in
+ * the record, in the same turn as the decision. */
+override admit(
+  chain: readonly string[],
+  ask: Right | undefined,
+  now: number,
+  proof?: Proof,
+): Verdict {
+  const asked = chain.map(idIfCard);
+  const looked = { asked, found: this.#denials.among(asked) };
+  const open = this.opened(proof);
+  const state = { gate: { key: this.key, open, looked } };
+  const shown = { op: 'present', chain, ask, proof } as const;
+  const answer = this.core.decide(shown, state, POLICY, now);
+  if (answer.verdict === 'refuse') {
+    return refused(answer.reason.code, explain(answer.reason));
+  }
+  this.struck(answer.pass.answered);
+  return { ok: true, holder: answer.pass.holder };
+}
+
+/** Take back the last card of a chain. The core checks the
+ * chain, so the end the entry records is the card's own. */
+withdraw(chain: readonly string[], now: number): Taking {
+  const take = { op: 'withdraw', chain } as const;
+  const state = { gate: { key: this.key } };
+  const answer = this.core.decide(take, state, POLICY, now);
+  if (answer.verdict === 'refuse') {
+    return refused(answer.reason.code, explain(answer.reason));
+  }
+  this.#denials.add(answer.entry, now);
+  return { ok: true, until: answer.entry.until };
+}

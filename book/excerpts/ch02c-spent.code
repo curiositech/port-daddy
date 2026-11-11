@@ -1,0 +1,17 @@
+/// An entry may be dropped once the card it names has ended.
+/// From then on the card is refused for its time, with or
+/// without the entry.
+pub fn spent(
+    entry: Option<&Entry>,
+    id: &str,
+    now: u64,
+) -> Result<Entry, Reason> {
+    let entry = entry
+        .filter(|entry| entry.id == id)
+        .ok_or(Reason::NoEntry)?;
+    if good(now, entry.until) {
+        let until = entry.until;
+        return Err(Reason::StillGood { until });
+    }
+    Ok(entry.clone())
+}

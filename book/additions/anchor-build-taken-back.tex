@@ -1,0 +1,269 @@
+% Build the layer, Chapter 2, third build: a card that can be taken back.
+% Inserted after the second build (\S\ref{sec:anchor-build-holder}), whose
+% gate it builds on. The design it builds part of is \S\ref{sec:revocation}'s.
+%
+% No code or output in this file is typed. \pdexcerpt, \pdrun and
+% \pdrunlines set files under excerpts/, which the kernel's
+% tools/excerpts.mjs cuts from its source and its recorded runs (see
+% figures/pd-listing.tex). To change a listing, change the kernel and cut
+% again. The prose names functions, never line numbers, so that a listing
+% which moves in its file does not make a sentence wrong.
+%
+% \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
+% listing changes length, change the number with it.
+\subsection{Build the layer: a card that can be taken back}
+\label{sec:anchor-build-taken-back}
+
+\noindent\emph{Express lane: a gate keeps a record of the cards that were
+taken back. Looking up the card it is shown is not enough, because the
+cards signed under that card have ids of their own. The gate that holds
+looks up every card of a chain. Its record may forget a card once the card
+has ended, and not before.}
+
+\S\ref{sec:revocation} set out a design for withdrawing a card, and it
+has many parts. This section builds the part that one gate needs, in
+\pdkernelname{}: a record of the cards taken back, and the two rules that
+govern it. One says which cards a gate looks up. The other says what the
+record may forget. The filter, and the gossip that carries a denial to
+other gates, are not built here.
+
+\subsubsection{Naive: look up the card that is shown}
+
+The gate of \S\ref{sec:anchor-build-holder} checks a chain's cards and
+makes their holder answer a challenge. It cannot refuse a card that is
+good. So give it a list of the cards that were taken back, and have it
+look up the card it is shown. A card goes on the list by its id, which
+\S\ref{sec:anchor-build} gave it: a serial number for the harbor's own
+card, and the hash of the signature for a card handed on.
+
+\pdlistingroom{21}
+\pdexcerpt[caption={The first try. The card it looks up is the last of the
+chain.},label={alg:anchor-taken-last}]{ch02c-last}
+
+\texttt{withdraw} writes down the id of the last card of a chain, and
+\texttt{admit} refuses a chain whose last card is on the list. Everything
+else is left to the gate inside this one.
+
+\subsubsection{Break: the cards under a card}
+
+Heron's private key has leaked. \S\ref{sec:anchor-build-holder} ended
+by saying where the key sits, in his memory, and Wren has read it there
+with his cards. Alice
+hears of it and tells the gate to take back the card she handed him. Finch
+holds a card that Heron handed on some time before.
+
+\pdlistingroom{27}
+\pdrun[caption={A card is taken back, and the cards under it are still
+honoured.},label={alg:anchor-taken-break}]{withdrawn-last-card}
+
+The gate does refuse Heron's card, even when it is shown by someone with
+his key. Then it lets Finch through, because the card Finch shows is his
+own, with an id the list has never held. It lets Wren through for the same
+reason, on a card that did not exist when Alice went to the gate. With
+Heron's key she can sign as many as she likes.
+
+Taking a card back by its id reaches that one card. What the card carried
+is still at large, in every card signed under it.
+Listing~\ref{alg:anchor-taken-links}, further on, takes back every set of
+cards in a chain of three. At this gate the chain stays good in three of
+the seven ways. \emph{Now you try:}
+Exercise~\ref{ex:anchor-taken-count} asks for that count by hand.
+
+\subsubsection{Fix: every card of the chain}
+
+The check moves into the decision core, and it runs over every card.
+
+\pdlistingroom{22}
+\pdexcerpt[caption={The core's check that no card of a chain was taken
+back.},label={alg:anchor-taken-standing}]{ch02c-standing}
+
+\texttt{links} gives the id of each card in the chain with its number, the
+harbor's card first. The core refuses the chain for the first card that
+was taken back, and says which.
+
+The core keeps no record, so it cannot look anything up. The gate does
+that, and shows the core two lists: the ids it looked up, and those of
+them it found. The ids the core holds them against are its own. It worked
+each one out when it checked that card's signature, and it refuses a
+showing if the gate looked up anything less. A gate that looks up the last
+card alone is refused. So is a gate that works out a card's id in some way
+of its own.
+
+\pdlistingroom{33}
+\pdexcerpt[caption={The gate. Every card is looked up, in the same turn as
+the decision.},label={alg:anchor-taken-gate}]{ch02c-gate}
+
+\texttt{admit} is the gate of Listing~\ref{alg:anchor-holder-gate} with
+two lines more. It works out the id of every card it is shown, and asks
+its record which of them it holds.
+
+\texttt{withdraw} hands the chain to the core, where the first try read
+the last card and believed it. The reason lies in where a card keeps
+things. Its id is the hash of its
+signature, and the moment it ends is in what it says. Text with the real
+card's signature over other words has the real card's id, and any ending
+its writer likes. Only the signature check tells the two apart. So the
+core checks the chain, and hands back the entry to write down: the card's
+id and the card's own end. The next break shows why the end matters.
+
+% A page may break here. See the note in anchor-build-the-verifier.tex.
+\pagebreak[0]
+\keyidea[A card taken back takes its branch]{A card is a link in every
+chain signed under it. A gate that honours a chain honours each link of
+it, so it has to ask about each one. Finch did nothing wrong, and his card
+went with Heron's.}
+
+\subsubsection{Break again: a record that forgets}
+
+The record cannot grow for ever. A harbor that runs for a year takes back
+a great many cards, and nearly all of them ended long ago. A cache
+suggests a rule for that: drop an entry once it is old.
+
+\pdlistingroom{11}
+\pdexcerpt[caption={A record that forgets by age.},label={alg:anchor-taken-aged}]{ch02c-aged}
+
+Alice takes Heron's card back three minutes into its ten, as she did at
+the start of this section.
+
+\pdlistingroom{21}
+\pdrun[caption={A card that was taken back is honoured
+again.},label={alg:anchor-taken-forgotten}]{forgotten-aged}
+
+At $t=500000$, eight minutes and twenty seconds in, the entry is more than
+five minutes old and the record drops it. Heron's card has a hundred
+seconds left, and the gate honours it. Nothing was forged, and nobody
+without a card was let through. The gate forgot.
+
+\subsubsection{Fix: an entry lasts as long as its card}
+
+Ask what an entry is for. It stops a card being honoured. Once the card
+has ended, the gate refuses it for its time, and the entry has nothing
+left to do. That is the moment it may go, and no earlier one will do. The
+core holds the rule, and the record asks the core.
+
+\pdlistingroom{17}
+\pdexcerpt[caption={When an entry may be dropped.},label={alg:anchor-taken-spent}]{ch02c-spent}
+
+\pdlistingroom{14}
+\pdexcerpt[caption={The record asks the core about each
+entry.},label={alg:anchor-taken-forget}]{ch02c-forget}
+
+\texttt{spent} is why an entry records the end of its card. The record
+puts each entry to the core, and drops the ones the core lets go.
+
+Design invariant~\ref{def:revocation-truncation} gives a reason for this
+rule: no card outlives the card above it, so nothing signed under a
+dropped entry's card can still be good. This code needs less. It checks
+the time of every card in a chain, so a chain through a card that was
+taken back is refused once that card has ended, whatever the cards under
+it claim. A verifier that checked only the last card's time would need the
+stronger reason.
+
+\subsubsection{Verify: the same runs, then every case}
+
+The leaked key first (Listing~\ref{alg:anchor-taken-fixed}).
+
+\pdlistingroom{17}
+\pdrunlines[caption={The leaked key, against the fix. Every chain through
+Heron's card is refused.},label={alg:anchor-taken-fixed}]{withdrawn-core}{1,13-28}{1 and 13\textendash 28}
+
+Each refusal names card 2, which is Heron's, though the card shown last
+is someone else's in two of the three.
+
+Then every set of cards that could be taken back in a chain of three
+(Listing~\ref{alg:anchor-taken-links}).
+
+\pdlistingroom{18}
+\pdrun[caption={Every way to take back cards of a chain of
+three.},label={alg:anchor-taken-links}]{links}
+
+The first try refuses the chain when the third card is among those taken
+back, and at no other time. The core refuses it in all seven ways.
+
+Then the record that forgets (Listing~\ref{alg:anchor-taken-kept}).
+
+\pdlistingroom{14}
+\pdrunlines[caption={The forgetful record's run, against the fix. The
+entry goes when the card has ended.},label={alg:anchor-taken-kept}]{forgotten-core}{1,9-21}{1 and 9\textendash 21}
+
+One run tries one pair of moments. Listing~\ref{alg:anchor-taken-moments}
+tries every pair of whole minutes in the card's ten: the minute it is
+taken back, and the minute it is shown.
+
+\pdlistingroom{22}
+\pdrun[caption={Every pair of minutes, at the record that forgets by
+age.},label={alg:anchor-taken-moments}]{moments-aged}
+
+Each \texttt{!} is a card honoured after it was taken back. They sit where
+the showing is more than five minutes after the taking back, which is 15
+of the 66 pairs. Under the fix the count is none
+(Listing~\ref{alg:anchor-taken-moments-core}).
+
+\pdlistingroom{2}
+\pdrunlines[caption={Every pair of minutes, against the
+fix.},label={alg:anchor-taken-moments-core}]{moments-core}{1,19}{1 and 19}
+
+Last, the guards. Build the core so that an entry may go at any time, and
+every showing gets through
+(Listing~\ref{alg:anchor-taken-moments-mutant}).
+
+\pdlistingroom{2}
+\pdrunlines[caption={The fix with an entry free to go at any
+time.},label={alg:anchor-taken-moments-mutant}]{moments-forget-early}{1,19}{1 and 19}
+
+Build it so that it looks at the last card alone, and the count of
+Listing~\ref{alg:anchor-taken-links} comes back
+(Listing~\ref{alg:anchor-taken-links-mutant}).
+
+\pdlistingroom{13}
+\pdrunlines[caption={The fix with its check narrowed to the last
+card.},label={alg:anchor-taken-links-mutant}]{links-last-card-only}{1,5-16}{1 and 5\textendash 16}
+
+A third build of the core does not ask which cards the gate looked up,
+and the kernel names the test that fails on it. Two guards from
+\S\ref{sec:anchor-build} are tried here as well. With the check of a
+card's time removed, a card comes back when its entry goes, and a test
+fails. With the comparison of lifetimes removed, none does: the rule for
+forgetting does not rest on it.
+
+The earlier builds each had a ProVerif model. This one has a model, and
+no proof (Listing~\ref{alg:anchor-taken-models}).
+
+\pdlistingroom{3}
+\pdrun[caption={ProVerif~2.05 on a gate that takes one card back and then
+looks it up.},label={alg:anchor-taken-models}]{models-withdrawal}
+
+The model, \texttt{taken-back.pv}, is as small as the question allows. A
+gate writes one card down and then looks that card up, so the card can
+never get through. ProVerif does not say so. It reasons with facts that
+stay true once they are true, and ``this card is not in the record'' is
+not such a fact. So it treats the \texttt{else} branch of a lookup as one
+that may always be taken, and its answer in
+Listing~\ref{alg:anchor-taken-models} is that the query ``cannot be
+proved''. It reports no attack either: it found no run in which the card
+gets through.
+Whether a card that was taken back stays out depends on something being
+absent, and ProVerif~2.05 cannot be asked that.
+\pdscope{Listings~\ref{alg:anchor-taken-links}
+and~\ref{alg:anchor-taken-moments} cover a chain of three cards and a card
+good for ten minutes, at one gate with one clock. They are small worlds
+tried in full, and no proof that larger ones behave alike.}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+The gate does not ask who is taking a card back. Anyone who can show a
+chain can have its last card written down. Wren, with copies of Heron's
+cards and none of his keys, could not use them after the last build. Here
+she can take his card back and lock him out
+(Exercise~\ref{ex:anchor-taken-who}). The core also believes its gate. It
+checks that the gate claims to have looked up every card, and it cannot
+check that the record answered truly.
+
+This is one gate. A second gate that has not heard of a card being taken
+back goes on honouring it, as Figure~\ref{fig:anchor-revocation-gossip}
+shows, and carrying the news is the rest of that design. The rule for
+forgetting uses one clock, and two gates whose clocks differ need the
+allowance that Design invariant~\ref{def:revocation-truncation} names. The
+record has no limit of its own: it holds every card taken back that is
+still within its time.
+\end{pdboundary}

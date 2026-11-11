@@ -418,7 +418,7 @@ Two older bodies of work study the property checked here more directly than maca
 \input{additions/anchor-build-the-verifier}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
-\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built}
+\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built. \S\ref{sec:anchor-build-taken-back} builds per-link identifiers for this book's kernel}
 
 \pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
 Alice withdraws Heron's test-database write grant three minutes into its
@@ -520,7 +520,7 @@ expired the entry has nothing left to do.
 
 \begin{pdclaim}{Design invariant}{Revocation-Log Truncation}\label{def:revocation-truncation}
 \setlength{\parskip}{4pt plus 1pt}
-\pdstatus{\Designed}{the daemon does not yet apply this rule}
+\pdstatus{\Designed}{the daemon does not yet apply this rule; \S\ref{sec:anchor-build-taken-back} builds it for this book's kernel}
 Let $T_{\max}$ be an enforced upper bound on card lifetime. Assume card identifiers
 are never reused, descendant expiry never exceeds ancestor expiry, and all
 verifiers enforce expiry with a stated clock-skew allowance and no unchecked
@@ -1405,6 +1405,7 @@ not help against an attacker who can read the agent's memory, where the
 private key is kept.
 
 \input{additions/anchor-build-the-holder}
+\input{additions/anchor-build-taken-back}
 
 \pdexercisepointerone*{\ref{ex:anchor-security-envelope}}{\pageref{ex:anchor-security-envelope}}
 \begin{pdrecitation}
@@ -2584,6 +2585,41 @@ No. Each gate takes its own turns, and the two gates run side by side, so their 
 The table must make the test and the change one operation: strike this challenge out, and say whether it was open, with no other request able to come between. A gate then checks the signature first and strikes last, and lets a showing through only if its strike found the challenge open. Striking first would let a bad proof use up a good challenge.
 
 That operation is the checked write of Chapter~0. The cell refuses a write that names a version which has passed, and its comparison and its change are one decision (\weld{prereq:sec:prereq-build}{decision}).
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:anchor-build-taken-back}}{Build the layer: a card that can be taken back}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:anchor-taken-count}
+Listing~\ref{alg:anchor-taken-links} has eight rows. Without running anything, say which rows the first try's gate gets wrong, and why there are three of them. How many would there be for a chain of five cards?
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-taken-count}
+The first try looks up the last card and no other, so it refuses the chain exactly when the last card was taken back. Three cards give $2^3=8$ sets of cards that could be taken back. Half of them, four, hold the third card, and the gate rightly refuses those.
+
+The other four do not hold the third card, and the gate lets all four through. One of them is the empty set, where nothing was taken back and the chain should be let through. The remaining three are the sets that take back one or both of the first two cards, and they are the rows it gets wrong.
+
+For five cards the same count gives $2^4=16$ sets without the last card, one of them empty: 15 wrong, of the 31 ways to take some card back. For a chain of $n$ cards it is $2^{n-1}-1$ of $2^n-1$, a little under half however long the chain.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-taken-fifteen}
+Count the marks in Listing~\ref{alg:anchor-taken-moments} from the rule in Listing~\ref{alg:anchor-taken-aged}, without counting them on the page. Then say how many there would be if the record kept an entry for eight minutes, and for ten. What does the last answer say about Design invariant~\ref{def:revocation-truncation}?
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-taken-fifteen}
+The record drops an entry when it is more than five minutes old. So a card taken back at minute $w$ is honoured at minute $a$ when $a-w>5$, as long as the card is still good, which is $a\le 10$. For $w=0$ that is $a$ from 6 to 10, five showings. For $w=1,2,3,4$ it is four, then three, two and one. From $w=5$ on there are none. The sum is 15.
+
+Kept for eight minutes, an entry lets the card back when $a-w>8$: two showings for $w=0$ and one for $w=1$, three in all. Kept for ten, it lets none back, because no showing of a card that lasts ten minutes can come more than ten minutes after anything.
+
+So a fixed age is safe when it is at least the longest life a card may have. That is the window $T_{\max}$ of Design invariant~\ref{def:revocation-truncation}. It costs a record that keeps the entry for a card of thirty seconds as long as the entry for a card of ten minutes. Recording each card's own end, as the fix does, keeps each entry no longer than it is needed.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:anchor-taken-who}
+Wren has copies of Heron's cards and none of his keys. Say what she can do with them at the gate of Listing~\ref{alg:anchor-taken-gate}, and what it costs Heron. Then design the check that stops her. Who should be able to take a card back, and what must they send? Use what \S\ref{sec:anchor-build-holder} built.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-taken-who}
+She cannot use the cards: the gate asks for a proof made with Heron's key. She can show the chain to \texttt{withdraw}, which asks for no proof, and the gate writes Heron's card down. Heron is refused from then on, and so is everyone holding a card under his. Alice can sign him a new card, and Wren can do the same again once she has copied it.
+
+A card should be taken back by someone with a say over it. One answer is the holder of the card above it, who signed it and can sign another. A second is its own holder, who may want to give it up when a key leaks. Either can be asked for what a showing is asked for: the chain down to their own card, and a proof that they hold that card's key.
+
+The proof is \S\ref{sec:anchor-build-holder}'s, with the withdrawal as the ask. The gate hands out a challenge. The sender signs the four things a holder signs for any ask (Listing~\ref{alg:anchor-holder-prove}), with the ask set to the word \texttt{withdraw} and the id of the card to take back. The core rebuilds that text from what it is shown, as it does for any ask, so a proof made for one card cannot take back another. The card to take back must still check out under the sender's own card, or be that card.
+
+Two things remain. Whoever steals a key can take back every card signed with it, which is a nuisance and no more than the key allowed. And a holder who gives up a card cannot get it back, which is Design invariant~\ref{prop:no-reanim} doing its work.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{app:phase3}}{Phase 3: Multi-hop Delegation}
