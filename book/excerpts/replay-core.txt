@@ -1,0 +1,22 @@
+$ harbor scenario replay --design core
+scenario replay, design core: what a holder sent is sent again by
+  someone else
+
+t=0      harbor signs alice a card: read shop/*, write shop/*;
+                good until t=600000
+t=0      alice  hands heron a card: write shop/checkout.ts; good
+                until t=600000
+t=0      gate   hands heron a challenge
+t=0      heron  signs the challenge and the ask, and asks to write
+                shop/checkout.ts
+                -> admitted as heron
+t=0      wren   records what heron sent
+t=0      wren   sends it again
+                -> refused: unknown-challenge (the proof answers a
+                   challenge that is not open at this gate)
+t=0      gate   hands wren a challenge
+t=0      wren   sends heron's signature as her answer
+                -> refused: not-proved (the proof is not signed
+                   with the last card's key for this showing)
+
+verdict: no replay: heron's signature was let through once

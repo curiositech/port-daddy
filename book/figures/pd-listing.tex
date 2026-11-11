@@ -49,6 +49,10 @@
 %   \pdsessionfile[caption]{lock-demo}
 %       sets excerpts/lock-demo.txt in the frame \begin{pdsession} draws. A
 %       transcript line holds 54 characters.
+%   \pdlistingroom{17}
+%       goes before a listing of 17 lines that should not be broken across
+%       pages. If the whole listing does not fit on what is left of the
+%       page, the page ends here and the listing opens the next one.
 %
 % \pdco{n} is escaped into a listing with (*@ ... @*), which the shared
 % listing style enables. figures/pd-pedagogy.tex loads this file, so every
@@ -69,11 +73,34 @@
   \colorbox{hhsand!16}{\begin{minipage}[t]{\dimexpr\linewidth-\pd@listingrule\relax}#1\end{minipage}}%
   \endgroup\par\nointerlineskip}
 \newif\ifpd@listingclosed
+% The listings package ends a displayed listing with \penalty-50, which
+% invites a page break after the last line. Every page of the Book is ragged
+% at the bottom, so TeX takes that invitation whenever it is the best one
+% left on a page, and the closing band then opens the next page alone. The
+% penalty has gone to the page by the time this file's code runs and cannot
+% be taken back, so the package's macro is changed to read the penalty from
+% a name. Inside pdlisting the name forbids the break. Anywhere else it is
+% the package's own -50. A listing may still part from its callouts:
+% pdcallouts puts the -50 back.
+\newcommand{\pd@listingendpenalty}{-50}
+\patchcmd{\lst@DeInit}{\par\penalty-50\vspace\lst@belowskip}%
+  {\par\penalty\pd@listingendpenalty\relax\vspace\lst@belowskip}{}%
+  {\PackageError{pd-listing}{The end of a listing could not be patched}%
+    {The listings package no longer ends a display with \string\penalty-50.
+     Read \string\lst@DeInit and change the patch in figures/pd-listing.tex.}}
+% Room for a whole listing of #1 lines. Each line takes 10.55pt. The head
+% and the closing band take 41pt between them, measured from the end of the
+% paragraph above, and 44pt leaves a little over. \baselineskip is not a
+% safe unit for this: between paragraphs it is 12.6pt, though the body's
+% lines are set 14.56pt apart.
+\newcommand{\pdlistingroom}[1]{\Needspace{\dimexpr44pt+10.55pt*#1\relax}}
+\newsavebox{\pd@listingfoot}
 \newenvironment{pdlisting}[2]{%
   % Keep the head with its listing: a captioned listing asks for room for
   % its margin caption and may break the page after the head otherwise.
   \par\ifinner\else\Needspace{9\baselineskip}\fi
   \par\addvspace{9pt}\begingroup\global\pd@listingclosedfalse
+  \def\pd@listingendpenalty{\@M}%
   \pd@listingband{\vspace{4pt}\hspace{6pt}%
     {\sffamily\bfseries\fontsize{7.2}{9}\selectfont\textcolor{hhteal}{\MakeUppercase{#1}}}\hfill
     {\ttfamily\fontsize{7}{9}\selectfont\textcolor{hhgray}{#2}}\hspace{6pt}\par\vspace{1pt}%
@@ -90,11 +117,11 @@
     {\color{hhsand!16}\vrule width\dimexpr\linewidth-\pd@listingrule\relax height4pt}}}}%
   \nobreak\hrule height0pt\nobreak\nointerlineskip}{%
   \par\ifpd@listingclosed\else
-    % A displayed listing ends with \penalty-50 and its 5pt belowskip, which
-    % \vspace follows with a zero skip. A page could end there, between the
-    % last line and the closing band, and the band then opened the next page
-    % alone. Take the three items back so that nothing can part the last
-    % line from the band. If they are not there, cancel the skip as before.
+    % A displayed listing ends with a penalty and its 5pt belowskip, which
+    % \vspace follows with a zero skip. Inside this environment the penalty
+    % forbids a break (\pd@listingendpenalty above), so nothing can part the
+    % last line from the closing band. Take the skips back if they are still
+    % here to take. If the page has them already, cancel the 5pt instead.
     \ifdim\lastskip=\z@\unskip\fi
     \@tempdima\lastskip
     \ifdim\@tempdima>\z@
@@ -103,10 +130,23 @@
       \nobreak\vskip-5pt
     \fi
   \fi
-  \pd@listingband{\vspace{2pt}\mbox{}}\endgroup\par\addvspace{9pt}}
+  % The closing band is set in a box of no height that hangs below the last
+  % line, and the room it takes follows as a kern. A page may end at the
+  % kern, and TeX then drops the kern. So the band needs no room of its own
+  % at the foot of a page, and a listing that fills a page to its last line
+  % is not made to send that line over with its band. The skip back by the
+  % last line's depth is so that the page, ended there, is no taller than
+  % one ended at the last line. The band is set lower by the same amount.
+  \@tempdimb\prevdepth\ifdim\@tempdimb<\z@\@tempdimb\z@\fi
+  \setbox\pd@listingfoot\vbox{\pd@listingband{\vspace{2pt}\mbox{}}}%
+  \@tempdima\dimexpr\ht\pd@listingfoot+\dp\pd@listingfoot\relax
+  \nobreak\vskip\parskip\vskip-\@tempdimb\nointerlineskip
+  \vbox to\z@{\kern\@tempdimb\box\pd@listingfoot\vss}%
+  \kern\dimexpr\@tempdimb+\@tempdima\relax\nointerlineskip
+  \endgroup\par\addvspace{9pt}}
 \newsavebox{\pd@calloutbox}
 \newenvironment{pdcallouts}{%
-  \par\nobreak\vskip-5pt\global\pd@listingclosedtrue
+  \par\nobreak\vskip-5pt\penalty-50\global\pd@listingclosedtrue
   \begin{lrbox}{\pd@calloutbox}\begin{minipage}[t]{\dimexpr\linewidth-\pd@listingrule\relax}%
     \vspace{3pt}%
     \hspace{6pt}{\color{hhgray!40}\rule{\dimexpr\linewidth-12pt\relax}{0.3pt}}\par\vspace{3pt}%

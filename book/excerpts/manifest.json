@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "b0dfa335ca898c3a931289e4571cb940de603d05",
+  "commit": "96eb346900eddb0ccb7b5bde5f68558a478f21ff",
   "scan": "harbord",
   "excerpts": [
     {
@@ -141,8 +141,8 @@
     {
       "name": "ch01b-guard",
       "path": "harbord/core/src/admission.rs",
-      "firstLine": 50,
-      "lastLine": 89,
+      "firstLine": 56,
+      "lastLine": 95,
       "lines": 40,
       "language": "Rust",
       "sha256": "75d685e70194b9ec277a437c83f64ade9c39da77ceefa88cce12c514219fd429"
@@ -168,8 +168,8 @@
     {
       "name": "ch02-admit",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 99,
-      "lastLine": 137,
+      "firstLine": 112,
+      "lastLine": 150,
       "lines": 39,
       "language": "Rust",
       "sha256": "77175f4d7f80f6a3ac1b78157d0a57d5fbfc08bc7c3773960f6b5a7f6905af43"
@@ -186,8 +186,8 @@
     {
       "name": "ch02-signed",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 218,
-      "lastLine": 243,
+      "firstLine": 231,
+      "lastLine": 256,
       "lines": 26,
       "language": "Rust",
       "sha256": "9c90b2b9780f16f604f56056fcc727604c9f2a0737a27d9ef466e4af9e2e197c"
@@ -195,11 +195,65 @@
     {
       "name": "ch02-within",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 173,
-      "lastLine": 214,
+      "firstLine": 186,
+      "lastLine": 227,
       "lines": 42,
       "language": "Rust",
       "sha256": "8d047c2161ae1e48e54e876ec2b000e3fb75214b09ef901f230ed7b892581899"
+    },
+    {
+      "name": "ch02b-gate",
+      "path": "harbord/src/cards/gate.ts",
+      "firstLine": 124,
+      "lastLine": 149,
+      "lines": 26,
+      "language": "TypeScript",
+      "sha256": "336ae27928cc3438777ae5d70354f529ab10a5afa94a730aabc9735ad8b38df6"
+    },
+    {
+      "name": "ch02b-held",
+      "path": "harbord/core/src/possession.rs",
+      "firstLine": 57,
+      "lastLine": 91,
+      "lines": 35,
+      "language": "Rust",
+      "sha256": "b24750822e1dca0c11fdd48428414df30af8cf81b7c905f14f6cae67e5d87005"
+    },
+    {
+      "name": "ch02b-lookup",
+      "path": "harbord/src/naive/holders.ts",
+      "firstLine": 65,
+      "lastLine": 77,
+      "lines": 13,
+      "language": "TypeScript",
+      "sha256": "eaa617afaff0bc5d3ce5c5263f2c9e16275e0aaf4e117a257aa8796698547e63"
+    },
+    {
+      "name": "ch02b-prove",
+      "path": "harbord/src/cards/proof.ts",
+      "firstLine": 22,
+      "lastLine": 44,
+      "lines": 23,
+      "language": "TypeScript",
+      "sha256": "e0af6b5cc74d9d72380ca6651cb6f7639b364d81b77a146adbd800d067651995"
+    },
+    {
+      "name": "ch02b-signed",
+      "path": "harbord/src/naive/holders.ts",
+      "firstLine": 23,
+      "lastLine": 39,
+      "lines": 17,
+      "language": "TypeScript",
+      "sha256": "0505bf2defa67ffa214a30ce0f0ebefb065a6058ff598d7fb50559542bf4414c"
+    },
+    {
+      "name": "ch02b-text",
+      "path": "harbord/core/src/possession.rs",
+      "firstLine": 95,
+      "lastLine": 102,
+      "lines": 8,
+      "language": "Rust",
+      "sha256": "2d011e33bfeaa129d7886f2f6f78a864f9278f66a63936f71c85a02f5159f93c"
     }
   ],
   "sessions": [
@@ -318,6 +372,12 @@
       "sha256": "7d4865d6071189b88eb38451528d89ca783bf3115e4d3afe1c677c7319def5f2"
     },
     {
+      "name": "models-possession",
+      "path": "harbord/sessions/models-possession.txt",
+      "lines": 13,
+      "sha256": "e1fda8b21577234aa45536a9dff92d7e67eb3a5192b7b1da9598248c2368d9f5"
+    },
+    {
       "name": "moved-core",
       "path": "harbord/sessions/moved-core.txt",
       "lines": 21,
@@ -366,6 +426,24 @@
       "sha256": "8989b6ee3fe0799a51cdfe26b9573333b1c0d3d23768163f549adba5470a7cb2"
     },
     {
+      "name": "proofs",
+      "path": "harbord/sessions/proofs.txt",
+      "lines": 18,
+      "sha256": "eefa96a786ea0f79c4c51c7a8e8cca872fd3b349a9d815ada4edfe34a8ba4575"
+    },
+    {
+      "name": "replay-core",
+      "path": "harbord/sessions/replay-core.txt",
+      "lines": 22,
+      "sha256": "95d7984e4f722a3641eb967974fd01c566c88e4f9ec2d5df0a878fcdaa6446de"
+    },
+    {
+      "name": "replay-signed",
+      "path": "harbord/sessions/replay-signed.txt",
+      "lines": 15,
+      "sha256": "ffac66bbc4ee29db4c538603673196405dff95768fe3138c96013782749a9dc8"
+    },
+    {
       "name": "roads-fence-only",
       "path": "harbord/sessions/roads-fence-only.txt",
       "lines": 31,
@@ -382,6 +460,24 @@
       "path": "harbord/sessions/roads-rewrite.txt",
       "lines": 56,
       "sha256": "be5b4664d0b6b364237a26ba8eac48553c8ee1259b1f0074e00414d80ae048ec"
+    },
+    {
+      "name": "showings-core",
+      "path": "harbord/sessions/showings-core.txt",
+      "lines": 11,
+      "sha256": "230f14d4217e79f5c040f2b6b1b0e8e655ad7051c5fdc0b380dcb74059b3efd9"
+    },
+    {
+      "name": "showings-keep-challenge",
+      "path": "harbord/sessions/showings-keep-challenge.txt",
+      "lines": 11,
+      "sha256": "15935a668e0e64a91df246a38163b9426d84f856c93785250040379ac88369a6"
+    },
+    {
+      "name": "showings-lookup",
+      "path": "harbord/sessions/showings-lookup.txt",
+      "lines": 15,
+      "sha256": "c6656d7463cb6bc8082a08cf501c8fb102c55ae6288b1ac9c17222c981d29faa"
     },
     {
       "name": "survival-blind",
@@ -406,12 +502,25 @@
       "path": "harbord/sessions/survival-look-twice.txt",
       "lines": 40,
       "sha256": "281c943bc3f15a5f2bb825808d64774b4204ef5886940bf8d25dac69fed05652"
+    },
+    {
+      "name": "theft-bearer",
+      "path": "harbord/sessions/theft-bearer.txt",
+      "lines": 16,
+      "sha256": "25c975755f01d07ce1fd7ecbc292f327d4f3d14e7b352b5bf917bf8d61f50bec"
+    },
+    {
+      "name": "theft-core",
+      "path": "harbord/sessions/theft-core.txt",
+      "lines": 23,
+      "sha256": "9e215665f3570f14b22d85880e1c494e87668b4c776f72f327cd9608cbb149af"
     }
   ],
   "printedLines": {
     "ch00": 96,
     "ch01": 136,
     "ch01b": 147,
-    "ch02": 147
+    "ch02": 147,
+    "ch02b": 122
   }
 }
