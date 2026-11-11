@@ -14,13 +14,18 @@
 \end{center}
 \appendix
 \renewcommand{\thesection}{\Alph{section}}
-\renewcommand{\thefigure}{A.\arabic{figure}}
-\renewcommand{\thetable}{A.\arabic{table}}
+% Figures and tables are numbered within their own appendix (B.1, C.2), and
+% restart at each one. They used to be "A.n" throughout, so Appendix C's
+% first table printed as Table A.12.
+\renewcommand{\thefigure}{\thesection.\arabic{figure}}
+\renewcommand{\thetable}{\thesection.\arabic{table}}
+\counterwithin*{figure}{section}
+\counterwithin*{table}{section}
 \renewcommand{\theHsection}{volume.appendix.\arabic{section}}
 \renewcommand{\theHsubsection}{volume.appendix.\arabic{section}.\arabic{subsection}}
 \renewcommand{\theHsubsubsection}{volume.appendix.\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
-\renewcommand{\theHfigure}{volume.appendix.\arabic{figure}}
-\renewcommand{\theHtable}{volume.appendix.\arabic{table}}
+\renewcommand{\theHfigure}{volume.appendix.\arabic{section}.\arabic{figure}}
+\renewcommand{\theHtable}{volume.appendix.\arabic{section}.\arabic{table}}
 \renewcommand{\theHequation}{volume.appendix.\arabic{equation}}
 \renewcommand{\theHlstlisting}{volume.appendix.\arabic{lstlisting}}
 \pdbackmatterheaders{Appendices}

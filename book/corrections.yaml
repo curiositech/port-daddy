@@ -1927,3 +1927,88 @@
   after: "which reads the clock itself, once, after it begins"
   source: "derivation: math-swk2/timed_clock_read_check.py"
   note: "the wording it replaces was itself introduced earlier in this pass and never printed on main"
+- id: errata-1
+  item: "Pre-press errata: the copyright page counted eight chapters and left out Chapter 0"
+  file: book/coordination-papers-mega-volume.tex
+  before: "Its eight chapters are ordered by dependency"
+  after: "Chapter 0 and the eight chapters that follow are ordered by dependency"
+  source: "repo: book/textbook.json (Chapter 0 plus eight numbered chapters)"
+- id: errata-2
+  item: "Pre-press errata: missing space after a chapter name in Chapter 6"
+  file: book/harbor-economy.tex
+  before: "The Bonded Commonsdraws"
+  after: "The Bonded Commons draws"
+  source: "derivation: a \\fi that ends a chapter reference swallows the space after it"
+- id: errata-3
+  item: "Pre-press errata: missing space after a chapter name in exercise 6.35"
+  file: book/harbor-economy.tex
+  before: "The Bonded Commonsto identify"
+  after: "The Bonded Commons to identify"
+  source: "derivation: a \\fi that ends a chapter reference swallows the space after it"
+- id: errata-4
+  item: "Pre-press errata: the margin note beside the controllability theorem said it is proved in Chapter 2"
+  file: book/figures/pd-pedagogy.tex
+  before: "Proved in §2.3."
+  after: "Applied in §2.3."
+  source: "repo: book/single-writer-kernel.tex (the proof follows the statement of thm:regimentation-controllability)"
+- id: errata-5
+  item: "Pre-press errata: a heading called the book a series"
+  file: book/spawn-to-person.tex
+  before: "a nomenclature the series holds"
+  after: null
+  source: "repo: book/textbook.json (one book, not a series of papers)"
+- id: errata-6
+  item: "Pre-press errata: an appendix called the book a series"
+  file: book/federated-harbor-whitepaper.tex
+  before: "shared across the series"
+  after: "carries the items that several chapters share"
+  source: "repo: book/textbook.json (one book, not a series of papers)"
+- id: errata-7
+  item: "Pre-press errata: Appendix B named a Git branch"
+  file: book/corpus.json
+  before: "not done in wave-p1/proof-estate"
+  after: "this edition's checks do not include it"
+  source: "repo: book/corpus.json (binding.ec status)"
+- id: errata-8
+  item: "Pre-press errata: Appendix B named a Git branch"
+  file: book/corpus.json
+  before: "never ran before wave-p1/proof-estate"
+  after: "had never been run before it was wired into CI"
+  source: "repo: book/corpus.json (WebhookDelivery evidence policy)"
+- id: errata-9
+  item: "Pre-press errata: the edition date was typed by hand and had fallen behind the text"
+  file: book/coordination-papers-mega-volume-preamble.tex
+  before: "Textbook Edition · 5 November 2026"
+  after: null
+  source: "repo: book/figures/pd-buildid.tex (the build date)"
+- id: errata-10
+  item: "Pre-press errata: glossary math printed as plain text"
+  file: book/glossary/sealed.json
+  before: "at most a factor e^epsilon"
+  after: null
+  source: "repo: book/sealed-harbor.tex (the chapter's own notation)"
+- id: errata-11
+  item: "Pre-press errata: glossary math printed as plain text"
+  file: book/glossary/sealed.json
+  before: "with loss lambda times zeta"
+  after: null
+  source: "repo: book/sealed-harbor.tex (the chapter's own notation)"
+- id: errata-12
+  item: "Pre-press errata: glossary math printed as plain text"
+  file: book/glossary/stp.json
+  before: "written kappa in Definition"
+  after: null
+  source: "repo: book/spawn-to-person.tex (the chapter's own notation)"
+- id: errata-13
+  item: "Pre-press errata: the front-matter running head printed half the title"
+  file: book/coordination-papers-mega-volume-preamble.tex
+  before: null
+  after: "Governing AI Agents ix"
+  source: "repo: book/textbook.json (edition title)"
+  note: "page ix's head: the running title, then the folio"
+- id: errata-14
+  item: "V3: the two deployment profiles are named where the reference monitor is introduced"
+  file: book/single-writer-kernel.tex
+  before: null
+  after: "complete mediation holds only there"
+  source: "repo: book/single-writer-kernel.tex (sec:enforcement-gap)"

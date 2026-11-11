@@ -3,13 +3,14 @@
   "scope": "Current protocol fixture inputs; exact hashes are not a rendered acceptance receipt. The September checkpoint remains historical.",
   "reviewed_source_head": "856b3ccb156ae243e9e438cb1f8787a6d087f953",
   "changes_reviewed": {
-    "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged. Loads makeidx and opens the index of defined terms (printed as the Book's last leaf); protocol environments unchanged. Contents opening names Chapter 0 beside the chapter count; protocol environment definitions unchanged. Inputs figures/pd-weld.tex (the \\weld cross-chapter pointer) and figures/pd-buildid.tex (\\pdbuildid) after \\pdbooktrue; protocol environment definitions unchanged. The shared listing style gains a sand ground behind a teal rule, callout escapes and a pdoutput style for recorded tool output; protocol environment definitions unchanged.",
+    "coordination-papers-mega-volume-preamble.tex": "Contents opening omits its redundant running title; protocol environment definitions unchanged. Loads makeidx and opens the index of defined terms (printed as the Book's last leaf); protocol environments unchanged. Contents opening names Chapter 0 beside the chapter count; protocol environment definitions unchanged. Inputs figures/pd-weld.tex (the \\weld cross-chapter pointer) and figures/pd-buildid.tex (\\pdbuildid) after \\pdbooktrue; protocol environment definitions unchanged. The shared listing style gains a sand ground behind a teal rule, callout escapes and a pdoutput style for recorded tool output; protocol environment definitions unchanged. The edition date the Book prints is the build date, and the front-matter running head is the title before its colon; protocol environment definitions unchanged.",
     "coordination-papers-mega-volume-swiss-plates.tex": "Twelve scoped authored captions retain assumptions; delegation permits equal authority and model replacement requires measured competence. Chapter 1 landmark title now reads 'Proposals, Effects and Recovery' (plain-language rewrite drops the bedrock metaphor); protocol environments unchanged. Landmark 04's pull-quote says 'entry rule', so 'admission' keeps its single write-path meaning.",
     "pd-cite-shortforms.tex": "Bibliography short forms regenerated after the complete chapter source review and again for the research-agenda additions (new control, isolation, memory, tenancy and attribution sources); unused records removed. Protocol environments unchanged. These input hashes are not rendered acceptance. Regenerated after the Book stopped citing the author's research papers; protocol environments unchanged. Regenerated after the third-pass corrections added and re-dated sources; protocol environments unchanged.",
-    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged. \\pdterm now labels each definition and enters it in the index; \\pdstatus prints its grade and note as a margin tag beside the heading or claim; the glossary appendix's entry layout is defined here; protocol environments unchanged. Inputs figures/pd-listing.tex (listing head strip and numbered callouts) and closes the interline gap under a listing's margin caption; protocol environments unchanged.",
+    "pd-pedagogy.tex": "Exercise anchors move with their heading horizontal list; adds \\pdterm, \\pdscope and \\pdstatus for defined terms, scope lines and status tags; protocol environments unchanged. \\pdterm now labels each definition and enters it in the index; \\pdstatus prints its grade and note as a margin tag beside the heading or claim; the glossary appendix's entry layout is defined here; protocol environments unchanged. Inputs figures/pd-listing.tex (listing head strip and numbered callouts) and closes the interline gap under a listing's margin caption; protocol environments unchanged. The \\pdprovedon margin note gains an 'applied' kind (\"Applied in\") for a theorem proved in place; protocol environments unchanged.",
     "pd-textbook-map.tex": "Manuscript date is 5 November 2026; chapter one-line summaries regenerated from book/textbook.json after the plain-language rewrite; chapter structure and protocol environments unchanged. Regenerated again after the define-before-use pass rephrased chapter blurbs; chapter structure and protocol environments unchanged.",
     "protocol-style-book.tex": "Select existing maritime edition explicitly for open Pagella/Heros protocol fixture; publication default requires private fonts. No full-Book or Suisse acceptance implied.",
-    "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required."
+    "protocol-style-fixture.tex": "Control prose now describes the existing shared separate-heading convention. Seventeen TeX identity/scope checks, ordinary-family geometry and negative controls remain required.",
+    "pd-discharges.tex": "The controllability theorem's pointer is of kind 'applied'."
   },
   "fixture_repository_inputs": [
     {
@@ -24,8 +25,8 @@
     },
     {
       "path": "book/coordination-papers-mega-volume-preamble.tex",
-      "sha256": "02f5cf3e7c2ed4dc883509e731db8eef0c9d52e86a10fc1bf8c976a2c42dd180",
-      "bytes": 67324
+      "sha256": "19728b20f6d5e8ca82d0faa90511c3db989741af3769e04dd4dc737c1f07b24c",
+      "bytes": 68190
     },
     {
       "path": "book/coordination-papers-mega-volume-swiss-plates.tex",
@@ -44,8 +45,8 @@
     },
     {
       "path": "book/figures/pd-discharges.tex",
-      "sha256": "d24cb6103ef0d38e2d7af8255bfd75de3a35d3b6f69dc30b55a7c314e55158cf",
-      "bytes": 898
+      "sha256": "f543875637378718eb600734812f2f250f66dd9b6e7883d0edfd56a09cd83cf5",
+      "bytes": 906
     },
     {
       "path": "book/figures/pd-figure-language-swiss.tex",
@@ -69,8 +70,8 @@
     },
     {
       "path": "book/figures/pd-pedagogy.tex",
-      "sha256": "6bbc8739972730c54bbbab0e98e7e9a33d92da4ba9de5df120f6c18f925b378d",
-      "bytes": 91061
+      "sha256": "7eaca31c6afe862530890146c637348ea570b66a153ce3b10c1b4a054c42e8ab",
+      "bytes": 91212
     },
     {
       "path": "book/figures/pd-semantic-blocks.tex",
@@ -79,8 +80,8 @@
     },
     {
       "path": "book/figures/pd-textbook-map.tex",
-      "sha256": "f281d9d8df78b060842cb2114aa357ffb8211bd9141dc3dd13e1a4c4f8fabfd7",
-      "bytes": 14742
+      "sha256": "d948e0fa95aeb46250bb3531f934f504b31bb9ddf40914d3786acc3bf5a92298",
+      "bytes": 14743
     }
   ],
   "source_relocation": "Canonical book/ relocation: source-path comments, generated locator header, and fixture import roots updated; no new rendered acceptance claimed. Historical checkpoint hashes remain unchanged."

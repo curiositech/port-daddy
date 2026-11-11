@@ -288,6 +288,17 @@ do on the host needs enforcement outside the daemon. The threat model
 (\S\ref{sec:threatmodel}) states that problem, and a kernel boundary under a
 separate user, which does not yet exist (\S\ref{sec:enforcement-gap}), would
 close it.
+
+The book names the two cases, because later chapters depend on which one is
+meant. In the \emph{cooperative rail}, the agents and the daemon run as one
+user with nothing between them. The daemon orders and records whatever agents
+choose to send it, and an agent that goes around it is not stopped. In the
+\emph{confined monitor}, the operating system closes every route to shared
+state except the daemon, for example by running the daemon as a separate user
+that owns the files. Only the confined monitor is a reference monitor in
+Anderson's sense, so complete mediation holds only there. The reference
+implementation runs as a cooperative rail today. Where a later result needs
+complete mediation, it assumes the confined monitor.
 \pdmarginfigure{lampson}{Butler Lampson's access matrix: permissions connect subjects to objects.}%
 \keyidea[One writer needs no consensus]{Many agents contending for shared
 state, with failover, look like a distributed-systems problem, and the usual

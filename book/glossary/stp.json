@@ -5,7 +5,7 @@
  {"term": "reputation", "sort": "reputation", "definition": "The record of checked outcomes kept against a person's account, together with any score computed from it."},
  {"term": "continuity", "sort": "continuity", "definition": "The link, made by succession records, that lets a later process carry on the same person's account as an earlier one."},
  {"term": "role", "sort": "role", "definition": "A job described without reference to who holds it: what must be delivered, which tools come with it, and what the holder is permitted to do."},
- {"term": "continuity witness", "sort": "continuity witness", "definition": "The chain of signed succession records that links every process that has run as a person back to the first, bound to one accountable principal; written kappa in Definition 5.2.2."},
+ {"term": "continuity witness", "sort": "continuity witness", "definition": "The chain of signed succession records that links every process that has run as a person back to the first, bound to one accountable principal; written $\\kappa$ in Definition 5.2.2."},
  {"term": "capability jail", "sort": "capability jail", "definition": "A per-agent tool allowlist and scoped filesystem that bounds what an agent is technically able to do."},
  {"term": "body-lease", "sort": "body-lease", "definition": "The live process, with a heartbeat, that holds an agent's work during one run; a respawn replaces it while the durable identity remains."},
  {"term": "no-mint", "sort": "no-mint", "definition": "The rule that the shares a source passes to its successors sum to at most its balance, each share is debited in full from the source, and each successor receives a discounted share, so splitting or copying a record never creates credit."},

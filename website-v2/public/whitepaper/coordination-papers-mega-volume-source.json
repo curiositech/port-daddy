@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40409063,
+    "bytes": 40410120,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/d5f6956aa9fe60e885ea4ea45bd7c8d5a0eabaa694189af7e96fd1d3602afc1b.tar.gz",
-    "sha256": "d5f6956aa9fe60e885ea4ea45bd7c8d5a0eabaa694189af7e96fd1d3602afc1b",
-    "url": "https://media.portdaddy.dev/book/source/sha256/d5f6956aa9fe60e885ea4ea45bd7c8d5a0eabaa694189af7e96fd1d3602afc1b.tar.gz"
+    "key": "book/source/sha256/5a9e92c73b8e611da04b697b8ee9cd729ac0de109ab08dfdebc9381e164433c7.tar.gz",
+    "sha256": "5a9e92c73b8e611da04b697b8ee9cd729ac0de109ab08dfdebc9381e164433c7",
+    "url": "https://media.portdaddy.dev/book/source/sha256/5a9e92c73b8e611da04b697b8ee9cd729ac0de109ab08dfdebc9381e164433c7.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "10a572449b595022abd8555deff4cd6b3f62331ddc0a8b2d2a32c27fc3bd0d24",
+  "manifestSha256": "cafbefb980f9b84c595f5a98112d2c36ec806a870da7c1b78a4b7a4c822862cb",
   "schemaVersion": 1,
   "source": {
     "fileCount": 560,
@@ -244,10 +244,10 @@
         "sha256": "9cbef7994e802f86d80af4d57005da4a430f417fbe9ba920b616da280ddb9a13"
       },
       {
-        "bytes": 35822,
+        "bytes": 36127,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-appendices.tex",
-        "sha256": "c7e8553d84418f968fe4074b4df3effb3f8f7401fe9c774eb548bd5fbb04d1f8"
+        "sha256": "82a9e1a4530b3faa01dec95126030bd40c65adaad5c0f1856b0ce76a04b0972e"
       },
       {
         "bytes": 128020,
@@ -268,10 +268,10 @@
         "sha256": "371de29ca9e350d73870beae90f2d8e17f6d69735b840d3d0f88c43622206088"
       },
       {
-        "bytes": 67324,
+        "bytes": 68190,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-preamble.tex",
-        "sha256": "02f5cf3e7c2ed4dc883509e731db8eef0c9d52e86a10fc1bf8c976a2c42dd180"
+        "sha256": "19728b20f6d5e8ca82d0faa90511c3db989741af3769e04dd4dc737c1f07b24c"
       },
       {
         "bytes": 8659,
@@ -304,16 +304,16 @@
         "sha256": "9e1c31d3bf17058dc0157c67b046f1d3ca49e4dd90afb6532de7538a506627f3"
       },
       {
-        "bytes": 20209,
+        "bytes": 20261,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume.tex",
-        "sha256": "627de002139595cc4230d97514b3934a6ea82aad8bb882cdc330a755737572c7"
+        "sha256": "37ea3c1ca2519e5e3412f5df6f5d5201a4b4e52938653a56f33424aa3a596fa4"
       },
       {
-        "bytes": 54718,
+        "bytes": 54727,
         "mode": 420,
         "path": "book/corpus.json",
-        "sha256": "c4b819de061d54d6d84f45667e0245c3eec4d26ea741ca65682cde9d6fdd631d"
+        "sha256": "3097bdde1d1ddb57a31e8b3b12a4fc8578d1363b6dd872cc6b1c3a31b140369f"
       },
       {
         "bytes": 5235,
@@ -322,16 +322,16 @@
         "sha256": "7360e70e81810b7e9f764a4381fb22a94bd006d0707aa1fa2a862f2cde893f84"
       },
       {
-        "bytes": 101918,
+        "bytes": 105872,
         "mode": 420,
         "path": "book/corrections.yaml",
-        "sha256": "d7a20d9a8bab8bac25220d31a1d479e86039b7692fa16f16969a1806dfa0cdc9"
+        "sha256": "4096359019517e548f1b5dee219bfa7d5a8feab2ea5b7b14b93946047804c1fb"
       },
       {
-        "bytes": 176178,
+        "bytes": 176172,
         "mode": 420,
         "path": "book/federated-harbor-whitepaper.tex",
-        "sha256": "dc6106e949479c4cd3de5148b0fd7ed15aff0808913bd69b8474b1bf1eb98902"
+        "sha256": "7e17d4f2e235514f96d356dd3d2cc8ec3f8279c3a0d23200b009e6b339c8ad09"
       },
       {
         "bytes": 644,
@@ -1702,10 +1702,10 @@
         "sha256": "53d71d5247cd555358d39e7a550b4b2c33bbf13c4cbf13f194df60edf33e1375"
       },
       {
-        "bytes": 898,
+        "bytes": 906,
         "mode": 420,
         "path": "book/figures/pd-discharges.tex",
-        "sha256": "d24cb6103ef0d38e2d7af8255bfd75de3a35d3b6f69dc30b55a7c314e55158cf"
+        "sha256": "f543875637378718eb600734812f2f250f66dd9b6e7883d0edfd56a09cd83cf5"
       },
       {
         "bytes": 5457,
@@ -1768,10 +1768,10 @@
         "sha256": "f286f318b25bec0ae9d58c99a799349c354e7697bf5563e144b0f1b7ca999668"
       },
       {
-        "bytes": 91061,
+        "bytes": 91212,
         "mode": 420,
         "path": "book/figures/pd-pedagogy.tex",
-        "sha256": "6bbc8739972730c54bbbab0e98e7e9a33d92da4ba9de5df120f6c18f925b378d"
+        "sha256": "7eaca31c6afe862530890146c637348ea570b66a153ce3b10c1b4a054c42e8ab"
       },
       {
         "bytes": 4001,
@@ -1792,10 +1792,10 @@
         "sha256": "860d9ac162b2f4b44eb6c9f75b4152a94d8a86f7240b6dd9aed62787f8b4a0cb"
       },
       {
-        "bytes": 14742,
+        "bytes": 14743,
         "mode": 420,
         "path": "book/figures/pd-textbook-map.tex",
-        "sha256": "f281d9d8df78b060842cb2114aa357ffb8211bd9141dc3dd13e1a4c4f8fabfd7"
+        "sha256": "d948e0fa95aeb46250bb3531f934f504b31bb9ddf40914d3786acc3bf5a92298"
       },
       {
         "bytes": 7270,
@@ -2128,28 +2128,28 @@
         "sha256": "dff75b09193208813de80b47dff2933ea01ea562b73a681fd1c0570582cb88c8"
       },
       {
-        "bytes": 4213,
+        "bytes": 4219,
         "mode": 420,
         "path": "book/glossary/he.json",
-        "sha256": "ac8b71c000e629f55f0c7febae770de7638dab79ae4ebd1d0d265b0daa7cc8fd"
+        "sha256": "60285a12d964671186d3ea35ee4540e3a5b469454947c975b6882abf90c9e1d3"
       },
       {
-        "bytes": 7394,
+        "bytes": 7400,
         "mode": 420,
         "path": "book/glossary/ls.json",
-        "sha256": "a5bc76161fbea3ad751b93445a83ec8a483e2d083d65f72f4cff08185c08f4a3"
+        "sha256": "af1532f6f09734a5350032c79652b4425230cc8956a57976a0c5dae946e4d998"
       },
       {
-        "bytes": 5621,
+        "bytes": 5671,
         "mode": 420,
         "path": "book/glossary/sealed.json",
-        "sha256": "8911af5f8142e1f4c2347e85955206a8964d684cd688df6f86882417bb768d3a"
+        "sha256": "59657a5eff5632ff43d9bcc8796db2e79c7d86182eb4bd3af1893c69788b2a29"
       },
       {
-        "bytes": 5509,
+        "bytes": 5513,
         "mode": 420,
         "path": "book/glossary/stp.json",
-        "sha256": "80b8a56fab94562494bbeaaf9a1a12ca0fb30e1e3249407b8f1c3da75452ed6c"
+        "sha256": "ada3c8e8e3daa8bf1e726d7c241667c3913415fb2599a16baca9b9da0d464199"
       },
       {
         "bytes": 8474,
@@ -2158,10 +2158,10 @@
         "sha256": "bfa4267e4bdd09635064490fb5ee9d6f982598cbaf8d7451f12810748c73707a"
       },
       {
-        "bytes": 215325,
+        "bytes": 215331,
         "mode": 420,
         "path": "book/harbor-economy.tex",
-        "sha256": "21268af1f21a53607baae4f4ed93a9cf4153d25b5620bb3918ee6106a7ae5133"
+        "sha256": "6dbf81a62ff2b7b9cea42c42b599452c5f600367da5780db71e0f113e6fbda8e"
       },
       {
         "bytes": 309201,
@@ -3310,22 +3310,22 @@
         "sha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6"
       },
       {
-        "bytes": 267651,
+        "bytes": 268384,
         "mode": 420,
         "path": "book/single-writer-kernel.tex",
-        "sha256": "e79e22b679ef3cb2de763ad79ff5ab9aed705b9399cd45d4903036b7599950ab"
+        "sha256": "d3c72a5496cc290661e83ca3758b4b889d33a8e2c47a0bfeee95c11f77e451e5"
       },
       {
-        "bytes": 247412,
+        "bytes": 247378,
         "mode": 420,
         "path": "book/spawn-to-person.tex",
-        "sha256": "69b6afbc2ec447e158dfe1499c9f86ee8f651224f7f7d7f14f9592833d8349c2"
+        "sha256": "90c09e1890973f82bc80d4e64a215feb5ff31acc39f4f9a6d9c956fd3bcbbb31"
       },
       {
-        "bytes": 11290,
+        "bytes": 11291,
         "mode": 420,
         "path": "book/textbook.json",
-        "sha256": "ce2a370b25c17872029d2b245e096220b832fa04cd4fe3945d5df82adc533fb4"
+        "sha256": "d805567e4b88b2dd9e3787a42129d3abc82371b3063e2f41394c3add9818fa09"
       },
       {
         "bytes": 5399,
@@ -3382,6 +3382,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "ea7143041c6e430d16b98631115a83272fb415c712a870d75aceff7af36af1a4"
+    "sha256": "06121f6b46c379a348167f820449d3128dc9ec13d3fbed2af335591313f496ac"
   }
 }

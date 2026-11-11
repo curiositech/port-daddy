@@ -92,12 +92,12 @@
  {
   "term": "sensitivity",
   "sort": "sensitivity",
-  "definition": "In signal detection theory, how far apart the evidence scores of dangerous and safe items lie, written d′."
+  "definition": "In signal detection theory, how far apart the evidence scores of dangerous and safe items lie, written $d'$."
  },
  {
   "term": "decision criterion",
   "sort": "decision criterion",
-  "definition": "In signal detection theory, the threshold on the evidence score above which an item is inspected, written β."
+  "definition": "In signal detection theory, the threshold on the evidence score above which an item is inspected, written $\\beta$."
  },
  {
   "term": "vigilance task",
