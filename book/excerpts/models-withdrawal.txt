@@ -1,0 +1,3 @@
+$ sh formal/withdrawal/run.sh
+taken-back.pv
+RESULT not event(Through(card_1)) cannot be proved.

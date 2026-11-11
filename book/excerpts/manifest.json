@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "96eb346900eddb0ccb7b5bde5f68558a478f21ff",
+  "commit": "536f03deafec0aef98bb01aa5c248fa11a989db1",
   "scan": "harbord",
   "excerpts": [
     {
@@ -141,8 +141,8 @@
     {
       "name": "ch01b-guard",
       "path": "harbord/core/src/admission.rs",
-      "firstLine": 56,
-      "lastLine": 95,
+      "firstLine": 61,
+      "lastLine": 100,
       "lines": 40,
       "language": "Rust",
       "sha256": "75d685e70194b9ec277a437c83f64ade9c39da77ceefa88cce12c514219fd429"
@@ -168,8 +168,8 @@
     {
       "name": "ch02-admit",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 112,
-      "lastLine": 150,
+      "firstLine": 119,
+      "lastLine": 157,
       "lines": 39,
       "language": "Rust",
       "sha256": "77175f4d7f80f6a3ac1b78157d0a57d5fbfc08bc7c3773960f6b5a7f6905af43"
@@ -186,8 +186,8 @@
     {
       "name": "ch02-signed",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 231,
-      "lastLine": 256,
+      "firstLine": 238,
+      "lastLine": 263,
       "lines": 26,
       "language": "Rust",
       "sha256": "9c90b2b9780f16f604f56056fcc727604c9f2a0737a27d9ef466e4af9e2e197c"
@@ -195,8 +195,8 @@
     {
       "name": "ch02-within",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 186,
-      "lastLine": 227,
+      "firstLine": 193,
+      "lastLine": 234,
       "lines": 42,
       "language": "Rust",
       "sha256": "8d047c2161ae1e48e54e876ec2b000e3fb75214b09ef901f230ed7b892581899"
@@ -204,8 +204,8 @@
     {
       "name": "ch02b-gate",
       "path": "harbord/src/cards/gate.ts",
-      "firstLine": 124,
-      "lastLine": 149,
+      "firstLine": 137,
+      "lastLine": 162,
       "lines": 26,
       "language": "TypeScript",
       "sha256": "336ae27928cc3438777ae5d70354f529ab10a5afa94a730aabc9735ad8b38df6"
@@ -254,6 +254,60 @@
       "lines": 8,
       "language": "Rust",
       "sha256": "2d011e33bfeaa129d7886f2f6f78a864f9278f66a63936f71c85a02f5159f93c"
+    },
+    {
+      "name": "ch02c-aged",
+      "path": "harbord/src/naive/withdrawn.ts",
+      "firstLine": 73,
+      "lastLine": 83,
+      "lines": 11,
+      "language": "TypeScript",
+      "sha256": "b40b6d74950e63d1af8ed3ec0c1dc120904b357e4d5b3f0e96b0bbe47474cd9a"
+    },
+    {
+      "name": "ch02c-forget",
+      "path": "harbord/src/cards/denials.ts",
+      "firstLine": 43,
+      "lastLine": 56,
+      "lines": 14,
+      "language": "TypeScript",
+      "sha256": "2e39608e831ee6846588e249528bf25e1bf0a59ca06dec552527c26d784a88c0"
+    },
+    {
+      "name": "ch02c-gate",
+      "path": "harbord/src/cards/withdrawing.ts",
+      "firstLine": 26,
+      "lastLine": 58,
+      "lines": 33,
+      "language": "TypeScript",
+      "sha256": "bbabc709d816b0c49f4409f0aca8a26983ca74dfa9d8911046d1f1a71010d46a"
+    },
+    {
+      "name": "ch02c-last",
+      "path": "harbord/src/naive/withdrawn.ts",
+      "firstLine": 29,
+      "lastLine": 49,
+      "lines": 21,
+      "language": "TypeScript",
+      "sha256": "7643914582a8a84296e326cf722dcaf2010c4c6c6875b9b95b19042c651e1f1a"
+    },
+    {
+      "name": "ch02c-spent",
+      "path": "harbord/core/src/withdrawal.rs",
+      "firstLine": 109,
+      "lastLine": 125,
+      "lines": 17,
+      "language": "Rust",
+      "sha256": "a72e32194ea92df7627e3c76ed7e024bd3445c0d63fb6dc8a0a5d837de0d1fad"
+    },
+    {
+      "name": "ch02c-standing",
+      "path": "harbord/core/src/withdrawal.rs",
+      "firstLine": 53,
+      "lastLine": 74,
+      "lines": 22,
+      "language": "Rust",
+      "sha256": "f5fa0b9f8e84d0c39ea7de640cf9e3275dbef081b3cf34499db482dbe293ee41"
     }
   ],
   "sessions": [
@@ -312,6 +366,18 @@
       "sha256": "f2b619c4f9ec7c743853f15dfae452d27e55b1450e7da0d8fff1922290b6d588"
     },
     {
+      "name": "forgotten-aged",
+      "path": "harbord/sessions/forgotten-aged.txt",
+      "lines": 21,
+      "sha256": "8e67c0ffb5eaa33d1f432497652b3c81152ffbb0554b3e5f136d092b7da51167"
+    },
+    {
+      "name": "forgotten-core",
+      "path": "harbord/sessions/forgotten-core.txt",
+      "lines": 21,
+      "sha256": "eed17ce766b02f916e7272b15ad15172b4a4eaf64f2d90866668660de4cf3a93"
+    },
+    {
       "name": "handing-on-naive",
       "path": "harbord/sessions/handing-on-naive.txt",
       "lines": 26,
@@ -340,6 +406,18 @@
       "path": "harbord/sessions/increments-look-twice.txt",
       "lines": 13,
       "sha256": "c89d7d3a161773244c836257b3c0e174c54993541d44095868e30ed73c728a14"
+    },
+    {
+      "name": "links-last-card-only",
+      "path": "harbord/sessions/links-last-card-only.txt",
+      "lines": 18,
+      "sha256": "4b822f7125c3bf0905072564f368ce5d3096eb18e317ea890ceaf4018f4b55dc"
+    },
+    {
+      "name": "links",
+      "path": "harbord/sessions/links.txt",
+      "lines": 18,
+      "sha256": "686e828696d34e5bce5b1d0c10b33fa1398d4bdb2ae6777aac8b61c31df26885"
     },
     {
       "name": "lock-demo",
@@ -376,6 +454,30 @@
       "path": "harbord/sessions/models-possession.txt",
       "lines": 13,
       "sha256": "e1fda8b21577234aa45536a9dff92d7e67eb3a5192b7b1da9598248c2368d9f5"
+    },
+    {
+      "name": "models-withdrawal",
+      "path": "harbord/sessions/models-withdrawal.txt",
+      "lines": 3,
+      "sha256": "eaa42e0408ac121dab39603c29cb23c512e3ca7bd04fab6f3a7c39dc6f71d062"
+    },
+    {
+      "name": "moments-aged",
+      "path": "harbord/sessions/moments-aged.txt",
+      "lines": 22,
+      "sha256": "5f4d8c4cd15cc586a479dae0b1018229319c0f6f4caa2227ad7611320bd8cb18"
+    },
+    {
+      "name": "moments-core",
+      "path": "harbord/sessions/moments-core.txt",
+      "lines": 22,
+      "sha256": "305735d3835b5cb15ee2b0503cb05542a8853f0657606f3699a37bef998825a2"
+    },
+    {
+      "name": "moments-forget-early",
+      "path": "harbord/sessions/moments-forget-early.txt",
+      "lines": 22,
+      "sha256": "21db4d3eaa7215d852adf142e0cc7c6c978f949a850f51da1e43b052c699dc32"
     },
     {
       "name": "moved-core",
@@ -514,6 +616,18 @@
       "path": "harbord/sessions/theft-core.txt",
       "lines": 23,
       "sha256": "9e215665f3570f14b22d85880e1c494e87668b4c776f72f327cd9608cbb149af"
+    },
+    {
+      "name": "withdrawn-core",
+      "path": "harbord/sessions/withdrawn-core.txt",
+      "lines": 28,
+      "sha256": "c080fef464fbc48ebf97c0b6f9054f625696324f825a0c8245a1639e5a1450b8"
+    },
+    {
+      "name": "withdrawn-last-card",
+      "path": "harbord/sessions/withdrawn-last-card.txt",
+      "lines": 27,
+      "sha256": "92a91f100440006470efff18a463950ef28f0c3d2d232779dc537cc5c42c6a6c"
     }
   ],
   "printedLines": {
@@ -521,6 +635,7 @@
     "ch01": 136,
     "ch01b": 147,
     "ch02": 147,
-    "ch02b": 122
+    "ch02b": 122,
+    "ch02c": 118
   }
 }
