@@ -57,6 +57,37 @@ def plots():
 
 # How a figure names a column of a table it reads.
 COLUMN = re.compile(r'\\thisrow\{([a-z]+)\}|\b[xy]=([a-z]+)\b|\\pgfplotstablegetelem\{[^}]*\}\{([a-z]+)\}')
+# A style a figure defines, a table it plots with its options, and a table
+# it reads whole into a macro.
+STYLE = re.compile(r'([A-Za-z][A-Za-z ]*)/\.style=\{((?:[^{}]|\{[^{}]*\})*)\}')
+TABLE = re.compile(r'table\[([^\]]*)\]\s*\{excerpts/([a-z0-9-]+)\.txt\}')
+WHOLE = re.compile(r'\\pgfplotstableread\[[^\]]*\]\{excerpts/([a-z0-9-]+)\.txt\}')
+
+
+def named(text):
+    return {column for found in COLUMN.findall(text) for column in found if column}
+
+
+def reads(figure):
+    """For each recorded run a figure reads, the columns it reads from that run.
+
+    A figure may plot runs whose tables differ, so the columns are gathered
+    plot by plot: those the plot's own options name, and those named by any
+    style of the figure's that the options call on.
+    """
+    text = uncommented(figure.read_text())
+    styles = {name.strip(): body for name, body in STYLE.findall(text)}
+    columns = {}
+    for options, name in TABLE.findall(text):
+        found = named(options)
+        for style, body in styles.items():
+            if re.search(r'(^|,)\s*%s\s*(,|$)' % re.escape(style), options):
+                found |= named(body)
+        columns.setdefault(name, set()).update(found)
+    # A table read whole is read wherever the figure names a column.
+    for name in WHOLE.findall(text):
+        columns.setdefault(name, set()).update(named(text))
+    return columns
 
 
 class BookExcerpts(unittest.TestCase):
@@ -142,9 +173,10 @@ class BookExcerpts(unittest.TestCase):
         # be plotted.
         self.assertTrue(plotted(), 'no figure plots a recorded run')
         for figure, names in plots().items():
-            read = {column for found in COLUMN.findall(uncommented(figure.read_text())) for column in found if column}
-            self.assertTrue(read, f'{figure.name} names no column')
+            columns_read = reads(figure)
             for name in set(names):
+                read = columns_read.get(name, set())
+                self.assertTrue(read, f'{figure.name} names no column of {name}.txt')
                 lines = (EXCERPTS / f'{name}.txt').read_text().splitlines()
                 self.assertTrue(lines[0].startswith('$ harbor '), name)
                 table = [line.split() for line in lines[1:] if not line.startswith('#')]

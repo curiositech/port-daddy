@@ -418,7 +418,7 @@ Two older bodies of work study the property checked here more directly than maca
 \input{additions/anchor-build-the-verifier}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
-\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built. \S\ref{sec:anchor-build-taken-back} builds per-link identifiers for this book's kernel}
+\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built. \S\ref{sec:anchor-build-taken-back} builds per-link identifiers for this book's kernel, and \S\ref{sec:anchor-build-told} builds the gossip}
 
 \pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
 Alice withdraws Heron's test-database write grant three minutes into its
@@ -505,7 +505,7 @@ The design keeps the filter as an index only, never as the authority, and that i
 \end{pdclaim}
 \pdscope{A passing check means only that this daemon has no record of the revocation; no check can use a revocation that has not yet reached the daemon.}
 
-\paragraph{Spreading revocations by gossip.} Daemons exchange new revocations by \pdterm{anti-entropy} gossip~\pdcite{demers1987epidemic}: in each round a daemon compares its log with that of a randomly chosen peer, and each copies what the other lacks. Suppose every daemon can reach every other (a complete overlay), picks its partner uniformly at random (uniform peers), and every round's messages arrive (reliable rounds). Then a revocation spreads like an epidemic, reaching all $D$ daemons in an expected number of rounds that grows in proportion to $\log D$, written $\Theta(\log D)$. That is an average, not a deadline. Lost messages, the network's shape and scheduling change the constant, and a \emph{partition}, a split that cuts some daemons off from the rest, stops the spread until it heals. Security-critical revocations can also be pushed at once, on a best-effort basis. Figure~\ref{fig:anchor-revocation-gossip} contrasts a local revocation with a remote verifier that has not received it.
+\paragraph{Spreading revocations by gossip.} Daemons exchange new revocations by \pdterm{anti-entropy} gossip~\pdcite{demers1987epidemic}: in each round a daemon compares its log with that of a randomly chosen peer, and each copies what the other lacks. Suppose every daemon can reach every other (a complete overlay), picks its partner uniformly at random (uniform peers), and every round's messages arrive (reliable rounds). Then a revocation spreads like an epidemic, reaching all $D$ daemons in an expected number of rounds that grows in proportion to $\log D$, written $\Theta(\log D)$. That is an average, not a deadline. Lost messages, the network's shape and scheduling change the constant, and a \emph{partition}, a split that cuts some daemons off from the rest, stops the spread until it heals. Security-critical revocations can also be pushed at once, on a best-effort basis. Figure~\ref{fig:anchor-revocation-gossip} contrasts a local revocation with a remote verifier that has not received it. \S\ref{sec:anchor-build-told} builds this exchange for the Book's kernel and works the expected rounds out exactly for up to 64 gates.
 
 \input{figures/fig-anchor-revocation-gossip}
 
@@ -1406,6 +1406,7 @@ private key is kept.
 
 \input{additions/anchor-build-the-holder}
 \input{additions/anchor-build-taken-back}
+\input{additions/anchor-build-told}
 
 \pdexercisepointerone*{\ref{ex:anchor-security-envelope}}{\pageref{ex:anchor-security-envelope}}
 \begin{pdrecitation}
@@ -1613,6 +1614,12 @@ Alan Demers et al.
 \newblock Epidemic Algorithms for Replicated Database Maintenance.
 \newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 1987.
 
+\bibitem{doerr2017rumor}
+Benjamin Doerr and Anatolii Kostrygin.
+\newblock Randomized Rumor Spreading Revisited.
+\newblock In \textit{International Colloquium on Automata, Languages, and Programming (ICALP)}, LIPIcs 80, article 138, 2017.
+\newblock \url{https://doi.org/10.4230/LIPIcs.ICALP.2017.138}
+
 \bibitem{ucp2026}
 Universal Commerce Protocol.
 \newblock Specification and reference implementation (Apache-2.0), Google, Shopify, et al., 2026.
@@ -1715,7 +1722,7 @@ Relay payload secrecy via HPKE (daemon key pinned) & ProVerif (design) & \Partia
 Webhook replay-freedom + in-order delivery & TLA+ / TLC (exhaustive at bound) & \Partial\ design model-checked; runtime via ordered-chain ingest & \path{Webhook}\allowbreak\path{Delivery.tla} \\
 Card revocation finality when restoring pre-revocation state & TLA+ / TLC & \Partial\ rollback attack and its mitigation, an external counter that a restore cannot roll back, both model-checked; the mitigation also refuses every card issued before the latest revocation, and \pdchapref{fh}{The Federated Harbor} gives the repair & \path{Card}\allowbreak\path{Revocation.tla} \\
 \midrule
-Mechanized gossip-convergence bound & --- & \Open\ standard expected asymptotics only~\pdcite{demers1987epidemic}; no partition deadline & --- \\
+Mechanized gossip-convergence bound & exact expectation and seeded runs (\S\ref{sec:anchor-build-told}) & \Open\ no machine-checked proof. The expected rounds are worked out exactly for 2 to 64 gates under the model of \S\ref{sec:revocation}, and runs of the kernel's gates agree with them; standard asymptotics beyond that~\pdcite{demers1987epidemic}; no partition deadline & \texttt{harbor spread}, \texttt{harbor gossip} \\
 \end{xltabular}}
 
 \paragraph{Limitations.} Gossiping the append-only log avoids the unsound filter merge described in \S\ref{sec:revocation} (``Why filters cannot be merged bitwise''), but how fast gossip spreads still rests on the standard anti-entropy analysis, not a machine-checked proof. The resistance of signature comparison to timing attacks comes from an audited library and is not re-proved here. Both remain open.
@@ -2620,6 +2627,36 @@ A card should be taken back by someone with a say over it. One answer is the hol
 The proof is \S\ref{sec:anchor-build-holder}'s, with the withdrawal as the ask. The gate hands out a challenge. The sender signs the four things a holder signs for any ask (Listing~\ref{alg:anchor-holder-prove}), with the ask set to the word \texttt{withdraw} and the id of the card to take back. The core rebuilds that text from what it is shown, as it does for any ask, so a proof made for one card cannot take back another. The card to take back must still check out under the sender's own card, or be that card.
 
 Two things remain. Whoever steals a key can take back every card signed with it, which is a nuisance and no more than the key allowed. And a holder who gives up a card cannot get it back, which is Design invariant~\ref{prop:no-reanim} doing its work.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:anchor-told-three}
+Three gates compare records in the rounds of Listing~\ref{alg:anchor-told-round}, and one of them has heard that a card was taken back. \S\ref{sec:anchor-build-told} shows that all three have heard after $\tfrac32$ rounds on average. Without running anything, find the average wait of one of the other two gates, named beforehand. Check your answer against Listing~\ref{alg:anchor-told-spread}.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-told-three}
+Call the gate that has heard A, and the named gate B. In the first round A picks B half the time, and B then hears. The other half of the time A picks the third gate. B still hears in that round if B itself picks A, which it does half the time. So B hears in round one with chance $\tfrac12+\tfrac12\cdot\tfrac12=\tfrac34$. Otherwise both other gates have heard by round two, and B hears from whichever it picks. The average is $\tfrac34\cdot1+\tfrac14\cdot2=\tfrac54$, which is the \texttt{one} column for 3 gates.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-told-first-round}
+Listing~\ref{alg:anchor-told-each} expects $62.50$ of 4{,}000 runs of five gates to end in the first round. Say where that number comes from. Then give the chance that four gates all hear in one round.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-told-first-round}
+One gate has heard, and it tells the gate it picks. Each of the other three hears in this round only by picking the gate that began with the news, since no other gate had anything to tell when the round began. Each picks it with chance $\tfrac14$, so all three do with chance $\tfrac1{64}$, and $4000/64=62.5$. With four gates two are left over, each picks the first with chance $\tfrac13$, and the chance is $\tfrac19$.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-told-window}
+The gates of a harbor compare records every 30 seconds. Heron's card is taken back at one gate with seven minutes of its life left. Using Listing~\ref{alg:anchor-told-spread}, say for how long on average Wren can still use the card at one given gate among five, and among 64. What would you change so that this time did not matter?
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-told-window}
+The column \texttt{one} gives the wait of a gate named beforehand: $1.68$ rounds among five gates and $3.93$ among 64, so about 50 seconds and about two minutes. More gates cost little, because the wait grows with the logarithm of their number. To make the time not matter, shorten the round, or give the card a life shorter than the wait, so that it ends before the news would have arrived. A card good for a minute needs no taking back at 64 gates.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=3]{ex:anchor-told-above}
+The gate of Listing~\ref{alg:anchor-told-tell} sends the whole chain as news. Say what a gate that hears it, or anyone reading the wire, can now do to the holders of the cards above the one taken back. Then repair it with the rule of Exercise~\ref{ex:anchor-taken-who}. The proof there answers a challenge that one gate handed out. What can the news carry that every gate can check?
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-told-above}
+The news for Heron's card holds Alice's card. Shown alone, Alice's card is a chain, and \texttt{withdraw} asks for no proof, so whoever hears the news can have her card taken back, and Heron's with it, at every gate. No right is gained. Alice is locked out until the harbor signs her a new card.
+
+With the rule of Exercise~\ref{ex:anchor-taken-who}, a card is taken back only by someone who proves they hold it or the card above it. A proof that answers one gate's challenge is no use to the next gate, which handed out no such challenge. The challenge was there to stop a proof being used twice, and here a second use does no harm: taking a card back a second time changes nothing, and it cannot be undone either way. So the order needs no challenge. It is a signature, by the key of the holder or of the holder above, over the word \texttt{withdraw} and the card's id. The news is the chain with that order, and every gate checks both. A listener who copies the news can send it on, which only helps, and cannot make an order for any other card.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{app:phase3}}{Phase 3: Multi-hop Delegation}

@@ -1,0 +1,78 @@
+% Brief (grammar: measured against exact, two panels; atlas
+%   V/fig:anchor-gossip-rounds).
+% Reader question: how many rounds does news of a card taken back need to
+% reach every gate, and can the count be trusted?
+% Claim: the rounds grow by about one for each doubling of the gates; runs
+% of the kernel's gates agree with the exact figures; and the one fit that
+% looks loose is what chance does about once in 72 tries.
+% Evidence: exact expected rounds for 2 to 64 gates; 400 seeded runs of the
+% kernel's gates at each of six sizes, with no exchange lost and with one
+% in four lost; the fit of the five-gate rounds made for 200 other seeds
+% [internal, harbor spread, harbor gossip, harbor fits; sessions
+% spread.txt, gossip.txt, gossip-loss.txt and fits.txt, plotted as printed].
+% Must distinguish: worked out from counted; every gate from a given gate;
+% no loss from loss; the 200 seeds from this Book's own.
+% Grammar chosen: on the left, gates on a doubling scale, so that a steady
+% gain for each doubling is a straight line; a line for what is worked out,
+% dots with interval bars for what was counted. On the right, ten bars
+% against the level chance alone gives.
+% Grammar rejected: a linear scale of gates, which crowds 2 to 8 into a
+% corner; a single bar for "the fit passed", which hides how often chance
+% alone gives a fit this loose.
+% Five-second test: do the dots sit on the lines?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure]
+  \pgfplotsset{
+    counted/.style={only marks,mark size=1.3pt,
+      error bars/y dir=both,error bars/y explicit,
+      error bars/error bar style={line width=.5pt},
+      error bars/error mark options={rotate=90,mark size=1.1pt,line width=.5pt}},
+  }
+  % The tables are the recorded runs, set as they were printed: the first
+  % line is the command, and every remark starts with '#'.
+  \pgfplotstableset{
+    as printed/.style={skip first n=1,x=gates},
+    bars/.style={y=mean,y error plus expr=\thisrow{high}-\thisrow{mean},
+      y error minus expr=\thisrow{mean}-\thisrow{low}},
+  }
+  \begin{axis}[pd axis,at={(0,0)},width=4.2cm,height=4.9cm,
+    xmode=log,log basis x=2,xmin=1.7,xmax=76,ymin=0,ymax=8.2,
+    xtick={2,4,8,16,32,64},xticklabels={2,4,8,16,32,64},
+    ytick={0,2,4,6,8},
+    title={rounds until the gates have heard},xlabel={gates},ylabel={rounds}]
+    \addplot[pd guide,mark=none] table[as printed,y=one] {excerpts/spread.txt};
+    \addplot[pd muted series,mark=none] table[as printed,y=exact] {excerpts/gossip-loss.txt};
+    \addplot[counted,draw=pdinkmuted!70,mark options={fill=pdinkmuted!70,draw=pdpage,line width=.3pt}]
+      table[as printed,bars] {excerpts/gossip-loss.txt};
+    \addplot[draw=pdfocus,line width=.9pt,mark=none] table[as printed,y=all] {excerpts/spread.txt};
+    \addplot[counted,draw=pdink,mark options={fill=pdink,draw=pdpage,line width=.3pt}]
+      table[as printed,bars] {excerpts/gossip.txt};
+    \draw[draw=pdfocus,line width=.3pt] (axis cs:64,6.12) -- (axis cs:64,7.25);
+    \node[pd focus label,anchor=south east] at (axis cs:76,7.2) {every gate};
+    \node[pd label,text=pdinkmuted,anchor=south west] at (axis cs:2.2,5.6) {one in four lost};
+    \node[pd label,anchor=north east] at (axis cs:76,2.45) {a given gate};
+  \end{axis}
+  \begin{axis}[pd axis,at={(5.45cm,0)},width=3.4cm,height=4.9cm,
+    xmin=0,xmax=1,ymin=0,ymax=32,
+    xtick={0,0.5,1},xticklabels={0,.5,1},ytick={0,10,20,30},
+    title={the fit, for 200 other seeds},xlabel={chance of a fit that loose},ylabel={seeds}]
+    \addplot[ybar,bar width=.1,bar shift=0pt,draw=pdpage,line width=.3pt,fill=pdinkmuted!55]
+      table[skip first n=1,x expr=\thisrow{chance}+0.05,y=seeds] {excerpts/fits.txt};
+    \addplot[pd guide,mark=none] coordinates {(0,20) (1,20)};
+    % This Book's own seed: its chance is the first number of the run's
+    % closing remark, held there by the numbers test.
+    \draw[pd focus rule] (axis cs:0.0138,0) -- (axis cs:0.0138,29.5);
+    \node[pd focus label,anchor=west] at (axis cs:0.04,29.3) {this Book's seed};
+  \end{axis}
+\end{tikzpicture}
+\caption{\textbf{News reaches every gate in about a round for each doubling
+of the gates, and runs of the gates agree with the arithmetic.} On the left,
+lines are exact and dots are the means of 400 runs with 95\% intervals. The
+lowest line is the wait of one gate named beforehand. On the right, the
+chance of the five-gate fit for seeds 1 to 200, by tenths; chance alone puts
+20 in each, the dotted level. [internal, \texttt{harbor spread}, \texttt{harbor gossip},
+\texttt{harbor fits}]}
+\label{fig:anchor-gossip-rounds}
+\end{figure}

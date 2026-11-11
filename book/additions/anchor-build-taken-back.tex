@@ -24,8 +24,9 @@ has ended, and not before.}
 has many parts. This section builds the part that one gate needs, in
 \pdkernelname{}: a record of the cards taken back, and the two rules that
 govern it. One says which cards a gate looks up. The other says what the
-record may forget. The filter, and the gossip that carries a denial to
-other gates, are not built here.
+record may forget. The filter is not built, and the gossip that carries
+a denial to other gates is the next section's
+(\S\ref{sec:anchor-build-told}).
 
 \subsubsection{Naive: look up the card that is shown}
 
@@ -261,7 +262,7 @@ check that the record answered truly.
 
 This is one gate. A second gate that has not heard of a card being taken
 back goes on honouring it, as Figure~\ref{fig:anchor-revocation-gossip}
-shows, and carrying the news is the rest of that design. The rule for
+shows. Carrying the news is \S\ref{sec:anchor-build-told}. The rule for
 forgetting uses one clock, and two gates whose clocks differ need the
 allowance that Design invariant~\ref{def:revocation-truncation} names. The
 record has no limit of its own: it holds every card taken back that is
