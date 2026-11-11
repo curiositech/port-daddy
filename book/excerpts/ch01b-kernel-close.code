@@ -1,0 +1,28 @@
+/**
+ * Close a promise as done. A promise that a test passes is
+ * checked by running the test. That takes time, so it happens
+ * before the transaction, on a numbered revision of the files.
+ * The decision core refuses the result if a file has changed
+ * since.
+ */
+async close(agent: string, id: number): Promise<Settled> {
+  const c = this.#store.commitment(id);
+  const about = c?.condition;
+  const open = c?.agent === agent && c.closed === null;
+  const checked = this.#policy.closure !== 'on-word';
+  let check: Check | null = null;
+  if (open && checked && about?.kind === 'passing-test') {
+    check = await this.#run(about.path);
+  }
+  const proposal = { op: 'close', agent, id } as const;
+  return this.#settle(proposal, about?.path, check);
+}
+
+async #run(path: string): Promise<Check> {
+  const seen = this.#store.transaction(() => ({
+    revision: this.#store.revision(),
+    files: this.#store.files(),
+  }));
+  const run = await this.#runTest(seen.files, path);
+  return { path, revision: seen.revision, ...run };
+}

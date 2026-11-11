@@ -1,0 +1,36 @@
+/// The kernel ran this test, it passed, and no file has changed
+/// since.
+fn passing(ledger: &Ledger, path: &str) -> Result<(), Reason> {
+    let check = match &ledger.check {
+        Some(check) if check.path == path => check,
+        _ => {
+            let path = path.to_owned();
+            return Err(Reason::NotChecked { path });
+        }
+    };
+    fresh(check, ledger)?;
+    if !check.passed {
+        return Err(Reason::TestFails {
+            path: path.to_owned(),
+            revision: check.revision,
+            detail: check.detail.clone(),
+        });
+    }
+    Ok(())
+}
+
+/// The fence again: a check is good only for the revision it
+/// saw. A test that passed before the last change says nothing
+/// about the files as they are now.
+fn fresh(check: &Check, ledger: &Ledger) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-any-revision") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    if check.revision != ledger.revision {
+        return Err(Reason::StaleCheck {
+            checked: check.revision,
+            current: ledger.revision,
+        });
+    }
+    Ok(())
+}

@@ -70,6 +70,13 @@ FIGURE_DIRS = (
     "docs/harbor-research/figures",
 )
 
+# Prose a chapter `\\input`s. A section kept here can declare an id of its
+# own, such as the label of a listing cut from the Book's kernel, and a
+# register row may name it.
+ADDITION_DIRS = (
+    "book/additions",
+)
+
 STRUCTURE_ENUM = {
     "temporal", "stateful", "quantitative", "relational",
     "containment", "provenance", "allocation", "comparison",
@@ -298,15 +305,16 @@ def chapter_sources(textbook: dict) -> list[str]:
 
 def declared_labels(textbook: dict) -> set[str]:
     """Every id that something in the corpus actually defines: `\\label{...}`
-    anywhere in a chapter source or a figure fragment, plus lstlisting
-    `label=` options (how `alg:` ids are declared)."""
+    anywhere in a chapter source, a section a chapter inputs from
+    book/additions, or a figure fragment, plus lstlisting `label=` options
+    (how `alg:` ids are declared)."""
     out: set[str] = set()
     paths: list[str] = []
     for src in chapter_sources(textbook):
         p = abspath(src)
         if os.path.isfile(p):
             paths.append(p)
-    for d in FIGURE_DIRS:
+    for d in FIGURE_DIRS + ADDITION_DIRS:
         dd = abspath(d)
         if not os.path.isdir(dd):
             continue

@@ -19,7 +19,7 @@ GUARDS = {
 # Chapter 1's lock session is not here: it is a recording of the Book's own
 # kernel under book/excerpts/, held by test_book_excerpts.py.
 RECORDS = [
-    ('book/figures/session-swk-workunit-check.tex', 'lstlisting.1.13', '3af69deb006a0894c428bb9f76da92570203833d0e9a58ff1c14701abc88e9f3'),
+    ('book/figures/session-swk-workunit-check.tex', 'lstlisting.1.20', '3af69deb006a0894c428bb9f76da92570203833d0e9a58ff1c14701abc88e9f3'),
     ('book/figures/session-anchor-v6-attack.tex', 'lstlisting.2.appendix.13', '09ec7ca7dd387a8cea0328342ede788ce4d991218389919c04095b4276a45e23'),
     ('book/figures/session-bc-delta30.tex', 'lstlisting.7.1', 'cc19261fc732c24f9bd80da70b2ce001775a84674dd84d5317180b930ffb5b02'),
     ('book/figures/session-fh-rollback.tex', 'lstlisting.8.1', 'bd837108cbdebb30afc4ff9332b87a6d6023bb6b4be2b8b3d3195831d03a5be2'),
@@ -61,8 +61,11 @@ def mono_lines(page):
             if any('SourceCodePro' in s['font'] for s in line['spans'])]
 
 
-def wrap_contract(page):
-    lines = [compact(s) for s in mono_lines(page)]
+def wrap_contract(*pages):
+    """The work-unit session's long lines wrap at a token boundary. The
+    session may run on to a second page, so its lines are read from every
+    page given."""
+    lines = [compact(s) for page in pages for s in mono_lines(page)]
     assert any('skills/harbor-results/scripts/c0_workunit.py' in s for s in lines)
     assert sum(s.count('ext_op(k1)') for s in lines) == 2
     assert sum(s.count('settle(p2!)') for s in lines) == 1
@@ -195,7 +198,10 @@ class ConsentTerminalPages(unittest.TestCase):
         self.assertTrue(340 < height < 350)
 
     def test_workunit_wrap_and_heading(self):
-        wrap_contract(self.doc[self.names['lstlisting.1.13']['page']])
+        # The session starts on this page. Since Chapter 1's second build
+        # section moved it down the page, it ends on the next.
+        first = self.names['lstlisting.1.20']['page']
+        wrap_contract(self.doc[first], self.doc[first + 1])
         heading_contract(self.doc[self.names[self.labels['anchor:thm:attn-sound'][3]]['page']])
 
     def test_opening_and_reflection_plate_have_no_stranded_tail(self):

@@ -2074,3 +2074,27 @@
   before: "a variable the tool does not read"
   after: "believes a name only when the credential sent with it"
   source: "code: curiositech/harbord-dev 921e58c, harbord/DESIGN.md D21 (test/service.test.ts)"
+- id: swk-roads-1
+  item: "Ch. 1 build: Law 2 names the condition when the commitment is made"
+  file: book/single-writer-kernel.tex
+  before: "unless the agent supplies a non-empty reference"
+  after: "A commitment names, when it is made, a condition drawn from"
+  source: "code: curiositech/harbord-dev 21c4755, harbord/core/src/commitments.rs (close, holds); harbord/DESIGN.md D26"
+- id: swk-roads-2
+  item: "Ch. 1: the reference implementation's closure gate requires a reference and does not check it (I6 regraded)"
+  file: book/single-writer-kernel.tex
+  before: "These four kinds are what the daemon checks today"
+  after: "it requires only that the reference not be empty"
+  source: "code: lib/commitments.ts close() at port-daddy 356a7d80b: any non-empty string closes a commitment"
+- id: swk-roads-3
+  item: "Ch. 1 build: the closure rule is printed from the Book's own kernel, not as pseudocode"
+  file: book/additions/swk-build-the-guards.tex
+  before: "oracle reference outside the finite vocabulary"
+  after: "The promiser asks, and the condition the promise named decides"
+  source: "code: curiositech/harbord-dev 21c4755, harbord/core/src/commitments.rs lines 127-169 (snippet ch01b-close)"
+- id: swk-roads-4
+  item: "Ch. 1 build: the review of key ideas states the corrected closure rule"
+  file: book/single-writer-kernel.tex
+  before: "free text bounces back and the commitment stays open"
+  after: "There is no field for free text"
+  source: "code: curiositech/harbord-dev 21c4755, harbord/core/src/lib.rs (Proposal::Promise, Proposal::Close; deny_unknown_fields)"

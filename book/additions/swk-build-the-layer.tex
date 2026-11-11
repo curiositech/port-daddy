@@ -207,7 +207,7 @@ a kernel with one change, \texttt{newest} built to admit every token.
 Listing~\ref{alg:swk-build-run-no-fence} is the end of that run.
 
 \pdrunlines[caption={The end of the same run with \texttt{newest} switched
-off.},label={alg:swk-build-run-no-fence}]{lost-update-no-fence}{1-1,17-32}{1 and 17--32}
+off.},label={alg:swk-build-run-no-fence}]{lost-update-no-fence}{1-1,17-32}{1 and 17\textendash 32}
 
 Events 7 and 8 are admitted and the update is lost, just as it was under the
 lock file. The guard is what stopped the break. The kernel's tests hold it to
