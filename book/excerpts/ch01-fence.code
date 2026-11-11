@@ -1,0 +1,16 @@
+/// The write-path check: is the presented grant the newest one,
+/// in the hands of the agent it was issued to? Returns that
+/// grant.
+pub fn fence<'a>(
+    grants: &'a Grants,
+    agent: &str,
+    token: u64,
+) -> Result<&'a Grant, Reason> {
+    let presented = grants
+        .presented
+        .as_ref()
+        .ok_or(Reason::UnknownToken { presented: token })?;
+    bound_to(presented, agent)?;
+    newest(grants, token)?;
+    Ok(presented)
+}

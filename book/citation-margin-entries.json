@@ -284,14 +284,14 @@
   {
     "key": "mega026",
     "original": "Daniel J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.\n\\newblock High-Speed High-Security Signatures.\n\\newblock \\textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.\n\\newblock (Ed25519, the signature scheme underlying the authorization chain.)",
-    "margin": "Bernstein et al. \\emph{High-Speed High-Security Signatures}. J. Cryptographic Engineering 2(2):77--89, 2012.",
-    "reason": "Retains the full title and publication locator/year while removing the chapter-specific Ed25519 annotation."
+    "margin": "Bernstein et al. \\emph{High-Speed High-Security Signatures}. J. Cryptogr. Eng. 2(2):77--89, 2012.",
+    "reason": "Retains the full title and publication locator/year while removing the chapter-specific Ed25519 annotation. Venue abbreviated on 11 November 2026: the page that carries this entry had 2pt of margin left."
   },
   {
     "key": "mega027",
     "original": "Bruno Blanchet.\n\\newblock Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif.\n\\newblock \\textit{Foundations and Trends in Privacy and Security}, 1(1-2):1--135, 2016.\n\\newblock \\url{https://doi.org/10.1561/3300000004}",
-    "margin": "Blanchet. \\emph{Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif}. Foundations and Trends in Privacy and Security 1(1--2):1--135, 2016.",
-    "reason": "Keeps the complete work title and publication locator/year; removes the explanatory annotation about chapter usage."
+    "margin": "Blanchet. \\emph{Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif}. Found. Trends Priv. Secur. 1(1--2):1--135, 2016.",
+    "reason": "Keeps the complete work title and publication locator/year; removes the explanatory annotation about chapter usage. Venue abbreviated on 11 November 2026: the page that carries this entry had 2pt of margin left."
   },
   {
     "key": "mega028",

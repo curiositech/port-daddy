@@ -16,9 +16,10 @@ GUARDS = {
     'unexpired': r'$g$ unexpired',
     'unrevoked': r'$g$ unrevoked',
 }
+# Chapter 1's lock session is not here: it is a recording of the Book's own
+# kernel under book/excerpts/, held by test_book_excerpts.py.
 RECORDS = [
-    ('book/figures/session-swk-lock-demo.tex', 'lstlisting.1.2', 'd55f61ed0ee474be81c6f253a7dd738027f559aa48c53ad34d4bb6906b6d3b5f'),
-    ('book/figures/session-swk-workunit-check.tex', 'lstlisting.1.4', '3af69deb006a0894c428bb9f76da92570203833d0e9a58ff1c14701abc88e9f3'),
+    ('book/figures/session-swk-workunit-check.tex', 'lstlisting.1.13', '3af69deb006a0894c428bb9f76da92570203833d0e9a58ff1c14701abc88e9f3'),
     ('book/figures/session-anchor-v6-attack.tex', 'lstlisting.2.appendix.13', '09ec7ca7dd387a8cea0328342ede788ce4d991218389919c04095b4276a45e23'),
     ('book/figures/session-bc-delta30.tex', 'lstlisting.7.1', 'cc19261fc732c24f9bd80da70b2ce001775a84674dd84d5317180b930ffb5b02'),
     ('book/figures/session-fh-rollback.tex', 'lstlisting.8.1', 'bd837108cbdebb30afc4ff9332b87a6d6023bb6b4be2b8b3d3195831d03a5be2'),
@@ -129,7 +130,7 @@ class ConsentTerminalSources(unittest.TestCase):
             self.assertEqual(hashlib.sha256(data).hexdigest(), digest)
             body = data.decode().split(r'\begin{pdsession}', 1)[1].split('\n', 1)[1].split(r'\end{pdsession}', 1)[0]
             count += sum(bool(line.strip()) for line in body.splitlines())
-        self.assertEqual(count, 97)
+        self.assertEqual(count, 76)
         a = (ROOT / 'book/figures/pd-pedagogy.tex').read_text()
         self.assertEqual(a, (WEB / 'figures/pd-pedagogy.tex').read_text())
         self.assertIn(r'\newif\ifpdsessionwordwrap', a)
@@ -194,7 +195,7 @@ class ConsentTerminalPages(unittest.TestCase):
         self.assertTrue(340 < height < 350)
 
     def test_workunit_wrap_and_heading(self):
-        wrap_contract(self.doc[self.names['lstlisting.1.4']['page']])
+        wrap_contract(self.doc[self.names['lstlisting.1.13']['page']])
         heading_contract(self.doc[self.names[self.labels['anchor:thm:attn-sound'][3]]['page']])
 
     def test_opening_and_reflection_plate_have_no_stranded_tail(self):
@@ -221,7 +222,7 @@ class ConsentTerminalPages(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 heading_contract(doc[names[labels['anchor:thm:attn-sound'][3]]['page']])
 
-    def test_all_five_transcripts_survive_in_order_at_native_size(self):
+    def test_every_recorded_transcript_survives_in_order_at_native_size(self):
         for path, destination, _ in RECORDS:
             source = (ROOT / path).read_text()
             body = source.split(r'\begin{pdsession}', 1)[1].split('\n', 1)[1].split(r'\end{pdsession}', 1)[0]

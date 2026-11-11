@@ -1,0 +1,40 @@
+$ harbor scenario lost-update --design kernel
+scenario lost-update, design kernel: a holder pauses past its
+  lease, then overwrites newer work
+
+t=0      heron  claim shop/checkout.ts
+                -> granted token 1, lease until t=30000
+t=0      heron  read shop/checkout.ts, raises TAX_RATE to 0.08
+t=0      heron  lease check: still held
+t=0      heron  pauses (a GC or network stall)
+t=31000  wren   claim shop/checkout.ts
+                -> granted token 2, lease until t=61000
+t=31000  wren   read shop/checkout.ts, rounds the total to whole
+                cents
+t=31000  wren   lease check: still held
+t=31000  wren   write shop/checkout.ts token 2 -> ok
+t=31000  wren   release shop/checkout.ts token 2 -> ok
+t=31000  heron  wakes, still believing it holds the lock
+t=31000  heron  write shop/checkout.ts token 1
+                -> refused: stale-token (token 1 is older than the
+                   latest issued, 2)
+t=31000  heron  release shop/checkout.ts token 1
+                -> refused: stale-token (token 1 is older than the
+                   latest issued, 2)
+
+event log:
+  #1 t=0 heron register -> admitted
+  #2 t=0 wren register -> admitted
+  #3 t=0 heron claim shop/checkout.ts token 1 -> admitted
+  #4 t=31000 wren claim shop/checkout.ts token 2 -> admitted
+  #5 t=31000 wren write shop/checkout.ts token 2 -> admitted
+  #6 t=31000 wren release shop/checkout.ts token 2 -> admitted
+  #7 t=31000 heron write shop/checkout.ts token 1
+     -> REFUSED stale-token: token 1 is older than the latest
+        issued, 2
+  #8 t=31000 heron release shop/checkout.ts token 1
+     -> REFUSED stale-token: token 1 is older than the latest
+        issued, 2
+
+verdict: no lost update: Wren's rounding fix survived Heron's late
+         write

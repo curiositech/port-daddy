@@ -1,0 +1,28 @@
+#propose(proposal: Proposal, apply: () => void): Decision {
+  return this.#store.transaction(() => {
+    const { path } = proposal;
+    const token = proposal.op === 'claim' ? null : proposal.token;
+    const state = {
+      latest: this.#store.latestGrant(path),
+      presented:
+        token === null ? null : this.#store.grant(path, token),
+      current: this.#store.file(path) ?? null,
+    };
+    const decision = this.#core.decide(
+      proposal, state, this.#policy, this.#clock.now(),
+    );
+    const admitted = decision.verdict === 'admit';
+    if (admitted) {
+      this.#store.putGrant(path, decision.grant);
+      apply();
+    }
+    this.#log({
+      agent: proposal.agent,
+      action: proposal.op,
+      path,
+      token: admitted ? decision.grant.token : token,
+      refused: admitted ? null : decision.reason,
+    });
+    return decision;
+  });
+}

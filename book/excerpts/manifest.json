@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "commit": "921e58c75469d37b70cbc124766713662df63ac1",
+  "scan": "harbord",
+  "excerpts": [
+    {
+      "name": "ch01-check-then-write",
+      "path": "harbord/src/agents/honest.ts",
+      "firstLine": 41,
+      "lastLine": 50,
+      "lines": 10,
+      "language": "TypeScript",
+      "sha256": "3d99e9b9d0037503b5f8246296dd985d3c0e44b3021571fbc4eff7f73626c2fa"
+    },
+    {
+      "name": "ch01-claim",
+      "path": "harbord/core/src/claims.rs",
+      "firstLine": 36,
+      "lastLine": 73,
+      "lines": 38,
+      "language": "Rust",
+      "sha256": "fe065ea0ee3db539eee1b9d8ef52105bc47919ce7b7ad08034604cd6ba0b3a41"
+    },
+    {
+      "name": "ch01-fence",
+      "path": "harbord/core/src/claims.rs",
+      "firstLine": 77,
+      "lastLine": 92,
+      "lines": 16,
+      "language": "Rust",
+      "sha256": "f38c17fdc35c3abec834a99706a563222ce1bc5f48f06e0f51b676b18fb3657e"
+    },
+    {
+      "name": "ch01-naive-acquire",
+      "path": "harbord/src/naive/lockfile.ts",
+      "firstLine": 28,
+      "lastLine": 55,
+      "lines": 28,
+      "language": "TypeScript",
+      "sha256": "f6f219739c65300757e46367c56d5cc71741d916734aa5788e9135bbaea3cf1c"
+    },
+    {
+      "name": "ch01-newest",
+      "path": "harbord/core/src/claims.rs",
+      "firstLine": 128,
+      "lastLine": 143,
+      "lines": 16,
+      "language": "Rust",
+      "sha256": "69047b3445db6e2f739ef1f0282ec96788a2e4e02e6657e96bca10ab3cd366c9"
+    },
+    {
+      "name": "ch01-propose",
+      "path": "harbord/src/kernel/kernel.ts",
+      "firstLine": 138,
+      "lastLine": 165,
+      "lines": 28,
+      "language": "TypeScript",
+      "sha256": "58176f6a9617b0348dfa24bb6f83da8361c1fa895c668e884c45a56a33fcaead"
+    }
+  ],
+  "sessions": [
+    {
+      "name": "lock-demo",
+      "path": "harbord/sessions/lock-demo.txt",
+      "lines": 17,
+      "sha256": "1a7b737ba6ec09150055601b041a581d6a37322fedd3dfe82d3289d5300b8ec6"
+    },
+    {
+      "name": "lost-update-kernel",
+      "path": "harbord/sessions/lost-update-kernel.txt",
+      "lines": 40,
+      "sha256": "be02644538838eb8f5a6a9ca114ac75e73b2b41d2be1afa1c95b8605bce0e1c8"
+    },
+    {
+      "name": "lost-update-naive",
+      "path": "harbord/sessions/lost-update-naive.txt",
+      "lines": 25,
+      "sha256": "548c7ac6b5eca7b2366fcf019e7d8843d6e6d967e2b68cb6be1b7cb0f35857d5"
+    },
+    {
+      "name": "lost-update-no-fence",
+      "path": "harbord/sessions/lost-update-no-fence.txt",
+      "lines": 32,
+      "sha256": "6e651e010035c595baa286c02907e81e00e6aff6909d73c62403924e5fbdafdd"
+    }
+  ],
+  "printedLines": {
+    "ch01": 136
+  }
+}

@@ -265,6 +265,7 @@ The two guarantees require different qualifications:
 \fi
 
 \subsection{Why ``reference monitor,'' and why \emph{not} \mbox{consensus}}
+\label{sec:swk-monitor}
 The right mental model is the reference monitor of Anderson and
 Lampson~\pdcite{anderson1972,lampson1971}: a component that checks every access
 to protected state (\emph{always invoked}, or complete mediation), that other
@@ -703,6 +704,7 @@ converging on that one commit point: \texttt{claude:worker-1} is granted the por
 is told who holds it.
 
 \subsection{The claim lifecycle as a finite-state machine}
+\label{sec:swk-lifecycle}
 \input{figures/fig-swk-claim-lifecycle}
 Figure~\ref{fig:swk-claim-lifecycle} states four properties as a state machine:
 acquire is one atomic insert, re-claim of a live claim and release are
@@ -759,7 +761,7 @@ and the holder's own effects from before its pause would still pass the gate:
 the late write that epochs exist to stop. Re-claim is idempotent only while
 the claim is live (I3).
 
-\pdstatus{\Designed}{fencing (I2b): no per-resource epoch is kept and no effect broker checks one; exact-key exclusion is built}
+\pdstatus{\Designed}{fencing (I2b): the reference implementation keeps no epoch and checks none; \pdkernelname{} builds both, \S\ref{sec:swk-build}}
 The second half of the theorem below uses a \pdterm{fencing token}, an idea
 this design borrows. Kleppmann states the rule: ``a number that increases every
 time a client acquires the lock'' is handed to the resource with every write,
@@ -779,9 +781,11 @@ revision~7. A database with only one current claim can still be paired with a
 filesystem that accepts Heron's stale patch. The stronger design therefore
 requires the effect broker to compare the submitted epoch, and the agent
 submitting it, against the current allocation: epoch~1 is refused once epoch~2
-is current, and so is epoch~2 from anyone but Wren. That design is
-not built: the reference implementation keeps no per-resource epoch, and no
-effect broker checks one (I2b in Table~\ref{tab:invariants}).
+is current, and so is epoch~2 from anyone but Wren. The reference
+implementation does not build that design: it keeps no per-resource epoch, and
+no effect broker checks one (I2b in Table~\ref{tab:invariants}).
+\S\ref{sec:swk-build} builds it in \pdkernelname{}, a second and much
+smaller program, and runs this example.
 Figure~\ref{fig:swk-fencing-epoch} shows the same late effect with two other
 agents, \texttt{claude:auth} and \texttt{codex:worker}, and epochs 104 and 105
 in place of 1 and 2. A file write that
@@ -835,7 +839,9 @@ bounds the holder needs the lease check as well. The proof also assumes that an
 acknowledged epoch increment survives; under \texttt{synchronous=NORMAL} a power
 loss can roll it back (I1b). The binding is only as strong as the identity
 check behind it (I12, \S\ref{sec:swk-identity}). The reference implementation
-discharges none of these hypotheses: fencing is designed, not built (I2b).
+discharges none of these hypotheses: there, fencing is designed, not built
+(I2b). \pdkernelname{} meets each of them for claims on whole files, and
+\S\ref{sec:swk-build} shows the code and where it stops.
 \end{pdboundary}
 
 \input{figures/fig-swk-fencing-epoch}
@@ -872,17 +878,7 @@ An explicit transaction addresses atomicity; preventing stale external
 effects still requires the downstream gate. Single ownership, atomic
 reclamation, and fencing are three separate obligations.}
 
-What the discipline looks like at the command line: a lock is taken on a file,
-a second request for the same name is told who holds it and for how long, and only
-after the release does the next acquire succeed. The recording runs every command
-from one shell, so every command acts as one minted actor and the \texttt{export}
-lines change nothing (\S\ref{sec:swk-identity} explains why that matters). The
-second request is refused all the same, because a held lock refuses every new
-acquire, its holder's included. Nothing here is advisory: the
-daemon is the single writer for the \texttt{locks} row, so the second request cannot
-race the first.
-
-\input{figures/session-swk-lock-demo}
+\input{additions/swk-build-the-layer}
 
 \subsection{Fairness without a scheduler: a ticket lock (OP-1)}
 \label{sec:op1}
@@ -892,15 +888,6 @@ The conspicuous gap in the claim lifecycle (Figure~\ref{fig:swk-claim-lifecycle}
 the absence of a \textsc{queued} state. Locks have a time-to-live, but acquisition is
 a race won by whoever asks first, so a fast agent that keeps re-acquiring a busy
 file can starve a slow agent, keeping it waiting forever.
-
-\ifdefined\pdswisslandmarkplate
-\begin{figure}[p]
-  \centering
-  \pdswisslandmarkplate{12}{\linewidth}
-\end{figure}
-% Finish the plate here so it cannot interrupt the following ticket-lock paragraph.
-\pdmarginpagebreak
-\fi
 
 The design that would close OP-1 without adding a scheduler for claims to the
 kernel is a \pdterm{Stigmergic Ticket-Lock}: each waiting agent leaves a
@@ -2279,7 +2266,9 @@ itself is the real one.
 
 Table~\ref{tab:invariants} lists the kernel's properties as falsifiable claims,
 each with its mechanism and its maturity grade. The grade column applies the
-maturity scale to the theorems themselves.
+maturity scale to the theorems themselves. The grades are the reference
+implementation's. Where \pdkernelname{} builds what that daemon lacks, as it
+does for I2b in \S\ref{sec:swk-build}, the text says so.
 
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
@@ -2870,10 +2859,13 @@ the variable \texttt{PORT\_DADDY\_CONTEXT\_SLOT} redirects, and any process can
 set that variable. A child agent inherits its parent's environment, and agents
 with neither a terminal nor a harness session identifier share one default file
 in a working tree. A buggy agent that means to cooperate can therefore act under
-another agent's identity without forging anything. The lock session in
-\S\ref{sec:resource} shows the effect: its \texttt{export} lines set
-\texttt{PORT\_DADDY\_AGENT\_ID}, a variable the tool does not read, so
-``alice'' and ``bob'' there ran as one actor.
+another agent's identity without forging anything. \pdkernelname{}'s
+command line leaves the same opening. In the session of
+\S\ref{sec:swk-build}, \texttt{HARBOR\_AGENT} picks which stored credential
+a command sends, and a child process inherits the variable. The credential
+files can also be read by any process of the same user. What \pdkernelname{}
+closes is the older path: its service believes a name only when the
+credential sent with it was minted for that name.
 
 Either way, a worker acting under another's name weakens the checks that depend
 on knowing who is acting: that only a lock's owner can release it, that no worker gains more
@@ -3084,7 +3076,9 @@ The chapter's main results, in the order the rest of the book relies on them:
   from the agent it was issued to; the gate need not check the lease. A claim
   after expiry, even by the same holder, is a new acquisition with a new epoch.
   An exact-key claim alone does not supply
-  those extra guarantees, and fencing is designed, not built.
+  those extra guarantees. The reference implementation does not build fencing;
+  \pdkernelname{} does, and \S\ref{sec:swk-build} runs the paused holder
+  against it with the guard and without.
 \item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
   idempotency key the coordination layer has yet to supply; only protocol violations raise alarms.
 \item Two chains, never one name. The authorization chain proves who authorized whom;
@@ -3264,6 +3258,24 @@ Two agents call \texttt{acquire} on the same fresh key at the same instant. Walk
 \end{center}
 \par\smallskip
 The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key, holder) commits. The second hits the unique-key violation, selects the extant row inside the catch path, and returns \texttt{DENIED}\allowbreak\texttt{(holder}\allowbreak\texttt{=first)}: that select is where the loser learns the name. For range and hierarchy claims the trace is safe only after both requests map to the same canonical conflict key or the overlap test runs in one immediate transaction.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-build-gap}
+In Listing~\ref{alg:swk-build-check-then-write}, name the point after which no check by the agent can help. Would a second check, placed just before the write, change your answer?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-build-gap}
+The point is the return of \texttt{stillHeld}. From there until the file system applies the write, the agent learns nothing new about its lease, and a pause can fall anywhere in that stretch. A second check moves the point later and leaves a gap of its own behind it. The gap closes only when the party that applies the write makes the comparison, as \texttt{\#propose} does in Listing~\ref{alg:swk-build-propose}.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-build-arms}
+Swap the second and third arms of the \texttt{match} in Listing~\ref{alg:swk-build-claim}, so that a holder's own grant is renewed before its expiry is looked at. Give a history of one agent and one file that the swapped code admits and the printed code refuses. Which hypothesis of Theorem~\ref{thm:exclusion} does the swap break?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-build-arms}
+Heron claims the file at time 0 and is granted token 1 with a lease to 30000. It sends a write under token 1, and the write is delayed on its way. At 31000 Heron claims again and goes on working. The printed code finds an expired grant and issues token 2, so the delayed write arrives with token 1 and is refused as stale. The swapped code finds Heron's own grant, renews it and keeps token 1, so the delayed write is admitted over whatever Heron has written since. The swap breaks the second hypothesis: each new allocation takes the next epoch, a holder's own claim after its lease expired included. Re-claim is idempotent only while the grant is live (I3).
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-build-unbound}
+Remove the call to \texttt{bound\_to} from Listing~\ref{alg:swk-build-fence}. The run of Listing~\ref{alg:swk-build-run-kernel} ends as before, with no lost update. Why? Describe a run of two agents that the change does break.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-build-unbound}
+In that run Heron presents its own token. The binding holds, so removing its check changes nothing, and \texttt{newest} still refuses token 1 once token 2 exists. The change shows when an agent presents a token that is current and not its own. Heron claims the file and is granted token 1. Wren, registered under her own name, writes to the file with token 1. \texttt{newest} passes, because 1 is the newest token. Only \texttt{bound\_to} is left to refuse the write, on the ground that the token was issued to Heron. Without it Wren has changed the file under Heron's grant. The kernel keeps a build with this guard removed, and the test that fails against it is this run.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op1-ticket}
 The Stigmergic Ticket-Lock gives bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a scheduler for claims, or argue that no reactive-only design can, and say what the minimum scheduler would be.
@@ -3773,6 +3785,16 @@ domain sockets. The daemon is kept alive by the host operating system's service
 manager. The seven subsystems of \S\ref{sec:organs} correspond to distinct modules
 that each self-initialize their own tables over the shared database handle, in the
 factory style \texttt{createModule(db)}.
+
+A second program stands behind \S\ref{sec:swk-build}: \pdkernelname{}, a
+kernel written for this book. Its decisions are made by a Rust core compiled
+to WebAssembly, under a TypeScript host on Node, over one SQLite file with
+the same WAL configuration. It builds much less than the reference
+implementation: claims on whole files, fencing tokens, a check in the write
+path, minted credentials and an event log. The listings in
+\S\ref{sec:swk-build} are cut from it by a script. Its source is not yet
+published. The grades in this chapter remain the reference implementation's,
+and where \pdkernelname{} builds what that daemon lacks the text says so.
 
 \subsection{Mechanism-to-artifact map}
 

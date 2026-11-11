@@ -1,0 +1,17 @@
+$ harbord --now 0 &
+harbord: listening on .harbor/harbord.sock
+$ harbor register alice
+registered alice
+$ harbor register bob
+registered bob
+$ HARBOR_AGENT=alice harbor claim app.ts --ttl 600
+granted: alice holds app.ts for 600 s (token 1)
+$ HARBOR_AGENT=bob harbor claim app.ts
+refused: app.ts is held by alice for another 600 s
+$ HARBOR_AGENT=bob harbor claims
+PATH    HOLDER  TOKEN  EXPIRES IN
+app.ts  alice       1  600 s
+$ HARBOR_AGENT=alice harbor release app.ts
+released: app.ts (token 1)
+$ HARBOR_AGENT=bob harbor claim app.ts
+granted: bob holds app.ts for 300 s (token 2)
