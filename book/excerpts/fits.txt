@@ -1,0 +1,28 @@
+$ harbor fits
+# the fit of harbor gossip --each, made again for 200 other seeds:
+#   5 gates, 4000 runs for each seed
+# these runs use tellers that only remember whether they have
+#   heard: a gate and such a teller end every run in the same
+#   round
+# chance: the chance of a chi-square as large as the seed gave or
+#   larger, by tenths; a row holds the chances from its figure up
+#   to the next
+# when runs follow the model, a chance is as likely to fall in one
+#   tenth as in another
+# seeds: how many of the 200 fell in that tenth; due: how many
+#   chance alone puts there
+chance  seeds   due
+   0.0     23    20
+   0.1     16    20
+   0.2     23    20
+   0.3     16    20
+   0.4     17    20
+   0.5     21    20
+   0.6     22    20
+   0.7     19    20
+   0.8     17    20
+   0.9     26    20
+# seed 20261111 gives 0.0138; 3 of the 200 gave less, where chance
+#   alone puts 2.8
+# chi-square 5.50 on 9 degrees of freedom for the ten counts; a
+#   figure this large or larger comes up 79 times in 100

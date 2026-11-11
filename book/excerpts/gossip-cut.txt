@@ -1,0 +1,16 @@
+$ harbor gossip --cut 5 --gates 4,16
+# news of a card taken back at one gate, among gates that compare
+#   records; design core, seed 20261111
+# in a round every gate picks one other gate, and the two compare
+#   records; no exchange is lost
+# for the first 5 rounds no exchange crosses between the first
+#   half of the gates and the rest
+# 400 runs for each number of gates
+# rounds: until every gate had heard
+# exact: what the model expects when nothing is cut, to compare
+# mean: the average over the runs; low, high: its 95% interval,
+#   which is the mean give or take 1.96 standard errors
+# least: the fewest rounds any run took
+gates   exact    mean     low    high  least
+    4  2.0167  6.2725  6.2283  6.3167      6
+   16  4.1530  7.1650  7.1177  7.2123      6

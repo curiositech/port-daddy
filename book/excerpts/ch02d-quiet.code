@@ -1,0 +1,24 @@
+/**
+ * The chance that `some` gates, named in advance, all end a round
+ * still not having heard, when `heard` of the gates have.
+ *
+ * A gate hears in two ways. Its own exchange is with a gate that
+ * has heard, and gets through. Or a gate that has heard picks it,
+ * and that exchange gets through. So the named gates all stay
+ * unhearing when none of their own exchanges brings the news, and
+ * none of the hearers' exchanges lands on any of them.
+ */
+export function quiet(
+  gates: number,
+  heard: number,
+  some: number,
+  loss: Fraction = ZERO,
+): Fraction {
+  const others = whole(gates - 1);
+  const through = minus(ONE, loss);
+  const brings = times(through, over(whole(heard), others));
+  const lands = times(through, over(whole(some), others));
+  const ownFail = power(minus(ONE, brings), some);
+  const noneLands = power(minus(ONE, lands), heard);
+  return times(ownFail, noneLands);
+}
