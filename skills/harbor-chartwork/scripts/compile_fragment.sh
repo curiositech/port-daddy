@@ -299,6 +299,10 @@ else
     # pinned assets so a fragment uses the same optical cuts as a full build
     # even on a machine without these faces installed.
     [ ! -d "$BOOK_DIR/fonts" ] || cp -R "$BOOK_DIR/fonts" "$BUILD/fonts"
+    # So are the recorded runs. A figure may plot one as it was printed
+    # (\addplot table {excerpts/<run>.txt}), and without the directory the
+    # fragment stops at "Could not read table file".
+    [ ! -d "$BOOK_DIR/excerpts" ] || cp -R "$BOOK_DIR/excerpts" "$BUILD/excerpts"
     # Same typography as the assembled Book; configuration only, no font copies.
     python3 "$BOOK_DIR/../scripts/prepare-book-fonts.py" "$BUILD" || exit 2
     # ...but the two the wrapper cannot compile without are still asserted, so a
@@ -434,7 +438,11 @@ LOG_SRC="$BUILD/$MAIN_JOBNAME.log"
 cp "$LOG_SRC" "$OUT_DIR_ABS/$STEM.log" 2>/dev/null
 
 if [ "$STATUS" -ne 0 ] || [ ! -f "$PDF_SRC" ]; then
-  FIRST_ERROR="$(grep -m1 -E '^! ' "$LOG_SRC" 2>/dev/null)"
+  # An error line is "! ..." from tectonic. The local engines below run with
+  # -file-line-error, which writes the same error as "./file.tex:40: ...".
+  # Both shapes count, or a real error under a local engine has no "! " line
+  # and is read further down as a file that draws nothing.
+  FIRST_ERROR="$(grep -m1 -E '^(! |[^ :]+\.tex:[0-9]+: )' "$LOG_SRC" 2>/dev/null)"
 
   # NOTHING TO DRAW is not the same thing as WOULD NOT COMPILE, and this script
   # used to report them identically.

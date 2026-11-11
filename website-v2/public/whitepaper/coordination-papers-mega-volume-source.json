@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40458163,
+    "bytes": 40458161,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/1ec4eda1f0cdeec2d171ae4b6f67080db697b67be490cab469daa0069cedfb44.tar.gz",
-    "sha256": "1ec4eda1f0cdeec2d171ae4b6f67080db697b67be490cab469daa0069cedfb44",
-    "url": "https://media.portdaddy.dev/book/source/sha256/1ec4eda1f0cdeec2d171ae4b6f67080db697b67be490cab469daa0069cedfb44.tar.gz"
+    "key": "book/source/sha256/3fac8c4824a8ad700601b5902e6f648a04f5ff546d49b9958b725f2809076797.tar.gz",
+    "sha256": "3fac8c4824a8ad700601b5902e6f648a04f5ff546d49b9958b725f2809076797",
+    "url": "https://media.portdaddy.dev/book/source/sha256/3fac8c4824a8ad700601b5902e6f648a04f5ff546d49b9958b725f2809076797.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "0a6c0032d8319a9f4be0ac3bb0049f5163349a38f1bda30fe9c660a9f5bc0630",
+  "manifestSha256": "05c301eac41f812e6e12fa52b000de85a077b676bdb6cf84cde11ea2f8200f44",
   "schemaVersion": 1,
   "source": {
     "fileCount": 622,
@@ -1102,10 +1102,10 @@
         "sha256": "41e13f5988b4616760999630e1ddd713c6010589bffaab3345b368c7724e6994"
       },
       {
-        "bytes": 4420,
+        "bytes": 4432,
         "mode": 420,
         "path": "book/figures/fig-ch0-survival.tex",
-        "sha256": "5963853bfda35f1d23abb0291b23d7e33a1e7efabd47d17d41eb2af5e0e21248"
+        "sha256": "69f4667af219a5ceff5a62408e2aa395b5fc058108b2cd7b22a757585af00d62"
       },
       {
         "bytes": 303105,
@@ -3754,6 +3754,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "f8474ae9493449b15cf7ae37314f723942f62dbec2fa5a5b404874c1a42a773c"
+    "sha256": "84965cf6f5bd12207f8dac3ca403ae9b08c72ad7e561d236777a2f388cffc947"
   }
 }
