@@ -3,6 +3,14 @@
 
 Margin safety is a hard check. Whitespace is a review queue, not an automatic
 design verdict: part/chapter plates intentionally use different page grammar.
+
+A nearly full margin is reported as an advisory. The build refuses a page
+whose notes are taller than the margin column ("Margin content exceeds
+pages N"), and a page can be one line of a note away from that for months.
+Then an edit somewhere upstream reflows the chapter, or a newer TeX breaks a
+note one line differently, and the build fails on a page nobody touched.
+Listing the pages that are close says which note to shorten before that
+happens.
 """
 import argparse
 import json
@@ -43,6 +51,44 @@ def margin_records(log):
             if b['top'] < a['top'] + a['height'] + 6.9:
                 issues.append(dict(folio=page, ids=[a['id'], b['id']], issue='margin collision'))
     return registered, placed, issues
+
+
+# pd-margin-layout.tex stacks a page's notes with this much between them and
+# refuses the page when the stack is taller than \textheight.
+MARGIN_GAP = 7.0
+# One short note with its gap. A page with less than this to spare cannot take
+# another note, and may not survive one more line in a note it has.
+TIGHT_MARGIN = 60.0
+
+
+def text_height(log):
+    """The margin column's height: \textheight as geometry reports it."""
+    match = re.search(r"^\*\s*\\textheight=([\d.]+)pt", log, re.M)
+    return float(match.group(1)) if match else None
+
+
+def margin_slack(placed, column, limit=TIGHT_MARGIN):
+    """Pages whose margin notes leave less than `limit` points of the column.
+
+    The measure is the layout's own: each note's height plus the gap, less one
+    gap. Records are grouped by runs of one folio in the order the log gives
+    them, because a page's notes are logged together when it ships and a folio
+    is not promised to be unique across the Book.
+    """
+    pages = []
+    for record in placed:
+        if pages and pages[-1]['folio'] == record['folio']:
+            pages[-1]['heights'].append(record['height'])
+        else:
+            pages.append(dict(folio=record['folio'], heights=[record['height']]))
+    tight = []
+    for page in pages:
+        used = sum(height + MARGIN_GAP for height in page['heights']) - MARGIN_GAP
+        spare = column - used
+        if spare < limit:
+            tight.append(dict(folio=page['folio'], notes=len(page['heights']),
+                              used=round(used, 1), spare=round(spare, 1)))
+    return sorted(tight, key=lambda row: row['spare'])
 
 
 def empty_bands(page, number, minimum=100):
@@ -88,10 +134,18 @@ def empty_bands(page, number, minimum=100):
 
 
 def audit(pdf, log=None, geometry_only=False):
+    tight = []
     if geometry_only:
         registered, placed, issues = {}, [], []
     else:
-        registered, placed, issues = margin_records((log or pdf.with_suffix('.log')).read_text())
+        text = (log or pdf.with_suffix('.log')).read_text()
+        registered, placed, issues = margin_records(text)
+        column = text_height(text)
+        if column is None:
+            if placed:
+                issues.append(dict(issue='the log does not state \\textheight; margin slack cannot be measured'))
+        else:
+            tight = margin_slack(placed, column)
     pages = []
     with fitz.open(pdf) as book:
         for n, page in enumerate(book, 1):
@@ -101,6 +155,7 @@ def audit(pdf, log=None, geometry_only=False):
                                   text_sample=page.get_text()[:200]))
         return dict(book_pages=len(book), margin_registered=len(registered),
                     margin_placed=len(placed), margin_issues=issues,
+                    margin_tight=tight,
                     whitespace_review=pages,
                     scope='All pages and all registered margin objects; whitespace requires visual review.')
 
@@ -117,4 +172,10 @@ if __name__ == '__main__':
     output.write_text(json.dumps(result, indent=2)+'\n')
     print(f"{result['book_pages']} pages; {result['margin_placed']}/{result['margin_registered']} margin objects; "
           f"{len(result['margin_issues'])} margin issues; {len(result['whitespace_review'])} pages in whitespace review")
+    # run_pdf_checks.py reads "-- advisory:" as a header it does not fail on.
+    tight = result['margin_tight']
+    print(f"-- advisory: {len(tight)} page(s) with under {TIGHT_MARGIN:g} pt of the margin column to spare"
+          + (" (shorten a note on each before a reflow overflows it):" if tight else ""))
+    for row in tight:
+        print(f"folio {row['folio']:>5}  {row['spare']:6.1f} pt to spare, {row['notes']} note(s)")
     raise SystemExit(bool(result['margin_issues']))

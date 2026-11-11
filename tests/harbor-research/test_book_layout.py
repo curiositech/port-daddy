@@ -6,7 +6,7 @@ from pathlib import Path
 import fitz
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts/harbor-research'))
-from audit_book_layout import margin_records, empty_bands
+from audit_book_layout import margin_records, empty_bands, margin_slack, text_height, audit
 
 
 class BookLayoutTests(unittest.TestCase):
@@ -74,6 +74,45 @@ class BookLayoutTests(unittest.TestCase):
                        f'PD-MARGIN-PLACED: id={i}, page=2,top={60+i*10}pt, height=100pt\n'
                        for i in (1,2))
         self.assertIn('margin collision', str(margin_records(text)[2]))
+
+    def test_the_margin_column_height_is_read_from_the_log(self):
+        log = '* \\textwidth=325.21503pt\n* \\textheight=592.6138pt\n* \\oddsidemargin=-14.45378pt\n'
+        self.assertEqual(text_height(log), 592.6138)
+        self.assertIsNone(text_height('no geometry here'))
+
+    def test_a_nearly_full_margin_is_listed_and_a_roomy_one_is_not(self):
+        placed = [dict(folio='7', height=h) for h in (100.0, 200.0, 270.0)] + [dict(folio='8', height=100.0)]
+        # The layout's own sum: 100 + 200 + 270, with a 7pt gap after each note but the last.
+        self.assertEqual(margin_slack(placed, 592.6), [dict(folio='7', notes=3, used=584.0, spare=8.6)])
+
+    def test_tight_pages_come_tightest_first(self):
+        placed = [dict(folio='3', height=560.0), dict(folio='4', height=590.0), dict(folio='5', height=540.0)]
+        self.assertEqual([row['folio'] for row in margin_slack(placed, 592.6)], ['4', '3', '5'])
+
+    def test_a_folio_printed_on_two_pages_is_two_pages(self):
+        # Front matter and body can both have a page "1". Merged, these two
+        # would read as one page 4.4pt over the column.
+        placed = [dict(folio='1', height=300.0), dict(folio='2', height=10.0), dict(folio='1', height=290.0)]
+        self.assertEqual(margin_slack(placed, 592.6), [])
+        self.assertEqual(len(margin_slack(placed[:1] + placed[2:], 592.6)), 1)
+
+    def test_a_log_that_does_not_state_the_text_height_cannot_pass(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf = Path(tmp) / 'book.pdf'
+            with fitz.open() as doc:
+                doc.new_page(width=504, height=720)
+                doc.save(pdf)
+            records = ('PD-MARGIN-REGISTER: id=1,kind=note, line=20, height=100pt\n'
+                       'PD-MARGIN-PLACED: id=1, page=1,top=70pt, height=100pt\n')
+            pdf.with_suffix('.log').write_text(records)
+            self.assertIn('textheight', str(audit(pdf)['margin_issues']))
+            pdf.with_suffix('.log').write_text(records + '* \\textheight=592.6138pt\n')
+            result = audit(pdf)
+            self.assertEqual(result['margin_issues'], [])
+            self.assertEqual(result['margin_tight'], [])
+            pdf.with_suffix('.log').write_text(records.replace('height=100pt', 'height=590pt') + '* \\textheight=592.6138pt\n')
+            self.assertEqual([row['spare'] for row in audit(pdf)['margin_tight']], [2.6])
 
     def test_whitespace_is_measured_in_body_not_caption_column(self):
         with fitz.open() as doc:

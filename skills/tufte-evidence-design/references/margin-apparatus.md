@@ -151,6 +151,10 @@ new margin evidence fails rather than entering the shrink path.
 4. Run check_book_caption_margins.py, audit_book_layout.py and page_overflow.py on
    that exact PDF. Inspect registration/placement records for lost exhibits.
    Reject off-page images, footer intrusions, detached captions and collisions.
+   audit_book_layout.py also lists every page with under 60pt of its margin
+   column to spare. The build refuses a page whose notes are taller than the
+   column, so a page on that list is one reflow from failing. If your change
+   put a page there, shorten a note on it.
 5. Open the pages at reading size, including neighbours. Check title wraps, table
    widths, arrow shafts and captions. Check grayscale when color separates cases.
    A passing geometry test does not certify a good drawing.
