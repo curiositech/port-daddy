@@ -1173,7 +1173,7 @@ it cannot in general be reduced to replacing $A$ by $A/\kappa$.
 \label{hyp:spec-variance}
 The expressions above recover Eq.~\ref{eq:specboundary} when both
 $\kappa_j=1$. Away from exponential service, the pool expression is an
-approximation, not an error bound.
+approximation, not an error bound. The sweep below measures its error.
 
 Even equal variability on both sides can move
 the crossing when $A=0$: for $c=2$, $\rho=1/2$, and $C=1/3$, the exponential
@@ -1183,13 +1183,78 @@ r_{\mathrm{sk}}=(8+\sqrt{124})/10\approx1.914.
 \]
 \end{pdexample}
 
-These are analytic comparisons; no agent workload was measured. A useful
-test would extend \texttt{b8\_specialization.py} with matched-mean lognormal and
-Pareto service, report simulation uncertainty, and measure the approximation's
-crossing error. That sweep has not been run. Infinite service variance makes the
-stable $M/G/1$ mean waiting time infinite, so this finite-mean comparison no longer
-applies. Correlated or bursty arrivals also leave the Poisson model, and their
-delay distribution and tail latency need a separate analysis.
+These are analytic comparisons, and the pool's half is an approximation
+that no better formula of its kind can repair. Gupta, Harchol-Balter, Dai and
+Zwart proved that a formula built only from the mean and variance of the
+service time cannot be accurate for a pool across all service distributions
+\pdcite{gupta2010}. The pool's true delay has no closed form either. So the
+delay was simulated and the crossing recomputed from it
+[internal, \texttt{b8\_heavy\_tails.py}].
+
+\paragraph{What was simulated.} A pool of $c$ servers takes Poisson arrivals
+first come, first served, for $c\in\{2,4,8\}$ and
+$\rho\in\{0.3,0.5,0.7,0.85\}$. Service times follow one of two heavy-tailed
+shapes: a lognormal, and a Pareto with tail index $1.5$ cut off at a maximum.
+Each is tuned to mean $1$ and to $c_s^2=3$ or $6$. The two are paired on
+purpose. At a given $c_s^2$ the two-moment formula cannot tell them apart, so
+any gap between them is error that no such formula can remove. The Pareto is
+cut off because a real turn has a timeout, and because without the cutoff
+this tail index has no variance, the case the end of this section sets aside.
+The simulation steps the Kiefer--Wolfowitz recursion \pdcite{kiefer1955}: it
+keeps the work remaining at each server and sends each arrival to the server
+that will be free first. Only the pool is simulated. The specialist's side is
+exact, so every error in the crossing comes from the pool's delay.
+
+\paragraph{Why the intervals can be trusted.} Successive jobs in one run do
+not wait independently. One long job delays thousands behind it, so an
+interval computed from the jobs of a single run, as if they were independent,
+would be far too narrow. Each cell was therefore run 32 times on separate
+random draws, 4 million jobs to a run, with the first tenth discarded because
+the queue starts empty. The 32 run averages are independent of one another,
+and each is an average over millions of jobs, so a Student-$t$ interval on
+their mean is sound. The meter was then tested where the answer is known:
+exponential service against Erlang-C, and a single server against
+Pollaczek--Khinchine under the same heavy-tailed shapes. In all 28 such cells
+the simulated delay agreed with the exact one. The largest gap was 1.82
+standard errors, which is ordinary for 28 comparisons. Every heavy-tailed
+delay is known to within 1.7\% at 95\% confidence.
+
+\paragraph{What it shows.} The formula overstates the pool's delay in all 48
+heavy-tailed cells (Fig.~\ref{fig:spec-heavy-tails}). The true delay runs
+from 0.27 to 0.97 of the formula's value. The error is largest where the pool
+has servers to spare, and it closes as load rises. The cause is the thing
+that makes a pool worth having. A long job ties up one server while short
+jobs pass it on the others. The formula charges the pool the full factor
+$\kappa$, which is what a single server pays, because there every job behind
+the long one waits. Under heavy load the spare servers are gone, the pool
+acts like one fast server, and the formula recovers.
+
+\input{figures/legible-swarm-heavy-tails}
+
+The two shapes also disagree with each other. At eight servers, $\rho=0.5$
+and $c_s^2=6$, the bounded Pareto's delay is 35\% below the lognormal's, with
+the same mean and the same variance. That gap is the theorem above made
+visible, and no two-moment correction can close it.
+
+\paragraph{What it does to the crossing.} A pool that waits less is harder to
+beat, so the specialist must be faster than the formula says, in every one of
+the 48 cells (Table~\ref{tab:spec-heavy-tails}). The example above is one of
+them. Its approximate threshold of $1.914$ becomes $1.959$ under the
+lognormal and $1.983$ under the bounded Pareto. Variance moved the crossing
+up from $1.75$ by 0.21 to 0.23, where the formula predicted 0.16. Across the
+sweep the formula's crossing is low by a median 0.05 and at most 0.29. As a
+share of the crossing, the largest error is 8.3\%. The formula has the
+direction right and the size too small: heavy tails favor the pool by more
+than two moments can show.
+
+\input{figures/legible-swarm-heavy-tails-crossing}
+
+No agent workload was measured. The service times are drawn from chosen
+distributions, and whether real agent turns resemble either shape has to be
+measured. Infinite service variance makes the stable $M/G/1$ mean waiting
+time infinite, so this finite-mean comparison no longer applies. Correlated
+or bursty arrivals also leave the Poisson model, and their delay distribution
+and tail latency need a separate analysis.
 
 \subsection{Completionist obligation: completion as a verifier, not a vibe}\label{sec:completionist}
 
@@ -4580,6 +4645,16 @@ J.\ F.\ C.\ Kingman.
 Arnold O.\ Allen.
 \newblock \textit{Probability, Statistics, and Queueing Theory with Computer Science Applications}.
 \newblock Academic Press, 2nd edition, 1990. (The Allen--Cunneen approximation for $M/G/c$, and the Pollaczek--Khinchine formula.)
+
+\bibitem{gupta2010}
+Varun Gupta, Mor Harchol-Balter, J.\ G.\ Dai, and Bert Zwart.
+\newblock On the inapproximability of $M/G/K$: why two moments of job size distribution are not enough.
+\newblock \textit{Queueing Systems}, 64(1):5--48, 2010. doi:10.1007/s11134-009-9133-x.
+
+\bibitem{kiefer1955}
+J.\ Kiefer and J.\ Wolfowitz.
+\newblock On the theory of queues with many servers.
+\newblock \textit{Transactions of the American Mathematical Society}, 78(1):1--18, 1955.
 
 \bibitem{dorfman}
 Robert Dorfman.

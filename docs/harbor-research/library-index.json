@@ -743,7 +743,8 @@
         "docs/harbor-research/figures/fig-paper6-regime.tex"
       ],
       "scripts": [
-        "skills/harbor-results/scripts/b8_specialization.py"
+        "skills/harbor-results/scripts/b8_specialization.py",
+        "skills/harbor-results/scripts/b8_heavy_tails.py"
       ],
       "numbers": [],
       "mechanization": [],

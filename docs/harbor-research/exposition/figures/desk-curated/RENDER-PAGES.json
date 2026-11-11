@@ -144,7 +144,9 @@
   "fig-sealed-release-lattice": 1151,
   "fig-audit-modes": 1221,
   "fig-audit-person": 1231,
-  "fig-audit-loop": 1241
+  "fig-audit-loop": 1241,
+  "legible-swarm-heavy-tails": 1251,
+  "legible-swarm-heavy-tails-crossing": 1261
  },
  "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other.",
  "_new_figure_pages": "Keys 601/611/621/631 are reserved image slots for new 2026-09-27 figures; each pNNN.jpg is rendered from its true Book page (65/186/187/229), while FIGS[].bookPage records that page. Existing keys and saved region notes are unchanged.",
@@ -1642,6 +1644,20 @@
     "slot": 1241,
     "pdfPage": 630,
     "folio": "602"
+   },
+   "legible-swarm-heavy-tails": {
+    "slot": 1251,
+    "pdfPage": 383,
+    "folio": "355",
+    "sourceSha256": "3234ee53c3e60ce7a4bf3ad4de84438588be92d011ebbeba08ebe506b0f339fb",
+    "note": "New on 2026-11-11 with the heavy-tail sweep. Rendered from that PR's publication build (TeX Live 2026, as CI uses), whose SHA-256 is recorded here; the group-level sourceSha256 above does not apply to this entry."
+   },
+   "legible-swarm-heavy-tails-crossing": {
+    "slot": 1261,
+    "pdfPage": 384,
+    "folio": "356",
+    "sourceSha256": "3234ee53c3e60ce7a4bf3ad4de84438588be92d011ebbeba08ebe506b0f339fb",
+    "note": "New on 2026-11-11 with the heavy-tail sweep. Rendered from that PR's publication build (TeX Live 2026, as CI uses), whose SHA-256 is recorded here; the group-level sourceSha256 above does not apply to this entry."
    }
   }
  }

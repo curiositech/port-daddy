@@ -95,7 +95,7 @@ the claim. Radial "organs" and sand-dollar rings are forbidden unless radial ord
 
 ## Volume I: The Legible Swarm
 
-Canonical root: `book/legible-swarm.tex` (19 figures).
+Canonical root: `book/legible-swarm.tex` (20 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -121,6 +121,7 @@ Canonical root: `book/legible-swarm.tex` (19 figures).
 | `I/fig:legible-halving-tree` | How can one negative group query avoid opening an entire clean subtree? | small fully countable adaptive binary-splitting tree | constructed F=16 with item2 positive; nine queried nodes; negative eight-item branch pruned after one query; noiseless unit-cost oracle assumption | a partial tree whose displayed query count cannot be checked; measuring saved files as zero-cost knowledge; confusing this trace with a sampled benchmark |
 | `I/fig:audit-blame` | Who is to blame when two directions clash, and how does the deletion filter decide? | interval bars on one broken minutes axis, three rows (both / without Alice / without Bob) | Alice must migrate on [0,120]; Bob's freeze on [0,4320]; overlap [0,120] edged as the conflict; each deletion removes the conflict; blame set {Alice,Bob}; Bob owns the database | Venn diagram of sets; table of checker calls with no time; an unbroken axis that squashes 120 into 4320 |
 | `I/fig:audit-escalate` | When does a conflict have exactly one next hop? | before/after pair of delegation graphs with identical node positions | Bob to Alice to payments/, Bob to tests/; added Carol to payments/ gives two incomparable parents; escalation route up the one line; two candidate hops marked unresolved | one annotated graph for both cases; an org chart without objects |
+| `I/fig:spec-heavy-tails` | How wrong is the two-moment formula for a pool's delay under heavy-tailed service, and in which direction? | two small panels on one vertical scale: simulated delay over the formula's, against utilization | one line per pool size, named at its end; a dotted reference at 1 where the formula is exact; two service distributions with equal mean and variance; every point taken from the stored simulation | one panel with six lines; a legend; a curve drawn by hand |
 
 ## Volume II: The Single-Writer Kernel
 

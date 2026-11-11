@@ -606,7 +606,8 @@
       ],
       "paper": 6,
       "scripts": [
-        "skills/harbor-results/scripts/b8_specialization.py"
+        "skills/harbor-results/scripts/b8_specialization.py",
+        "skills/harbor-results/scripts/b8_heavy_tails.py"
       ],
       "numbers": {
         "verified": 0,
