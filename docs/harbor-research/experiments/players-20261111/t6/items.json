@@ -1,0 +1,796 @@
+{
+  "checks": [
+    {
+      "additive": true,
+      "base": "dock.skipped",
+      "check_id": "dock#1",
+      "conditional": "dock.flag_given_skipped",
+      "joint": "dock.both",
+      "kind": "product",
+      "scenario": "dock"
+    },
+    {
+      "additive": true,
+      "base": "dock.flagged",
+      "check_id": "dock#2",
+      "conditional": "dock.skipped_given_flag",
+      "joint": "dock.both",
+      "kind": "product",
+      "scenario": "dock"
+    },
+    {
+      "a": "dock.skipped_given_flag",
+      "additive": true,
+      "b": "dock.clean_given_flag",
+      "check_id": "dock#3",
+      "kind": "complement",
+      "scenario": "dock"
+    },
+    {
+      "a": "draw.w52",
+      "additive": true,
+      "b": "draw.never52",
+      "check_id": "draw#1",
+      "kind": "complement",
+      "scenario": "draw"
+    },
+    {
+      "additive": true,
+      "check_id": "east#1",
+      "kind": "partition",
+      "parts": [
+        "east.not_drawn",
+        "east.cleared",
+        "east.warned",
+        "east.forfeited"
+      ],
+      "scenario": "east"
+    },
+    {
+      "a": "east.not_drawn",
+      "additive": true,
+      "b": "east.drawn",
+      "check_id": "east#2",
+      "kind": "complement",
+      "scenario": "east"
+    },
+    {
+      "a": "east.forfeited",
+      "additive": true,
+      "b": "east.keeps_bond",
+      "check_id": "east#3",
+      "kind": "complement",
+      "scenario": "east"
+    },
+    {
+      "a": "north.forfeit",
+      "additive": true,
+      "b": "north.found",
+      "both": "north.both",
+      "check_id": "north#1",
+      "kind": "inclusion_exclusion",
+      "scenario": "north",
+      "union": "north.either"
+    },
+    {
+      "additive": true,
+      "base": "north.found",
+      "check_id": "north#2",
+      "conditional": "north.forfeit_given_found",
+      "joint": "north.both",
+      "kind": "product",
+      "scenario": "north"
+    },
+    {
+      "a": "south.n20",
+      "additive": true,
+      "b": "south.none20",
+      "check_id": "south#1",
+      "kind": "complement",
+      "scenario": "south"
+    },
+    {
+      "a": "west.osprey",
+      "additive": true,
+      "b": "west.tern",
+      "both": "west.both",
+      "check_id": "west#1",
+      "kind": "inclusion_exclusion",
+      "scenario": "west",
+      "union": "west.either"
+    },
+    {
+      "additive": true,
+      "base": "west.tern",
+      "check_id": "west#2",
+      "conditional": "west.osprey_given_tern",
+      "joint": "west.both",
+      "kind": "product",
+      "scenario": "west"
+    },
+    {
+      "a": "west.either",
+      "additive": true,
+      "b": "west.neither",
+      "check_id": "west#3",
+      "kind": "complement",
+      "scenario": "west"
+    },
+    {
+      "additive": false,
+      "check_id": "dock#4",
+      "kind": "dominance",
+      "larger": "dock.skipped",
+      "scenario": "dock",
+      "smaller": "dock.both",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "dock#5",
+      "kind": "dominance",
+      "larger": "dock.flagged",
+      "scenario": "dock",
+      "smaller": "dock.both",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "draw#2",
+      "kind": "dominance",
+      "larger": "draw.w4",
+      "scenario": "draw",
+      "smaller": "draw.w1",
+      "why": "more runs"
+    },
+    {
+      "additive": false,
+      "check_id": "draw#3",
+      "kind": "dominance",
+      "larger": "draw.w12",
+      "scenario": "draw",
+      "smaller": "draw.w4",
+      "why": "more runs"
+    },
+    {
+      "additive": false,
+      "check_id": "draw#4",
+      "kind": "dominance",
+      "larger": "draw.w52",
+      "scenario": "draw",
+      "smaller": "draw.w12",
+      "why": "more runs"
+    },
+    {
+      "additive": false,
+      "check_id": "east#4",
+      "kind": "dominance",
+      "larger": "east.drawn",
+      "scenario": "east",
+      "smaller": "east.cleared",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "east#5",
+      "kind": "dominance",
+      "larger": "east.drawn",
+      "scenario": "east",
+      "smaller": "east.warned",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "east#6",
+      "kind": "dominance",
+      "larger": "east.drawn",
+      "scenario": "east",
+      "smaller": "east.forfeited",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "north#3",
+      "kind": "dominance",
+      "larger": "north.forfeit",
+      "scenario": "north",
+      "smaller": "north.both",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "north#4",
+      "kind": "dominance",
+      "larger": "north.found",
+      "scenario": "north",
+      "smaller": "north.both",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "north#5",
+      "kind": "dominance",
+      "larger": "north.either",
+      "scenario": "north",
+      "smaller": "north.forfeit",
+      "why": "a disjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "north#6",
+      "kind": "dominance",
+      "larger": "north.either",
+      "scenario": "north",
+      "smaller": "north.found",
+      "why": "a disjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "south#2",
+      "kind": "dominance",
+      "larger": "south.n5",
+      "scenario": "south",
+      "smaller": "south.n1",
+      "why": "more runs"
+    },
+    {
+      "additive": false,
+      "check_id": "south#3",
+      "kind": "dominance",
+      "larger": "south.n20",
+      "scenario": "south",
+      "smaller": "south.n5",
+      "why": "more runs"
+    },
+    {
+      "additive": false,
+      "check_id": "south#4",
+      "kind": "dominance",
+      "larger": "south.n100",
+      "scenario": "south",
+      "smaller": "south.n20",
+      "why": "more runs"
+    },
+    {
+      "additive": false,
+      "check_id": "west#4",
+      "kind": "dominance",
+      "larger": "west.osprey",
+      "scenario": "west",
+      "smaller": "west.both",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "west#5",
+      "kind": "dominance",
+      "larger": "west.tern",
+      "scenario": "west",
+      "smaller": "west.both",
+      "why": "a conjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "west#6",
+      "kind": "dominance",
+      "larger": "west.either",
+      "scenario": "west",
+      "smaller": "west.osprey",
+      "why": "a disjunction and one of its parts"
+    },
+    {
+      "additive": false,
+      "check_id": "west#7",
+      "kind": "dominance",
+      "larger": "west.either",
+      "scenario": "west",
+      "smaller": "west.tern",
+      "why": "a disjunction and one of its parts"
+    }
+  ],
+  "counts": {
+    "additive_checks": 13,
+    "adversarial": 8,
+    "adversarial_share": 0.2424,
+    "dominance_checks": 19,
+    "questions": 33,
+    "scenarios": 6
+  },
+  "questions": [
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "not_drawn"
+        ]
+      },
+      "item_id": "east.not_drawn",
+      "key": "not_drawn",
+      "scenario": "east",
+      "text": "Heron's hand-in is not drawn for audit tonight."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "cleared"
+        ]
+      },
+      "item_id": "east.cleared",
+      "key": "cleared",
+      "scenario": "east",
+      "text": "Heron's hand-in is drawn for audit tonight and cleared."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "warned"
+        ]
+      },
+      "item_id": "east.warned",
+      "key": "warned",
+      "scenario": "east",
+      "text": "Heron's hand-in is drawn tonight and found faulty, and Heron is warned but keeps its bond."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "forfeited"
+        ]
+      },
+      "item_id": "east.forfeited",
+      "key": "forfeited",
+      "scenario": "east",
+      "text": "Heron's hand-in is drawn tonight and found faulty, and Heron's bond is forfeited."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "cleared",
+          "warned",
+          "forfeited"
+        ]
+      },
+      "item_id": "east.drawn",
+      "key": "drawn",
+      "scenario": "east",
+      "text": "An auditor opens Heron's hand-in tonight."
+    },
+    {
+      "adversarial": "a complement that does not look like one",
+      "event": {
+        "atoms": [
+          "not_drawn",
+          "cleared",
+          "warned"
+        ]
+      },
+      "item_id": "east.keeps_bond",
+      "key": "keeps_bond",
+      "scenario": "east",
+      "text": "Tomorrow morning Heron still holds the bond it posted for this repair."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both",
+          "osprey_only"
+        ]
+      },
+      "item_id": "west.osprey",
+      "key": "osprey",
+      "scenario": "west",
+      "text": "Osprey opens Wren's hand-in tonight."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both",
+          "tern_only"
+        ]
+      },
+      "item_id": "west.tern",
+      "key": "tern",
+      "scenario": "west",
+      "text": "Tern opens Wren's hand-in tonight."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both"
+        ]
+      },
+      "item_id": "west.both",
+      "key": "both",
+      "scenario": "west",
+      "text": "Osprey and Tern both open Wren's hand-in tonight."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both",
+          "osprey_only",
+          "tern_only"
+        ]
+      },
+      "item_id": "west.either",
+      "key": "either",
+      "scenario": "west",
+      "text": "At least one of the two auditors opens Wren's hand-in tonight."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both",
+          "osprey_only"
+        ],
+        "given": [
+          "both",
+          "tern_only"
+        ]
+      },
+      "item_id": "west.osprey_given_tern",
+      "key": "osprey_given_tern",
+      "scenario": "west",
+      "text": "Given that Tern opens Wren's hand-in tonight, Osprey opens it too."
+    },
+    {
+      "adversarial": "a complement that does not look like one",
+      "event": {
+        "atoms": [
+          "neither"
+        ]
+      },
+      "item_id": "west.neither",
+      "key": "neither",
+      "scenario": "west",
+      "text": "Wren's hand-in gets through the night unopened."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "at_least_one_in": 1
+      },
+      "item_id": "south.n1",
+      "key": "n1",
+      "scenario": "south",
+      "text": "Lark's next hand-in is drawn for audit."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "at_least_one_in": 5
+      },
+      "item_id": "south.n5",
+      "key": "n5",
+      "scenario": "south",
+      "text": "At least one of Lark's next 5 hand-ins is drawn for audit."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "at_least_one_in": 20
+      },
+      "item_id": "south.n20",
+      "key": "n20",
+      "scenario": "south",
+      "text": "At least one of Lark's next 20 hand-ins is drawn for audit."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "at_least_one_in": 100
+      },
+      "item_id": "south.n100",
+      "key": "n100",
+      "scenario": "south",
+      "text": "At least one of Lark's next 100 hand-ins is drawn for audit."
+    },
+    {
+      "adversarial": "a complement that does not look like one",
+      "event": {
+        "none_in": 20
+      },
+      "item_id": "south.none20",
+      "key": "none20",
+      "scenario": "south",
+      "text": "Lark's next 20 hand-ins all go through without a single draw."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both",
+          "forfeit_only"
+        ]
+      },
+      "item_id": "north.forfeit",
+      "key": "forfeit",
+      "scenario": "north",
+      "text": "Shrike's bond is forfeited this month."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both",
+          "found_only"
+        ]
+      },
+      "item_id": "north.found",
+      "key": "found",
+      "scenario": "north",
+      "text": "An audit this month finds that Shrike skipped a required check."
+    },
+    {
+      "adversarial": "a detailed conjunction beside its plain part",
+      "event": {
+        "atoms": [
+          "both"
+        ]
+      },
+      "item_id": "north.both",
+      "key": "both",
+      "scenario": "north",
+      "text": "An audit this month finds that Shrike skipped a required check, and Shrike's bond is forfeited this month."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both",
+          "found_only",
+          "forfeit_only"
+        ]
+      },
+      "item_id": "north.either",
+      "key": "either",
+      "scenario": "north",
+      "text": "At least one of these happens this month: an audit finds that Shrike skipped a required check, or Shrike's bond is forfeited."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "both",
+          "forfeit_only"
+        ],
+        "given": [
+          "both",
+          "found_only"
+        ]
+      },
+      "item_id": "north.forfeit_given_found",
+      "key": "forfeit_given_found",
+      "scenario": "north",
+      "text": "Given that an audit this month finds that Shrike skipped a required check, Shrike's bond is forfeited this month."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "skipped_flagged",
+          "skipped_unflagged"
+        ]
+      },
+      "item_id": "dock.skipped",
+      "key": "skipped",
+      "scenario": "dock",
+      "text": "A hand-in picked at random from the dock lane has a skipped check."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "skipped_flagged",
+          "clean_flagged"
+        ]
+      },
+      "item_id": "dock.flagged",
+      "key": "flagged",
+      "scenario": "dock",
+      "text": "A hand-in picked at random from the dock lane is flagged by the scanner."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "atoms": [
+          "skipped_flagged",
+          "clean_flagged"
+        ],
+        "given": [
+          "skipped_flagged",
+          "skipped_unflagged"
+        ]
+      },
+      "item_id": "dock.flag_given_skipped",
+      "key": "flag_given_skipped",
+      "scenario": "dock",
+      "text": "Given that a dock-lane hand-in has a skipped check, the scanner flags it."
+    },
+    {
+      "adversarial": "invites neglect of the stated base rate",
+      "event": {
+        "atoms": [
+          "skipped_flagged",
+          "skipped_unflagged"
+        ],
+        "given": [
+          "skipped_flagged",
+          "clean_flagged"
+        ]
+      },
+      "item_id": "dock.skipped_given_flag",
+      "key": "skipped_given_flag",
+      "scenario": "dock",
+      "text": "Given that the scanner has flagged a dock-lane hand-in, that hand-in has a skipped check."
+    },
+    {
+      "adversarial": "invites neglect of the stated base rate",
+      "event": {
+        "atoms": [
+          "skipped_flagged"
+        ]
+      },
+      "item_id": "dock.both",
+      "key": "both",
+      "scenario": "dock",
+      "text": "A hand-in picked at random from the dock lane has a skipped check and is also flagged by the scanner."
+    },
+    {
+      "adversarial": "a complement that does not look like one",
+      "event": {
+        "atoms": [
+          "clean_flagged",
+          "clean_unflagged"
+        ],
+        "given": [
+          "skipped_flagged",
+          "clean_flagged"
+        ]
+      },
+      "item_id": "dock.clean_given_flag",
+      "key": "clean_given_flag",
+      "scenario": "dock",
+      "text": "Given that the scanner has flagged a dock-lane hand-in, every required check on that hand-in was in fact run."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "at_least_one_in": 1
+      },
+      "item_id": "draw.w1",
+      "key": "w1",
+      "scenario": "draw",
+      "text": "Gull is picked in the next weekly draw."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "at_least_one_in": 4
+      },
+      "item_id": "draw.w4",
+      "key": "w4",
+      "scenario": "draw",
+      "text": "Gull is picked at least once in the next 4 weekly draws."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "at_least_one_in": 12
+      },
+      "item_id": "draw.w12",
+      "key": "w12",
+      "scenario": "draw",
+      "text": "Gull is picked at least once in the next 12 weekly draws."
+    },
+    {
+      "adversarial": null,
+      "event": {
+        "at_least_one_in": 52
+      },
+      "item_id": "draw.w52",
+      "key": "w52",
+      "scenario": "draw",
+      "text": "Gull is picked at least once in the next 52 weekly draws."
+    },
+    {
+      "adversarial": "a complement that does not look like one",
+      "event": {
+        "none_in": 52
+      },
+      "item_id": "draw.never52",
+      "key": "never52",
+      "scenario": "draw",
+      "text": "A year from now, after the next 52 weekly draws, Gull has still never been picked."
+    }
+  ],
+  "scenarios": [
+    {
+      "key": "east",
+      "name": "East lane",
+      "outcomes": [
+        "not_drawn",
+        "cleared",
+        "warned",
+        "forfeited"
+      ],
+      "run_family": [],
+      "text": "Heron hands in a repair on the east lane tonight. The lane's operator draws some hand-ins for audit by lot, and on this lane a draw is uncommon. An auditor opens every drawn hand-in the same night and opens no other. A hand-in ends the night in exactly one of four ways. It is not drawn. It is drawn and cleared. It is drawn and found faulty, and the agent is warned but keeps its bond. Or it is drawn and found faulty, and the agent's bond is forfeited. Heron's record is good, but this repair was done in a hurry."
+    },
+    {
+      "key": "west",
+      "name": "West lane",
+      "outcomes": [
+        "both",
+        "osprey_only",
+        "tern_only",
+        "neither"
+      ],
+      "run_family": [],
+      "text": "Two auditors, Osprey and Tern, work the west lane, and no one else audits there. Each chooses on its own which hand-ins to open, and each opens only a small share of them. They do not confer. Both are drawn to large changes, so now and then they open the same hand-in. Wren hands in a large change tonight."
+    },
+    {
+      "key": "south",
+      "name": "South lane",
+      "outcomes": null,
+      "run_family": [
+        "south.n1",
+        "south.n5",
+        "south.n20",
+        "south.n100"
+      ],
+      "text": "Lark hands in one job a day on the south lane. Each hand-in has the same small chance of being drawn for audit, and one day's draw has no bearing on the next. The operator calls its audit rate on this lane light."
+    },
+    {
+      "key": "north",
+      "name": "North lane",
+      "outcomes": [
+        "both",
+        "found_only",
+        "forfeit_only",
+        "neither"
+      ],
+      "run_family": [],
+      "text": "Shrike is a contractor agent on the north lane. In the past quarter it handed in late several times and was warned twice for thin logs. The operator audits by lot. It can forfeit a bond for a skipped check, and also for other breaches such as repeated lateness. Shrike's bond comes up for review at the end of this month."
+    },
+    {
+      "key": "dock",
+      "name": "Dock lane",
+      "outcomes": [
+        "skipped_flagged",
+        "skipped_unflagged",
+        "clean_flagged",
+        "clean_unflagged"
+      ],
+      "run_family": [],
+      "text": "On the dock lane about one hand-in in twenty-five has a skipped check. A scanner reads the logs of every hand-in and raises a flag when they look thin. It flags most hand-ins that have a skipped check. Now and then it also flags one that has none."
+    },
+    {
+      "key": "draw",
+      "name": "Weekly draw",
+      "outcomes": null,
+      "run_family": [
+        "draw.w1",
+        "draw.w4",
+        "draw.w12",
+        "draw.w52"
+      ],
+      "text": "The harbor has a few dozen agents. Each week the audit desk picks a handful of them by lot for a full audit of that week's work. The lots are drawn afresh every week. Gull is one of the agents."
+    }
+  ],
+  "seed": "players-20261111/t6/v1",
+  "stated_base_rate": {
+    "question": "dock.skipped",
+    "value": "1/25"
+  },
+  "test": "T6"
+}

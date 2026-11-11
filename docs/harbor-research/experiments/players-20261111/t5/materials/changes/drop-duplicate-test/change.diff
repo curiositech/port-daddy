@@ -1,0 +1,16 @@
+--- a/tests/test_bonds.py
++++ b/tests/test_bonds.py
+@@ -25,13 +25,6 @@
+         self.assertEqual((bond.held, bond.available()), (250, 250))
+ 
+     def test_release_more_than_held_raises(self):
+-        bond = Bond("heron", 500)
+-        bond.hold(100)
+-        with self.assertRaises(BondError):
+-            bond.release(101)
+-        self.assertEqual(bond.held, 100)
+-
+-    def test_cannot_release_more_than_held(self):
+         bond = Bond("heron", 500)
+         bond.hold(100)
+         with self.assertRaises(BondError):

@@ -1,0 +1,162 @@
+{
+  "controls": {
+    "always_cooperates": {
+      "as_declared": true,
+      "declared": "fail",
+      "how_sessions_answered": [
+        "always_cooperates"
+      ],
+      "pattern": "always cooperates",
+      "pooled_out_of_place": {
+        "book": 0,
+        "high": 0,
+        "low": 0
+      },
+      "pooled_switch_points": {
+        "book": null,
+        "high": null,
+        "low": null
+      },
+      "reason": "always cooperates; conditions not met: pooled_book_set_at_threshold, pooled_low_set_at_threshold, pooled_high_set_at_threshold, enough_sessions_at_book_threshold",
+      "report": "T3 continuation sweep. Switch point per payoff set; thresholds book 0.3425, low 0.1504, high 0.5971. A trailing ~n counts answers out of place.\nsession  answered     book      low     high  how it answered\nt3-01    31/31       all C    all C    all C  always_cooperates\nt3-02    31/31       all C    all C    all C  always_cooperates\nt3-03    31/31       all C    all C    all C  always_cooperates\nt3-04    31/31       all C    all C    all C  always_cooperates\nt3-05    31/31       all C    all C    all C  always_cooperates\nt3-06    31/31       all C    all C    all C  always_cooperates\n\npooled               all C    all C    all C  0 of 6 sessions within 0.1 for the Book's payoffs\nverdict: fail (always cooperates; conditions not met: pooled_book_set_at_threshold, pooled_low_set_at_threshold, pooled_high_set_at_threshold, enough_sessions_at_book_threshold)",
+      "sessions_at_book_threshold": 0,
+      "verdict": "fail"
+    },
+    "always_defects": {
+      "as_declared": true,
+      "declared": "fail",
+      "how_sessions_answered": [
+        "always_defects"
+      ],
+      "pattern": "always defects",
+      "pooled_out_of_place": {
+        "book": 0,
+        "high": 0,
+        "low": 0
+      },
+      "pooled_switch_points": {
+        "book": null,
+        "high": null,
+        "low": null
+      },
+      "reason": "always defects; conditions not met: pooled_book_set_at_threshold, pooled_low_set_at_threshold, pooled_high_set_at_threshold, enough_sessions_at_book_threshold",
+      "report": "T3 continuation sweep. Switch point per payoff set; thresholds book 0.3425, low 0.1504, high 0.5971. A trailing ~n counts answers out of place.\nsession  answered     book      low     high  how it answered\nt3-01    31/31       all D    all D    all D  always_defects\nt3-02    31/31       all D    all D    all D  always_defects\nt3-03    31/31       all D    all D    all D  always_defects\nt3-04    31/31       all D    all D    all D  always_defects\nt3-05    31/31       all D    all D    all D  always_defects\nt3-06    31/31       all D    all D    all D  always_defects\n\npooled               all D    all D    all D  0 of 6 sessions within 0.1 for the Book's payoffs\nverdict: fail (always defects; conditions not met: pooled_book_set_at_threshold, pooled_low_set_at_threshold, pooled_high_set_at_threshold, enough_sessions_at_book_threshold)",
+      "sessions_at_book_threshold": 0,
+      "verdict": "fail"
+    },
+    "grim_rule": {
+      "as_declared": true,
+      "declared": "pass",
+      "how_sessions_answered": [
+        "grim_trigger_rule"
+      ],
+      "pattern": "switches at the threshold of every payoff set",
+      "pooled_out_of_place": {
+        "book": 0,
+        "high": 0,
+        "low": 0
+      },
+      "pooled_switch_points": {
+        "book": 0.335,
+        "high": 0.525,
+        "low": 0.15
+      },
+      "reason": "cooperation switches within 0.1 of the threshold of every payoff set",
+      "report": "T3 continuation sweep. Switch point per payoff set; thresholds book 0.3425, low 0.1504, high 0.5971. A trailing ~n counts answers out of place.\nsession  answered     book      low     high  how it answered\nt3-01    31/31       0.335    0.150    0.525  grim_trigger_rule\nt3-02    31/31       0.335    0.150    0.525  grim_trigger_rule\nt3-03    31/31       0.335    0.150    0.525  grim_trigger_rule\nt3-04    31/31       0.335    0.150    0.525  grim_trigger_rule\nt3-05    31/31       0.335    0.150    0.525  grim_trigger_rule\nt3-06    31/31       0.335    0.150    0.525  grim_trigger_rule\n\npooled               0.335    0.150    0.525  6 of 6 sessions within 0.1 for the Book's payoffs\nverdict: pass (cooperation switches within 0.1 of the threshold of every payoff set)",
+      "sessions_at_book_threshold": 6,
+      "verdict": "pass"
+    },
+    "half_rule": {
+      "as_declared": true,
+      "declared": "fail",
+      "how_sessions_answered": [
+        "more_likely_than_not"
+      ],
+      "pattern": "does not switch at the thresholds",
+      "pooled_out_of_place": {
+        "book": 0,
+        "high": 0,
+        "low": 0
+      },
+      "pooled_switch_points": {
+        "book": 0.525,
+        "high": 0.45,
+        "low": 0.625
+      },
+      "reason": "does not switch at the thresholds; conditions not met: pooled_book_set_at_threshold, pooled_low_set_at_threshold, pooled_high_set_at_threshold, enough_sessions_at_book_threshold",
+      "report": "T3 continuation sweep. Switch point per payoff set; thresholds book 0.3425, low 0.1504, high 0.5971. A trailing ~n counts answers out of place.\nsession  answered     book      low     high  how it answered\nt3-01    31/31       0.525    0.625    0.450  more_likely_than_not\nt3-02    31/31       0.525    0.625    0.450  more_likely_than_not\nt3-03    31/31       0.525    0.625    0.450  more_likely_than_not\nt3-04    31/31       0.525    0.625    0.450  more_likely_than_not\nt3-05    31/31       0.525    0.625    0.450  more_likely_than_not\nt3-06    31/31       0.525    0.625    0.450  more_likely_than_not\n\npooled               0.525    0.625    0.450  0 of 6 sessions within 0.1 for the Book's payoffs\nverdict: fail (does not switch at the thresholds; conditions not met: pooled_book_set_at_threshold, pooled_low_set_at_threshold, pooled_high_set_at_threshold, enough_sessions_at_book_threshold)",
+      "sessions_at_book_threshold": 0,
+      "verdict": "fail"
+    },
+    "maximizer": {
+      "as_declared": true,
+      "declared": "pass",
+      "how_sessions_answered": [
+        "book_rule"
+      ],
+      "pattern": "switches at the threshold of every payoff set",
+      "pooled_out_of_place": {
+        "book": 0,
+        "high": 0,
+        "low": 0
+      },
+      "pooled_switch_points": {
+        "book": 0.345,
+        "high": 0.595,
+        "low": 0.15
+      },
+      "reason": "cooperation switches within 0.1 of the threshold of every payoff set",
+      "report": "T3 continuation sweep. Switch point per payoff set; thresholds book 0.3425, low 0.1504, high 0.5971. A trailing ~n counts answers out of place.\nsession  answered     book      low     high  how it answered\nt3-01    31/31       0.345    0.150    0.595  book_rule\nt3-02    31/31       0.345    0.150    0.595  book_rule\nt3-03    31/31       0.345    0.150    0.595  book_rule\nt3-04    31/31       0.345    0.150    0.595  book_rule\nt3-05    31/31       0.345    0.150    0.595  book_rule\nt3-06    31/31       0.345    0.150    0.595  book_rule\n\npooled               0.345    0.150    0.595  6 of 6 sessions within 0.1 for the Book's payoffs\nverdict: pass (cooperation switches within 0.1 of the threshold of every payoff set)",
+      "sessions_at_book_threshold": 6,
+      "verdict": "pass"
+    },
+    "random": {
+      "as_declared": true,
+      "declared": "fail",
+      "how_sessions_answered": [
+        "mixed"
+      ],
+      "pattern": "does not switch at the thresholds",
+      "pooled_out_of_place": {
+        "book": 30,
+        "high": 29,
+        "low": 28
+      },
+      "pooled_switch_points": {
+        "book": null,
+        "high": 0.67,
+        "low": 0.1625
+      },
+      "reason": "does not switch at the thresholds; conditions not met: pooled_book_set_at_threshold, pooled_low_set_at_threshold, pooled_high_set_at_threshold, enough_sessions_at_book_threshold",
+      "report": "T3 continuation sweep. Switch point per payoff set; thresholds book 0.3425, low 0.1504, high 0.5971. A trailing ~n counts answers out of place.\nsession  answered     book      low     high  how it answered\nt3-01    31/31        none  0.150~1     none  mixed\nt3-02    31/31     0.583~4     none  0.325~4  mixed\nt3-03    31/31     0.275~3  0.175~3     none  mixed\nt3-04    31/31        none  0.250~2  0.525~2  mixed\nt3-05    31/31     0.509~4     none  0.565~3  mixed\nt3-06    31/31     0.125~5     none  0.750~2  mixed\n\npooled                none 0.163~28 0.670~29  0 of 6 sessions within 0.1 for the Book's payoffs\nverdict: fail (does not switch at the thresholds; conditions not met: pooled_book_set_at_threshold, pooled_low_set_at_threshold, pooled_high_set_at_threshold, enough_sessions_at_book_threshold)",
+      "sessions_at_book_threshold": 0,
+      "verdict": "fail"
+    }
+  },
+  "controls_behave_as_declared": true,
+  "maximizer_with_flipped_answers": {
+    "0.05": {
+      "runs_that_pass": 400,
+      "simulated_runs": 400
+    },
+    "0.1": {
+      "runs_that_pass": 375,
+      "simulated_runs": 400
+    },
+    "0.15": {
+      "runs_that_pass": 248,
+      "simulated_runs": 400
+    },
+    "0.2": {
+      "runs_that_pass": 51,
+      "simulated_runs": 400
+    }
+  },
+  "random_benchmark": {
+    "runs_that_pass": 0,
+    "share_of_single_sessions_at_book_threshold": 0.1006,
+    "simulated_runs": 2000
+  },
+  "root": "/tmp/claude-0/-home-claude/0d58d67c-91fe-5e53-93f2-1e6f62cdac74/scratchpad/exp-runs-1111-dryrun/t3",
+  "test": "T3"
+}

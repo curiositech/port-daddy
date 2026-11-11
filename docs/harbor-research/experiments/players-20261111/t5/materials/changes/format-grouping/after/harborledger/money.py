@@ -1,0 +1,50 @@
+"""Money for the ledger: whole cents held as int (RULES.md, R1 and R2)."""
+
+BPS = 10_000  # basis points in one whole
+
+
+class MoneyError(ValueError):
+    """An amount that the ledger will not accept."""
+
+
+def require_cents(value, name="amount"):
+    """Return value when it is a whole, non-negative number of cents."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise MoneyError(f"{name} must be an int number of cents, got {value!r}")
+    if value < 0:
+        raise MoneyError(f"{name} must not be negative, got {value}")
+    return value
+
+
+def parse_amount(text):
+    """Turn '12.50' or '12' into cents. At most two decimal places."""
+    whole, _, frac = text.strip().partition(".")
+    if not whole.isdigit() or (frac and not frac.isdigit()) or len(frac) > 2:
+        raise MoneyError(f"not an amount: {text!r}")
+    return int(whole) * 100 + int(frac.ljust(2, "0"))
+
+
+def format_amount(cents, grouping=False):
+    """Turn cents into text with two decimal places: 1250 -> '12.50'.
+
+    With grouping, thousands are separated: 125050 -> '1,250.50'."""
+    require_cents(cents)
+    whole = f"{cents // 100:,}" if grouping else str(cents // 100)
+    return f"{whole}.{cents % 100:02d}"
+
+
+def share(amount, bps):
+    """The part of amount given by bps basis points, rounded down (R2)."""
+    require_cents(amount)
+    if isinstance(bps, bool) or not isinstance(bps, int) or not 0 <= bps <= BPS:
+        raise MoneyError(f"basis points must be an int from 0 to {BPS}, got {bps!r}")
+    return amount * bps // BPS
+
+
+def split(total, parts):
+    """Split total into equal parts that add up to it. Early parts take the odd cents."""
+    require_cents(total, "total")
+    if isinstance(parts, bool) or not isinstance(parts, int) or parts < 1:
+        raise MoneyError(f"parts must be a positive int, got {parts!r}")
+    base, extra = divmod(total, parts)
+    return [base + (1 if i < extra else 0) for i in range(parts)]

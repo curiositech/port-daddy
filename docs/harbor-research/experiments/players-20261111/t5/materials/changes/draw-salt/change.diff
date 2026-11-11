@@ -1,0 +1,65 @@
+--- a/harborledger/audits.py
++++ b/harborledger/audits.py
+@@ -14,17 +14,17 @@
+     """An audit operation that the rules do not allow."""
+ 
+ 
+-def draw(seed, claim_id):
+-    """A number from 0 to 9,999 fixed by the seed and the claim id alone (R7)."""
+-    digest = hashlib.sha256(f"{seed}:{claim_id}".encode()).digest()
++def draw(seed, claim_id, salt=""):
++    """A number from 0 to 9,999 fixed by the seed, the claim id and the salt (R7)."""
++    digest = hashlib.sha256(f"{seed}:{claim_id}:{salt}".encode()).digest()
+     return int.from_bytes(digest[:8], "big") % BPS
+ 
+ 
+-def selected(seed, claim_id, rate_bps):
++def selected(seed, claim_id, rate_bps, salt=""):
+     """Whether the draw picks this claim for audit at the given rate."""
+     if isinstance(rate_bps, bool) or not isinstance(rate_bps, int) or not 0 <= rate_bps <= BPS:
+         raise AuditError(f"rate must be an int from 0 to {BPS} basis points, got {rate_bps!r}")
+-    return draw(seed, claim_id) < rate_bps
++    return draw(seed, claim_id, salt) < rate_bps
+ 
+ 
+ class Audit:
+@@ -52,7 +52,7 @@
+         claim = self._claims.get(claim_id)
+         if claim.state != DONE:
+             raise AuditError(f"claim {claim_id} is {claim.state}, not done")
+-        if selected(self._seed, claim_id, self._rate_bps):
++        if selected(self._seed, claim_id, self._rate_bps, salt=claim.done_at):
+             claim.state = IN_AUDIT
+             self._audits[claim_id] = Audit(claim_id)
+             self._journal.append("audit.open", {"claim": claim_id})
+--- a/harborledger/claims.py
++++ b/harborledger/claims.py
+@@ -26,6 +26,7 @@
+     opened_at: int
+     ttl: int
+     state: str = OPEN
++    done_at: int | None = None
+ 
+     def deadline(self):
+         return self.opened_at + self.ttl
+@@ -85,6 +86,7 @@
+         if now >= claim.deadline():
+             raise ClaimError(f"claim {claim_id} is past its deadline")
+         claim.state = DONE
++        claim.done_at = now
+         self._journal.append("claim.done", {"claim": claim_id, "at": now})
+ 
+     def expire(self, now):
+--- a/tests/test_audits.py
++++ b/tests/test_audits.py
+@@ -103,6 +103,10 @@
+         with self.assertRaises(AuditError):
+             audits.settle(claim.claim_id)
+ 
++    def test_the_salt_moves_the_draw(self):
++        self.assertEqual(draw("s", 7, salt=3), draw("s", 7, salt=3))
++        self.assertGreater(len({draw("s", 7, salt=t) for t in range(50)}), 40)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
