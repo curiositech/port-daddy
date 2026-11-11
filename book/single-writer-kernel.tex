@@ -1258,6 +1258,7 @@ the uniqueness check refuses the second row before it commits. Prevention and
 repair are different histories. Making test deletion unreachable would require
 a guard on the actual edit path with enough information to recognize the
 forbidden change; adding another post-commit subscriber does not supply it.
+Section~\ref{sec:swk-roads} builds that guard and runs Drake against it.
 A violation's \emph{bad prefix} is the shortest opening part of a history that
 already breaks the rule, whatever happens next.
 
@@ -1320,6 +1321,8 @@ the executor can verify the permit and admit the effect only afterwards.
 Timeout can refuse admission. When permission depends on mutable external
 state, the protocol must additionally specify freshness, reservation or
 fencing so that the checked permission still authorizes the actual effect.
+Section~\ref{sec:swk-roads} builds one such protocol, for a test that takes
+too long to run inside a transaction.
 External I/O can therefore increase latency or reduce availability without
 forcing a forbidden effect to occur before its check. The next subsection
 states the general boundary: which events a runtime can block, and which it
@@ -1949,8 +1952,7 @@ Commitments are durable promises that \emph{can be broken}, in the sense of Cohe
 Levesque's account of intention as a persistent goal~\pdcite{cohenlevesque1990}.
 The single-minded and open-minded strategies for when a promise may be dropped are
 Rao and Georgeff's~\pdcite{rao1991modeling}. Two
-hardening laws are implemented, and they are the ones that determine safety
-(Figure~\ref{fig:swk-commitment-oracle}).
+hardening laws determine safety (Figure~\ref{fig:swk-commitment-oracle}).
 
 \begin{property}[Metric-control separation, Law 1]\label{prop:law1}
 \setlength{\parskip}{4pt plus 1pt}
@@ -1965,51 +1967,29 @@ general proof of resistance to proxy gaming or misspecified scope policy.
 
 \begin{property}[Oracle-bound closure, Law 2]\label{prop:law2}
 \setlength{\parskip}{4pt plus 1pt}
-Closing a commitment as ``done'' is refused unless the agent supplies a non-empty
-reference drawn from a \emph{finite oracle vocabulary}: a released claim, a merged
-commit hash, a passing test identifier, or a satisfied policy sub-check. Free-text
+A commitment names, when it is made, a condition drawn from a \emph{finite
+oracle vocabulary}: a released claim, a merged commit hash, a passing test
+identifier, or a satisfied policy sub-check. Closing it as ``done'' is refused
+unless the daemon finds that condition true at the moment of closing. Free-text
 notes cannot close a commitment. (Invariant I6.)
 \end{property}
 
-The closure gate is small enough to state as a protocol (Algorithm
-\ref{alg:close}). The important clause is the last: the supplied reference must be
-drawn from the vocabulary \emph{and} must \emph{currently hold} when the daemon
-re-checks it, so an agent cannot name a test that passed yesterday and has since
-regressed.
+Two clauses of the law do the work. The condition is fixed when the
+commitment is made, so an agent cannot close a promise about one thing by
+pointing at some other fact that happens to be true. And the condition must
+hold when the daemon checks it at closing, so a test that passed yesterday
+and has since regressed closes nothing. Free text needs no clause of its
+own: neither the request that makes a commitment nor the one that closes it
+has a field for a note.
 
-\begin{figure}[H]
-\centering
-\begin{minipage}{0.96\textwidth}
-\begin{pdlisting}{Pseudocode}{}
-\lstset{style=pseudocode}
-\begin{lstlisting}[caption={The commitment-closure oracle. Closure requires a
-reference from a finite vocabulary that the daemon re-verifies at closure time; free
-text is rejected by construction, not by inspection.},label={alg:close},captionpos=b]
-function close(commitment, status, oracle_ref):
-  if status != 'done':
-    return apply_drop_strategy(commitment, status)  (*@\pdco{1}@*)
-  if oracle_ref is empty:
-    return REFUSED(
-      "done requires a verifiable oracle reference")
-  kind = classify(oracle_ref)  (*@\pdco{2}@*)
-  if kind not in {RELEASED_CLAIM, MERGED_COMMIT,
-                  PASSING_TEST, POLICY_SUBCHECK}:  (*@\pdco{3}@*)
-    return REFUSED(
-      "oracle reference outside the finite vocabulary")
-  if not verify_holds_now(kind, oracle_ref):  (*@\pdco{4}@*)
-    return REFUSED("named oracle does not currently hold")
-  transition(commitment, DONE, witnessed_by = oracle_ref)
-  return CLOSED
-\end{lstlisting}
-\begin{pdcallouts}
-\pdnote{1}{\textbf{Not done.} The commitment is abandoned or superseded, and no oracle is consulted.}
-\pdnote{2}{\textbf{A structured field, not NLP.} The reference's kind is read from the reference, not inferred from prose.}
-\pdnote{3}{\textbf{The shipped vocabulary.} These four kinds are what the daemon checks today. The proposal of the next section (OP-5, specified only) would add \texttt{DELTA\_ORACLE} and \texttt{AST\_ASSERTION} here.}
-\pdnote{4}{\textbf{Re-checked at closure time.} A reference that held when it was written is refused if it does not hold now.}
-\end{pdcallouts}
-\end{pdlisting}
-\end{minipage}
-\end{figure}
+The reference implementation enforces Law~1. Of Law~2 it has a weak form. It
+takes a reference when a commitment is closed, and it requires only that the
+reference not be empty: it checks neither that the reference comes from the
+vocabulary nor that it holds. A sentence typed where the reference goes
+closes the commitment. Invariant I6 is graded \BuiltWeak{} for that reason.
+\pdkernelname{} builds both laws as stated, the second for two of its four
+kinds, and \S\ref{sec:swk-roads} prints that code and runs an agent against
+it.
 
 \keyidea[Receipt checks do not judge quality]{That finite oracle vocabulary marks
 the limit of what the kernel can honestly verify. It can mechanically verify
@@ -2017,6 +1997,8 @@ the limit of what the kernel can honestly verify. It can mechanically verify
 OP-5 asks which real ``done'' conditions the vocabulary fails to capture, and
 whether it can be extended without letting agents game closure the way free
 text would (Goodhart's law: a measure that becomes a target stops measuring).}
+
+\input{additions/swk-build-the-guards}
 
 % SUBMISSION-SKILL: naming conflict --- "state machine assertions" / "state
 % machines and assertions" already names an established formal-verification
@@ -2029,21 +2011,21 @@ text would (Goodhart's law: a measure that becomes a target stops measuring).}
 % authored; a human should decide adopt/gloss/rename before this term goes
 % further (e.g. into a companion formal chapter).
 \subsection{Extending the oracle vocabulary: two proposed kinds (OP-5)}
-\pdstatus{\Designed}{OP-5 open; neither kind is in the shipped vocabulary}
+\pdstatus{\Designed}{OP-5 open; neither kind is built}
 
 The obvious way to widen what a commitment can close against is to widen the
 vocabulary, and there is a concrete design for doing so without letting closure
 be gamed again. \pdterm{State-Machine Assertions} would add two kinds to
-Listing~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
+Law~2's finite set: \emph{delta oracles}, which close against a
 machine-checkable before/after measurement (a named benchmark improving past a
 declared threshold), and \emph{AST assertions}, which use a parser such as
 \texttt{tree-sitter} to state a structural property of the resulting code (``no call
 site of the removed function remains'') that the daemon can re-evaluate at closure time.
 
 Both kinds have the property that matters: the daemon can re-check them itself,
-so they are oracles, not testimony. Neither is in the shipped set:
-Listing~\ref{alg:close}'s four kinds are the vocabulary the kernel actually
-enforces, and the listing marks the two proposed additions as proposals. Two
+so they are oracles, not testimony. Neither is built. The law's four kinds
+are the vocabulary as designed, \pdkernelname{} checks two of them
+(Listing~\ref{alg:swk-roads-close}), and these two are proposals. Two
 questions remain open, so the chapter does not claim the design is complete. A delta oracle inherits the noise of whatever it measures, so ``improved by a
 threshold'' is a statistical statement dressed as a boolean; and an AST assertion is
 a proxy for a structural intent, which is the shape of every target that has ever
@@ -2105,7 +2087,7 @@ and a witnessed-outcome ledger. Reputation also requires outcomes to stay bound
 to a durable accountable identity. Restoring a process's exact inference state
 is a different goal, since an outcome record can survive even when the
 computation cannot resume.}
-\pdstatus{\BuiltWeak}{memory is implemented; checkpoint keeps notes, not execution state; the ledger holds commitments and oracle-bound closure, not neutral graded outcomes}
+\pdstatus{\BuiltWeak}{memory is implemented; checkpoint keeps notes, not execution state; the ledger holds commitments and closure by reference, not neutral graded outcomes}
 
 \begin{pdexample}{What Heron's successor inherits}
 This is a constructed example. Heron dies at 14:02. Its records are a claim on
@@ -2168,8 +2150,8 @@ violating once-only state invariants unless bounded by the outcome ledger.
 
 \textbf{The witnessed-outcome ledger}, the durable record of what an agent
 actually delivered, is the subsystem reputation is computed from. A \BuiltWeak{}
-version of it now ships: durable commitments, daemon-derived deadlines, oracle-bound
-closure, API/CLI surfaces, and overdue detection. Neutral graded outcome events,
+version of it now ships: durable commitments, daemon-derived deadlines, closure
+that requires a reference, API/CLI surfaces, and overdue detection. Neutral graded outcome events,
 sanctions, identity binding, and reputation updates remain absent. OP-4 concerns continuing interrupted work; the richer outcome ledger
 concerns attributing and assessing completed work. They share durable records,
 but solving one does not solve the other.
@@ -2292,7 +2274,7 @@ I2b & Fencing of a stale holder at the effect gate & per-resource epoch, bound t
 I3 & Idempotence of re-claim (live claims only) and re-release & upsert / delete-if-exists & \Built \\
 I4 & Liveness reclamation (TTL sweep) & lazy expiry on read + ticks & \Built \\
 I5 & Metric-control separation (Law 1) & daemon-derived deadline & \Built \\
-I6 & Oracle-bound closure (Law 2) & finite oracle vocabulary & \Built \\
+I6 & Oracle-bound closure (Law 2) & a condition from a finite vocabulary, checked at closing & \BuiltWeak{} (a reference is required at closing; it is not checked) \\
 I7 & No-amnesia (note monotonicity) & monitor: note-monotonicity rule & \BuiltWeak{} (detected, not regimented) \\
 I8 & Forbidden-state handling & constraint/boot (regimented) + monitor (detected) & \BuiltWeak{} (mostly detect-and-compensate) \\
 I9 & Tamper-evidence of the audit log & hash chain & \BuiltWeak{} (re-scoped to the economy layer, \S\ref{sec:merkle}) \\
@@ -3092,8 +3074,9 @@ The chapter's main results, in the order the rest of the book relies on them:
   partial observation, observability. Safe restriction can exclude some
   otherwise permitted work; detection and compensation require separate
   evidence and remedies.
-\item Done means re-checkable. A commitment closes only through a reference from the
-  finite oracle vocabulary; free text bounces back and the commitment stays open.
+\item Done means re-checkable. A commitment names its condition from the
+  finite oracle vocabulary when it is made, and closes only when the daemon
+  finds that condition true. There is no field for free text.
 \item Continuity is incomplete, and later layers inherit its limits. Memory survives a crash; checkpoint keeps notes,
   not execution state; the outcome ledger is partial. Nothing built on top can be more
   certain than that.
@@ -3314,10 +3297,28 @@ Consider note-count monotonicity, capability attenuation, owner-checked release,
 Note-count monotonicity can be regimented by append-only storage or a trigger that rejects deletes and regressive updates. Capability attenuation and lock-owner release can be pre-checked only if authenticated identity, the capability order, and every relevant effect path pass through the mediator. Duplicate keys and the boot gate are already pre-effect. Heartbeat freshness cannot be rejected at the heartbeat insert: staleness is an absence observed only after time passes, and under asynchrony a slow actor is indistinguishable from a failed one. Out-of-band filesystem and network effects remain detect-only until mediated.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-empty-oracle}
-An agent attempts to close a commitment with an empty oracle reference. Walk the Law-2 gate (Listing~\ref{alg:close}) and show exactly where and why the transition is refused.
+Drake has promised that \texttt{shop/checkout.test.ts} will pass. He changes nothing and asks to close the promise. Walk \texttt{close} (Listing~\ref{alg:swk-roads-close}) and \texttt{passing} (Listing~\ref{alg:swk-roads-passing}) and show exactly where and why the closure is refused.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-empty-oracle}
-\texttt{close(done, oracle\_ref="")} reaches the oracle-reference check, returns \texttt{REFUSED}, leaves the commitment open, and records the denied authority act. It never reaches classification, current-state verification, or the \texttt{DONE} transition: the empty reference fails the finite-vocabulary test before any oracle is consulted.
+\texttt{close} finds the commitment, sees that Drake made it and that it is open, and calls \texttt{holds}, since the policy checks closures. The condition is a passing test, so \texttt{holds} calls \texttt{passing}. The kernel supplied a run of that test, so the first arm of the \texttt{match} binds it. \texttt{fresh} compares the run's revision, 0, with the files' revision, 0, and passes. The run did not pass, so \texttt{passing} returns \texttt{TestFails} with the path, the revision and the assertion that failed. \texttt{close} returns that error before it reaches \texttt{done}. The transaction leaves the commitment as it was and logs the refusal.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-roads-monitor}
+In the run of Listing~\ref{alg:swk-roads-run-fence}, a monitor subscribes to the event log. Which event first tells it that the test is gone? Name one thing it can still do, and say why Theorem~\ref{thm:schneider} rules out preventing the deletion.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-roads-monitor}
+Event 4, the admitted \texttt{remove}. It was written by the transaction that deleted the file, so by the time any subscriber reads it the file is gone. The monitor can restore the file from an earlier copy, or flag event 6 so that the closure is not trusted. It cannot prevent the deletion: the bad prefix ends at event 4, and a monitor invoked after that transition commits cannot suppress it.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-roads-swap}
+Suppose Law~2 let the agent name its condition when it closes a commitment, and required only that the condition come from the vocabulary and hold at that moment. Give a sequence of calls by which Drake closes his promise about the checkout test without touching the test or the bug. Which line of \texttt{close} in Listing~\ref{alg:swk-roads-close} could not be written under that rule?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-roads-swap}
+Drake claims \texttt{notes.txt}, a file nobody else wants, and releases it. He then closes his promise and names the condition ``released claim on \texttt{notes.txt}''. It comes from the vocabulary and it holds, so the commitment closes, and the test still fails. Under that rule \texttt{close} could not read \texttt{c.condition} in \texttt{holds}: the commitment would carry no condition, and the function would have to take one as an argument from the agent it is judging.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-roads-fourth}
+Propose a rule that refuses the fourth road, the rewritten expectation of Listing~\ref{alg:swk-roads-run-rewrite}, without the kernel knowing what the test ought to expect. What does your rule cost an honest agent?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-roads-fourth}
+One rule is a separation of duties: an agent may not change a test file that one of its own open promises names. Drake's rewrite is then refused at the write, because he is the one being judged by that file. The cost falls on honest work. When the test itself is wrong, the agent that discovers this cannot correct it and must hand the correction to someone else, and two agents that collude can still pass the edit between them. A second rule fixes a hash of the test when the promise is made and runs that version at closing, which is the protected-run receipt of Exercise~\ref{ex:swk-op5-oracle}; it has the same cost. Neither rule judges whether the test is a good one.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-classify-rules}
 Theorem~\ref{thm:regimentation-controllability} settles which monitor rules are regimentable, so classify rather than re-prove. Take note monotonicity, capability escalation, and lock-owner validity and, for each, say whether its prohibition names a controllable event and whether its trigger is witnessed at the boundary. Which cell of Figure~\ref{fig:swk-controllability-quadrant} does each land in?
@@ -3656,7 +3657,7 @@ this book establishes it. Closing 4a would not close 4b, and a reader who sees
 event-sourced rehydration ship should not read it as OP-4 discharged.
 \item[$\bigstar$ OP-5: Oracle completeness.] Status: \Open. State-machine assertions
 (\S\ref{sec:enforcement}, \Designed) would add delta oracles and AST assertions to
-Listing~\ref{alg:close}'s four shipped kinds. Two kinds are not a completeness
+Law~2's four kinds. Two kinds are not a completeness
 result, and neither kind has yet been shown to resist gaming in the sense of
 Goodhart's law, which is what the vocabulary exists to prevent.
 \item[$\bigstar$ OP-6: Tamper-evidence on the read path.] Status: \Open. Where should
@@ -3786,13 +3787,13 @@ manager. The seven subsystems of \S\ref{sec:organs} correspond to distinct modul
 that each self-initialize their own tables over the shared database handle, in the
 factory style \texttt{createModule(db)}.
 
-A second program stands behind \S\ref{sec:swk-build}: \pdkernelname{}, a
-kernel written for this book. Its decisions are made by a Rust core compiled
+A second program stands behind \S\ref{sec:swk-build} and
+\S\ref{sec:swk-roads}: \pdkernelname{}, a kernel written for this book. Its decisions are made by a Rust core compiled
 to WebAssembly, under a TypeScript host on Node, over one SQLite file with
 the same WAL configuration. It builds much less than the reference
 implementation: claims on whole files, fencing tokens, a check in the write
-path, minted credentials and an event log. The listings in
-\S\ref{sec:swk-build} are cut from it by a script. Its source is not yet
+path, promises closed by a check, minted credentials and an event log. The
+listings in those two sections are cut from it by a script. Its source is not yet
 published. The grades in this chapter remain the reference implementation's,
 and where \pdkernelname{} builds what that daemon lacks the text says so.
 

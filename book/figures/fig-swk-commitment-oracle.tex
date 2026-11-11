@@ -1,16 +1,17 @@
 % Brief (tikz-diagram-craft). Verified against prop:law1 (metric-control
 % separation: the daemon derives the deadline, never the agent), prop:law2
-% (oracle-bound closure: a non-empty reference from the finite vocabulary --
-% released claim, merged commit, passing test id, policy sub-check), and
-% alg:close (the daemon re-verifies the reference currently holds at closure
-% time -- a test that passed yesterday and has since regressed is refused).
+% (oracle-bound closure: a condition from the finite vocabulary -- released
+% claim, merged commit, passing test id, policy sub-check -- named when the
+% commitment is made), and alg:swk-roads-close (the kernel checks that the
+% condition holds at closure time -- a test that passed yesterday and has
+% since regressed is refused).
 % Reader question: what may pass through the closure gate, and what may not?
 % Claim: a commitment closes as done only when a reference from the finite
 %   oracle vocabulary is supplied AND the daemon re-checks it holds now; a
 %   free-text assertion meets solid wall and is refused, the commitment
 %   staying open.
-% Evidence: book/single-writer-kernel.tex sec:commitments, prop:law1,
-%   prop:law2, alg:close.
+% Evidence: book/single-writer-kernel.tex prop:law1, prop:law2;
+%   book/additions/swk-build-the-guards.tex alg:swk-roads-close.
 % Must distinguish: the four accepted references from the one refused
 %   one; that refusal returns the commitment to open, not to a new state;
 %   that the deadline is the daemon's, never the agent's.

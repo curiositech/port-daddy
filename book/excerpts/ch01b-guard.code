@@ -1,0 +1,40 @@
+/// A protected test may not be deleted.
+pub fn check_remove(
+    policy: &Policy,
+    path: &str,
+) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-allow-delete") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    if policy.protects(path) {
+        return Err(Reason::ProtectedDelete {
+            path: path.to_owned(),
+        });
+    }
+    Ok(())
+}
+
+/// An edit to a protected test may not lower its assertion count.
+pub fn check_write(
+    policy: &Policy,
+    path: &str,
+    current: Option<&str>,
+    proposed: &str,
+) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-allow-assertion-drop") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    if !policy.protects(path) {
+        return Ok(());
+    }
+    let before = count_assertions(current.unwrap_or(""));
+    let after = count_assertions(proposed);
+    if after < before {
+        return Err(Reason::AssertionsDropped {
+            path: path.to_owned(),
+            before,
+            after,
+        });
+    }
+    Ok(())
+}

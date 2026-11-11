@@ -1,0 +1,20 @@
+$ harbord --now 0 &
+harbord: listening on .harbor/harbord.sock
+$ harbor register alice
+registered alice
+$ HARBOR_AGENT=alice harbor claim app.ts --ttl 3600
+granted: alice holds app.ts for 3600 s (token 1)
+$ HARBOR_AGENT=alice harbor promise release app.ts
+commitment 1: alice releases app.ts within 1800 s
+$ HARBOR_AGENT=alice harbor close 1
+refused: alice still holds app.ts (token 1)
+$ HARBOR_AGENT=alice harbor promises
+ID  AGENT  PROMISE          STATE
+ 1  alice  releases app.ts  open, due in 1800 s
+$ HARBOR_AGENT=alice harbor release app.ts
+released: app.ts (token 1)
+$ HARBOR_AGENT=alice harbor close 1
+closed: commitment 1, alice holds no claim on app.ts
+$ HARBOR_AGENT=alice harbor promises
+ID  AGENT  PROMISE          STATE
+ 1  alice  releases app.ts  done

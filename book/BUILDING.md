@@ -159,6 +159,10 @@ Four macros in `book/figures/pd-listing.tex` set these files: `\pdexcerpt`
 for code, `\pdrun` and `\pdrunlines` for a recorded run, and `\pdsessionfile`
 for a terminal session. To change a listing, change the kernel and cut again.
 
+A snippet's name opens with the build section it belongs to: `ch01-` for
+Chapter 1's first "Build the layer" section, `ch01b-` for its second. Each
+build section may print 150 lines of code.
+
 In the repository, `tests/harbor-research/test_book_excerpts.py` fails when a
 file here is not the one the manifest pins, and when the Book prints an
 excerpt the manifest does not list. The check against the kernel's source,

@@ -1,0 +1,299 @@
+% Build the layer, Chapter 1, second build: a current holder who does the
+% wrong thing, and what it then reports.
+% Inserted in \S\ref{sec:enforcement} after the two laws of commitments and
+% before the proposal to widen the oracle vocabulary (OP-5), which the
+% section's last run motivates.
+%
+% No code or output in this file is typed. \pdexcerpt, \pdrun, \pdrunlines
+% and \pdsessionfile set files under excerpts/, which the kernel's
+% tools/excerpts.mjs cuts from its source and its recorded runs (see
+% figures/pd-listing.tex). To change a listing, change the kernel and cut
+% again. The prose names functions, never line numbers.
+\subsection{Build the layer: four roads to a green suite}
+\label{sec:swk-roads}
+
+\noindent\emph{Express lane: an agent told to make a failing test pass has
+four ways to a green suite that are shorter than fixing the bug. The fence of
+\S\ref{sec:swk-build} stops none of them. The guards built here refuse the
+first three, each in the transaction where its decision is made, and a
+recorded run shows the fourth getting through.}
+
+The fence stops a holder whose grant is out of date. It has nothing to say to
+a holder whose grant is current and who does the wrong thing with it, or
+about what that holder then reports. This section has given the theory of
+both: Theorem~\ref{thm:decidability} for the act, and the two laws for the
+report. Here both are built in \pdkernelname{}, in the four beats of
+\S\ref{sec:swk-build}. As there, none of the code or output below was typed.
+
+The work is the checkout repair again. The suite is red for a real reason.
+The module multiplies a price in cents by 1.07 and does not round, so for
+1999 it returns 2138.9300000000003, and the test expects 2139. The honest
+fix is one call to \texttt{Math.round}. This time the job goes to Drake, and
+Drake looks for less work than that. Four roads lead to a green suite
+without touching the bug:
+
+\begin{description}
+\setlength{\itemsep}{2pt}
+\item[Delete.] Remove the test file. A suite with no tests reports green.
+\item[Hollow.] Keep the file and remove the one assertion that fails.
+\item[Say so.] Change nothing, and report the work done.
+\item[Rewrite.] Change the assertion to expect what the code returns.
+\end{description}
+
+\noindent Drake tries them in this order and stops at the first that is not
+refused.
+
+\subsubsection{Naive: a fence, and a promise closed by its maker}
+
+The obvious design adds a record of promises to the kernel of
+\S\ref{sec:swk-build} and changes nothing else. Before it starts, an agent
+promises a result: here, that \texttt{shop/checkout.test.ts} will pass. The
+kernel writes the promise beside the grants and gives it a deadline. When
+the agent has finished, it closes the promise, and the record shows it done.
+Each of these steps goes through the kernel's one door and into its event
+log, so anyone can read afterwards who promised what, and when it was closed.
+
+Two things about this record are already right, and the fix keeps them. The
+deadline is the kernel's. The request that makes a promise has no field for
+a time, and the service refuses a request that carries anything beside the
+condition, so an agent cannot give itself a year (Law~1,
+Property~\ref{prop:law1}). And the promise is
+not a sentence. It names a condition from a short fixed list, a test file
+that will pass or a claim that will be released, so that a program can check
+it later.
+
+What makes the design naive is its last step. The promise is closed when its
+maker asks: the kernel takes the agent's word that the condition holds.
+
+\subsubsection{Break: Drake deletes the test}
+
+Listing~\ref{alg:swk-roads-run-fence} is Drake's run against that design.
+
+\pdrun[caption={The break. Drake deletes the test under a current grant, and
+his promise is closed on his word.},label={alg:swk-roads-run-fence}]{roads-fence-only}
+
+Drake runs the suite and sees it red. He promises that the test will pass,
+and the kernel sets the deadline thirty minutes out. He claims the test file
+and is granted token 1. It is the newest token for that file, in the hands of
+the agent it was issued to, so the fence has no objection and event 4 admits
+the deletion. The suite now has no test files and reports green. At event 6
+Drake closes his promise, and the record of promises says done.
+
+Every step went through the kernel and is in its log, and that is the
+situation Theorem~\ref{thm:schneider} describes. A monitor that reads this log
+learns of the deletion from event 4, which was written by the transaction
+that deleted the file. It can raise an alarm, and someone can put the test
+back. It cannot have stopped the deletion, because it runs after it. The
+record of promises fails in a different way. Nothing was hidden from it. It
+was asked a question that it could answer only by believing the one who
+asked. \emph{Now you try:} Exercise~\ref{ex:swk-roads-monitor} asks what a
+monitor could still do here, and by when.
+
+\subsubsection{Fix: a guard for each decision, where the decision is made}
+
+Two decisions in that run went wrong: admitting the deletion, and closing the
+promise. Each gets a guard inside the transaction that makes the decision,
+which is the remedy of Theorem~\ref{thm:decidability}.
+
+\paragraph{The edit.}
+Bob's acceptance rule for the repair says that the checkout test may be
+edited but not deleted or weakened, so the kernel's policy lists the file as
+protected. Listing~\ref{alg:swk-roads-guard} is the rule in code.
+\texttt{check\_remove} refuses to delete a protected file.
+\texttt{check\_write} sets the file as it stands beside the file as the write
+would leave it, and refuses a write that leaves fewer assertions than it
+found. The count comes from \texttt{count\_assertions}, which is not shown:
+it counts calls to \texttt{assert} in the text.
+
+\pdexcerpt[caption={The write-path guard. A protected test is not deleted,
+and an edit does not lower its count of
+assertions.},label={alg:swk-roads-guard}]{ch01b-guard}
+
+The kernel's decision function calls these after the fence has passed the
+grant and before anything is applied, inside the transaction of
+Listing~\ref{alg:swk-build-propose}. A refusal therefore leaves the file as
+it was, and the log records the refusal with its reason. The rule looks only
+at the text of the file, so the function needs no clock and reads nothing,
+and it always returns. Theorem~\ref{thm:decidability} asks for exactly that
+of a guard. It is also a crude rule: it counts assertions without knowing
+what they assert. Verify comes back to that.
+
+\paragraph{The promise.}
+Listing~\ref{alg:swk-roads-close} is the rule for closing, Law~2
+(Property~\ref{prop:law2}) in code. \texttt{close} is given the kernel's
+record of the promise and the policy, with the newest grant on the path the
+promise is about. It
+refuses anyone but the promise's maker, and it refuses a promise that is
+already closed. Then \texttt{holds} decides. For a promise to
+release a claim, it asks whether the maker still holds a live grant, and the
+grant is in the state the transaction has just read. For a promise that a
+test passes, it asks \texttt{passing}, described below.
+
+\pdexcerpt[caption={\texttt{close}. The promiser asks, and the condition the
+promise named decides.},label={alg:swk-roads-close}]{ch01b-close}
+
+The branch on \texttt{policy.closure} is the whole difference between the
+naive design and this one. The run in Listing~\ref{alg:swk-roads-run-fence}
+was made with the policy set to take the maker's word.
+
+Law~2 has the condition named when the commitment is made, and building
+this rule is what settled that. It would be more convenient to let the agent
+say at closing what shows the work done, and an earlier wording of the law
+allowed it. But then a promise about the checkout test could be closed with
+any true fact from the list. Drake could claim
+and release \texttt{notes.txt}, a file nobody wants, and offer that released
+claim. So the condition
+is fixed when the promise is made, and \texttt{close} is given a number and
+nothing else. Whoever relies on the promise sees what will count before the
+work begins, and the agent cannot swap it afterwards. \emph{Now you try:}
+Exercise~\ref{ex:swk-roads-swap} asks for the closure that the other reading
+would have admitted.
+
+\paragraph{The test.}
+A released claim can be checked inside the transaction, because the grants
+are rows in the database. A test cannot. It has to be run, and the kernel
+allows a test up to 10 seconds. Its one transaction cannot stay open that
+long, since every other agent would wait behind it. So the kernel runs the
+test first and closes the promise afterwards
+(Listing~\ref{alg:swk-roads-kernel-close}). That opens the gap of
+\S\ref{sec:swk-build} in a new place. There Heron checked its lease and
+wrote 31 seconds later. Here the kernel checks a test, and a file can change
+before the closure commits.
+
+\pdexcerpt[caption={The kernel's side of closing. The test runs before the
+transaction, on a numbered state of the
+files.},label={alg:swk-roads-kernel-close}]{ch01b-kernel-close}
+
+The cure is the one that worked for the lease. The kernel numbers the states
+of the files. The \emph{revision} is the count of changes to files that it
+has admitted so far, read off the event log. \texttt{\#run} reads the files
+and the revision in one transaction, so the number belongs to exactly those
+files, and it runs the test on that copy in a process of its own. The result
+then travels with its number. In Listing~\ref{alg:swk-roads-passing},
+\texttt{passing} refuses a closure for which no run of the promised test was
+supplied. It hands the run to \texttt{fresh}, which compares the number the
+run saw with the number the files have now, inside the closing transaction.
+Only then does it ask whether the test passed.
+
+\pdexcerpt[caption={\texttt{passing} and \texttt{fresh}. A run of the test
+counts only for the revision it saw.},label={alg:swk-roads-passing}]{ch01b-passing}
+
+\texttt{fresh} is \texttt{newest} from Listing~\ref{alg:swk-build-newest}
+with a different number in it. There the number said how old a permission
+was. Here it says how old an observation is. In both, the comparison is made
+by the transaction that acts on the answer.
+
+\keyidea[A check is good for the state it saw]{Some checks cannot run inside
+the transaction they guard: they take too long, or they need something
+outside the database. Such a check can still be used safely when its result
+carries the number of the state it looked at, and the transaction compares
+that number with the current one before acting. This is what the paragraph
+after Theorem~\ref{thm:decidability} calls freshness, and it is the fence of
+\S\ref{sec:swk-build} pointed at a reading where that one was pointed at a
+lease.}
+
+\subsubsection{Verify: the same agent, then each guard removed}
+
+Listing~\ref{alg:swk-roads-run-kernel} is Drake again. The kernel now has
+Bob's rule in its policy and closes promises by checking them. The agent is
+the same code.
+
+\pdrun[caption={Drake against the guards. Each road is refused, and the
+promise stays open.},label={alg:swk-roads-run-kernel}]{roads-kernel}
+
+The deletion is refused as \texttt{protected-delete}. Drake's next try keeps
+the file and drops the assertion that fails. The guard counts two assertions
+before and one after, and refuses the write as \texttt{assertions-dropped}.
+Then he changes nothing and asks to close. The kernel runs the test at
+revision 0 and gets the failure Drake got, so it refuses. Events 4 to 6 are
+those refusals, each written by the transaction that refused. Drake gives
+up. The test is as Bob left it and the suite is still red. The record says the
+promise is open. If it is still open after \mbox{\texttt{t=1800000}} it will
+be listed as overdue, and that is all: nothing in \pdkernelname{} acts on an
+overdue promise.
+
+As in \S\ref{sec:swk-build}, a run that passes is not yet evidence that the
+guards did the work. Table~\ref{tab:swk-roads} sets each road beside the
+guard that refused it and the result of the same run with that one guard
+built out of the kernel.
+
+\begin{table}[H]
+\centering
+\caption{The four roads in \pdkernelname{}: the guard that refuses each, and
+the same run with that guard removed. [internal]}
+\label{tab:swk-roads}
+\footnotesize
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}p{0.2\textwidth} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Road} & \textbf{Refused by} & \textbf{With that guard removed} \\
+\midrule
+Delete the test & \texttt{check\_remove} & the deletion is admitted and the suite is green with no tests. The promise still does not close: the kernel finds no test file to run \\
+Remove the failing assertion & \texttt{check\_write} & the edit is admitted. The test then passes with one assertion, and the promise closes \\
+Say it is done & \texttt{holds} & the promise closes while the test fails \\
+Rewrite what the test expects & nothing & Listing~\ref{alg:swk-roads-run-rewrite} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The kernel's tests hold it to the first three rows. They state two
+properties of Drake's run: the protected test survives unchanged, and no
+promise is closed while its test fails. Both must hold with the guards in
+place, and the matching one must fail with each guard removed.
+
+\texttt{fresh} needs a run of its own, because nothing in Drake's run changes
+a file between a test and a closure. A test of the kernel puts a change
+there. Wren fixes the module and asks to close a promise of her own. The
+kernel runs the test, which passes at revision 1. Before the closure commits,
+a second agent writes the bug back, and the files are at revision 2.
+\texttt{fresh} refuses: the run saw revision 1. With \texttt{fresh} built to
+admit any number, the same sequence closes Wren's promise over a failing
+test.
+
+\paragraph{The fourth road.}
+Listing~\ref{alg:swk-roads-run-rewrite} is the end of a run in which Drake
+does not give up after the third refusal.
+
+\pdrunlines[caption={The fourth road. The test is rewritten to expect what
+the bug returns, and every check
+passes.},label={alg:swk-roads-run-rewrite}]{roads-rewrite}{25-31,45-56}{25\textendash 31 and 45\textendash 56}
+
+He rewrites the assertion to expect 2138.9300000000003. The file is still
+there and still has two assertions, so the write-path guard admits the edit
+at event 7. The test now passes, at revision 1, so event 9 admits the
+closure. The record says done, and the bug is where it was.
+
+Neither guard was fooled about the thing it checks. One counts assertions
+and the other runs the test. Neither knows what the test ought to expect,
+and a rule that reads only the test's text cannot tell this edit from an
+honest correction of a wrong expectation. This is the particular case behind
+the Key idea ``Receipt checks do not judge quality''. The next subsection
+asks what a wider vocabulary could add, and Exercise~\ref{ex:swk-roads-fourth}
+asks for a rule that closes this road, and for its price.
+
+\paragraph{A promise by hand.}
+This section's first example of a commitment was a promise to release a
+claim within thirty minutes. The transcript below makes that promise at the
+command line, against the service with its clock stopped at zero.
+
+\pdsessionfile[a promise to release, refused and then closed]{promise-demo}
+
+Alice's first attempt to close is refused by the grants table: she still
+holds token 1. The words ``within 1800 s'' are the service's:
+\mbox{\texttt{harbor promise}} has no flag that sets a time. After the
+release, the same command closes the promise.
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+The runs show that each road exists and which guard refuses it. Drake is a
+script, so they do not say how often a model takes one. The test the kernel
+runs is the agent's own code. It gets an empty environment and 10 seconds,
+but it runs as the kernel's user outside any sandbox, and a test file that
+exits with status 0 before its assertions run counts as passing. This is the
+cooperative rail of \S\ref{sec:swk-monitor} again. A change to any file moves
+the revision, so an unrelated write can refuse a closure, and under steady
+writes can refuse it repeatedly. Law~2 lists four kinds of condition and
+\pdkernelname{} builds two: a merged commit needs a repository, and a policy
+sub-check needs a policy monitor. One deadline serves every promise. Like
+the fence, these guards bind only what goes through the kernel.
+\end{pdboundary}

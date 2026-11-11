@@ -1,4 +1,4 @@
-#propose(proposal: Proposal, apply: () => void): Decision {
+#propose(proposal: PathProposal, apply: () => void): Decision {
   return this.#store.transaction(() => {
     const { path } = proposal;
     const token = proposal.op === 'claim' ? null : proposal.token;

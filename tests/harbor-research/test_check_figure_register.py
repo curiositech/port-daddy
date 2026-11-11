@@ -266,6 +266,23 @@ class TestRegisterFigureIds(unittest.TestCase):
             )
             self.assertEqual(repo.run().returncode, 0, msg=repo.run().stdout)
 
+    def test_a_label_declared_in_an_addition_resolves(self) -> None:
+        """A section a chapter inputs from book/additions can carry a listing
+        of its own, and a register row may name that listing's label."""
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                register_row("ch1-01", existing="alg:cone-close"),
+                "",
+                chapter_body="\\input{additions/cone-build}\n",
+            )
+            self.assertNotEqual(repo.run().returncode, 0, "the label is declared nowhere yet")
+            write(
+                Path(tmp) / "book" / "additions" / "cone-build.tex",
+                "\\pdexcerpt[caption={A},label={alg:cone-close}]{ch01-close}\n",
+            )
+            self.assertEqual(repo.run().returncode, 0, msg=repo.run().stdout)
+
     def test_none_is_the_explicit_status_for_an_undrawn_row(self) -> None:
         """A row that wants a figure nobody has drawn is legitimate -- it says
         `none`. That is what separates 'not drawn yet' from 'names a ghost'."""

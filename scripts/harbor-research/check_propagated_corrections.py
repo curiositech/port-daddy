@@ -469,16 +469,25 @@ ITEMS: list[Item] = [
         description=(
             "OP-5 (CSMA / oracle completeness): prose claimed 'oracle "
             "completeness achieved' by adding DELTA_ORACLE/AST_ASSERTION "
-            "kinds, but Algorithm alg:close's actual oracle-kind enumeration "
-            "was never updated to include them. Fix: alg:close's comment now "
-            "explicitly marks those two kinds as specified-only (OP-5, still "
-            "open), and they must not appear anywhere as live enum members."
+            "kinds, but the closure pseudocode's enumeration of kinds was "
+            "never updated to include them. First fix: a comment in that "
+            "pseudocode marked the two kinds as specified-only. Since 11 "
+            "November 2026 the pseudocode is gone: the closure rule is "
+            "printed from the Book's own kernel (alg:swk-roads-close), which "
+            "checks two kinds. The OP-5 subsection must still say that the "
+            "two proposed kinds are not built, and they must not appear "
+            "anywhere as live enum members."
         ),
         checks=[
             Check(
                 "book/single-writer-kernel.tex",
-                "alg:close comment marks DELTA_ORACLE/AST_ASSERTION as not-yet-shipped",
-                present=r"\(OP-5, specified only\) would add (?:\\texttt\{)?DELTA\\?_ORACLE\}? and (?:\\texttt\{)?AST\\?_ASSERTION\}? here",
+                "the OP-5 subsection's status says neither proposed kind is built",
+                present=r"\\pdstatus\{\\Designed\}\{OP-5 open; neither kind is built\}",
+            ),
+            Check(
+                "book/single-writer-kernel.tex",
+                "the OP-5 subsection calls the two kinds proposals, beside the two the kernel checks",
+                present=r"checks two of them\s+\(Listing~\\ref\{alg:swk-roads-close\}\), and these two are proposals",
             ),
             Check(
                 "book/single-writer-kernel.tex",

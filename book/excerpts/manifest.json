@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "921e58c75469d37b70cbc124766713662df63ac1",
+  "commit": "21c4755f05429f2da3626105041899bc94a284c7",
   "scan": "harbord",
   "excerpts": [
     {
@@ -51,11 +51,47 @@
     {
       "name": "ch01-propose",
       "path": "harbord/src/kernel/kernel.ts",
-      "firstLine": 138,
-      "lastLine": 165,
+      "firstLine": 210,
+      "lastLine": 237,
       "lines": 28,
       "language": "TypeScript",
-      "sha256": "58176f6a9617b0348dfa24bb6f83da8361c1fa895c668e884c45a56a33fcaead"
+      "sha256": "0dd9ea77fe72c26a711131c0441a32e36741f1814e92846cb7a684478b21348a"
+    },
+    {
+      "name": "ch01b-close",
+      "path": "harbord/core/src/commitments.rs",
+      "firstLine": 127,
+      "lastLine": 169,
+      "lines": 43,
+      "language": "Rust",
+      "sha256": "ccde06ccec29eff7f9370a2001fa7f662c92151856753c982181e014a6582e94"
+    },
+    {
+      "name": "ch01b-guard",
+      "path": "harbord/core/src/admission.rs",
+      "firstLine": 45,
+      "lastLine": 84,
+      "lines": 40,
+      "language": "Rust",
+      "sha256": "75d685e70194b9ec277a437c83f64ade9c39da77ceefa88cce12c514219fd429"
+    },
+    {
+      "name": "ch01b-kernel-close",
+      "path": "harbord/src/kernel/kernel.ts",
+      "firstLine": 130,
+      "lastLine": 157,
+      "lines": 28,
+      "language": "TypeScript",
+      "sha256": "f1d6675c5cf1de77903fc28c44adf218420c4e71b0bb14530bba088cabfd9199"
+    },
+    {
+      "name": "ch01b-passing",
+      "path": "harbord/core/src/commitments.rs",
+      "firstLine": 196,
+      "lastLine": 231,
+      "lines": 36,
+      "language": "Rust",
+      "sha256": "7e04e2410e437e7be0f8f403f292f9ed38a3f2edde218f5160b7c1885f0c0405"
     }
   ],
   "sessions": [
@@ -82,9 +118,34 @@
       "path": "harbord/sessions/lost-update-no-fence.txt",
       "lines": 32,
       "sha256": "6e651e010035c595baa286c02907e81e00e6aff6909d73c62403924e5fbdafdd"
+    },
+    {
+      "name": "promise-demo",
+      "path": "harbord/sessions/promise-demo.txt",
+      "lines": 20,
+      "sha256": "8989b6ee3fe0799a51cdfe26b9573333b1c0d3d23768163f549adba5470a7cb2"
+    },
+    {
+      "name": "roads-fence-only",
+      "path": "harbord/sessions/roads-fence-only.txt",
+      "lines": 31,
+      "sha256": "61da4a96ab5f332f56127e1ed586f42ad015ef7a938f924cf8206882d46d4163"
+    },
+    {
+      "name": "roads-kernel",
+      "path": "harbord/sessions/roads-kernel.txt",
+      "lines": 51,
+      "sha256": "5d9e19eb91ee652dbcefd0ee338d4db88acc55e3c0eab95fb2af8ce93617f01f"
+    },
+    {
+      "name": "roads-rewrite",
+      "path": "harbord/sessions/roads-rewrite.txt",
+      "lines": 56,
+      "sha256": "be5b4664d0b6b364237a26ba8eac48553c8ee1259b1f0074e00414d80ae048ec"
     }
   ],
   "printedLines": {
-    "ch01": 136
+    "ch01": 136,
+    "ch01b": 147
   }
 }

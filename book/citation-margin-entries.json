@@ -940,5 +940,23 @@
     "original": "Andrey Chudnov, Nathan Collins, Byron Cook, Joey Dodds, Brian Huffman, Colm MacC\\'arthaigh, Stephen Magill, Eric Mertens, Eric Mullen, Serdar Tasiran, Aaron Tomb, and Eddy Westbrook.\n\\newblock Continuous Formal Verification of Amazon s2n.\n\\newblock In \\textit{Computer Aided Verification (CAV 2018)}, LNCS 10982, pages 430--446, 2018.\n\\newblock \\url{https://doi.org/10.1007/978-3-319-96142-2_26}",
     "margin": "A. Chudnov et al. \\emph{Continuous Formal Verification of Amazon s2n}. \\textit{CAV 2018}, LNCS 10982. \\url{https://doi.org/10.1007/978-3-319-96142-2_26}",
     "reason": "Third pass: the author list is shortened to the first author so first-use notes fit the publication edition's margin; title, venue, year and online source kept."
+  },
+  {
+    "key": "haberstornetta1991",
+    "original": "Stuart Haber and W. Scott Stornetta.\n\\newblock How to Time-Stamp a Digital Document.\n\\newblock \\textit{Journal of Cryptology}, 3(2):99--111, 1991.",
+    "margin": "Haber and Stornetta. \\emph{How to Time-Stamp a Digital Document}. J. Cryptol. 3(2):99--111, 1991.",
+    "reason": "Keeps the authors, the full title and the locator; the journal is abbreviated. The page that first cites this work carries a long figure caption in the same margin, and on 11 November 2026 the column overflowed by 18pt."
+  },
+  {
+    "key": "merkle1987",
+    "original": "Ralph C. Merkle.\n\\newblock A Digital Signature Based on a Conventional Encryption Function.\n\\newblock In \\textit{Advances in Cryptology --- CRYPTO '87}, 1987.",
+    "margin": "Merkle. \\emph{A Digital Signature Based on a Conventional Encryption Function}. CRYPTO '87.",
+    "reason": "Keeps the author, the full title and the conference with its year; the proceedings' series title is in the bibliography. The page that first cites this work carries a long figure caption in the same margin, and on 11 November 2026 the column overflowed by 18pt."
+  },
+  {
+    "key": "bayer1993timestamping",
+    "original": "Dave Bayer, Stuart Haber, and W. Scott Stornetta.\n\\newblock Improving the Efficiency and Reliability of Digital Time-Stamping.\n\\newblock In R.~Capocelli, A.~De Santis, and U.~Vaccaro, editors, \\textit{Sequences II}, Springer, New York, 1993.\n\\newblock \\url{https://doi.org/10.1007/978-1-4613-9323-8_24}",
+    "margin": "Bayer, Haber and Stornetta. \\emph{Improving the Efficiency and Reliability of Digital Time-Stamping}. \\textit{Sequences II}, Springer, 1993. \\href{https://doi.org/10.1007/978-1-4613-9323-8_24}{Online source}",
+    "reason": "Keeps the authors, the full title, the volume and the link; the volume's editors and the publisher's city are in the bibliography. The page that first cites this work carries a long figure caption in the same margin, and on 11 November 2026 the column overflowed by 18pt."
   }
 ]

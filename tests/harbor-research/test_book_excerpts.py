@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BOOK = ROOT / 'book'
 EXCERPTS = BOOK / 'excerpts'
-LINE_BUDGET = 150  # lines of code one chapter may print
+LINE_BUDGET = 150  # lines of code one build section may print
 LISTING_COLUMN = 66  # characters a listing line holds
 TRANSCRIPT_COLUMN = 54  # characters a terminal transcript line holds
 CODE = re.compile(r'\\pdexcerpt(?:\[[^\]]*\])?\{([^}]+)\}', re.S)
@@ -83,13 +83,17 @@ class BookExcerpts(unittest.TestCase):
         self.assertEqual(sorted(set(printed(RUN)) | set(printed(TRANSCRIPT))), sorted(self.sessions))
         self.assertEqual(len(printed(CODE)), len(set(printed(CODE))), 'an excerpt is printed twice')
 
-    def test_no_chapter_prints_more_code_than_its_budget(self):
+    def test_no_build_section_prints_more_code_than_its_budget(self):
+        # A name opens with its build: "ch01" is Chapter 1's first build
+        # section and "ch01b" its second.
         totals = {}
         for name, entry in self.excerpts.items():
-            totals[name[:4]] = totals.get(name[:4], 0) + entry['lines']
+            build = name.split('-')[0]
+            self.assertRegex(build, r'^ch\d\d[a-z]?$', name)
+            totals[build] = totals.get(build, 0) + entry['lines']
         self.assertEqual(totals, self.manifest['printedLines'])
-        for chapter, lines in totals.items():
-            self.assertLessEqual(lines, LINE_BUDGET, chapter)
+        for build, lines in totals.items():
+            self.assertLessEqual(lines, LINE_BUDGET, build)
 
     def test_no_line_is_wider_than_the_column_that_sets_it(self):
         transcripts = set(printed(TRANSCRIPT))

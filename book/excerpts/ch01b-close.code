@@ -1,0 +1,43 @@
+/// Close a commitment as done. The promiser asks. The condition
+/// the promise named decides.
+pub fn close(
+    ledger: &Ledger,
+    latest: Option<&Grant>,
+    policy: &Policy,
+    agent: &str,
+    id: u64,
+    now: u64,
+) -> Result<Commitment, Reason> {
+    let Some(c) = &ledger.commitment else {
+        return Err(Reason::UnknownCommitment { id });
+    };
+    if c.agent != agent {
+        let owner = c.agent.clone();
+        return Err(Reason::NotYours { owner });
+    }
+    if c.closed.is_some() {
+        return Err(Reason::AlreadyClosed { id });
+    }
+    if policy.closure == Closure::Checked {
+        holds(c, ledger, latest, now)?;
+    }
+    Ok(c.done(now, ledger.revision))
+}
+
+/// The guard: the condition the promise named is true now.
+fn holds(
+    c: &Commitment,
+    ledger: &Ledger,
+    latest: Option<&Grant>,
+    now: u64,
+) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-close-unchecked") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    match &c.condition {
+        Condition::ReleasedClaim { path } => {
+            released(latest, &c.agent, path, now)
+        }
+        Condition::PassingTest { path } => passing(ledger, path),
+    }
+}
