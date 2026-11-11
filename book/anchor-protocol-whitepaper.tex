@@ -1382,7 +1382,7 @@ performs these checks. This is the same local-identity limit that
 \end{enumerate}
 
 \paragraph{Signing each request with the holder's key.}\label{sec:pop}
-\pdstatus{\Designed}{specified here; the daemon does not implement it, and no model in this chapter covers it}
+\pdstatus{\Designed}{the daemon does not implement it; \S\ref{sec:anchor-build-holder} builds and models it for this book's kernel}
 The fourteen-minute window exists because presenting a card proves only that
 the presenter holds its bytes. A card in an authorization chain already names
 its holder's public key, since the next hop is checked under it
@@ -1403,6 +1403,8 @@ also a bearer token, and its specification warns that it is open to replay and
 recommends a short expiry~\pdcite{spiffe2026jwtsvid}. Proof of possession does
 not help against an attacker who can read the agent's memory, where the
 private key is kept.
+
+\input{additions/anchor-build-the-holder}
 
 \pdexercisepointerone*{\ref{ex:anchor-security-envelope}}{\pageref{ex:anchor-security-envelope}}
 \begin{pdrecitation}
@@ -1481,6 +1483,12 @@ Jack B. Dennis and Earl C. Van Horn.
 Daniel J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.
 \newblock High-Speed High-Security Signatures.
 \newblock \textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.
+
+\bibitem{needham1978using}
+Roger M. Needham and Michael D. Schroeder.
+\newblock Using Encryption for Authentication in Large Networks of Computers.
+\newblock \textit{Communications of the ACM}, 21(12):993--999, December 1978.
+\newblock \url{https://doi.org/10.1145/359657.359659}
 
 \bibitem{chalkias2020taming}
 Konstantinos Chalkias, Fran\c{c}ois Garillot, and Valeria Nikolaenko.
@@ -2538,9 +2546,44 @@ A Harbor Card verifies: \texttt{Ed25519.Verify} returns true. Trace what else mu
 \begin{pdsolution}{ex:anchor-security-envelope}
 A valid signature proves exactly one thing: the holder of the signing key produced these bytes. It says nothing, by itself, about canonical decoding (did the verifier parse the \emph{same} bytes the signer meant, under one canonical encoding); key-to-principal binding (whose key is this, and is that binding itself authenticated? \S\ref{sec:limitations}'s PID-reuse case is a binding failure downstream of a perfectly valid signature); audience and resource semantics (was this token issued for \emph{this} harbor and \emph{this} action); freshness (\texttt{exp} checked against a clock the bearer does not control); ancestor revocation (\S\ref{sec:revocation}: a signature does not know its own chain was withdrawn upstream); or that every consequential effect actually consults the verifier at all. Table~\ref{tab:properties} lists only the cryptographic set as ProVerif-verified; authorization is the larger claim built on top of it, not a synonym for it.
 
-Because Harbor Cards are bearer credentials, so that whoever presents the bytes gets the capability with no further proof of possession, a card sniffed off loopback (\S\ref{sec:limitations}, ``\texttt{localhost} is a real network'') is exactly as usable to an attacker as to its intended holder for the remainder of its TTL. Proof of possession at presentation (\S\ref{sec:pop}), specified but not built, would close that gap: the thief would also need the holder's private key. Re-checking per request narrows the window in which a \emph{revoked} card is still honored (\S\ref{sec:revocation}); it does nothing against a card that is merely stolen and still technically valid, because the verifier cannot distinguish the two bearers by the token alone.
+Because Harbor Cards are bearer credentials, so that whoever presents the bytes gets the capability with no further proof of possession, a card sniffed off loopback (\S\ref{sec:limitations}, ``\texttt{localhost} is a real network'') is exactly as usable to an attacker as to its intended holder for the remainder of its TTL. Proof of possession at presentation (\S\ref{sec:pop}) closes that gap, since the thief would also need the holder's private key. The daemon does not implement it, and \S\ref{sec:anchor-build-holder} builds it for this book's kernel. Re-checking per request narrows the window in which a \emph{revoked} card is still honored (\S\ref{sec:revocation}); it does nothing against a card that is merely stolen and still technically valid, because the verifier cannot distinguish the two bearers by the token alone.
 
 A status table sharper than this chapter's three tiers (\Closed, \Partial, \Open) would keep four things distinct rather than folding them into one word: symbolic protocol correspondence at a fixed modeled hop depth (what ProVerif proved); bounded implementation policy, memory, and control-flow checks (the scope of Kani); runtime verifier integration (whether the deployed path actually calls the verified routine on every effect); and system-level complete mediation (whether every effect-producing path is reachable only through that call). This chapter's artifacts presently evidence the first two; the last two remain separate integration and enforcement obligations, not consequences of the harness results (\S\ref{sec:implementation}). Reading any result in this chapter as more than it is means collapsing exactly this distinction.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:anchor-build-holder}}{Build the layer: a card that cannot be borrowed}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:anchor-holder-orders}
+Listing~\ref{alg:anchor-holder-showings} has six orders. Two of them have three turns and the other four have four. Explain why, and say why the two short orders are the safe ones.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-holder-orders}
+The gate's check of a message has two steps. It looks the challenge up, and in a later turn it strikes the challenge out. A check that finds no open challenge at its first step ends there, after one turn.
+
+In a safe order the gate finishes with one message before it starts on the other. The first message takes two turns, and its second turn strikes the challenge out. The other message is refused at its lookup, after one turn. That is three turns, and there are two such orders, one for each message that can go first.
+
+In every other order both lookups come before either strike. Both find the challenge open, so both checks go on to a second turn and both messages are let through. The two lookups can come in either order and so can the two strikes, which gives $2\times2=4$ orders of four turns.
+
+Chapter~0's first break has the same shape, with a read and a write for each of two workers: in four orders of six, both read before either writes (\weld{prereq:sec:prereq-build}{lose an update}).
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-holder-first}
+In the second order of Listing~\ref{alg:anchor-holder-showings-core}, Wren's copy is let through and Heron's own message is refused. Say what Wren has gained and what she still cannot do. Then say what Heron should do next.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-holder-first}
+Wren has been let through once, as Heron, for the ask Heron signed. Whatever the gate gives in answer to that ask, it gave to her. In this build a request is no more than its ask. A request that also carried something to write would need that under the signature as well, or whoever delivered the proof could choose what was written.
+
+She cannot ask for anything else, because the gate rebuilds the signed text from the ask it is sent, and Heron's signature matches only his own. She cannot be let through a second time on that signature, because its challenge has been struck out.
+
+Heron's message was refused as answering a challenge that is not open. He asks for a new challenge and shows his cards again. A refusal of that kind, on a challenge he has just been handed, also tells him that someone else delivered his answer, which is worth reporting.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:anchor-holder-two-gates}
+Two gates stand in front of one harbor. They share one table of open challenges, kept where both can reach it. Each gate checks a showing in a single turn, as Listing~\ref{alg:anchor-holder-gate} does, looking a challenge up with one request to the table and striking it out with another. Is a proof still taken once? What must the table offer for the answer to be yes, and where has this book met that operation before?
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-holder-two-gates}
+No. Each gate takes its own turns, and the two gates run side by side, so their requests to the table can fall in the orders of Listing~\ref{alg:anchor-holder-showings}. Both look the challenge up and find it open, and both strike it out. It is the second repair again, spread over two machines.
+
+The table must make the test and the change one operation: strike this challenge out, and say whether it was open, with no other request able to come between. A gate then checks the signature first and strikes last, and lets a showing through only if its strike found the challenge open. Striking first would let a bad proof use up a good challenge.
+
+That operation is the checked write of Chapter~0. The cell refuses a write that names a version which has passed, and its comparison and its change are one decision (\weld{prereq:sec:prereq-build}{decision}).
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{app:phase3}}{Phase 3: Multi-hop Delegation}

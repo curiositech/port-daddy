@@ -1,0 +1,15 @@
+$ harbor scenario replay --design signed
+scenario replay, design signed: what a holder sent is sent again
+  by someone else
+
+t=0      harbor signs alice a card: read shop/*, write shop/*;
+                good until t=600000
+t=0      alice  hands heron a card: write shop/checkout.ts; good
+                until t=600000
+t=0      heron  signs the ask, and asks to write shop/checkout.ts
+                -> admitted as heron
+t=0      wren   records what heron sent
+t=0      wren   sends it again -> admitted as heron
+
+verdict: REPLAY: wren may write shop/checkout.ts by sending again
+         what heron sent

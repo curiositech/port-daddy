@@ -1,0 +1,13 @@
+$ sh formal/possession/run.sh
+answered-once.pv
+RESULT event(Taken(m)) ==> event(Made(m)) is true.
+RESULT inj-event(Taken(m)) ==> inj-event(Made(m)) is true.
+RESULT not event(Taken(m)) is false.
+challenge-left-open.pv
+RESULT event(Taken(m)) ==> event(Made(m)) is true.
+RESULT inj-event(Taken(m)) ==> inj-event(Made(m)) is false.
+RESULT (but event(Taken(m)) ==> event(Made(m)) is true.)
+no-challenge.pv
+RESULT event(Taken(m)) ==> event(Made(m)) is true.
+RESULT inj-event(Taken(m)) ==> inj-event(Made(m)) is false.
+RESULT (but event(Taken(m)) ==> event(Made(m)) is true.)

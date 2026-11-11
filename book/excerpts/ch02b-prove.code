@@ -1,0 +1,23 @@
+/** The text a proof is a signature over. */
+export function said(
+  nonce: string,
+  ask: Right | undefined,
+  card: string,
+): string {
+  const asked = ask ? spell(ask) : '';
+  return JSON.stringify(['proof', nonce, asked, card]);
+}
+
+/** Answer a gate's challenge: sign it, with what is asked and
+ * the id of the card it is asked under. */
+export function prove(
+  keys: Keys,
+  chain: readonly string[],
+  ask: Right | undefined,
+  nonce: string,
+): Proof {
+  const last = chain.at(-1);
+  const text = said(nonce, ask, last ? idOf(last) : '');
+  const tag = sign(null, Buffer.from(text), keys.secret);
+  return { nonce, tag: tag.toString('base64url') };
+}

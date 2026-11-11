@@ -1,0 +1,8 @@
+/// What a proof is a signature over: a JSON list that begins
+/// with the word `proof` and the challenge, and ends with the
+/// ask and the id of the last card. A card's signed text begins
+/// with the harbor's header, so no proof can be shown as a card.
+fn text(nonce: &str, ask: Option<&Right>, card: &str) -> String {
+    let ask = ask.map(spell).unwrap_or_default();
+    json!(["proof", nonce, ask, card]).to_string()
+}

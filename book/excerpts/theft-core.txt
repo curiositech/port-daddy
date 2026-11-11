@@ -1,0 +1,23 @@
+$ harbor scenario theft --design core
+scenario theft, design core: a copy of a card is shown by someone
+  who does not hold its key
+
+t=0      harbor signs alice a card: read shop/*, write shop/*;
+                good until t=600000
+t=0      alice  hands heron a card: write shop/checkout.ts; good
+                until t=600000
+t=0      gate   hands heron a challenge
+t=0      heron  signs the challenge and the ask, and asks to write
+                shop/checkout.ts
+                -> admitted as heron
+t=0      wren   copies heron's cards from his files
+t=0      wren   shows them, and asks to write shop/checkout.ts
+                -> refused: no-proof (no proof came with the
+                   cards)
+t=0      gate   hands wren a challenge
+t=0      wren   asks again, and signs with her own key
+                -> refused: not-proved (the proof is not signed
+                   with the last card's key for this showing)
+
+verdict: no theft: nobody was let through without a signature made
+         with the key the last card names
