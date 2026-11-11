@@ -1,0 +1,9 @@
+/** Run the workers, one turn at a time, until all are done. */
+export function run(workers: Worker[], next: Scheduler): void {
+  let working = [...workers];
+  while (working.length > 0) {
+    const who = next(working);
+    const turn = who.next();
+    if (turn.done) working = working.filter((w) => w !== who);
+  }
+}

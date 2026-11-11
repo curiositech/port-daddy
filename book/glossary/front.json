@@ -66,6 +66,8 @@
   {"term": "stigmergy", "sort": "stigmergy", "definition": "Coordination through marks left in a shared environment, which later workers read instead of receiving direct messages."},
   {"term": "claim (on work)", "sort": "claim (on work)", "definition": "A record announcing that a worker intends to work on something; it prevents collisions only if conflicting writes must pass a check that consults it."},
   {"term": "epoch", "sort": "epoch", "definition": "A number attached to a lease that rises each time the lease changes hands, so the resource can refuse writes from an earlier holder."},
+  {"term": "scheduler", "sort": "scheduler", "definition": "The rule that picks which worker moves next."},
+  {"term": "decision core", "sort": "decision core", "definition": "The one function in the Book's kernel through which every proposal is decided. It sees the proposal and the current state, and it does no input or output of its own."},
   {"term": "attenuation", "sort": "attenuation", "definition": "The narrowing of a grant at each hand-off: a delegated grant never covers more, or lasts longer, than the grant it came from."},
   {"term": "principal", "sort": "principal", "definition": "The person or organization on whose behalf an agent acts and who answers for it."}
 ]

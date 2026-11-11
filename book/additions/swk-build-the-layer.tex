@@ -20,18 +20,11 @@ code is \pdkernelname{}, a small kernel written for this book. It is not the
 reference implementation that the rest of the chapter grades. That daemon has
 no such gate; \pdkernelname{} is far smaller and has one.
 
-The section moves in four beats. \emph{Naive} builds the design most people
-reach for first, and builds it with care. \emph{Break} is one run that makes
-it fail, the same way every time. \emph{Fix} is the theorem's mechanism.
-\emph{Verify} runs the break against the fix, and then against the fix with
-its guard removed, to show that the guard is what stopped it.
-
-None of the code below was typed into the book. A script cuts each listing
-from the kernel's source. The listing's head names the file and the lines, and
-the numbers beside the code are the file's own. Each run is a recording, and
-one of the kernel's tests compares a fresh run with it. The kernel's
-repository also checks these listings against its source and fails when the
-two differ.
+The section moves in the four beats of \weld{prereq:sec:prereq-build}{four beats}:
+\emph{Naive}, \emph{Break}, \emph{Fix} and \emph{Verify}. As there, a
+script cuts each listing from the kernel's source, and each run is a
+recording. The kernel's repository checks both against its source and fails
+when they differ.
 
 \subsubsection{Naive: a lock file with a lease}
 

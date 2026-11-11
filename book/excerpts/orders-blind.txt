@@ -1,0 +1,12 @@
+$ harbor orders --design blind
+every order in which two workers can take their turns, design
+  blind; a worker thinks for 1 turn
+
+heron heron wren  wren   -> 2
+heron wren  heron wren   -> 1  LOST UPDATE
+heron wren  wren  heron  -> 1  LOST UPDATE
+wren  heron heron wren   -> 1  LOST UPDATE
+wren  heron wren  heron  -> 1  LOST UPDATE
+wren  wren  heron heron  -> 2
+
+4 of 6 orders lose an update

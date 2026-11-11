@@ -1,0 +1,20 @@
+/**
+ * One job: round after round, two workers add one each. Returns
+ * the round in which an update was first lost, or null.
+ */
+export function job(
+  arena: Arena,
+  load: Workload,
+  rounds: number,
+  random: Random,
+): number | null {
+  const cell = arena.open();
+  const chance = weather(load, random);
+  for (let round = 1; round <= rounds; round++) {
+    const workers = arena.workers(cell, load.think);
+    const overlap = random() < chance();
+    run(workers, overlap ? atRandom(random) : oneAtATime);
+    if (cell.value !== 2 * round) return round;
+  }
+  return null;
+}

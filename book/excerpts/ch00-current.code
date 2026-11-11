@@ -1,0 +1,12 @@
+/// The guard: nothing has been written since the writer read.
+fn current(cell: &Cell, read: Option<u64>) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-blind-put") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    let current = cell.version;
+    match read {
+        Some(read) if read == current => Ok(()),
+        Some(read) => Err(Reason::StaleRead { read, current }),
+        None => Err(Reason::NoReading),
+    }
+}

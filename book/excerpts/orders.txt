@@ -1,0 +1,11 @@
+$ harbor orders
+every order in which two workers can take their turns, each adding
+  one to a shared number; a worker thinks for 1 turn
+
+design      orders  lose an update  chance of a loss
+blind            6               4  1/2
+look-twice      20              12  3/8
+checked          6               0  0
+
+chance of a loss: when each turn goes to one of the workers still
+  at work, all equally likely

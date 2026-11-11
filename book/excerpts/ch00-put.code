@@ -1,0 +1,15 @@
+/// Write `value`. `read` is the version the writer says it read.
+pub fn put(
+    cell: &Cell,
+    policy: &Policy,
+    value: i64,
+    read: Option<u64>,
+) -> Result<Cell, Reason> {
+    if policy.writes == Writes::Checked {
+        current(cell, read)?;
+    }
+    match cell.version.checked_add(1) {
+        Some(version) => Ok(Cell { value, version }),
+        None => Err(Reason::VersionsExhausted),
+    }
+}

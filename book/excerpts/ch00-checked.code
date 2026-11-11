@@ -1,0 +1,9 @@
+/** Add one, and let the cell check: the write names the version
+ * it read, and a refused write starts over from a new reading. */
+export function* checked(cell: Shared, me: string, think = 1) {
+  for (;;) {
+    const seen = cell.read(me);
+    yield* thinking(think);
+    if (cell.put(me, seen.value + 1, seen.version)) return;
+  }
+}

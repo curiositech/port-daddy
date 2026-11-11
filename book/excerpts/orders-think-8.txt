@@ -1,0 +1,11 @@
+$ harbor orders --think 8
+every order in which two workers can take their turns, each adding
+  one to a shared number; a worker thinks for 8 turns
+
+design      orders  lose an update  chance of a loss
+blind        48620           48618  255/256
+look-twice  184756           97240  12155/65536
+checked      48620               0  0
+
+chance of a loss: when each turn goes to one of the workers still
+  at work, all equally likely
