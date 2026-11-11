@@ -71,6 +71,15 @@
   test is by shape — LaTeX emits a `!` line for every real error and none when it had
   nothing to typeset — not by a list of today's filenames.
 
+- **Book mode stages `book/excerpts/`.** A figure may now plot a recorded run as it was
+  printed (`\addplot table {excerpts/<run>.txt}`), and the wrapper's build directory had
+  no such directory, so the first figure to do it stopped at "Could not read table file"
+  in the CI gate while the full Book built clean.
+- **A real error under a local engine is no longer read as an empty drawing.** The
+  "nothing to draw" test looks for an error line starting `! `. The latexmk and plain
+  paths run with `-file-line-error`, which writes the same error as `./file.tex:40: ...`,
+  so a fragment that failed there exited 3 with "draws nothing". Both shapes count now.
+
 ### CI
 
 - The skill's own suite now **runs** (`library-checks.yml`, beside its siblings, with a

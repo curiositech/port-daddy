@@ -114,6 +114,14 @@ class BookExcerpts(unittest.TestCase):
             for line in (EXCERPTS / f'{name}.txt').read_text().splitlines():
                 self.assertLessEqual(len(line), column, f'{name}.txt: {line}')
 
+    def test_the_fragment_compiler_stages_the_runs_a_figure_plots(self):
+        # The figure gate compiles each changed figure alone, in a scratch
+        # directory that holds only what compile_fragment.sh copies there. A
+        # figure that reads excerpts/<run>.txt needs that directory copied.
+        self.assertTrue(plotted(), 'no figure plots a recorded run')
+        script = (ROOT / 'skills' / 'harbor-chartwork' / 'scripts' / 'compile_fragment.sh').read_text()
+        self.assertIn('cp -R "$BOOK_DIR/excerpts" "$BUILD/excerpts"', script)
+
     def test_a_plotted_run_is_a_table_as_it_was_printed(self):
         # The figure skips the first line, which is the command, and reads
         # the rest: remarks that start with '#', one row of column names,
