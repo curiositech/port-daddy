@@ -1,0 +1,16 @@
+/// The fence: refuse a token older than the latest one issued for
+/// the path. This is Kleppmann's fencing token and Chubby's
+/// sequencer (§1.5.2).
+fn newest(grants: &Grants, token: u64) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-no-fence") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    let latest = grants.latest.as_ref().map_or(0, |g| g.token);
+    if token < latest {
+        return Err(Reason::StaleToken {
+            presented: token,
+            latest,
+        });
+    }
+    Ok(())
+}

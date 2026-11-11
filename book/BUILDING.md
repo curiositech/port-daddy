@@ -143,3 +143,23 @@ the row and the page. Either side may be `null` (a pure addition or removal),
 but not both. With `--baseline-pdf` and a Book built from the base branch, it
 also lists as "vacuous" every `before` that the old Book never printed either.
 `scripts/harbor-research/run_pdf_checks.py` runs it on every PDF it checks.
+
+## Code and runs cut from the Book's kernel
+
+`book/excerpts/` holds the code and the recorded output that the Book prints
+from its own kernel, `harbord`. Nothing in it is written by hand. The kernel's
+repository cuts it with `tools/excerpts.mjs build --out book/excerpts`:
+
+- `<name>.code` is the lines between two snippet markers in a source file.
+- `<name>.tex` carries the file, its first and last line, and the language.
+- `<name>.txt` is a recorded run or terminal session.
+- `manifest.json` pins the commit and a SHA-256 for every file.
+
+Four macros in `book/figures/pd-listing.tex` set these files: `\pdexcerpt`
+for code, `\pdrun` and `\pdrunlines` for a recorded run, and `\pdsessionfile`
+for a terminal session. To change a listing, change the kernel and cut again.
+
+In the repository, `tests/harbor-research/test_book_excerpts.py` fails when a
+file here is not the one the manifest pins, and when the Book prints an
+excerpt the manifest does not list. The check against the kernel's source,
+`tools/excerpts.mjs check`, runs in the kernel's repository, which is private.

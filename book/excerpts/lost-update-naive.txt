@@ -1,0 +1,25 @@
+$ harbor scenario lost-update --design naive
+scenario lost-update, design naive: a holder pauses past its
+  lease, then overwrites newer work
+
+t=0      heron  claim shop/checkout.ts
+                -> granted, lease until t=30000
+t=0      heron  read shop/checkout.ts, raises TAX_RATE to 0.08
+t=0      heron  lease check: still held
+t=0      heron  pauses (a GC or network stall)
+t=31000  wren   claim shop/checkout.ts
+                -> granted, lease until t=61000
+t=31000  wren   read shop/checkout.ts, rounds the total to whole
+                cents
+t=31000  wren   lease check: still held
+t=31000  wren   write shop/checkout.ts -> ok
+t=31000  wren   release shop/checkout.ts -> ok
+t=31000  heron  wakes, still believing it holds the lock
+t=31000  heron  write shop/checkout.ts -> ok
+t=31000  heron  release shop/checkout.ts -> ok
+
+event log:
+  (none: the naive design keeps no record)
+
+verdict: LOST UPDATE: Heron's stale write overwrote Wren's
+         rounding fix

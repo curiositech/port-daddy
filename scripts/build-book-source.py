@@ -32,9 +32,12 @@ HELPERS = ("LICENSE", "scripts/build-whitepapers.sh", "scripts/generate-mega-whi
            "scripts/prepare-book-fonts.py", "scripts/build-book-source.py")
 REQUIRED = ("book/BUILDING.md", "book/BUILDING.sh", "book/textbook.json", "book/corpus.json",
             "book/coordination-papers-mega-volume.tex", "book/fonts/manifest.json")
+# .code is a listing under book/excerpts/: lines cut from the Book's own
+# kernel, which \pdexcerpt sets. The extension keeps one name for every
+# language and tells a code excerpt from a recorded run (.txt).
 EXTENSIONS = {".tex", ".json", ".md", ".jpg", ".jpeg", ".png", ".pdf", ".svg",
               ".otf", ".ttf", ".csv", ".py", ".sh", ".txt", ".html", ".sty", ".cls", ".bib",
-              ".yaml"}
+              ".yaml", ".code"}
 BUILD = {"texliveImage": TEXLIVE, "nodeMajor": 22, "pythonMinimum": "3.10",
          "sourceDateEpoch": EPOCH, "defaultFontProfile": "open-proof",
          "entrypoint": "book/BUILDING.sh",

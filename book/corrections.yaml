@@ -112,8 +112,9 @@
   item: "Ch. 1 repairs: drop the SO_PEERCRED caveat (second transport)"
   file: book/single-writer-kernel.tex
   before: "it resembles and is named after"
-  after: "a variable the tool does not read"
+  after: "and any process can set that variable"
   source: "code: cli/utils/current-context.ts, cli/utils/actor-credential.ts, lib/ipc-auth.ts"
+  note: "This row first held a phrase from the sentence about the lock session's export lines. That session was replaced on 11 November 2026 (swk-build-1, swk-build-3), so the row now holds a phrase from the sentence before it, which the same pass of repairs wrote."
 - id: swk-6
   item: "Ch. 1 repairs: name the in-scope identity threat (threat table)"
   file: book/single-writer-kernel.tex
@@ -194,10 +195,11 @@
   source: "grep: work unit has 0 hits in harbor-economy.tex and agent-transactions-whitepaper.tex"
 - id: swk-19
   item: "Ch. 1 repairs: identity threat carried to the lock listing's introduction"
-  file: book/single-writer-kernel.tex
+  file: book/additions/swk-build-the-layer.tex
   before: "looks like from two terminals"
-  after: "acts as one minted actor"
+  after: "the service works that out from the credential"
   source: "code: cli/commands/locks.ts, cli/utils/actor-credential.ts (one slot, one persisted credential)"
+  note: "The session this row introduced was replaced on 11 November 2026 by a recording of harbord (swk-build-1). Its two agents hold separate credentials, so the old sentence about one minted actor no longer applies; the row now holds the sentence that says where identity comes from."
 - id: swk-20
   item: "Coordinator: Lampson's Protection cited as 1971, reprinted 1974 (key lampson1971)"
   file: book/single-writer-kernel.tex
@@ -2054,3 +2056,21 @@
   before: null
   after: "On the inapproximability of"
   source: "https://doi.org/10.1007/s11134-009-9133-x"
+- id: swk-build-1
+  item: "Ch. 1 build: the command-line session is the Book's own kernel"
+  file: book/additions/swk-build-the-layer.tex
+  before: "every command acts as one minted actor"
+  after: "None of the code below was typed into the book"
+  source: "code: curiositech/harbord-dev 921e58c, harbord/sessions/lock-demo.txt (test/sessions.test.ts)"
+- id: swk-build-2
+  item: "Ch. 1 build: the review of key ideas says who builds fencing"
+  file: book/single-writer-kernel.tex
+  before: "extra guarantees, and fencing is designed"
+  after: "The reference implementation does not build fencing"
+  source: "code: curiositech/harbord-dev 921e58c, harbord/core/src/claims.rs (fence, newest; mutant no-fence)"
+- id: swk-build-3
+  item: "Ch. 1 build: the identity section no longer cites the removed session"
+  file: book/single-writer-kernel.tex
+  before: "a variable the tool does not read"
+  after: "believes a name only when the credential sent with it"
+  source: "code: curiositech/harbord-dev 921e58c, harbord/DESIGN.md D21 (test/service.test.ts)"

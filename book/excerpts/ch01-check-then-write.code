@@ -1,0 +1,10 @@
+// The careful step: check the lease again, immediately before
+// the write.
+if (!(await ws.stillHeld(grant))) {
+  log.note(ws.agent, 'lease check failed; not writing');
+  return { kind: 'lease-lost' };
+}
+log.note(ws.agent, 'lease check: still held');
+await beforeWrite();
+
+const wrote = await ws.write(grant, after);

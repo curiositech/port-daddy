@@ -1,0 +1,38 @@
+/// Grant, renew or deny a claim on a path.
+pub fn claim(
+    latest: Option<&Grant>,
+    agent: &str,
+    ttl_ms: u64,
+    now: u64,
+) -> Result<Grant, Reason> {
+    let expires_at = now.saturating_add(ttl_ms);
+    let fresh = |token| Grant {
+        token,
+        holder: agent.to_owned(),
+        expires_at,
+        released: false,
+    };
+    match latest {
+        None => Ok(fresh(1)),
+        // Released or expired: this is a new acquisition, so it
+        // gets the next token, even for the previous holder.
+        // Expiry is noticed here, when someone asks, not by a
+        // sweeper (invariant I4).
+        Some(g) if g.released || g.expires_at <= now => g
+            .token
+            .checked_add(1)
+            .map(fresh)
+            .ok_or(Reason::TokensExhausted),
+        // Re-claiming a live grant you hold renews it and keeps
+        // its token, so a retry after a lost reply returns the
+        // same grant (invariant I3).
+        Some(g) if g.holder == agent => Ok(Grant {
+            expires_at,
+            ..g.clone()
+        }),
+        Some(g) => Err(Reason::Held {
+            holder: g.holder.clone(),
+            expires_at: g.expires_at,
+        }),
+    }
+}

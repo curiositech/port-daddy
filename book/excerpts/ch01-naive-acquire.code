@@ -1,0 +1,28 @@
+export function acquire(
+  lockPath: string,
+  holder: string,
+  ttlMs: number,
+  now: number,
+): Acquired {
+  const record: LockRecord = { holder, expiresAt: now + ttlMs };
+  if (tryCreate(lockPath, record)) return { ok: true, record };
+
+  const held = readLock(lockPath);
+  if (held.holder === holder) {
+    // Re-claiming your own lock extends it: a retry after a lost
+    // reply must not fail (invariant I3, idempotent re-claim).
+    writeFileSync(lockPath, JSON.stringify(record));
+    return { ok: true, record };
+  }
+  if (held.expiresAt <= now) {
+    // The lease has run out, so anyone may break the lock.
+    // Breaking has a race of its own (two breakers can delete
+    // each other's fresh locks); the pause scenario needs only
+    // one breaker, and the kernel removes the race by having a
+    // single writer. One bounded retry, as in §1.5.2.
+    rmSync(lockPath, { force: true });
+    if (tryCreate(lockPath, record)) return { ok: true, record };
+    return { ok: false, held: readLock(lockPath) };
+  }
+  return { ok: false, held };
+}

@@ -1,25 +1,20 @@
 #!/usr/bin/env bash
 # Record the terminal sessions the Book prints ("At the terminal" listings).
-# Every transcript is produced by running the real CLI against an isolated
-# daemon profile, then normalised (ULIDs, timestamps, PIDs, durations) so the
-# checked-in text is stable across runs. Usage:
+# Every transcript is produced by running a real tool, or is cut from a
+# committed run log, then normalised (ULIDs, timestamps, PIDs, durations) so
+# the checked-in text is stable across runs. Usage:
 #   scripts/harbor-research/record_sessions.sh            # (re)record all
 #   scripts/harbor-research/record_sessions.sh --check    # exit 1 on drift
 # Output fragments live under book/figures/session-*.tex and are \input
 # by the chapters like figures.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-PD="node bin/port-daddy-cli.js"
-PROFILE=demo
-PORT=9877
 OUT=book/figures
 MODE=${1:-record}
 TMP=$(mktemp -d)
-trap 'timeout 30 $PD daemon stop $PROFILE >/dev/null 2>&1 || true; rm -rf "$TMP"' EXIT
+trap 'rm -rf "$TMP"' EXIT
 
 normalise() { python3 scripts/harbor-research/normalise_session.py; }
-
-run() { local id=$1; shift; env PORT_DADDY_AGENT_ID="$id" timeout 30 $PD "$@" 2>&1 || true; }
 
 wrap() {  # title, transcript file, out file
   {
@@ -43,33 +38,9 @@ wrap() {  # title, transcript file, out file
   } > "$3"
 }
 
-# ---- session 1: two agents, one lock (chapter 1, the resource organ) -------
-timeout 90 $PD daemon start $PROFILE --port $PORT >/dev/null 2>&1
-eval "$($PD daemon env $PROFILE 2>/dev/null)"
-sleep 2
-# the demo profile persists between runs: release anything a previous recording left
-run alice unlock lib.webhooks.ts >/dev/null 2>&1; run bob unlock lib.webhooks.ts >/dev/null 2>&1
-{
-  echo '$ export PORT_DADDY_AGENT_ID=alice'
-  echo '$ pd lock lib.webhooks.ts --ttl 600000'
-  run alice lock lib.webhooks.ts --ttl 600000
-  echo
-  echo '$ export PORT_DADDY_AGENT_ID=bob'
-  echo '$ pd lock lib.webhooks.ts --wait --timeout 2000'
-  run bob lock lib.webhooks.ts --wait --timeout 2000
-  echo
-  echo '$ pd locks'
-  run bob locks
-  echo
-  echo '$ export PORT_DADDY_AGENT_ID=alice'
-  echo '$ pd unlock lib.webhooks.ts'
-  run alice unlock lib.webhooks.ts
-  echo
-  echo '$ export PORT_DADDY_AGENT_ID=bob'
-  echo '$ pd lock lib.webhooks.ts'
-  run bob lock lib.webhooks.ts
-} | normalise > "$TMP/s1.txt"
-wrap "two agents, one lock, one holder at a time" "$TMP/s1.txt" "$TMP/session-swk-lock-demo.tex"
+# The lock session of chapter 1 is no longer recorded here. The Book prints a
+# recording of its own kernel, harbord, cut into book/excerpts/lock-demo.txt
+# by that kernel's tools/excerpts.mjs and set with \pdsessionfile.
 
 # ---- session 2: the work-unit checker and its mutation suite (chapter 1) ----
 {

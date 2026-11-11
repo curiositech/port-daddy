@@ -23,6 +23,33 @@
 % the Book owns. A listing quoted from a model or source file is quoted
 % exactly, comments included, and takes no badges.
 %
+% EXCERPTS. Code from the Book's own kernel is not typed into a chapter. A
+% script in the kernel's repository (tools/excerpts.mjs) cuts each marked
+% snippet into excerpts/<name>.code, with a one-line excerpts/<name>.tex
+% that carries the file, its lines and the language, and copies each
+% recorded run to excerpts/<name>.txt. excerpts/manifest.json pins the
+% commit and a SHA-256 for every file, and the script's check fails when
+% the code, a recording or a file here has changed since.
+%
+%   \pdexcerpt[caption={...},label={alg:...}]{ch01-claim}
+%       sets excerpts/ch01-claim.code under a head that names the language
+%       and, at the right, the file and its lines. The numbers beside the
+%       code are the file's own. The optional argument takes listings keys.
+%       The head prints no commit yet: the data carries the commit of a
+%       repository no reader can reach. It gains the public commit when the
+%       code is published. A listing's label starts with alg:, the one
+%       key-value label the Book's generator gives a chapter prefix.
+%   \pdrun[caption={...},label={alg:...}]{lost-update-kernel}
+%       sets excerpts/lost-update-kernel.txt, the recorded output of one
+%       run, with no line numbers. Its command line is set bold. A listing
+%       line holds 66 characters, and the kernel prints its runs at 66.
+%   \pdrunlines[caption={...}]{lost-update-no-fence}{1-1,17-32}{1 and 17--32}
+%       sets some lines of a run. The head names them, so the reader can see
+%       that lines were left out.
+%   \pdsessionfile[caption]{lock-demo}
+%       sets excerpts/lock-demo.txt in the frame \begin{pdsession} draws. A
+%       transcript line holds 54 characters.
+%
 % \pdco{n} is escaped into a listing with (*@ ... @*), which the shared
 % listing style enables. figures/pd-pedagogy.tex loads this file, so every
 % chapter has the macros; the colours are the palette's and are looked up
@@ -62,7 +89,20 @@
   \hbox{\smash{\lower11pt\hbox{{\color{hhteal}\vrule width\pd@listingrule height4pt}%
     {\color{hhsand!16}\vrule width\dimexpr\linewidth-\pd@listingrule\relax height4pt}}}}%
   \nobreak\hrule height0pt\nobreak\nointerlineskip}{%
-  \par\ifpd@listingclosed\else\nobreak\vskip-5pt\fi
+  \par\ifpd@listingclosed\else
+    % A displayed listing ends with \penalty-50 and its 5pt belowskip, which
+    % \vspace follows with a zero skip. A page could end there, between the
+    % last line and the closing band, and the band then opened the next page
+    % alone. Take the three items back so that nothing can part the last
+    % line from the band. If they are not there, cancel the skip as before.
+    \ifdim\lastskip=\z@\unskip\fi
+    \@tempdima\lastskip
+    \ifdim\@tempdima>\z@
+      \unskip\ifnum\lastpenalty<\z@\unpenalty\fi\nobreak
+    \else
+      \nobreak\vskip-5pt
+    \fi
+  \fi
   \pd@listingband{\vspace{2pt}\mbox{}}\endgroup\par\addvspace{9pt}}
 \newsavebox{\pd@calloutbox}
 \newenvironment{pdcallouts}{%
@@ -78,4 +118,62 @@
   \endgroup\par\nointerlineskip}
 \newcommand{\pdnote}[2]{\noindent\hangindent=\dimexpr\leftskip+1.5em\relax\hangafter=1
   \makebox[1.5em][l]{\pdco{#1}}#2\par\vspace{1.5pt}}
+\lstdefinelanguage{Rust}{
+  morekeywords={as,async,await,break,const,continue,crate,dyn,else,enum,extern,false,fn,for,if,impl,in,
+    let,loop,match,mod,move,mut,pub,ref,return,self,Self,static,struct,super,trait,true,type,unsafe,use,where,while},
+  sensitive=true,morecomment=[l]{//},morecomment=[s]{/*}{*/},morestring=[b]"}
+\lstdefinelanguage{TypeScript}{
+  morekeywords={as,async,await,break,case,catch,class,const,continue,default,delete,do,else,enum,export,extends,
+    false,finally,for,from,function,if,implements,import,in,instanceof,interface,let,new,null,of,readonly,return,
+    static,super,switch,this,throw,true,try,type,typeof,undefined,var,void,while,yield},
+  sensitive=true,morecomment=[l]{//},morecomment=[s]{/*}{*/},morestring=[b]",morestring=[b]',morestring=[b]`}
+% The gutter is a little wider than a pseudocode listing's, because a file's
+% own line numbers run to three digits. The code column then holds 66
+% characters with half a character to spare, and 66 is the width
+% tools/excerpts.mjs enforces. Widen the gutter further and a 66-character
+% line wraps.
+\lstdefinestyle{pdexcerpt}{style=pdcode,language={},tabsize=4,
+  framexleftmargin=2.15em,xleftmargin=\dimexpr2.15em+5.2pt\relax}
+\newcommand{\pdexcerptdata}[6]{%
+  \def\pd@excerpt@path{#2}\def\pd@excerpt@first{#3}\def\pd@excerpt@last{#4}%
+  \def\pd@excerpt@commit{#5}\def\pd@excerpt@language{#6}}
+% The data file's name is built in a macro first. The figure atlas scanner
+% follows every literal \input{...} it finds, and skips one whose path a
+% macro supplies.
+\newcommand{\pdexcerpt}[2][]{%
+  \def\pd@excerpt@file{excerpts/#2}%
+  \input{\pd@excerpt@file.tex}%
+  \begin{pdlisting}{\pd@excerpt@language}{\expandafter\detokenize\expandafter{\pd@excerpt@path}, lines \pd@excerpt@first\textendash\pd@excerpt@last}%
+  \edef\pd@excerpt@options{style=pdexcerpt,language=\pd@excerpt@language,firstnumber=\pd@excerpt@first}%
+  \expandafter\lstinputlisting\expandafter[\pd@excerpt@options,#1]{excerpts/#2.code}%
+  \end{pdlisting}}
+\lstdefinestyle{pdrun}{style=pdoutput,moredelim=[l][\fontseries{b}\selectfont]{\$\ }}
+\newcommand{\pdrun}[2][]{%
+  \begin{pdlisting}{Output}{sessions/#2.txt}%
+  \lstinputlisting[style=pdrun,#1]{excerpts/#2.txt}%
+  \end{pdlisting}}
+% The Book's kernel, by name. The box keeps the name whole: set in the mono
+% face it could otherwise be broken at a line end, and "har-bord" is not a
+% command anyone can type.
+\providecommand{\pdkernelname}{\mbox{\texttt{harbord}}}
+% Some lines of a recorded run. #3 is the listings line range and #4 says the
+% same in words for the head, so a reader can see that lines were left out.
+\newcommand{\pdrunlines}[4][]{%
+  \begin{pdlisting}{Output}{sessions/#2.txt, lines #4}%
+  \lstinputlisting[style=pdrun,linerange={#3},#1]{excerpts/#2.txt}%
+  \end{pdlisting}}
+% The frame is pdsession's own begin and end code, around a file.
+\newcommand{\pdsessionfile}[2][]{%
+  \endgraf\begingroup
+  \let\pd@sessionfamily\pdblockfamily
+  \def\pdblockfamily##1{\pd@sessionfamily{##1}\def\pdblock@color{pdteal}}%
+  \pdblockbefore{Terminal transcript}%
+  \noindent\raisebox{-2pt}{\includegraphics[width=12pt,height=12pt]{figures/lucide/terminal.pdf}}%
+  \endgraf\nobreak
+  \pd@measurewidefield
+  \lstinputlisting[style=pdsession,upquote=true,linewidth=\pd@sessionwidth,xleftmargin=0pt,
+    basicstyle=\ttfamily\ifdefined\addfontfeatures\addfontfeatures{Mapping=}\fi\fontsize{8.6}{10.6}\selectfont,
+    literate={-}{{\char45}}1,caption={#1}]{excerpts/#2.txt}%
+  \pdblockafter{Terminal transcript}%
+  \endgroup}
 \pdlistingrestoreat
