@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40413996,
+    "bytes": 40413838,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/1d87c8c8913a25962dac783eebc7f33d913e99edbd6cbe2ae22f3d80eaa01181.tar.gz",
-    "sha256": "1d87c8c8913a25962dac783eebc7f33d913e99edbd6cbe2ae22f3d80eaa01181",
-    "url": "https://media.portdaddy.dev/book/source/sha256/1d87c8c8913a25962dac783eebc7f33d913e99edbd6cbe2ae22f3d80eaa01181.tar.gz"
+    "key": "book/source/sha256/36ced8b2f053fc979e5e002dbe4cc788b85ddd8b3be63ed33930a97276e9d818.tar.gz",
+    "sha256": "36ced8b2f053fc979e5e002dbe4cc788b85ddd8b3be63ed33930a97276e9d818",
+    "url": "https://media.portdaddy.dev/book/source/sha256/36ced8b2f053fc979e5e002dbe4cc788b85ddd8b3be63ed33930a97276e9d818.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "ca4fc11f23eb7895388151e0c289eeff0e1a4cef28f52e5d3c1c5b9c9a74f791",
+  "manifestSha256": "4adc8895ab4038517ba4cb776867ed96b798de18392e07f7177ba1d3d71bb074",
   "schemaVersion": 1,
   "source": {
     "fileCount": 562,
@@ -250,10 +250,10 @@
         "sha256": "cdcfb10d8c874940530ed20c2838e45fd7fa96518738f9eb206e9187cb75b7fa"
       },
       {
-        "bytes": 128728,
+        "bytes": 128588,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-chapter-0.tex",
-        "sha256": "9d78dccc9dde31a537b9d1bf24f0b4dc855d91591ec63d6e396a05f2f8b576e7"
+        "sha256": "55dcac47c14e6da540182f4bbf28a6acf817515bfa6650ed1d5755eb0cba2477"
       },
       {
         "bytes": 30257,
@@ -1444,16 +1444,16 @@
         "sha256": "1967daa1c01619e72e5eebfddbfe6a1d24744621eb57b7c81840701a681b98ea"
       },
       {
-        "bytes": 1204,
+        "bytes": 1111,
         "mode": 420,
         "path": "book/figures/legible-swarm-heavy-tails-crossing.tex",
-        "sha256": "513989fb39d505c127e7e10aba0a272bb5c6ba8a183fd5eb315a4971d0a4531f"
+        "sha256": "988a33290ba2b442e8fd41cde580b6bd75686c6771e7936978758b01cdc887c0"
       },
       {
-        "bytes": 3776,
+        "bytes": 3594,
         "mode": 420,
         "path": "book/figures/legible-swarm-heavy-tails.tex",
-        "sha256": "24b56c8cadeef1cda4c6c3dd26eca499893d3e6dad75de1eee637cd7a893a84b"
+        "sha256": "866cd016117a698ffb3d84ac775886d419347ea227a2443a6b2358566bbc8212"
       },
       {
         "bytes": 2844,
@@ -3394,6 +3394,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "8a9b6bf012a5f1e2ebfe03d6c4db37146bed2b66ec0b146e35e3c6e2d2519701"
+    "sha256": "f6d000f56dcd5b84928613b6bffdc8956cc669746ed31fb95c34d61b324dc3e4"
   }
 }

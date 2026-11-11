@@ -59,9 +59,9 @@
           "check": "T7",
           "severity": "warn",
           "page": 0,
-          "content_width_pt": 428.4,
+          "content_width_pt": 427.8,
           "textwidth_pt": 324.0,
-          "message": "drawn content is 15.11cm wide, wider than the 11.43cm chapter textwidth"
+          "message": "drawn content is 15.09cm wide, wider than the 11.43cm chapter textwidth"
         }
       ]
     }
@@ -69,11 +69,11 @@
   "ink": [
     {
       "page": 0,
-      "ink_fraction": 0.0852,
-      "edge_density": 0.0686,
-      "distinct_colors": 975,
+      "ink_fraction": 0.1057,
+      "edge_density": 0.083,
+      "distinct_colors": 974,
       "flags": [
-        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+        "edge_density=0.083 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
       ]
     }
   ],
