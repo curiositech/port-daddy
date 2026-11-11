@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40442262,
+    "bytes": 40442227,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/c9d521783e87d75bb81be218da3968386c8664c6035c12985a4c6d7a37b204c8.tar.gz",
-    "sha256": "c9d521783e87d75bb81be218da3968386c8664c6035c12985a4c6d7a37b204c8",
-    "url": "https://media.portdaddy.dev/book/source/sha256/c9d521783e87d75bb81be218da3968386c8664c6035c12985a4c6d7a37b204c8.tar.gz"
+    "key": "book/source/sha256/01c00b69ccdbbcc9c9348153d80b5fbbc84d6f236ec0d430421fa5208cdc9bf0.tar.gz",
+    "sha256": "01c00b69ccdbbcc9c9348153d80b5fbbc84d6f236ec0d430421fa5208cdc9bf0",
+    "url": "https://media.portdaddy.dev/book/source/sha256/01c00b69ccdbbcc9c9348153d80b5fbbc84d6f236ec0d430421fa5208cdc9bf0.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "4625d84c926227e0c4ac2c25c4b4745da5ac9beb818d0d6e83cfe6a66fcf1635",
+  "manifestSha256": "2a37f6fa28a44ff5fcc0cf47c3a935a08af06ae3ca2b1d9ce78c1a54a5efbd7b",
   "schemaVersion": 1,
   "source": {
     "fileCount": 592,
@@ -184,10 +184,10 @@
         "sha256": "37f5ab9fd5e09de76a44ef7aabf6ce74ba163a9aa32ebd5160cb063055dd4e13"
       },
       {
-        "bytes": 16486,
+        "bytes": 16484,
         "mode": 420,
         "path": "book/additions/swk-build-the-guards.tex",
-        "sha256": "5fcd56c5fea06c386028630d918d5b62ada075792bf531645f095bcf7a493083"
+        "sha256": "e36e1f5d0cf9e4fc1c354437efb9339b8e1009c9c6b5a6d7bdec2f81830efd15"
       },
       {
         "bytes": 15987,
@@ -244,10 +244,10 @@
         "sha256": "d392563bd9d987341befcb38d359a0bcdc74ac31652229e369fa8ee525e0cdc8"
       },
       {
-        "bytes": 97286,
+        "bytes": 98981,
         "mode": 420,
         "path": "book/citation-margin-entries.json",
-        "sha256": "2d4e6c7eeefbd1696c01fdce31628253d66f75295a5143035ee8399deda0d2a7"
+        "sha256": "1861281fa370951f4761a6a75522131ae6fddda4b3206a7b1a8ba7f2a4f42f73"
       },
       {
         "bytes": 1505,
@@ -3502,10 +3502,10 @@
         "sha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6"
       },
       {
-        "bytes": 274252,
+        "bytes": 274264,
         "mode": 420,
         "path": "book/single-writer-kernel.tex",
-        "sha256": "9a826b9c3db5932d9bc4fdf4375cc70ed843ab3461f90a39703b52ff272c5b06"
+        "sha256": "9057b8e9caf53ded1df13810e2b4043e0ecf4920033dbf4d1f874ab53bf8be13"
       },
       {
         "bytes": 247582,
@@ -3574,6 +3574,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "bb683fd9146f93fd83e8f5d851a603f11fec0388aa5bff48bf0f3b65e03e50c3"
+    "sha256": "5064e23215366ea4a7b0f94021e5a98f61e1a411a6f52352c591c906473108f7"
   }
 }

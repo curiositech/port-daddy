@@ -113,7 +113,7 @@ The kernel's decision function calls these after the fence has passed the
 grant and before anything is applied, inside the transaction of
 Listing~\ref{alg:swk-build-propose}. A refusal therefore leaves the file as
 it was, and the log records the refusal with its reason. The rule looks only
-at the text of the file, so the function needs no clock and reads nothing,
+at the text of the file, so the function reads nothing beyond its arguments,
 and it always returns. Theorem~\ref{thm:decidability} asks for exactly that
 of a guard. It is also a crude rule: it counts assertions without knowing
 what they assert. Verify comes back to that.
@@ -288,8 +288,8 @@ release, the same command closes the promise.
 The runs show that each road exists and which guard refuses it. Drake is a
 script, so they do not say how often a model takes one. The test the kernel
 runs is the agent's own code. It gets an empty environment and 10 seconds,
-but it runs as the kernel's user outside any sandbox, and a test file that
-exits with status 0 before its assertions run counts as passing. This is the
+but it runs as the kernel's user outside any sandbox. A test file that exits
+with status 0 before its assertions run counts as passing. This is the
 cooperative rail of \S\ref{sec:swk-monitor} again. A change to any file moves
 the revision, so an unrelated write can refuse a closure, and under steady
 writes can refuse it repeatedly. Law~2 lists four kinds of condition and
