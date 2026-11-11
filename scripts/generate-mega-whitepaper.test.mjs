@@ -581,6 +581,35 @@ test('missing TeX imports fail with source context', () => {
   );
 });
 
+test('a file in a subdirectory names a figure the way its chapter does', () => {
+  // TeX reads \\input against the directory it was started in. An addition
+  // under additions/ says figures/x, as the chapter would, and the inliner
+  // has to find it where TeX would.
+  const root = resolve('.cache/mega-generator-chapter-relative-test');
+  const additions = resolve(root, 'additions');
+  const figures = resolve(root, 'figures');
+  mkdirSync(additions, { recursive: true });
+  mkdirSync(figures, { recursive: true });
+  writeFileSync(resolve(additions, 'build.tex'), 'before \\input{figures/grid} after\n', 'utf8');
+  writeFileSync(resolve(figures, 'grid.tex'), 'the grid\n', 'utf8');
+  try {
+    const inlined = inlineInputs('\\input{additions/build}', root, [], root);
+    assert.match(inlined, /before % BEGIN INLINED figures\/grid\nthe grid/);
+    // A file beside the including one still wins, as it always did.
+    mkdirSync(resolve(additions, 'figures'), { recursive: true });
+    writeFileSync(resolve(additions, 'figures', 'grid.tex'), 'the nearer grid\n', 'utf8');
+    assert.match(inlineInputs('\\input{additions/build}', root, [], root), /the nearer grid/);
+    // A file in neither place is reported against the including file's directory.
+    writeFileSync(resolve(additions, 'build.tex'), '\\input{figures/absent}\n', 'utf8');
+    assert.throws(
+      () => inlineInputs('\\input{additions/build}', root, [], root),
+      /cannot inline figures\/absent from .*additions/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('TeX imports that escape the containment root fail closed', () => {
   const root = resolve('.cache/mega-generator-containment-test');
   const chapterDir = resolve(root, 'chapters');
