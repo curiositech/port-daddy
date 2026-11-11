@@ -554,7 +554,7 @@
       ],
       "method": "TLA+/TLC",
       "owner": ".github/workflows/proofs.yml",
-      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17; CI artifact per run (two .tlc.log files); no prior checked-in snapshot, because this model never ran before wave-p1/proof-estate. WebhookDelivery_vuln.cfg (Dedup=FALSE) is a negative control asserted to violate AtMostOnce",
+      "evidencePolicy": "TLC from the pinned tla2tools.jar v1.8.0 under Java 17; CI artifact per run (two .tlc.log files); no prior checked-in snapshot, because this model had never been run before it was wired into CI. WebhookDelivery_vuln.cfg (Dedup=FALSE) is a negative control asserted to violate AtMostOnce",
       "ci": {
         "status": "wired",
         "job": [
@@ -593,7 +593,7 @@
       "evidencePolicy": "EasyCrypt is not installed anywhere in this estate's CI; 3 `admit.` tactics remain undischarged (see binding.ec around lines 346, 371, 397, in hashLeafE's algebraic combination). binding.run.log documents a manual proof-sketch review, not a machine-checked result.",
       "ci": {
         "status": "retired",
-        "reason": "EasyCrypt toolchain not installed; 3 undischarged `admit.` tactics remain (binding.ec lines ~346/371/397); discharging them and adding an EasyCrypt CI job is tracked as future work, not done in wave-p1/proof-estate"
+        "reason": "EasyCrypt toolchain not installed; 3 undischarged `admit.` tactics remain (binding.ec lines ~346/371/397); discharging them and adding an EasyCrypt CI job is future work, and this edition's checks do not include it"
       }
     },
     {

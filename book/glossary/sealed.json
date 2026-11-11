@@ -22,7 +22,7 @@
  {
   "term": "differential privacy",
   "sort": "differential privacy",
-  "definition": "A property of a randomized release: adding or removing any one record changes the probability of any set of outputs by at most a factor e^epsilon, plus a small additive slack delta."
+  "definition": "A property of a randomized release: adding or removing any one record changes the probability of any set of outputs by at most a factor $e^{\\varepsilon}$, plus a small additive slack $\\delta$."
  },
  {
   "term": "data subject",
@@ -32,7 +32,7 @@
  {
   "term": "epsilon",
   "sort": "epsilon",
-  "definition": "The privacy-loss parameter of differential privacy; the factor e^epsilon bounds how much one data subject's record can change the odds of any output, so smaller is more private."
+  "definition": "The privacy-loss parameter $\\varepsilon$ of differential privacy; the factor $e^{\\varepsilon}$ bounds how much one data subject's record can change the odds of any output, so smaller is more private."
  },
  {
   "term": "self-composition",
@@ -62,7 +62,7 @@
  {
   "term": "advanced composition",
   "sort": "advanced composition",
-  "definition": "A bound on the total privacy loss of k releases that can be smaller than their sum, but only with a positive slack delta."
+  "definition": "A bound on the total privacy loss of $k$ releases that can be smaller than their sum, but only with a positive slack $\\delta$."
  },
  {
   "term": "subject-keyed ledger",
@@ -87,7 +87,7 @@
  {
   "term": "zero-concentrated privacy",
   "sort": "zero-concentrated privacy",
-  "definition": "A variant of differential privacy with one parameter zeta that implies Rényi differential privacy of every order lambda with loss lambda times zeta, so costs simply add."
+  "definition": "A variant of differential privacy with one parameter $\\zeta$ that implies Rényi differential privacy of every order $\\lambda$ with loss $\\lambda\\zeta$, so costs simply add."
  },
  {
   "term": "adapter",

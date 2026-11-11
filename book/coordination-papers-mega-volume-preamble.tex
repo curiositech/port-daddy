@@ -63,7 +63,11 @@
     BoldFont=texgyreheros-bold.otf,BoldItalicFont=texgyreheros-bolditalic.otf,Ligatures=TeX]
   \newfontfamily\pdcovergrotesk{texgyreheros-regular.otf}[ItalicFont=texgyreheros-italic.otf,
     BoldFont=texgyreheros-bold.otf,BoldItalicFont=texgyreheros-bolditalic.otf,Ligatures=TeX,Kerning=On]
-  \providecommand{\pdshorttitle}{The Harbor, the Person, and the Economy}
+  % The running head of the front matter is the Book's main title: the part
+  % of the edition title before its colon. It used to be the second half of
+  % the title alone, which reads as the name of a different book.
+  \def\pdtitlebeforecolon#1:#2\relax{#1}
+  \providecommand{\pdshorttitle}{\expandafter\pdtitlebeforecolon\pdeditiontitle:\relax}
   % A 66-character column cannot hold a script path in one piece. Inside
   % \texttt, XeTeX's inter-character tokens allow a break (no hyphen) after
   % / _ . - = : and , so paths and flags wrap where a reader expects.
@@ -1154,6 +1158,15 @@
 % \pdbuildid: commit, font profile and SOURCE_DATE_EPOCH date of this build,
 % for the colophon and the how-to-cite line.
 \input{figures/pd-buildid}
+% The edition date the Book prints is the build's date: the day of the newest
+% commit to a Book source (SOURCE_DATE_EPOCH). A date typed into textbook.json
+% falls behind the text the day after it is typed, and the Book once printed
+% 5 November on pages that cited runs of 9 November. textbook.json's date
+% remains the fallback for a build that has no date. \newcommand, not \def:
+% pd-buildid.tex's fallback is a \providecommand, which is \long, and \ifx
+% compares that prefix too.
+\newcommand\pdbuildundated{undated}
+\ifx\pdbuilddate\pdbuildundated\else\let\pdeditiondate\pdbuilddate\fi
 
 % ---------------------------------------------------------------------------
 % Captioned exhibits must fit the text column: the outside margin is reserved

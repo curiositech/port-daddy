@@ -783,6 +783,7 @@
 % \meaning differ from the plain (non-\long) macro \edef produces below for
 % comparison, so \ifx would never see them as equal even with identical text.
 \def\pd@provedon@sectionkind{section}
+\def\pd@provedon@appliedkind{applied}
 \input{figures/pd-discharges}
 \newcommand{\pdprovedon}[1]{%
   \ifpdmargincolumn
@@ -792,9 +793,11 @@
       \sbox{\pd@sidebox}{\begin{minipage}[b]{\marginparwidth}\marginfont\itshape
         \ifx\pd@provedon@kind\pd@provedon@sectionkind
           Proved in \S\ref{\pd@provedon@target}.%
+        \else\ifx\pd@provedon@kind\pd@provedon@appliedkind
+          Applied in \S\ref{\pd@provedon@target}.%
         \else
           Proved on p.~\pageref{\pd@provedon@target}.%
-        \fi\end{minipage}}%
+        \fi\fi\end{minipage}}%
       \pd@placemarginopt{\pd@sidebox}%
     \fi
   \fi}

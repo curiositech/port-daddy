@@ -13,7 +13,7 @@
   {"term": "grim trigger", "sort": "grim trigger", "definition": "A repeated-game strategy that cooperates until the first observed defection and then defects forever."},
   {"term": "adversarial test market", "sort": "adversarial test market", "definition": "An internal market in which independent test-writing agents are paid a bounty for each real flaw they find in a diff before it settles."},
   {"term": "reporting panel", "sort": "reporting panel", "definition": "The set of k test-writing agents asked to find and report flaws in one diff."},
-  {"term": "assurance bound", "sort": "assurance bound", "definition": "The lower bound 1-(1-d)^k on the chance that a panel of k independent reviewers, each reporting a given flaw with probability at least d, reports it."},
+  {"term": "assurance bound", "sort": "assurance bound", "definition": "The lower bound $1-(1-d)^k$ on the chance that a panel of $k$ independent reviewers, each reporting a given flaw with probability at least $d$, reports it."},
   {"term": "Becker deterrence condition", "sort": "Becker deterrence condition", "definition": "The condition that cheating does not pay when the expected punishment (chance of being caught times the penalty) is at least the gain from cheating."},
   {"term": "Shapley value", "sort": "Shapley value", "definition": "A component's marginal contribution averaged over every order in which the components could have been added."},
   {"term": "royalty", "sort": "royalty", "definition": "What a licensor is paid for the use of its licensed components."},
