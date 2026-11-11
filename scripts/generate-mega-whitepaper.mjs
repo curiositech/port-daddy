@@ -401,10 +401,18 @@ function realContainedBy(root, target) {
   return isContainedBy(realRoot, realTarget);
 }
 
-function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
+function inlineInputs(tex, sourceDir, stack = [], root = repoRoot, chapterDir = sourceDir) {
   return tex.replace(/\\(?:input|include)\{([^}]+)\}/g, (_whole, rawRef) => {
     const withExt = extname(rawRef) ? rawRef : `${rawRef}.tex`;
-    const imported = resolve(sourceDir, withExt);
+    // TeX reads every \input against the directory it was started in, which
+    // here is the chapter's. A file in a subdirectory, such as an addition
+    // under book/additions/, therefore names a figure the way its chapter
+    // does: figures/x. Look beside the including file first, as before, and
+    // then where TeX would look. The containment guard below judges
+    // whichever path is chosen.
+    const beside = resolve(sourceDir, withExt);
+    const fromChapter = resolve(chapterDir, withExt);
+    const imported = !existsSync(beside) && existsSync(fromChapter) ? fromChapter : beside;
     // The generator's contract is that the Book is assembled from the
     // repository's own chapters and nothing else. Without this check a single
     // `\input{../../../secrets}` in any sourced TeX file would be read and
@@ -427,7 +435,7 @@ function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
     }
     return [
       `% BEGIN INLINED ${rawRef}`,
-      inlineInputs(child, dirname(imported), [...stack, imported], root),
+      inlineInputs(child, dirname(imported), [...stack, imported], root, chapterDir),
       `% END INLINED ${rawRef}`,
     ].join('\n');
   });
