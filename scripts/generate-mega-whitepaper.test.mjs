@@ -70,7 +70,9 @@ test('reviewed margin editing cannot drift away from its original source', () =>
 
 test('Locke on consent and Locke on identity retain different source identities', () => {
   const shortforms = loadCiteShortforms();
-  assert.match(shortforms.get('locke1689'), /Second Treatise/);
+  // The consent chapters cite the Second Treatise, which is one of the Two
+  // Treatises: one book, one entry, with the section numbers in the prose.
+  assert.match(shortforms.get('locke1689'), /Two Treatises/);
   assert.match(shortforms.get('locke1689identity'), /Essay Concerning/);
   const identityChapter = readFileSync(resolve('book/spawn-to-person.tex'), 'utf8');
   assert.doesNotMatch(identityChapter, /\\(?:pd)?cite\{locke1689\}/);
@@ -878,7 +880,10 @@ test('solution exhibits retain their owning chapter with distinct counters and a
 // The collated bibliography: sorted by the name a reader looks up, and one
 // entry per work however a chapter chose to write it.
 // ---------------------------------------------------------------------------
-import { firstAuthorSurname, referenceFingerprint, referenceParts, referenceSortKey } from './generate-mega-whitepaper.mjs';
+import {
+  findNearDuplicates, firstAuthorSurname, foundationsReferences, referenceFingerprint, referenceParts,
+  referenceSortKey, referenceTitle, renderReferenceList,
+} from './generate-mega-whitepaper.mjs';
 
 const entry = (body) => ({ key: 'k', source: 's.tex', body });
 
@@ -923,6 +928,9 @@ test('the same work in two house styles is one fingerprint; \\newblock count is 
   // Both reduce to surname "lin", year 1988 -- the surname half of the key agrees
   // whichever way the chapter wrote the first name.
   assert.equal(firstAuthorSurname(referenceParts(a).authorField), firstAuthorSurname(referenceParts(b).authorField));
+  // And the title half agrees too, now that an entry with no \newblock has a
+  // title boundary: the two are one work and collate to one entry.
+  assert.equal(referenceFingerprint(a), referenceFingerprint(b));
 
   const one = 'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons: The Evolution of Institutions for Collective Action}. Cambridge University Press, 1990.';
   const two = 'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons: The Evolution of Institutions for Collective Action}.\n\\newblock Cambridge University Press, 1990.';
@@ -935,6 +943,114 @@ test('two genuinely different papers by the same authors in the same year stay d
   const x = 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock Supervisory Control of a Class of Discrete Event Processes.\n\\newblock \\textit{SIAM J. Control}, 25(1), 1987.';
   const y = 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock On the supremal controllable sublanguage of a given language.\n\\newblock \\textit{SIAM J. Control}, 25(3), 1987.';
   assert.notEqual(referenceFingerprint(x), referenceFingerprint(y));
+});
+
+test('an entry that marks no title boundary still ends its author list at the first sentence', () => {
+  const parts = (body) => {
+    const { authorField, work } = referenceParts(body);
+    return [authorField.trim(), work.trim().slice(0, 12)];
+  };
+  // Initials are not sentence ends, plain or hyphenated.
+  assert.deepEqual(parts('Butler W. Lampson. Protection. Reprinted in \\emph{ACM SIGOPS OSR}, 8(1), 1974.'),
+    ['Butler W. Lampson.', 'Protection. ']);
+  assert.deepEqual(parts("J.-C. Rochet \\& J. Tirole. ``Platform Competition in Two-Sided Markets.'' \\emph{JEEA} 2003."),
+    ['J.-C. Rochet \\& J. Tirole.', '``Platform C']);
+  // "et al." belongs to the names before it.
+  assert.deepEqual(parts('X.~Liu et al. \\newblock \\emph{AgentBench}. \\emph{ICLR}, 2024.'),
+    ['X.~Liu et al.', '\\newblock \\e']);
+  // An entry with no markup at all, and one that opens with its title.
+  assert.deepEqual(parts('J.~Rushby. Noninterference, transitivity, and channel-control security policies. SRI, 1992.'),
+    ['J.~Rushby.', 'Noninterfere']);
+  assert.deepEqual(parts('\\textit{Trustees of Dartmouth College v.\\ Woodward}, 17 U.S. 518 (1819). The discussion at p. 636.'),
+    ['', '\\textit{Trus']);
+  // The surname a reader looks up, where the old split filed these under a
+  // first name, a title word or nothing.
+  const surname = (body) => firstAuthorSurname(referenceParts(body).authorField);
+  assert.equal(surname('Butler W. Lampson. Protection. Reprinted in \\emph{ACM SIGOPS OSR}, 8(1), 1974.'), 'lampson');
+  assert.equal(surname('R.~van der Meyden. What, indeed, is intransitive noninterference? In \\emph{Proc. ESORICS}, 2007.'), 'meyden');
+  assert.equal(surname('J.~Rushby. Noninterference, transitivity, and channel-control security policies. SRI, 1992.'), 'rushby');
+  assert.equal(referenceTitle('J.~Rushby. Noninterference, transitivity, and channel-control security policies. SRI, 1992.'),
+    'noninterference transitivity and channel control security policies');
+});
+
+test('every pair of entries is checked for one work worded two ways', () => {
+  const ref = (key, body) => ({ key, source: `${key}.tex`, body });
+  const hobbesLong = ref('a', 'Thomas Hobbes.\n\\newblock \\textit{Leviathan, or The Matter, Forme and Power of a Common-Wealth}.\n\\newblock Andrew Crooke, London, 1651.');
+  const hobbesShort = ref('b', 'Thomas Hobbes.\n\\newblock \\textit{Leviathan}.\n\\newblock 1651.');
+  const far = ref('m', 'Zed Author.\n\\newblock Something Else Entirely.\n\\newblock 1999.');
+  // Reported even when another entry sorts between them.
+  assert.equal(findNearDuplicates([hobbesLong, far, hobbesShort]).length, 1);
+  assert.match(findNearDuplicates([hobbesLong, far, hobbesShort])[0], /^a \(a\.tex\) \/ b \(b\.tex\): leviathan$/);
+  // The same title under two years is how a wrong year looks.
+  const gray92 = ref('g92', 'Jim Gray and Andreas Reuter.\n\\newblock \\textit{Transaction Processing: Concepts and Techniques}.\n\\newblock Morgan Kaufmann, 1992.');
+  const gray93 = ref('g93', 'Jim Gray and Andreas Reuter.\n\\newblock \\textit{Transaction Processing: Concepts and Techniques}.\n\\newblock Morgan Kaufmann, 1993.');
+  assert.equal(findNearDuplicates([gray92, gray93]).length, 1);
+  // One wording is one fingerprint and nothing to report.
+  assert.deepEqual(findNearDuplicates([gray93, { ...gray93, key: 'again' }]), []);
+  // Different works stay apart: another title in the same year, a title that
+  // only begins the same way in another year, and the listed exception.
+  const rw87 = ref('rw87', 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock Supervisory Control of a Class of Discrete Event Processes.\n\\newblock \\textit{SIAM J. Control}, 1987.');
+  const rw89 = ref('rw89', 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock The Control of Discrete Event Systems.\n\\newblock \\textit{Proc. IEEE}, 1989.');
+  const rfc = ref('rfc', 'Ben Laurie, Adam Langley, and Emilia Kasper.\n\\newblock Certificate Transparency.\n\\newblock IETF RFC 6962, June 2013.');
+  const cacm = ref('cacm', "B. Laurie. ``Certificate Transparency.'' \\emph{Communications of the ACM} 57(10):40--46, 2014.");
+  assert.deepEqual(findNearDuplicates([rw87, rw89, rfc, cacm]), []);
+});
+
+test('a repeat form names one work: shared author-year forms keep their title fragment', () => {
+  const refs = [
+    { key: 'mega001', body: 'Anthropic.\n\\newblock Agent Skills: overview.\n\\newblock 2026.' },
+    { key: 'mega002', body: 'Anthropic.\n\\newblock How Claude Remembers Your Project.\n\\newblock 2026.' },
+    { key: 'mega003', body: 'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons}.\n\\newblock 1990.' },
+  ];
+  const aliases = [
+    '\\pdciteshort{mega001}{Anthropic 2026, \\textit{Agent Skills\\ldots}}',
+    '\\pdciteshort{mega002}{Anthropic 2026, \\textit{How Claude Remembers\\ldots}}',
+    '\\pdciteshort{mega003}{Ostrom 1990, \\textit{Governing the Commons}}',
+  ].join('\n');
+  const registry = renderMarginReferenceRegistry(refs, aliases);
+  assert.ok(registry.includes('{Anthropic 2026, \\textit{Agent Skills\\ldots}}'));
+  assert.ok(registry.includes('{Anthropic 2026, \\textit{How Claude Remembers\\ldots}}'));
+  assert.ok(registry.includes('{Ostrom 1990}'), 'a form only one work uses stays bare');
+  // Two works whose short forms are identical cannot be told apart at all.
+  assert.throws(
+    () => renderMarginReferenceRegistry(refs.slice(0, 2), aliases.replace('How Claude Remembers', 'Agent Skills')),
+    /mega001 and mega002 share the repeat form/,
+  );
+});
+
+test('the reference list prints every source once, by first author, with Chapter 0 folded in', () => {
+  const collated = [
+    { key: 'mega002', source: 'a.tex', body: 'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons}.\n\\newblock Cambridge University Press, 1990.' },
+    { key: 'mega001', source: 'a.tex', body: 'Gul Agha.\n\\newblock \\textit{Actors}.\n\\newblock MIT Press, 1986.' },
+  ];
+  const foundations = [
+    // The same work as mega002, written on one line: printed once, in the chapter's wording.
+    { key: 'ostrom1990governing', source: 'ch0.tex', short: 'Ostrom 1990', body: 'Elinor Ostrom. \\newblock \\textit{Governing the Commons}. \\newblock Cambridge University Press, 1990.' },
+    { key: 'hoare1978csp', source: 'ch0.tex', short: 'Hoare 1978', body: 'C.~A.~R. Hoare. \\newblock \\emph{Communicating sequential processes}. \\newblock \\emph{CACM}, 21(8), 1978.' },
+  ];
+  const list = renderReferenceList(collated, foundations);
+  assert.equal(list.count, 3);
+  const entries = [...list.tex.matchAll(/^\\pdreferenceentry\{(.*)\}$/gm)].map((m) => m[1]);
+  assert.deepEqual(entries.map((e) => e.split('.')[0]), ['Gul Agha', 'C', 'Elinor Ostrom']);
+  assert.ok(entries.every((e) => !e.includes('\n')), 'one entry per line');
+  assert.ok(entries[2].includes('\\newblock Cambridge University Press'), 'the chapter wording, complete');
+  assert.match(list.tex, /\\section\*\{References\}/);
+  assert.match(list.tex, /\\begin\{pdreferences\}[\s\S]*\\end\{pdreferences\}/);
+});
+
+test("Chapter 0's hand-registered sources are read, and the Book prints the reference list", () => {
+  const rows = foundationsReferences();
+  assert.ok(rows.length >= 40, `read ${rows.length} rows`);
+  assert.ok(rows.every((row) => row.key && row.body && row.short));
+  const ostrom = rows.find((row) => row.key === 'ostrom1990governing');
+  assert.equal(ostrom.short, 'Ostrom 1990');
+  // No row is a stub of the form "Yao et al. 2023. Title." any more.
+  assert.deepEqual(rows.filter((row) => /^\S+ et al\. \d{4}\. /.test(row.body)).map((row) => row.key), []);
+  const appendices = readFileSync(resolve('book/coordination-papers-mega-volume-appendices.tex'), 'utf8');
+  assert.match(appendices, /\\ifdefined\\pdEnableMarginCitations\s*\\pdgeneratedinput\{[^}]*mega-volume-references\.tex\}\{references\}/);
+  const macros = readFileSync(resolve('book/figures/pd-book-citations.tex'), 'utf8');
+  assert.match(macros, /\\newenvironment\{pdreferences\}/);
+  assert.match(macros, /\\newcommand\{\\pdreferenceentry\}\[1\]/);
 });
 
 // --- Wave 16 marginalia: \pdcite, \pdprov, \pdprovedon in Book vs standalone

@@ -103,7 +103,7 @@
   },
   {
     "key": "mega001",
-    "original": "James P. Anderson.\n\\newblock Computer Security Technology Planning Study.\n\\newblock ESD-TR-73-51, U.S. Air Force Electronic Systems Division, 1972.\n\\newblock (The origin of the \\emph{reference monitor} concept.)",
+    "original": "James P. Anderson.\n\\newblock Computer Security Technology Planning Study, Volume~I.\n\\newblock Technical Report ESD-TR-73-51, U.S. Air Force Electronic Systems Division, October 1972.\n\\newblock \\url{https://apps.dtic.mil/sti/pdfs/AD0758206.pdf}",
     "margin": "J. P. Anderson. \\emph{Computer Security Technology Planning Study}. ESD-TR-73-51, U.S. Air Force, 1972.",
     "reason": "Conventional initials and venue abbreviation; remove chapter-repeating commentary, preserve work title and locator."
   },
@@ -246,12 +246,6 @@
     "reason": "Keeps all three authors, full title, journal locator, and year while removing line wrapping and quotation markup."
   },
   {
-    "key": "mega209",
-    "original": "H. Garcia-Molina \\& K. Salem. ``Sagas.'' \\emph{ACM SIGMOD} 1987.",
-    "margin": "Garcia-Molina \\& Salem. \\emph{Sagas}. ACM SIGMOD, 1987.",
-    "reason": "Preserves both authors, the complete short title, venue, and year in the minimum standard citation form."
-  },
-  {
     "key": "mega210",
     "original": "D. Spivak \\& R. Kent. ``Ologs: A Categorical Framework for\nKnowledge Representation.'' \\emph{PLoS ONE} 7(1):e24274, 2012.",
     "margin": "Spivak \\& Kent. \\emph{Ologs: A Categorical Framework for Knowledge Representation}. PLoS ONE 7(1):e24274, 2012.",
@@ -264,26 +258,8 @@
     "reason": "Retains the full book title, both authors, publisher, and year while flattening source line wrapping."
   },
   {
-    "key": "mega212",
-    "original": "E. Ostrom. \\emph{Governing the Commons.} Cambridge University\nPress, 1990.",
-    "margin": "Ostrom. \\emph{Governing the Commons}. Cambridge UP, 1990.",
-    "reason": "Preserves the full book title, publisher, and year for the single-author entry."
-  },
-  {
-    "key": "mega213",
-    "original": "Universal Commerce Protocol. Google, Shopify, et al.\nSpecification and reference implementation, Apache-2.0, 2026.\n\\url{https://ucp.dev/specification/overview/}; \\texttt{github.com/Universal-Commerce-Protocol/ucp}.",
-    "margin": "Universal Commerce Protocol (Google, Shopify, et al.). \\emph{Specification and reference implementation, Apache-2.0}, 2026. \\href{https://ucp.dev/specification/overview/}{Source}; \\href{https://github.com/Universal-Commerce-Protocol/ucp}{Source}.",
-    "reason": "Preserves the full title phrase, named organizations, year, and both existing source targets as labelled href links."
-  },
-  {
-    "key": "mega214",
-    "original": "Agent Payments Protocol (AP2): Mandates.\nVerifiable-credential authorization chain (SD-JWT+kb checkout mandate, JWS\ndetached-content merchant authorization, JCS canonicalization), 2026.\n\\url{https://github.com/google-agentic-commerce/AP2}; UCP extension at\n\\texttt{ucp.dev/documentation/ucp-and-ap2/}.",
-    "margin": "Agent Payments Protocol (AP2): \\emph{Mandates}, 2026. \\href{https://github.com/google-agentic-commerce/AP2}{Source}; \\href{https://ucp.dev/documentation/ucp-and-ap2/}{Source}.",
-    "reason": "Keeps the complete named work title, year, and both existing source targets; removes only the explanatory mechanism annotation."
-  },
-  {
     "key": "mega215",
-    "original": "Agentic Commerce Protocol. OpenAI \\& Stripe, 2025.\n\\texttt{https://agenticcommerce.dev}.",
+    "original": "Agentic Commerce Protocol.\n\\newblock OpenAI and Stripe, 2025.\n\\newblock \\texttt{https://agenticcommerce.dev}.",
     "margin": "OpenAI \\& Stripe. \\emph{Agentic Commerce Protocol}, 2025. \\href{https://agenticcommerce.dev}{Source}.",
     "reason": "Retains the identifiable organizations, complete title, year, and exact source target."
   },
@@ -313,7 +289,7 @@
   },
   {
     "key": "mega027",
-    "original": "Bruno Blanchet.\n\\newblock Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif.\n\\newblock \\textit{Foundations and Trends in Privacy and Security}, 1(1-2):1--135, 2016.\n\\newblock (The class of tool in which the authorization chain's secrecy and integrity properties are mechanically verified.)",
+    "original": "Bruno Blanchet.\n\\newblock Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif.\n\\newblock \\textit{Foundations and Trends in Privacy and Security}, 1(1-2):1--135, 2016.\n\\newblock \\url{https://doi.org/10.1561/3300000004}",
     "margin": "Blanchet. \\emph{Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif}. Foundations and Trends in Privacy and Security 1(1--2):1--135, 2016.",
     "reason": "Keeps the complete work title and publication locator/year; removes the explanatory annotation about chapter usage."
   },
@@ -469,7 +445,7 @@
   },
   {
     "key": "kleppmann2016locking",
-    "original": "Martin Kleppmann.\n\\newblock How to do distributed locking.\n\\newblock \\textit{martin.kleppmann.com}, February 2016; folded into \\textit{Designing Data-Intensive Applications}, O'Reilly, 2017.",
+    "original": "Martin Kleppmann.\n\\newblock How to do distributed locking.\n\\newblock \\textit{martin.kleppmann.com}, 8 February 2016.",
     "margin": "Kleppmann 2016. \\emph{How to do distributed locking}.",
     "reason": "Six consecutive cited items in chapter 0, and Figure 1.5's caption with two citations and an evidence block in chapter 1, put more margin content on one page than it holds once the figures were redrawn; author-date and complete title beside the text, full metadata remains in the bibliography."
   },
@@ -919,8 +895,8 @@
   },
   {
     "key": "grayreuter1992",
-    "original": "Jim Gray and Andreas Reuter.\n\\newblock \\textit{Transaction Processing: Concepts and Techniques}.\n\\newblock Morgan Kaufmann, 1992.\n\\newblock (Atomicity/consistency vs.\\ durability, the ground for I1a/I1b.)",
-    "margin": "J. Gray and A. Reuter. \\emph{Transaction Processing: Concepts and Techniques}. Morgan Kaufmann, 1992.",
+    "original": "Jim Gray and Andreas Reuter.\n\\newblock \\textit{Transaction Processing: Concepts and Techniques}.\n\\newblock Morgan Kaufmann, 1993.",
+    "margin": "J. Gray and A. Reuter. \\emph{Transaction Processing: Concepts and Techniques}. Morgan Kaufmann, 1993.",
     "reason": "Third pass: the long annotation moves out of the margin so Figure 1.3's and Table 1.3's captions stay beside their exhibits; author list shortened, title and online source kept."
   },
   {

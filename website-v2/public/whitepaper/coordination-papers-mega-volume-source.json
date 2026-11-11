@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40410120,
+    "bytes": 40412020,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/5a9e92c73b8e611da04b697b8ee9cd729ac0de109ab08dfdebc9381e164433c7.tar.gz",
-    "sha256": "5a9e92c73b8e611da04b697b8ee9cd729ac0de109ab08dfdebc9381e164433c7",
-    "url": "https://media.portdaddy.dev/book/source/sha256/5a9e92c73b8e611da04b697b8ee9cd729ac0de109ab08dfdebc9381e164433c7.tar.gz"
+    "key": "book/source/sha256/cc7ebbd233b0df139b1d83179505a2467bb6a11d2863cc8caa81e5075bf35fe5.tar.gz",
+    "sha256": "cc7ebbd233b0df139b1d83179505a2467bb6a11d2863cc8caa81e5075bf35fe5",
+    "url": "https://media.portdaddy.dev/book/source/sha256/cc7ebbd233b0df139b1d83179505a2467bb6a11d2863cc8caa81e5075bf35fe5.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "cafbefb980f9b84c595f5a98112d2c36ec806a870da7c1b78a4b7a4c822862cb",
+  "manifestSha256": "07b0f85f82cff3f6566d465971d0a1282586c45bd89c659d861e6329a40a01ea",
   "schemaVersion": 1,
   "source": {
     "fileCount": 560,
@@ -196,10 +196,10 @@
         "sha256": "ffd682cc82b84579cbf261403987311f12134258687b5a4bf1742139e0a422e3"
       },
       {
-        "bytes": 236359,
+        "bytes": 236410,
         "mode": 420,
         "path": "book/agent-transactions-whitepaper.tex",
-        "sha256": "51b929707738e9a89d10f0b7b4a405866e91e5a04c55d437f450535df8b185bb"
+        "sha256": "3f31494a7de92b8c26233ee376cae31a22e78fa01f729331a84f56bdb9a6e23b"
       },
       {
         "bytes": 180823,
@@ -232,10 +232,10 @@
         "sha256": "d392563bd9d987341befcb38d359a0bcdc74ac31652229e369fa8ee525e0cdc8"
       },
       {
-        "bytes": 97214,
+        "bytes": 95064,
         "mode": 420,
         "path": "book/citation-margin-entries.json",
-        "sha256": "38542fbb68b3cdf96b7402b62f5f4ff3ffd841a29646887a951c37ad3667d15a"
+        "sha256": "cd440c457975e5e053f9cbbaf35a2651e18d3fe752f552cc79f08c96aa7811bc"
       },
       {
         "bytes": 1505,
@@ -244,16 +244,16 @@
         "sha256": "9cbef7994e802f86d80af4d57005da4a430f417fbe9ba920b616da280ddb9a13"
       },
       {
-        "bytes": 36127,
+        "bytes": 36471,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-appendices.tex",
-        "sha256": "82a9e1a4530b3faa01dec95126030bd40c65adaad5c0f1856b0ce76a04b0972e"
+        "sha256": "cdcfb10d8c874940530ed20c2838e45fd7fa96518738f9eb206e9187cb75b7fa"
       },
       {
-        "bytes": 128020,
+        "bytes": 128728,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-chapter-0.tex",
-        "sha256": "1f3b81ce19377f9ffef1082b5ad72d5922afd27e844b01eaae2fcd9c0e0911d4"
+        "sha256": "9d78dccc9dde31a537b9d1bf24f0b4dc855d91591ec63d6e396a05f2f8b576e7"
       },
       {
         "bytes": 30257,
@@ -322,16 +322,16 @@
         "sha256": "7360e70e81810b7e9f764a4381fb22a94bd006d0707aa1fa2a862f2cde893f84"
       },
       {
-        "bytes": 105872,
+        "bytes": 107098,
         "mode": 420,
         "path": "book/corrections.yaml",
-        "sha256": "4096359019517e548f1b5dee219bfa7d5a8feab2ea5b7b14b93946047804c1fb"
+        "sha256": "003a953aab41601348736a0c3ee927232f58e88497a3efaa796d3aaaab9ef83e"
       },
       {
-        "bytes": 176172,
+        "bytes": 176223,
         "mode": 420,
         "path": "book/federated-harbor-whitepaper.tex",
-        "sha256": "7e17d4f2e235514f96d356dd3d2cc8ec3f8279c3a0d23200b009e6b339c8ad09"
+        "sha256": "1be52fb20c5df6e23a607d957098563a8230856a9ce1b2db80e33d855acbbcd5"
       },
       {
         "bytes": 644,
@@ -1684,10 +1684,10 @@
         "sha256": "ae99ea8f56a2835a2cca35b2fbb57643ab73443610970dba23e24bd9df75cfec"
       },
       {
-        "bytes": 7030,
+        "bytes": 7602,
         "mode": 420,
         "path": "book/figures/pd-book-citations.tex",
-        "sha256": "8228effc791d0ff7c73aecb20260cb0c3f127e8ace554a9a57876a6f05772a1f"
+        "sha256": "28aa08ddf427cd955f8d94b0be3fd7514695dcd41f3f20e610ab803a6d6e4480"
       },
       {
         "bytes": 1834,
@@ -1696,10 +1696,10 @@
         "sha256": "32676d02892e3082939985c162ec30e02118b1f38618685fd5f1f477cd211a86"
       },
       {
-        "bytes": 34168,
+        "bytes": 34166,
         "mode": 420,
         "path": "book/figures/pd-cite-shortforms.tex",
-        "sha256": "53d71d5247cd555358d39e7a550b4b2c33bbf13c4cbf13f194df60edf33e1375"
+        "sha256": "9fdd5992ada7dabbe09538679ecf0d9f6a768a2e1fc69dd964883611316fe142"
       },
       {
         "bytes": 906,
@@ -2158,16 +2158,16 @@
         "sha256": "bfa4267e4bdd09635064490fb5ee9d6f982598cbaf8d7451f12810748c73707a"
       },
       {
-        "bytes": 215331,
+        "bytes": 215528,
         "mode": 420,
         "path": "book/harbor-economy.tex",
-        "sha256": "6dbf81a62ff2b7b9cea42c42b599452c5f600367da5780db71e0f113e6fbda8e"
+        "sha256": "6c3884e46fe7685494a10279e1ad17bfc0e463d091e53107ef09a32155a5948e"
       },
       {
-        "bytes": 309201,
+        "bytes": 309334,
         "mode": 420,
         "path": "book/legible-swarm.tex",
-        "sha256": "1ad2c7c71955310e8c6faefac9d8ef97b9497385281eac49481f35f7e9c68273"
+        "sha256": "e59449b868bd09cd661c886acb945f34b7489fa3004e71acfb96cafa58d38d92"
       },
       {
         "bytes": 1076,
@@ -3298,10 +3298,10 @@
         "sha256": "c247729812923c2e0043a0698ddbb063d95262febf439340e60232680636cab5"
       },
       {
-        "bytes": 142565,
+        "bytes": 142692,
         "mode": 420,
         "path": "book/sealed-harbor.tex",
-        "sha256": "5a8bd20fbdb580356cf8ab0bb9dabef67555d8e82eae5ccd54b534bbc3ffad5c"
+        "sha256": "246ca3cfcc43887c1a4e2fcae1656c507a61745196cc6e725646982775d70ad7"
       },
       {
         "bytes": 4064,
@@ -3310,16 +3310,16 @@
         "sha256": "c121d98e7e1bfc60e6140e5b7eb31a11d04405d6468b8b34eac3a5911acedce6"
       },
       {
-        "bytes": 268384,
+        "bytes": 268193,
         "mode": 420,
         "path": "book/single-writer-kernel.tex",
-        "sha256": "d3c72a5496cc290661e83ca3758b4b889d33a8e2c47a0bfeee95c11f77e451e5"
+        "sha256": "b580419a646e29fc319444e5ba6e51e9f2db8d0a3ad66c0514cb29557893f8ce"
       },
       {
-        "bytes": 247378,
+        "bytes": 247582,
         "mode": 420,
         "path": "book/spawn-to-person.tex",
-        "sha256": "90c09e1890973f82bc80d4e64a215feb5ff31acc39f4f9a6d9c956fd3bcbbb31"
+        "sha256": "3c58574d9126e0119df8a933f020b20cf40104b97730555e9d76c0720d789825"
       },
       {
         "bytes": 11291,
@@ -3358,10 +3358,10 @@
         "sha256": "ba6688523ef1a57469daad82a383acb50ac466c443c2a826e771f3134ba02e81"
       },
       {
-        "bytes": 82873,
+        "bytes": 89913,
         "mode": 420,
         "path": "scripts/generate-mega-whitepaper.mjs",
-        "sha256": "0c6a72008e4ade477d2dad371110f09007b992ee82a5af42826b748ffa4853ec"
+        "sha256": "3646cac1357694153a7f6ecccc9ff2828b554b521557f0231e41f0026cb18bcf"
       },
       {
         "bytes": 21874,
@@ -3382,6 +3382,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "06121f6b46c379a348167f820449d3128dc9ec13d3fbed2af335591313f496ac"
+    "sha256": "6c80405b2774dcbce1ef4b81661d036be9f2079fba1514e84319eca95f429ab3"
   }
 }

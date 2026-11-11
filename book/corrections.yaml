@@ -2012,3 +2012,27 @@
   before: null
   after: "complete mediation holds only there"
   source: "repo: book/single-writer-kernel.tex (sec:enforcement-gap)"
+- id: refs-1
+  item: "M6: Chapter 1 dated Gray and Reuter 1992; the book is 1993"
+  file: book/single-writer-kernel.tex
+  before: "Morgan Kaufmann, 1992"
+  after: "Transaction Processing: Concepts and Techniques. Morgan Kaufmann, 1993"
+  source: "https://dblp.org/rec/books/mk/GrayR93"
+- id: refs-2
+  item: "M6: the Book prints one alphabetical list of every source"
+  file: book/coordination-papers-mega-volume-appendices.tex
+  before: null
+  after: "Every source the book cites, listed once under its first author"
+  source: "derivation: scripts/generate-mega-whitepaper.mjs (renderReferenceList)"
+- id: refs-3
+  item: "M6: Locke's Second Treatise and Two Treatises were two entries for one book"
+  file: book/legible-swarm.tex
+  before: "Second Treatise of Government"
+  after: "Two Treatises of Government. Awnsham Churchill, London, 1689"
+  source: "repo: book/agent-transactions-whitepaper.tex (the same book, cited whole)"
+- id: refs-4
+  item: "M6: three Chapter 0 sources were stubs with no authors or venue"
+  file: book/coordination-papers-mega-volume-chapter-0.tex
+  before: "Yao et al. 2023. ReAct"
+  after: "ReAct: Synergizing Reasoning and Acting in Language Models"
+  source: "https://arxiv.org/abs/2210.03629"

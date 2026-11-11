@@ -516,15 +516,42 @@ function normalizedReference(body) {
 // it there: everything before the first \newblock (or, failing that, before
 // the first italicised or quoted run) is the author field, and the rest is
 // the work.
+//
+// Some entries mark no boundary at all before the venue: "F.~Lin and W.~M.
+// Wonham. On observability of discrete-event systems. \emph{Information
+// Sciences}, ...". Read that way, the title ends up in the author field and
+// the venue becomes the title, so the entry never matches the same work
+// written with a \newblock, and the two print as two sources. When a sentence
+// ends before the first marker, the author list ends there instead.
 function referenceParts(body) {
   const flat = body
     .replace(/(^|\n)\s*%.*(?=\n|$)/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  const cut = flat.search(/\\newblock|\\(?:textit|emph|textbf)\{|``|“/);
+  const marker = flat.search(/\\newblock|\\(?:textit|emph|textbf)\{|``|“/);
+  // An entry that opens with a marker has no author; leave it as it is.
+  const head = marker > 0 ? flat.slice(0, marker) : marker < 0 ? flat : '';
+  // The first period that ends a whole word and is followed by a capital.
+  // "J.-C." and "W." are initials, and "et al.", "Jr." and "Inc." belong to
+  // the names before them.
+  const NOT_AN_END = /(?:\bet al|\beds?|\bJr|\bSr|\bInc|\bLtd|\bCorp|\bCo|\bSt|\bvs)$/;
+  let sentenceEnd = -1;
+  for (const match of head.matchAll(/(?<![A-Za-z\u00C0-\u024F.-])[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F'’-]+\}?\.(?=\s+[A-Z\\`“])/g)) {
+    const end = match.index + match[0].length;
+    if (NOT_AN_END.test(head.slice(0, end - 1))) continue;
+    sentenceEnd = end;
+    break;
+  }
+  const cut = sentenceEnd > 0 ? sentenceEnd : marker;
   const authorField = cut > 0 ? flat.slice(0, cut) : '';
   const work = cut > 0 ? flat.slice(cut) : flat;
   return { authorField, work };
+}
+
+// The title alone: the work up to its first sentence end, in plain lower case.
+function referenceTitle(body) {
+  const work = normalizedReference(referenceParts(body).work);
+  return (work.match(/^(.*?)\.(?:\s|$)/)?.[1] ?? work).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 // Surname of the first author, which is what a reader looks a reference up by
@@ -909,15 +936,33 @@ function renderMarginReferenceRegistry(references, aliases, editedEntries = []) 
     if (edits.has(entry.original)) throw new Error(`Duplicate edited margin entry: ${entry.key}`);
     edits.set(entry.original, entry.margin);
   }
+  // The full title is already present at first use. A repeat needs an
+  // identifiable author/year and the link, not a second truncated title.
+  // Title-led records with no named author keep their authored short form.
+  // Two works by one first author in one year share the bare form ("Anthropic
+  // 2026"), and a repeat that could mean either tells the reader nothing, so
+  // those keep the title fragment that tells them apart.
+  const bare = (short) => short.replace(/,\s*\\textit\{[\s\S]*$/, '') || short;
+  const uses = new Map();
+  for (const ref of references) {
+    const short = shortforms.get(ref.key);
+    if (!short) throw new Error(`Margin reference ${ref.key} has no short form`);
+    uses.set(bare(short), (uses.get(bare(short)) ?? 0) + 1);
+  }
+  const repeats = new Map();
+  for (const ref of references) {
+    const short = shortforms.get(ref.key);
+    const repeat = uses.get(bare(short)) > 1 ? short : bare(short);
+    if (repeats.has(repeat)) {
+      throw new Error(`Margin references ${repeats.get(repeat)} and ${ref.key} share the repeat form "${repeat}"`);
+    }
+    repeats.set(repeat, ref.key);
+  }
   return [
     '% GENERATED: complete first-use sources and identifiable repeat forms.',
     ...references.map((ref, index) => {
       const short = shortforms.get(ref.key);
-      if (!short) throw new Error(`Margin reference ${ref.key} has no short form`);
-      // The full title is already present at first use. A repeat needs an
-      // identifiable author/year and the link, not a second truncated title.
-      // Title-led records with no named author keep their authored short form.
-      const repeat = short.replace(/,\s*\\textit\{[\s\S]*$/, '') || short;
+      const repeat = uses.get(bare(short)) > 1 ? short : bare(short);
       const full = (edits.get(ref.body) ?? ref.body)
         .replace(/\\url\{([^}]+)\}/g, '\\href{$1}{Online source}')
         .replace(/\\texttt\{(https?:\/\/[^}]+)\}/g, '\\href{$1}{Online source}');
@@ -925,6 +970,96 @@ function renderMarginReferenceRegistry(references, aliases, editedEntries = []) 
     }),
     '',
   ].join('\n');
+}
+
+// Two entries that look like one work worded two ways. Every pair is
+// compared, not only neighbours in the sorted list: the neighbour test missed
+// fourteen works, because an entry whose title it could not find sorted far
+// from its twin. A pair is reported when the first author matches and
+//   - the year matches and one title begins the other ("Leviathan" and
+//     "Leviathan, or The Matter, Forme and Power..."), or
+//   - the titles are identical and the years differ, which is how a wrong
+//     year looks (Gray and Reuter, dated 1992 in one chapter and 1993 in
+//     another).
+// DISTINCT_WORKS lists the pairs that meet a rule and are two works.
+const DISTINCT_WORKS = new Set([
+  // RFC 6962 (2013) and the Communications of the ACM article (2014).
+  'laurie|certificate transparency',
+]);
+
+function findNearDuplicates(references) {
+  const rows = references.map((ref) => ({
+    ref,
+    fingerprint: referenceFingerprint(ref.body),
+    surname: firstAuthorSurname(referenceParts(ref.body).authorField),
+    year: referenceYear(ref.body),
+    title: referenceTitle(ref.body),
+  }));
+  const found = [];
+  for (let i = 0; i < rows.length; i += 1) {
+    for (let j = i + 1; j < rows.length; j += 1) {
+      const a = rows[i];
+      const b = rows[j];
+      if (a.fingerprint === b.fingerprint || !a.surname || a.surname !== b.surname) continue;
+      if (a.title.length < 4 || b.title.length < 4) continue;
+      const [shorter, longer] = a.title.length <= b.title.length ? [a.title, b.title] : [b.title, a.title];
+      const begins = longer === shorter || longer.startsWith(`${shorter} `);
+      const sameWork = a.year === b.year ? begins : longer === shorter;
+      if (!sameWork || DISTINCT_WORKS.has(`${a.surname}|${shorter}`)) continue;
+      found.push(`${a.ref.key} (${a.ref.source}) / ${b.ref.key} (${b.ref.source}): ${shorter.slice(0, 60)}`);
+    }
+  }
+  return found;
+}
+
+// Chapter 0 is the Book's own file, not a paper with a bibliography, so it
+// registers its sources by hand: one \pdbookreference{key}{n}{entry}{short
+// form} per line. They are read here so that the reference list and the
+// duplicate checks cover them too.
+function foundationsReferences(path = resolve(repoRoot, 'book/coordination-papers-mega-volume-chapter-0.tex')) {
+  if (!existsSync(path)) return [];
+  const rows = [];
+  for (const line of readUtf8(path).split('\n')) {
+    const match = line.match(/^\s*\\pdbookreference\{([^}]+)\}\{\d+\}\{(.*)\}\{((?:[^{}]|\{[^{}]*\})*)\}\s*$/);
+    if (match) rows.push({ key: match[1], body: match[2], short: match[3], source: 'book/coordination-papers-mega-volume-chapter-0.tex' });
+  }
+  return rows;
+}
+
+// The reference list the Book prints in its back matter: every source once,
+// by first author, unnumbered like the margin entries. It is the collated
+// chapters' list plus Chapter 0's rows; a Chapter 0 row for a work a chapter
+// also cites is the same work and prints once, in the chapter's wording.
+function renderReferenceList(collated, foundations) {
+  const seen = new Set(collated.map((ref) => referenceFingerprint(ref.body)));
+  const all = [...collated];
+  for (const ref of foundations) {
+    const fingerprint = referenceFingerprint(ref.body);
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    all.push(ref);
+  }
+  all.sort(compareNormalizedReferences);
+  return {
+    count: all.length,
+    tex: [
+      '% GENERATED by scripts/generate-mega-whitepaper.mjs from the chapters\' \\bibitem',
+      '% entries and Chapter 0\'s \\pdbookreference rows. Do not edit by hand.',
+      '\\clearpage',
+      '\\pdbackmatterheaders{References}',
+      '\\phantomsection\\label{book:references}',
+      '\\section*{References}',
+      '',
+      'Every source the book cites, listed once under its first author. The',
+      'margin gives a source in full where a chapter first uses it; this list',
+      'is for finding one again.',
+      '',
+      '\\begin{pdreferences}',
+      ...all.map((ref) => `\\pdreferenceentry{${ref.body.replace(/\s*\n\s*/g, ' ')}}`),
+      '\\end{pdreferences}',
+      '',
+    ].join('\n'),
+  };
 }
 
 function collateReferences(prepared) {
@@ -1558,30 +1693,17 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
   // Exact-text dedup cannot collapse the same work cited in two house styles
   // ("Sagas." with and without a page range; Insectes Sociaux 6(1) and 6), and
   // guessing harder would eventually merge two genuinely different papers. So
-  // the near-duplicates are reported rather than silently printed twice: same
-  // first-author surname, same year, and a title that is a prefix of the other.
+  // the near-duplicates are reported rather than silently printed twice.
   // The real cure is one record per work in a .bib -- see LIBRARY-SYSTEM.md.
-  const nearDuplicates = [];
-  for (let i = 1; i < canonicalReferences.length; i += 1) {
-    const previous = canonicalReferences[i - 1];
-    const current = canonicalReferences[i];
-    const surname = firstAuthorSurname(referenceParts(current.body).authorField);
-    if (!surname) continue;
-    if (surname !== firstAuthorSurname(referenceParts(previous.body).authorField)) continue;
-    if (referenceYear(current.body) !== referenceYear(previous.body)) continue;
-    const titles = [previous, current]
-      .map((ref) => normalizedReference(referenceParts(ref.body).work).replace(/[^a-z0-9 ]/g, ''));
-    const [shorter, longer] = titles.sort((x, y) => x.length - y.length);
-    if (shorter.length >= 12 && longer.startsWith(shorter.slice(0, 24))) {
-      nearDuplicates.push(`${previous.key} (${previous.source}) / ${current.key} (${current.source}): ${shorter.slice(0, 60)}`);
-    }
-  }
+  //
   // Was a warning; the sweep that gave each of the 15 pairs this report
   // found one wording, applied in every chapter that cites it, is what
   // made zero the number this class of defect is allowed to report from
   // here on -- a warning nobody is looking at is how it grew to 15 in the
   // first place. Fails the generator, the same way every other
   // corpus-integrity problem in this file does.
+  const foundations = foundationsReferences();
+  const nearDuplicates = findNearDuplicates([...canonicalReferences, ...foundations]);
   if (nearDuplicates.length) {
     throw new Error(
       `${nearDuplicates.length} reference(s) look like the same work cited two ways:\n`
@@ -1618,6 +1740,28 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
   writeFileSync(resolve(out, 'mega-volume-margin-references.tex'), renderMarginReferenceRegistry(canonicalReferences, citeAliases, marginEdits), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-body.tex'), `${generatedBodies.join('\n\n\\clearpage\n\n')}\n`, 'utf8');
   writeFileSync(resolve(out, 'mega-volume-bibliography.tex'), bibliography, 'utf8');
+  // A repeat form has to name one work across the whole Book, Chapter 0's
+  // hand-written forms included.
+  const repeatOwner = new Map();
+  const registryRows = [...renderMarginReferenceRegistry(canonicalReferences, citeAliases, marginEdits)
+    .matchAll(/\\pdbookreference\{([^}]+)\}\{\d+\}\{[\s\S]*?\}\{((?:[^{}]|\{[^{}]*\})*)\}\n(?=\\pdbookreference|$)/g)];
+  const bodyByKey = new Map(canonicalReferences.map((ref) => [ref.key, ref.body]));
+  for (const [key, repeat, body] of [
+    ...registryRows.map((row) => [row[1], row[2], bodyByKey.get(row[1])]),
+    ...foundations.map((ref) => [ref.key, ref.short, ref.body]),
+  ]) {
+    const fingerprint = referenceFingerprint(body);
+    const owner = repeatOwner.get(repeat);
+    if (owner && owner.fingerprint !== fingerprint) {
+      throw new Error(`"${repeat}" is the repeat form of two works: ${owner.key} and ${key}. Add a title fragment to one.`);
+    }
+    repeatOwner.set(repeat, { key, fingerprint });
+  }
+  if (registryRows.length !== canonicalReferences.length) {
+    throw new Error(`read ${registryRows.length} registry rows for ${canonicalReferences.length} references`);
+  }
+  const referenceList = renderReferenceList(canonicalReferences, foundations);
+  writeFileSync(resolve(out, 'mega-volume-references.tex'), referenceList.tex, 'utf8');
   writeFileSync(resolve(out, 'mega-volume-contents.tex'), renderContents(textbook), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-map.tex'), renderTextbookMap(textbook), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-solutions.tex'), renderSolutions(chaptersWithExercises), 'utf8');
@@ -1637,6 +1781,7 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
     `${JSON.stringify({
       chapters: textbook.chapters.length,
       references: canonicalReferences.length,
+      referenceList: referenceList.count,
       sources: textbook.chapters.map((paper) => paper.source),
       edition: textbook.edition,
       chaptersWithExercises: chaptersWithExercises.map((chapter) => chapter.prefix),
@@ -1680,10 +1825,14 @@ export {
   formatBuildDate,
   renderBuildId,
   cleanStandaloneChrome,
+  findNearDuplicates,
   firstAuthorSurname,
+  foundationsReferences,
   referenceFingerprint,
   referenceParts,
   referenceSortKey,
+  referenceTitle,
+  renderReferenceList,
   stripPaperApparatus,
   collateReferences,
   compareNormalizedReferences,

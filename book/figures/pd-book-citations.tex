@@ -1,5 +1,6 @@
 % Book-only citations. Load AFTER pd-margin-layout, before document.
-% No bibliography is printed; the source registry remains reproducible data.
+% Sources are set in the margin beside their first use, and listed once more,
+% alphabetically, in the back matter (pdreferences, at the end of this file).
 % Enabled by default in the assembled Book; standalone chapters are unchanged.
 % Public references are unnumbered. Registry integers are accounting data,
 % never superscript callouts or bold numerals in the reader's margin.
@@ -135,4 +136,13 @@
   \RenewDocumentCommand\pdcite{O{} m}{\pdbookcite[#1]{#2}}%
   \RenewDocumentCommand\cite{O{} m}{\pdbookcite[#1]{#2}}%
 }
+% The reference list in the back matter: every source once, by first author,
+% unnumbered like the margin entries, each one complete as its chapter wrote
+% it. scripts/generate-mega-whitepaper.mjs writes the entries.
+\newenvironment{pdreferences}
+  {\begingroup\small\raggedright\let\newblock\space
+   \setlength{\parindent}{0pt}\setlength{\parskip}{2.5pt plus 1pt}%
+   \emergencystretch=2em}
+  {\par\endgroup}
+\newcommand{\pdreferenceentry}[1]{\par\hangindent=1.4em\hangafter=1\relax #1\par}
 \makeatother
