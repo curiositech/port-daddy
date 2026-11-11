@@ -2036,3 +2036,21 @@
   before: "Yao et al. 2023. ReAct"
   after: "ReAct: Synergizing Reasoning and Acting in Language Models"
   source: "https://arxiv.org/abs/2210.03629"
+- id: heavy-1
+  item: "The heavy-tail sweep the specialization section asked for has been run"
+  file: book/legible-swarm.tex
+  before: "That sweep has not been run"
+  after: "The formula overstates the pool's delay in all 48"
+  source: "derivation: skills/harbor-results/scripts/b8_heavy_tails.py (seed 20261111; --check)"
+- id: heavy-2
+  item: "The worked example's approximate crossing is now printed beside its simulated values"
+  file: book/legible-swarm.tex
+  before: null
+  after: "1.983 under the bounded Pareto"
+  source: "derivation: skills/harbor-results/scripts/b8_heavy_tails.py (seed 20261111; --check)"
+- id: heavy-3
+  item: "The inapproximability theorem behind the sweep is cited"
+  file: book/legible-swarm.tex
+  before: null
+  after: "On the inapproximability of"
+  source: "https://doi.org/10.1007/s11134-009-9133-x"
