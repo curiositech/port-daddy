@@ -308,7 +308,7 @@ the weakness the attack exploits.
 This is what RFC~8725, the Internet standards body's current best practice for JWTs, recommends~\pdcite{rfc8725jwtbcp}.
 \end{pdclaim}
 
-Figure~\ref{fig:anchor-alg-confusion} shows the two verifiers side by side. The naive verifier believes the \texttt{alg} field it receives and is fooled. The pinned verifier knows the issuing algorithm from its own policy, so rewriting the header gains the attacker nothing.
+Figure~\ref{fig:anchor-alg-confusion} shows the two verifiers side by side. The naive verifier believes the \texttt{alg} field it receives and is fooled. The pinned verifier knows the issuing algorithm from its own policy, so rewriting the header gains the attacker nothing. \S\ref{sec:anchor-build} builds both verifiers and runs the attack against each.
 
 \input{figures/fig-anchor-alg-confusion}
 
@@ -402,7 +402,9 @@ Then it compares each child with its immediate parent. \texttt{admin} on
 \texttt{card\_1} grants only \texttt{sub}, so \texttt{card\_2}'s
 \texttt{pub} fails, and Finch is refused. A verifier that compared
 \texttt{card\_2} with the root instead would accept it, since \texttt{admin}
-on \texttt{a*} covers \texttt{pub} on \texttt{ab} as well. [internal]
+on \texttt{a*} covers \texttt{pub} on \texttt{ab} as well.
+\S\ref{sec:anchor-build} runs a chain of this shape against both
+verifiers. [internal]
 \end{pdexample}
 
 For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{fig:anchor-delegation-inline}. Each hop's signature must cover a fresh nonce and the identities of the previous and next holders, so that an attacker who intercepts one hop cannot splice it into a different chain. That hop binding is the structure \path{proofs/anchor/delegation/chain-replay.pv} models (Listing~\ref{alg:anchor-chain-replay}), a separate model from Algorithm~\ref{alg:delegation}, which carries no nonces.
@@ -410,6 +412,10 @@ For a chain of $N$ hops, the verifier walks the structure shown in Figure~\ref{f
 Two older bodies of work study the property checked here more directly than macaroons do. SPKI/SDSI, a public-key certificate system from the late 1990s, asks whether a chain of certificates only ever narrows as it lengthens, and answers by reducing the chain to one equivalent certificate~\pdcite{spkicert1999,rivestlampson1996sdsi}; the harbor's per-hop subset check is that reduction done one link at a time. Miller's object-capability discipline, in which a capability is the only route to any authority and nothing is allowed merely because a process is present, was worked out for concurrent components that do not trust each other~\pdcite{miller2006robustcomposition}. That rule fits this protocol more closely than Dennis and Van Horn's founding 1966 statement, and Hardy's confused deputy is the classic case for it: a compiler overwrote its system's billing file on a user's behalf because, in Hardy's words, it ``runs with authority stemming from two sources''~\pdcite{hardy1988confused}. The design rule that follows is to restrict a capability when it is issued and also check the chain when it is verified, so that the chain check is a second defense rather than the only one. The root-only verifier in Figure~\ref{fig:anchor-v6v7-escalation} shows why: checking each card against the root instead of its immediate parent accepts a card that re-grants a right a middle hop had removed. Neither macaroons nor Biscuit, their public-key descendant~\pdcite{biscuit2026}, can fall into that trap, because a holder can only append restrictions and the verifier checks every one. A Harbor Card child instead restates its rights in full, which is why the verifier must compare each child with its parent.
 
 \input{figures/fig-anchor-delegation-inline}
+% The figure belongs to Phase 3: set it before the build section starts.
+\FloatBarrier
+
+\input{additions/anchor-build-the-verifier}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
 \pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built}
@@ -1476,6 +1482,12 @@ Daniel J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.
 \newblock High-Speed High-Security Signatures.
 \newblock \textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.
 
+\bibitem{chalkias2020taming}
+Konstantinos Chalkias, Fran\c{c}ois Garillot, and Valeria Nikolaenko.
+\newblock Taming the Many EdDSAs.
+\newblock In \textit{Security Standardisation Research (SSR 2020)}, LNCS 12529, Springer, 2020.
+\newblock \url{https://doi.org/10.1007/978-3-030-64357-7_4}
+
 \bibitem{josefsson2017edwards}
 Simon Josefsson and Ilari Liusvaara.
 \newblock Edwards-Curve Digital Signature Algorithm (EdDSA).
@@ -2400,6 +2412,41 @@ tool says so twice over by printing \texttt{A trace has been found} above it.
 Work that composition once here and every quoted verdict below reads at a
 glance. [internal]
 \end{pdexample}
+
+\pdexercisesfor{\S\ref{sec:anchor-build}}{Build the layer: a card that cannot grow}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:anchor-build-count}
+Listing~\ref{alg:anchor-build-chains} counts 64 chains of three cards over two rights. Without running anything, derive the 16 that both verifiers accept and the 36 that the naive verifier accepts. Then derive the 11 and the 9.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-build-count}
+Take one right. Each of the three cards holds it or does not, so it can sit on the chain in $2^3=8$ ways. Write a way as three marks, first card to last, with \texttt{x} for a card that holds the right.
+
+The check at every card wants no card to hold the right unless the card above does. Four ways pass: \texttt{...}, \texttt{x..}, \texttt{xx.} and \texttt{xxx}. The two rights are placed independently, so $4\times4=16$ chains pass.
+
+The naive verifier wants only that the last card not hold a right the first lacks. That rules out \texttt{..x} and \texttt{.xx} and allows the other six, so it accepts $6\times6=36$ chains.
+
+The two ways it allows beyond the four are \texttt{.x.}, where the middle card alone holds the right, and \texttt{x.x}, where the middle card alone lacks it. A chain with a right placed \texttt{x.x} is an escalation: the last holder has a right that the signer of its card did not. Leave that way out and five remain, so $5\times5=25$ accepted chains have no such right, and $36-25=11$ have one. Of the 25, the 16 are in order, and the other $25-16=9$ have a right placed \texttt{.x.} and none placed \texttt{x.x}. Figure~\ref{fig:anchor-64-chains} is this arithmetic drawn: squares of side 4, 5 and 6 in one corner of a square of side 8.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-build-two}
+With its guard changed to compare every card with the first card, the fixed verifier lets 9 of the 11 escalations through (Listing~\ref{alg:anchor-build-chains-mutant}). Name the two it refuses, and say which comparison refuses them.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-build-two}
+An escalation that the naive verifier accepts has one right placed \texttt{x.x}, in the marks of the previous solution. The other right sits in one of the six ways the naive verifier allows.
+
+The changed build makes two comparisons, the middle card with the first and the last card with the first. The second is the naive verifier's own. The first is new, and it refuses a chain whose middle card holds a right the first lacks. Among the six ways, only \texttt{.x.} puts a right on the middle card and not on the first. So the two chains are the ones that pair \texttt{x.x} with \texttt{.x.}: reading placed \texttt{x.x} with writing placed \texttt{.x.}, and the reverse. In the first of them the harbor's card grants reading, the middle card grants writing, and the last card grants reading again. The middle holder has swapped the right it was given for the one it was not.
+
+The other 9 escalations have the second right in order, or also placed \texttt{x.x}. Every card in them is within the first card, and the changed build has nothing else to go on. Comparing each card with the first asks whether a right was ever granted. It does not ask whether the right was still there to hand on.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:anchor-build-move}
+In Listing~\ref{alg:anchor-build-moved-naive} Heron shows a card under a card it was not signed under. Suppose Alice's two cards granted the same rights and ended at the same moment. Would a verifier that does not check \texttt{par} then accept anything it should refuse? What changes once a card can be withdrawn before its time, as in \S\ref{sec:revocation}?
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-build-move}
+With two cards alike in rights and in lifetime, moving a card from under one to under the other changes no answer. The verifier compares a handed card with the card above it on those two things and no others, so a card within one parent is within the other. The break in the listing needs the parents to differ: the card was refused under the narrow one and passes under the wide one.
+
+Withdrawal makes two cards differ that are otherwise alike. Suppose the narrow card is withdrawn because its task was cancelled. Every card under it should stop working, and \S\ref{sec:revocation} relies on exactly that: a withdrawn ancestor fails every chain below it. A card that can be moved under the holder's other card escapes. The name of the parent is what makes a chain one chain, and without it a withdrawal reaches only the cards whose holders choose to show them under the withdrawn parent.
+
+The signer could always sign the same grant again under the other card, so the name protects no one from the signer. It protects the signer, and the harbor, from the holder further down.
+\end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:correct}}{How we know it is correct}
 

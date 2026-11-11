@@ -1,0 +1,10 @@
+$ harbor chains
+every chain of three cards that hold some of the rights read and
+  write on one file
+
+the three cards                               chains  naive  core
+each card within the card above it                16     16    16
+the last card holds what the middle one lacks     28     11     0
+the middle card holds what the first lacks        20      9     0
+
+naive, core: how many of the chains each gate lets through

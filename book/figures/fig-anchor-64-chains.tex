@@ -1,0 +1,100 @@
+% Brief (grammar: grid of cells, one for each case; atlas
+%   V/fig:anchor-64-chains).
+% Reader question: of all the chains a holder could build, which does each
+% verifier accept, and why are the counts 16 and 36?
+% Claim: comparing each card with the card above it accepts exactly the
+% chains in which no card holds more than the one above. Comparing the last
+% card with the first accepts 20 more, and in 11 of those the last holder
+% has a right that the signer of its card lacked.
+% Evidence: every chain of three cards over two rights on one file, each
+% with real signatures, shown to both verifiers [internal, harbor chains
+% --each; session chains-each.txt, drawn as printed].
+% Must distinguish: accepted by both; accepted by the naive verifier alone,
+% harmful and harmless; refused by both.
+% Grammar chosen: an 8 by 8 grid with one axis for each right. A right can
+% sit on three cards in eight ways, so each verifier's condition is a
+% condition on each axis separately, and what it accepts is a square.
+% Grammar rejected: a table of counts, which gives 16, 36, 11 and 9 and not
+% the reason for them.
+% Five-second test: which cells does the dashed square add to the solid one?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=.6cm,y=.6cm,
+    cell/.style={minimum size=.6cm-1.8pt,inner sep=0pt,outer sep=0pt},
+    % Hatching drawn as strokes. A pattern fill is a tile at the page's
+    % origin, which the figure check reads as ink outside the page.
+    idle/.style={draw=pdinkmuted!55,line width=.5pt,path picture={
+      \foreach \shift in {-.5,-.25,0,.25,.5}{
+        \draw[draw=pdinkmuted!75,line width=.3pt]
+          ([xshift=\shift*.6cm]path picture bounding box.south west) --
+          ([xshift=\shift*.6cm]path picture bounding box.north east);}}},
+    held/.style={draw=pdink,line width=.45pt,fill=pdink},
+    lacking/.style={draw=pdink,line width=.45pt,fill=pdpage}]
+  % The table is the recorded run, read as it was printed: the first line
+  % is the command, and every remark starts with '#'.
+  \pgfplotstableread[skip first n=1]{excerpts/chains-each.txt}\pdchains
+  \pgfplotstablegetrowsof{\pdchains}
+  \pgfmathtruncatemacro{\pdlastchain}{\pgfplotsretval-1}
+  % Four counts, taken from the table as it is drawn, so that no number in
+  % the figure is typed.
+  \ifdefined\pdchainsboth\else
+    \newcount\pdchainsboth \newcount\pdchainsgrown
+    \newcount\pdchainsidle \newcount\pdchainsneither
+  \fi
+  \global\pdchainsboth=0 \global\pdchainsgrown=0
+  \global\pdchainsidle=0 \global\pdchainsneither=0
+  \foreach \i in {0,...,\pdlastchain}{
+    \pgfplotstablegetelem{\i}{r}\of\pdchains \let\r\pgfplotsretval
+    \pgfplotstablegetelem{\i}{w}\of\pdchains \let\w\pgfplotsretval
+    \pgfplotstablegetelem{\i}{kind}\of\pdchains \let\kind\pgfplotsretval
+    \pgfplotstablegetelem{\i}{naive}\of\pdchains \let\naive\pgfplotsretval
+    \pgfplotstablegetelem{\i}{core}\of\pdchains \let\core\pgfplotsretval
+    \ifnum\core=1
+      \global\advance\pdchainsboth 1 \node[cell,pd focus fill] at (\r,-\w) {};
+    \else\ifnum\naive=0
+      \global\advance\pdchainsneither 1 \node[cell,pd hairline] at (\r,-\w) {};
+    \else\ifnum\kind=1
+      \global\advance\pdchainsgrown 1 \node[cell,pd breach fill] at (\r,-\w) {};
+    \else
+      \global\advance\pdchainsidle 1 \node[cell,idle] at (\r,-\w) {};
+    \fi\fi\fi
+  }
+  % The eight ways a right can sit on three cards, in the order the run
+  % prints. A filled dot is a card that holds the right.
+  \foreach \bits [count=\n from 0] in {{0,0,0},{1,0,0},{1,1,0},{1,1,1},{0,1,0},{1,0,1},{0,1,1},{0,0,1}}{
+    \foreach \bit [count=\k from 0] in \bits {
+      \ifnum\bit=1 \def\pdplacedot{held}\else \def\pdplacedot{lacking}\fi
+      \path[\pdplacedot] (\n-.28+\k*.28,1.05) circle[radius=.1];
+      \path[\pdplacedot] (-1.78+\k*.28,-\n) circle[radius=.1];
+    }
+  }
+  \node[pd label,anchor=south west] at (-.5,1.45) {the cards that hold the right to read};
+  \node[pd label,rotate=90,anchor=south east] at (-2.35,.5) {the cards that hold the right to write};
+  % What each verifier accepts is a square in the corner. The dashed one
+  % is drawn a little outside, so both show where they share an edge.
+  \draw[pd breach rule] (-.62,.62) rectangle (5.56,-5.56);
+  \draw[pd focus rule] (-.5,.5) rectangle (3.5,-3.5);
+  \draw[pd focus rule] (8.9,-.4) -- ++(1.1,0);
+  \node[pd label,anchor=north west,align=left] at (8.8,-.6)
+    {the fix compares each\\card with the card\\above it: accepts \the\pdchainsboth};
+  \draw[pd breach rule] (8.9,-3.6) -- ++(1.1,0);
+  \node[pd label,anchor=north west,align=left] at (8.8,-3.8)
+    {the naive verifier\\compares the last card\\with the first: accepts \the\numexpr\pdchainsboth+\pdchainsgrown+\pdchainsidle\relax};
+  % The key, drawn with the cells' own styles.
+  \node[cell,pd focus fill] (k0) at (-.2,-8.5) {};
+  \node[pd label,anchor=west] at (k0.east) {\ \the\pdchainsboth, both accept: no card holds more than the card above it};
+  \node[cell,idle] (k1) at (-.2,-9.55) {};
+  \node[pd label,anchor=west] at (k1.east) {\ \the\pdchainsidle, naive alone: only the middle card holds too much};
+  \node[cell,pd breach fill] (k2) at (-.2,-10.6) {};
+  \node[pd label,anchor=west] at (k2.east) {\ \the\pdchainsgrown, naive alone: the last card holds a right the middle lacks};
+  \node[cell,pd hairline] (k3) at (-.2,-11.65) {};
+  \node[pd label,anchor=west] at (k3.east) {\ \the\pdchainsneither, both refuse: the last card holds a right the first lacks};
+\end{tikzpicture}
+\caption{\textbf{What each verifier accepts is a square, and the naive
+verifier's square is the larger.} Every chain of three cards over two
+rights. The three dots on a column say which cards hold the right to read,
+first to last, and those on a row say the same for writing. [internal,
+\texttt{harbor chains -{}-each}]}
+\label{fig:anchor-64-chains}
+\end{figure}

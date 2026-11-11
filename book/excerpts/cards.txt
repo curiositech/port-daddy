@@ -1,0 +1,34 @@
+$ harbor cards
+the cards of scenario handing-on, opened
+
+card 1: the harbor signs it for alice
+  header  {"alg":"EdDSA"}
+  sub     alice
+  key     f5jBjOT-4j2K2T0dEnoq2aRuW5NNxhajJ5TZ98ul_vw
+  can     read shop/*, write shop/*
+  exp     600000
+  jti     card-1
+  size    327 characters
+  id      its serial number
+
+card 2: alice signs it for heron
+  header  {"alg":"EdDSA"}
+  sub     heron
+  key     NFUVCVKdkBSzuFqR37SUpIC5bzPOcPAMzDf4uNx6w2w
+  can     write shop/checkout.ts
+  exp     600000
+  par     card-1
+  size    300 characters
+  id      the SHA-256 of its signature:
+  888df042b046a8d2d1333247d8ae5b4c1d05623774859cbb32a1340cc449e8d7
+
+card 3: heron signs it for finch
+  header  {"alg":"EdDSA"}
+  sub     finch
+  key     UYCaFUooEvnBcSIO4f7bXEDGk0WYKZxCKi48FkfgYjk
+  can     write shop/checkout.ts
+  exp     300000
+  par     the id of card 2
+  size    378 characters
+  id      the SHA-256 of its signature:
+  d5ec2f04204c42f36d4e11347037810ae3fb9e2136d27a9e426237d5559ce68d

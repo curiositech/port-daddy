@@ -1,0 +1,39 @@
+/// Check a chain of cards, the harbor's first, then the ask.
+pub fn admit(
+    chain: &[String],
+    ask: Option<&Right>,
+    gate: &Gate,
+    now: u64,
+) -> Result<Pass, Reason> {
+    let mut links: Vec<Link> = Vec::new();
+    for (at, card) in chain.iter().enumerate() {
+        let no = at + 1;
+        // The key this card must be signed with: the one the
+        // card above names, or the harbor's for the first card.
+        let up = links.last();
+        let key = up.map_or(&gate.key, |up| &up.says.key);
+        let (says, tag) = signed(card, key, no)?;
+        let id = match (up, &says.jti, &says.par) {
+            // The harbor's card carries a serial number.
+            (None, Some(serial), None) => serial.clone(),
+            // A card handed on names the card it came from.
+            (Some(up), None, Some(par)) if names(par, up) => {
+                within(&says, measure(&links, up), no)?;
+                hash(&tag)
+            }
+            _ => return Err(Reason::Unbound { card: no }),
+        };
+        if past(now, says.exp) {
+            let until = says.exp;
+            return Err(Reason::Expired { card: no, until });
+        }
+        links.push(Link { id, says });
+    }
+    let pass = Pass::from(&links).ok_or(Reason::NoCard)?;
+    match ask {
+        Some(ask) if !pass.can.iter().any(|r| covers(r, ask)) => {
+            Err(Reason::NotGranted { right: ask.clone() })
+        }
+        _ => Ok(pass),
+    }
+}

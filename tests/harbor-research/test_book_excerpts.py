@@ -42,8 +42,21 @@ def printed(pattern):
 
 def plotted():
     """Every recorded run a figure reads as a table."""
-    figures = sorted((BOOK / 'figures').glob('*.tex'))
-    return [name for figure in figures for name in PLOT.findall(uncommented(figure.read_text()))]
+    return [name for names in plots().values() for name in names]
+
+
+def plots():
+    """Each figure that reads a recorded run, and the runs it reads."""
+    found = {}
+    for figure in sorted((BOOK / 'figures').glob('*.tex')):
+        names = PLOT.findall(uncommented(figure.read_text()))
+        if names:
+            found[figure] = names
+    return found
+
+
+# How a figure names a column of a table it reads.
+COLUMN = re.compile(r'\\thisrow\{([a-z]+)\}|\b[xy]=([a-z]+)\b|\\pgfplotstablegetelem\{[^}]*\}\{([a-z]+)\}')
 
 
 class BookExcerpts(unittest.TestCase):
@@ -128,17 +141,27 @@ class BookExcerpts(unittest.TestCase):
         # then rows of numbers. Anything else would stop the build or, worse,
         # be plotted.
         self.assertTrue(plotted(), 'no figure plots a recorded run')
-        for name in set(plotted()):
-            lines = (EXCERPTS / f'{name}.txt').read_text().splitlines()
-            self.assertTrue(lines[0].startswith('$ harbor '), name)
-            table = [line for line in lines[1:] if not line.startswith('#')]
-            columns = table[0].split()
-            self.assertEqual(columns[0], 'rounds', name)
-            for row in table[1:]:
-                cells = row.split()
-                self.assertEqual(len(cells), len(columns), f'{name}: {row}')
-                for cell in cells:
-                    float(cell)
+        for figure, names in plots().items():
+            read = {column for found in COLUMN.findall(uncommented(figure.read_text())) for column in found if column}
+            self.assertTrue(read, f'{figure.name} names no column')
+            for name in set(names):
+                lines = (EXCERPTS / f'{name}.txt').read_text().splitlines()
+                self.assertTrue(lines[0].startswith('$ harbor '), name)
+                table = [line.split() for line in lines[1:] if not line.startswith('#')]
+                columns, rows = table[0], table[1:]
+                for row in rows:
+                    self.assertEqual(len(row), len(columns), f'{name}: {row}')
+                # Every column the figure reads is in the table, and is numbers.
+                self.assertLessEqual(read, set(columns), f'{figure.name} reads a column {name}.txt lacks')
+                for column in read:
+                    for row in rows:
+                        float(row[columns.index(column)])
+                # A column the figure does not read may hold marks instead.
+                for index, column in enumerate(columns):
+                    cells = [row[index] for row in rows]
+                    if not all(re.fullmatch(r'[x.]+', cell) for cell in cells):
+                        for cell in cells:
+                            float(cell)
 
 
 if __name__ == '__main__':
