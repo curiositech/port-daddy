@@ -1,0 +1,745 @@
+{
+  "counts": {
+    "adversarial": 11,
+    "adversarial_share": 0.3548,
+    "grim_rule_differs": 3,
+    "in_added_sets": 20,
+    "items": 31,
+    "player_cooperates": 16,
+    "player_defects": 15
+  },
+  "items": [
+    {
+      "added_set": false,
+      "adversarial": false,
+      "delta": "1/20",
+      "delta_decimal": 0.05,
+      "delta_minus_threshold": -0.292508,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "B01",
+      "margin": "-3579/4000",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 5%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": false,
+      "delta": "3/20",
+      "delta_decimal": 0.15,
+      "delta_minus_threshold": -0.192508,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "B02",
+      "margin": "-2593/4000",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 15%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": false,
+      "delta": "1/4",
+      "delta_decimal": 0.25,
+      "delta_minus_threshold": -0.092508,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "B03",
+      "margin": "-11/32",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 25%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": false,
+      "delta": "3/10",
+      "delta_decimal": 0.3,
+      "delta_minus_threshold": -0.042508,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "B04",
+      "margin": "-83/500",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 30%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": false,
+      "delta": "33/100",
+      "delta_decimal": 0.33,
+      "delta_minus_threshold": -0.012508,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "B05",
+      "margin": "-25163/500000",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 33%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": false,
+      "delta": "17/50",
+      "delta_decimal": 0.34,
+      "delta_minus_threshold": -0.002508,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "B06",
+      "margin": "-637/62500",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 34%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": true,
+      "delta": "7/20",
+      "delta_decimal": 0.35,
+      "delta_minus_threshold": 0.007492,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "B07",
+      "margin": "123/4000",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "COOPERATE",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 35%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": true,
+      "delta": "19/50",
+      "delta_decimal": 0.38,
+      "delta_minus_threshold": 0.037492,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "B08",
+      "margin": "9909/62500",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "COOPERATE",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 38%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": true,
+      "delta": "9/20",
+      "delta_decimal": 0.45,
+      "delta_minus_threshold": 0.107492,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "B09",
+      "margin": "1949/4000",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "COOPERATE",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 45%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": false,
+      "delta": "3/5",
+      "delta_decimal": 0.6,
+      "delta_minus_threshold": 0.257492,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "B10",
+      "margin": "169/125",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "COOPERATE",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 60%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": false,
+      "adversarial": false,
+      "delta": "9/10",
+      "delta_decimal": 0.9,
+      "delta_minus_threshold": 0.557492,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "B11",
+      "margin": "1939/500",
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "COOPERATE",
+      "set": "book",
+      "text": "Credits per cycle. Both `COOPERATE`: 3 each. You `DEFECT` and the partner files `COOPERATE`: you 4, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 4. Both `DEFECT`: 1 each. Chance of another cycle after each one: 90%.",
+      "threshold": 0.342508
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "3/100",
+      "delta_decimal": 0.03,
+      "delta_minus_threshold": -0.120435,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "L01",
+      "margin": "-2474241/1000000",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 3%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "7/100",
+      "delta_decimal": 0.07,
+      "delta_minus_threshold": -0.080435,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "L02",
+      "margin": "-1720869/1000000",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 7%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "11/100",
+      "delta_decimal": 0.11,
+      "delta_minus_threshold": -0.040435,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "L03",
+      "margin": "-901673/1000000",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 11%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "7/50",
+      "delta_decimal": 0.14,
+      "delta_minus_threshold": -0.010435,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "L04",
+      "margin": "-30019/125000",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 14%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": true,
+      "delta": "4/25",
+      "delta_decimal": 0.16,
+      "delta_minus_threshold": 0.009565,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "L05",
+      "margin": "3513/15625",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "COOPERATE",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 16%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": true,
+      "delta": "19/100",
+      "delta_decimal": 0.19,
+      "delta_minus_threshold": 0.039565,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "L06",
+      "margin": "960303/1000000",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "COOPERATE",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 19%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": true,
+      "delta": "6/25",
+      "delta_decimal": 0.24,
+      "delta_minus_threshold": 0.089565,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "L07",
+      "margin": "35847/15625",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "COOPERATE",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 24%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": true,
+      "delta": "8/25",
+      "delta_decimal": 0.32,
+      "delta_minus_threshold": 0.169565,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "L08",
+      "margin": "74029/15625",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "COOPERATE",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 32%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": true,
+      "delta": "9/20",
+      "delta_decimal": 0.45,
+      "delta_minus_threshold": 0.299565,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "L09",
+      "margin": "77133/8000",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "COOPERATE",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 45%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "4/5",
+      "delta_decimal": 0.8,
+      "delta_minus_threshold": 0.649565,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "L10",
+      "margin": "3773/125",
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "COOPERATE",
+      "set": "low",
+      "text": "Credits per cycle. Both `COOPERATE`: 20 each. You `DEFECT` and the partner files `COOPERATE`: you 23, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 23. Both `DEFECT`: 3 each. Chance of another cycle after each one: 80%.",
+      "threshold": 0.150435
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "1/5",
+      "delta_decimal": 0.2,
+      "delta_minus_threshold": -0.397148,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "H01",
+      "margin": "-689/125",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 20%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "2/5",
+      "delta_decimal": 0.4,
+      "delta_minus_threshold": -0.197148,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "H02",
+      "margin": "-407/125",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "DEFECT",
+      "player_answer": "DEFECT",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 40%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": true,
+      "delta": "1/2",
+      "delta_decimal": 0.5,
+      "delta_minus_threshold": -0.097148,
+      "grim_rule_answer": "DEFECT",
+      "item_id": "H03",
+      "margin": "-7/4",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "DEFECT",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 50%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": true,
+      "delta": "11/20",
+      "delta_decimal": 0.55,
+      "delta_minus_threshold": -0.047148,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "H04",
+      "margin": "-3547/4000",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "DEFECT",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 55%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": true,
+      "delta": "29/50",
+      "delta_decimal": 0.58,
+      "delta_minus_threshold": -0.017148,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "H05",
+      "margin": "-20683/62500",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "DEFECT",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 58%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "61/100",
+      "delta_decimal": 0.61,
+      "delta_minus_threshold": 0.012852,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "H06",
+      "margin": "127243/500000",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "COOPERATE",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 61%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "16/25",
+      "delta_decimal": 0.64,
+      "delta_minus_threshold": 0.042852,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "H07",
+      "margin": "13601/15625",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "COOPERATE",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 64%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "7/10",
+      "delta_decimal": 0.7,
+      "delta_minus_threshold": 0.102852,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "H08",
+      "margin": "1099/500",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "COOPERATE",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 70%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "4/5",
+      "delta_decimal": 0.8,
+      "delta_minus_threshold": 0.202852,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "H09",
+      "margin": "589/125",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "COOPERATE",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 80%.",
+      "threshold": 0.597148
+    },
+    {
+      "added_set": true,
+      "adversarial": false,
+      "delta": "23/25",
+      "delta_decimal": 0.92,
+      "delta_minus_threshold": 0.322852,
+      "grim_rule_answer": "COOPERATE",
+      "item_id": "H10",
+      "margin": "129227/15625",
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "plain_reading": "COOPERATE",
+      "player_answer": "COOPERATE",
+      "set": "high",
+      "text": "Credits per cycle. Both `COOPERATE`: 8 each. You `DEFECT` and the partner files `COOPERATE`: you 15, the partner 0. You `COOPERATE` and the partner files `DEFECT`: you 0, the partner 15. Both `DEFECT`: 2 each. Chance of another cycle after each one: 92%.",
+      "threshold": 0.597148
+    }
+  ],
+  "punishment_rounds": 3,
+  "seed": "players-20261111/t3/v1",
+  "sets": {
+    "book": {
+      "grim_trigger_threshold": 0.333333,
+      "items": 11,
+      "payoffs": {
+        "P": 1,
+        "R": 3,
+        "S": 0,
+        "T": 4
+      },
+      "player_cooperates_on": 5,
+      "player_defects_on": 6,
+      "sweep": [
+        "0.05",
+        "0.15",
+        "0.25",
+        "0.30",
+        "0.33",
+        "0.34",
+        "0.35",
+        "0.38",
+        "0.45",
+        "0.60",
+        "0.90"
+      ],
+      "threshold": 0.342508
+    },
+    "high": {
+      "grim_trigger_threshold": 0.538462,
+      "items": 10,
+      "payoffs": {
+        "P": 2,
+        "R": 8,
+        "S": 0,
+        "T": 15
+      },
+      "player_cooperates_on": 5,
+      "player_defects_on": 5,
+      "sweep": [
+        "0.20",
+        "0.40",
+        "0.50",
+        "0.55",
+        "0.58",
+        "0.61",
+        "0.64",
+        "0.70",
+        "0.80",
+        "0.92"
+      ],
+      "threshold": 0.597148
+    },
+    "low": {
+      "grim_trigger_threshold": 0.15,
+      "items": 10,
+      "payoffs": {
+        "P": 3,
+        "R": 20,
+        "S": 0,
+        "T": 23
+      },
+      "player_cooperates_on": 6,
+      "player_defects_on": 4,
+      "sweep": [
+        "0.03",
+        "0.07",
+        "0.11",
+        "0.14",
+        "0.16",
+        "0.19",
+        "0.24",
+        "0.32",
+        "0.45",
+        "0.80"
+      ],
+      "threshold": 0.150435
+    }
+  },
+  "test": "T3"
+}

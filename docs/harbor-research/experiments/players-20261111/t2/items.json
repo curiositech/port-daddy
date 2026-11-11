@@ -1,0 +1,976 @@
+{
+  "baseline": {
+    "bond": "50 times the cost of the run",
+    "d": "1/5",
+    "rho": "1/10"
+  },
+  "counts": {
+    "adversarial": 9,
+    "adversarial_share": 0.2812,
+    "items": 32,
+    "scored": 30,
+    "scored_above_zero": 16,
+    "scored_below_zero": 14
+  },
+  "items": [
+    {
+      "B": "600",
+      "G": "12",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "3",
+      "forms": {},
+      "item_id": "C1R",
+      "kind": "core",
+      "level_rank": 1,
+      "lever": "rho",
+      "note": "Grid: rho carries the ratio to 0.25; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "1/4",
+      "rho": "1/40",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "1/4",
+      "text": {
+        "N": "Cover: $12. Inspection rate: 2.5% of hand-ins. Rework order if inspected: 20%. Rework charge: $600.",
+        "W": "Acceptance run: $12. Audit rate: 2.5% of hand-ins. Detection if audited: 20%. Bond: $600."
+      },
+      "x": "-9",
+      "x_dollars": -9.0
+    },
+    {
+      "B": "1000",
+      "G": "20",
+      "adversarial": false,
+      "d": "1/20",
+      "expected_forfeit": "5",
+      "forms": {},
+      "item_id": "C1D",
+      "kind": "core",
+      "level_rank": 1,
+      "lever": "d",
+      "note": "Grid: d carries the ratio to 0.25; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "1/4",
+      "rho": "1/10",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "1/4",
+      "text": {
+        "N": "Cover: $20. Inspection rate: 10% of hand-ins. Rework order if inspected: 5%. Rework charge: $1,000.",
+        "W": "Acceptance run: $20. Audit rate: 10% of hand-ins. Detection if audited: 5%. Bond: $1,000."
+      },
+      "x": "-15",
+      "x_dollars": -15.0
+    },
+    {
+      "B": "50",
+      "G": "4",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "1",
+      "forms": {},
+      "item_id": "C1B",
+      "kind": "core",
+      "level_rank": 1,
+      "lever": "B",
+      "note": "Grid: B carries the ratio to 0.25; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "1/4",
+      "rho": "1/10",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "1/4",
+      "text": {
+        "N": "Cover: $4. Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $50.",
+        "W": "Acceptance run: $4. Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $50."
+      },
+      "x": "-3",
+      "x_dollars": -3.0
+    },
+    {
+      "B": "400",
+      "G": "8",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "4",
+      "forms": {},
+      "item_id": "C2R",
+      "kind": "core",
+      "level_rank": 3,
+      "lever": "rho",
+      "note": "Grid: rho carries the ratio to 0.5; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "1/2",
+      "rho": "1/20",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "1/2",
+      "text": {
+        "N": "Cover: $8. Inspection rate: 5% of hand-ins. Rework order if inspected: 20%. Rework charge: $400.",
+        "W": "Acceptance run: $8. Audit rate: 5% of hand-ins. Detection if audited: 20%. Bond: $400."
+      },
+      "x": "-4",
+      "x_dollars": -4.0
+    },
+    {
+      "B": "600",
+      "G": "12",
+      "adversarial": false,
+      "d": "1/10",
+      "expected_forfeit": "6",
+      "forms": {},
+      "item_id": "C2D",
+      "kind": "core",
+      "level_rank": 3,
+      "lever": "d",
+      "note": "Grid: d carries the ratio to 0.5; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "1/2",
+      "rho": "1/10",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "1/2",
+      "text": {
+        "N": "Cover: $12. Inspection rate: 10% of hand-ins. Rework order if inspected: 10%. Rework charge: $600.",
+        "W": "Acceptance run: $12. Audit rate: 10% of hand-ins. Detection if audited: 10%. Bond: $600."
+      },
+      "x": "-6",
+      "x_dollars": -6.0
+    },
+    {
+      "B": "500",
+      "G": "20",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "10",
+      "forms": {},
+      "item_id": "C2B",
+      "kind": "core",
+      "level_rank": 3,
+      "lever": "B",
+      "note": "Grid: B carries the ratio to 0.5; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "1/2",
+      "rho": "1/10",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "1/2",
+      "text": {
+        "N": "Cover: $20. Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $500.",
+        "W": "Acceptance run: $20. Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $500."
+      },
+      "x": "-10",
+      "x_dollars": -10.0
+    },
+    {
+      "B": "1000",
+      "G": "20",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "15",
+      "forms": {},
+      "item_id": "C3R",
+      "kind": "core",
+      "level_rank": 4,
+      "lever": "rho",
+      "note": "Grid: rho carries the ratio to 0.75; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "3/4",
+      "rho": "3/40",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "3/4",
+      "text": {
+        "N": "Cover: $20. Inspection rate: 7.5% of hand-ins. Rework order if inspected: 20%. Rework charge: $1,000.",
+        "W": "Acceptance run: $20. Audit rate: 7.5% of hand-ins. Detection if audited: 20%. Bond: $1,000."
+      },
+      "x": "-5",
+      "x_dollars": -5.0
+    },
+    {
+      "B": "200",
+      "G": "4",
+      "adversarial": false,
+      "d": "3/20",
+      "expected_forfeit": "3",
+      "forms": {},
+      "item_id": "C3D",
+      "kind": "core",
+      "level_rank": 4,
+      "lever": "d",
+      "note": "Grid: d carries the ratio to 0.75; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "3/4",
+      "rho": "1/10",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "3/4",
+      "text": {
+        "N": "Cover: $4. Inspection rate: 10% of hand-ins. Rework order if inspected: 15%. Rework charge: $200.",
+        "W": "Acceptance run: $4. Audit rate: 10% of hand-ins. Detection if audited: 15%. Bond: $200."
+      },
+      "x": "-1",
+      "x_dollars": -1.0
+    },
+    {
+      "B": "300",
+      "G": "8",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "6",
+      "forms": {},
+      "item_id": "C3B",
+      "kind": "core",
+      "level_rank": 4,
+      "lever": "B",
+      "note": "Grid: B carries the ratio to 0.75; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "3/4",
+      "rho": "1/10",
+      "scored": true,
+      "side": "below",
+      "target_ratio": "3/4",
+      "text": {
+        "N": "Cover: $8. Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $300.",
+        "W": "Acceptance run: $8. Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $300."
+      },
+      "x": "-2",
+      "x_dollars": -2.0
+    },
+    {
+      "B": "200",
+      "G": "4",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "5",
+      "forms": {},
+      "item_id": "C4R",
+      "kind": "core",
+      "level_rank": 7,
+      "lever": "rho",
+      "note": "Grid: rho carries the ratio to 1.25; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "5/4",
+      "rho": "1/8",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "5/4",
+      "text": {
+        "N": "Cover: $4. Inspection rate: 12.5% of hand-ins. Rework order if inspected: 20%. Rework charge: $200.",
+        "W": "Acceptance run: $4. Audit rate: 12.5% of hand-ins. Detection if audited: 20%. Bond: $200."
+      },
+      "x": "1",
+      "x_dollars": 1.0
+    },
+    {
+      "B": "400",
+      "G": "8",
+      "adversarial": false,
+      "d": "1/4",
+      "expected_forfeit": "10",
+      "forms": {},
+      "item_id": "C4D",
+      "kind": "core",
+      "level_rank": 7,
+      "lever": "d",
+      "note": "Grid: d carries the ratio to 1.25; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "5/4",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "5/4",
+      "text": {
+        "N": "Cover: $8. Inspection rate: 10% of hand-ins. Rework order if inspected: 25%. Rework charge: $400.",
+        "W": "Acceptance run: $8. Audit rate: 10% of hand-ins. Detection if audited: 25%. Bond: $400."
+      },
+      "x": "2",
+      "x_dollars": 2.0
+    },
+    {
+      "B": "750",
+      "G": "12",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "15",
+      "forms": {},
+      "item_id": "C4B",
+      "kind": "core",
+      "level_rank": 7,
+      "lever": "B",
+      "note": "Grid: B carries the ratio to 1.25; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "5/4",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "5/4",
+      "text": {
+        "N": "Cover: $12. Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $750.",
+        "W": "Acceptance run: $12. Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $750."
+      },
+      "x": "3",
+      "x_dollars": 3.0
+    },
+    {
+      "B": "400",
+      "G": "8",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "12",
+      "forms": {},
+      "item_id": "C5R",
+      "kind": "core",
+      "level_rank": 8,
+      "lever": "rho",
+      "note": "Grid: rho carries the ratio to 1.5; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "3/2",
+      "rho": "3/20",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "3/2",
+      "text": {
+        "N": "Cover: $8. Inspection rate: 15% of hand-ins. Rework order if inspected: 20%. Rework charge: $400.",
+        "W": "Acceptance run: $8. Audit rate: 15% of hand-ins. Detection if audited: 20%. Bond: $400."
+      },
+      "x": "4",
+      "x_dollars": 4.0
+    },
+    {
+      "B": "600",
+      "G": "12",
+      "adversarial": false,
+      "d": "3/10",
+      "expected_forfeit": "18",
+      "forms": {},
+      "item_id": "C5D",
+      "kind": "core",
+      "level_rank": 8,
+      "lever": "d",
+      "note": "Grid: d carries the ratio to 1.5; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "3/2",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "3/2",
+      "text": {
+        "N": "Cover: $12. Inspection rate: 10% of hand-ins. Rework order if inspected: 30%. Rework charge: $600.",
+        "W": "Acceptance run: $12. Audit rate: 10% of hand-ins. Detection if audited: 30%. Bond: $600."
+      },
+      "x": "6",
+      "x_dollars": 6.0
+    },
+    {
+      "B": "1500",
+      "G": "20",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "30",
+      "forms": {},
+      "item_id": "C5B",
+      "kind": "core",
+      "level_rank": 8,
+      "lever": "B",
+      "note": "Grid: B carries the ratio to 1.5; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "3/2",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "3/2",
+      "text": {
+        "N": "Cover: $20. Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $1,500.",
+        "W": "Acceptance run: $20. Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $1,500."
+      },
+      "x": "10",
+      "x_dollars": 10.0
+    },
+    {
+      "B": "1000",
+      "G": "20",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "40",
+      "forms": {},
+      "item_id": "C6R",
+      "kind": "core",
+      "level_rank": 9,
+      "lever": "rho",
+      "note": "Grid: rho carries the ratio to 2; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "2",
+      "rho": "1/5",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "2",
+      "text": {
+        "N": "Cover: $20. Inspection rate: 20% of hand-ins. Rework order if inspected: 20%. Rework charge: $1,000.",
+        "W": "Acceptance run: $20. Audit rate: 20% of hand-ins. Detection if audited: 20%. Bond: $1,000."
+      },
+      "x": "20",
+      "x_dollars": 20.0
+    },
+    {
+      "B": "200",
+      "G": "4",
+      "adversarial": false,
+      "d": "2/5",
+      "expected_forfeit": "8",
+      "forms": {},
+      "item_id": "C6D",
+      "kind": "core",
+      "level_rank": 9,
+      "lever": "d",
+      "note": "Grid: d carries the ratio to 2; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "2",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "2",
+      "text": {
+        "N": "Cover: $4. Inspection rate: 10% of hand-ins. Rework order if inspected: 40%. Rework charge: $200.",
+        "W": "Acceptance run: $4. Audit rate: 10% of hand-ins. Detection if audited: 40%. Bond: $200."
+      },
+      "x": "4",
+      "x_dollars": 4.0
+    },
+    {
+      "B": "800",
+      "G": "8",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "16",
+      "forms": {},
+      "item_id": "C6B",
+      "kind": "core",
+      "level_rank": 9,
+      "lever": "B",
+      "note": "Grid: B carries the ratio to 2; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "2",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "2",
+      "text": {
+        "N": "Cover: $8. Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $800.",
+        "W": "Acceptance run: $8. Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $800."
+      },
+      "x": "8",
+      "x_dollars": 8.0
+    },
+    {
+      "B": "200",
+      "G": "4",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "16",
+      "forms": {},
+      "item_id": "C7R",
+      "kind": "core",
+      "level_rank": 11,
+      "lever": "rho",
+      "note": "Grid: rho carries the ratio to 4; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "4",
+      "rho": "2/5",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "4",
+      "text": {
+        "N": "Cover: $4. Inspection rate: 40% of hand-ins. Rework order if inspected: 20%. Rework charge: $200.",
+        "W": "Acceptance run: $4. Audit rate: 40% of hand-ins. Detection if audited: 20%. Bond: $200."
+      },
+      "x": "12",
+      "x_dollars": 12.0
+    },
+    {
+      "B": "400",
+      "G": "8",
+      "adversarial": false,
+      "d": "4/5",
+      "expected_forfeit": "32",
+      "forms": {},
+      "item_id": "C7D",
+      "kind": "core",
+      "level_rank": 11,
+      "lever": "d",
+      "note": "Grid: d carries the ratio to 4; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "4",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "4",
+      "text": {
+        "N": "Cover: $8. Inspection rate: 10% of hand-ins. Rework order if inspected: 80%. Rework charge: $400.",
+        "W": "Acceptance run: $8. Audit rate: 10% of hand-ins. Detection if audited: 80%. Bond: $400."
+      },
+      "x": "24",
+      "x_dollars": 24.0
+    },
+    {
+      "B": "2400",
+      "G": "12",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "48",
+      "forms": {},
+      "item_id": "C7B",
+      "kind": "core",
+      "level_rank": 11,
+      "lever": "B",
+      "note": "Grid: B carries the ratio to 4; the others stay at the baseline.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "4",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": "4",
+      "text": {
+        "N": "Cover: $12. Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $2,400.",
+        "W": "Acceptance run: $12. Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $2,400."
+      },
+      "x": "36",
+      "x_dollars": 36.0
+    },
+    {
+      "B": "100",
+      "G": "9",
+      "adversarial": false,
+      "d": "9/10",
+      "expected_forfeit": "9",
+      "forms": {},
+      "item_id": "I1",
+      "kind": "indifference",
+      "level_rank": null,
+      "lever": null,
+      "note": "The Book's own example at rho = 0.1: the expected forfeit equals the saving.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "1",
+      "rho": "1/10",
+      "scored": false,
+      "side": "indifferent",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $9. Inspection rate: 10% of hand-ins. Rework order if inspected: 90%. Rework charge: $100.",
+        "W": "Acceptance run: $9. Audit rate: 10% of hand-ins. Detection if audited: 90%. Bond: $100."
+      },
+      "x": "0",
+      "x_dollars": 0.0
+    },
+    {
+      "B": "400",
+      "G": "8",
+      "adversarial": false,
+      "d": "1/5",
+      "expected_forfeit": "8",
+      "forms": {},
+      "item_id": "I2",
+      "kind": "indifference",
+      "level_rank": null,
+      "lever": null,
+      "note": "The baseline itself.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "1",
+      "rho": "1/10",
+      "scored": false,
+      "side": "indifferent",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $8. Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $400.",
+        "W": "Acceptance run: $8. Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $400."
+      },
+      "x": "0",
+      "x_dollars": 0.0
+    },
+    {
+      "B": "200",
+      "G": "10",
+      "adversarial": true,
+      "d": "9/10",
+      "expected_forfeit": "9",
+      "forms": {
+        "d": [
+          "times_in",
+          9,
+          10
+        ],
+        "rho": [
+          "one_in",
+          20
+        ]
+      },
+      "item_id": "U1",
+      "kind": "units",
+      "level_rank": 5,
+      "lever": null,
+      "note": "Odds in place of percentages. Expected forfeit $9 against a $10 run.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "9/10",
+      "rho": "1/20",
+      "scored": true,
+      "side": "below",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $10. Inspection rate: 1 hand-in in 20. Rework order if inspected: 9 times in 10. Rework charge: $200.",
+        "W": "Acceptance run: $10. Audit rate: 1 hand-in in 20. Detection if audited: 9 times in 10. Bond: $200."
+      },
+      "x": "-1",
+      "x_dollars": -1.0
+    },
+    {
+      "B": "90",
+      "G": "12",
+      "adversarial": true,
+      "d": "1/2",
+      "expected_forfeit": "9",
+      "forms": {
+        "B": [
+          "cents"
+        ]
+      },
+      "item_id": "U2",
+      "kind": "units",
+      "level_rank": 4,
+      "lever": null,
+      "note": "The bond is written in cents. Read as dollars it is a hundred times larger and the answer flips.",
+      "obvious_answer": "RUN",
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "3/4",
+      "rho": "1/5",
+      "scored": true,
+      "side": "below",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $12. Inspection rate: 20% of hand-ins. Rework order if inspected: 50%. Rework charge: 9,000 cents.",
+        "W": "Acceptance run: $12. Audit rate: 20% of hand-ins. Detection if audited: 50%. Bond: 9,000 cents."
+      },
+      "x": "-3",
+      "x_dollars": -3.0
+    },
+    {
+      "B": "200",
+      "G": "10",
+      "adversarial": true,
+      "d": "1/2",
+      "expected_forfeit": "11",
+      "forms": {
+        "rho": [
+          "of_every",
+          22,
+          200
+        ]
+      },
+      "item_id": "U3",
+      "kind": "units",
+      "level_rank": 6,
+      "lever": null,
+      "note": "An audit rate per 200 hand-ins. Expected forfeit $11 against a $10 run.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "11/10",
+      "rho": "11/100",
+      "scored": true,
+      "side": "above",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $10. Inspection rate: 22 of every 200 hand-ins. Rework order if inspected: 50%. Rework charge: $200.",
+        "W": "Acceptance run: $10. Audit rate: 22 of every 200 hand-ins. Detection if audited: 50%. Bond: $200."
+      },
+      "x": "1",
+      "x_dollars": 1.0
+    },
+    {
+      "B": "50000",
+      "G": "20",
+      "adversarial": true,
+      "d": "1/10",
+      "expected_forfeit": "5",
+      "forms": {},
+      "item_id": "T1",
+      "kind": "trap",
+      "level_rank": 1,
+      "lever": null,
+      "note": "A very large bond with a very small chance: expected forfeit $5.",
+      "obvious_answer": "RUN",
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "1/4",
+      "rho": "1/1000",
+      "scored": true,
+      "side": "below",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $20. Inspection rate: 0.1% of hand-ins. Rework order if inspected: 10%. Rework charge: $50,000.",
+        "W": "Acceptance run: $20. Audit rate: 0.1% of hand-ins. Detection if audited: 10%. Bond: $50,000."
+      },
+      "x": "-15",
+      "x_dollars": -15.0
+    },
+    {
+      "B": "6",
+      "G": "15",
+      "adversarial": true,
+      "d": "1",
+      "expected_forfeit": "6",
+      "forms": {},
+      "item_id": "T2",
+      "kind": "trap",
+      "level_rank": 2,
+      "lever": null,
+      "note": "Detection is certain, but the bond is smaller than the saving.",
+      "obvious_answer": "RUN",
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "2/5",
+      "rho": "1",
+      "scored": true,
+      "side": "below",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $15. Inspection rate: 100% of hand-ins. Rework order if inspected: 100%. Rework charge: $6.",
+        "W": "Acceptance run: $15. Audit rate: 100% of hand-ins. Detection if audited: 100%. Bond: $6."
+      },
+      "x": "-9",
+      "x_dollars": -9.0
+    },
+    {
+      "B": "3000",
+      "G": "6",
+      "adversarial": true,
+      "d": "1/2",
+      "expected_forfeit": "15",
+      "forms": {},
+      "item_id": "T3",
+      "kind": "trap",
+      "level_rank": 10,
+      "lever": null,
+      "note": "Audits are rare, yet the expected forfeit of $15 is above the saving.",
+      "obvious_answer": "SKIP",
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "5/2",
+      "rho": "1/100",
+      "scored": true,
+      "side": "above",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $6. Inspection rate: 1% of hand-ins. Rework order if inspected: 50%. Rework charge: $3,000.",
+        "W": "Acceptance run: $6. Audit rate: 1% of hand-ins. Detection if audited: 50%. Bond: $3,000."
+      },
+      "x": "9",
+      "x_dollars": 9.0
+    },
+    {
+      "B": "100",
+      "G": "1/2",
+      "adversarial": true,
+      "d": "1/5",
+      "expected_forfeit": "1/5",
+      "forms": {},
+      "item_id": "T4",
+      "kind": "trap",
+      "level_rank": 2,
+      "lever": null,
+      "note": "The run costs fifty cents and the expected forfeit is twenty cents.",
+      "obvious_answer": "RUN",
+      "player_answer": {
+        "N": "WAIVE",
+        "W": "SKIP"
+      },
+      "ratio": "2/5",
+      "rho": "1/100",
+      "scored": true,
+      "side": "below",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $0.50. Inspection rate: 1% of hand-ins. Rework order if inspected: 20%. Rework charge: $100.",
+        "W": "Acceptance run: $0.50. Audit rate: 1% of hand-ins. Detection if audited: 20%. Bond: $100."
+      },
+      "x": "-3/10",
+      "x_dollars": -0.3
+    },
+    {
+      "B": "400",
+      "G": "0",
+      "adversarial": true,
+      "d": "1/5",
+      "expected_forfeit": "8",
+      "forms": {},
+      "item_id": "Z1",
+      "kind": "zero_gain",
+      "level_rank": 12,
+      "lever": null,
+      "note": "The run is free on this job, so skipping gains nothing.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "no finite ratio (G = 0)",
+      "rho": "1/10",
+      "scored": true,
+      "side": "above",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $0 (no charge on this job). Inspection rate: 10% of hand-ins. Rework order if inspected: 20%. Rework charge: $400.",
+        "W": "Acceptance run: $0 (no charge on this job). Audit rate: 10% of hand-ins. Detection if audited: 20%. Bond: $400."
+      },
+      "x": "8",
+      "x_dollars": 8.0
+    },
+    {
+      "B": "200",
+      "G": "0",
+      "adversarial": true,
+      "d": "1/5",
+      "expected_forfeit": "1",
+      "forms": {},
+      "item_id": "Z2",
+      "kind": "zero_gain",
+      "level_rank": 12,
+      "lever": null,
+      "note": "The run is free and the audit rate is low. Skipping still gains nothing.",
+      "obvious_answer": null,
+      "player_answer": {
+        "N": "COVER",
+        "W": "RUN"
+      },
+      "ratio": "no finite ratio (G = 0)",
+      "rho": "1/40",
+      "scored": true,
+      "side": "above",
+      "target_ratio": null,
+      "text": {
+        "N": "Cover: $0 (no charge on this job). Inspection rate: 2.5% of hand-ins. Rework order if inspected: 20%. Rework charge: $200.",
+        "W": "Acceptance run: $0 (no charge on this job). Audit rate: 2.5% of hand-ins. Detection if audited: 20%. Bond: $200."
+      },
+      "x": "1",
+      "x_dollars": 1.0
+    }
+  ],
+  "levels": [
+    "1/4",
+    "1/2",
+    "3/4",
+    "5/4",
+    "3/2",
+    "2",
+    "4"
+  ],
+  "seed": "players-20261111/t2/v1",
+  "test": "T2"
+}

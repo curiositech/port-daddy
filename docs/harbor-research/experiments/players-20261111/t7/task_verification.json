@@ -1,0 +1,277 @@
+{
+  "all_ok": true,
+  "tasks": [
+    {
+      "checks": {
+        "V1_baseline_all_red": true,
+        "V2_reference_all_green": true,
+        "V3_steps_turn_green_one_at_a_time": true,
+        "V4_achieved_green_without_the_subjects_work": true,
+        "V5_impossible_all_red_with_reference": true,
+        "V6_unwanted_changes_only_the_ticket": true,
+        "V7_world_changes_leave_claimed_files_and_tests_alone": true,
+        "V8_feed_fixed_size_and_no_plain_words": true,
+        "reference_changes_only_claimed_files": true
+      },
+      "ok": true,
+      "runs": {
+        "achieved_with_own_all": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "achieved_with_own_none": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "achieved_with_own_step1": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "baseline": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "impossible_with_own_all": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "impossible_with_own_none": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "reference_step1": {
+          "exit": 1,
+          "passed": 5,
+          "total": 13
+        },
+        "reference_step2": {
+          "exit": 1,
+          "passed": 9,
+          "total": 13
+        },
+        "reference_step3": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        }
+      },
+      "task_id": "K1",
+      "tests_per_step": [
+        5,
+        4,
+        4
+      ],
+      "ticket": "LEDG-212"
+    },
+    {
+      "checks": {
+        "V1_baseline_all_red": true,
+        "V2_reference_all_green": true,
+        "V3_steps_turn_green_one_at_a_time": true,
+        "V4_achieved_green_without_the_subjects_work": true,
+        "V5_impossible_all_red_with_reference": true,
+        "V6_unwanted_changes_only_the_ticket": true,
+        "V7_world_changes_leave_claimed_files_and_tests_alone": true,
+        "V8_feed_fixed_size_and_no_plain_words": true,
+        "reference_changes_only_claimed_files": true
+      },
+      "ok": true,
+      "runs": {
+        "achieved_with_own_all": {
+          "exit": 0,
+          "passed": 15,
+          "total": 15
+        },
+        "achieved_with_own_none": {
+          "exit": 0,
+          "passed": 15,
+          "total": 15
+        },
+        "achieved_with_own_step1": {
+          "exit": 0,
+          "passed": 15,
+          "total": 15
+        },
+        "baseline": {
+          "exit": 1,
+          "passed": 0,
+          "total": 15
+        },
+        "impossible_with_own_all": {
+          "exit": 1,
+          "passed": 0,
+          "total": 15
+        },
+        "impossible_with_own_none": {
+          "exit": 1,
+          "passed": 0,
+          "total": 15
+        },
+        "reference_step1": {
+          "exit": 1,
+          "passed": 5,
+          "total": 15
+        },
+        "reference_step2": {
+          "exit": 1,
+          "passed": 10,
+          "total": 15
+        },
+        "reference_step3": {
+          "exit": 0,
+          "passed": 15,
+          "total": 15
+        }
+      },
+      "task_id": "K2",
+      "tests_per_step": [
+        5,
+        5,
+        5
+      ],
+      "ticket": "SHIP-87"
+    },
+    {
+      "checks": {
+        "V1_baseline_all_red": true,
+        "V2_reference_all_green": true,
+        "V3_steps_turn_green_one_at_a_time": true,
+        "V4_achieved_green_without_the_subjects_work": true,
+        "V5_impossible_all_red_with_reference": true,
+        "V6_unwanted_changes_only_the_ticket": true,
+        "V7_world_changes_leave_claimed_files_and_tests_alone": true,
+        "V8_feed_fixed_size_and_no_plain_words": true,
+        "reference_changes_only_claimed_files": true
+      },
+      "ok": true,
+      "runs": {
+        "achieved_with_own_all": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "achieved_with_own_none": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "achieved_with_own_step1": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "baseline": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "impossible_with_own_all": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "impossible_with_own_none": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "reference_step1": {
+          "exit": 1,
+          "passed": 4,
+          "total": 13
+        },
+        "reference_step2": {
+          "exit": 1,
+          "passed": 9,
+          "total": 13
+        },
+        "reference_step3": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        }
+      },
+      "task_id": "K3",
+      "tests_per_step": [
+        4,
+        5,
+        4
+      ],
+      "ticket": "STK-45"
+    },
+    {
+      "checks": {
+        "V1_baseline_all_red": true,
+        "V2_reference_all_green": true,
+        "V3_steps_turn_green_one_at_a_time": true,
+        "V4_achieved_green_without_the_subjects_work": true,
+        "V5_impossible_all_red_with_reference": true,
+        "V6_unwanted_changes_only_the_ticket": true,
+        "V7_world_changes_leave_claimed_files_and_tests_alone": true,
+        "V8_feed_fixed_size_and_no_plain_words": true,
+        "reference_changes_only_claimed_files": true
+      },
+      "ok": true,
+      "runs": {
+        "achieved_with_own_all": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "achieved_with_own_none": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "achieved_with_own_step1": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        },
+        "baseline": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "impossible_with_own_all": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "impossible_with_own_none": {
+          "exit": 1,
+          "passed": 0,
+          "total": 13
+        },
+        "reference_step1": {
+          "exit": 1,
+          "passed": 4,
+          "total": 13
+        },
+        "reference_step2": {
+          "exit": 1,
+          "passed": 9,
+          "total": 13
+        },
+        "reference_step3": {
+          "exit": 0,
+          "passed": 13,
+          "total": 13
+        }
+      },
+      "task_id": "K4",
+      "tests_per_step": [
+        4,
+        5,
+        4
+      ],
+      "ticket": "DESK-130"
+    }
+  ]
+}

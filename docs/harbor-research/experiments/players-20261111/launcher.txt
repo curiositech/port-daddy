@@ -1,0 +1,1 @@
+Read TASK.md in <session dir> and do what it says. Work only inside that directory.

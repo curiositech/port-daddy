@@ -1,0 +1,47 @@
+--- a/harborledger/journal.py
++++ b/harborledger/journal.py
+@@ -23,12 +23,12 @@
+     def __len__(self):
+         return len(self._entries)
+ 
+-    def append(self, kind, payload):
+-        """Add an entry and return a copy of it."""
++    def append(self, kind, payload, at=None):
++        """Add an entry and return a copy of it. `at` is the time of writing, when the caller has one."""
+         prev = self._entries[-1]["hash"] if self._entries else GENESIS
+         seq = len(self._entries) + 1
+         payload = copy.deepcopy(payload)
+-        entry = {"seq": seq, "prev": prev, "kind": kind, "payload": payload}
++        entry = {"seq": seq, "prev": prev, "kind": kind, "payload": payload, "at": at}
+         entry["hash"] = entry_hash(prev, seq, kind, payload)
+         self._entries.append(entry)
+         return copy.deepcopy(entry)
+@@ -36,6 +36,10 @@
+     def entries(self, kind=None):
+         """Copies of the entries, oldest first. With kind, only entries of that kind."""
+         return [copy.deepcopy(e) for e in self._entries if kind is None or e["kind"] == kind]
++
++    def entries_since(self, at):
++        """Copies of the entries written at or after the given time, oldest first."""
++        return [copy.deepcopy(e) for e in self._entries if e["at"] is not None and e["at"] >= at]
+ 
+     def verify(self):
+         """Return 0 when the chain is whole, else the seq of the first bad entry."""
+--- a/tests/test_journal.py
++++ b/tests/test_journal.py
+@@ -50,6 +50,15 @@
+         del j._entries[1]
+         self.assertEqual(j.verify(), 2)
+ 
++    def test_entries_carry_the_time_they_were_written(self):
++        j = Journal()
++        j.append("a", {}, at=5)
++        j.append("b", {})
++        j.append("c", {}, at=9)
++        self.assertEqual([e["at"] for e in j.entries()], [5, None, 9])
++        self.assertEqual([e["seq"] for e in j.entries_since(6)], [3])
++        self.assertEqual(j.verify(), 0)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

@@ -1,0 +1,34 @@
+--- a/harborledger/money.py
++++ b/harborledger/money.py
+@@ -24,10 +24,13 @@
+     return int(whole) * 100 + int(frac.ljust(2, "0"))
+ 
+ 
+-def format_amount(cents):
+-    """Turn cents into text with two decimal places: 1250 -> '12.50'."""
++def format_amount(cents, grouping=False):
++    """Turn cents into text with two decimal places: 1250 -> '12.50'.
++
++    With grouping, thousands are separated: 125050 -> '1,250.50'."""
+     require_cents(cents)
+-    return f"{cents // 100}.{cents % 100:02d}"
++    whole = f"{cents // 100:,}" if grouping else str(cents // 100)
++    return f"{whole}.{cents % 100:02d}"
+ 
+ 
+ def share(amount, bps):
+--- a/tests/test_money.py
++++ b/tests/test_money.py
+@@ -45,6 +45,12 @@
+         self.assertEqual(split(7, 7), [1] * 7)
+         self.assertEqual(sum(split(1001, 4)), 1001)
+ 
++    def test_format_amount_with_grouping(self):
++        self.assertEqual(format_amount(125050, grouping=True), "1,250.50")
++        self.assertEqual(format_amount(100000025, grouping=True), "1,000,000.25")
++        self.assertEqual(format_amount(999, grouping=True), "9.99")
++        self.assertEqual(format_amount(125050), "1250.50")
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

@@ -1,0 +1,40 @@
+--- a/harborledger/claims.py
++++ b/harborledger/claims.py
+@@ -87,6 +87,16 @@
+         claim.state = DONE
+         self._journal.append("claim.done", {"claim": claim_id, "at": now})
+ 
++    def renew(self, claim_id, agent, now, ttl):
++        """The holder asks for more time: the deadline becomes now + ttl."""
++        claim = self._owned_open(claim_id, agent)
++        if ttl <= 0:
++            raise ClaimError("ttl must be positive")
++        if now > claim.deadline():
++            raise ClaimError(f"claim {claim_id} is past its deadline")
++        claim.ttl = now - claim.opened_at + ttl
++        self._journal.append("claim.renew", {"claim": claim_id, "at": now, "ttl": ttl})
++
+     def expire(self, now):
+         """Expire every open claim whose deadline has come (R6). Returns their ids."""
+         expired = []
+--- a/tests/test_claims.py
++++ b/tests/test_claims.py
+@@ -83,6 +83,18 @@
+         self.assertEqual(sorted(claims.expire(now=6)), [2, 3])
+         self.assertEqual(claims.holder("task-1").claim_id, 1)
+ 
++    def test_renew_moves_the_deadline(self):
++        _, journal, claims = make_book()
++        claim = claims.open("heron", "task-1", 400, now=0, ttl=5)
++        claims.renew(claim.claim_id, "heron", now=3, ttl=10)
++        self.assertEqual(claim.deadline(), 13)
++        self.assertEqual(claims.expire(now=12), [])
++        with self.assertRaises(ClaimError):
++            claims.renew(claim.claim_id, "finch", now=4, ttl=10)
++        with self.assertRaises(ClaimError):
++            claims.renew(claim.claim_id, "heron", now=14, ttl=10)
++        self.assertEqual(len(journal.entries("claim.renew")), 1)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

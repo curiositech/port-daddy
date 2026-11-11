@@ -1,0 +1,33 @@
+--- a/harborledger/journal.py
++++ b/harborledger/journal.py
+@@ -37,6 +37,12 @@
+         """Copies of the entries, oldest first. With kind, only entries of that kind."""
+         return [copy.deepcopy(e) for e in self._entries if kind is None or e["kind"] == kind]
+ 
++    def tail(self, count):
++        """Copies of the last count entries, oldest first."""
++        if count < 0:
++            raise ValueError("count must not be negative")
++        return [copy.deepcopy(e) for e in self._entries[-count:]]
++
+     def verify(self):
+         """Return 0 when the chain is whole, else the seq of the first bad entry."""
+         prev = GENESIS
+--- a/tests/test_journal.py
++++ b/tests/test_journal.py
+@@ -50,6 +50,15 @@
+         del j._entries[1]
+         self.assertEqual(j.verify(), 2)
+ 
++    def test_tail_returns_the_last_entries(self):
++        j = Journal()
++        for n in range(4):
++            j.append("a", {"n": n})
++        self.assertEqual([e["seq"] for e in j.tail(2)], [3, 4])
++        self.assertEqual([e["seq"] for e in j.tail(9)], [1, 2, 3, 4])
++        with self.assertRaises(ValueError):
++            j.tail(-1)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

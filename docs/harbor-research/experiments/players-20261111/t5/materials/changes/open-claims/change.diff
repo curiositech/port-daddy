@@ -1,0 +1,34 @@
+--- a/harborledger/claims.py
++++ b/harborledger/claims.py
+@@ -50,6 +50,12 @@
+                 return claim
+         return None
+ 
++    def open_claims(self, agent=None):
++        """Open claims, earliest deadline first. With agent, only that agent's."""
++        claims = [c for c in self._claims.values()
++                  if c.state == OPEN and (agent is None or c.agent == agent)]
++        return sorted(claims, key=lambda c: (c.deadline(), c.claim_id))
++
+     def open(self, agent, task, stake, now, ttl):
+         """Open a claim on task and hold the stake from the agent's bond."""
+         require_cents(stake, "stake")
+--- a/tests/test_claims.py
++++ b/tests/test_claims.py
+@@ -83,6 +83,16 @@
+         self.assertEqual(sorted(claims.expire(now=6)), [2, 3])
+         self.assertEqual(claims.holder("task-1").claim_id, 1)
+ 
++    def test_open_claims_are_listed_by_deadline(self):
++        _, _, claims = make_book()
++        claims.open("heron", "task-1", 100, now=0, ttl=9)
++        claims.open("finch", "task-2", 100, now=0, ttl=3)
++        third = claims.open("heron", "task-3", 100, now=0, ttl=5)
++        self.assertEqual([c.claim_id for c in claims.open_claims()], [2, 3, 1])
++        self.assertEqual([c.claim_id for c in claims.open_claims("heron")], [3, 1])
++        claims.release(third.claim_id, "heron")
++        self.assertEqual([c.claim_id for c in claims.open_claims("heron")], [1])
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

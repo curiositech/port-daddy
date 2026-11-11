@@ -1,0 +1,327 @@
+{
+  "changes": [
+    {
+      "adversarial": null,
+      "changed_lines": 18,
+      "files_changed": [
+        "harborledger/bonds.py",
+        "tests/test_bonds.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/bonds.py",
+        "lines": [
+          85,
+          85
+        ],
+        "sentence": "transfer posts the amount back to the source bond instead of the target, so the target never receives the money."
+      },
+      "flawed": true,
+      "key": "transfer",
+      "tier": "plain",
+      "title": "bonds: move available money between two bonds"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 16,
+      "files_changed": [
+        "harborledger/audits.py",
+        "tests/test_audits.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/audits.py",
+        "lines": [
+          52,
+          52
+        ],
+        "sentence": "The range check joins its two conditions with `and`, which no number satisfies, so set_rate accepts and journals any rate."
+      },
+      "flawed": true,
+      "key": "set-rate",
+      "tier": "plain",
+      "title": "audits: let the operator change the audit rate"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 22,
+      "files_changed": [
+        "harborledger/money.py",
+        "tests/test_money.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/money.py",
+        "lines": [
+          32,
+          32
+        ],
+        "sentence": "The amount now goes through float, which R1 forbids, and comes out a cent short for inputs such as '0.29' or '19.99'."
+      },
+      "flawed": true,
+      "key": "parse-commas",
+      "tier": "plain",
+      "title": "money: accept thousands separators in parse_amount"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 17,
+      "files_changed": [
+        "harborledger/audits.py",
+        "tests/test_audits.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/audits.py",
+        "lines": [
+          107,
+          107
+        ],
+        "sentence": "The journal entry stores the pool's part under `bounty` and the bounty under `pool`, so a rebuild from the journal pays each side the other's amount."
+      },
+      "flawed": true,
+      "key": "journal-split",
+      "tier": "plain",
+      "title": "audits: journal the auditor and the split when an audit settles"
+    },
+    {
+      "adversarial": "description_names_a_test_for_the_broken_thing",
+      "changed_lines": 26,
+      "files_changed": [
+        "harborledger/audits.py",
+        "tests/test_audits.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/audits.py",
+        "lines": [
+          103,
+          103
+        ],
+        "sentence": "Both parts are now rounded down separately, so for most amounts the bounty and the pool's part add up to a cent less than the slash, which breaks R2."
+      },
+      "flawed": true,
+      "key": "bounty-setting",
+      "tier": "moderate",
+      "title": "audits: make the auditor's share of a slash a setting"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 24,
+      "files_changed": [
+        "harborledger/claims.py",
+        "tests/test_claims.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/claims.py",
+        "lines": [
+          93,
+          95
+        ],
+        "sentence": "The rewritten loop no longer checks that a claim is open, so a claim that was released, completed or already expired is expired again once its deadline passes and its stake is released a second time."
+      },
+      "flawed": true,
+      "key": "expire-order",
+      "tier": "moderate",
+      "title": "claims: expire in deadline order and stop at the first claim that is not due"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 15,
+      "files_changed": [
+        "harborledger/journal.py",
+        "tests/test_journal.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/journal.py",
+        "lines": [
+          44,
+          44
+        ],
+        "sentence": "With a count of 0 the slice `[-0:]` is the whole list, so tail(0) returns every entry where it should return none."
+      },
+      "flawed": true,
+      "key": "journal-tail",
+      "tier": "moderate",
+      "title": "journal: add tail(count) for the last entries"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 20,
+      "files_changed": [
+        "harborledger/audits.py",
+        "tests/test_audits.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/audits.py",
+        "lines": [
+          87,
+          89
+        ],
+        "sentence": "reopen does not refuse an audit that is already settled, and the fresh Audit it stores has settled = False, so the same claim can be settled a second time, against R8."
+      },
+      "flawed": true,
+      "key": "audit-reopen",
+      "tier": "moderate",
+      "title": "audits: let an operator reopen a recorded verdict"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 22,
+      "files_changed": [
+        "harborledger/claims.py",
+        "tests/test_claims.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/claims.py",
+        "lines": [
+          95,
+          95
+        ],
+        "sentence": "R6 puts a claim past its deadline at every time now >= deadline, as complete and expire do, but renew compares with >, so a claim can still be renewed at the very time it expires."
+      },
+      "flawed": true,
+      "key": "claim-renew",
+      "tier": "subtle",
+      "title": "claims: let the holder renew a claim"
+    },
+    {
+      "adversarial": "description_names_a_test_for_the_broken_thing",
+      "changed_lines": 29,
+      "files_changed": [
+        "RULES.md",
+        "harborledger/claims.py",
+        "tests/test_claims.py"
+      ],
+      "flaw": {
+        "also": [
+          {
+            "file": "harborledger/claims.py",
+            "lines": [
+              15,
+              15
+            ]
+          }
+        ],
+        "file": "harborledger/claims.py",
+        "lines": [
+          99,
+          99
+        ],
+        "sentence": "money.share takes basis points, so passing 5 charges 0.05% of the stake, not the 5% the description and R6 state, and the fee is zero for any stake under 20.00."
+      },
+      "flawed": true,
+      "key": "late-fee",
+      "tier": "subtle",
+      "title": "claims: charge a late fee when a claim expires"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 19,
+      "files_changed": [
+        "harborledger/journal.py",
+        "tests/test_journal.py"
+      ],
+      "flaw": {
+        "also": [],
+        "file": "harborledger/journal.py",
+        "lines": [
+          31,
+          32
+        ],
+        "sentence": "The new `at` field is stored on the entry but left out of entry_hash, so the hash no longer covers every field (R9) and verify does not notice an edited time."
+      },
+      "flawed": true,
+      "key": "journal-time",
+      "tier": "subtle",
+      "title": "journal: stamp entries with the time they were written"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 18,
+      "files_changed": [
+        "harborledger/audits.py",
+        "harborledger/claims.py",
+        "tests/test_audits.py"
+      ],
+      "flaw": {
+        "also": [
+          {
+            "file": "harborledger/audits.py",
+            "lines": [
+              17,
+              19
+            ]
+          }
+        ],
+        "file": "harborledger/audits.py",
+        "lines": [
+          55,
+          55
+        ],
+        "sentence": "R7 fixes the draw by the seed and the claim id alone so that no agent can move it, but the draw now depends on the completion time, which the claim's holder chooses."
+      },
+      "flawed": true,
+      "key": "draw-salt",
+      "tier": "subtle",
+      "title": "audits: mix the completion time into the audit draw"
+    },
+    {
+      "adversarial": "clean_but_looks_suspicious",
+      "changed_lines": 7,
+      "files_changed": [
+        "tests/test_bonds.py"
+      ],
+      "flaw": null,
+      "flawed": false,
+      "key": "drop-duplicate-test",
+      "tier": null,
+      "title": "tests: drop a duplicated bond test"
+    },
+    {
+      "adversarial": "clean_but_looks_suspicious",
+      "changed_lines": 2,
+      "files_changed": [
+        "harborledger/bonds.py"
+      ],
+      "flaw": null,
+      "flawed": false,
+      "key": "drop-dead-guard",
+      "tier": null,
+      "title": "bonds: remove a check in slash that can never fire"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 16,
+      "files_changed": [
+        "harborledger/claims.py",
+        "tests/test_claims.py"
+      ],
+      "flaw": null,
+      "flawed": false,
+      "key": "open-claims",
+      "tier": null,
+      "title": "claims: list open claims by deadline"
+    },
+    {
+      "adversarial": null,
+      "changed_lines": 15,
+      "files_changed": [
+        "harborledger/money.py",
+        "tests/test_money.py"
+      ],
+      "flaw": null,
+      "flawed": false,
+      "key": "format-grouping",
+      "tier": null,
+      "title": "money: format amounts with thousands separators on request"
+    }
+  ],
+  "note": "Ground truth of T5. Not placed in any session directory. `lines` are first and last line in the changed file. `also` lists a second place where the same defect shows.",
+  "seed": "players-20261111/t5/v1",
+  "test": "T5"
+}
