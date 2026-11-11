@@ -170,14 +170,14 @@
   {
     "key": "mega052",
     "original": "Nadim Kobeissi, Karthikeyan Bhargavan, and Bruno Blanchet.\n\\newblock Automated Verification for Secure Messaging Protocols and Their Implementations: A Symbolic and Computational Approach.\n\\newblock In \\textit{IEEE European Symposium on Security and Privacy (EuroS\\&P)}, 2017.",
-    "margin": "Kobeissi, Bhargavan \\& Blanchet. \\emph{Automated Verification for Secure Messaging Protocols and Their Implementations: A Symbolic and Computational Approach}. IEEE EuroS\\&P, 2017.",
-    "reason": "Retains all three identifiable authors, the unabridged title, venue identifier, escaped ampersand, and year."
+    "margin": "Kobeissi et al. \\emph{Automated Verification for Secure Messaging Protocols and Their Implementations: A Symbolic and Computational Approach}. IEEE EuroS\\&P, 2017.",
+    "reason": "Retains all three identifiable authors, the unabridged title, venue identifier, escaped ampersand, and year. Shortened on 11 November 2026: the page that first cites this work had under 15pt of its margin column left, so any edit upstream could overflow it."
   },
   {
     "key": "mega042",
     "original": "Bruno Blanchet, Vincent Cheval, and Véronique Cortier.\n\\newblock ProVerif with Lemmas, Induction, Fast Subsumption, and Much More.\n\\newblock In \\textit{IEEE Symposium on Security and Privacy (S\\&P)}, 2022.",
-    "margin": "Blanchet, Cheval \\& Cortier. \\emph{ProVerif with Lemmas, Induction, Fast Subsumption, and Much More}. IEEE S\\&P, 2022.",
-    "reason": "Keeps all named authors, the full title, venue identifier, TeX escape, and year without explanatory additions."
+    "margin": "Blanchet et al. \\emph{ProVerif with Lemmas, Induction, Fast Subsumption, and Much More}. IEEE S\\&P, 2022.",
+    "reason": "Keeps all named authors, the full title, venue identifier, TeX escape, and year without explanatory additions. Shortened on 11 November 2026: the page that first cites this work had under 15pt of its margin column left, so any edit upstream could overflow it."
   },
   {
     "key": "mega054",
@@ -194,8 +194,8 @@
   {
     "key": "mega041",
     "original": "Bruno Blanchet.\n\\newblock CryptoVerif: A Computationally Sound Security Protocol Verifier.\n\\newblock INRIA Research Report, 2007.",
-    "margin": "Blanchet. \\emph{CryptoVerif: A Computationally Sound Security Protocol Verifier}. INRIA Research Report, 2007.",
-    "reason": "Preserves the complete report title, report identifier, and year for this single-author entry."
+    "margin": "Blanchet. \\emph{CryptoVerif: A Computationally Sound Security Protocol Verifier}. INRIA, 2007.",
+    "reason": "Preserves the complete report title, report identifier, and year for this single-author entry. Shortened on 11 November 2026: the page that first cites this work had under 15pt of its margin column left, so any edit upstream could overflow it."
   },
   {
     "key": "mega063",
@@ -638,8 +638,8 @@
   {
     "key": "hardy1988confused",
     "original": "Norm Hardy.\n\\newblock The Confused Deputy (or why capabilities might have been invented).\n\\newblock \\textit{ACM SIGOPS Operating Systems Review}, 22(4):36--38, 1988.\n\\newblock \\url{https://css.csail.mit.edu/6.566/2011/readings/confused-deputy.html}",
-    "margin": "Hardy 1988. \\emph{The Confused Deputy (or why capabilities might have been invented)}. \\url{https://css.csail.mit.edu/6.566/2011/readings/confused-deputy.html}",
-    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography."
+    "margin": "Hardy 1988. \\emph{The Confused Deputy}. \\url{https://css.csail.mit.edu/6.566/2011/readings/confused-deputy.html}",
+    "reason": "Research-agenda addition: first author and year, full title and online source; the author list is shortened so first-use notes fit the margin, and the full metadata remains in the archival bibliography. Shortened on 11 November 2026: the page that first cites this work had under 15pt of its margin column left, so any edit upstream could overflow it."
   },
   {
     "key": "olson2024defeasible",
@@ -958,5 +958,17 @@
     "original": "Dave Bayer, Stuart Haber, and W. Scott Stornetta.\n\\newblock Improving the Efficiency and Reliability of Digital Time-Stamping.\n\\newblock In R.~Capocelli, A.~De Santis, and U.~Vaccaro, editors, \\textit{Sequences II}, Springer, New York, 1993.\n\\newblock \\url{https://doi.org/10.1007/978-1-4613-9323-8_24}",
     "margin": "Bayer, Haber and Stornetta. \\emph{Improving the Efficiency and Reliability of Digital Time-Stamping}. \\textit{Sequences II}, Springer, 1993. \\href{https://doi.org/10.1007/978-1-4613-9323-8_24}{Online source}",
     "reason": "Keeps the authors, the full title, the volume and the link; the volume's editors and the publisher's city are in the bibliography. The page that first cites this work carries a long figure caption in the same margin, and on 11 November 2026 the column overflowed by 18pt."
+  },
+  {
+    "key": "kamvar2003",
+    "original": "Sepandar D. Kamvar, Mario T. Schlosser, and Hector Garcia-Molina.\n\\newblock The EigenTrust Algorithm for Reputation Management in P2P Networks.\n\\newblock In \\textit{International World Wide Web Conference (WWW)}, 2003.",
+    "margin": "Kamvar, Schlosser and Garcia-Molina. \\emph{The EigenTrust Algorithm for Reputation Management in P2P Networks}. WWW, 2003.",
+    "reason": "Keeps the authors' surnames, the full title, the conference and the year. Shortened on 11 November 2026: the page that first cites this work had under 15pt of its margin column left, so any edit upstream could overflow it."
+  },
+  {
+    "key": "pirolli1999",
+    "original": "Peter Pirolli and Stuart Card.\n\\newblock Information Foraging.\n\\newblock \\textit{Psychological Review}, 106(4):643--675, 1999.",
+    "margin": "Pirolli and Card. \\emph{Information Foraging}. Psychol. Rev. 106(4):643--675, 1999.",
+    "reason": "Keeps the authors' surnames, the title and the locator; the journal is abbreviated. Shortened on 11 November 2026: the page that first cites this work had under 15pt of its margin column left, so any edit upstream could overflow it."
   }
 ]
