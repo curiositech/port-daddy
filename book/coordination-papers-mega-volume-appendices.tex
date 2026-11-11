@@ -586,7 +586,12 @@ Cross-chapter & Claim signalling under \emph{private} monitoring: ch.~7 assumes 
 % scripts/generate-book-glossary.mjs (via the Book generator), sorted by each
 % entry's sort key, with the page of the term's \pdterm definition.
 \pdgeneratedinput{../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-glossary.tex}{glossary}
-\ifdefined\pdEnableMarginCitations\else
+% References. With margin citations on (the Book's default), the list is the
+% unnumbered one the generator writes from every chapter's entries and
+% Chapter 0's; otherwise it is the numbered bibliography \cite points into.
+\ifdefined\pdEnableMarginCitations
+  \pdgeneratedinput{../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-references.tex}{references}
+\else
   \clearpage
   \pdbackmatterheaders{References}
   \addcontentsline{toc}{section}{References}
