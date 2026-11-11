@@ -320,17 +320,19 @@ class AtlasCoverageTests(unittest.TestCase):
             ),
         )
         # Pin the reviewed corpus so simultaneous source/atlas deletion cannot
-        # silently pass. The current canonical roots contain 138 environments
+        # silently pass. The current canonical roots contain 139 environments
         # (136, plus the five audit figures of the 2026-11 plain-language rewrite,
         # less the three the third pass retired: readpoverty, split-penalty and
         # fh-visible-topology, plus the heavy-tail sweep's figure, less
         # Chapter 1's closure pseudocode, which the kernel's own code replaced
-        # on 11 November 2026); every single-row deletion must still fail the
-        # mutation checks below.
-        self.assertEqual(report["source_count"], 138)
-        self.assertEqual(report["atlas_count"], 138)
+        # on 11 November 2026, plus the grid of 64 chains in Chapter 2's build
+        # section); every single-row deletion must still fail the mutation
+        # checks below.
+        self.assertEqual(report["source_count"], 139)
+        self.assertEqual(report["atlas_count"], 139)
         for atlas_id in ("I/fig:legible-halving-tree", "VIII/fig:sealed-release-lattice",
-                         "IV/fig:he-two-bucket-settlement", "I/fig:spec-heavy-tails"):
+                         "IV/fig:he-two-bucket-settlement", "I/fig:spec-heavy-tails",
+                         "V/fig:anchor-64-chains"):
             with self.subTest(new_figure=atlas_id):
                 self.assertIn(atlas_id, source_ids)
                 self.assertIn(atlas_id, atlas_ids)

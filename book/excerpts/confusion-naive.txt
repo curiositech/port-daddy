@@ -1,0 +1,26 @@
+$ harbor scenario confusion --design naive
+scenario confusion, design naive: a card tells the gate how to
+  check it
+
+t=0      harbor signs alice a card: read shop/*, write shop/*;
+                good until t=600000
+t=0      alice  asks to write shop/checkout.ts
+                -> admitted as alice
+t=0      wren   has no card, and writes herself one: write shop/*;
+                good until t=600000
+t=0      wren   sets its header to "none" and leaves the signature
+                empty
+t=0      wren   asks to write shop/checkout.ts
+                -> refused: bad-signature (a card is not signed
+                   with the key above it)
+t=0      wren   sets its header to HS256, and tags it with a MAC
+                keyed with the harbor's public key
+t=0      wren   asks to write shop/checkout.ts -> admitted as wren
+t=0      wren   signs it with her own key, under the header the
+                harbor uses
+t=0      wren   asks to write shop/checkout.ts
+                -> refused: bad-signature (a card is not signed
+                   with the key above it)
+
+verdict: FORGERY: wren may write shop/checkout.ts on a card the
+         harbor never signed

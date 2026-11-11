@@ -1,0 +1,19 @@
+$ harbor scenario escalation --design core --mutant compare-root
+scenario escalation, design core (mutant compare-root): a holder
+  hands on a right it was never given
+
+t=0      harbor signs alice a card: read shop/*, write shop/*;
+                good until t=600000
+t=0      alice  hands heron a card: read shop/checkout.ts; good
+                until t=600000
+t=0      heron  asks to read shop/checkout.ts -> admitted as heron
+t=0      heron  asks to write shop/checkout.ts
+                -> refused: not-granted (the last card does not
+                   grant write shop/checkout.ts)
+t=0      heron  hands finch a card: write shop/checkout.ts; good
+                until t=600000
+t=0      finch  asks to write shop/checkout.ts
+                -> admitted as finch
+
+verdict: ESCALATION: finch may write shop/checkout.ts on a card
+         from heron, who may not

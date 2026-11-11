@@ -1,0 +1,20 @@
+$ harbor scenario moved --design naive
+scenario moved, design naive: a card is shown under a card it was
+  not signed under
+
+t=0      harbor signs alice a card: read shop/*, write shop/*;
+                good until t=600000
+t=0      harbor signs alice a second card: read shop/checkout.ts;
+                good until t=600000
+t=0      alice  hands heron a card under her second card: write
+                shop/checkout.ts; good until t=600000
+t=0      heron  asks to write shop/checkout.ts, showing alice's
+                second card above his
+                -> refused: widens (write shop/checkout.ts is more
+                   than the harbor's card grants)
+t=0      heron  asks to write shop/checkout.ts, showing alice's
+                first card above his
+                -> admitted as heron
+
+verdict: MOVED: heron may write shop/checkout.ts on a card that
+         was refused under the card it was signed under

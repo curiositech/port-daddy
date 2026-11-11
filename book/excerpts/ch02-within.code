@@ -1,0 +1,42 @@
+/// A card may grant only what the card above it grants, and may
+/// last only as long.
+fn within(
+    card: &Claims,
+    above: &Claims,
+    no: usize,
+) -> Result<(), Reason> {
+    for right in &card.can {
+        if !above.can.iter().any(|held| covers(held, right)) {
+            return Err(Reason::Widens {
+                card: no,
+                right: right.clone(),
+            });
+        }
+    }
+    if longer(card.exp, above.exp) {
+        return Err(Reason::Outlives {
+            card: no,
+            until: card.exp,
+            above: above.exp,
+        });
+    }
+    Ok(())
+}
+
+/// One right covers another: the same verb, on no more paths.
+fn covers(held: &Right, other: &Right) -> bool {
+    held.verb == other.verb && reaches(&held.on, &other.on)
+}
+
+/// A pattern that ends in `*` reaches every path that starts
+/// with what comes before the star, and every pattern that
+/// reaches only such paths. Any other pattern is one path.
+fn reaches(pattern: &str, other: &str) -> bool {
+    match pattern.strip_suffix('*') {
+        Some(start) => {
+            let inner = other.strip_suffix('*').unwrap_or(other);
+            inner.starts_with(start)
+        }
+        None => pattern == other,
+    }
+}

@@ -1,0 +1,26 @@
+/// The one header a card may carry: `{"alg":"EdDSA"}`. It is
+/// compared whole. Nothing in it is read to choose a check.
+const HEADER: &str = "eyJhbGciOiJFZERTQSJ9";
+
+/// Check one card's signature under `key`, and read its claims.
+/// The check is Ed25519, whatever the card's header says.
+fn signed(
+    card: &str,
+    key: &str,
+    no: usize,
+) -> Result<(Claims, Vec<u8>), Reason> {
+    let broken = || Reason::Malformed { card: no };
+    let (text, tag) = card.rsplit_once('.').ok_or_else(broken)?;
+    let (head, body) = text.split_once('.').ok_or_else(broken)?;
+    let tag = TEXT.decode(tag).map_err(|_| broken())?;
+    if !ed25519(key, text.as_bytes(), &tag) {
+        return Err(Reason::BadSignature { card: no });
+    }
+    if head != HEADER {
+        return Err(Reason::WrongHeader { card: no });
+    }
+    let body = TEXT.decode(body).map_err(|_| broken())?;
+    let says =
+        serde_json::from_slice(&body).map_err(|_| broken())?;
+    Ok((says, tag))
+}

@@ -1,0 +1,76 @@
+$ harbor chains --each
+# every chain of three cards that hold some of the rights read and
+#   write on one file, one row for each
+# read, write: the cards that hold the right, first to last; x
+#   holds it and . does not
+# r, w: where that way of holding a right sits on an axis, in the
+#   order ... x.. xx. xxx .x. x.x .xx ..x
+# kind 0: each card within the card above it
+# kind 1: the last card holds what the middle one lacks
+# kind 2: the middle card holds what the first lacks
+# naive, core: 1 if that gate lets the chain through
+read write  r  w  kind  naive  core
+...  ...    0  0     0      1     1
+..x  ...    7  0     1      0     0
+...  ..x    0  7     1      0     0
+..x  ..x    7  7     1      0     0
+.x.  ...    4  0     2      1     0
+.xx  ...    6  0     2      0     0
+.x.  ..x    4  7     1      0     0
+.xx  ..x    6  7     1      0     0
+...  .x.    0  4     2      1     0
+..x  .x.    7  4     1      0     0
+...  .xx    0  6     2      0     0
+..x  .xx    7  6     1      0     0
+.x.  .x.    4  4     2      1     0
+.xx  .x.    6  4     2      0     0
+.x.  .xx    4  6     2      0     0
+.xx  .xx    6  6     2      0     0
+x..  ...    1  0     0      1     1
+x.x  ...    5  0     1      1     0
+x..  ..x    1  7     1      0     0
+x.x  ..x    5  7     1      0     0
+xx.  ...    2  0     0      1     1
+xxx  ...    3  0     0      1     1
+xx.  ..x    2  7     1      0     0
+xxx  ..x    3  7     1      0     0
+x..  .x.    1  4     2      1     0
+x.x  .x.    5  4     1      1     0
+x..  .xx    1  6     2      0     0
+x.x  .xx    5  6     1      0     0
+xx.  .x.    2  4     2      1     0
+xxx  .x.    3  4     2      1     0
+xx.  .xx    2  6     2      0     0
+xxx  .xx    3  6     2      0     0
+...  x..    0  1     0      1     1
+..x  x..    7  1     1      0     0
+...  x.x    0  5     1      1     0
+..x  x.x    7  5     1      0     0
+.x.  x..    4  1     2      1     0
+.xx  x..    6  1     2      0     0
+.x.  x.x    4  5     1      1     0
+.xx  x.x    6  5     1      0     0
+...  xx.    0  2     0      1     1
+..x  xx.    7  2     1      0     0
+...  xxx    0  3     0      1     1
+..x  xxx    7  3     1      0     0
+.x.  xx.    4  2     2      1     0
+.xx  xx.    6  2     2      0     0
+.x.  xxx    4  3     2      1     0
+.xx  xxx    6  3     2      0     0
+x..  x..    1  1     0      1     1
+x.x  x..    5  1     1      1     0
+x..  x.x    1  5     1      1     0
+x.x  x.x    5  5     1      1     0
+xx.  x..    2  1     0      1     1
+xxx  x..    3  1     0      1     1
+xx.  x.x    2  5     1      1     0
+xxx  x.x    3  5     1      1     0
+x..  xx.    1  2     0      1     1
+x.x  xx.    5  2     1      1     0
+x..  xxx    1  3     0      1     1
+x.x  xxx    5  3     1      1     0
+xx.  xx.    2  2     0      1     1
+xxx  xx.    3  2     0      1     1
+xx.  xxx    2  3     0      1     1
+xxx  xxx    3  3     0      1     1
