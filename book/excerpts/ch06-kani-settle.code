@@ -1,0 +1,33 @@
+#[kani::proof]
+#[kani::stub(share, some_share)]
+fn a_settlement_pays_out_what_was_reserved() {
+    let before = any_books();
+    let (id, done, of) = (kani::any(), kani::any(), kani::any());
+    let Ok(paid) = settle(&before, id, done, of) else {
+        return; // No such plan, or a count it cannot have.
+    };
+    let plan = before.plan.unwrap();
+    assert!(plan.stage == Stage::Open);
+    let taken = paid.commons - before.commons;
+    let back = paid.requester - before.requester;
+    let kept = plan.bond - taken;
+    kani::cover!(taken > 0 && kept > 0);
+    kani::cover!(before.shared);
+    if before.shared {
+        // One wallet is paid the bounty and what is kept.
+        assert!(paid.provider == paid.requester);
+        assert!(back == plan.bounty + kept);
+    } else {
+        let gain = paid.provider - before.provider;
+        assert!(gain == (plan.bounty - back) + kept);
+    }
+    assert!(paid.plan.unwrap().stage == Stage::Settled);
+}
+
+/// What that harness knows of a share: it is no more than the
+/// amount, when the count is one a plan can have.
+fn some_share(amount: u64, count: u64, of: u64) -> u64 {
+    let part: u64 = kani::any();
+    kani::assume(count > of || part <= amount);
+    part
+}

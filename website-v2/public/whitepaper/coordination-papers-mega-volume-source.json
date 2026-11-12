@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40559239,
+    "bytes": 40580163,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/d74ae3ebe9b5c59c2fae78e96b4456f7ed360e68bfb99b72225579bfe9369249.tar.gz",
-    "sha256": "d74ae3ebe9b5c59c2fae78e96b4456f7ed360e68bfb99b72225579bfe9369249",
-    "url": "https://media.portdaddy.dev/book/source/sha256/d74ae3ebe9b5c59c2fae78e96b4456f7ed360e68bfb99b72225579bfe9369249.tar.gz"
+    "key": "book/source/sha256/c33201b87a95e9cdff7d336e91d69366d622bac7b13e9619eacd331942d24c52.tar.gz",
+    "sha256": "c33201b87a95e9cdff7d336e91d69366d622bac7b13e9619eacd331942d24c52",
+    "url": "https://media.portdaddy.dev/book/source/sha256/c33201b87a95e9cdff7d336e91d69366d622bac7b13e9619eacd331942d24c52.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,10 +16,10 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "d5ec04068034cc7c9f6976a22ecf56ca49d4ffb10e14f49110d82af353ae075e",
+  "manifestSha256": "0733f9244eda1d3e3c2cfc3ba4517e4d2c7452fb050414d50ec8be6e78b00e63",
   "schemaVersion": 1,
   "source": {
-    "fileCount": 792,
+    "fileCount": 814,
     "files": [
       {
         "bytes": 1202,
@@ -92,6 +92,12 @@
         "mode": 420,
         "path": "book/additions/bonded-build-the-stake.tex",
         "sha256": "0221453188a20b0c7b6305eccd4fc005996d118488601ed5e8197976f385d438"
+      },
+      {
+        "bytes": 16104,
+        "mode": 420,
+        "path": "book/additions/he-build-the-plan.tex",
+        "sha256": "8c2b76ea43fb8c759bd1c7e7bbe91ba9e90c65c33a90b36adbb4e963c36cad30"
       },
       {
         "bytes": 1833,
@@ -427,7 +433,7 @@
         "bytes": 212,
         "mode": 420,
         "path": "book/excerpts/ch00-blind.tex",
-        "sha256": "dcb56cd54475d57b4586cbdab86d7fab9279569e6667f02a46401b68bdefe004"
+        "sha256": "a4a37c63fd76412ceff0ea91eefe984d7c4648da91b9565c00e1458f88d831c2"
       },
       {
         "bytes": 335,
@@ -439,7 +445,7 @@
         "bytes": 214,
         "mode": 420,
         "path": "book/excerpts/ch00-checked.tex",
-        "sha256": "8b314363762d6ff250c4688d5162a0af2ad56360427db050f84dad4cb90a4337"
+        "sha256": "8787a4a83c0cd9a73feb70b8349d60b56a8c7a71d26570c145bc6a11d3a8f5a2"
       },
       {
         "bytes": 439,
@@ -451,7 +457,7 @@
         "bytes": 202,
         "mode": 420,
         "path": "book/excerpts/ch00-current.tex",
-        "sha256": "f910c9e05428d2a86374f4f73b85cc16328decca2178d998ed4ed834754446be"
+        "sha256": "17fc4db88923aaa84cf1fd75c0a4847b4cca640a537325a20e57b89a66ac226c"
       },
       {
         "bytes": 581,
@@ -463,7 +469,7 @@
         "bytes": 212,
         "mode": 420,
         "path": "book/excerpts/ch00-job.tex",
-        "sha256": "0bf5da3a98334d1713aecb3508f4be653b2905447ed97ed168242858f8be01bd"
+        "sha256": "2dd52658767c3ec8de888158578358f5033c214c2f9230e877038c18f8aeb696"
       },
       {
         "bytes": 429,
@@ -475,7 +481,7 @@
         "bytes": 217,
         "mode": 420,
         "path": "book/excerpts/ch00-look-twice.tex",
-        "sha256": "4747be4f0156cba530c0c4b768ec48462fdcacd7cc55d1d6927a9e2a63307ec3"
+        "sha256": "607c18774d5be8c21a3ab000510a7d634209f9d00277a946cd69741008361b56"
       },
       {
         "bytes": 411,
@@ -487,7 +493,7 @@
         "bytes": 198,
         "mode": 420,
         "path": "book/excerpts/ch00-put.tex",
-        "sha256": "d5ef862910934ee6a561574d10fc617b21c06b9d0e6a03c33117a28d3afe5666"
+        "sha256": "d62e5484201ce320e3f94a1961c811d2ccfac76acdca683dcb63a776453164d8"
       },
       {
         "bytes": 318,
@@ -499,7 +505,7 @@
         "bytes": 212,
         "mode": 420,
         "path": "book/excerpts/ch00-run.tex",
-        "sha256": "ef0e66ff6277bfd503dc7c41ca948c727f9994a14e36eef4baed4d480ade017c"
+        "sha256": "3e59e9b740f0341eb7f39ff222b01d6a39ba1164b16f950f01e82ecefc6d7365"
       },
       {
         "bytes": 494,
@@ -511,7 +517,7 @@
         "bytes": 215,
         "mode": 420,
         "path": "book/excerpts/ch00-shared-put.tex",
-        "sha256": "07200062d134ea38ca60fb6ba98f15a0725a264c614e3baa44f0e909e06f0be6"
+        "sha256": "6457f43e176edc7031589b9861539b9784a6852f4e6becc813c989a2bdd534ec"
       },
       {
         "bytes": 318,
@@ -523,7 +529,7 @@
         "bytes": 225,
         "mode": 420,
         "path": "book/excerpts/ch01-check-then-write.tex",
-        "sha256": "e88e0cf30c047d3026fb78983b9e16587fe47503931a5bf20aef48b817476184"
+        "sha256": "a6dc72e61fe08003a785c9d06359b7ff1d32b5420774cbd42f074ba0a6cc6722"
       },
       {
         "bytes": 1205,
@@ -535,7 +541,7 @@
         "bytes": 204,
         "mode": 420,
         "path": "book/excerpts/ch01-claim.tex",
-        "sha256": "d7c4eb406c028b840731d6ea52337c946d730caf35810d6aa53eb94d48eeb4c5"
+        "sha256": "683aa506821242a3552a3981e325b06c2ce3aa7fae6680a95031ff4768cdae41"
       },
       {
         "bytes": 450,
@@ -547,7 +553,7 @@
         "bytes": 204,
         "mode": 420,
         "path": "book/excerpts/ch01-fence.tex",
-        "sha256": "e8cf797164448f953b9588a7263e60eb5da3bcc74d8a4458997c79de3b6fba41"
+        "sha256": "2e509420873e112f65fdb10ceb9559a39d0f19a4277169cd696750a4bc3b210d"
       },
       {
         "bytes": 1057,
@@ -559,7 +565,7 @@
         "bytes": 224,
         "mode": 420,
         "path": "book/excerpts/ch01-naive-acquire.tex",
-        "sha256": "e5c1dff759ce74c453bf88cb6abe9050eba87472d1ba1c52f4f521b5d6fd525d"
+        "sha256": "8db31dcc219ac19a2262971d9496d83fcdba9ec419a6de5d5f3f89a9c47535d3"
       },
       {
         "bytes": 523,
@@ -571,7 +577,7 @@
         "bytes": 207,
         "mode": 420,
         "path": "book/excerpts/ch01-newest.tex",
-        "sha256": "a5e37872d071a2d8a6dec13e1f0e9fc1aabfc9b08dad07da5fd3449126111377"
+        "sha256": "c190fb11fdef5bd11089c0c19a87205186d8b56905cd13fc34038a3c3f35e0ee"
       },
       {
         "bytes": 873,
@@ -583,7 +589,7 @@
         "bytes": 218,
         "mode": 420,
         "path": "book/excerpts/ch01-propose.tex",
-        "sha256": "ba612eebdcfe98a48c6d7e296cef1a29de31e9983d190d7d5b63fa043b23ca2f"
+        "sha256": "a9e919072d85b954cde406ff42ff7b6bb811a76c8623dd33be8f3fb4bc181ffe"
       },
       {
         "bytes": 1184,
@@ -595,7 +601,7 @@
         "bytes": 217,
         "mode": 420,
         "path": "book/excerpts/ch01b-close.tex",
-        "sha256": "53c89aa9215c319c77a8475e3c043bbd90e42b3a2e37cea140bf74574555dccb"
+        "sha256": "82a09cc61541660dcc7b31c5121c812b392958446f20b7db3c5f1f6cfbf0bee9"
       },
       {
         "bytes": 1016,
@@ -607,7 +613,7 @@
         "bytes": 212,
         "mode": 420,
         "path": "book/excerpts/ch01b-guard.tex",
-        "sha256": "b5d91aba13a8cd23f5671fbc797164d0668facd53fc16d95be2e7b535bcd6dcf"
+        "sha256": "33d8412aa001c767acb821e7c5bad7c6663de208b8ece82de685599bd568794d"
       },
       {
         "bytes": 1031,
@@ -619,7 +625,7 @@
         "bytes": 224,
         "mode": 420,
         "path": "book/excerpts/ch01b-kernel-close.tex",
-        "sha256": "5d625222d7b267ca44352ff35c6220b2c80197e60aecf54a9efde36015309806"
+        "sha256": "ca9352c22d3026ac58bb31087f42c5e8a3e3c95fc1252d1c585af0b8324002fb"
       },
       {
         "bytes": 1110,
@@ -631,7 +637,7 @@
         "bytes": 219,
         "mode": 420,
         "path": "book/excerpts/ch01b-passing.tex",
-        "sha256": "990b8b9df42a1113fe76705243ebb24a078c52a3745a347e94e6771927553deb"
+        "sha256": "a03717ea9a19cfb2382bf08052accf1e4c253af18ad0d065dfd2a9d8d8ecfcf3"
       },
       {
         "bytes": 1450,
@@ -643,7 +649,7 @@
         "bytes": 204,
         "mode": 420,
         "path": "book/excerpts/ch02-admit.tex",
-        "sha256": "132195d189a73195d8c8096cd7450b11be70e0fd176b57e6744e6578c16f0df5"
+        "sha256": "75f3a36e62357feccd21a7713d1e93bca6d15ca5287521a4b280b1933a43dc3f"
       },
       {
         "bytes": 1475,
@@ -655,7 +661,7 @@
         "bytes": 210,
         "mode": 420,
         "path": "book/excerpts/ch02-naive.tex",
-        "sha256": "e8193181989519c115046f82dd864637e5764270ee873db2d50f28d49a37a8cb"
+        "sha256": "c0a730335735ab7155369f23df79f73466bfc3a89eba79292d4a7473a4b282a4"
       },
       {
         "bytes": 975,
@@ -667,7 +673,7 @@
         "bytes": 205,
         "mode": 420,
         "path": "book/excerpts/ch02-signed.tex",
-        "sha256": "f84515face86238b2336e737cc2ed16696fb1dcbf094de4bc72a4bf9fefdf161"
+        "sha256": "66dd89fa362f7b1d0d0ef9695b771c817534d9b81a459806ae36970567f06e73"
       },
       {
         "bytes": 1219,
@@ -679,7 +685,7 @@
         "bytes": 205,
         "mode": 420,
         "path": "book/excerpts/ch02-within.tex",
-        "sha256": "57713daf22b3478abe5f5011a2252a4848740071602c5d91d8e42645bd836b3e"
+        "sha256": "7bbe2d04bae7ae0d631aa1d8a3ce71a27bcfbecba3fc5503e6f91201fe727dda"
       },
       {
         "bytes": 875,
@@ -691,7 +697,7 @@
         "bytes": 210,
         "mode": 420,
         "path": "book/excerpts/ch02b-gate.tex",
-        "sha256": "0b29b97d93e3fabb803991e2b9f0f8e39a23cb1f798615cd832f126b337be552"
+        "sha256": "011ce38bd6ad85fb1f161b4afab6d64dbf9d4c401ba7e62d5bd438ce191b8ae9"
       },
       {
         "bytes": 1163,
@@ -703,7 +709,7 @@
         "bytes": 212,
         "mode": 420,
         "path": "book/excerpts/ch02b-held.tex",
-        "sha256": "9ec78e66090ade7d1790fe726021990a3ccd14ad06f708840b7bda84a432baa6"
+        "sha256": "8aa819eb4d76223b7a4854ef3d8457efbbe928096f4a164c166bf3fae2beb240"
       },
       {
         "bytes": 536,
@@ -715,7 +721,7 @@
         "bytes": 216,
         "mode": 420,
         "path": "book/excerpts/ch02b-lookup.tex",
-        "sha256": "f1cf78f413d258d499d8eea11884963698243c27ae8c88d79d9c32926a510cd0"
+        "sha256": "971000305edadbdff4eae5da698a09dd5a7dc9123e2cb99339431416cea12970"
       },
       {
         "bytes": 660,
@@ -727,7 +733,7 @@
         "bytes": 211,
         "mode": 420,
         "path": "book/excerpts/ch02b-prove.tex",
-        "sha256": "90b587dfbf8bd6054ea29954c5b233d392f3b990d6640e44fcd7cf689df250a8"
+        "sha256": "5a07f8e5058d8448e0c3a05d466b573b68fa9eb21dfb34f7cc0b6065abb426ab"
       },
       {
         "bytes": 589,
@@ -739,7 +745,7 @@
         "bytes": 216,
         "mode": 420,
         "path": "book/excerpts/ch02b-signed.tex",
-        "sha256": "b2e1b8cf82ca0267dc213cbefbb2ade8c9a02d09c26c7e3bd031a3cb4c9af214"
+        "sha256": "13cb0bd13e03130806720b4f9af3bff923f80e2271502b0ea86e6ebc437645bb"
       },
       {
         "bytes": 425,
@@ -751,7 +757,7 @@
         "bytes": 213,
         "mode": 420,
         "path": "book/excerpts/ch02b-text.tex",
-        "sha256": "2f810eb402dfccf318ecce3c12cf306a3a7a8cb8839c26fd314255b345863f66"
+        "sha256": "5d682a8bf36d719f9b7331e6173bacd6260eec8adac88029e12a6ba02328979e"
       },
       {
         "bytes": 265,
@@ -763,7 +769,7 @@
         "bytes": 218,
         "mode": 420,
         "path": "book/excerpts/ch02c-aged.tex",
-        "sha256": "c4fc9f76e9e5ecc7f7341a74f5ec37a9ac348c563cb73c710d0f1a7a1034c47f"
+        "sha256": "1d37031fb3f880961ac5d788e9365ae2a60e4e1301281fc77add5fa37f6a0904"
       },
       {
         "bytes": 409,
@@ -775,7 +781,7 @@
         "bytes": 216,
         "mode": 420,
         "path": "book/excerpts/ch02c-forget.tex",
-        "sha256": "4dd0a33d3b1d28ed84b1a7db574383fa4dc871c228c3b627e97cfb235dec5568"
+        "sha256": "f1f053422686dd623ec81cd3deb452259cfe647a10d19630246bbdffcc22289a"
       },
       {
         "bytes": 1279,
@@ -787,7 +793,7 @@
         "bytes": 222,
         "mode": 420,
         "path": "book/excerpts/ch02c-gate.tex",
-        "sha256": "1542ea0f62b0fc022388587a1948d4e0cc26c8494902095c5d294ea998dff215"
+        "sha256": "b323549e8094d068c2f07ce49ca444e661b762215f36fa8cb47ddae9b714eefc"
       },
       {
         "bytes": 600,
@@ -799,7 +805,7 @@
         "bytes": 218,
         "mode": 420,
         "path": "book/excerpts/ch02c-last.tex",
-        "sha256": "cb82c596268a424d027b03d4d093f9d7d815c21a249f6819d9b07b72cdfe453c"
+        "sha256": "c46e5cea23655be309bd5fbe5b6fc974b2aa85ecc17ec9d5a9bced83730510f4"
       },
       {
         "bytes": 482,
@@ -811,7 +817,7 @@
         "bytes": 215,
         "mode": 420,
         "path": "book/excerpts/ch02c-spent.tex",
-        "sha256": "69b542777de917cd7ae1974ad6b900cb815a1aa9894205bef0394fcac6aefe4b"
+        "sha256": "085cf9928a4911b1573f4fa17dc324a5d8ef0f12c7c7e3ca344f84c2b589fde0"
       },
       {
         "bytes": 688,
@@ -823,7 +829,7 @@
         "bytes": 216,
         "mode": 420,
         "path": "book/excerpts/ch02c-standing.tex",
-        "sha256": "4de6591e11e8b02d8bd9cd8db56ce8a2d00503a45de43de63b7b60003bf04dd3"
+        "sha256": "1f3844a943efe467e96adf768881683449249e253c72e4df13b481bc6d17fefc"
       },
       {
         "bytes": 419,
@@ -835,7 +841,7 @@
         "bytes": 211,
         "mode": 420,
         "path": "book/excerpts/ch02d-hearsay.tex",
-        "sha256": "d8094c0f4d2fd9bd6bd9d87a82280892c633672ae7942d45e8f6be2e2ac34e77"
+        "sha256": "baa4e137639ca6d8d8f95aa4e61ca61a67354e4188d745ebe5f1ec911ec2db82"
       },
       {
         "bytes": 901,
@@ -847,7 +853,7 @@
         "bytes": 213,
         "mode": 420,
         "path": "book/excerpts/ch02d-quiet.tex",
-        "sha256": "ee6f79d08ad4f27945361208f04870d0b12ba45cf86ad21ff3736fe6080a3c5d"
+        "sha256": "1b845f124417c446819e7c822070ea2adfefa2fe572c58b5f59a56f8ebc20c78"
       },
       {
         "bytes": 543,
@@ -859,7 +865,7 @@
         "bytes": 213,
         "mode": 420,
         "path": "book/excerpts/ch02d-round.tex",
-        "sha256": "aaaed52f61155f96327a5ec4e948b24e5b29a8362719047378988209ea37e078"
+        "sha256": "8437cdc087473f2c9cf8997cf8cf88d0564c3e64b7e87001a536d5ff33b663b7"
       },
       {
         "bytes": 769,
@@ -871,7 +877,7 @@
         "bytes": 214,
         "mode": 420,
         "path": "book/excerpts/ch02d-tell.tex",
-        "sha256": "cf9c9c4ad29bcd7fe86a6be5e9c3ea5d18f653e7fe9356dd908af7eca65687f3"
+        "sha256": "f0d5e60888298d29cc77642cff0d5809d17531b0980e4517675500e079753b93"
       },
       {
         "bytes": 977,
@@ -883,7 +889,7 @@
         "bytes": 227,
         "mode": 420,
         "path": "book/excerpts/ch02e-challenged.tex",
-        "sha256": "c7053e67773e6a993d831147d76bb201c7d56746a746b98130a38ab457a32533"
+        "sha256": "1cff52bd4d5472971481eafe1a09e74b5c89541a1203164e411d6dd8d341c950"
       },
       {
         "bytes": 1203,
@@ -895,7 +901,7 @@
         "bytes": 218,
         "mode": 420,
         "path": "book/excerpts/ch02e-gate.tex",
-        "sha256": "7e8efaa53e1416aa78e8abf5f306f9056f065727a1e9ae1339d70425f2c8c6e4"
+        "sha256": "2ed2501339b55d197ebbec927b7a0d3b3ab4fe86fd2e20497e9d2cc916b17bc7"
       },
       {
         "bytes": 618,
@@ -907,7 +913,7 @@
         "bytes": 214,
         "mode": 420,
         "path": "book/excerpts/ch02e-sign.tex",
-        "sha256": "d441a08a8472aa1348adcbf4df43024736468b7604f05574bdf225e4d15c60b0"
+        "sha256": "e005c5213a42c8ff4da83744ff46f833c0d7f5a3445f4ce23ace2fe5b79df9cc"
       },
       {
         "bytes": 396,
@@ -919,7 +925,7 @@
         "bytes": 206,
         "mode": 420,
         "path": "book/excerpts/ch02e-text.tex",
-        "sha256": "e517b2f4f9f34ced99deb4ca736839715774d64d1773a6cf55c8db65f52f6165"
+        "sha256": "e855d77dad167421cd43b538af1600cf29794cda49d653f6ef64119acb7e53b8"
       },
       {
         "bytes": 982,
@@ -931,7 +937,67 @@
         "bytes": 211,
         "mode": 420,
         "path": "book/excerpts/ch02e-warranted.tex",
-        "sha256": "d56c56604d020f37eb5434ee3a27e1654ec8927b41a4af06c119a40bd82ec24f"
+        "sha256": "31845f386fe92de30bdb9644e1ecb61ec45c9cf0d484b2920b5eb7df469462e0"
+      },
+      {
+        "bytes": 956,
+        "mode": 420,
+        "path": "book/excerpts/ch06-apiece.code",
+        "sha256": "a2d1b7add75cb4163f6a4bee681e4eee81fb08a604986d4e271c06a7c2c8abe6"
+      },
+      {
+        "bytes": 213,
+        "mode": 420,
+        "path": "book/excerpts/ch06-apiece.tex",
+        "sha256": "b59963816de9953b2e000e16c474da3a97a2765be0a01f6ad91c0e50a8501847"
+      },
+      {
+        "bytes": 1221,
+        "mode": 420,
+        "path": "book/excerpts/ch06-kani-settle.code",
+        "sha256": "6f92919820abbd90af4f46219cb258a86e91e3b3391e91dcfb573cbc2148cbc9"
+      },
+      {
+        "bytes": 224,
+        "mode": 420,
+        "path": "book/excerpts/ch06-kani-settle.tex",
+        "sha256": "246e61582182b98221b5bbd036ce59d916e076e6b9575b838d353d249c8eff4f"
+      },
+      {
+        "bytes": 1064,
+        "mode": 420,
+        "path": "book/excerpts/ch06-reserve.code",
+        "sha256": "8f3c787f1412d8315b6ab0c25b9a8b4a54a0306e284c4a3059017862c02cfabb"
+      },
+      {
+        "bytes": 206,
+        "mode": 420,
+        "path": "book/excerpts/ch06-reserve.tex",
+        "sha256": "cc782307b4e872e0991ee7dab3f510e0322ff19416c2c8a9fd2e992c430df5b7"
+      },
+      {
+        "bytes": 969,
+        "mode": 420,
+        "path": "book/excerpts/ch06-settle.code",
+        "sha256": "d6e76846ee13babde454411913f4958dba34108bb948b69bb8d240d96857fe40"
+      },
+      {
+        "bytes": 205,
+        "mode": 420,
+        "path": "book/excerpts/ch06-settle.tex",
+        "sha256": "f78de7c4524b9a7c7c885ca308e7a343203f3823156c2321fc1bad0b5dd13b3b"
+      },
+      {
+        "bytes": 656,
+        "mode": 420,
+        "path": "book/excerpts/ch06-split.code",
+        "sha256": "d72644164c8e2ca977a4e38239412f090440802a9be392644521814104f0e276"
+      },
+      {
+        "bytes": 204,
+        "mode": 420,
+        "path": "book/excerpts/ch06-split.tex",
+        "sha256": "6675f4b80b516be8ab6f07cfe8b31ecf24e92ad91927e8cda77e25fc04c55851"
       },
       {
         "bytes": 797,
@@ -943,7 +1009,7 @@
         "bytes": 219,
         "mode": 420,
         "path": "book/excerpts/ch07-accounts.tex",
-        "sha256": "b882eacb896b84874afdfc1862c0dad7042e806c81b4164636f1cacd3f45f689"
+        "sha256": "e66258ca22aaed3c4a1262792cd23e40221f3b216f1962393078ecd871a6f2c7"
       },
       {
         "bytes": 290,
@@ -955,7 +1021,7 @@
         "bytes": 211,
         "mode": 420,
         "path": "book/excerpts/ch07-bidder.tex",
-        "sha256": "7a3acb9de16c917e10c48fec137cd18eb77f6f4c94a1fd8c723c6e3d9782026e"
+        "sha256": "483956d752fdc9580bd59fb780ad6211506a6c6c48a90028cb2d13414d08dfe8"
       },
       {
         "bytes": 430,
@@ -967,7 +1033,7 @@
         "bytes": 206,
         "mode": 420,
         "path": "book/excerpts/ch07-covered.tex",
-        "sha256": "5dc125df37619bc3071d8ff929ef204a2024589d328a6421c24341f5993156d6"
+        "sha256": "e80a532a0cf24a6a3404a8ca05dab2469af286119697104ce151a74df8f63fea"
       },
       {
         "bytes": 484,
@@ -979,7 +1045,7 @@
         "bytes": 216,
         "mode": 420,
         "path": "book/excerpts/ch07-dollars.tex",
-        "sha256": "26462709db2d28de2efc0c14f0aafa6c1627f129b987e6de0dcb443e489635e6"
+        "sha256": "349aa01af59a97a705a2641a508175e4f32eaf7f6a1d6572b56444aa62aab1a7"
       },
       {
         "bytes": 486,
@@ -991,7 +1057,7 @@
         "bytes": 202,
         "mode": 420,
         "path": "book/excerpts/ch07-funds.tex",
-        "sha256": "539b3fd118cc3abda24599bf5fb4223ff7ab4a8400fdf582218e70dd67bb8774"
+        "sha256": "eb2086d79571358490240238ad435312e86e71ed24028dde52b4e15706426b15"
       },
       {
         "bytes": 452,
@@ -1003,7 +1069,7 @@
         "bytes": 203,
         "mode": 420,
         "path": "book/excerpts/ch07-held.tex",
-        "sha256": "8674f6de6aa4b7295f78ffc458e96b385ed8aa4039e8e5c3451b145172524a81"
+        "sha256": "8760dc17dea3790dc6069e7f123fc3ebad0af7cb5750edeb6ad7d5e97ca98cdf"
       },
       {
         "bytes": 865,
@@ -1015,7 +1081,7 @@
         "bytes": 221,
         "mode": 420,
         "path": "book/excerpts/ch07-kani-step.tex",
-        "sha256": "03a28884c8f13a28eb89181f87d7a009f803c9e10056b2a35c6774cca90fb0ae"
+        "sha256": "faa7568f24cc2ea473b7905672853dd5c7aa4890a656925b81d7746a38b8adff"
       },
       {
         "bytes": 495,
@@ -1027,7 +1093,7 @@
         "bytes": 203,
         "mode": 420,
         "path": "book/excerpts/ch07-post.tex",
-        "sha256": "b031086f53a6bb498c4a39ea25ac324131d38e5c93431d97c806d5c862aa7f6c"
+        "sha256": "49329fe4eda9ffdf41d6b8dce403ee4dfd74d431be31b9d66c0157e9d12c1a26"
       },
       {
         "bytes": 615,
@@ -1039,7 +1105,7 @@
         "bytes": 205,
         "mode": 420,
         "path": "book/excerpts/ch07-settle.tex",
-        "sha256": "c138d7b4bf20ed926016f58024af98bfaaa8fe9213fd53e0759485944b5f0bf2"
+        "sha256": "a5da51cda0da38b1a4f6313d1ce26038d7eb27f2ca82cff186821e6af87b1e8d"
       },
       {
         "bytes": 740,
@@ -1051,7 +1117,7 @@
         "bytes": 211,
         "mode": 420,
         "path": "book/excerpts/ch07b-apart.tex",
-        "sha256": "23d31d31c68a0512bee1876c7be6106ae2ea8238c11ede96f211ca2c6ab1f5d8"
+        "sha256": "9bb905239a3cbd996358bd2ef14b1f1c0b0b357e2e4407097d5e9351f91fac83"
       },
       {
         "bytes": 678,
@@ -1063,7 +1129,7 @@
         "bytes": 210,
         "mode": 420,
         "path": "book/excerpts/ch07b-at-stake.tex",
-        "sha256": "1c9a27a2becc1aa3e2583a698bfef7dbba57c184e1291c16f60eecfd8d1aa2fe"
+        "sha256": "6a7ced99b871b555f4c97a9001e78ddc055eed9af8adbe77d4e4c6aa321cd380"
       },
       {
         "bytes": 850,
@@ -1075,7 +1141,7 @@
         "bytes": 204,
         "mode": 420,
         "path": "book/excerpts/ch07b-back.tex",
-        "sha256": "13078aed4f91abf840fd040b60fe17fc90b6a861fe7a926c7608cbe525b8f987"
+        "sha256": "5f00088c54fb6f636f338f5315128a9068791c5288ba4431861919f3f3a7c36f"
       },
       {
         "bytes": 551,
@@ -1087,7 +1153,7 @@
         "bytes": 206,
         "mode": 420,
         "path": "book/excerpts/ch07b-free.tex",
-        "sha256": "8ec5841fe899400c6c3421c2c487a49cbdf7cab65172972afcf6f81c8567ca34"
+        "sha256": "8b9441582d9354cf081cb9dff3691db5bab0795e151e64cdc6f5ac0d7688f34d"
       },
       {
         "bytes": 945,
@@ -1099,7 +1165,7 @@
         "bytes": 224,
         "mode": 420,
         "path": "book/excerpts/ch07b-kani-step.tex",
-        "sha256": "25eb55ffe7a7694d7802a1597b574e08695c5a681d4462d1669127b0fe150ea5"
+        "sha256": "36536ffc2787e8e2fd982d5e70fd30e275168b70c49f2e3d790d653376c1aaec"
       },
       {
         "bytes": 576,
@@ -1111,7 +1177,7 @@
         "bytes": 207,
         "mode": 420,
         "path": "book/excerpts/ch07b-loose.tex",
-        "sha256": "e90d09b4ee0734763474ffdeb2a754be8e6f67120a99dac95a2b201549f27cf7"
+        "sha256": "76bce9a4424db2b8f2848ad630f95aea15ef3ef9ee61dee7d63769ca8c448572"
       },
       {
         "bytes": 185,
@@ -1123,7 +1189,7 @@
         "bytes": 205,
         "mode": 420,
         "path": "book/excerpts/ch07b-stake.tex",
-        "sha256": "036037292dd437f16c5fd146be110fb47b2799cb15c88edce1f36c44bd23c457"
+        "sha256": "ac0a758ca817d8e88e5eb11923bbf4bfe223edf95cd051d3c1a08e1fa22d9777"
       },
       {
         "bytes": 470,
@@ -1282,6 +1348,12 @@
         "sha256": "31920094a398c04f4f7ac909f816a0511bed4f78d8e2a199a7bc281d54b4056c"
       },
       {
+        "bytes": 804,
+        "mode": 420,
+        "path": "book/excerpts/kani-plans.txt",
+        "sha256": "957bf8c2bbadfe9ead7dbd72555d1da1428324508e0ced1b14390493d71a4b1e"
+      },
+      {
         "bytes": 551,
         "mode": 420,
         "path": "book/excerpts/kani-stakes.txt",
@@ -1324,10 +1396,10 @@
         "sha256": "6e651e010035c595baa286c02907e81e00e6aff6909d73c62403924e5fbdafdd"
       },
       {
-        "bytes": 34905,
+        "bytes": 38189,
         "mode": 420,
         "path": "book/excerpts/manifest.json",
-        "sha256": "898728c958a4c5ccea62c85dfe83106a999918a826691af4f6bc7b69cd613e55"
+        "sha256": "999376d29e3a8dfd7dd850ecb9ff1afbe7e335bb2282e809c63f1ab9ab1e7beb"
       },
       {
         "bytes": 1542,
@@ -1396,6 +1468,18 @@
         "sha256": "2c323b2b360a056fff504f1759bfda5826f1ec020e5bfebc64a279cafdfd1cb9"
       },
       {
+        "bytes": 466,
+        "mode": 420,
+        "path": "book/excerpts/one-wallet-apiece.txt",
+        "sha256": "4db6df9a49445f09896c35226aa9d508b441bdbdebb663b423df36b34144d3d8"
+      },
+      {
+        "bytes": 503,
+        "mode": 420,
+        "path": "book/excerpts/one-wallet-core.txt",
+        "sha256": "4398a5783e1d8189795fcc08681f50bcb33c8dd0eda9b3c2ca1667cafad9662a"
+      },
+      {
         "bytes": 447,
         "mode": 420,
         "path": "book/excerpts/orders-blind-put.txt",
@@ -1436,6 +1520,24 @@
         "mode": 420,
         "path": "book/excerpts/paid-twice-settle-twice.txt",
         "sha256": "495197672c9fa907e8e17eaece7fe7c681961f2e6432e1bc5e7ee399ceb7e38a"
+      },
+      {
+        "bytes": 672,
+        "mode": 420,
+        "path": "book/excerpts/partial-apiece.txt",
+        "sha256": "0b5d98755ec4cbd2a4c3699ad997a78d6259fbb531c371c350fdb9eadbd0dc52"
+      },
+      {
+        "bytes": 839,
+        "mode": 420,
+        "path": "book/excerpts/plans-guards.txt",
+        "sha256": "8f7a749411f557c85cc9b49ea24b2cd7cdb2e410f71a630e4e82680ac07ac75f"
+      },
+      {
+        "bytes": 795,
+        "mode": 420,
+        "path": "book/excerpts/plans.txt",
+        "sha256": "a2368a91f3b78f2a24e06946b79f1aa4742937c1be8443bf5bebbb693be63fa3"
       },
       {
         "bytes": 311,
@@ -1540,6 +1642,18 @@
         "sha256": "c6656d7463cb6bc8082a08cf501c8fb102c55ae6288b1ac9c17222c981d29faa"
       },
       {
+        "bytes": 14141,
+        "mode": 420,
+        "path": "book/excerpts/splits-each.txt",
+        "sha256": "3feffae0ddfbb43daa2899aee26c04095d70fc40189eab80ca30e824d30053ab"
+      },
+      {
+        "bytes": 534,
+        "mode": 420,
+        "path": "book/excerpts/splits.txt",
+        "sha256": "29b105de71354134cb542201930aef845683bfa440330c70523d85160fa9a070"
+      },
+      {
         "bytes": 963,
         "mode": 420,
         "path": "book/excerpts/spread.txt",
@@ -1622,6 +1736,18 @@
         "mode": 420,
         "path": "book/excerpts/theft-core.txt",
         "sha256": "9e215665f3570f14b22d85880e1c494e87668b4c776f72f327cd9608cbb149af"
+      },
+      {
+        "bytes": 650,
+        "mode": 420,
+        "path": "book/excerpts/thirds-apiece.txt",
+        "sha256": "c7cce40f43d27e941525efcf717f240a66ee93167913f6c6a1edbae2e6f78909"
+      },
+      {
+        "bytes": 652,
+        "mode": 420,
+        "path": "book/excerpts/thirds-core.txt",
+        "sha256": "d2132733871cc0c8bd9d614714e501f7f94acad82cb9aa345fca226febe1224f"
       },
       {
         "bytes": 1343,
@@ -2276,6 +2402,12 @@
         "mode": 420,
         "path": "book/figures/fig-he-ms-wedge.tex",
         "sha256": "45a7fb60296529e873e8b95febdad2b08dd3b4aff936997bc918c5702edf7a86"
+      },
+      {
+        "bytes": 3625,
+        "mode": 420,
+        "path": "book/figures/fig-he-odd-unit.tex",
+        "sha256": "69c373d83e6fb7b05b8269ec765211bb09004fa7667410c3a33eb7632b42ab29"
       },
       {
         "bytes": 2684,
@@ -3550,10 +3682,10 @@
         "sha256": "bfa4267e4bdd09635064490fb5ee9d6f982598cbaf8d7451f12810748c73707a"
       },
       {
-        "bytes": 215528,
+        "bytes": 221568,
         "mode": 420,
         "path": "book/harbor-economy.tex",
-        "sha256": "6c3884e46fe7685494a10279e1ad17bfc0e463d091e53107ef09a32155a5948e"
+        "sha256": "811a983e87f4fe8940ea843892e5e75f2b797528f92f481a5f14f1651e5cd488"
       },
       {
         "bytes": 313830,
@@ -4774,6 +4906,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "e2bdfd383dc57a390bad07b96793bec61f497e2b89abc6caae77c310c67a6575"
+    "sha256": "1cfbc2f16aa6ea18bacf4c209ea2da883ef68cf82c9efdcec9fd8ad5d6dc17de"
   }
 }

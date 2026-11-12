@@ -191,7 +191,7 @@ Canonical root: `book/spawn-to-person.tex` (15 figures).
 
 ## Volume IV: The Harbor Economy
 
-Canonical root: `book/harbor-economy.tex` (16 figures).
+Canonical root: `book/harbor-economy.tex` (17 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -216,6 +216,7 @@ Canonical root: `book/harbor-economy.tex` (16 figures).
 | `IV/fig:he-rater-ladder` | Why does asking "who judges the judges" not go on forever in this design? | descending rank ladder with strict downward appeals terminating at rank 0 | appeal strictly moves down one rank at a time from rank K; rank 0 is an exogenously protected oracle/human root; finite termination guarantee | infinite recursive spiral; peer evaluation loop; ungrounded appeal graph; symmetric rater network |
 | `IV/fig:he-skill-lineage` | How does a versioned skill bind to its parent while maintaining an independent evaluation root? | two-column versioned lineage card flow with ancestor hash, discounted prior, and fresh evidence | v2 binds to v1 parent via parent hash; v1 history discounted by predeclared gamma=0.4 (8 prior); combined with fresh v2 observations (5); distinct evaluation roots | erasing v1 history upon upgrade; pooling raw observations without discounting; unversioned skill mutation |
 | `IV/fig:audit-loop` | How can every pair agree and the whole still fail? | three-node directed cycle with a rate on each edge and the product inside | A to B x2, B to C x3, C to A x0.2; product 1.2 not 1; pairwise balance stated | a 3x3 rate table; sheaf notation the chapter does not define |
+| `IV/fig:he-odd-unit` | When does a payout lose a unit, if each side's share is worked out by itself and rounded down? | a grid of every case tried, with a mark on each that went wrong: the bounty along the bottom and the count of milestones done down the side | every payout read from the recorded table of `harbor splits --each`; the two counts in the picture taken from that table as it is drawn; a payout that lost a unit, as a red square, against one that came out whole, as a dot; a gap between one number of milestones and the next | a bar for each number of milestones, which gives the share that went wrong and hides the rule; the table itself, which is 600 rows |
 
 **The last five rows are compiled by nothing, and the atlas keeps them anyway.**
 They sit inside the `\else` branch of an `\ifpdbook` in `harbor-economy.tex`:

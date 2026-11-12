@@ -1,0 +1,70 @@
+% Brief (grammar: a grid of every case tried, with a mark on each case that
+%   went wrong; atlas IV/fig:he-odd-unit).
+% Reader question: when does a payout lose a unit, if each side's share is
+% worked out by itself and rounded down?
+% Claim: whenever the milestones do not divide the bounty times the count
+% done. That is 424 of the 600 payouts tried, which the picture counts as
+% it draws them, and no bounty up to 40 units is clear at every count.
+% Evidence: one plan paid out by the first keeper at every count of 2 to 6
+% milestones, short of all of them, for every bounty from 1 to 40 units
+% [internal, harbor splits --each; session splits-each.txt, drawn as
+% printed, and tests/harbor-research/test_he_plan_numbers.py holds the
+% counts in the picture and the caption to it].
+% Must distinguish: a payout that lost a unit from one that came out whole;
+% one count of milestones from the next.
+% Grammar chosen: the bounty along the bottom and the count down the side,
+% so that the rule shows as stripes whose width is the row's own, and a
+% reader can find any one payout.
+% Grammar rejected: a bar for each number of milestones, which gives the
+% share that went wrong and hides the rule; the table itself, which is 600
+% rows.
+% Five-second test: is any column empty?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=.232cm,y=.3cm,
+    lost/.style={fill=pderror},
+    whole/.style={fill=pdinkmuted!70}]
+  % The table is the recorded run, read as it was printed: the first line
+  % is the command, and every remark starts with '#'.
+  \pgfplotstableread[skip first n=1]{excerpts/splits-each.txt}\pdoddunit
+  % Counts taken from the table as it is drawn.
+  \ifdefined\pdoddlost\else \newcount\pdoddlost \newcount\pdoddall \fi
+  \global\pdoddlost=0 \global\pdoddall=0
+  % A row for each count, with a gap between one number of milestones and
+  % the next: the row of `done` of `of` milestones.
+  \newcommand{\pdoddrow}[2]{-((#2-2)*(#2-1)/2+#1-1)-.6*(#2-2)}
+  \pgfplotstablegetrowsof{\pdoddunit}
+  \pgfmathtruncatemacro{\pdlastsplit}{\pgfplotsretval-1}
+  \foreach \i in {0,...,\pdlastsplit}{
+    \pgfplotstablegetelem{\i}{of}\of\pdoddunit \let\mi\pgfplotsretval
+    \pgfplotstablegetelem{\i}{done}\of\pdoddunit \let\dn\pgfplotsretval
+    \pgfplotstablegetelem{\i}{bounty}\of\pdoddunit \let\bt\pgfplotsretval
+    \pgfplotstablegetelem{\i}{left}\of\pdoddunit \let\lf\pgfplotsretval
+    \pgfmathsetmacro{\y}{\pdoddrow{\dn}{\mi}}
+    \global\advance\pdoddall 1
+    \ifnum\lf>0 \global\advance\pdoddlost 1
+      \fill[lost] (\bt-.41,\y-.36) rectangle (\bt+.41,\y+.36);
+    \else \fill[whole] (\bt,\y) circle[radius=.6pt];\fi
+  }
+  \foreach \mi in {2,...,6}{
+    \pgfmathtruncatemacro{\most}{\mi-1}
+    \foreach \dn in {1,...,\most}{
+      \pgfmathsetmacro{\y}{\pdoddrow{\dn}{\mi}}
+      \node[pd label,text=pdinkmuted,anchor=east] at (.1,\y) {\dn\ of \mi};
+    }
+  }
+  \pgfmathsetmacro{\pdoddfloor}{\pdoddrow{5}{6}-1.15}
+  \foreach \bt in {1,5,10,15,20,25,30,35,40}{
+    \node[pd label,text=pdinkmuted,anchor=north] at (\bt,\pdoddfloor) {\bt};
+  }
+  \node[pd label,anchor=north] at (20.5,\pdoddfloor-1.5) {the bounty, in units};
+  \node[pd title,anchor=south west] at (.55,.75)
+    {a unit is lost in \the\pdoddlost\ of \the\pdoddall\ payouts};
+\end{tikzpicture}
+\caption{\textbf{Two shares rounded down by themselves lose a unit unless
+the milestones divide the bounty times the count done.} A red square is a
+payout by the first keeper that lost one unit, and a dot is a payout that
+came out whole. [internal, \texttt{harbor splits -{}-each}]}
+\label{fig:he-odd-unit}
+\end{figure}

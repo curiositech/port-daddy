@@ -1,0 +1,16 @@
+$ harbor splits
+one plan, paid out at every count of milestones: every bounty from
+  1 to 40 units, with a bond that divides evenly
+
+milestones   cases   apiece     core
+         2      40       20        0
+         3      80       54        0
+         4     120       80        0
+         5     160      128        0
+         6     200      142        0
+       all     600      424        0
+
+cases: a bounty and a count of milestones done, short of all of
+  them
+under each design: the cases that end with a unit in nobody's
+  hands
