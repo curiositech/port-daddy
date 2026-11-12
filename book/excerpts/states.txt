@@ -1,0 +1,16 @@
+$ harbor states
+every state a project's funds can reach: top-ups and bonds of 1 to
+  3 units, at most 6 units topped up and 3 bonds posted
+
+design      states   moves  wrongly  wrongly   funds  do not
+                            refused    taken     off  add up
+dollars      36662   95999      386        0   31174   18873
+trusting      6902   25672        0      653       0       0
+core          6902   25672        0        0       0       0
+
+moves: those the Book's rules allow, tried from every state
+wrongly refused: of those moves, the ones the keeper refused
+wrongly taken: moves the rules refuse that the keeper made
+funds off: states with a bucket that is not what the rules give
+do not add up: states that hold more or less than was topped up
+the widest such difference: for dollars, 2.8e-17 of a dollar

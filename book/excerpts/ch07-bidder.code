@@ -1,0 +1,7 @@
+/** Post a bond the careful way: look at the wallet, and ask
+ * only if it covers the bond. */
+export function* bidder(keeper: Keeper, amount: number): Worker {
+  const covered = keeper.covers(amount);
+  yield; // the look and the ask are two requests
+  if (covered) keeper.post(amount);
+}

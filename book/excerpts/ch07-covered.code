@@ -1,0 +1,11 @@
+/// The guard: the wallet holds what the bond asks. It returns
+/// what the wallet has left, so whoever passes the guard has
+/// already paid.
+fn covered(wallet: u64, asked: u64) -> Result<u64, Reason> {
+    if cfg!(feature = "mutant-overdraw") {
+        // MUTANT: guard removed.
+        return Ok(wallet.saturating_sub(asked));
+    }
+    let short = Reason::Short { wallet, asked };
+    wallet.checked_sub(asked).ok_or(short)
+}

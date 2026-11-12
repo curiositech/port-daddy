@@ -1,0 +1,14 @@
+/** Post a bond of `cents`, if the wallet covers it. */
+post(cents: number): Outcome {
+  const amount = cents / 100;
+  if (this.#wallet < amount) {
+    const holds = `the wallet holds ${this.#wallet}`;
+    return no('short', `${holds}, and the bond asks ${amount}`);
+  }
+  this.#wallet -= amount;
+  this.#escrow += amount;
+  const id = this.#bonds.length + 1;
+  const bond: Row = { id, amount, standing: 'held' };
+  this.#bonds.push(bond);
+  return { ok: true, bond: { ...bond } };
+}

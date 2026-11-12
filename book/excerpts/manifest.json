@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "94af9c07431699027246bb87e3f63b2573b0e3ff",
+  "commit": "9a20b7f8dc1752ddd8378dfa351cb13c109a0b0f",
   "scan": "harbord",
   "excerpts": [
     {
@@ -389,6 +389,87 @@
       "lines": 29,
       "language": "Rust",
       "sha256": "9592d05d53d550e578786a374623d771a6ac01c4fc781dac986332af03d0cc28"
+    },
+    {
+      "name": "ch07-accounts",
+      "path": "harbord/src/bonds/accounts.ts",
+      "firstLine": 38,
+      "lastLine": 60,
+      "lines": 23,
+      "language": "TypeScript",
+      "sha256": "84581958d14900d64503665dfbc0a6b58e8de2d495bf78480de0c22a9381cc47"
+    },
+    {
+      "name": "ch07-bidder",
+      "path": "harbord/src/bonds/posts.ts",
+      "firstLine": 18,
+      "lastLine": 24,
+      "lines": 7,
+      "language": "TypeScript",
+      "sha256": "928a0c9a19dbdde06fbd43311f1162ea0a568b4599539af5fa2baa7b2c7d3468"
+    },
+    {
+      "name": "ch07-covered",
+      "path": "harbord/core/src/bonds.rs",
+      "firstLine": 148,
+      "lastLine": 158,
+      "lines": 11,
+      "language": "Rust",
+      "sha256": "cd14b334e5887a798aad21629a634628b8505f580f52931a0128ff7a9409a285"
+    },
+    {
+      "name": "ch07-dollars",
+      "path": "harbord/src/naive/dollars.ts",
+      "firstLine": 48,
+      "lastLine": 61,
+      "lines": 14,
+      "language": "TypeScript",
+      "sha256": "eea76b935a8363282367e23224a5a5560cc0535291118d010326e1b46126eedb"
+    },
+    {
+      "name": "ch07-funds",
+      "path": "harbord/core/src/bonds.rs",
+      "firstLine": 37,
+      "lastLine": 52,
+      "lines": 16,
+      "language": "Rust",
+      "sha256": "e9158eb0e25f8eddb15c777d6b699acbf3f21bd16f776604bbf60ea6bbb0eec0"
+    },
+    {
+      "name": "ch07-held",
+      "path": "harbord/core/src/bonds.rs",
+      "firstLine": 200,
+      "lastLine": 212,
+      "lines": 13,
+      "language": "Rust",
+      "sha256": "7f5dd597cebf4056df816e1871ef2008f25ee5b8cceeced1e6b4815ee285b628"
+    },
+    {
+      "name": "ch07-kani-step",
+      "path": "harbord/core/src/bonds/proofs.rs",
+      "firstLine": 89,
+      "lastLine": 109,
+      "lines": 21,
+      "language": "Rust",
+      "sha256": "0d3679e266420e08750b6b4bb181d3f20cc227a5820ee64c491a3807a39426c3"
+    },
+    {
+      "name": "ch07-post",
+      "path": "harbord/core/src/bonds.rs",
+      "firstLine": 126,
+      "lastLine": 144,
+      "lines": 19,
+      "language": "Rust",
+      "sha256": "4301c3c03c4f91ce618cf8a139337481177547cb73ad05a8c75eebd2b8a3acf3"
+    },
+    {
+      "name": "ch07-settle",
+      "path": "harbord/core/src/bonds.rs",
+      "firstLine": 176,
+      "lastLine": 196,
+      "lines": 21,
+      "language": "Rust",
+      "sha256": "1bf195df7e649850fb0d7dfcc3d020d501e874f721b3bbaeb73946ff1a26453d"
     }
   ],
   "sessions": [
@@ -457,6 +538,18 @@
       "path": "harbord/sessions/escalation-naive.txt",
       "lines": 18,
       "sha256": "f2b619c4f9ec7c743853f15dfae452d27e55b1450e7da0d8fff1922290b6d588"
+    },
+    {
+      "name": "exact-change-core",
+      "path": "harbord/sessions/exact-change-core.txt",
+      "lines": 9,
+      "sha256": "5a669c4d3a761646183ece5bbfbf6d718bdfef0dc53e12382e3b4c39c8bab93c"
+    },
+    {
+      "name": "exact-change-dollars",
+      "path": "harbord/sessions/exact-change-dollars.txt",
+      "lines": 14,
+      "sha256": "bdf852f58ad111dda60d21521113d85a16a6531c6cf78a43043de77a6928014c"
     },
     {
       "name": "fits",
@@ -529,6 +622,12 @@
       "path": "harbord/sessions/increments-look-twice.txt",
       "lines": 13,
       "sha256": "c89d7d3a161773244c836257b3c0e174c54993541d44095868e30ed73c728a14"
+    },
+    {
+      "name": "kani-bonds",
+      "path": "harbord/sessions/kani-bonds.txt",
+      "lines": 23,
+      "sha256": "fbc78a900e747093078a53e3567242ba6b7f27ad512d3310927351c8f6b27b53"
     },
     {
       "name": "kani-patterns",
@@ -669,6 +768,36 @@
       "sha256": "acd10641649614d5738d8288a992bef694b4d6645c275be4744086f8e7b1cbf1"
     },
     {
+      "name": "paid-twice-core",
+      "path": "harbord/sessions/paid-twice-core.txt",
+      "lines": 16,
+      "sha256": "a5cd701aad7c8079ed92887affea36bd0653db179d288a0549e5fd974864c720"
+    },
+    {
+      "name": "paid-twice-settle-twice",
+      "path": "harbord/sessions/paid-twice-settle-twice.txt",
+      "lines": 17,
+      "sha256": "495197672c9fa907e8e17eaece7fe7c681961f2e6432e1bc5e7ee399ceb7e38a"
+    },
+    {
+      "name": "posts-overdraw",
+      "path": "harbord/sessions/posts-overdraw.txt",
+      "lines": 9,
+      "sha256": "15dd594f4dd513c5851d0f42a7ab1215a3f71fe3dc11ca078ad8fd870f27e323"
+    },
+    {
+      "name": "posts-trusting",
+      "path": "harbord/sessions/posts-trusting.txt",
+      "lines": 12,
+      "sha256": "71167ad55b9dd6bdc45a6823e6f86dfda9523478e76d81901d6e328f24e9d6c4"
+    },
+    {
+      "name": "posts",
+      "path": "harbord/sessions/posts.txt",
+      "lines": 9,
+      "sha256": "edbeabda89055bfadc983c852a182da2a54754e3700cdc6cc1937701a63396cd"
+    },
+    {
       "name": "promise-demo",
       "path": "harbord/sessions/promise-demo.txt",
       "lines": 20,
@@ -729,6 +858,12 @@
       "sha256": "946d6fe51e0ee93cc96025ba1502ab856b488492b4c26684f4e070cbc1e76272"
     },
     {
+      "name": "settlement-core",
+      "path": "harbord/sessions/settlement-core.txt",
+      "lines": 10,
+      "sha256": "adf7541f26cb9a5c38efc964a80cec98f144199cd8df97a3e61dab032aff3ef5"
+    },
+    {
       "name": "showings-core",
       "path": "harbord/sessions/showings-core.txt",
       "lines": 11,
@@ -751,6 +886,24 @@
       "path": "harbord/sessions/spread.txt",
       "lines": 26,
       "sha256": "955e87c2f7d27555391f84d012527166e06c006c47603532840104c3a4182cf3"
+    },
+    {
+      "name": "states-each-overdraw",
+      "path": "harbord/sessions/states-each-overdraw.txt",
+      "lines": 244,
+      "sha256": "a76af3238512dedc7dcac20c3dd558487bbe6b224527ed9efa37fedbeacba63a"
+    },
+    {
+      "name": "states-each",
+      "path": "harbord/sessions/states-each.txt",
+      "lines": 222,
+      "sha256": "6681c43ad93395896635f12bdb5619114b4b412dc32f4303b6a80f2757c42449"
+    },
+    {
+      "name": "states",
+      "path": "harbord/sessions/states.txt",
+      "lines": 16,
+      "sha256": "fc5d782810615a66443490cafa93eb4359a8e6ac5ee31655dc1613bc10c740e5"
     },
     {
       "name": "survival-blind",
@@ -839,6 +992,7 @@
     "ch02b": 122,
     "ch02c": 118,
     "ch02d": 81,
-    "ch02e": 122
+    "ch02e": 122,
+    "ch07": 145
   }
 }
