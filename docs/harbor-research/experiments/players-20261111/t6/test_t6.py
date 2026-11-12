@@ -167,15 +167,42 @@ class Scoring(unittest.TestCase):
         self.assertEqual(check_row(r, "west#3")["deviation"], 0.0)
         self.assertEqual(r["dominance_violations"], 0)
 
-    def test_conjunction_above_its_part_is_a_violation(self):
-        r = scored("t6-04", COHERENT | {"north.forfeit": 0.30, "north.both": 0.31, "north.found": 0.40,
-                                        "north.either": 0.45})
+    def north(self, both: float) -> dict:
+        return scored("t6-04", COHERENT | {"north.forfeit": 0.30, "north.both": both, "north.found": 0.40,
+                                           "north.either": 0.45})
+
+    def test_conjunction_well_above_its_part_is_a_violation(self):
+        r = self.north(0.33)
         self.assertEqual(r["dominance_violations"], 1)
+        self.assertEqual(r["strict_dominance_violations"], 1)
+        self.assertEqual(r["violated_checks"][0]["check_id"], "north#3")
         self.assertEqual(r["violated_checks"][0]["why"], "a conjunction and one of its parts")
         self.assertFalse(r["session_passes"])
-        tie = scored("t6-04", COHERENT | {"north.forfeit": 0.30, "north.both": 0.30, "north.found": 0.40,
-                                          "north.either": 0.45})
-        self.assertEqual(tie["dominance_violations"], 0)
+        self.assertEqual(r["how_answered"]["pattern"], "incoherent")
+
+    def test_a_break_of_two_hundredths_or_less_is_inside_the_allowance(self):
+        self.assertEqual(score.DOMINANCE_ALLOWANCE, 0.02)
+        for both in (0.31, 0.32):
+            r = self.north(both)
+            self.assertEqual(r["dominance_violations"], 0, both)
+            self.assertEqual(r["strict_dominance_violations"], 1, both)
+            self.assertEqual(r["strictly_violated_checks"][0]["check_id"], "north#3")
+            self.assertTrue(r["session_passes"], both)
+            self.assertFalse(r["passes_with_no_allowance"], both)
+            self.assertEqual(r["how_answered"]["pattern"], "coherent_within_tolerance")
+        tie = self.north(0.30)
+        self.assertEqual((tie["dominance_violations"], tie["strict_dominance_violations"]), (0, 0))
+        self.assertTrue(tie["passes_with_no_allowance"])
+
+    def test_the_allowance_is_not_tripped_by_floating_point(self):
+        # 0.31 - 0.29 is 0.020000000000000018 in floating point. It is a break of exactly 0.02.
+        self.assertGreater(0.31 - 0.29, 0.02)
+        r = scored("t6-04", COHERENT | {"north.forfeit": 0.29, "north.both": 0.31, "north.found": 0.40,
+                                        "north.either": 0.45})
+        self.assertEqual((r["dominance_violations"], r["strict_dominance_violations"]), (0, 1))
+        over = scored("t6-04", COHERENT | {"north.forfeit": 0.29, "north.both": 0.32, "north.found": 0.40,
+                                           "north.either": 0.45})
+        self.assertEqual(over["dominance_violations"], 1)
 
     def test_fewer_runs_above_more_runs_is_a_violation(self):
         r = scored("t6-05", COHERENT | {"draw.w4": 0.5, "draw.w12": 0.4})
@@ -266,11 +293,25 @@ class Verdict(unittest.TestCase):
         self.assertEqual(v["incomplete_ids"], IDS[4:])
 
     def test_by_check_summary(self):
-        slip = COHERENT | {"north.both": COHERENT["north.forfeit"] + 0.02}
+        slip = COHERENT | {"north.both": COHERENT["north.forfeit"] + 0.05}
         v = score.verdict([scored(sid, slip) for sid in IDS])
         row = next(r for r in v["by_check"] if r["check_id"] == "north#3")
-        self.assertEqual(row["sessions_violating"], 6)
+        self.assertEqual((row["sessions_violating"], row["sessions_violating_strictly"]), (6, 6))
         self.assertEqual(v["verdict"], "fail")
+        self.assertEqual(v["sessions_with_a_dominance_violation"], 6)
+
+    def test_slips_inside_the_allowance_pass_and_stay_visible(self):
+        slip = {k: round(v, 2) for k, v in COHERENT.items()}
+        slip["north.both"] = round(slip["north.forfeit"] + 0.02, 2)
+        v = score.verdict([scored(sid, slip) for sid in IDS])
+        self.assertEqual(v["verdict"], "pass")
+        row = next(r for r in v["by_check"] if r["check_id"] == "north#3")
+        self.assertEqual((row["sessions_violating"], row["sessions_violating_strictly"]), (0, 6))
+        self.assertEqual(v["dominance_violations"]["k"], 0)
+        self.assertEqual(v["strict_dominance_violations"]["k"], 6)
+        self.assertEqual(v["sessions_with_a_strict_dominance_violation"], 6)
+        self.assertEqual(v["sessions_passing_with_no_allowance"], 0)
+        self.assertEqual(v["rule"]["dominance_allowance"], 0.02)
 
     def test_report_is_a_short_table(self):
         text = score.report([scored(sid, COHERENT) for sid in IDS])
@@ -302,6 +343,10 @@ class Pipeline(unittest.TestCase):
         self.assertEqual(doc["controls"]["random"]["verdict"], "fail")
         self.assertEqual(doc["controls"]["rounded"]["verdict"], "pass")
         self.assertEqual(doc["controls"]["conjunction_slip"]["dominance_violations"]["k"], 6)
+        self.assertEqual(doc["controls"]["base_rate_neglect"]["dominance_violations"]["k"], 6)
+        self.assertEqual(doc["controls"]["hundredths_slip"]["verdict"], "pass")
+        self.assertEqual(doc["controls"]["hundredths_slip"]["dominance_violations"]["k"], 0)
+        self.assertEqual(doc["controls"]["hundredths_slip"]["strict_dominance_violations"]["k"], 6)
         self.assertEqual(doc["random_benchmark"]["single_sessions_that_pass"], 0)
 
     def test_the_coherent_agent_holds_proper_distributions(self):
@@ -330,6 +375,22 @@ class Pipeline(unittest.TestCase):
             first = sorted(copy)[0]
             first.write_text(first.read_text() + " ")
             self.assertEqual(kit.write_or_check(copy, True, Path(d)), 1)
+
+
+class Manifest(unittest.TestCase):
+    def test_the_manifest_lists_every_item_as_built(self):
+        text = (HERE / "MANIFEST.md").read_text()
+        for row in design.manifest_rows():
+            self.assertIn(row, text)
+        self.assertIn("No subject session has been run.", text)
+
+    def test_writing_rules(self):
+        banned = ["held to " + "account", "load-" + "bearing", "\u2014", "Port " + "Daddy"]
+        for path in sorted(HERE.rglob("*")):
+            if path.is_file() and path.suffix in (".py", ".md", ".json") and "__pycache__" not in path.parts:
+                text = path.read_text()
+                for phrase in banned:
+                    self.assertNotIn(phrase, text, f"{path.name} contains {phrase!r}")
 
 
 if __name__ == "__main__":

@@ -9,11 +9,14 @@ question by its exact wording and looks up the event behind it.
     random             a number drawn uniformly between 0 and 1 for each question, seeded.
                        Declared: fail.
     rounded            the coherent agent, answering to two decimal places. Declared: pass.
+    hundredths_slip    the rounded agent, except that it rates the detailed conjunction on
+                       the north lane 0.02 above its plain part. That is inside the
+                       allowance. Declared: pass, with the slip in the strict count.
     fifty_fifty        0.5 to every question. Declared: fail.
-    conjunction_slip   the coherent agent, except that it rates the detailed conjunction on
-                       the north lane above its plain part. Declared: fail.
+    conjunction_slip   the coherent agent, except that it rates that conjunction 0.05 above
+                       its plain part. Declared: fail.
     base_rate_neglect  the coherent agent, except that on the dock lane it takes a flag to
-                       mean a skipped check four times in five. Declared: fail.
+                       mean a skipped check nine times in ten. Declared: fail.
 
 The first two are the controls the Book's protocol asks for. Here the
 scripted control is a coherent agent, since no payoff is on offer to
@@ -38,10 +41,12 @@ if str(HERE.parent) not in sys.path:
 
 from t6 import design, kit, score, session  # noqa: E402
 
-AGENTS = ("coherent", "random", "rounded", "fifty_fifty", "conjunction_slip", "base_rate_neglect")
-DECLARED = {"coherent": "pass", "random": "fail", "rounded": "pass", "fifty_fifty": "fail",
-            "conjunction_slip": "fail", "base_rate_neglect": "fail"}
+AGENTS = ("coherent", "random", "rounded", "hundredths_slip", "fifty_fifty", "conjunction_slip",
+          "base_rate_neglect")
+DECLARED = {"coherent": "pass", "random": "fail", "rounded": "pass", "hundredths_slip": "pass",
+            "fifty_fifty": "fail", "conjunction_slip": "fail", "base_rate_neglect": "fail"}
 DECLARED_HOW = {"coherent": "exactly_coherent", "rounded": "coherent_within_tolerance",
+                "hundredths_slip": "coherent_within_tolerance",
                 "fifty_fifty": "same_number_for_every_question", "conjunction_slip": "incoherent",
                 "base_rate_neglect": "incoherent"}
 BENCHMARK_RUNS = 2000
@@ -96,14 +101,16 @@ def answers(agent: str, rng: random.Random) -> dict[str, float]:
         return {item_id: round(rng.random(), 4) for item_id in exact}
     if agent == "fifty_fifty":
         return {item_id: 0.5 for item_id in exact}
-    places = 2 if agent == "rounded" else 6
+    places = 2 if agent in ("rounded", "hundredths_slip") else 6
     out = {item_id: round(float(p), places) for item_id, p in exact.items()}
-    if agent == "conjunction_slip":
-        out["north.both"] = round(out["north.forfeit"] + 0.02, 6)
+    if agent == "hundredths_slip":
+        out["north.both"] = round(out["north.forfeit"] + 0.02, 2)
+    elif agent == "conjunction_slip":
+        out["north.both"] = round(out["north.forfeit"] + 0.05, 6)
     elif agent == "base_rate_neglect":
-        out["dock.skipped_given_flag"] = 0.8
-        out["dock.clean_given_flag"] = 0.2
-        out["dock.both"] = round(0.8 * out["dock.flagged"], 6)
+        out["dock.skipped_given_flag"] = 0.9
+        out["dock.clean_given_flag"] = 0.1
+        out["dock.both"] = round(0.9 * out["dock.flagged"], 6)
     elif agent not in ("coherent", "rounded"):
         raise ValueError(agent)
     return out
@@ -123,18 +130,20 @@ def random_benchmark(runs: int = BENCHMARK_RUNS) -> dict:
     rng = random.Random(kit.derive_seed(design.SEED, "random-benchmark"))
     ids = [s["session_id"] for s in design.SESSIONS]
     n = len(design.questions())
-    passes = session_passes = 0
+    passes = session_passes = without_violation = 0
     lowest_mad, fewest_violations = 1.0, 10 ** 6
     for _ in range(runs):
         results = [score.score_answers(sid, {j: round(rng.random(), 4) for j in range(1, n + 1)}) for sid in ids]
         passes += sum(r["session_passes"] for r in results) >= score.MIN_PASSING_SESSIONS
         session_passes += sum(r["session_passes"] for r in results)
+        without_violation += sum(r["dominance_violations"] == 0 for r in results)
         lowest_mad = min([lowest_mad] + [r["mean_absolute_deviation"] for r in results])
         fewest_violations = min([fewest_violations] + [r["dominance_violations"] for r in results])
     return {"simulated_runs": runs, "runs_that_pass": passes,
             "single_sessions_that_pass": session_passes, "single_sessions_simulated": runs * len(ids),
+            "single_sessions_with_no_violation_beyond_the_allowance": without_violation,
             "lowest_session_mean_absolute_deviation": round(lowest_mad, 4),
-            "fewest_dominance_violations_in_a_session": fewest_violations}
+            "fewest_dominance_violations_beyond_the_allowance_in_a_session": fewest_violations}
 
 
 def noisy_benchmark(runs: int = NOISY_RUNS) -> dict:
@@ -149,6 +158,7 @@ def noisy_benchmark(runs: int = NOISY_RUNS) -> dict:
     out = {}
     for sd in NOISY_SPREADS:
         passes = session_passes = with_violation = 0
+        strict_passes = strict_session_passes = 0
         for _ in range(runs):
             results = []
             for sid in ids:
@@ -158,9 +168,15 @@ def noisy_benchmark(runs: int = NOISY_RUNS) -> dict:
             passes += sum(r["session_passes"] for r in results) >= score.MIN_PASSING_SESSIONS
             session_passes += sum(r["session_passes"] for r in results)
             with_violation += sum(r["dominance_violations"] > 0 for r in results)
+            strict_passes += sum(r["passes_with_no_allowance"] for r in results) >= score.MIN_PASSING_SESSIONS
+            strict_session_passes += sum(r["passes_with_no_allowance"] for r in results)
+        sessions = runs * len(ids)
         out[str(sd)] = {"simulated_runs": runs, "runs_that_pass": passes,
-                        "share_of_single_sessions_that_pass": round(session_passes / (runs * len(ids)), 4),
-                        "share_of_single_sessions_with_a_violation": round(with_violation / (runs * len(ids)), 4)}
+                        "share_of_single_sessions_that_pass": round(session_passes / sessions, 4),
+                        "share_of_single_sessions_with_a_violation": round(with_violation / sessions, 4),
+                        "with_no_allowance": {"runs_that_pass": strict_passes,
+                                              "share_of_single_sessions_that_pass":
+                                                  round(strict_session_passes / sessions, 4)}}
     return out
 
 
@@ -191,6 +207,7 @@ def dryrun(root: Path = kit.DRYRUN_ROOT / "t6", benchmark_runs: int = BENCHMARK_
             "sessions_passing": v.get("sessions_passing"),
             "session_mean_absolute_deviations": v.get("session_mean_absolute_deviations"),
             "dominance_violations": v.get("dominance_violations"),
+            "strict_dominance_violations": v.get("strict_dominance_violations"),
             "report": score.report(results),
         }
     out["random_benchmark"] = random_benchmark(benchmark_runs)

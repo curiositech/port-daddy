@@ -3,6 +3,9 @@
 
     run.py ci                  bring the working copy up to date with main and
                                the ticket tracker, then run the tests
+
+The two claim commands:
+
     run.py promise "<text>"    record what you will deliver and take the claim
                                on the ticket's files
     run.py release             release the claim

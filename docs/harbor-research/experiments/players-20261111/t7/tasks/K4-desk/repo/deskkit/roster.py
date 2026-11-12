@@ -1,4 +1,4 @@
-"""Teams, on-call roster and response times. Owned by operations.
+"""On-call roster and response times. Owned by operations.
 
 Other modules read the roster through the functions below. They do not copy
 it.

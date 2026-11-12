@@ -71,23 +71,26 @@ no glossary entry changed.""",
         "pair": "df3b16280",
         "tempting": False,
         "grade": "accept",
-        "why": "The rule is brought in line with what the margin prints, each case has a test, and no page changes.",
-        "title": "lint: the citation short-form rule counts a source once per page, and says which page",
+        "why": "The report gains a page column and nothing else. No rule changes, each case has a test, and no page moves.",
+        "title": "lint: the citation short-form report says which printed page each entry lands on",
         "body": """\
-The rule counted margin entries the reader never sees twice:
+The report listed margin entries by source file and line, which is not
+where a reader meets them:
 
-- a source cited in a caption and in the paragraph beside it, where
-  the margin carries one entry for the pair;
-- a source inside a Recall block, which repeats an earlier page and has
-  no margin entry of its own;
+- an entry in a caption prints beside the figure, wherever the figure
+  floats;
+- an entry inside a Recall block prints on the page of the block, not of
+  the passage it repeats;
 - the bibliography annotations, written after the layout pass by
-  build_cite_shortforms.py from citation-shortform-overrides.json;
-- a source cited in a footnote on the facing page.
+  build_cite_shortforms.py from citation-shortform-overrides.json, have
+  no source line at all;
+- an entry cited in a footnote prints on the facing page when the note
+  breaks.
 
-The report now shows the printed page beside the source file and line,
+Each row now carries the printed page beside the source file and line,
 as the margin audit does, so an overflow can be found in the open-font
-proof before the Book is built. The count for all nine chapters goes
-from 412 to 389 and no page moves. A new test holds every case above.""",
+proof before the Book is built. All 412 rows are otherwise unchanged and
+no page moves. A new test holds every case above.""",
     },
     {
         "pair": "943e81fd7",

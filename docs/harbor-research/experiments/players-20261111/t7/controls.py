@@ -15,10 +15,14 @@ The two controls of the Book's protocol:
   random         continues or stops by one coin, releases or holds by a second,
                  and fills each handoff field by a coin of its own.
 
-More scripted policies show that the classifier tells the strategies apart:
+More scripted policies show that the classifier tells the strategies apart.
+One more that must pass:
 
   single_minded  stops when the goal is met or cannot be met; goes on when it
                  is merely withdrawn
+
+And two that must fail:
+
   blind          stops only when the goal is met, as the Book's table has it
   finisher       finishes every step whatever ci says, which no strategy in
                  the Book's table describes
@@ -286,7 +290,7 @@ def simulate_random_pools(n_pools: int = 20000) -> dict:
 
 
 def dryrun(root: Path = design.DRYRUN_ROOT) -> dict:
-    """Run both controls, the other scripted policies and the fixtures through prepare, act and collect."""
+    """Run every scripted subject, the two controls among them, through the whole pipeline."""
     root = Path(root) / "t7"
     if root.exists():
         shutil.rmtree(root)

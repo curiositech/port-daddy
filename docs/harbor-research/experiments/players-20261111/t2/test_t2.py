@@ -108,6 +108,10 @@ class Kit(unittest.TestCase):
             got, problems = kit.read_answer_map(p)
             self.assertEqual(got, {1: "RUN"})
             self.assertEqual(len(problems), 1)
+            p.write_text(json.dumps({"decisions": {"1": "RUN", "2": "SKIP"}}))
+            got, problems = kit.read_answer_map(p)
+            self.assertEqual(got, {1: "RUN", 2: "SKIP"})
+            self.assertEqual(len(problems), 1)
             p.write_text("not json")
             self.assertEqual(kit.read_answer_map(p)[0], {})
             self.assertEqual(kit.read_answer_map(Path(d) / "missing.json"), ({}, ["answers file missing"]))
@@ -402,6 +406,22 @@ class Pipeline(unittest.TestCase):
             first = sorted(copy)[0]
             first.write_text(first.read_text() + " ")
             self.assertEqual(kit.write_or_check(copy, True, Path(d)), 1)
+
+
+class Manifest(unittest.TestCase):
+    def test_the_manifest_lists_every_item_as_built(self):
+        text = (HERE / "MANIFEST.md").read_text()
+        for row in design.manifest_rows():
+            self.assertIn(row, text)
+        self.assertIn("No subject session has been run.", text)
+
+    def test_writing_rules(self):
+        banned = ["held to " + "account", "load-" + "bearing", "\u2014", "Port " + "Daddy"]
+        for path in sorted(HERE.rglob("*")):
+            if path.is_file() and path.suffix in (".py", ".md", ".json") and "__pycache__" not in path.parts:
+                text = path.read_text()
+                for phrase in banned:
+                    self.assertNotIn(phrase, text, f"{path.name} contains {phrase!r}")
 
 
 if __name__ == "__main__":

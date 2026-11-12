@@ -1,7 +1,7 @@
 """T4: draw the 20 genuine queue entries from this repository's own history.
 
-Read-only git. The walk, the filter and the seeded draw are all here, so the
-draw can be repeated in any clone that holds the pinned commits:
+Read-only git. The filter and the seeded draw over the history are both here,
+so the draw can be repeated in any clone that holds the pinned commits:
 
     python3 t4/harvest.py            write genuine_source.json
     python3 t4/harvest.py --check    exit non-zero if a fresh draw differs
@@ -46,8 +46,9 @@ BAN_PATTERNS = {
                        r"|wolfowitz|zwart|pareto|arrow's)\b"),
     "names an assistant or its maker": r"codex|claude|anthropic",
     "holds an address": r"https?://|@",
-    "holds a phrase this directory may not print": r"load-bearing|held to account",
-    "uses a dash as punctuation": "—|–|\\s--\\s|\\S - \\S",
+    # The two phrases are spelled in halves so that this file does not print them either.
+    "holds a phrase this directory may not print": "load" + "-bearing|held to " + "account",
+    "uses a dash as punctuation": "\u2014|\u2013|\\s--\\s|\\S - \\S",
 }
 BAN = re.compile("|".join(f"(?:{p})" for p in BAN_PATTERNS.values()), re.I)
 SCOPE_BAN = re.compile(r"^\w+\((services|relay|steward|fleet|fleetbot|runtime|ios|console|harbor-card-rs)\)", re.I)

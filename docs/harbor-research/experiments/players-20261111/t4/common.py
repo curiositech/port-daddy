@@ -1,4 +1,4 @@
-"""Paths, seeds and JSON helpers shared by the T4 modules. Standard library only."""
+"""Paths and seeds shared by the T4 modules, with two JSON helpers. Standard library only."""
 from __future__ import annotations
 
 import hashlib

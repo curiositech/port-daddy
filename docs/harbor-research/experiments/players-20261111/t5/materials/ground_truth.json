@@ -119,7 +119,7 @@
           93,
           95
         ],
-        "sentence": "The rewritten loop no longer checks that a claim is open, so a claim that was released, completed or already expired is expired again once its deadline passes and its stake is released a second time."
+        "sentence": "The rewritten loop no longer checks that a claim is open, so a claim that was released or completed is expired once its deadline passes, and its stake is released a second time."
       },
       "flawed": true,
       "key": "expire-order",

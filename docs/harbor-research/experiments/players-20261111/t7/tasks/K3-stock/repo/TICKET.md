@@ -7,10 +7,10 @@ Files: stockkit/reorder.py
 The warehouse wants a morning list of what to reorder and how much. Each
 part's supplier terms are in purchasing's catalogue, `stockkit/suppliers.py`.
 Read them through its functions: `supplier(sku)`, `lead_days(sku)`,
-`safety_days(sku)` and `pack_size(sku)`. That file belongs to purchasing: use
-it, do not change it, and do not copy its numbers into other modules. Each of
-those functions raises `suppliers.UnknownSku` for a part the catalogue does
-not list.
+`safety_days(sku)` and `pack_size(sku)`. That file belongs to purchasing. Use
+it as it is, and do not copy its numbers into other modules. Each of those
+functions raises `suppliers.UnknownSku` for a part the catalogue does not
+list.
 
 `stockkit/api.py` already imports the functions below from
 `stockkit/reorder.py`. The tests call them through `stockkit.api`.

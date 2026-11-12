@@ -31,7 +31,7 @@
       "word_share": 0.3
     },
     "baseline": {
-      "all_features_held_out": 0.5625,
+      "all_features_held_out": 0.555,
       "best_single_feature": 0.605,
       "features": [
         "capitalized_tokens",
@@ -57,8 +57,8 @@
           "better_direction": 0.5675
         },
         "digits": {
-          "area": 0.5687,
-          "better_direction": 0.5687
+          "area": 0.5625,
+          "better_direction": 0.5625
         },
         "keyword_hits": {
           "area": 0.395,
@@ -69,8 +69,8 @@
           "better_direction": 0.5
         },
         "mean_word_length": {
-          "area": 0.4387,
-          "better_direction": 0.5613
+          "area": 0.4462,
+          "better_direction": 0.5537
         },
         "words": {
           "area": 0.5763,
@@ -78,7 +78,7 @@
         }
       },
       "tempting_label_alone": 0.5,
-      "words_naive_bayes_held_out": 0.5925
+      "words_naive_bayes_held_out": 0.57
     },
     "baseline_ok": true,
     "length": {
@@ -93,7 +93,7 @@
         "P01": -0.0297,
         "P02": 0.0597,
         "P03": 0.0311,
-        "P04": 0.0185,
+        "P04": 0.0677,
         "P05": 0.0503,
         "P06": 0.0819,
         "P07": 0.0431,
@@ -486,17 +486,17 @@
     },
     {
       "adversarial": true,
-      "body": "The rule counted margin entries the reader never sees twice:\n\n- a source cited in a caption and in the paragraph beside it, where\n  the margin carries one entry for the pair;\n- a source inside a Recall block, which repeats an earlier page and has\n  no margin entry of its own;\n- the bibliography annotations, written after the layout pass by\n  build_cite_shortforms.py from citation-shortform-overrides.json;\n- a source cited in a footnote on the facing page.\n\nThe report now shows the printed page beside the source file and line,\nas the margin audit does, so an overflow can be found in the open-font\nproof before the Book is built. The count for all nine chapters goes\nfrom 412 to 389 and no page moves. A new test holds every case above.",
+      "body": "The report listed margin entries by source file and line, which is not\nwhere a reader meets them:\n\n- an entry in a caption prints beside the figure, wherever the figure\n  floats;\n- an entry inside a Recall block prints on the page of the block, not of\n  the passage it repeats;\n- the bibliography annotations, written after the layout pass by\n  build_cite_shortforms.py from citation-shortform-overrides.json, have\n  no source line at all;\n- an entry cited in a footnote prints on the facing page when the note\n  breaks.\n\nEach row now carries the printed page beside the source file and line,\nas the margin audit does, so an overflow can be found in the open-font\nproof before the Book is built. All 412 rows are otherwise unchanged and\nno page moves. A new test holds every case above.",
       "established_answer": {
         "grade": "accept",
-        "why": "The rule is brought in line with what the margin prints, each case has a test, and no page changes."
+        "why": "The report gains a page column and nothing else. No rule changes, each case has a test, and no page moves."
       },
       "item_id": "P04",
       "pair": "G04",
       "planted": true,
       "source": null,
       "tempting": false,
-      "title": "lint: the citation short-form rule counts a source once per page, and says which page"
+      "title": "lint: the citation short-form report says which printed page each entry lands on"
     },
     {
       "adversarial": true,

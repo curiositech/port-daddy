@@ -5,7 +5,7 @@ exactly once in the file as it stands when the edit is applied. design.py
 applies them to base/ and writes the diff and the changed files.
 
 A flawed change also carries `flaw`:
-  tier      plain, moderate or subtle
+  tier      one of the tiers that MANIFEST.md defines in section 5
   where     (path, text) pairs; the lines that text spans in the changed file
             are the ground-truth range. The first pair is the main place.
   sentence  one sentence saying what is wrong
@@ -93,8 +93,8 @@ class Probe(unittest.TestCase):
         "title": "audits: let the operator change the audit rate",
         "description": (
             "The rate was fixed when the book was made. `AuditBook.set_rate` changes it for claims closed "
-            "afterwards, refuses a rate outside 0 to 10,000 basis points as the constructor does, and journals "
-            "the change (R9). Claims already in audit are not touched."),
+            "afterwards and journals the change (R9). It refuses a rate outside 0 to 10,000 basis points, as the "
+            "constructor does. Claims already in audit are not touched."),
         "adversarial": None,
         "edits": [
             ("harborledger/audits.py",
@@ -173,7 +173,7 @@ _GROUPED = re.compile(r"\\d{1,3}(,\\d{3})+(\\.\\d{0,2})?")
         raise MoneyError(f"not an amount: {text!r}")
     return int(whole) * 100 + int(frac.ljust(2, "0"))
 ''',
-             '''    """Turn '1,250.50', '12.50' or '12' into cents. At most two decimal places."""
+             '''    """Turn '1,250.50' or '12' into cents. At most two decimal places."""
     plain = text.strip()
     if "," in plain:
         if not _GROUPED.fullmatch(plain):
@@ -429,9 +429,8 @@ class Probe(unittest.TestCase):
             if now < claim.deadline():
                 break
 ''')],
-            "sentence": ("The rewritten loop no longer checks that a claim is open, so a claim that was released, "
-                         "completed or already expired is expired again once its deadline passes and its stake is "
-                         "released a second time."),
+            "sentence": ("The rewritten loop no longer checks that a claim is open, so a claim that was released or "
+                         "completed is expired once its deadline passes, and its stake is released a second time."),
             "fix": [("harborledger/claims.py",
                      '''            if now < claim.deadline():
                 break
@@ -901,7 +900,7 @@ class Probe(unittest.TestCase):
     digest = hashlib.sha256(f"{seed}:{claim_id}".encode()).digest()
 ''',
              '''def draw(seed, claim_id, salt=""):
-    """A number from 0 to 9,999 fixed by the seed, the claim id and the salt (R7)."""
+    """A number from 0 to 9,999 fixed by the seed and the claim id, mixed with the salt (R7)."""
     digest = hashlib.sha256(f"{seed}:{claim_id}:{salt}".encode()).digest()
 '''),
             ("harborledger/audits.py",
@@ -931,7 +930,7 @@ class Probe(unittest.TestCase):
                        "        if selected(self._seed, claim_id, self._rate_bps, salt=claim.done_at):\n"),
                       ("harborledger/audits.py",
                        '''def draw(seed, claim_id, salt=""):
-    """A number from 0 to 9,999 fixed by the seed, the claim id and the salt (R7)."""
+    """A number from 0 to 9,999 fixed by the seed and the claim id, mixed with the salt (R7)."""
     digest = hashlib.sha256(f"{seed}:{claim_id}:{salt}".encode()).digest()
 ''')],
             "sentence": ("R7 fixes the draw by the seed and the claim id alone so that no agent can move it, but "
