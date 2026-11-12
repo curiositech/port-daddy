@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "993661a6911b10a719376f9ff1b7ddbf70c679a2",
+  "commit": "8ecab4c88c968360bcc9d2d329abf4c8575983f9",
   "scan": "harbord",
   "excerpts": [
     {
@@ -463,6 +463,87 @@
       "sha256": "276ea875888417fd29742b37b652b480b5b1c0f627a1c834c1e25876d69b5b8e"
     },
     {
+      "name": "ch04-kani",
+      "path": "harbord/core/src/zoom/proofs.rs",
+      "firstLine": 57,
+      "lastLine": 69,
+      "lines": 13,
+      "language": "Rust",
+      "sha256": "8ed941ca143c665e4468d082a10b43b3815a3415f4cab709061283803147f14c"
+    },
+    {
+      "name": "ch04-land",
+      "path": "harbord/core/src/zoom.rs",
+      "firstLine": 182,
+      "lastLine": 196,
+      "lines": 15,
+      "language": "Rust",
+      "sha256": "1db7b52b20bd523352df694e46744ca048eba8488ed86a23f571dd59a99e61e6"
+    },
+    {
+      "name": "ch04-land-guards",
+      "path": "harbord/core/src/zoom.rs",
+      "firstLine": 200,
+      "lastLine": 220,
+      "lines": 21,
+      "language": "Rust",
+      "sha256": "df2263fe699f1d4c9e7458c1240be22762c7b83eb6d951c453bc1988694adb53"
+    },
+    {
+      "name": "ch04-linked",
+      "path": "harbord/src/naive/digests.ts",
+      "firstLine": 38,
+      "lastLine": 60,
+      "lines": 23,
+      "language": "TypeScript",
+      "sha256": "d4a38289e9f76c33ebd14875877dc2128ec7702d704bc82fdefedf632d0f77da"
+    },
+    {
+      "name": "ch04-open",
+      "path": "harbord/core/src/zoom.rs",
+      "firstLine": 147,
+      "lastLine": 165,
+      "lines": 19,
+      "language": "Rust",
+      "sha256": "76b1904c3e7993af683200ef1a2b8e7e802c2890adc10cbd479e3a64e37c7442"
+    },
+    {
+      "name": "ch04-render",
+      "path": "harbord/core/src/zoom.rs",
+      "firstLine": 97,
+      "lastLine": 113,
+      "lines": 17,
+      "language": "Rust",
+      "sha256": "704e9d210a6f890b6dab9285cf3139402d05e80e2cf77bb414c4ef2a1375beba"
+    },
+    {
+      "name": "ch04-render-guards",
+      "path": "harbord/core/src/zoom.rs",
+      "firstLine": 117,
+      "lastLine": 134,
+      "lines": 18,
+      "language": "Rust",
+      "sha256": "b2827355c2d88ee8711352883277e2a2e740574fc26e5748de258a54c5cecfe6"
+    },
+    {
+      "name": "ch04-said",
+      "path": "harbord/src/naive/digests.ts",
+      "firstLine": 18,
+      "lastLine": 28,
+      "lines": 11,
+      "language": "TypeScript",
+      "sha256": "03a86ae3d44a6196d015f13915558cebf17bb5877770e76188d433c826d92cbc"
+    },
+    {
+      "name": "ch04-same",
+      "path": "harbord/core/src/zoom.rs",
+      "firstLine": 169,
+      "lastLine": 177,
+      "lines": 9,
+      "language": "Rust",
+      "sha256": "813ec5da0d44c8ecc39a771cb9f1dda221a3be4eb09d0910fb940938c0a7d6c9"
+    },
+    {
       "name": "ch06-apiece",
       "path": "harbord/src/naive/apiece.ts",
       "firstLine": 60,
@@ -666,6 +747,18 @@
       "sha256": "49dca27d68467b41dc45b6b1327f4696275f9b1e9dd57e400b32d780e6892e2c"
     },
     {
+      "name": "borrowed-core",
+      "path": "harbord/sessions/borrowed-core.txt",
+      "lines": 17,
+      "sha256": "cc1ec8208eb8b4d6751ea079aed9a64d68fa0234ca1d4be68095288dc6871e16"
+    },
+    {
+      "name": "borrowed-linked",
+      "path": "harbord/sessions/borrowed-linked.txt",
+      "lines": 17,
+      "sha256": "718d58ad34e0d0c6e3f04fce50db59c78ca7c03ad222b0fc983cf779fa87f070"
+    },
+    {
       "name": "bystander-core",
       "path": "harbord/sessions/bystander-core.txt",
       "lines": 37,
@@ -798,6 +891,18 @@
       "sha256": "083b3b9e6a66e79e49853837eb312fe14b50ea19b540a1c064b419bb63826777"
     },
     {
+      "name": "green-core",
+      "path": "harbord/sessions/green-core.txt",
+      "lines": 16,
+      "sha256": "e709590f505788b30cde71df64cc5298e7dd2d8dc982e36fa876bc577a125ee9"
+    },
+    {
+      "name": "green-said",
+      "path": "harbord/sessions/green-said.txt",
+      "lines": 14,
+      "sha256": "806fe7619dc453bb0781678599a554517727049b06af4371c855a77237195580"
+    },
+    {
       "name": "handing-on-naive",
       "path": "harbord/sessions/handing-on-naive.txt",
       "lines": 26,
@@ -864,6 +969,12 @@
       "sha256": "1d6f1292a4ebdf7e272eaf148603b627fd09f049d09e5a2c654d896e5f931539"
     },
     {
+      "name": "kani-zoom",
+      "path": "harbord/sessions/kani-zoom.txt",
+      "lines": 22,
+      "sha256": "420ea18d3a9143dbc90abf553e6bfb1da03c62c4679950cd2862915b6c949f91"
+    },
+    {
       "name": "launder-core",
       "path": "harbord/sessions/launder-core.txt",
       "lines": 15,
@@ -880,6 +991,24 @@
       "path": "harbord/sessions/launder-prompt.txt",
       "lines": 15,
       "sha256": "94a152c33a4ebb20a469a5fb722de058ec8b55100f808c2b5d07168f62b8fc33"
+    },
+    {
+      "name": "lines-each",
+      "path": "harbord/sessions/lines-each.txt",
+      "lines": 14,
+      "sha256": "3e11d30ca1e9a7a6567c10a428d84132b1c39bdd1c6e7739c1cdbf55c19fd759"
+    },
+    {
+      "name": "lines-guards",
+      "path": "harbord/sessions/lines-guards.txt",
+      "lines": 26,
+      "sha256": "db3beb1208c4e84b60bce7e7221f44f2ae9a817d29c2a2af357c5ea8353d4f80"
+    },
+    {
+      "name": "lines",
+      "path": "harbord/sessions/lines.txt",
+      "lines": 22,
+      "sha256": "ec2205ef4d02bca8d862f73e23730db19c4cc5bfd026ff5e525be0ee314ff889"
     },
     {
       "name": "links-last-card-only",
@@ -1042,6 +1171,12 @@
       "path": "harbord/sessions/partial-apiece.txt",
       "lines": 15,
       "sha256": "0b5d98755ec4cbd2a4c3699ad997a78d6259fbb531c371c350fdb9eadbd0dc52"
+    },
+    {
+      "name": "pile-core",
+      "path": "harbord/sessions/pile-core.txt",
+      "lines": 22,
+      "sha256": "4a461bbca8cd4bf801071e97034ee2f698c50257d96d4376c522dffa63834f96"
     },
     {
       "name": "plans-guards",
@@ -1242,6 +1377,18 @@
       "sha256": "281c943bc3f15a5f2bb825808d64774b4204ef5886940bf8d25dac69fed05652"
     },
     {
+      "name": "switch-core",
+      "path": "harbord/sessions/switch-core.txt",
+      "lines": 22,
+      "sha256": "9c3a28c3b68b8b82b8a16477ca2b84291693c30908eca3f0366c1257609122e6"
+    },
+    {
+      "name": "switch-linked",
+      "path": "harbord/sessions/switch-linked.txt",
+      "lines": 21,
+      "sha256": "7f92ba5ffab682c81a7e28150785dca3ebce36cf63305c0c9a640f8489cbdf14"
+    },
+    {
       "name": "theft-bearer",
       "path": "harbord/sessions/theft-bearer.txt",
       "lines": 16,
@@ -1366,6 +1513,7 @@
     "ch02d": 81,
     "ch02e": 122,
     "ch03": 148,
+    "ch04": 146,
     "ch06": 150,
     "ch07": 145,
     "ch07b": 139

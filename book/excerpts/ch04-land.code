@@ -1,0 +1,15 @@
+/// An act that cannot be undone. The work must be verified, and
+/// every claim of its line opened.
+pub fn land(work: &Work) -> Result<Read, Reason> {
+    let read = read(work)?;
+    if !verified(&read.line) {
+        return Err(Reason::NotVerified);
+    }
+    if let Some(claim) = unopened(&read) {
+        return Err(Reason::NotOpened { claim });
+    }
+    Ok(Read {
+        landed: true,
+        ..read
+    })
+}

@@ -1,0 +1,376 @@
+% Build the layer, Chapter 4, first build: a line of a digest.
+% Inserted at the end of \S\ref{sec:zoom}, after the scene "Alice, 3:32
+% p.m." The protocol there says how a line of a digest is to be made. This
+% makes one in the kernel's decision core, and makes landing wait for it.
+%
+% No code or output in this file is typed. Each listing is a file under
+% excerpts/, which the kernel's tools/excerpts.mjs cuts from its source and
+% its recorded runs (see figures/pd-listing.tex). The figure draws one of those recorded tables as
+% it was printed. To change a listing or the figure, change the kernel and
+% cut again. The prose names functions, never line numbers, so that a
+% listing which moves in its file does not make a sentence wrong.
+%
+% \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
+% listing changes length, change the number with it.
+\subsection{Build the layer: a line that leads back to the work}
+\label{sec:ls-line}
+
+\noindent\emph{Express lane: the line is built three times. The first
+prints what the worker says, and Alice lands a change that failed the test
+it was to keep. The second asks for links and waits until each is opened.
+One worker attaches the log of other work, and another changes its work
+after Alice has read it. The third is made by the decision core from the
+kernel's record, and landing makes it again and waits for the hashes on
+it. A walk of every afternoon of one piece of work counts 10,094 states in
+which the second surface lets work land, and 1,214 of them are right. Under
+the kernel's surface all 1,092 are.}
+
+The protocol above says how a line is to be made, and the scene after it
+has Alice follow it by eye. \pdkernelname{} builds a surface that follows
+it, for one piece of work and one act that cannot be undone.
+
+The work is the checkout repair of \S\ref{sec:mara}, which starts at
+revision~7. A worker changes it, and each change makes the next revision.
+The kernel stores every diff. It also runs the test that the job says to
+keep, which this section calls the \emph{kept test}, and a change that
+deletes that test fails it. The worker may say things about its work. Alice
+reads one line about the work on a read-surface and opens what the line
+points to. Then she lands the work or leaves it.
+
+Every run below ends on one question. A landing is \emph{right} if a run of
+the kept test had passed on the revision that landed, and Alice had been
+shown that revision's diff.
+
+\subsubsection{Naive: the line is what the worker says}
+
+The obvious surface asks the author. The worker says how its work went, and
+the line is what it said, after its name and the job's
+(Listing~\ref{alg:ls-line-said}).
+
+\pdlistingroom{11}
+\pdexcerpt[caption={The first try. The line is the worker's words, and
+landing waits for nothing.},label={alg:ls-line-said}]{ch04-said}
+
+This is Row~B of the example that opens this section. Nothing stands
+behind the line, so \texttt{land} has nothing to wait for.
+
+\subsubsection{Break: all green}
+
+Drake repairs the retry and deletes the kept test
+(Listing~\ref{alg:ls-line-run-green}).
+
+\pdlistingroom{14}
+\pdrun[caption={A worker that says all green, at the first surface. Nobody
+here is asked who they are: the names say who would
+act.},label={alg:ls-line-run-green}]{green-said}
+
+The kernel ran the kept test on revision~8, and it failed. That run is in
+the kernel's record, and the line does not draw on the record. Alice read a
+true account of what Drake said, and she landed work that the record called
+broken.
+
+\subsubsection{Break again: a real log of other work}
+
+Invariant~\ref{def:zoom} says what to repair: every summary must reach the
+artifact it summarizes. So the second surface refuses a line with nothing
+attached. It shows each thing the worker attached as a claim that Alice can
+open, and landing waits until she has opened every one
+(Listing~\ref{alg:ls-line-linked}).
+
+\pdlistingroom{23}
+\pdexcerpt[caption={The second try. A line needs links, and landing waits
+for each to be opened.},label={alg:ls-line-linked}]{ch04-linked}
+
+This is Row~A. Drake's bare ``all green'' is refused now, because nothing is
+attached to it. So Drake attaches a log
+(Listing~\ref{alg:ls-line-run-borrowed}).
+
+The log Alice is shown is real, and the run in it passed. It is a run of
+revision~7, and Drake's work stands at revision~8. The example above warned
+that a dishonest agent could reuse Row~A's log, and
+\S\ref{sec:completionist} says that a passing receipt for another tree
+cannot close the obligation. This surface compares nothing. It shows Alice
+what the worker chose to attach.
+
+\pdlistingroom{17}
+\pdrun[caption={The second break. The link opens, and it leads to a real
+log of other work.},label={alg:ls-line-run-borrowed}]{borrowed-linked}
+
+\subsubsection{Break a third time: the work changes after it was read}
+
+The next break needs no false word from anyone
+(Listing~\ref{alg:ls-line-run-switch}).
+
+\pdlistingroom{21}
+\pdrun[caption={The third break. Alice opened everything on the line, and
+the work changed afterwards.},label={alg:ls-line-run-switch}]{switch-linked}
+
+Everything Alice was shown was true of revision~8. Wren then added a
+migration, and the kernel's run of revision~9 passed. The surface landed
+revision~9. It had kept the numbers of the claims she opened, and claims 1
+and 2 were still ticked. She read one revision and landed another. This is
+the unrelated migration of \S\ref{sec:mara}, and it arrived after the
+review.
+
+\subsubsection{Fix: the line is made from the record}
+
+The breaks share a fault. Someone with a stake in the landing chose what
+Alice saw: the words under the first surface, and the links under the
+second. The third break adds that the work moved after she had looked.
+\pdkernelname{} takes the choice away from the worker. The line is
+made by the decision core (\weld{prereq:sec:prereq-build}{decision core}),
+which is shown the kernel's record of the work and nothing the worker said.
+The record holds the work's revision, the hash of its stored diff, the
+kernel's newest run of the kept test and the hashes of what Alice has
+opened.
+
+\texttt{render} makes the line from that record. A line is a list of
+claims, and a claim is a statement with the SHA-256 of the text that backs
+it. The first claim is that the change is this diff. If the kernel has run
+this revision, a second claim says that the test passed or failed, with the
+hash of the run's log. The line is marked verified only if such a run
+passed (Listing~\ref{alg:ls-line-render}). Two guards stand behind it
+(Listing~\ref{alg:ls-line-render-guards}).
+
+\pdlistingroom{17}
+\pdexcerpt[caption={The line, made from the
+record.},label={alg:ls-line-render}]{ch04-render}
+
+\pdlistingroom{18}
+\pdexcerpt[caption={The guards on a line. A line marked \texttt{MUTANT} is
+compiled only into a build of the core that has that guard removed, and the
+verification below runs each of those
+builds.},label={alg:ls-line-render-guards}]{ch04-render-guards}
+
+\texttt{backing} makes no line for work with no diff stored.
+\texttt{current} lets a run count only if it is a run of the revision the
+work stands at. The kernel's own run of an earlier revision is a passing
+receipt for another tree, as the log Drake borrowed was, and
+\texttt{current} leaves it off the line.
+
+Nothing the worker says is an input to \texttt{render}, which answers the
+first break (Listing~\ref{alg:ls-line-run-green-core}).
+
+\pdlistingroom{16}
+\pdrun[caption={The first break, on the kernel's
+surface.},label={alg:ls-line-run-green-core}]{green-core}
+
+The line says \texttt{NOT VERIFIED}, and it names the failing log by its
+hash. The refusal carries a named reason, which is the protocol's fourth
+step.
+
+Attaching another worker's log changes nothing, because what a worker
+attaches is not in the record
+(Listing~\ref{alg:ls-line-run-borrowed-core}).
+
+\pdlistingroom{11}
+\pdrunlines[caption={The second break, on the kernel's surface. The claim
+Alice opens is the diff of revision~8, and it shows her the
+deletion.},label={alg:ls-line-run-borrowed-core}]{borrowed-core}{1,8-17}{1 and 8\textendash 17}
+
+Opening is a decision of the core's as well. The kernel's store hands over
+the text it holds under a claim's hash, and \texttt{open} is given that
+text. The claim counts as opened only if \texttt{same} agrees. What the
+core then records is the claim's hash and not its number
+(Listing~\ref{alg:ls-line-open}).
+
+\pdlistingroom{19}
+\pdexcerpt[caption={Opening a claim.},label={alg:ls-line-open}]{ch04-open}
+
+\texttt{same} hashes the text again and compares the result with the
+claim's own hash (Listing~\ref{alg:ls-line-same}).
+
+\pdlistingroom{9}
+\pdexcerpt[caption={The guard on what is shown. What the store hands over
+is hashed again.},label={alg:ls-line-same}]{ch04-same}
+
+\texttt{land} answers the third break. It begins with \texttt{read}, which
+calls \texttt{render}, so the line it judges is the line as the work stands
+at that moment. The work must be verified, and no claim on that line may be
+unopened (Listing~\ref{alg:ls-line-land}).
+
+\pdlistingroom{15}
+\pdexcerpt[caption={Landing. The line is made again, and every claim on it
+must have been opened.},label={alg:ls-line-land}]{ch04-land}
+
+The order of the two checks is the order in which a reader is told things.
+Work that is not verified is refused for that, whatever has been opened, so
+nobody is sent to read a diff that cannot land. Verified work is refused
+with the number of the first claim that is still unopened, which tells
+Alice what to open next.
+
+\texttt{unopened} looks for a claim on the line whose hash is not among the
+hashes Alice opened, and \texttt{seen} is the comparison it makes
+(Listing~\ref{alg:ls-line-land-guards}).
+
+\pdlistingroom{21}
+\pdexcerpt[caption={The guards on landing.},label={alg:ls-line-land-guards}]{ch04-land-guards}
+
+When Wren changes the work after the review, the new line names a new diff,
+and Alice has not opened it (Listing~\ref{alg:ls-line-run-switch-core}).
+
+\pdlistingroom{22}
+\pdrun[caption={The third break, on the kernel's
+surface.},label={alg:ls-line-run-switch-core}]{switch-core}
+
+The same guard answers the unread pile of \S\ref{sec:mara}. Verified work
+that nobody has opened does not land, and it lands once it has been opened
+(Listing~\ref{alg:ls-line-run-pile}).
+
+\pdlistingroom{13}
+\pdrunlines[caption={Verified work, landed after it was opened and not
+before. The steps left out are the first four of
+Listing~\ref{alg:ls-line-run-switch-core}.},label={alg:ls-line-run-pile}]{pile-core}{1,11-22}{1 and 11\textendash 22}
+
+This is the forced zoom of the protocol's third step. The build has no flag
+for it. Its one act cannot be undone, so every line would carry the flag
+set.
+
+\keyidea[The reader's line]{Whoever chooses what a summary points to
+decides what its reader sees. So the line is made from the kernel's record,
+by code with no stake in the landing, and it names each backing text by its
+hash. Work can change between a reading and an act, so the act makes the
+line again and waits for the hashes that are on it then.}
+
+\Needspace{12\baselineskip}
+\subsubsection{Verify: every afternoon of one piece of work}
+
+\paragraph{Every afternoon.}
+The runs above are seven afternoons. The kernel's tests walk every
+afternoon of one piece of work within small bounds. The worker changes the
+work up to 2 times, well or badly, and says up to 2 things of it. Its words
+come bare or with something attached: a log of other work, or its own diff
+and newest log. The kernel runs the kept test whenever it gets to it. The
+store goes wrong at most once, which means that the text it holds under the
+diff's hash becomes some other text. Alice opens up to 3 claims, and she
+may try to land in any state.
+
+Every state is held to rules written apart from the core, which do their
+own hashing. A line \emph{says more than it shows} if it tells its reader
+that the work is good and carries no claim that leads to a passing run of
+the work as it stands. A landing is counted as not verified if no run of
+its revision had passed, and as not read if no text Alice was shown hashes
+to its diff (Listing~\ref{alg:ls-line-walk}).
+
+\pdlistingroom{22}
+\pdrun[caption={Every afternoon of one piece of work, under each
+surface.},label={alg:ls-line-walk}]{lines}
+
+The first surface shows a line in each of its 2,388 states, and 2,160 of
+those lines say more than they show. It lets the work land in every state.
+The second surface has 10,094 states in which work can land. In 7,002 of
+them no run of the work had passed, and in 6,544 Alice had not been shown
+its diff. The kernel's surface shows 14,308 lines, and none says more than
+it shows. It lets work land in 1,092 states, each of them verified and
+read, and it refused no landing that was both.
+
+\paragraph{Every landing.}
+The two faults overlap, so the last two columns of the listing cannot be
+added. Figure~\ref{fig:ls-line-landings} sorts every landing into one of
+four kinds.
+
+\input{figures/fig-ls-line-landings}
+
+Under the first surface no landing is right, because it has nothing to
+open. In 648 of them the work happened to be verified, and in the other
+1,740 it was not. Under the second surface 1,214 of 10,094 landings are
+right, which is about one in eight. In 4,666 the work was neither verified
+nor read. Each of those landings had links on its line, and the surface
+counted every one as opened. Under the kernel's surface the bar has one
+kind.
+
+\paragraph{Any record.}
+The walk stops at 2 changes and 3 openings. Kani lifts the bounds on the
+record (\weld{anchor:sec:correct}{Kani}). It compiles the core's own
+\texttt{land} and asks a solver about every record at once
+(Listing~\ref{alg:ls-line-kani}).
+
+\pdlistingroom{13}
+\pdexcerpt[caption={A Kani harness on landing. The record is any record,
+with any two hashes opened.},label={alg:ls-line-kani}]{ch04-kani}
+
+\texttt{any\_work} builds any record: any revision, a diff or none, a run
+of any revision or none, and any two hashes opened. If \texttt{land} admits
+it, the harness's 2 assertions say that the line is verified and that every
+claim on it is among the hashes opened. Its \texttt{cover} line makes the
+solver find a record that does land. Without it the assertions could hold
+for want of any case to try.
+
+The harness pays for its reach. Under Kani a hash is one byte and not a
+string of 64 characters. With strings, the solver ran out of 8~GB of memory
+on a harness of a few lines. The rules compare hashes and never look inside
+one, so they decide the same way on bytes. The code Kani checked therefore
+differs from the code that runs by one type, and SHA-256 is left out of it
+(Listing~\ref{alg:ls-line-kani-run}).
+
+\pdlistingroom{9}
+\pdrunlines[caption={Kani~0.68 on the core's rules for a
+line.},label={alg:ls-line-kani-run}]{kani-zoom}{1-9}{1\textendash 9}
+
+The first verdict is a control. It puts the question to a gate that counts
+how many things were opened and compares no hashes, and that harness fails
+as it must.
+
+\paragraph{Each guard removed.}
+This build has six guards. Five are in the listings above, and the sixth
+is the \texttt{verified} that \texttt{land} calls. The kernel has a build
+with each one taken out. The harnesses are run on each
+(Listing~\ref{alg:ls-line-kani-guards}), and so is the walk
+(Listing~\ref{alg:ls-line-guards-walk}).
+
+\pdlistingroom{14}
+\pdrunlines[caption={The harnesses again, on six builds of the core with
+one guard removed from each.},label={alg:ls-line-kani-guards}]{kani-zoom}{1,10-22}{1 and 10\textendash 22}
+
+Read the walk's rows against the breaks. A core that counts any run is the second
+break inside the core: 1,716 of its lines say more than they show, and 462
+of its landings are of work no run had passed. A core that counts what was
+opened is the third break, with 912 landings of unread work. A core that
+makes a line with no diff behind it lands nothing wrong, and 20 of its
+lines lead to nothing in the store.
+
+\pdlistingroom{26}
+\pdrun[caption={The walk again, on the same six
+builds.},label={alg:ls-line-guards-walk}]{lines-guards}
+
+The row to study is \texttt{trust-store}. A core that does not hash what
+the store hands over lands unread work in 376 states of the walk, and no
+harness fails on it. That is the price paid above. Under Kani the
+comparison of a text with its hash is the solver's to answer, so the guard
+is not in the code Kani sees. The gate that
+\pdchapref{sealed}{The Sealed Harbor} builds
+(\weld{sealed:sec:sealed-gate}{walk of pairs}) had a guard that its walk
+could not see and Kani could. Here it is the other way round. Each tool is blind somewhere, and running both on every build with a
+guard removed is how the blind places are found.
+
+\pdscope{The walk covers one piece of work, within the bounds that
+Listing~\ref{alg:ls-line-walk} prints: 2 changes, 2 sayings, 3 openings and
+one fault of the store. Its counts are of states, with no
+chances attached: a careless afternoon and a careful one each count once.
+The harnesses cover one decision of the core's on any record, with a byte
+standing for a hash.}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+A true line is not a right change. The line says that the kept test passed
+on this revision, and landing says that Alice was shown this diff. Wren's
+revision~9 passes the kept test and carries a migration nobody asked for.
+If Alice opens its diff she is shown the migration, and whether she sees it
+is nothing the core can know. The job has one kept test, and nothing here
+asks whether it is the right test.
+
+Opened is not read. The core records that a text was shown and that it
+hashed to the claim. An operator who opens every claim without looking
+lands what a careful one would not. How much reading an operator can do is
+the subject of \S\ref{sec:operator}, and of this chapter's next build.
+
+Nobody is asked who they are. A move names no one, so a worker that can
+reach the core can open its own claims. The kernel's run of the kept test
+is taken as given, and a runner that a worker controls is outside the
+model.
+
+The store has to keep every text a line has named, for as long as the line
+may be read. If it changes a text before Alice has opened it, the claim
+cannot be opened. The work behind it then does not land, however good it
+is.
+\end{pdboundary}

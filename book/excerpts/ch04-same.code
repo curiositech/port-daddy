@@ -1,0 +1,9 @@
+/// The guard on what is shown: its SHA-256 is the claim's.
+#[cfg(not(kani))]
+fn same(sha: &Sha, shown: &str) -> bool {
+    use sha2::{Digest, Sha256};
+    if cfg!(feature = "mutant-trust-store") {
+        return true; // MUTANT: guard removed.
+    }
+    hex(&Sha256::digest(shown.as_bytes())) == *sha
+}

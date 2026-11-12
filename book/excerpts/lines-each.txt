@@ -1,0 +1,14 @@
+$ harbor lines --each
+# every landing in every afternoon of one piece of work, sorted by
+#   what was wrong with it
+# surface 1: said; 2: linked; 3: core
+# right: the kept test had passed on the work, and the operator
+#   had been shown its diff
+# unread: it had passed, and she had not been shown the diff
+# unverified: she had been shown the diff, and no run of the work
+#   had passed
+# neither: no run had passed, and she had not been shown the diff
+surface  landings  right  unread  unverified  neither
+      1      2388      0     648           0     1740
+      2     10094   1214    1878        2336     4666
+      3      1092   1092       0           0        0

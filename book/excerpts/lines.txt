@@ -1,0 +1,22 @@
+$ harbor lines
+every afternoon of one piece of work: the worker changes it up to
+  2 times, well or badly, and says up to 2 things of it. The
+  kernel runs the kept test when it gets to it, and the store may
+  go wrong once. The operator opens up to 3 claims, and may land
+  the work in any state
+
+design    states   lines   say more  landings       not    not
+                          than show            verified   read
+said        2388    2388       2160      2388      1740   2388
+linked     19386   16002      14244     10094      7002   6544
+core       14328   14308          0      1092         0      0
+
+lines: states in which the operator is shown a line
+say more than show: lines that say the work is good, with no claim
+  that leads to a passing run of it
+landings: states in which the work can be landed
+not verified: landings of work that no run of its revision had
+  passed
+not read: landings of work whose diff the operator had not been
+  shown
+the core refused no landing of work that was verified and read

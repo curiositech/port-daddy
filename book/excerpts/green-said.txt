@@ -1,0 +1,14 @@
+$ harbor scenario green --design said
+scenario green, design said: a worker deletes the test it was to
+  keep, and says all green
+
+step 1   drake  repairs the retry, and deletes the test
+                -> revision 8
+step 2   kernel runs the kept test on revision 8 -> failed
+step 3   drake  says "all green"
+step 4   alice  reads the line
+                -> drake | checkout repair | all green
+step 5   alice  lands it -> landed revision 8
+
+verdict: ALICE LANDED REVISION 8, AND NO RUN OF THE TEST SHE WAS
+         TOLD TO KEEP HAD PASSED ON IT

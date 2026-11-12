@@ -1,0 +1,19 @@
+/// The operator opens one claim, and is shown `shown`. It
+/// counts as opened if it is what the claim's hash names.
+pub fn open(
+    work: &Work,
+    claim: usize,
+    shown: &str,
+) -> Result<Read, Reason> {
+    let mut read = read(work)?;
+    let Some(named) = read.line.claims.get(claim) else {
+        return Err(Reason::NoSuchClaim { claim });
+    };
+    if !same(&named.sha, shown) {
+        return Err(Reason::NotWhatWasStored { claim });
+    }
+    if !read.opened.contains(&named.sha) {
+        read.opened.push(named.sha.clone());
+    }
+    Ok(read)
+}
