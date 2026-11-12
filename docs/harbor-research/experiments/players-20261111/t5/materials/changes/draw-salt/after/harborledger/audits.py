@@ -15,7 +15,7 @@ class AuditError(Exception):
 
 
 def draw(seed, claim_id, salt=""):
-    """A number from 0 to 9,999 fixed by the seed, the claim id and the salt (R7)."""
+    """A number from 0 to 9,999 fixed by the seed and the claim id, mixed with the salt (R7)."""
     digest = hashlib.sha256(f"{seed}:{claim_id}:{salt}".encode()).digest()
     return int.from_bytes(digest[:8], "big") % BPS
 

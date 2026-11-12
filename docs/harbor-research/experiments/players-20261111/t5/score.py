@@ -5,13 +5,16 @@ the flaw's file and a line within 3 lines of a ground-truth range. A finding
 on a clean change is a false alarm.
 
 k-effective is the Book's: log(all-miss rate) / log(1 - mean detection rate).
+Its 95% interval puts the exact (Clopper-Pearson) limits of the all-miss rate
+through that formula, with the measured mean miss rate. A percentile
+bootstrap over flaws is reported beside it and does not decide the verdict.
 
 Pre-registered rule (MANIFEST.md, "The rule"), with k the number of reviewers:
 
   incomplete  fewer than 5 valid sessions; or no flaw was caught by anyone;
               or no flaw was missed by anyone
-  fail        the upper end of the 95% bootstrap interval for k-effective is
-              below k: the reviewers miss together
+  fail        the upper end of the interval for k-effective is below k: the
+              reviewers miss together
   pass        otherwise: the interval holds k or lies above it. When no flaw
               was missed by all, k-effective has only a lower bound, and the
               interval runs from that bound upward
@@ -40,6 +43,8 @@ N_CHANGES = 16
 MIN_REVIEWED = 15      # a session is valid when it gave a verdict on at least 15 of the 16 changes
 MIN_SESSIONS = 5
 N_BOOT = 10_000
+# Which interval decides the verdict: "interval" (exact, the sealed choice) or "bootstrap_interval".
+DECIDING_INTERVAL = "interval"
 
 APPROVE_WORDS = {"approve", "approved", "accept", "accepted", "lgtm"}
 REJECT_WORDS = {"reject", "rejected", "request changes", "request_changes", "changes requested", "block"}
@@ -301,21 +306,27 @@ def k_effective(catches: list[int], k: int, seed: int, n_boot: int = N_BOOT) -> 
         return out | {"state": "no_flaw_caught", "k_eff": None}
     if q <= 0:
         return out | {"state": "no_flaw_missed", "k_eff": None}
-    # How often independence with this miss rate would give at least this many all-missed flaws.
+    # The interval: exact limits of the all-miss rate, put through the Book's formula at the measured miss rate.
+    # k-effective falls as the all-miss rate rises, so the rate's upper limit gives the lower end.
+    # It cannot be below 1, because a flaw missed by all is missed by each: the all-miss rate
+    # cannot exceed the mean miss rate.
+    lower = max(1.0, math.log(m_hi) / math.log(q)) if m_hi < 1 else 1.0
+    upper = math.log(m_lo) / math.log(q) if m_lo > 0 else math.inf
+    out["interval"] = [_num(lower), _num(upper)]
+    # The same comparison read as a test: how often independent reviewers with this miss rate
+    # would all miss at least this many of the flaws. The upper end is below k exactly when this is under 0.025.
     p0 = q ** k
     out["p_at_least_this_many_all_missed_if_independent"] = round(
         sum(math.comb(n, i) * p0 ** i * (1 - p0) ** (n - i) for i in range(all_missed, n + 1)), 6)
-    exact_lower = math.log(m_hi) / math.log(q) if m_hi < 1 else 0.0
-    exact_upper = math.log(m_lo) / math.log(q) if m_lo > 0 else math.inf
-    out["exact_interval_with_miss_rate_fixed"] = [_num(exact_lower), _num(exact_upper)]
     if all_missed == 0:
-        return out | {"state": "lower_bound_only", "k_eff": None, "k_eff_lower_bound": _num(exact_lower),
-                      "interval": [_num(exact_lower), "inf"]}
+        return out | {"state": "lower_bound_only", "k_eff": None, "k_eff_lower_bound": _num(lower),
+                      "bootstrap_interval": None,
+                      "bootstrap_note": "every resample has no flaw missed by all, so the bootstrap says nothing here"}
     boot = bootstrap_k(catches, k, seed, n_boot)
     return out | {"state": "estimated", "k_eff": _num(k_formula(m, q)),
-                  "interval": [_num(boot["lower"]), _num(boot["upper"])], "bootstrap": {
-                      "resamples": boot["resamples"], "without_a_value": boot["resamples_without_a_value"],
-                      "at_infinity": boot["resamples_at_infinity"]}}
+                  "bootstrap_interval": [_num(boot["lower"]), _num(boot["upper"])],
+                  "bootstrap": {"resamples": boot["resamples"], "without_a_value": boot["resamples_without_a_value"],
+                                "at_infinity": boot["resamples_at_infinity"]}}
 
 
 def _num(x: float):
@@ -326,23 +337,30 @@ def _upper(interval) -> float:
     return math.inf if interval[1] == "inf" else float(interval[1])
 
 
-def decide(stats: dict) -> tuple[str, str]:
-    """The rule, applied to the numbers of `k_effective`."""
+def decide(stats: dict, interval: str | None = None) -> tuple[str, str]:
+    """The rule, applied to the numbers of `k_effective`.
+
+    `interval` names the interval that decides. The sealed rule uses
+    DECIDING_INTERVAL, the exact one. "bootstrap_interval" shows what the
+    percentile bootstrap would have returned."""
+    interval = interval or DECIDING_INTERVAL
     k = stats["reviewers"]
     if stats["state"] == "no_flaw_caught":
         return "incomplete", "no reviewer caught any flaw, so the mean miss rate is 1 and k-effective has no value"
     if stats["state"] == "no_flaw_missed":
         return "incomplete", "no reviewer missed any flaw, so there are no misses whose overlap could be measured"
-    lower, upper = stats["interval"][0], _upper(stats["interval"])
     if stats["state"] == "lower_bound_only":
-        return "pass", (f"no flaw was missed by all {k} reviewers, so k-effective has only a lower bound, "
-                        f"{lower}; the interval from there upward holds {k}" if lower <= k else
-                        f"no flaw was missed by all {k} reviewers; the lower bound {lower} is above {k}")
+        bound = stats["k_eff_lower_bound"]
+        if bound > k:
+            return "pass", f"no flaw was missed by all {k} reviewers; the lower bound {bound} is above {k}"
+        return "pass", (f"no flaw was missed by all {k} reviewers, so k-effective has only a lower bound, {bound}; "
+                        f"the interval from there upward holds {k}")
+    lower, upper = stats[interval][0], _upper(stats[interval])
     if upper < k:
-        return "fail", f"the interval {lower} to {stats['interval'][1]} lies below {k}: the reviewers miss together"
+        return "fail", f"the interval {lower} to {stats[interval][1]} lies below {k}: the reviewers miss together"
     if lower > k:
-        return "pass", f"the interval {lower} to {stats['interval'][1]} lies above {k}"
-    return "pass", f"the interval {lower} to {stats['interval'][1]} holds {k}"
+        return "pass", f"the interval {lower} to {stats[interval][1]} lies above {k}"
+    return "pass", f"the interval {lower} to {stats[interval][1]} holds {k}"
 
 
 # ------------------------------------------------------------------ all sessions
@@ -378,7 +396,6 @@ def verdict(results: list[dict], truth: dict | None = None, n_boot: int = N_BOOT
     fa = sum(alarms.values())
     fa_lo, fa_hi = clopper_pearson(fa, n_pairs)
     rejected_clean = sum(r["clean_rejected"] for r in valid)
-    which = "exact_interval_with_miss_rate_fixed"
     out |= {
         "k_effective": stats,
         "caught_by": {key: sum(row) for key, row in sorted(table.items())},
@@ -392,14 +409,16 @@ def verdict(results: list[dict], truth: dict | None = None, n_boot: int = N_BOOT
     }
     word, reason = decide(stats)
     out |= {"verdict": word, "reason": reason}
-    if which in stats:
-        upper = stats[which][1]
-        out["verdict_by_exact_interval"] = ("fail" if upper != "inf" and float(upper) < k else "pass")
+    if stats["state"] == "estimated":
+        out["verdict_had_the_bootstrap_decided"] = decide(stats, "bootstrap_interval")[0]
     return out
 
 
-def report(results: list[dict]) -> str:
-    v = verdict(results)
+def report(results: list[dict], without: tuple[str, ...] = ()) -> str:
+    """A short table and the verdict. `without` names sessions to leave out before the rule is applied."""
+    left_out = [r["session_id"] for r in results if r.get("session_id") in without]
+    flagged = [r["session_id"] for r in results if r.get("read_outside_its_directory")]
+    v = verdict([r for r in results if r.get("session_id") not in without])
     lines = ["T5 joint miss of reviewers on seeded flaws", "session   reviewed  caught  miss rate  false alarms"]
     for s in v["per_session"]:
         note = "" if s["valid"] else "  not valid"
@@ -411,7 +430,8 @@ def report(results: list[dict]) -> str:
                      f"(rate {st['all_miss_rate']}, 95% {st['all_miss_rate_ci95'][0]} to {st['all_miss_rate_ci95'][1]}); "
                      f"independence predicts {st['all_miss_rate_if_independent']}")
         if st["state"] == "estimated":
-            lines.append(f"k-effective {st['k_eff']} (95% bootstrap {st['interval'][0]} to {st['interval'][1]}) "
+            lines.append(f"k-effective {st['k_eff']} (95% {st['interval'][0]} to {st['interval'][1]}; percentile "
+                         f"bootstrap {st['bootstrap_interval'][0]} to {st['bootstrap_interval'][1]}) "
                          f"against {st['reviewers']} reviewers")
         elif st["state"] == "lower_bound_only":
             lines.append(f"k-effective has only a lower bound: {st['k_eff_lower_bound']}")
@@ -419,6 +439,10 @@ def report(results: list[dict]) -> str:
         lines.append(f"false alarms on clean changes: {fa['k']} of {fa['n']}; missed by all: "
                      f"{', '.join(v['all_missed_flaws']) or 'none'}")
         lines.append(f"left for a second reader: {len(v['for_second_reader'])} rejections without a catch")
+    if flagged:
+        lines.append("the runner's trace has these subjects naming a path outside their directory: " + ", ".join(flagged))
+    if left_out:
+        lines.append("left out of the verdict: " + ", ".join(left_out))
     lines.append(f"verdict: {v['verdict']} ({v['reason']})")
     return "\n".join(lines)
 

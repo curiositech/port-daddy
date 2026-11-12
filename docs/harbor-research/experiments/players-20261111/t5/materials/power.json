@@ -1,84 +1,164 @@
 {
-  "note": "How often the sealed rule returns each verdict for five reviewers on 12 flaws, by simulation. Each panel uses 1,000 bootstrap resamples where the real scoring uses 10,000. Shares carry sampling error of about 0.02 to 0.03. `verdict_shares_by_exact_interval` is what the secondary interval would return; it does not decide the verdict.",
+  "note": "How often the sealed rule returns each verdict for five reviewers on 12 flaws, by simulation, and how often its interval holds the k-effective of the population the flaws were drawn from. Shares carry sampling error of about 0.02 to 0.03. The last column is what the percentile bootstrap would return if it decided, with 1,000 resamples per panel; it does not decide.",
+  "random_control": {
+    "chance_of_a_catch_by_change": {
+      "audit-reopen": 0.0197,
+      "bounty-setting": 0.0161,
+      "claim-renew": 0.0161,
+      "draw-salt": 0.0252,
+      "expire-order": 0.0225,
+      "journal-split": 0.0138,
+      "journal-tail": 0.0324,
+      "journal-time": 0.0385,
+      "late-fee": 0.022,
+      "parse-commas": 0.0318,
+      "set-rate": 0.0155,
+      "transfer": 0.0197
+    },
+    "false_alarm_rate_expected": 0.5,
+    "mean_catches_per_panel_of_60": 1.38,
+    "panels": 2000,
+    "verdict_shares": {
+      "fail": 0.0,
+      "incomplete": 0.248,
+      "pass": 0.751
+    }
+  },
   "scenarios": [
     {
+      "interval_holds_the_population_value": 1.0,
       "k_effective_of_the_population": 5.0,
       "panels": 400,
-      "scenario": "independent_0.6",
-      "share_with_no_flaw_missed_by_all": 0.84,
+      "scenario": "independent, every flaw caught with chance 0.3",
+      "share_with_no_flaw_missed_by_all": 0.128,
       "verdict_shares": {
         "fail": 0.0,
         "incomplete": 0.0,
         "pass": 1.0
       },
-      "verdict_shares_by_exact_interval": {
-        "fail": 0.005,
+      "verdict_shares_had_the_bootstrap_decided": {
+        "fail": 0.01,
         "incomplete": 0.0,
+        "pass": 0.99
+      }
+    },
+    {
+      "interval_holds_the_population_value": 0.998,
+      "k_effective_of_the_population": 5.0,
+      "panels": 400,
+      "scenario": "independent, every flaw caught with chance 0.6",
+      "share_with_no_flaw_missed_by_all": 0.897,
+      "verdict_shares": {
+        "fail": 0.003,
+        "incomplete": 0.0,
+        "pass": 0.998
+      },
+      "verdict_shares_had_the_bootstrap_decided": {
+        "fail": 0.0,
+        "incomplete": 0.0,
+        "pass": 1.0
+      }
+    },
+    {
+      "interval_holds_the_population_value": 1.0,
+      "k_effective_of_the_population": 5.0,
+      "panels": 400,
+      "scenario": "independent, every flaw caught with chance 0.9",
+      "share_with_no_flaw_missed_by_all": 0.995,
+      "verdict_shares": {
+        "fail": 0.0,
+        "incomplete": 0.005,
+        "pass": 0.995
+      },
+      "verdict_shares_had_the_bootstrap_decided": {
+        "fail": 0.0,
+        "incomplete": 0.005,
         "pass": 0.995
       }
     },
     {
+      "interval_holds_the_population_value": 0.998,
       "k_effective_of_the_population": 3.08,
       "panels": 400,
-      "scenario": "tiers_0.9_0.6_0.3",
-      "share_with_no_flaw_missed_by_all": 0.44,
+      "scenario": "independent given the flaw, catch chance falling by tier from 0.9 to 0.3",
+      "share_with_no_flaw_missed_by_all": 0.46,
       "verdict_shares": {
+        "fail": 0.102,
+        "incomplete": 0.0,
+        "pass": 0.897
+      },
+      "verdict_shares_had_the_bootstrap_decided": {
         "fail": 0.005,
         "incomplete": 0.0,
         "pass": 0.995
-      },
-      "verdict_shares_by_exact_interval": {
-        "fail": 0.12,
-        "incomplete": 0.0,
-        "pass": 0.88
       }
     },
     {
+      "interval_holds_the_population_value": 1.0,
       "k_effective_of_the_population": 1.95,
       "panels": 400,
-      "scenario": "shared_rate_beta_mean_0.6_theta_0.5",
-      "share_with_no_flaw_missed_by_all": 0.098,
+      "scenario": "the Book's shared-rate model, mean 0.6 and theta 0.5",
+      "share_with_no_flaw_missed_by_all": 0.105,
       "verdict_shares": {
-        "fail": 0.163,
+        "fail": 0.593,
         "incomplete": 0.0,
-        "pass": 0.838
+        "pass": 0.407
       },
-      "verdict_shares_by_exact_interval": {
-        "fail": 0.6,
+      "verdict_shares_had_the_bootstrap_decided": {
+        "fail": 0.125,
         "incomplete": 0.0,
-        "pass": 0.4
+        "pass": 0.875
       }
     },
     {
+      "interval_holds_the_population_value": 1.0,
+      "k_effective_of_the_population": 1.43,
+      "panels": 400,
+      "scenario": "one flaw nobody sees, the other eleven caught with chance 0.9",
+      "share_with_no_flaw_missed_by_all": 0.0,
+      "verdict_shares": {
+        "fail": 0.998,
+        "incomplete": 0.0,
+        "pass": 0.003
+      },
+      "verdict_shares_had_the_bootstrap_decided": {
+        "fail": 0.0,
+        "incomplete": 0.0,
+        "pass": 1.0
+      }
+    },
+    {
+      "interval_holds_the_population_value": 1.0,
       "k_effective_of_the_population": 1.2,
       "panels": 400,
-      "scenario": "four_flaws_nobody_sees",
+      "scenario": "four flaws nobody sees, the other eight caught with chance 0.9",
       "share_with_no_flaw_missed_by_all": 0.0,
       "verdict_shares": {
         "fail": 1.0,
         "incomplete": 0.0,
         "pass": 0.0
       },
-      "verdict_shares_by_exact_interval": {
+      "verdict_shares_had_the_bootstrap_decided": {
         "fail": 1.0,
         "incomplete": 0.0,
         "pass": 0.0
       }
     },
     {
+      "interval_holds_the_population_value": 1.0,
       "k_effective_of_the_population": 1.0,
       "panels": 400,
-      "scenario": "five_copies_of_one_reviewer",
+      "scenario": "five copies of one reviewer who catches 0.6 of flaws",
       "share_with_no_flaw_missed_by_all": 0.0,
       "verdict_shares": {
-        "fail": 0.757,
-        "incomplete": 0.013,
-        "pass": 0.23
+        "fail": 0.998,
+        "incomplete": 0.0,
+        "pass": 0.003
       },
-      "verdict_shares_by_exact_interval": {
-        "fail": 0.988,
-        "incomplete": 0.013,
-        "pass": 0.0
+      "verdict_shares_had_the_bootstrap_decided": {
+        "fail": 0.787,
+        "incomplete": 0.0,
+        "pass": 0.212
       }
     }
   ]

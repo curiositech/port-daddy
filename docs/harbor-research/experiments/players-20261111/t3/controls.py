@@ -2,6 +2,9 @@
 
 Each control reads engagements.md in a prepared session directory, exactly
 the text a subject sees, and writes moves.json. It never reads items.json.
+A script reads the numbers and not the wording of the moves, so each control
+answers the two arms alike. The declared results are for arm B, which alone
+gives the verdict.
 
     maximizer          risk-neutral expected-payoff maximizer. It compares the value of
                        cooperating in every cycle with the value of defecting whenever the
@@ -118,9 +121,9 @@ def act(agent: str, session_directory: Path, seed: int = 0) -> None:
 
 
 def random_benchmark(runs: int = BENCHMARK_RUNS) -> dict:
-    """How often the random agent would pass, from seeded simulated runs of the six sessions."""
+    """How often the random agent would pass, from seeded simulated runs of the six arm B sessions."""
     rng = random.Random(kit.derive_seed(design.SEED, "random-benchmark"))
-    ids = [s["session_id"] for s in design.SESSIONS]
+    ids = [s["session_id"] for s in design.SESSIONS if s["arm"] == "B"]
     n = len(design.items())
     passes = book_hits = 0
     for _ in range(runs):
@@ -135,7 +138,7 @@ def random_benchmark(runs: int = BENCHMARK_RUNS) -> dict:
 def noisy_benchmark(runs: int = NOISY_RUNS) -> dict:
     """How the rule treats a maximizer that slips: each answer is flipped with a fixed chance."""
     rng = random.Random(kit.derive_seed(design.SEED, "noisy-benchmark"))
-    ids = [s["session_id"] for s in design.SESSIONS]
+    ids = [s["session_id"] for s in design.SESSIONS if s["arm"] == "B"]
     table = design.by_id()
     out = {}
     for flip in NOISY_FLIP_CHANCES:
@@ -174,13 +177,17 @@ def dryrun(root: Path = kit.DRYRUN_ROOT / "t3", benchmark_runs: int = BENCHMARK_
         if agent in DECLARED_HOW:
             as_declared = as_declared and how == [DECLARED_HOW[agent]]
         ok = ok and as_declared
-        pooled = v.get("pooled", {})
+        pooled = v.get("arm_B_pooled", {})
+        arm_n = v.get("arm_N_manipulation_check") or {}
         out["controls"][agent] = {
             "declared": DECLARED[agent], "verdict": v["verdict"], "as_declared": as_declared,
             "reason": v["reason"], "pattern": v.get("pattern"), "how_sessions_answered": how,
-            "pooled_switch_points": {name: pooled[name]["switch_point"] for name in pooled},
-            "pooled_out_of_place": {name: pooled[name]["out_of_place"] for name in pooled},
-            "sessions_at_book_threshold": pooled.get("book", {}).get("sessions_at_threshold"),
+            "arm_B_pooled_switch_points": {name: pooled[name]["switch_point"] for name in pooled},
+            "arm_B_pooled_out_of_place": {name: pooled[name]["out_of_place"] for name in pooled},
+            "arm_B_sessions_at_book_threshold": pooled.get("book", {}).get("sessions_at_threshold"),
+            "arm_N_pooled_switch_points": {name: row["switch_point"] for name, row in arm_n.get("pooled", {}).items()},
+            "arm_N_pattern": arm_n.get("pattern"),
+            "reading_of_the_two_arms": v.get("reading_of_the_two_arms"),
             "report": score.report(results),
         }
     out["random_benchmark"] = random_benchmark(benchmark_runs)

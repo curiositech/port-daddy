@@ -1,0 +1,120 @@
+{
+  "all_as_expected": true,
+  "panels": [
+    {
+      "agent": "scripted",
+      "all_missed": 12,
+      "as_expected": true,
+      "caught_per_session": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": {
+        "all_missed": 12,
+        "false_alarms": 0,
+        "state": "no_flaw_caught",
+        "verdict": "incomplete"
+      },
+      "false_alarm_pairs": 20,
+      "false_alarms": 0,
+      "interval": null,
+      "k_eff": null,
+      "mean_miss_rate": 1.0,
+      "reason": "no reviewer caught any flaw, so the mean miss rate is 1 and k-effective has no value",
+      "sessions": 5,
+      "state": "no_flaw_caught",
+      "verdict": "incomplete"
+    },
+    {
+      "agent": "random",
+      "all_missed": 10,
+      "as_expected": true,
+      "caught_per_session": [
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "expected": {
+        "verdict_one_of": [
+          "pass",
+          "incomplete"
+        ]
+      },
+      "false_alarm_pairs": 20,
+      "false_alarms": 8,
+      "interval": [
+        1.0,
+        19.5246
+      ],
+      "k_eff": 5.378,
+      "mean_miss_rate": 0.9667,
+      "reason": "the interval 1.0 to 19.5246 holds 5",
+      "sessions": 5,
+      "state": "estimated",
+      "verdict": "pass"
+    },
+    {
+      "agent": "echo",
+      "all_missed": 4,
+      "as_expected": true,
+      "caught_per_session": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "expected": {
+        "all_missed": 4,
+        "k_eff": 1.0,
+        "verdict": "fail"
+      },
+      "false_alarm_pairs": 20,
+      "false_alarms": 0,
+      "interval": [
+        1.0,
+        2.1028
+      ],
+      "k_eff": 1.0,
+      "mean_miss_rate": 0.3333,
+      "reason": "the interval 1.0 to 2.1028 lies below 5: the reviewers miss together",
+      "sessions": 5,
+      "state": "estimated",
+      "verdict": "fail"
+    },
+    {
+      "agent": "independent",
+      "all_missed": 0,
+      "as_expected": true,
+      "caught_per_session": [
+        7,
+        9,
+        6,
+        5,
+        7
+      ],
+      "expected": {
+        "verdict": "pass"
+      },
+      "false_alarm_pairs": 20,
+      "false_alarms": 0,
+      "interval": [
+        1.5897,
+        "inf"
+      ],
+      "k_eff": null,
+      "mean_miss_rate": 0.4333,
+      "reason": "no flaw was missed by all 5 reviewers, so k-effective has only a lower bound, 1.5897; the interval from there upward holds 5",
+      "sessions": 5,
+      "state": "lower_bound_only",
+      "verdict": "pass"
+    }
+  ],
+  "root": "/tmp/claude-0/-home-claude/0d58d67c-91fe-5e53-93f2-1e6f62cdac74/scratchpad/exp-runs-1111-dryrun/t5",
+  "test": "T5"
+}

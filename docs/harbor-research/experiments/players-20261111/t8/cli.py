@@ -82,8 +82,11 @@ def cmd_dryrun(args) -> int:
 
 
 def cmd_report(args) -> int:
-    results = [design.load_json(p)["result"] for p in sorted(RESULTS_DIR.glob("t8-*.json"))]
-    print(score.report(results, score.load_t7_results(RESULTS_DIR)))
+    docs = [design.load_json(p) for p in sorted(RESULTS_DIR.glob("t8-*.json"))]
+    print(score.report([d["result"] for d in docs], score.load_t7_results(RESULTS_DIR)))
+    outside = [d["result"]["session_id"] for d in docs if d.get("read_outside_its_directory")]
+    if outside:
+        print("the runner's trace has these subjects naming a path outside their directory: " + ", ".join(outside))
     return 0
 
 

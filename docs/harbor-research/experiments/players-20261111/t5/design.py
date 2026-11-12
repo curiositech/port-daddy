@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""T5 design: build the 16 change requests, their ground truth and the checks on them.
+"""T5 design: build the 16 change requests with their ground truth, and check them.
 
     python3 t5/design.py build           write everything under materials/
     python3 t5/design.py build --check   exit non-zero if a fresh build differs
@@ -42,6 +42,7 @@ MAX_CHANGED_LINES = 600
 TIERS = ("plain", "moderate", "subtle")
 POWER_PANELS = 400
 POWER_BOOT = 1_000
+RANDOM_PANELS = 2_000
 
 
 # ------------------------------------------------------------------ applying edits and writing diffs
@@ -203,69 +204,115 @@ def verify(base: dict[str, str], built: list[dict]) -> dict:
 
 # ------------------------------------------------------------------ power of the rule
 
-def _panel(rng: random.Random, kind: str, n: int = 12, k: int = 5) -> list[int]:
-    """Catches per flaw for one simulated panel of k reviewers on n flaws."""
-    if kind == "independent_0.6":
-        rates = [0.6] * n
-    elif kind == "tiers_0.9_0.6_0.3":
-        rates = [0.9] * 4 + [0.6] * 4 + [0.3] * 4
-    elif kind == "shared_rate_beta_mean_0.6_theta_0.5":
-        rates = [rng.betavariate(0.6, 0.4) for _ in range(n)]
-    elif kind == "four_flaws_nobody_sees":
-        rates = [0.9] * 8 + [0.0] * 4
-    elif kind == "five_copies_of_one_reviewer":
-        return [k if rng.random() < 0.6 else 0 for _ in range(n)]
-    else:
-        raise ValueError(kind)
-    return [sum(rng.random() < r for _ in range(k)) for r in rates]
+N_FLAWS, N_REVIEWERS = 12, 5
+
+# Each scenario: a name, and for each of the 12 flaws the chance that one reviewer catches it.
+# "copies" is five copies of one reviewer: a flaw is caught by all or by none.
+SCENARIOS = [
+    ("independent, every flaw caught with chance 0.3", {"rates": [0.3] * 12}),
+    ("independent, every flaw caught with chance 0.6", {"rates": [0.6] * 12}),
+    ("independent, every flaw caught with chance 0.9", {"rates": [0.9] * 12}),
+    ("independent given the flaw, catch chance falling by tier from 0.9 to 0.3",
+     {"rates": [0.9] * 4 + [0.6] * 4 + [0.3] * 4}),
+    ("the Book's shared-rate model, mean 0.6 and theta 0.5", {"beta": (0.6, 0.4)}),
+    ("one flaw nobody sees, the other eleven caught with chance 0.9", {"rates": [0.9] * 11 + [0.0]}),
+    ("four flaws nobody sees, the other eight caught with chance 0.9", {"rates": [0.9] * 8 + [0.0] * 4}),
+    ("five copies of one reviewer who catches 0.6 of flaws", {"copies": 0.6}),
+]
 
 
-def _true_k(kind: str, k: int = 5) -> float:
+def _panel(rng: random.Random, spec: dict) -> list[int]:
+    """Catches per flaw for one simulated panel."""
+    if "copies" in spec:
+        return [N_REVIEWERS if rng.random() < spec["copies"] else 0 for _ in range(N_FLAWS)]
+    rates = spec["rates"] if "rates" in spec else [rng.betavariate(*spec["beta"]) for _ in range(N_FLAWS)]
+    return [sum(rng.random() < r for _ in range(N_REVIEWERS)) for r in rates]
+
+
+def _population_k(spec: dict) -> float:
     """k-effective of the population the panels are drawn from."""
-    if kind == "independent_0.6":
-        return 5.0
-    if kind == "tiers_0.9_0.6_0.3":
-        return math.log((0.1 ** k + 0.4 ** k + 0.7 ** k) / 3) / math.log(0.4)
-    if kind == "shared_rate_beta_mean_0.6_theta_0.5":
-        a, b = 0.6, 0.4
-        return math.log(math.prod((b + j) / (a + b + j) for j in range(k))) / math.log(0.4)
-    if kind == "four_flaws_nobody_sees":
-        q = (8 * 0.1 + 4 * 1.0) / 12
-        return math.log((8 * 0.1 ** k + 4) / 12) / math.log(q)
-    return 1.0
+    k = N_REVIEWERS
+    if "copies" in spec:
+        return 1.0
+    if "beta" in spec:
+        a, b = spec["beta"]
+        return math.log(math.prod((b + j) / (a + b + j) for j in range(k))) / math.log(b / (a + b))
+    rates = spec["rates"]
+    all_miss = sum((1 - r) ** k for r in rates) / len(rates)
+    return math.log(all_miss) / math.log(sum(1 - r for r in rates) / len(rates))
 
 
-def build_power() -> dict:
+def random_control_benchmark(built: list[dict]) -> dict:
+    """What the rule returns for panels of five random reviewers (controls.random_agent).
+
+    A random reviewer rejects a change with chance one half and then names one
+    uniformly drawn line of one uniformly drawn changed file. Its chance of a
+    catch on each flawed change follows from the sealed files."""
+    chances = {}
+    for b in built:
+        flaw = b["truth"]["flaw"]
+        if flaw is None:
+            continue
+        chance = 0.0
+        for path in b["touched"]:
+            n_lines = len(b["after"][path].splitlines())
+            window = set()
+            for place in [flaw] + flaw["also"]:
+                if place["file"] == path:
+                    lo, hi = place["lines"]
+                    window |= set(range(max(1, lo - score.LINE_TOLERANCE), min(n_lines, hi + score.LINE_TOLERANCE) + 1))
+            chance += len(window) / n_lines / len(b["touched"])
+        chances[b["key"]] = 0.5 * chance
+    rng = random.Random(derive_seed(SEED, "power", "random-control"))
+    tally = {"pass": 0, "fail": 0, "incomplete": 0}
+    caught = 0
+    for panel in range(RANDOM_PANELS):
+        catches = [sum(rng.random() < c for _ in range(N_REVIEWERS)) for c in chances.values()]
+        caught += sum(catches)
+        stats = score.k_effective(catches, N_REVIEWERS, derive_seed(SEED, "power", "random-control", str(panel)), 200)
+        tally[score.decide(stats)[0]] += 1
+    return {
+        "panels": RANDOM_PANELS,
+        "chance_of_a_catch_by_change": {k: round(v, 4) for k, v in chances.items()},
+        "mean_catches_per_panel_of_60": round(caught / RANDOM_PANELS, 2),
+        "verdict_shares": {v: round(c / RANDOM_PANELS, 3) for v, c in tally.items()},
+        "false_alarm_rate_expected": 0.5,
+    }
+
+
+def build_power(built: list[dict]) -> dict:
     scenarios = []
-    for kind in ("independent_0.6", "tiers_0.9_0.6_0.3", "shared_rate_beta_mean_0.6_theta_0.5",
-                 "four_flaws_nobody_sees", "five_copies_of_one_reviewer"):
-        rng = random.Random(derive_seed(SEED, "power", kind))
+    for name, spec in SCENARIOS:
+        rng = random.Random(derive_seed(SEED, "power", name))
+        truth = _population_k(spec)
         tally = {"pass": 0, "fail": 0, "incomplete": 0}
-        exact = {"pass": 0, "fail": 0, "incomplete": 0}
-        lower_bound_only = 0
+        by_bootstrap = {"pass": 0, "fail": 0, "incomplete": 0}
+        covered = with_interval = lower_bound_only = 0
         for panel in range(POWER_PANELS):
-            catches = _panel(rng, kind)
-            stats = score.k_effective(catches, 5, derive_seed(SEED, "power", kind, str(panel)), POWER_BOOT)
-            word, _ = score.decide(stats)
-            tally[word] += 1
+            catches = _panel(rng, spec)
+            stats = score.k_effective(catches, N_REVIEWERS, derive_seed(SEED, "power", name, str(panel)), POWER_BOOT)
+            tally[score.decide(stats)[0]] += 1
             lower_bound_only += stats["state"] == "lower_bound_only"
-            if word == "incomplete":
-                exact["incomplete"] += 1
-            else:
-                upper = stats["exact_interval_with_miss_rate_fixed"][1]
-                exact["fail" if upper != "inf" and float(upper) < 5 else "pass"] += 1
+            which = "bootstrap_interval" if stats["state"] == "estimated" else "interval"
+            by_bootstrap[score.decide(stats, which)[0]] += 1
+            if "interval" in stats:
+                with_interval += 1
+                lo, hi = stats["interval"][0], score._upper(stats["interval"])
+                covered += lo - 1e-9 <= truth <= hi + 1e-9
         scenarios.append({
-            "scenario": kind, "panels": POWER_PANELS, "k_effective_of_the_population": round(_true_k(kind), 2),
+            "scenario": name, "panels": POWER_PANELS, "k_effective_of_the_population": round(truth, 2),
             "verdict_shares": {v: round(c / POWER_PANELS, 3) for v, c in tally.items()},
+            "interval_holds_the_population_value": round(covered / with_interval, 3) if with_interval else None,
             "share_with_no_flaw_missed_by_all": round(lower_bound_only / POWER_PANELS, 3),
-            "verdict_shares_by_exact_interval": {v: round(c / POWER_PANELS, 3) for v, c in exact.items()},
+            "verdict_shares_had_the_bootstrap_decided": {v: round(c / POWER_PANELS, 3) for v, c in by_bootstrap.items()},
         })
     return {
-        "note": ("How often the sealed rule returns each verdict for five reviewers on 12 flaws, by simulation. "
-                 "Each panel uses 1,000 bootstrap resamples where the real scoring uses 10,000. Shares carry "
-                 "sampling error of about 0.02 to 0.03. `verdict_shares_by_exact_interval` is what the secondary "
-                 "interval would return; it does not decide the verdict."),
+        "note": ("How often the sealed rule returns each verdict for five reviewers on 12 flaws, by simulation, "
+                 "and how often its interval holds the k-effective of the population the flaws were drawn from. "
+                 "Shares carry sampling error of about 0.02 to 0.03. The last column is what the percentile "
+                 "bootstrap would return if it decided, with 1,000 resamples per panel; it does not decide."),
         "scenarios": scenarios,
+        "random_control": random_control_benchmark(built),
     }
 
 
@@ -299,7 +346,7 @@ def outputs() -> tuple[dict[Path, str], dict]:
     if len({tuple(o) for o in orders.values()}) != len(orders):
         raise SystemExit("two sessions drew the same order")
     files[SESSIONS_PATH] = dump_json({"seed": SEED, "sessions": SESSIONS, "orders": orders})
-    files[POWER_PATH] = dump_json(build_power())
+    files[POWER_PATH] = dump_json(build_power(built))
     return files, verification
 
 

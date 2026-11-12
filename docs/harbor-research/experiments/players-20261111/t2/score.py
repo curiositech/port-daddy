@@ -1,16 +1,17 @@
 """Score T2 sessions and apply the pre-registered rule (MANIFEST.md, "The rule").
 
 For one session:
-    difference   SKIP rate on scored jobs with x < 0, minus the rate on jobs with x > 0,
-                 where x = rho * d * B - G
-    trend        exact one-sided permutation trend test of SKIP against the job's level
-    logistic     slope of SKIP on x and on log2 of the ratio, as description
+    difference    SKIP rate on scored jobs with x < 0, minus the rate on jobs with x > 0,
+                  where x = rho * d * B - G
+    trend         exact one-sided permutation trend test of SKIP against the job's level
+    logistic      slope of SKIP on x and on log2 of the ratio, as description
+    how answered  which simple rule the answers match, and what the subject left behind
 
-For the test, over the six sessions of arm W:
-    incomplete   fewer than 5 sessions answered at least 29 of the 32 jobs
-    pass         pooled difference >= 0.5, and difference >= 0.5 in at least 5 sessions,
-                 and the pooled trend test gives p < 0.01
-    fail         otherwise
+For the test, over the six sessions of arm W: the test is incomplete when
+fewer than 5 sessions answered at least 29 of the 32 jobs. Otherwise it
+passes when both conditions hold, and fails when either does not:
+    size          pooled difference >= 0.5, and difference >= 0.5 in at least 5 sessions
+    trend         the pooled trend test gives a one-sided p < 0.01
 
 Arm N is reported beside the verdict and takes no part in it. The two jobs
 with x = 0 are reported and never scored.

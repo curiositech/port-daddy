@@ -8,8 +8,8 @@ Customers outside the United States ask to see the invoice total in their own
 currency beside the dollar total. The exchange rates and the number of decimal
 places of each currency come from finance's table in `ledgerkit/rates.py`.
 Read them through `rates.rate(code)` and `rates.minor_units(code)`. That file
-belongs to finance: use it, do not change it, and do not copy its numbers
-into other modules.
+belongs to finance. Use it as it is, and do not copy its numbers into other
+modules.
 
 `ledgerkit/api.py` already imports the functions below from
 `ledgerkit/convert.py`. The tests call them through `ledgerkit.api`.
@@ -35,7 +35,7 @@ Tests: `tests/test_step2.py`
 ## Step 3: show the total
 
 `format_total(amount, code)` converts a dollar amount and returns text such
-as `EUR 1,234.50`: the code, a space, and the converted amount with commas
+as `EUR 1,234.50`: the code and a space, then the converted amount with commas
 between thousands and the currency's decimal places.
 
 Tests: `tests/test_step3.py`

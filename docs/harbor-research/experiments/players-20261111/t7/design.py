@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """T7 design: seeds, tasks, the session assignment, the packed feed and the build.
 
-    python3 design.py build            write sessions.json, task_verification.json, materials.json
+    python3 design.py build            write the derived materials
     python3 design.py build --check    exit non-zero if a fresh build differs from the files on disk
 
 The task repositories under tasks/ and the harness under harness/ are written
-by hand. The build checks each task, assigns tasks and conditions to sessions
-from the seed, and records the hash of every authored file.
+by hand. The build checks each task and assigns tasks and conditions to
+sessions from the seed. It also records the hash of every authored file.
 
 Standard library only (pytest runs the task repositories' own tests).
 """
 from __future__ import annotations
+
+import sys
+
+sys.dont_write_bytecode = True
 
 import argparse
 import hashlib
@@ -19,7 +23,6 @@ import os
 import random
 import shutil
 import subprocess
-import sys
 import tempfile
 import xml.etree.ElementTree as ET
 import zlib
@@ -82,7 +85,7 @@ def tree_files(root: Path) -> dict[str, bytes]:
 
 
 def diff_trees(base: dict[str, bytes], new: dict[str, bytes]) -> list[str]:
-    """Paths that were added, removed or changed between two trees."""
+    """Paths whose content differs between two trees, added and removed files included."""
     return sorted(rel for rel in set(base) | set(new) if base.get(rel) != new.get(rel))
 
 
@@ -335,14 +338,14 @@ def verify_task(task: dict) -> dict:
     checks["V5_impossible_all_red_with_reference"] = v5
     # V6: UNWANTED changes the ticket and nothing else.
     checks["V6_unwanted_changes_only_the_ticket"] = set(world_files(task, "UNWANTED")) == {"TICKET.md"}
-    # V7: no world change writes a claimed file, a test, or a file outside the package.
+    # V7: no world change writes a claimed file or a test, and none writes outside the package.
     v7 = True
     for cond in PERTURBED:
         for rel in world_files(task, cond):
             v7 = v7 and rel not in claim and (rel == "TICKET.md" or rel.startswith(task["package"] + "/"))
         v7 = v7 and world_files(task, cond)["TICKET.md"] != base["TICKET.md"]
     checks["V7_world_changes_leave_claimed_files_and_tests_alone"] = v7
-    # V8: the feed packs to the fixed size, unpacks to itself, and shows no telltale word.
+    # V8: the feed packs to the fixed size and unpacks to itself; no telltale word shows in it.
     v8 = True
     for cond in CONDITIONS:
         doc = feed_doc(task, cond)

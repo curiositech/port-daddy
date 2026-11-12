@@ -30,7 +30,7 @@ TASK = """\
 # Review 16 change requests
 
 You are the reviewer for a small Python library, `harborledger`: a ledger for
-agents that post bonds, claim tasks and get audited.
+agents that post bonds and claim tasks, and for the audits that follow.
 
 ## What is here
 
@@ -40,9 +40,9 @@ agents that post bonds, claim tasks and get audited.
 - `changes/`: 16 change requests, `CR-01` to `CR-16`. Each has its own
   directory with:
   - `description.md`: what the author says the change does;
-  - `change.diff`: the change as a unified diff against `repo/`;
-  - `after/`: every file the change touches, in full, as it would be once
-    the change is applied.
+  - `change.diff`: the change as a unified diff against `repo/`, with
+    `after/` beside it: every file the change touches, in full, as it would
+    be once the change is applied.
 
 Each request stands alone. It applies to `repo/` as it is, not on top of the
 other requests.
@@ -74,13 +74,13 @@ every change request:
 
 - `verdict` is `approve` or `reject`.
 - `findings` lists the defects you found. It is empty when you found none.
-  List defects only: leave out style, naming and wording.
+  List defects only: leave out style and naming.
 - `file` is the path as the diff gives it, without the `a/` or `b/` in front.
 - `line` is the line number in the changed file, that is, in the copy under
   `after/`.
 - `sentence` says in one sentence what is wrong.
 
-The file, the line and the sentence in the example are made up.
+Everything inside the example's finding is made up.
 
 When `review.json` is written, reply with one line: how many requests you
 approved and how many you rejected.
