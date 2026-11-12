@@ -1,0 +1,22 @@
+$ harbor worlds
+every pair of worlds a room can reach: records from 0 to 3, and a
+  slot that lets out the lowest bit at time 2. The clock runs to
+  time 3, and each worker hands in up to 2 values from 0 to 3
+
+design    states    told     apart    apart  views
+                   apart  by value  by time
+handed      8046    5760      1280     4480      9
+prompt      7822    4800         0     4800      5
+core        1870       0         0        0      1
+
+states: those of two rooms whose records differ and declare one
+  part, so that no recipient should tell them apart
+apart by value: states in which the two recipients have seen
+  different values leave at the same times
+apart by time: states in which they have seen something leave at
+  different times
+views: the different things a worker can make the gate show of one
+  record
+in every state the core had let out what the rule says: the
+  declared part of the committed record, once, at the time the
+  slot names

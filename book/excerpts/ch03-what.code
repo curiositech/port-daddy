@@ -1,0 +1,18 @@
+/// The guard on what is read: the record its owner committed.
+fn source(room: &Room) -> Option<u64> {
+    if cfg!(feature = "mutant-trust-candidate") {
+        // MUTANT: what the worker handed in, if anything.
+        return room.candidate.or(room.committed);
+    }
+    room.committed
+}
+
+/// The guard on what leaves: the part the slot declares, and
+/// no more of the record than that.
+fn declared(room: &Room, from: u64) -> u64 {
+    if cfg!(feature = "mutant-raw-record") {
+        return from; // MUTANT: guard removed.
+    }
+    let bits = room.slot.bits.min(WIDEST);
+    from & ((1 << bits) - 1)
+}

@@ -1,0 +1,14 @@
+$ harbor worlds --each
+# every view a worker can bring about under design core: records
+#   from 0 to 3, and a slot that lets out the lowest bit at time
+#   2. The clock runs to time 3. The worker reads the record at
+#   the start and hands in up to 2 values from 0 to 3, when it
+#   likes
+# left: 1 if something left the room, and 0 if nothing did
+# at, value: the time it left, and what it was. Both are 0 if
+#   nothing left
+record  left  at  value
+     0     1   2      0
+     1     1   2      1
+     2     1   2      0
+     3     1   2      1

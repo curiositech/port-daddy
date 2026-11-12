@@ -804,7 +804,9 @@ before timing. The present
 mutations cannot exhibit the attack, because the model's \texttt{submit}
 carries no payload. They test that the gate releases $g$ and nothing else;
 they do not test that the gate's \emph{input} is honest. Closing that gap is
-a model extension listed in Section~\ref{sec:sealed-limitations}.
+a model extension listed in Section~\ref{sec:sealed-limitations}. The kernel
+makes it in its own code at the end of this section
+(\S\ref{sec:sealed-gate}).
 \end{pdboundary}
 
 Figure~\ref{fig:sealed-laundering-fork} makes the missing argument concrete.
@@ -817,7 +819,9 @@ committed $s$. Exercise~\ref{ex:sealed-launder} asks how to model the extra regi
 
 \input{figures/fig-sealed-laundering-fork}
 
-\pdexercisepointer{\ref{ex:sealed-pairs}}{\ref{ex:sealed-launder}}{\pageref{ex:sealed-pairs}}
+\input{additions/sealed-build-the-gate}
+
+\pdexercisepointer{\ref{ex:sealed-pairs}}{\ref{ex:sealed-gate-work}}{\pageref{ex:sealed-pairs}}
 
 \section{What the mediated gate can enforce}\label{sec:sealed-enforceability}
 
@@ -1794,7 +1798,9 @@ three lemmas therefore certifies TA-security, and the lift should state that
 target explicitly. Two extensions of the finite model are open alongside the
 lift: a \texttt{submit} that carries a payload, so the mutation suite can
 exhibit laundering, and a partial-observation variant of the enforceability
-check for policies that reference unmediated state. The two exhaustive checks
+check for policies that reference unmediated state. The kernel has the
+first of these in its own code (\S\ref{sec:sealed-gate}), and the Python
+model does not. The two exhaustive checks
 of this chapter are bounded model evidence. The canary simulation values are
 reported by the chapter, without an archival run receipt or calibrated error
 bounds supplied here. The room is a proposed confinement design whose
@@ -1918,6 +1924,80 @@ to $g$ is the committed $s$. It can enforce that premise by computing a
 restricted release itself, or retain the broader payload interface and state
 a different, capacity-based guarantee. The limitation belongs to that
 interface and its evidence, not to every possible language-model architecture.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:sealed-gate-views}
+A slot declares 2 bits, and its room's clock runs from time 0 to time 5.
+How many different things can a worker make Erin see of one record under
+the first gate of \S\ref{sec:sealed-gate}, and how many under the second?
+Give each as a count and in bits.
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-gate-views}
+The first gate lets the worker pick any of $2^2=4$ values and any of 6
+times, or send nothing. That is $4\times6+1=25$ things, or
+$\log_2 25\approx4.64$ bits. Under the second gate the value is the
+record's own, so the worker has the 6 times and the silence: 7 things, or
+$\log_2 7\approx2.81$ bits. Under the kernel's gate it is 1 thing and no
+bits, whatever the slot and the clock.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-gate-early}
+Listing~\ref{alg:sealed-gate-when} marks one line of \texttt{due} as a
+build with that guard removed. Follow the run of
+Listing~\ref{alg:sealed-gate-run-timing-core} on that build. At what time
+does the parity leave in each world, and which column of
+Listing~\ref{alg:sealed-gate-guards-walk} counts the result?
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-gate-early}
+With a record of 0 the worker hands a value in at time 0. The next tick
+moves the clock to time 1, \texttt{due} finds a candidate and answers yes,
+and the parity leaves at time 1. With a record of 2 the worker waits and
+hands in at time 1. The tick to time 2 opens the slot, as it would have
+anyway. Erin sees \texttt{0 at 1} in one world and \texttt{0 at 2} in the
+other. The values agree and the times do not, so the state is in the
+column \texttt{apart by time}, with 863 others. This build can bring a
+release forward and cannot hold one back, which is why its worker has 2
+things to show and not 5.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Check,rating=2]{ex:sealed-gate-twice}
+The build that lets the declared part out a second time shows Erin the
+same thing in both worlds in every state of the walk. Say why. Then
+describe another wrong gate that the walk of pairs would pass, and name
+the check that catches both.
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-gate-twice}
+Each room lets out its record's parity at time 2 and again at time 3. Two
+records with one parity therefore show \texttt{0 at 2, 0 at 3} in both
+rooms, or \texttt{1 at 2, 1 at 3} in both. The walk of pairs compares two
+runs with each other, and these two agree. A gate that never opens passes
+the same way, since Erin sees nothing in either world. Both are caught by
+the rule that every room is held to. It says what Erin should have seen
+by each time, and so it compares a run with what should have happened.
+The harness \texttt{what\_leaves\_is\_the\_declared\_part\_when\_it\_is\_due}
+asks the same of the code, for any room.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=3]{ex:sealed-gate-work}
+The kernel's gate works the parity out by itself, so its worker is idle.
+Suppose the declared function is the reason for the room: a computation
+the gate cannot afford to repeat. Describe two things a gate could do with
+the worker's answer in place of working it out again, and say what Erin
+could still learn under each.
+\end{pdexercise}
+\begin{pdsolution}{ex:sealed-gate-work}
+One is to stop asking whether the answer is right and to limit its size.
+The gate lets out $b$ bits of whatever the worker hands in, at a fixed
+time, and charges a ledger for each release. Erin can then learn up to
+$q\cdot b$ bits of the record over $q$ releases, which is
+Theorem~\ref{thm:sealed-capacity}, and nothing says they are the bits the
+contract meant. The other is to have the work done twice. A second worker
+reads the record and none of what the first was sent, and the gate opens
+only if the two answers agree. That can catch a worker steered by text the
+second never saw. It does not catch two copies of one model that launder
+in the same way. Neither restores silence. Each turns an open channel into
+a counted one, which is what the budget of \S\ref{sec:sealed-budget} is
+for.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:sealed-enforceability}}{What the mediated gate can enforce}

@@ -1,0 +1,11 @@
+/** The worker asks, and the record's declared part leaves. */
+submit(candidate: number): Reply {
+  if (this.used) return no('used', 'the slot has been used');
+  const record = this.committed;
+  if (record === null) return no('no-record', 'no record yet');
+  this.candidate = candidate;
+  this.used = true;
+  const value = low(this.slot.bits, record);
+  this.seen.push({ at: this.now, value });
+  return { ok: true };
+}

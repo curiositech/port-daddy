@@ -1,0 +1,16 @@
+/// The guard on when: at the slot's time, and not before.
+fn due(room: &Room, now: u64) -> bool {
+    let asked = room.candidate.is_some();
+    if cfg!(feature = "mutant-early-release") && asked {
+        return true; // MUTANT: it opens when the worker asks.
+    }
+    now >= room.slot.deadline
+}
+
+/// The guard on how often: once.
+fn spent(room: &Room) -> bool {
+    if cfg!(feature = "mutant-release-twice") {
+        return false; // MUTANT: guard removed.
+    }
+    room.used
+}
