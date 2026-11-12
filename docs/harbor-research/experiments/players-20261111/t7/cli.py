@@ -9,9 +9,10 @@
     python3 t7/cli.py report                      the table and the verdict over ../results/t7-*.json
 
 Subjects work under the default root in the session scratchpad. The dry run
-uses the sibling dry-run root and never touches a subject's directory. Save a
-subject's final reply to <root>/SESSION.reply.md before collecting, or pass
-its path with --reply.
+uses the sibling dry-run root and never touches a subject's directory.
+`collect` reads the subject's final reply from --reply, or from
+<root>/SESSION.reply.md, or from ../results/replies/SESSION.md where the
+battery's runner keeps it.
 """
 from __future__ import annotations
 
@@ -33,8 +34,17 @@ RESULTS_DIR = HERE.parent / "results"
 DRYRUN_DIR = HERE.parent / "dryrun"
 
 
-def load_results() -> list[dict]:
-    return [design.load_json(p)["result"] for p in sorted(RESULTS_DIR.glob("t7-*.json"))]
+def load_docs() -> list[dict]:
+    return [design.load_json(p) for p in sorted(RESULTS_DIR.glob("t7-*.json"))]
+
+
+def find_reply(session_id: str, root: Path, given: str | None) -> Path | None:
+    if given:
+        return Path(given)
+    kept = RESULTS_DIR / "replies" / f"{session_id}.md"
+    if not session.reply_path(session_id, root).exists() and kept.exists():
+        return kept
+    return None
 
 
 def cmd_prepare(args) -> int:
@@ -54,7 +64,7 @@ def cmd_collect(args) -> int:
         print(f"{out} exists; pass --force to score it again", file=sys.stderr)
         return 1
     try:
-        result = score.collect(args.session, Path(args.root), Path(args.reply) if args.reply else None)
+        result = score.collect(args.session, Path(args.root), find_reply(args.session, Path(args.root), args.reply))
     except KeyError as exc:
         print(exc, file=sys.stderr)
         return 1
@@ -76,7 +86,7 @@ def cmd_dryrun(args) -> int:
         print(pool["report"])
         print()
     for name, f in doc["fixtures"].items():
-        print(f"fixture {name:<11}{'ok  ' if f['ok'] else 'FAIL'} {f['condition']:<11}-> {f['label']}")
+        print(f"fixture {name:<12}{'ok  ' if f['ok'] else 'FAIL'} {f['condition']:<11}-> {f['label']}")
     sim = doc["random_simulation"]
     print(f"random agent, {sim['pools']} simulated pools: {sim['verdicts']}")
     print("controls behave as declared:", doc["controls_behave_as_declared"])
@@ -85,12 +95,15 @@ def cmd_dryrun(args) -> int:
 
 
 def cmd_report(args) -> int:
-    results = load_results()
-    if not results:
+    docs = load_docs()
+    if not docs:
         print(f"no T7 results under {RESULTS_DIR}")
         print("T7 verdict: INCOMPLETE: 0 sessions left a readable record; 14 are needed")
         return 0
-    print(score.report(results))
+    print(score.report([d["result"] for d in docs]))
+    outside = [d["result"]["session_id"] for d in docs if d.get("read_outside_its_directory")]
+    if outside:
+        print("the runner's trace has these subjects naming a path outside their directory: " + ", ".join(outside))
     return 0
 
 

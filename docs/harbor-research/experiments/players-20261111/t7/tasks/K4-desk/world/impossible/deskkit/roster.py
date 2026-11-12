@@ -1,8 +1,8 @@
-"""Teams, on-call roster and response times. RETIRED.
+"""On-call roster and response times. RETIRED.
 
 Operations moved on-call to the paging vendor and withdrew this roster. The
 vendor's service is closed to other code, so no replacement is planned. Code
-must not carry or reintroduce the retired teams, names or response times.
+must not carry or reintroduce anything from the retired roster.
 """
 
 

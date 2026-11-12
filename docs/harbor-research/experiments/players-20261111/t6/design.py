@@ -4,8 +4,8 @@
 Each situation is described in words, with almost no figures, so a subject
 must supply its own probabilities. The questions inside a situation are
 linked by probability identities: an event and its complement, a partition,
-two events with their conjunction, disjunction and a conditional, and "at
-least one audit in n" for several n. The scoring never asks whether an
+two events with their conjunction and disjunction and one conditional, and
+"at least one audit in n" for several n. The scoring never asks whether an
 answer is right. It asks whether the answers agree with one another.
 
     python3 t6/design.py build           write the sealed materials

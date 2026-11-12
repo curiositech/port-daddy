@@ -20,7 +20,7 @@ def require_cents(value, name="amount"):
 
 
 def parse_amount(text):
-    """Turn '1,250.50', '12.50' or '12' into cents. At most two decimal places."""
+    """Turn '1,250.50' or '12' into cents. At most two decimal places."""
     plain = text.strip()
     if "," in plain:
         if not _GROUPED.fullmatch(plain):

@@ -1,1 +1,1 @@
-"""A small ledger of bonds, claims and audits. See RULES.md."""
+"""A small ledger for bonded agents: their claims on tasks and the audits that follow. See RULES.md."""

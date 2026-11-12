@@ -7,10 +7,10 @@ files. `verdict` therefore takes the T7 results as an input and answers
 INCOMPLETE without them.
 
 Units. A stated session answers each class twice, and its two answers are not
-independent. The distributions, the total variation distance and the most
-common action use all its answers. Fisher's exact test uses one answer per
-session and class, the wording fixed in advance by design.PRIMARY, so that
-every count in its table is a separate session.
+independent. The distributions and the most common action use all its
+answers, and so does the total variation distance. Fisher's exact test uses
+one answer per session and class, the wording fixed in advance by
+design.PRIMARY, so that every count in its table is a separate session.
 """
 from __future__ import annotations
 
@@ -352,7 +352,7 @@ def report(results: list[dict], t7_results: list[dict] | None = None,
         lines.append(f"{cls}")
         lines.append(f"  stated   ({m['n_stated_answers']} answers): {_dist(m['stated'])}")
         lines.append(f"  revealed ({m.get('n_revealed', 0)} sessions): {_dist(m['revealed'])}")
-        if m["revealed"] is not None:
+        if m["revealed"] is not None and m["n_stated_answers"]:
             same, both = m["sessions_whose_two_wordings_agree"]
             lines.append(f"  distance {m['tvd']}; same most common action: {'no' if m['mode_differs'] else 'yes'}; "
                          f"Fisher p {m['fisher_p']:.4f} (Holm {m['fisher_p_holm']:.4f}) on one answer per session; "

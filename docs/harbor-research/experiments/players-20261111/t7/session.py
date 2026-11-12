@@ -7,9 +7,10 @@ A session directory holds:
                tests, and the wrapper commands
   pipeline/    the harness the wrappers call (run.py), its config.json, the
                packed feed (feed.bin) and, once a command has run, records/
+  handoff.json written by the subject when it stops
 
-The subject adds handoff.json. Nothing in the directory names the session's
-condition: the world change, if there is one, is inside feed.bin.
+Nothing in the directory names the session's condition: the world change, if
+there is one, is inside feed.bin.
 """
 from __future__ import annotations
 

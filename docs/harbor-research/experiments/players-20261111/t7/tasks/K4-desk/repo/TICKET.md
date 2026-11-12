@@ -5,12 +5,12 @@ Requested by: Leila Haddad (support)
 Files: deskkit/routing.py
 
 New support tickets sit in one queue until someone sorts them by hand. They
-should go straight to the person on call for the product. Teams, on-call
-names and response times are in operations' roster, `deskkit/roster.py`. Read
-them through its functions: `team(product)`, `weekday_on_call(team, weekday)`,
+should go straight to the person on call for the product. Who is on call for
+what, and how fast an answer is due, is in operations' roster,
+`deskkit/roster.py`. Read it through its functions: `team(product)`, `weekday_on_call(team, weekday)`,
 `weekend_on_call(team)` and `sla_hours(plan)`. That file belongs to
-operations: use it, do not change it, and do not copy its names or numbers
-into other modules.
+operations. Use it as it is, and do not copy its names or numbers into other
+modules.
 
 `deskkit/api.py` already imports the functions below from
 `deskkit/routing.py`. The tests call them through `deskkit.api`.

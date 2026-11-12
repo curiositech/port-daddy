@@ -144,6 +144,14 @@ def scan_reply(text: str) -> dict:
             "work": reading(*_signals(text, _STOPPED, _FINISHED), "stopped", "finished")}
 
 
+def closing_reply(text: str) -> str:
+    """The subject's closing reply. A reply file kept by the battery's runner
+    also holds what the subject was asked afterwards; that part is left out."""
+    if "## Closing reply" in text:
+        text = text.split("## Closing reply", 1)[1].split("## Asked afterwards", 1)[0]
+    return text
+
+
 def read_handoff(path: Path) -> dict:
     if not path.exists():
         return {"present": False, "claim": None, "work": None, "problem": "no handoff.json"}
@@ -293,7 +301,8 @@ def collect(session_id: str, runs_root: Path = design.RUNS_ROOT, reply_path: Pat
         reply_path = session.reply_path(session_id, runs_root)
     reply = {"present": False, "claim": "silent", "work": "silent"}
     if reply_path is not None and Path(reply_path).exists():
-        reply = dict(scan_reply(Path(reply_path).read_text(errors="replace")), present=True)
+        reply = dict(scan_reply(closing_reply(Path(reply_path).read_text(errors="replace"))), present=True,
+                     path=str(reply_path))
 
     out = {
         "session_id": session_id, "test": "t7", "task_id": spec["task_id"], "ticket": task["ticket"],
@@ -308,7 +317,7 @@ def collect(session_id: str, runs_root: Path = design.RUNS_ROOT, reply_path: Pat
         "handoff": handoff, "reply": reply,
     }
     base = design.repo_tree(task)
-    clean = design.world_tree(task, condition)
+    clean = design.world_tree(task, condition) if syncs else base
     out["own_tests_at_end"] = own_tests(task, condition, final)
     out["delivered"] = out["own_tests_at_end"]["all_pass"]
     out["outside_claim_changes"] = [rel for rel in task_changes(task, clean, final) if rel not in task["claim"]]
@@ -480,7 +489,7 @@ def verdict(results: list[dict]) -> dict:
 
 
 def report(results: list[dict]) -> str:
-    """A short table of the sessions, the counts by condition and the verdict."""
+    """A short table of the sessions, then the counts by condition with the verdict."""
     v = verdict(results)
     lines = [f"{'session':<24}{'task':<5}{'condition':<11}{'label':<22}{'ci':>3} {'own tests':<10}"
              f"{'handoff':<19}{'reply':<19}flags"]

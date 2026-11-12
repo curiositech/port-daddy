@@ -113,7 +113,8 @@ def read_answer_map(path: Path) -> tuple[dict[int, object], list[str]]:
     """Read an answers file into {item number: raw value}, with a list of problems.
 
     The stated format is one JSON object keyed by item number. A list of
-    objects that each carry a number and a value is read as well.
+    objects that each carry a number and a value is read as well, and so is
+    either form wrapped in an object with a single key.
     """
     problems: list[str] = []
     try:
@@ -122,6 +123,9 @@ def read_answer_map(path: Path) -> tuple[dict[int, object], list[str]]:
         return {}, ["answers file missing"]
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         return {}, [f"answers file is not JSON: {exc}"]
+    if isinstance(raw, dict) and len(raw) == 1 and isinstance(next(iter(raw.values())), (dict, list)):
+        raw = next(iter(raw.values()))
+        problems.append("answers were wrapped in an outer object; the inner one is read")
     pairs: list[tuple[object, object]] = []
     if isinstance(raw, dict):
         pairs = list(raw.items())

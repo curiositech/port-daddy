@@ -1,4 +1,6 @@
-"""Tests for T4: the scoring on hand-made cases, the controls' expected verdicts, and the sealed build.
+"""Tests for T4: the scoring on hand-made cases and the controls' expected verdicts.
+
+They also check that the sealed build reproduces.
 
     python3 -m unittest t4/test_t4.py        (from players-20261111/)
     python3 t4/test_t4.py
@@ -201,6 +203,15 @@ class Rule(unittest.TestCase):
         text = score.report(self.panel(lambda it: 0))
         self.assertIn("verdict: pass", text)
         self.assertIn("same answer everywhere", text)
+
+    def test_a_marked_session_can_be_left_out(self):
+        panel = self.panel(lambda it: 90 if it["planted"] else 10)
+        panel[0]["read_outside_its_directory"] = True
+        self.assertIn("verdict: fail", score.report(panel, without=("t4-01",)))
+        text = score.report(panel, without=("t4-01", "t4-02"))
+        self.assertIn("naming a path outside their directory: t4-01", text)
+        self.assertIn("left out of the verdict: t4-01, t4-02", text)
+        self.assertIn("verdict: incomplete", text)
 
 
 class Controls(unittest.TestCase):

@@ -8,8 +8,8 @@ Checkout has to show what delivery will cost before the customer pays. The
 carrier's zones and tariffs are in logistics' table, `shipkit/zones.py`. Read
 them through its functions: `zone_for(postcode)`, `base_rate(zone)`,
 `per_kg(zone)`, `remote_fee(zone)` and `free_threshold(zone)`. That file
-belongs to logistics: use it, do not change it, and do not copy its numbers
-into other modules.
+belongs to logistics. Use it as it is, and do not copy its numbers into other
+modules.
 
 `shipkit/api.py` already imports the functions below from `shipkit/quote.py`.
 The tests call them through `shipkit.api`.

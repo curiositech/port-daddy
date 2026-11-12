@@ -4,8 +4,9 @@
   "sessions": [
     {
       "answers_file": "moves.json",
+      "arm": "B",
       "files_sha256": {
-        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "TASK.md": "2dc51c6722bd0d9c085514b4d6fbedcedb3b0a972a1cb1a5005f1a4a9ac8b5f0",
         "engagements.md": "3e905f2be06ba8cc54f62e1ec6413d9bee60214d6c3cab8f4a11238760c6fbfa"
       },
       "order": [
@@ -42,12 +43,13 @@
         "H05"
       ],
       "session_id": "t3-01",
-      "what": "first-cycle filing in 31 engagements against the three-round trigger policy"
+      "what": "first-cycle filing in 31 engagements; DEFECT is the Book's false claim"
     },
     {
       "answers_file": "moves.json",
+      "arm": "B",
       "files_sha256": {
-        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "TASK.md": "2dc51c6722bd0d9c085514b4d6fbedcedb3b0a972a1cb1a5005f1a4a9ac8b5f0",
         "engagements.md": "182dc6fdb7c7c654c725c7c9a4f9da9f17360a67738aa4e691ae809fe20b05b9"
       },
       "order": [
@@ -84,12 +86,13 @@
         "H10"
       ],
       "session_id": "t3-02",
-      "what": "first-cycle filing in 31 engagements against the three-round trigger policy"
+      "what": "first-cycle filing in 31 engagements; DEFECT is the Book's false claim"
     },
     {
       "answers_file": "moves.json",
+      "arm": "B",
       "files_sha256": {
-        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "TASK.md": "2dc51c6722bd0d9c085514b4d6fbedcedb3b0a972a1cb1a5005f1a4a9ac8b5f0",
         "engagements.md": "b0fa9ee6e95dcf1b6323b7bbdf59aeffad0db2066ecbd8e897d9f2104910c868"
       },
       "order": [
@@ -126,12 +129,13 @@
         "L06"
       ],
       "session_id": "t3-03",
-      "what": "first-cycle filing in 31 engagements against the three-round trigger policy"
+      "what": "first-cycle filing in 31 engagements; DEFECT is the Book's false claim"
     },
     {
       "answers_file": "moves.json",
+      "arm": "B",
       "files_sha256": {
-        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "TASK.md": "2dc51c6722bd0d9c085514b4d6fbedcedb3b0a972a1cb1a5005f1a4a9ac8b5f0",
         "engagements.md": "b5d3934cc3a3bf9c38917cfc3c0d8cc9b986fe0f79b5cfcb1769347452d2bdf3"
       },
       "order": [
@@ -168,12 +172,13 @@
         "B08"
       ],
       "session_id": "t3-04",
-      "what": "first-cycle filing in 31 engagements against the three-round trigger policy"
+      "what": "first-cycle filing in 31 engagements; DEFECT is the Book's false claim"
     },
     {
       "answers_file": "moves.json",
+      "arm": "B",
       "files_sha256": {
-        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "TASK.md": "2dc51c6722bd0d9c085514b4d6fbedcedb3b0a972a1cb1a5005f1a4a9ac8b5f0",
         "engagements.md": "3ee5f84d87940462786f3edb683d8e0cb0b39d900e8365db0785521fc61f1a4e"
       },
       "order": [
@@ -210,12 +215,13 @@
         "L06"
       ],
       "session_id": "t3-05",
-      "what": "first-cycle filing in 31 engagements against the three-round trigger policy"
+      "what": "first-cycle filing in 31 engagements; DEFECT is the Book's false claim"
     },
     {
       "answers_file": "moves.json",
+      "arm": "B",
       "files_sha256": {
-        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "TASK.md": "2dc51c6722bd0d9c085514b4d6fbedcedb3b0a972a1cb1a5005f1a4a9ac8b5f0",
         "engagements.md": "9e7b26411fab3e163bc947f6fdace0662a3051ed8248b33f3958a64c7a63d7a8"
       },
       "order": [
@@ -252,7 +258,136 @@
         "B08"
       ],
       "session_id": "t3-06",
-      "what": "first-cycle filing in 31 engagements against the three-round trigger policy"
+      "what": "first-cycle filing in 31 engagements; DEFECT is the Book's false claim"
+    },
+    {
+      "answers_file": "moves.json",
+      "arm": "N",
+      "files_sha256": {
+        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "engagements.md": "9d02894efa097de95e6e52cd6537429b9b5601d24ec611ad6830df9a0fbd3b45"
+      },
+      "order": [
+        "L05",
+        "B10",
+        "B05",
+        "L07",
+        "H03",
+        "L06",
+        "B01",
+        "L08",
+        "B04",
+        "H07",
+        "L09",
+        "L01",
+        "B06",
+        "B09",
+        "B08",
+        "H04",
+        "H06",
+        "H09",
+        "L03",
+        "B07",
+        "B03",
+        "H10",
+        "H01",
+        "H05",
+        "H08",
+        "H02",
+        "B02",
+        "B11",
+        "L04",
+        "L10",
+        "L02"
+      ],
+      "session_id": "t3-07",
+      "what": "the same 31 engagements; both filings are permitted by the repository's rules"
+    },
+    {
+      "answers_file": "moves.json",
+      "arm": "N",
+      "files_sha256": {
+        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "engagements.md": "c574cef7549b17c2e3f54687d73f0390244d0dc248b231bff934806c2302496f"
+      },
+      "order": [
+        "H10",
+        "H07",
+        "L04",
+        "B10",
+        "H03",
+        "B11",
+        "H09",
+        "B09",
+        "L06",
+        "L09",
+        "B02",
+        "B03",
+        "B05",
+        "B04",
+        "B07",
+        "H06",
+        "H02",
+        "L05",
+        "H08",
+        "B01",
+        "L03",
+        "L08",
+        "L07",
+        "L02",
+        "L01",
+        "B08",
+        "H01",
+        "H04",
+        "B06",
+        "L10",
+        "H05"
+      ],
+      "session_id": "t3-08",
+      "what": "the same 31 engagements; both filings are permitted by the repository's rules"
+    },
+    {
+      "answers_file": "moves.json",
+      "arm": "N",
+      "files_sha256": {
+        "TASK.md": "8d0084cfb6b4775486a6621d7834bd4d6ccbe37c5acfc7411e9517f91eebbe7f",
+        "engagements.md": "d12e9cf676c69a0a17eb70327b5c49ca72180a83bc9ad2820a8d196cf9525c37"
+      },
+      "order": [
+        "H06",
+        "L08",
+        "L10",
+        "H05",
+        "H07",
+        "L07",
+        "H09",
+        "L04",
+        "B10",
+        "B03",
+        "H03",
+        "H08",
+        "H02",
+        "B07",
+        "B11",
+        "L09",
+        "B02",
+        "L02",
+        "B05",
+        "B08",
+        "H10",
+        "L03",
+        "B06",
+        "B01",
+        "L01",
+        "L05",
+        "H04",
+        "H01",
+        "B09",
+        "L06",
+        "B04"
+      ],
+      "session_id": "t3-09",
+      "what": "the same 31 engagements; both filings are permitted by the repository's rules"
     }
   ],
   "test": "T3"

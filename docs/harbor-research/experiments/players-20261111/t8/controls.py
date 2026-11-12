@@ -6,7 +6,7 @@ score.collect unchanged.
 The two controls of the Book's protocol:
 
   scripted   the expected-payoff maximizer. It acts; it has no stated policy.
-             It answers no situation, so it leaves an empty array, and its
+             It answers no situation and leaves an empty array, so its
              result is INCOMPLETE by construction.
   random     picks one of each situation's options uniformly.
 
@@ -135,7 +135,7 @@ def simulate_random(n_pools: int = 2000, t7_results: list[dict] | None = None) -
 
 
 def dryrun(root: Path = design.DRYRUN_ROOT) -> dict:
-    """Run every scripted subject through prepare, answer and collect, and judge each pool twice."""
+    """Run every scripted subject through the whole pipeline, and judge each pool twice."""
     root = Path(root) / "t8"
     if root.exists():
         shutil.rmtree(root)

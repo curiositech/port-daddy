@@ -5,7 +5,7 @@
   python3 t4/cli.py prepare SESSION [--root DIR]  create the session directory and print its path
   python3 t4/cli.py collect SESSION [--root DIR]  score a finished session into ../results/SESSION.json
   python3 t4/cli.py dryrun [--root DIR]          both controls through the whole pipeline
-  python3 t4/cli.py report                       the rule applied to ../results/t4-*.json
+  python3 t4/cli.py report [--without SESSION ...]  the rule applied to ../results/t4-*.json
 
 Standard library only. No subject is launched from here.
 """
@@ -68,7 +68,7 @@ def cmd_report(args) -> int:
     if not results:
         print(f"no results under {RESULTS_DIR}")
         return 1
-    print(score.report(results))
+    print(score.report(results, without=tuple(args.without)))
     return 0
 
 
@@ -88,7 +88,9 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--force", action="store_true")
     d = sub.add_parser("dryrun")
     d.add_argument("--root", default=str(DRYRUN_ROOT))
-    sub.add_parser("report")
+    r = sub.add_parser("report")
+    r.add_argument("--without", nargs="*", default=[], metavar="SESSION",
+                   help="sessions to leave out of the verdict, for instance one that read the sealed materials")
     args = parser.parse_args(argv)
     if args.command == "build":
         return design.build(check=args.check)

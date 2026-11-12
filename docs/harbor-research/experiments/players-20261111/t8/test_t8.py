@@ -6,6 +6,7 @@ import sys
 
 sys.dont_write_bytecode = True
 
+import hashlib
 import itertools
 import json
 import math
@@ -51,6 +52,11 @@ class Design(unittest.TestCase):
                               capture_output=True, text=True, timeout=120)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertNotIn("DIFFERS", proc.stdout)
+
+    def test_sealed_hashes_match_a_fresh_render_under_the_default_root(self):
+        for sid in design.SESSION_IDS:
+            data = session.render(sid, design.RUNS_ROOT)["TASK.md"]
+            self.assertEqual({"TASK.md": hashlib.sha256(data).hexdigest()}, session.sealed_hashes(sid), sid)
 
     def test_seven_classes_each_asked_twice(self):
         self.assertEqual(len(design.ITEMS), 14)
