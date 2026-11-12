@@ -1,0 +1,22 @@
+$ sh formal/zoom/run.sh
+a_gate_that_counts_what_was_opened_is_caught
+  fails, as it must
+a_line_is_verified_only_by_a_run_of_its_revision
+  successful; its 2 covers are satisfied
+verified_work_that_was_read_does_land
+  successful; its cover is satisfied
+work_lands_only_verified_and_read
+  successful; its cover is satisfied
+with one guard removed, the harnesses that fail
+bare-line
+  a_line_is_verified_only_by_a_run_of_its_revision
+any-run
+  a_line_is_verified_only_by_a_run_of_its_revision
+trust-store
+  NONE
+land-unverified
+  work_lands_only_verified_and_read
+land-unseen
+  work_lands_only_verified_and_read
+count-opened
+  work_lands_only_verified_and_read

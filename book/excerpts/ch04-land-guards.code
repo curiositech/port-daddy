@@ -1,0 +1,21 @@
+/// The guard on a line that was not read: the first of its
+/// claims that the operator has not opened.
+fn unopened(read: &Read) -> Option<usize> {
+    if cfg!(feature = "mutant-land-unseen") {
+        return None; // MUTANT: guard removed.
+    }
+    let claims = read.line.claims.iter();
+    claims
+        .enumerate()
+        .find(|at| !seen(read, *at))
+        .map(|at| at.0)
+}
+
+/// The guard on what counts as opened: the claim's own hash.
+fn seen(read: &Read, (number, claim): (usize, &Claim)) -> bool {
+    if cfg!(feature = "mutant-count-opened") {
+        // MUTANT: as many things opened as there are claims.
+        return read.opened.len() > number;
+    }
+    read.opened.contains(&claim.sha)
+}

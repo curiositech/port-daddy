@@ -797,7 +797,9 @@ condition. Heron's narrower repair remains a candidate for the independent
 acceptance run. The digest has made the distinctions inspectable. It has not
 proved that any proposal is correct.}
 
-\pdexercisepointer{\ref{ex:ls-flatten-or-preserve}}{\ref{ex:ls-adversarial-legibility}}{\pageref{ex:ls-flatten-or-preserve}}
+\input{additions/ls-build-the-line}
+
+\pdexercisepointer{\ref{ex:ls-flatten-or-preserve}}{\ref{ex:ls-line-read}}{\pageref{ex:ls-flatten-or-preserve}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The Leviathan rules as well as watches (the authority half)}\label{sec:authority-rules}
@@ -3700,6 +3702,73 @@ divergence it cannot catch.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-adversarial-legibility}
 The legibility layer can compare structured narration claims against independently derived artifacts: claimed changed files versus the tree diff, ``tests passed'' versus a protected runner receipt, ``no deletion'' versus Git objects, and claimed command results versus brokered tool logs. Emit a contradiction event on mismatch. This catches deterministic report/artifact divergence, deleted tests, fabricated execution, and omitted changed paths. It cannot establish semantic correctness, detect a poisoned acceptance suite, observe effects that bypass logging, or distinguish two artifacts that are syntactically consistent but jointly wrong. Those require effect confinement, independent evaluation, or later outcome evidence.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-line-kinds}
+Under the second surface of \S\ref{sec:ls-line},
+Listing~\ref{alg:ls-line-walk} counts 10,094 landings. In 7,002 the work
+was not verified, and in 6,544 it was not read.
+Figure~\ref{fig:ls-line-landings} says that 4,666 were both. How many
+landings were wrong, and how many were right?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-line-kinds}
+A landing that was both is in both counts, so it is taken off once:
+$7{,}002+6{,}544-4{,}666=8{,}880$ were wrong, and
+$10{,}094-8{,}880=1{,}214$ were right. The figure's other two kinds are the
+differences. $7{,}002-4{,}666=2{,}336$ landings were read and not verified,
+and $6{,}544-4{,}666=1{,}878$ were verified and not read.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-line-stale-run}
+Wren makes the repair, and the kernel's run of revision~8 passes. Alice
+opens both claims of the kernel's line. Wren then changes the work, and the
+kernel has not yet run revision~9. Use
+Listings~\ref{alg:ls-line-render-guards} and~\ref{alg:ls-line-land} to say
+what the line holds and what
+\texttt{land} returns. Then say what changes once the run of revision~9 has
+passed.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-line-stale-run}
+\texttt{current} drops the run of revision~8, because it is not a run of
+the revision the work stands at. The line has one claim, the new diff, and
+it is not verified. \texttt{land} checks that first and refuses with
+\texttt{NotVerified}. Once the run of revision~9 has passed, the line has
+two claims and is verified. Neither of their hashes is among the two that
+Alice opened, so \texttt{unopened} finds claim~1 and \texttt{land} refuses
+with \texttt{NotOpened}. She has to open both again. That is the cost of
+the rule: every change sends its reader back.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-line-count-opened}
+Listing~\ref{alg:ls-line-land-guards} marks a change to \texttt{seen} as a
+build of its own. That build asks whether more things were opened than the
+claim's number, and compares no hashes. Give a run in which it
+lands work whose diff nobody was shown. Which run of \S\ref{sec:ls-line} is
+it?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-line-count-opened}
+Wren makes the repair, and the run passes. Alice opens both claims, so two
+hashes are on record. Wren changes the work, and the new run passes. The
+line has two claims again, with two new hashes. The changed \texttt{seen}
+counts from 0. It finds more than 0 things opened for the first claim and
+more than 1 for the second, and \texttt{land} admits revision~9. This is
+the third break (Listing~\ref{alg:ls-line-run-switch}), inside the core.
+The walk finds 912 landings of unread work on that build, and the harness
+\texttt{work\_lands\_only\_verified\_and\_read} fails on it.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-line-read}
+\emph{Opened is not read.} The core of \S\ref{sec:ls-line} records that a
+diff was shown to Alice. Propose something more that a surface could record
+as evidence that she read it, and say what your proposal would still not
+show.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-line-read}
+One candidate is the time the text was on screen. A diff of 600 lines that
+was up for two seconds was not read, so the record can refuse the hurried
+case. It says nothing of a text left open while its reader looked away.
+Another is the canary of \S\ref{sec:abdication}: plant a known fault in
+some of what she is shown, and record whether she finds it. That estimates
+how often she misses a fault over many landings, and says nothing of this
+landing. Neither is a guard the core can check at the moment of landing, as
+it checks a hash. Reading is a fact about a person. A record can raise the
+cost of skipping it and measure how often it is skipped.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:authority-rules}}{The Leviathan rules as well as watches (the authority half)}
