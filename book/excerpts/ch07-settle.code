@@ -1,0 +1,21 @@
+/// Settle a bond. `forfeit` of it goes to the pool and the rest
+/// goes back to the wallet. A refund forfeits nothing.
+fn settle(
+    bonds: &Bonds,
+    id: u64,
+    forfeit: u64,
+    standing: Standing,
+) -> Result<Moved, Reason> {
+    let bond = held(bonds.bond.as_ref(), id)?;
+    let back = kept(bond.amount, forfeit)?;
+    let funds = bonds.funds;
+    let escrow = backed(funds.escrow, bond.amount)?;
+    Ok(Moved {
+        funds: Funds {
+            wallet: funds.wallet + back,
+            escrow,
+            pool: funds.pool + forfeit,
+        },
+        bond: Some(Bond { standing, ..*bond }),
+    })
+}

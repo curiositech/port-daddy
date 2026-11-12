@@ -1,0 +1,13 @@
+/// The guard: there is such a bond, and it has not been settled.
+fn held(bond: Option<&Bond>, id: u64) -> Result<&Bond, Reason> {
+    let bond = bond
+        .filter(|bond| bond.id == id)
+        .ok_or(Reason::NoBond { id })?;
+    if cfg!(feature = "mutant-settle-twice") {
+        return Ok(bond); // MUTANT: guard removed.
+    }
+    match bond.standing {
+        Standing::Held => Ok(bond),
+        _ => Err(Reason::AlreadySettled { id }),
+    }
+}

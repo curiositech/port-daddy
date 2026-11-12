@@ -1,0 +1,9 @@
+$ harbor posts
+every order in which two workers can take their turns, each
+  posting a bond of 6 from a wallet of 10; a worker looks, then
+  asks
+
+design      orders  both posted
+dollars          6            0
+trusting         6            4
+core             6            0

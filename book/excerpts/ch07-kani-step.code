@@ -1,0 +1,21 @@
+/// The step of the induction. From funds that add up, a move
+/// that is admitted leaves funds that add up: as many units as
+/// before, and those the move made. The pool never falls.
+#[kani::proof]
+fn every_move_keeps_every_unit() {
+    let before = any_bonds();
+    let (asked, made) = any_move();
+    let Some(after) = ask(asked, &before) else {
+        return; // A refusal leaves nothing to keep.
+    };
+    kani::cover!(made > 0);
+    kani::cover!(after.funds.pool > before.funds.pool);
+    let had = supply(&before.funds).unwrap();
+    assert!(supply(&after.funds) == Some(had + made));
+    assert!(after.funds.pool >= before.funds.pool);
+    // A bond that comes back held has its units in escrow.
+    if let Some(bond) = after.bond {
+        let held = bond.standing == Standing::Held;
+        assert!(!held || bond.amount <= after.funds.escrow);
+    }
+}

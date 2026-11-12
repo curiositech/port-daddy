@@ -1,0 +1,96 @@
+% Brief (grammar: every state as a point, every move as a stroke; atlas
+%   VI/fig:bonded-moves).
+% Reader question: from where a project's funds are, where can a move take
+% them?
+% Claim: no move the kernel makes leaves the triangle of funds that add up
+% to what was topped up. A post or a refund moves along a row, a slash moves
+% up a row, and nothing moves down. With the check of the wallet removed,
+% moves leave the triangle.
+% Evidence: every move made from a state with all 6 units topped up, in the
+% walk of every state within the bounds [internal, harbor states --each;
+% sessions states-each.txt and states-each-overdraw.txt, drawn as printed,
+% and tests/harbor-research/test_bonded_ledger_numbers.py holds the counts
+% in the caption to them].
+% Must distinguish: a move along a row from a move up; a move the Book's
+% rules allow from one they refuse; inside the triangle from outside it.
+% Grammar chosen: escrow across and the pool up, so that the wallet is what
+% is left and the funds that add up are a triangle. One stroke for each
+% kind of move the walk made.
+% Grammar rejected: an equilateral plot of three shares, where a row of
+% equal pool is no longer level and the moves out of the triangle have
+% nowhere to go; the table itself, which is 211 rows.
+% Five-second test: on which side does a stroke cross the dotted line?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=.5cm,y=.5cm,
+    row move/.style={draw=pdinkmuted!75,line width=.5pt},
+    rising move/.style={draw=pdfocus,line width=.35pt,-{Stealth[length=2.2pt,width=1.8pt]},shorten >=1.6pt},
+    stray move/.style={draw=pderror,line width=.7pt,-{Stealth[length=3pt,width=2.6pt]},shorten >=1.8pt},
+    place/.style={circle,fill=pdink,inner sep=0pt,minimum size=2.6pt},
+    beyond/.style={circle,draw=pderror,fill=pdpage,line width=.6pt,inner sep=0pt,minimum size=3.2pt}]
+  % The tables are the recorded runs, read as they were printed: the first
+  % line is the command, and every remark starts with '#'.
+  \pgfplotstableread[skip first n=1]{excerpts/states-each.txt}\pdmovesreal
+  \pgfplotstableread[skip first n=1]{excerpts/states-each-overdraw.txt}\pdmovesloose
+  % Counts taken from the tables as they are drawn.
+  \ifdefined\pdmovesin\else \newcount\pdmovesin \newcount\pdmovesout \fi
+  % One panel: the moves of a table, then the places on top of them.
+  \newcommand{\pdmovespanel}[1]{%
+    \global\pdmovesin=0 \global\pdmovesout=0
+    \pgfplotstablegetrowsof{#1}
+    \pgfmathtruncatemacro{\pdlastmove}{\pgfplotsretval-1}
+    % Moves along a row first, so that the moves up lie over them.
+    \foreach \pass in {0,1,2}{
+      \foreach \i in {0,...,\pdlastmove}{
+        \pgfplotstablegetelem{\i}{e0}\of#1 \let\ea\pgfplotsretval
+        \pgfplotstablegetelem{\i}{p0}\of#1 \let\pa\pgfplotsretval
+        \pgfplotstablegetelem{\i}{e1}\of#1 \let\eb\pgfplotsretval
+        \pgfplotstablegetelem{\i}{p1}\of#1 \let\pb\pgfplotsretval
+        \pgfplotstablegetelem{\i}{wrong}\of#1 \let\wrong\pgfplotsretval
+        \ifnum\wrong=1
+          \ifnum\pass=2 \global\advance\pdmovesout 1
+            \draw[stray move] (\ea,\pa) -- (\eb,\pb); \node[beyond] at (\eb,\pb) {};\fi
+        \else\ifnum\pa=\pb
+          \ifnum\pass=0 \global\advance\pdmovesin 1 \draw[row move] (\ea,\pa) -- (\eb,\pb);\fi
+        \else
+          \ifnum\pass=1 \global\advance\pdmovesin 1 \draw[rising move] (\ea,\pa) -- (\eb,\pb);\fi
+        \fi\fi
+      }
+    }
+    % Every place where the funds add up to 6.
+    \foreach \p in {0,...,6}{
+      \pgfmathtruncatemacro{\most}{6-\p}
+      \foreach \e in {0,...,\most}{ \node[place] at (\e,\p) {}; }
+    }
+    % Past this line a project would hold more than was topped up.
+    \draw[pd guide] (6.9,-.4) -- (-.4,6.9);
+    \foreach \n in {0,2,4,6}{
+      \node[pd label,text=pdinkmuted,anchor=north] at (\n,-.55) {\n};
+      \node[pd label,text=pdinkmuted,anchor=east] at (-.55,\n) {\n};
+    }
+    \node[pd label,anchor=north] at (3,-1.5) {units in escrow};
+  }
+  \pdmovespanel{\pdmovesreal}
+  \node[pd label,rotate=90,anchor=south] at (-1.6,3) {units in the pool};
+  % Each panel's words sit above it, clear of the strokes and of the
+  % other panel.
+  \node[pd title,anchor=south west] at (-.6,8.9) {the kernel's keeper};
+  \node[pd label,anchor=north west,align=left] at (-.6,8.9)
+    {\the\pdmovesin\ kinds of move,\\none past the line};
+  \begin{scope}[xshift=4.4cm]
+    \pdmovespanel{\pdmovesloose}
+    \node[pd title,anchor=south west] at (-.6,8.9) {with the check of the wallet removed};
+    \node[pd label,anchor=north west,align=left] at (-.6,8.9)
+      {\the\pdmovesout\ more, each to a place\\with more than 6 units};
+  \end{scope}
+\end{tikzpicture}
+\caption{\textbf{No move the kernel makes takes a project's funds past what
+was topped up.} A project has 6 units, and the wallet holds whatever is not
+in escrow or in the pool. Grey strokes are bonds posted and refunded, which
+move along a row. Arrows are slashes, which move up a row and never down.
+On the right the core is built without the guard of
+Listing~\ref{alg:bonded-build-covered}, and each red arrow posts a bond the
+wallet cannot cover. [internal, \texttt{harbor states -{}-each}]}
+\label{fig:bonded-moves}
+\end{figure}

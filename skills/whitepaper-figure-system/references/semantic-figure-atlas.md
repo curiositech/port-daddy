@@ -253,7 +253,7 @@ Canonical root: `book/anchor-protocol-whitepaper.tex` (13 figures).
 
 ## Volume VI: The Bonded Commons
 
-Canonical root: `book/agent-transactions-whitepaper.tex` (12 figures).
+Canonical root: `book/agent-transactions-whitepaper.tex` (13 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -276,6 +276,7 @@ Canonical root: `book/agent-transactions-whitepaper.tex` (12 figures).
 | `VI/fig:bonded-session-lifecycle` | Which state variable changes during recovery? | two aligned rails for session status and recovery-queue status, with named guarded actions | Begin requires positive escrow; Crash changes heartbeat only; Reap atomically abandons and queues; Salvage marks queue resurrecting for an active successor; Dismiss deletes both records; ClaimFile is advisory for an active registered session | inventing crashed or salvaged session states; slashing or payout recipients inferred from the excerpt; eventual recovery inferred from Reap fairness; exclusive ClaimFile |
 | `VI/fig:bonded-trust-collision` | What actually collides between Agent A and Agent B, and when? | two-agent parallel timeline with uncoordinated concurrent commits and collision at push | independent agents unaware of each other; concurrent edits 90s apart; push collision at remote branch; corrupted merge resolution attempt | abstract lock contention icon; collision at edit time; assuming agents communicate out-of-band |
 | `VI/fig:sen-pareto-locking` | How do precautionary locks compare with advisory claims when agent file needs are uncertain? | paired-outcome comparison: conflict in dispute versus agreement suiting both | Agent alpha holds lock versus advisory claim; Agent beta needs file; outcome 1 task vs 2 tasks completed; Pareto-inferior vs Pareto-optimal | treating lock as uniformly necessary; omitting negotiation flow |
+| `VI/fig:bonded-moves` | From where a project's funds are, where can a move take them? | every state as a point and every move as a stroke: escrow across and the pool up, so that funds which add up to what was topped up are a triangle; two panels on one scale, the kernel's keeper beside a core built without the check of the wallet | every stroke read from the recorded tables of `harbor states --each`, with and without the guard, and the two counts on the panels taken from those tables as they are drawn; a move along a row against a move up it; a move the Book's rules allow against one they refuse; the line past which a project would hold more than was topped up | an equilateral plot of three shares, where a row of equal pool is no longer level and a move out of the triangle has nowhere to go; the table itself; strokes typed by hand |
 
 ## Volume VII: The Federated Harbor
 

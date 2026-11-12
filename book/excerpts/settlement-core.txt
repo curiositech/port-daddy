@@ -1,0 +1,10 @@
+$ harbor scenario settlement --design core
+scenario settlement, design core: the Book's worked settlement: of
+  a bond of 6, 2 is forfeited and 4 comes back
+
+step 1   alice  top up 10 -> ok: wallet 10, escrow 0, pool 0
+step 2   wren   post 6 -> bond 1: wallet 4, escrow 6, pool 0
+step 3   harbor slash bond 1 by 2
+                -> slashed: wallet 8, escrow 0, pool 2
+
+verdict: every unit kept: 10 units held of the 10 topped up

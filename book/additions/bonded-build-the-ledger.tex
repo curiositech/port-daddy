@@ -1,0 +1,385 @@
+% Build the layer, Chapter 7, first build: funds that keep every unit.
+% Inserted at the end of \S\ref{sec:conservation}, after the property on
+% where a forfeit goes. It builds the ledger that the Conservation theorem
+% describes, which the paragraph "The implementation" says Port Daddy's
+% ledger is not yet.
+%
+% No code or output in this file is typed. \pdexcerpt, \pdrun and
+% \pdrunlines set files under excerpts/, which the kernel's
+% tools/excerpts.mjs cuts from its source and its recorded runs (see
+% figures/pd-listing.tex). The figure draws two of those recorded tables as
+% they were printed. To change a listing or the figure, change the kernel
+% and cut again. The prose names functions, never line numbers, so that a
+% listing which moves in its file does not make a sentence wrong.
+%
+% \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
+% listing changes length, change the number with it.
+\subsection{Build the layer: funds that keep every unit}
+\label{sec:bonded-build}
+
+\noindent\emph{Express lane: the ledger of Theorem~\ref{thm:conservation} is
+built twice. The first counts dollars, as a first ledger usually does, and
+refuses a bond that its wallet covers. The second counts whole units, and
+every subtraction in it can refuse. A walk then takes it through every
+state within the bounds of this chapter's TLA$^{+}$ model, and a solver
+takes one step of the theorem's induction for any amounts. With one guard
+removed, every unit is still there and the wrong party holds some of them.}
+
+\S\ref{sec:conservation} states its theorem for money counted in whole
+units, and then says that Port Daddy's ledger keeps dollars in floating
+point, so that the theorem describes an intended ledger and not a running
+one. This section builds the intended one and runs it. The code is
+\pdkernelname{}, the small kernel written for this book, which gains a
+layer in each chapter. It is not the daemon whose ledger the rest of this
+chapter describes.
+
+The section moves in the four beats of \weld{prereq:sec:prereq-build}{four beats}:
+\emph{Naive}, \emph{Break}, \emph{Fix} and \emph{Verify}. As there, a
+script cuts each listing from the kernel's source, and each run is a
+recording. The layer is small. It keeps one project's funds in memory and
+decides four moves on them. It does not ask who is making a move, and the
+adjudicator of \S\ref{sec:governance} is not built.
+
+\subsubsection{Naive: three balances in dollars}
+
+A project's funds are kept by an object that we will call the
+\emph{keeper}. It holds the three buckets of Definition~\ref{def:acct-state}
+and a list of bonds, and it offers the theorem's moves under shorter names.
+\texttt{topUp} puts new money in the wallet. \texttt{post} moves the amount
+of a bond from the wallet into escrow, which the theorem writes as
+$\mathrm{escrow}(b)$. \texttt{refund} and \texttt{slash} settle a bond. The
+keeper takes one request at a time and finishes it before it looks at the
+next.
+
+Prices are quoted in dollars, so the first keeper counts in dollars
+(Listing~\ref{alg:bonded-build-dollars}).
+
+\pdlistingroom{14}
+\pdexcerpt[caption={The first keeper posts a bond. Its balances are
+dollars.},label={alg:bonded-build-dollars}]{ch07-dollars}
+
+This keeper is careful. It compares the wallet with the bond in the same
+step as it debits the wallet, so no other request can come between the
+two. It remembers whether a bond was settled, and it will not forfeit more
+than a bond holds. The runs below give every keeper its amounts in cents,
+and this one divides by 100 at the door.
+
+\subsubsection{Break: thirty cents}
+
+Alice tops a project up with thirty cents. Wren posts a bond of ten cents
+from it, and then a bond of twenty.
+
+\pdlistingroom{14}
+\pdrun[caption={The break. The wallet held thirty cents, and it is asked
+for thirty.},label={alg:bonded-build-run-dollars}]{exact-change-dollars}
+
+After the first bond the wallet holds 0.19999999999999998 dollars. That is
+less than 0.2, and the second bond is refused. Nothing in
+Listing~\ref{alg:bonded-build-dollars} is wrong as a program. Its numbers
+are binary fractions of 53 bits, and a tenth has no finite expansion in
+binary, as a third has none in
+decimal~\pdcite{goldberg1991floating}. The keeper stores the nearest
+fraction it can, and a subtraction brings the difference into view. Here
+the difference is under $3\times10^{-17}$ of a dollar, and the refusal is a
+whole refusal. \emph{Now you try:} Exercise~\ref{ex:bonded-build-cents}
+works the refusal out by hand, and then finds two bonds that are refused in
+one order and posted in the other.
+
+Port Daddy's tests compare the three buckets with the expected supply to
+six decimal places, and they pass. They would pass here too. A test of
+totals cannot see a comparison that came out the wrong way, and the
+\emph{Verify} part below counts how often one does.
+
+\subsubsection{Break again: two workers and one wallet}
+
+Counting in cents will mend that. It leaves a second question, which is
+where the comparison with the wallet is made. Suppose a keeper counts whole
+units and offers two requests. One says whether the wallet holds a given
+amount, and the other moves the units. A careful worker looks before it
+asks (Listing~\ref{alg:bonded-build-bidder}).
+
+\pdlistingroom{7}
+\pdexcerpt[caption={A worker that looks at the wallet, and then
+asks.},label={alg:bonded-build-bidder}]{ch07-bidder}
+
+The \texttt{yield} is where the worker stops between its two requests and
+another worker may run (\weld{prereq:sec:prereq-build}{yield}). Heron and
+Wren each want a bond of 6 from a wallet of 10. One bond is covered, and two
+are not. \pdkernelname{} tries every order in which the two can take their
+turns.
+
+\pdlistingroom{12}
+\pdrun[caption={Every order of two workers' turns, against a keeper that
+leaves the look to the worker.},label={alg:bonded-build-posts-trusting}]{posts-trusting}
+
+Four orders of six post both bonds, and the wallet ends 2 units below zero.
+They are the four in which both workers look before either asks. This is
+Chapter~0's lost update with a wallet where the counter was
+(\weld{prereq:sec:prereq-build}{lose an update}).
+Theorem~\ref{lem:no-overdraft} rules it out by assuming that the check and
+the debit commit together. The first keeper made that assumption true and
+counted badly. This one counts well and does not make it true.
+
+\subsubsection{Fix: whole units, and a subtraction that can refuse}
+
+The fix is in the kernel's decision core, the Rust function through which
+every proposal in this book's code is decided
+(\weld{prereq:sec:prereq-build}{decision core}). Its funds are three counts
+(Listing~\ref{alg:bonded-build-funds}).
+
+\pdlistingroom{16}
+\pdexcerpt[caption={A project's funds, and how many units it holds in
+all.},label={alg:bonded-build-funds}]{ch07-funds}
+
+A \texttt{u64} is a whole number from 0 up. A fraction of a unit cannot be
+written in it, and neither can a debt. The unit is whatever the project
+calls its smallest amount, which in these runs is a cent. \texttt{supply}
+is $S_Q$ of Definition~\ref{def:acct-state}. It answers only when the
+buckets add up to a count that is no more than \texttt{CEILING}, which is
+$2^{53}-1$. The kernel's host is JavaScript, which keeps every number as a
+double, and above $2^{53}$ a double cannot tell one whole number from the
+next. A count that was exact in the core and rounded on its way out would
+be the first keeper's fault again, one layer up. So the core refuses a
+top-up that would pass the ceiling.
+
+Posting a bond is Listing~\ref{alg:bonded-build-post}, and its guard is
+Listing~\ref{alg:bonded-build-covered}.
+
+\pdlistingroom{19}
+\pdexcerpt[caption={The decision for a bond
+posted.},label={alg:bonded-build-post}]{ch07-post}
+
+\pdlistingroom{11}
+\pdexcerpt[caption={The guard on the wallet. It returns what the wallet has
+left.},label={alg:bonded-build-covered}]{ch07-covered}
+
+\texttt{checked\_sub} subtracts, and gives back nothing if the result would
+fall below zero. So \texttt{covered} does not answer yes or no. It answers
+with what the wallet has left, and \texttt{post} has no other way to come by
+that number. No line debits the wallet without the comparison, because the
+two are one expression. The line marked \texttt{MUTANT} belongs to a second
+build of the core, in which the guard is gone. The \emph{Verify} part runs
+it.
+
+A refund and a slash are one function
+(Listing~\ref{alg:bonded-build-settle}).
+
+\pdlistingroom{21}
+\pdexcerpt[caption={The decision for a bond settled. A refund is a slash
+that forfeits nothing.},label={alg:bonded-build-settle}]{ch07-settle}
+
+Table~\ref{tab:bonded-conservation-dictionary} reads a refund the same way,
+as a slash of zero. What comes out of escrow is the bond, and what goes
+into the wallet and the pool together is the bond, so the count cannot
+change here. The first guard is \texttt{held}
+(Listing~\ref{alg:bonded-build-held}): there is such a bond, and it has not
+been settled.
+
+\pdlistingroom{13}
+\pdexcerpt[caption={The guard on a bond's
+standing.},label={alg:bonded-build-held}]{ch07-held}
+
+The other two guards have the shape of \texttt{covered}. \texttt{kept}
+subtracts the forfeit from the bond, so that no more is forfeited than the
+bond holds. \texttt{backed} subtracts the bond from escrow. The kernel keeps
+escrow equal to the bonds that are held, and the core checks all the same.
+It is shown its state by the kernel, and it has no way to know that what it
+is shown is right. \texttt{settle} is handed the forfeit as a whole number
+of units. Exercise~\ref{ex:bonded-build-split} asks who gets the odd unit
+when half of a bond of 5 is to be forfeited.
+
+The keeper that holds the funds is short
+(Listing~\ref{alg:bonded-build-accounts}).
+
+\pdlistingroom{23}
+\pdexcerpt[caption={The kernel's keeper. It asks the core, and stores the
+answer before it returns.},label={alg:bonded-build-accounts}]{ch07-accounts}
+
+It shows the core the funds and the bond that a move names, and it keeps
+what the core answers. The check and the change are one step for the reason
+they were in Chapter~0's cell: no other request runs between
+\texttt{decide} and the line that stores its answer.
+
+% A page may break here. See the note in anchor-build-the-verifier.tex.
+\pagebreak[0]
+\keyidea[Let the check be the only way to subtract]{A balance is safe when
+no code can lower it except through the check. A check that answers yes or
+no leaves the subtraction to a later line, and one day a later line does
+not ask. A check that returns the lowered balance leaves nothing to
+forget.}
+
+\Needspace{12\baselineskip}
+\subsubsection{Verify: every state, and then any amount}
+
+The thirty cents first.
+
+\pdlistingroom{9}
+\pdrun[caption={The fix. Both bonds are posted, and the wallet is
+empty.},label={alg:bonded-build-run-core}]{exact-change-core}
+
+Then the settlement that \S\ref{sec:conservation} works by hand.
+
+\pdlistingroom{10}
+\pdrun[caption={The chapter's worked settlement, run. Of a bond of 6, 2 is
+forfeited.},label={alg:bonded-build-settlement}]{settlement-core}
+
+Step 2 leaves the project at $(4,6,0)$ and step 3 at $(8,0,2)$, as the
+example has them. The two workers come next, against every keeper.
+
+\pdlistingroom{9}
+\pdrun[caption={Two workers and one wallet, for each
+keeper.},label={alg:bonded-build-posts}]{posts}
+
+\paragraph{Every state.}
+Three runs prove little. TLC checked this chapter's model in every state it
+can reach with amounts of 1 to 3 and at most 6 units minted.
+\pdkernelname{} does the same to its own keeper, with those amounts and at
+most 3 bonds posted, where the model has 3 agents. It walks from state to
+state, and from each one it tries every move the bounds allow. Some of
+those moves should be refused: a bond the wallet cannot cover, or a forfeit
+of one unit more than a bond holds. The walk also tries to settle every
+bond ever posted, held or not, and one that never was. Each answer is held
+to a second set of rules. They are the
+proof sketch of Theorem~\ref{thm:conservation} written out as arithmetic on
+whole numbers, in a file that shares no code with the core.
+
+\pdlistingroom{16}
+\pdrun[caption={Every state each keeper can reach, held to the theorem's
+own rules.},label={alg:bonded-build-states}]{states}
+
+The kernel's keeper reaches 6,902 states. In every one of them the buckets
+hold exactly what was topped up, and over the 25,672 moves that the rules
+allow, and all those they refuse, it never differs from them. The keeper
+that trusts the look reaches the same states, and takes 653 bonds that its
+wallet cannot cover.
+
+The keeper in dollars reaches more states, because the same funds arrive as
+different numbers by different roads. It refuses 386 bonds that its wallet
+covers. In 31,174 of its 36,662 states a bucket holds a fraction of a cent,
+and in 18,873 the buckets do not add up to the top-ups. The widest of those
+differences is $2.8\times10^{-17}$ of a dollar. A test to six decimal places
+passes in every one of these states.
+
+Figure~\ref{fig:bonded-moves} draws the moves that the walk made from the
+states with all 6 units topped up.
+
+\input{figures/fig-bonded-moves}
+
+For a fixed supply, a project's funds are a point in a triangle: escrow
+across, the pool up, and the wallet whatever is left. Conservation says
+that a move never leaves the triangle. The figure says a little more. A
+bond posted or refunded moves the point along its row. A slash moves it up,
+and no stroke goes down, because no move takes anything out of the pool.
+Exercise~\ref{ex:bonded-build-triangle} counts the places, and asks why the
+walk needs so many more states than there are places.
+
+\paragraph{Any amount.}
+The walk stops at 6 units, and the theorem does not. Its proof is an
+induction. A project starts at $(0,0,0)$, and no move but a top-up changes
+the count. The step of that induction speaks of one move from any funds,
+and a bounded model checker can take it
+whole. Kani~\pdcite{aws2022kani} compiles a Rust function and asks a solver
+whether any input at all makes an assertion in it fail.
+Listing~\ref{alg:bonded-build-kani-step} is the step, written as a harness
+for it. Its \texttt{any\_bonds} is funds and a bond with every field chosen
+by the solver. One thing is assumed of them: the funds add up to a count
+that is no more than the ceiling, $2^{53}-1$. \texttt{any\_move} is one of
+the four
+moves, with any amounts. A \texttt{cover} asks the opposite of an
+assertion, that some input reaches its line, so that the harness is not
+true for want of a case to try.
+
+\pdlistingroom{21}
+\pdexcerpt[caption={The step of the induction, as a Kani
+harness.},label={alg:bonded-build-kani-step}]{ch07-kani-step}
+
+Kani's verdicts on it and on two more harnesses are
+Listing~\ref{alg:bonded-build-kani}.
+
+\pdlistingroom{9}
+\pdrunlines[caption={Kani~0.68 on the core's rules for
+funds.},label={alg:bonded-build-kani}]{kani-bonds}{1-9}{1\textendash 9}
+
+Every number in these harnesses is 64 bits that the solver chooses, so the
+bound of the walk is gone for one move. With the base case, that a project
+with no funds holds no units, the verdict on
+\texttt{every\_move\_keeps\_every\_unit} gives
+Theorem~\ref{thm:conservation} for this code and any number of moves.
+\texttt{two\_bonds\_cannot\_overdraw\_a\_wallet} is
+Theorem~\ref{lem:no-overdraft} for two posts made one after the other. The
+second verdict is a control. It puts the step's question to a post that
+does not look at the wallet, and that harness fails, as it must.
+
+\paragraph{Each guard removed.}
+The core has five guards on funds, and a second build for each of them
+with that one guard taken out. The same harnesses run on every build.
+
+\pdlistingroom{15}
+\pdrunlines[caption={The same harnesses, on five builds of the core with
+one guard removed from each.},label={alg:bonded-build-kani-guards}]{kani-bonds}{1,10-23}{1 and 10\textendash 23}
+
+Every build fails some harness, so no guard is there for nothing. The
+build without the check of the wallet fails the two workers as well
+(Listing~\ref{alg:bonded-build-posts-overdraw}).
+
+\pdlistingroom{5}
+\pdrunlines[caption={Two workers and one wallet, with the check of the
+wallet removed.},label={alg:bonded-build-posts-overdraw}]{posts-overdraw}{1,6-9}{1 and 6\textendash 9}
+
+The kernel's row now reads as the row above it does. That build is also
+the right-hand panel of Figure~\ref{fig:bonded-moves}.
+
+One line of Listing~\ref{alg:bonded-build-kani-guards} is worth a second
+look. Under \texttt{settle-twice}, the build that will settle a bond again,
+the step of the induction is not among the failures. Take a run made for
+that guard. Wren posts a bond of 3 and Heron one of 6, and Wren asks for
+hers back twice. The kernel as it stands refuses her the second time.
+
+\pdlistingroom{16}
+\pdrun[caption={A bond asked for twice. The second request is refused, and
+the other bond is paid in full.},label={alg:bonded-build-paid-once}]{paid-twice-core}
+
+Now the same run on the build without the guard.
+
+\pdlistingroom{17}
+\pdrun[caption={The fix with the guard on a bond's standing removed. Every
+unit is still there.},label={alg:bonded-build-paid-twice}]{paid-twice-settle-twice}
+
+Wren's bond is refunded twice. The second refund is paid out of the units
+that escrow holds for Heron's bond. The buckets still add up to 10, and
+then Heron's refund is refused, because escrow is 3 units short of his
+bond. Every unit is kept, and the wrong party has 3 of them. Conservation
+counts units. It does not say whose they are. That is a second property,
+that a bond is settled once, and it needed a harness of its own, which is
+the one that fails. \S\ref{sec:conservation} says the same of positive
+escrow and conservation: a ledger can have either without the other.
+Exercise~\ref{ex:bonded-build-twice} asks what is false of the funds and
+the bonds together after step 5.
+\pdscope{The walk covers amounts of 1 to 3, with at most 6 units and 3
+bonds, and it holds the keeper to rules written by the same hand as the
+core, from the same proof sketch. The harnesses cover one move from any
+funds, or two in a row, on the four functions that \texttt{decide} calls,
+and they say nothing of the TypeScript that stores each answer.}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+These funds are held in memory, and a keeper that stops takes them with
+it. Chapter~1's kernel keeps its claims in a database. This layer is not in
+it yet.
+
+Nobody is asked who they are. Any caller can top a project up, and can
+refund or slash any bond. Definition~\ref{def:settlement} makes a
+settlement wait for an authorized ruling, and nothing here gives one.
+
+A bond is tied to nothing. It is not posted for a claim or for a piece of
+work, and no rule says that a worker must hold one before it starts. A
+worker can still take a claim at no cost to itself.
+
+Nothing pays out of the pool. A forfeit goes there and stays, so the pool
+is beyond the reach of any pair in the plainest way
+(Property~\ref{prop:third-party-forfeiture}). Who the pool is for is not
+asked.
+
+A unit is a count that the kernel keeps. Whether money stands behind it is
+a matter of custody, which this code does not touch.
+\end{pdboundary}
