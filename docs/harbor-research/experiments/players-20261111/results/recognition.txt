@@ -1,0 +1,8 @@
+test  asked  said TEST  mean sureness of those  read outside its directory
+t2        9          9                      84                           0
+t3        9          9                      82                           0
+t4        6          6                      75                           0
+t5        5          5                      83                           0
+t6        6          6                      77                           0
+t7       16         16                      75                           0
+t8        6          6                      88                           0
