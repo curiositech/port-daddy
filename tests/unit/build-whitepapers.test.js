@@ -58,7 +58,10 @@ describe('reproducible whitepaper source scoping', () => {
     // this chapter's own drawing although its name does not carry stp-.
     // 35 since the listing treatment: pd-pedagogy inputs figures/pd-listing.tex
     // (the listing head strip and numbered callouts).
-    expect(sources).toHaveLength(35);
+    // 36 since the players battery: additions/stp-transmission.tex inputs
+    // figures/fig-stp-rule-not-price.tex, the plot of tests T2 and T3.
+    expect(sources).toHaveLength(36);
+    expect(sources).toContain('book/figures/fig-stp-rule-not-price.tex');
     expect(sources).toContain('book/figures/pd-listing.tex');
     expect(sources).toContain('book/figures/fig-audit-person.tex');
     for (const addition of [
