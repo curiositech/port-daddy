@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "a2a532e827e3ddb7fcaf6e2a24eaf336a325c2ca",
+  "commit": "94af9c07431699027246bb87e3f63b2573b0e3ff",
   "scan": "harbord",
   "excerpts": [
     {
@@ -529,6 +529,12 @@
       "path": "harbord/sessions/increments-look-twice.txt",
       "lines": 13,
       "sha256": "c89d7d3a161773244c836257b3c0e174c54993541d44095868e30ed73c728a14"
+    },
+    {
+      "name": "kani-patterns",
+      "path": "harbord/sessions/kani-patterns.txt",
+      "lines": 11,
+      "sha256": "31920094a398c04f4f7ac909f816a0511bed4f78d8e2a199a7bc281d54b4056c"
     },
     {
       "name": "links-last-card-only",
