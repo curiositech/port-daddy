@@ -18,7 +18,7 @@ SECTION = ROOT / 'book' / 'additions' / 'anchor-build-warranted.tex'
 FIGURE = ROOT / 'book' / 'figures' / 'fig-anchor-warrant-who.tex'
 CHAPTER = ROOT / 'book' / 'anchor-protocol-whitepaper.tex'
 RUNS = ['bystander-told', 'unheard-challenged', 'bystander-core', 'misdirected-core',
-        'misdirected-unwarranted', 'warrants', 'warrants-any-signer']
+        'misdirected-unwarranted', 'warrants', 'warrants-any-signer', 'models-warrant']
 SNIPPETS = ['ch02e-challenged', 'ch02e-sign', 'ch02e-warranted', 'ch02e-text', 'ch02e-gate']
 SIGNERS = ['the harbor', 'alice', 'heron', 'finch', 'wren']
 
@@ -169,6 +169,32 @@ class QuotedFacts(unittest.TestCase):
         # Wren's own card, and then the two she sent the warrant with.
         self.assertIn('One warrant takes back three cards.', self.text)
         self.quoted('Each check this build added is a guard that can be removed.')
+
+    def test_the_models(self):
+        lines = run('models-warrant')
+        self.assertEqual(lines[0], '$ sh formal/warrant/run.sh')
+        models, name = {}, None
+        for line in lines[1:]:
+            if line.endswith('.pv'):
+                name = line
+                models[name] = []
+            else:
+                models[name].append(line)
+        self.assertEqual(list(models), ['any-signer.pv', 'no-harbor-in-the-text.pv', 'warranted.pv'])
+        took = 'RESULT event(Took(k,h,c)) ==> event(Made(k,h,c)) is %s.'
+        finch, wren = 'RESULT not event(Herons(pk(finch[]))) is %s.', 'RESULT not event(Herons(pk(wren[]))) is %s.'
+        self.assertEqual(models['any-signer.pv'], [took % 'false', finch % 'false', wren % 'false'])
+        self.quoted('In \\texttt{any-signer.pv} every line is false.')
+        self.assertEqual(models['no-harbor-in-the-text.pv'], [took % 'false', finch % 'true', wren % 'true'])
+        self.quoted('a warrant made for one harbor is taken at another')
+        fix = models['warranted.pv']
+        self.assertEqual(fix[:3], [took % 'true', finch % 'true', wren % 'true'])
+        # The one line of the fix that says false, and the line ProVerif adds to it.
+        self.assertEqual(fix[3], 'RESULT inj-event(Took(k,h,c)) ==> inj-event(Made(k,h,c)) is false.')
+        self.assertEqual(fix[4], 'RESULT (but event(Took(k,h,c)) ==> event(Made(k,h,c)) is true.)')
+        self.assertEqual(fix[5], 'RESULT not event(Took(k,h,c)) is false.')
+        self.quoted('One line of the fix says \\texttt{false}, and it is meant to.')
+        self.quoted('The check is also three ProVerif models')
 
     def test_the_figure_plots_the_recorded_tables(self):
         self.assertIn('\\input{figures/fig-anchor-warrant-who}', SECTION.read_text())
