@@ -1,0 +1,20 @@
+$ harbor scenario walked-away --design core
+scenario walked-away, design core: a worker lets its claim run
+  out, another takes the path, and the first asks for its bond
+
+step 1   alice  top up 12 -> ok: wallet 12, escrow 0, pool 0
+step 2   wren   claim shop/checkout.ts
+                -> token 1, bond 1: wallet 6, escrow 6, pool 0
+step 3   clock  every lease runs out
+step 4   heron  claim shop/checkout.ts
+                -> token 2, bond 2: wallet 0, escrow 12, pool 0
+step 5   wren   release shop/checkout.ts
+                -> refused: stale-token (token 1 is older than the
+                   latest issued, 2)
+step 6   wren   refund bond 1
+                -> refused: at-stake (bond 1 stands behind a claim
+                   (token 1), and is settled with the claim and
+                   not by itself)
+
+verdict: bond 1 is held until someone may judge it: 12 units in
+         escrow

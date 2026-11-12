@@ -120,7 +120,9 @@ class QuotedFacts(unittest.TestCase):
         self.assertEqual(left, 0.19999999999999998)
         self.assertLess(0.2 - left, 3e-17)
         self.quoted('the difference is under $3\\times10^{-17}$ of a dollar')
-        self.assertTrue(1 - 0.9 < 0.1 and 1 - 0.1 >= 0.9)
+        after_ninety, after_ten = 1 - 0.9, 1 - 0.1
+        self.assertLess(after_ninety, 0.1)
+        self.assertGreaterEqual(after_ten, 0.9)
         self.quoted('So the same two bonds from the same dollar are refused in one order and posted in the other.', self.chapter)
 
     def test_how_many_splits_of_a_wallet_are_refused(self):

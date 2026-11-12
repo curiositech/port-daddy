@@ -1,0 +1,21 @@
+$ harbor stakes
+every state a harbor can reach: 2 workers and 2 paths, a claim
+  costs 2 units, at most 4 units topped up, 3 bonds posted and 2
+  grants for a path
+
+design  states  moves  wrongly  claims  changes   bonds   bonds
+                         taken    bare unbonded  shared waiting
+apart     7639  32336    25272   17120     7032       0    1312
+core      7639  32336        0       0        0       0     480
+
+moves: those the Book's rules allow, tried from every state
+wrongly taken: moves the rules refuse that the harbor made
+claims bare: states the harbor came to in which a claim that is
+  not released has no bond held behind it
+changes unbonded: changes admitted under a claim with no bond held
+  behind it
+bonds shared: states in which one bond stands behind two claims
+bonds waiting: states that hold the bond of a claim left to run
+  out
+no harbor refused a move the rules allow, and each holds exactly
+  the units topped up, with escrow the sum of the bonds held

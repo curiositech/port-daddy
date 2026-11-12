@@ -1,0 +1,19 @@
+/// The guard on a refund or a slash asked for by itself: the
+/// bond stands behind no grant. A bond at stake is settled by
+/// the release of its claim.
+pub fn loose(
+    stake: Option<&Stake>,
+    id: u64,
+) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-refund-at-stake") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    let named = |stake: &&Stake| stake.bond.id == id;
+    match stake.filter(named).filter(held) {
+        Some(stake) => Err(Reason::AtStake {
+            id,
+            token: stake.token,
+        }),
+        None => Ok(()),
+    }
+}

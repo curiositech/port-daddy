@@ -1,0 +1,15 @@
+$ harbor stakes --each
+# every way a claim and the bond behind it stood, in the states
+#   design core came to; 2 workers and 2 paths, a claim costs 2
+#   units, at most 4 units topped up, 3 bonds posted and 2 grants
+#   for a path
+# claim 0: live; 1: run out, and still the newest; 2: released; 3:
+#   run out and not released, with a newer grant after it
+# bond 0: none; 1: held; 2: refunded; 3: slashed
+# states: how many states held such a pair
+# changes: how many changes were admitted under such a grant
+claim  bond  states  changes
+    0     1    2308     2428
+    1     1    1564     1652
+    2     2    6424        0
+    3     1     480        0

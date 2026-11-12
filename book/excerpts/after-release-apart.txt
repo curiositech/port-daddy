@@ -1,0 +1,17 @@
+$ harbor scenario after-release --design apart
+scenario after-release, design apart: a worker releases its claim,
+  and changes the path again
+
+step 1   alice  top up 10 -> ok: wallet 10, escrow 0, pool 0
+step 2   wren   claim shop/checkout.ts
+                -> token 1, bond 1: wallet 4, escrow 6, pool 0
+step 3   wren   change shop/checkout.ts
+                -> changed: wallet 4, escrow 6, pool 0
+step 4   wren   release shop/checkout.ts
+                -> released, bond 1 back: wallet 10, escrow 0,
+                   pool 0
+step 5   wren   change shop/checkout.ts
+                -> changed: wallet 10, escrow 0, pool 0
+
+verdict: A CHANGE WAS MADE WITH NOTHING BEHIND IT: 0 units in
+         escrow
