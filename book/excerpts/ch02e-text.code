@@ -1,0 +1,8 @@
+/// What a warrant is a signature over: a JSON list of the word
+/// `withdraw`, the harbor's key and the card's id. It holds no
+/// challenge, so it reads the same at every gate. The harbor's
+/// key is there because a harbor numbers its own cards, and
+/// another harbor may use the same numbers.
+fn text(harbor: &str, card: &str) -> String {
+    json!(["withdraw", harbor, card]).to_string()
+}

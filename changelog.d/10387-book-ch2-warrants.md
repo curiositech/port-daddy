@@ -1,0 +1,3 @@
+type: added
+
+- **Chapter 2 now asks who is taking a card back.** Until this section a gate took a card back for anyone who showed its chain, and a chain is no secret, so a stranger could lock a holder out at every gate. A first repair asks for an answer to a challenge. It keeps the stranger out at one gate and leaves that gate with nothing the others can check. The fix is a warrant: a signature over the harbor and the card, made by the harbor or by a holder the chain names. It answers no challenge, so every gate can check the same one. The section tries every signer against every card of a chain and draws the result.

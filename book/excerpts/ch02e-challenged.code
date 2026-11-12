@@ -1,0 +1,29 @@
+/** Take a card back for whoever answers a challenge of this
+ * gate's, with the harbor's key or one the chain names. */
+override withdraw(
+  chain: readonly string[],
+  now: number,
+  answer?: Warrant,
+): Taking {
+  if (!answer || !('nonce' in answer)) {
+    return refused('no-answer', NO_ANSWER);
+  }
+  const { by, nonce, tag } = answer as Answer;
+  // The challenge must be one this gate handed out.
+  const open = this.opened({ nonce, tag });
+  if (!open || open.until < now) {
+    return refused('unknown-challenge', NOT_OPEN);
+  }
+  this.struck(nonce);
+  if (by !== this.key && !chain.map(keyIn).includes(by)) {
+    return refused('not-above', NOT_ABOVE);
+  }
+  const id = idIfCard(chain.at(-1) ?? '');
+  if (!signedWith(by, asked(nonce, id), tag)) {
+    return refused('not-answered', NOT_ANSWERED);
+  }
+  const taking = super.withdraw(chain, now);
+  const kept = { chain, answer: { by, nonce, tag } };
+  if (taking.ok) this.#answered.set(id, kept);
+  return taking;
+}

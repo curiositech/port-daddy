@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "01b8b9864ae90613b57c0476520de2aa3eca91a7",
+  "commit": "0b44b3d2ecc93eeab4b0c93b19737c76ec35d983",
   "scan": "harbord",
   "excerpts": [
     {
@@ -141,8 +141,8 @@
     {
       "name": "ch01b-guard",
       "path": "harbord/core/src/admission.rs",
-      "firstLine": 61,
-      "lastLine": 100,
+      "firstLine": 66,
+      "lastLine": 105,
       "lines": 40,
       "language": "Rust",
       "sha256": "75d685e70194b9ec277a437c83f64ade9c39da77ceefa88cce12c514219fd429"
@@ -168,8 +168,8 @@
     {
       "name": "ch02-admit",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 119,
-      "lastLine": 157,
+      "firstLine": 128,
+      "lastLine": 166,
       "lines": 39,
       "language": "Rust",
       "sha256": "77175f4d7f80f6a3ac1b78157d0a57d5fbfc08bc7c3773960f6b5a7f6905af43"
@@ -186,8 +186,8 @@
     {
       "name": "ch02-signed",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 238,
-      "lastLine": 263,
+      "firstLine": 247,
+      "lastLine": 272,
       "lines": 26,
       "language": "Rust",
       "sha256": "9c90b2b9780f16f604f56056fcc727604c9f2a0737a27d9ef466e4af9e2e197c"
@@ -195,8 +195,8 @@
     {
       "name": "ch02-within",
       "path": "harbord/core/src/cards.rs",
-      "firstLine": 193,
-      "lastLine": 234,
+      "firstLine": 202,
+      "lastLine": 243,
       "lines": 42,
       "language": "Rust",
       "sha256": "8d047c2161ae1e48e54e876ec2b000e3fb75214b09ef901f230ed7b892581899"
@@ -204,8 +204,8 @@
     {
       "name": "ch02b-gate",
       "path": "harbord/src/cards/gate.ts",
-      "firstLine": 138,
-      "lastLine": 163,
+      "firstLine": 147,
+      "lastLine": 172,
       "lines": 26,
       "language": "TypeScript",
       "sha256": "336ae27928cc3438777ae5d70354f529ab10a5afa94a730aabc9735ad8b38df6"
@@ -276,8 +276,8 @@
     {
       "name": "ch02c-gate",
       "path": "harbord/src/cards/withdrawing.ts",
-      "firstLine": 26,
-      "lastLine": 58,
+      "firstLine": 30,
+      "lastLine": 62,
       "lines": 33,
       "language": "TypeScript",
       "sha256": "bbabc709d816b0c49f4409f0aca8a26983ca74dfa9d8911046d1f1a71010d46a"
@@ -330,8 +330,8 @@
     {
       "name": "ch02d-round",
       "path": "harbord/src/cards/gossip.ts",
-      "firstLine": 18,
-      "lastLine": 34,
+      "firstLine": 19,
+      "lastLine": 35,
       "lines": 17,
       "language": "TypeScript",
       "sha256": "5d45ee30057e2e916e5b2cfe9469162ba344e4a2fd48c663aea5a1d621770502"
@@ -344,9 +344,66 @@
       "lines": 24,
       "language": "TypeScript",
       "sha256": "a8061a28d800bc398321c62f6ca7f8ca5e8ad025a156d3d2dfe749e5f387cd68"
+    },
+    {
+      "name": "ch02e-challenged",
+      "path": "harbord/src/naive/challenged.ts",
+      "firstLine": 83,
+      "lastLine": 111,
+      "lines": 29,
+      "language": "TypeScript",
+      "sha256": "638e85e483c7d7c665e612cdbba94badf80a113e7d8ee5008ab6538f172b05c3"
+    },
+    {
+      "name": "ch02e-gate",
+      "path": "harbord/src/cards/warranted.ts",
+      "firstLine": 42,
+      "lastLine": 77,
+      "lines": 36,
+      "language": "TypeScript",
+      "sha256": "8dad16074fb39585ae8ec7699aefb976199b0be7d8c8589fbf610ca130099d53"
+    },
+    {
+      "name": "ch02e-sign",
+      "path": "harbord/src/cards/warrant.ts",
+      "firstLine": 16,
+      "lastLine": 35,
+      "lines": 20,
+      "language": "TypeScript",
+      "sha256": "483f36f3bbb786eec70807dfdc4e0fe393626aacab871fc480f9df1b7b9b5e35"
+    },
+    {
+      "name": "ch02e-text",
+      "path": "harbord/core/src/warrant.rs",
+      "firstLine": 85,
+      "lastLine": 92,
+      "lines": 8,
+      "language": "Rust",
+      "sha256": "f7ec3c10e46e38ed5ce99a06f34faf589ae4b99c299b5ed787738a8912e3a70e"
+    },
+    {
+      "name": "ch02e-warranted",
+      "path": "harbord/core/src/warrant.rs",
+      "firstLine": 53,
+      "lastLine": 81,
+      "lines": 29,
+      "language": "Rust",
+      "sha256": "9592d05d53d550e578786a374623d771a6ac01c4fc781dac986332af03d0cc28"
     }
   ],
   "sessions": [
+    {
+      "name": "bystander-core",
+      "path": "harbord/sessions/bystander-core.txt",
+      "lines": 37,
+      "sha256": "754c72e9499d57121e502eb8b9c78754a88b16d118dc3f1a012d2b864469a7a3"
+    },
+    {
+      "name": "bystander-told",
+      "path": "harbord/sessions/bystander-told.txt",
+      "lines": 26,
+      "sha256": "c9a53457c12a7bf62523527e3d87d244a45908c8822571aa8fcec67ad236690a"
+    },
     {
       "name": "cards",
       "path": "harbord/sessions/cards.txt",
@@ -508,6 +565,18 @@
       "path": "harbord/sessions/lost-update-no-fence.txt",
       "lines": 32,
       "sha256": "6e651e010035c595baa286c02907e81e00e6aff6909d73c62403924e5fbdafdd"
+    },
+    {
+      "name": "misdirected-core",
+      "path": "harbord/sessions/misdirected-core.txt",
+      "lines": 33,
+      "sha256": "af9fe4c1a993c58201840860228f857eac8dfd53fbfb7ef5569acbf3f3007a21"
+    },
+    {
+      "name": "misdirected-unwarranted",
+      "path": "harbord/sessions/misdirected-unwarranted.txt",
+      "lines": 31,
+      "sha256": "79da01456b44470d75c93f8f5d5dc0a08acdc3efe05330835294c1917252ad67"
     },
     {
       "name": "models-cards",
@@ -708,6 +777,12 @@
       "sha256": "9e215665f3570f14b22d85880e1c494e87668b4c776f72f327cd9608cbb149af"
     },
     {
+      "name": "unheard-challenged",
+      "path": "harbord/sessions/unheard-challenged.txt",
+      "lines": 29,
+      "sha256": "6e37cdbce5063d38e1fad3fea4287217c8f490377a1780fc7a5431f63c34fbf7"
+    },
+    {
       "name": "unheard-core",
       "path": "harbord/sessions/unheard-core.txt",
       "lines": 29,
@@ -718,6 +793,18 @@
       "path": "harbord/sessions/unheard-silent.txt",
       "lines": 30,
       "sha256": "c28637e0c0d6f1bdd3f7d205baba9c530e54e98edd028647d86af6c0584fd258"
+    },
+    {
+      "name": "warrants-any-signer",
+      "path": "harbord/sessions/warrants-any-signer.txt",
+      "lines": 17,
+      "sha256": "1982111812dbffe4f152236201b9cc3939d515a2840828bb2d64dffb33143361"
+    },
+    {
+      "name": "warrants",
+      "path": "harbord/sessions/warrants.txt",
+      "lines": 17,
+      "sha256": "192115f9ea0599c9d7d14474ad5389bb8839af58627d65fb9cf4658b79bc02cb"
     },
     {
       "name": "withdrawn-core",
@@ -739,6 +826,7 @@
     "ch02": 147,
     "ch02b": 122,
     "ch02c": 118,
-    "ch02d": 81
+    "ch02d": 81,
+    "ch02e": 122
   }
 }

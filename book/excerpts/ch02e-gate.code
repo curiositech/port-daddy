@@ -1,0 +1,36 @@
+/** Take back the last card of a chain, on a warrant. The core
+ * checks the chain and then the warrant. The gate keeps both
+ * to show other gates. */
+override withdraw(
+  chain: readonly string[],
+  now: number,
+  warrant?: Warrant,
+): Taking {
+  const take = { op: 'withdraw', chain, warrant } as const;
+  const state = { gate: { key: this.key } };
+  const answer = this.core.decide(take, state, POLICY, now);
+  if (answer.verdict === 'refuse') {
+    return refused(answer.reason.code, explain(answer.reason));
+  }
+  const { id, until } = answer.entry;
+  this.enter(answer.entry, now);
+  if (warrant) this.#taken.set(id, { chain, warrant });
+  return { ok: true, until };
+}
+
+/** The news: each card taken back, as its chain and warrant. */
+news(): readonly Taken[] {
+  return [...this.#taken.values()];
+}
+
+/** Hear another gate's news. Each chain new to this gate is
+ * checked here with its warrant, whoever sent them. */
+hear(news: unknown, now: number): number {
+  let fresh = 0;
+  for (const { chain, warrant } of takenIn(news)) {
+    const id = idIfCard(chain.at(-1) ?? '');
+    if (this.#taken.has(id)) continue;
+    if (this.withdraw(chain, now, warrant).ok) fresh += 1;
+  }
+  return fresh;
+}
