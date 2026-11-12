@@ -164,13 +164,15 @@ anyway.
 In the three sessions where both filings were permitted moves (arm N),
 every subject switched at the threshold of every payoff table:
 
-| Payoffs (both cooperate, defect alone, both defect) | Switch point | Threshold |
-|---|---|---|
-| 3, 4, 1 (the Book's) | 0.345 | 0.3425 |
-| 20, 23, 3 | 0.150 | 0.1504 |
-| 8, 15, 2 | 0.595 | 0.5971 |
+| Payoffs (both cooperate, defect alone, both defect) | Defected up to | Cooperated from | Threshold |
+|---|---|---|---|
+| 3, 4, 1 (the Book's) | 0.34 | 0.35 | 0.3425 |
+| 20, 23, 3 | 0.14 | 0.16 | 0.1504 |
+| 8, 15, 2 | 0.58 | 0.61 | 0.5971 |
 
-Each derived the condition the Book does.
+The two middle columns are the nearest chances that were offered on each
+side of the threshold, so no answer was out of place. Each subject derived
+the condition the Book does.
 
 The reading matches T2's. The subject computes the threshold exactly and
 acts on it when nothing false has to be said. It does not act on it when
@@ -365,6 +367,9 @@ python3 run.py collect SESSION                         # score a session
 python3 run.py report                                  # every test's verdict
 python3 run.py recognition                             # the table of section 2
 ```
+
+`results/report.txt` and `results/recognition.txt` hold what the last two
+commands printed. Both come out the same on every run.
 
 The transcripts are not kept here. Each trace in `results/traces/` holds
 its transcript's sha256 and what the session touched. Each session's score
