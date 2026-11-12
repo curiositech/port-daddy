@@ -328,8 +328,8 @@ class AtlasCoverageTests(unittest.TestCase):
         # on 11 November 2026, plus the grid of 64 chains in Chapter 2's build
         # section); every single-row deletion must still fail the mutation
         # checks below.
-        self.assertEqual(report["source_count"], 145)
-        self.assertEqual(report["atlas_count"], 145)
+        self.assertEqual(report["source_count"], 146)
+        self.assertEqual(report["atlas_count"], 146)
         for atlas_id in ("I/fig:legible-halving-tree", "VIII/fig:sealed-release-lattice",
                          "IV/fig:he-two-bucket-settlement", "I/fig:spec-heavy-tails",
                          "V/fig:anchor-64-chains"):

@@ -1,0 +1,23 @@
+$ harbor worlds --guards
+every pair of worlds, on the core with one guard removed: records
+  from 0 to 3, and a slot that lets out the lowest bit at time 2.
+  The clock runs to time 3, and each worker hands in up to 2
+  values from 0 to 3
+
+guard removed    states     apart    apart    off the  views
+                         by value  by time  yardstick
+trust-candidate    4082      1080        0       6756      2
+raw-record         1870       900        0       2250      1
+early-release      3166         0      864       3888      2
+release-twice      1870         0        0       1080      1
+
+states: those of two rooms whose records differ and declare one
+  part, so that no recipient should tell them apart
+apart by value: states in which the two recipients have seen
+  different values leave at the same times
+apart by time: states in which they have seen something leave at
+  different times
+views: the different things a worker can make the core show of one
+  record
+off the yardstick: states of any two records in which a recipient
+  has seen other than the rule says

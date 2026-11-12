@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "1336295c3f044ea8c9022db458b68e8f97aeed43",
+  "commit": "993661a6911b10a719376f9ff1b7ddbf70c679a2",
   "scan": "harbord",
   "excerpts": [
     {
@@ -391,6 +391,78 @@
       "sha256": "9592d05d53d550e578786a374623d771a6ac01c4fc781dac986332af03d0cc28"
     },
     {
+      "name": "ch03-handed",
+      "path": "harbord/src/naive/rooms.ts",
+      "firstLine": 60,
+      "lastLine": 68,
+      "lines": 9,
+      "language": "TypeScript",
+      "sha256": "832182af3ae46ca94f482b453ccb6bfed5e9cbacef064dedc0ed58ed75bb4d5d"
+    },
+    {
+      "name": "ch03-kani-pair",
+      "path": "harbord/core/src/release/proofs.rs",
+      "firstLine": 49,
+      "lastLine": 75,
+      "lines": 27,
+      "language": "Rust",
+      "sha256": "780c425a32eb981116c3653cb5343ea8e51b25541584ea714f750c4557346ebc"
+    },
+    {
+      "name": "ch03-pair",
+      "path": "harbord/src/room/worlds.ts",
+      "firstLine": 77,
+      "lastLine": 105,
+      "lines": 29,
+      "language": "TypeScript",
+      "sha256": "9e3e388d874d58b0214d3dee8b5f8e46e545c28f767ba94a25b69711ee99aec9"
+    },
+    {
+      "name": "ch03-prompt",
+      "path": "harbord/src/naive/rooms.ts",
+      "firstLine": 74,
+      "lastLine": 84,
+      "lines": 11,
+      "language": "TypeScript",
+      "sha256": "4c25aeae42c81ce198d44ac8dfd8b046f2f7f638183e072ae139622fb0e1c5c9"
+    },
+    {
+      "name": "ch03-slot",
+      "path": "harbord/core/src/release.rs",
+      "firstLine": 25,
+      "lastLine": 46,
+      "lines": 22,
+      "language": "Rust",
+      "sha256": "4c9aae1ce67213e76f075072552c8560b96a932e8501c6b94e29d89890f6105d"
+    },
+    {
+      "name": "ch03-tick",
+      "path": "harbord/core/src/release.rs",
+      "firstLine": 103,
+      "lastLine": 118,
+      "lines": 16,
+      "language": "Rust",
+      "sha256": "0b133ee9c65a4fae3e0f608f54d5af88d11ca3d24be7e4ef88fbb52740b7c7e1"
+    },
+    {
+      "name": "ch03-what",
+      "path": "harbord/core/src/release.rs",
+      "firstLine": 141,
+      "lastLine": 158,
+      "lines": 18,
+      "language": "Rust",
+      "sha256": "c4da98316fe515ff43894ff7c2db3ae8b937bc0de06832eb18f4aaa1fe09be24"
+    },
+    {
+      "name": "ch03-when",
+      "path": "harbord/core/src/release.rs",
+      "firstLine": 122,
+      "lastLine": 137,
+      "lines": 16,
+      "language": "Rust",
+      "sha256": "276ea875888417fd29742b37b652b480b5b1c0f627a1c834c1e25876d69b5b8e"
+    },
+    {
       "name": "ch06-apiece",
       "path": "harbord/src/naive/apiece.ts",
       "firstLine": 60,
@@ -738,6 +810,12 @@
       "sha256": "edaea7bac9c95c65a6495c9116c043bd31c6e28a1e8db1b962f3cc95ce07fbf6"
     },
     {
+      "name": "honest-handed",
+      "path": "harbord/sessions/honest-handed.txt",
+      "lines": 15,
+      "sha256": "484293f86c65e05926e545c939590834c03e4ed61da5feffb111d1437d3b1183"
+    },
+    {
       "name": "increments-blind",
       "path": "harbord/sessions/increments-blind.txt",
       "lines": 11,
@@ -774,10 +852,34 @@
       "sha256": "957bf8c2bbadfe9ead7dbd72555d1da1428324508e0ced1b14390493d71a4b1e"
     },
     {
+      "name": "kani-release",
+      "path": "harbord/sessions/kani-release.txt",
+      "lines": 24,
+      "sha256": "65e508a22680942473777db74b723c1a22ef0a13fd7911f8b4a005d9cd513ab9"
+    },
+    {
       "name": "kani-stakes",
       "path": "harbord/sessions/kani-stakes.txt",
       "lines": 17,
       "sha256": "1d6f1292a4ebdf7e272eaf148603b627fd09f049d09e5a2c654d896e5f931539"
+    },
+    {
+      "name": "launder-core",
+      "path": "harbord/sessions/launder-core.txt",
+      "lines": 15,
+      "sha256": "7676c8a93c3d8b69619f110e94992f642ff99c5253467d87c621c066b2ace995"
+    },
+    {
+      "name": "launder-handed",
+      "path": "harbord/sessions/launder-handed.txt",
+      "lines": 16,
+      "sha256": "4bc4764ba7ed1696809e20334997cccaaac0cd86f1050d48d3bdbb68fcb8f155"
+    },
+    {
+      "name": "launder-prompt",
+      "path": "harbord/sessions/launder-prompt.txt",
+      "lines": 15,
+      "sha256": "94a152c33a4ebb20a469a5fb722de058ec8b55100f808c2b5d07168f62b8fc33"
     },
     {
       "name": "links-last-card-only",
@@ -1164,6 +1266,18 @@
       "sha256": "d2132733871cc0c8bd9d614714e501f7f94acad82cb9aa345fca226febe1224f"
     },
     {
+      "name": "timing-core",
+      "path": "harbord/sessions/timing-core.txt",
+      "lines": 16,
+      "sha256": "4a56b9dd18ddd99c8a868acabb25eb3e0bf487c86a704c2446fb13a2d3121617"
+    },
+    {
+      "name": "timing-prompt",
+      "path": "harbord/sessions/timing-prompt.txt",
+      "lines": 18,
+      "sha256": "25bcb89c6ff2a5a92a6d5417b155627f022f77a47ac46397b3b4ced1c4706250"
+    },
+    {
       "name": "unheard-challenged",
       "path": "harbord/sessions/unheard-challenged.txt",
       "lines": 29,
@@ -1210,6 +1324,36 @@
       "path": "harbord/sessions/withdrawn-last-card.txt",
       "lines": 27,
       "sha256": "92a91f100440006470efff18a463950ef28f0c3d2d232779dc537cc5c42c6a6c"
+    },
+    {
+      "name": "worlds-each-handed",
+      "path": "harbord/sessions/worlds-each-handed.txt",
+      "lines": 46,
+      "sha256": "91196d21af3db52911ba4993631367c28d645261d632b9813c89edc736660bc7"
+    },
+    {
+      "name": "worlds-each-prompt",
+      "path": "harbord/sessions/worlds-each-prompt.txt",
+      "lines": 30,
+      "sha256": "9c70b183c466a187df64c50e58cb963a32ab7c17a86dec06ed43974dfe8388df"
+    },
+    {
+      "name": "worlds-each",
+      "path": "harbord/sessions/worlds-each.txt",
+      "lines": 14,
+      "sha256": "8d60849ff7c89bdbdf7b141c9da330ea61432d04d2dc37fd2da78d554cadc6a1"
+    },
+    {
+      "name": "worlds-guards",
+      "path": "harbord/sessions/worlds-guards.txt",
+      "lines": 23,
+      "sha256": "18e187c72083b485c161d65a2654570c57fd1009ed863ac118d0e00fee6c06fa"
+    },
+    {
+      "name": "worlds",
+      "path": "harbord/sessions/worlds.txt",
+      "lines": 22,
+      "sha256": "6412d7fa568137e724e77d2eb3586836d3927ea06e4f12a7d55375a956c85438"
     }
   ],
   "printedLines": {
@@ -1221,6 +1365,7 @@
     "ch02c": 118,
     "ch02d": 81,
     "ch02e": 122,
+    "ch03": 148,
     "ch06": 150,
     "ch07": 145,
     "ch07b": 139

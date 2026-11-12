@@ -1,0 +1,9 @@
+/** The worker hands in a value, and its declared part leaves. */
+submit(candidate: number): Reply {
+  if (this.used) return no('used', 'the slot has been used');
+  this.candidate = candidate;
+  this.used = true;
+  const value = low(this.slot.bits, candidate);
+  this.seen.push({ at: this.now, value });
+  return { ok: true };
+}

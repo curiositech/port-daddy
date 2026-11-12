@@ -1,0 +1,29 @@
+/** Every way a pair of rooms can move: the move's name, and what
+ * it does to the room of world A and to the room of world B. */
+function movesFrom(at: At, [a, b]: Pair, bounds: Bounds): Step[] {
+  const steps: Step[] = [];
+  const { horizon, hands, candidates } = bounds;
+  const commit = (n: number): Act => (room) => room.commit(n);
+  const tick: Act = (room) => room.tick();
+  const read: Act = (room) => room.read();
+  const idle: Act = () => {};
+  const loaded = at.since !== null;
+  // The owner and the clock do the same in both worlds.
+  if (!loaded) steps.push(['commit', commit(a), commit(b)]);
+  if (at.a.now < horizon) steps.push(['tick', tick, tick]);
+  if (loaded && !at.a.read) steps.push(['read', read, read]);
+  const [handedA, handedB] = at.handed;
+  const [moreA, moreB] = [handedA < hands, handedB < hands];
+  for (const value of candidates) {
+    const hand: Act = (room) => room.submit(value);
+    if (!at.a.read) {
+      // The worker has not read the record: one move, in both.
+      if (moreA) steps.push([`hand in ${value}`, hand, hand]);
+      continue;
+    }
+    // It has read the record: each world's worker by itself.
+    if (moreA) steps.push([`A hands in ${value}`, hand, idle]);
+    if (moreB) steps.push([`B hands in ${value}`, idle, hand]);
+  }
+  return steps;
+}

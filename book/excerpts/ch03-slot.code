@@ -1,0 +1,22 @@
+/// One slot of a work order: what may leave, and when.
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+pub struct Slot {
+    /// How many of the record's low bits leave. One bit is the
+    /// record's parity.
+    pub bits: u8,
+    /// The time they leave.
+    pub deadline: u64,
+}
+
+/// What the core sees of a sealed room.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Room {
+    pub slot: Slot,
+    /// The record, once its owner has committed it.
+    pub committed: Option<u64>,
+    /// What the worker last handed the gate.
+    pub candidate: Option<u64>,
+    /// Whether the slot has been used.
+    pub used: bool,
+}

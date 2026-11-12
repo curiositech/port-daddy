@@ -1,0 +1,24 @@
+$ sh formal/release/run.sh
+a_gate_that_reads_the_candidate_is_caught
+  fails, as it must
+a_used_slot_lets_nothing_out
+  successful
+only_the_clock_lets_anything_out
+  successful; its cover is satisfied
+two_rooms_with_one_declared_part_look_the_same
+  successful; its 2 covers are satisfied
+what_leaves_is_the_declared_part_when_it_is_due
+  successful; its cover is satisfied
+with one guard removed, the harnesses that fail
+trust-candidate
+  two_rooms_with_one_declared_part_look_the_same
+  what_leaves_is_the_declared_part_when_it_is_due
+raw-record
+  two_rooms_with_one_declared_part_look_the_same
+  what_leaves_is_the_declared_part_when_it_is_due
+early-release
+  two_rooms_with_one_declared_part_look_the_same
+  what_leaves_is_the_declared_part_when_it_is_due
+release-twice
+  a_used_slot_lets_nothing_out
+  what_leaves_is_the_declared_part_when_it_is_due

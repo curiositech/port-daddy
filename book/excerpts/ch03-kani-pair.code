@@ -1,0 +1,27 @@
+/// Two rooms the recipient cannot tell apart so far: one slot,
+/// used in both or in neither, and records with one declared
+/// part. Each worker has handed in what it liked.
+fn two_rooms() -> (Room, Room) {
+    let slot = any_slot();
+    let (a, b) = (any_room(slot), any_room(slot));
+    kani::assume(a.used == b.used);
+    let same =
+        part(&slot, a.committed) == part(&slot, b.committed);
+    kani::assume(same);
+    (a, b)
+}
+
+/// The step. A tick of the clock lets the same thing out of
+/// both rooms, at the same time, and leaves them alike.
+#[kani::proof]
+fn two_rooms_with_one_declared_part_look_the_same() {
+    let (a, b) = two_rooms();
+    let now: u64 = kani::any();
+    let (after_a, after_b) = (tick(&a, now), tick(&b, now));
+    kani::cover!(
+        after_a.out.is_some() && a.committed != b.committed
+    );
+    kani::cover!(a.candidate != b.candidate);
+    assert!(after_a.out == after_b.out);
+    assert!(after_a.used == after_b.used);
+}
