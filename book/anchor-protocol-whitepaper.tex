@@ -418,7 +418,7 @@ Two older bodies of work study the property checked here more directly than maca
 \input{additions/anchor-build-the-verifier}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
-\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built. \S\ref{sec:anchor-build-taken-back} builds per-link identifiers for this book's kernel, and \S\ref{sec:anchor-build-told} builds the gossip}
+\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built. \S\ref{sec:anchor-build-taken-back} builds per-link identifiers for this book's kernel, \S\ref{sec:anchor-build-warranted} builds the rule for who may take a card back, and \S\ref{sec:anchor-build-told} builds the gossip}
 
 \pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
 Alice withdraws Heron's test-database write grant three minutes into its
@@ -1407,6 +1407,7 @@ private key is kept.
 \input{additions/anchor-build-the-holder}
 \input{additions/anchor-build-taken-back}
 \input{additions/anchor-build-told}
+\input{additions/anchor-build-warranted}
 
 \pdexercisepointerone*{\ref{ex:anchor-security-envelope}}{\pageref{ex:anchor-security-envelope}}
 \begin{pdrecitation}
@@ -1536,6 +1537,17 @@ D. Fett, B. Campbell, J. Bradley, T. Lodderstedt, M. Jones, and D. Waite.
 \newblock OAuth 2.0 Demonstrating Proof of Possession (DPoP).
 \newblock RFC 9449, IETF, September 2023.
 \newblock \url{https://www.rfc-editor.org/rfc/rfc9449}
+
+\bibitem{rfc7009revocation}
+T. Lodderstedt, S. Dronia, and M. Scurtescu.
+\newblock OAuth 2.0 Token Revocation.
+\newblock RFC 7009, IETF, August 2013.
+\newblock \url{https://www.rfc-editor.org/rfc/rfc7009}
+
+\bibitem{ucan2026revocation}
+UCAN Working Group.
+\newblock UCAN Revocation Specification.
+\newblock Specification, \url{https://github.com/ucan-wg/revocation}. Accessed November 2026.
 
 \bibitem{spiffe2026jwtsvid}
 SPIFFE.
@@ -2627,6 +2639,8 @@ A card should be taken back by someone with a say over it. One answer is the hol
 The proof is \S\ref{sec:anchor-build-holder}'s, with the withdrawal as the ask. The gate hands out a challenge. The sender signs the four things a holder signs for any ask (Listing~\ref{alg:anchor-holder-prove}), with the ask set to the word \texttt{withdraw} and the id of the card to take back. The core rebuilds that text from what it is shown, as it does for any ask, so a proof made for one card cannot take back another. The card to take back must still check out under the sender's own card, or be that card.
 
 Two things remain. Whoever steals a key can take back every card signed with it, which is a nuisance and no more than the key allowed. And a holder who gives up a card cannot get it back, which is Design invariant~\ref{prop:no-reanim} doing its work.
+
+\S\ref{sec:anchor-build-warranted} builds this design as its first repair (Listing~\ref{alg:anchor-warranted-challenged}), and then finds what it cannot do.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-told-three}
@@ -2656,7 +2670,38 @@ The gate of Listing~\ref{alg:anchor-told-tell} sends the whole chain as news. Sa
 \begin{pdsolution}{ex:anchor-told-above}
 The news for Heron's card holds Alice's card. Shown alone, Alice's card is a chain, and \texttt{withdraw} asks for no proof, so whoever hears the news can have her card taken back, and Heron's with it, at every gate. No right is gained. Alice is locked out until the harbor signs her a new card.
 
-With the rule of Exercise~\ref{ex:anchor-taken-who}, a card is taken back only by someone who proves they hold it or the card above it. A proof that answers one gate's challenge is no use to the next gate, which handed out no such challenge. The challenge was there to stop a proof being used twice, and here a second use does no harm: taking a card back a second time changes nothing, and it cannot be undone either way. So the order needs no challenge. It is a signature, by the key of the holder or of the holder above, over the word \texttt{withdraw} and the card's id. The news is the chain with that order, and every gate checks both. A listener who copies the news can send it on, which only helps, and cannot make an order for any other card.
+With the rule of Exercise~\ref{ex:anchor-taken-who}, a card is taken back only by someone who proves they hold it or the card above it. A proof that answers one gate's challenge is no use to the next gate, which handed out no such challenge. The challenge was there to stop a proof being used twice, and here a second use does no harm: taking a card back a second time changes nothing, and it cannot be undone either way. So the request needs no challenge. It is a signature, by the key of the holder or of a holder above, over the word \texttt{withdraw} and the card's id. The news is the chain with that signature, and every gate checks both. A listener who copies the news can send it on, which only helps, and cannot make such a signature for any other card. \S\ref{sec:anchor-build-warranted} builds it and calls the signature a warrant.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:anchor-build-warranted}}{Build the layer: who may take a card back}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:anchor-warranted-count}
+Listing~\ref{alg:anchor-warranted-every} has 15 cells, and 9 of them say \texttt{taken}. Without running anything, say how many would for a chain of five cards, signed for by the harbor, by each of its five holders and by one stranger. Then give the count for a chain of $n$ cards.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-warranted-count}
+The harbor's warrant is taken for every card, which is $n$ cells. The holder of card $i$ can have that card taken back and each card under it, which is $n-i+1$ cells. Summed over the holders, that is $n+(n-1)+\cdots+1=n(n+1)/2$. The stranger adds none. So $n+n(n+1)/2$ cells say \texttt{taken}, of $n(n+2)$.
+
+For three cards that is $3+6=9$ of 15, as printed. For five it is $5+15=20$ of 35. The share taken falls toward a half as the chain grows, because the staircase fills half of the holders' square.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-warranted-harbor}
+Listing~\ref{alg:anchor-warranted-text} puts the harbor's key into the text of a warrant. Leave it out, so that a warrant is a signature over the word \texttt{withdraw} and the card's id. Alice holds the first card of two harbors. Say what Wren can do with a warrant that Alice signed at one of them. Why are the cards that holders hand on not at risk?
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-warranted-harbor}
+A harbor numbers its own cards, and each of the two calls its first card \texttt{card-1}. Both cards name Alice's key. Without the harbor's key in the text, Alice's warrant for \texttt{card-1} at one harbor is also a signature over the text for \texttt{card-1} at the other. A warrant travels as news, so Wren can copy it. She sends it to a gate of the second harbor with Alice's chain there, and Alice is refused at that harbor from then on, with everyone holding a card under hers.
+
+With the harbor's key in the text, the two texts differ, and the kernel's tests send a warrant across in just this way and see it refused. A card handed on is not at risk either way. Its id is the hash of its signature, and no card at any other harbor has that id.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=3]{ex:anchor-warranted-undo}
+A holder above takes a card back by mistake. Design a message that undoes a warrant. Then say what a gate must now keep, and what two gates do when the warrant and its undoing reach them in different orders. Compare the cost with signing a new card.
+\end{pdexercise}
+\begin{pdsolution}{ex:anchor-warranted-undo}
+An undoing has to beat the warrant it undoes, so the two need an order. Say each carries a number, and the higher wins. A gate must now keep the highest number it has seen for the card for as long as the card lasts, or an old warrant sent again would take the card back once more. Whoever can sign a warrant can sign an undoing, so a thief with a key can now bring a card back as well as take it away.
+
+The deeper cost is to the news. A warrant made the record something that only grows. Two gates that hear the same warrants end with the same record, whatever order the news came in and however often it was repeated, and \S\ref{sec:anchor-build-told} counted its rounds on that footing. With undoing, a gate that has heard the warrant and a gate that has heard both disagree until the numbers have spread, and during that time the card is good at one and refused at the other, in either direction.
+
+A new card costs one signature and needs none of this. The old id stays taken back and the new card has a new id. That is why Design invariant~\ref{prop:no-reanim} forbids bringing a card back, and why the kernel has no message for it.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{app:phase3}}{Phase 3: Multi-hop Delegation}

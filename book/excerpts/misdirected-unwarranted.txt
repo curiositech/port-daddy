@@ -1,0 +1,31 @@
+$ harbor scenario misdirected --design core --mutant unwarranted
+scenario misdirected, design core (mutant unwarranted): what took
+  one card back is sent again with another card
+
+t=0      harbor signs alice a card: read shop/*, write shop/*;
+                good until t=600000
+t=0      alice  hands heron a card: write shop/checkout.ts; good
+                until t=600000
+t=0      heron  hands finch a card: write shop/checkout.ts; good
+                until t=600000
+t=0      heron  hands wren a card: write shop/checkout.ts; good
+                until t=600000
+t=60000  heron  signs a warrant for wren's card, and sends it with
+                the cards
+                -> written down
+t=60000  wren   asks to write shop/checkout.ts
+                -> refused: withdrawn (card 3 was taken back)
+t=120000 wren   has a copy of what heron sent the gate, and of the
+                cards he and finch show
+t=120000 wren   sends the gate what heron sent it, with finch's
+                cards in place of her own
+                -> written down
+t=120000 wren   sends it once more, with heron's cards
+                -> written down
+t=120000 finch  asks to write shop/checkout.ts
+                -> refused: withdrawn (card 2 was taken back)
+t=120000 heron  asks to write shop/checkout.ts
+                -> refused: withdrawn (card 2 was taken back)
+
+verdict: LOCKED OUT: finch and heron are refused, on a card the
+         gate took back for wren

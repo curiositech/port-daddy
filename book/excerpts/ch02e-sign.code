@@ -1,0 +1,20 @@
+/** The text a warrant is a signature over. It holds no
+ * challenge, so it reads the same at every gate. */
+export function withdraws(
+  harborKey: string,
+  card: string,
+): string {
+  return JSON.stringify(['withdraw', harborKey, card]);
+}
+
+/** Sign a warrant to take back the last card of a chain. */
+export function warrant(
+  keys: Keys,
+  harborKey: string,
+  chain: readonly string[],
+): Warrant {
+  const last = chain.at(-1);
+  const text = withdraws(harborKey, last ? idOf(last) : '');
+  const tag = sign(null, Buffer.from(text), keys.secret);
+  return { by: keys.public, tag: tag.toString('base64url') };
+}

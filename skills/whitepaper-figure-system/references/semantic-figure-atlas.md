@@ -232,7 +232,7 @@ five rows are the best inventory of what would be lost by deleting them.
 
 ## Volume V: The Anchor Protocol
 
-Canonical root: `book/anchor-protocol-whitepaper.tex` (12 figures).
+Canonical root: `book/anchor-protocol-whitepaper.tex` (13 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -249,6 +249,7 @@ Canonical root: `book/anchor-protocol-whitepaper.tex` (12 figures).
 | `V/fig:anchor-verification-stack` | What does each verification layer actually show, and where does a human, not a tool, have to assert the bridge holds? | two-rail layered stack with obligations descending left and tool evidence climbing right | three layers (protocol model / ProVerif, Rust source / Kani+tests, binary / conformance suite); two human-assertion gaps (specification gap, deployment gap) | repeating table without directed bridge geometry; conflating tool evidence with human assertions; omitting either gap |
 | `V/fig:anchor-64-chains` | Of every chain of three cards over two rights, which does each verifier accept, and why is each answer a square? | an 8 by 8 grid with one cell for each chain and one axis for each right, the eight placements of a right ordered so that what a verifier accepts is a block from one corner | every cell read from the recorded run of `harbor chains --each`; the four kinds of cell told apart by fill and by hatching; the 4 by 4 block the fix accepts and the 6 by 6 block the naive verifier accepts, each outlined; the counts 16, 9, 11 and 28 printed from the data | a table or bar chart of the counts alone; cells typed by hand; colour as the only difference between kinds; an axis order that scatters what a verifier accepts |
 | `V/fig:anchor-gossip-rounds` | How many rounds does news of a card taken back need to reach every gate, and can the count be trusted? | two panels: rounds against gates on a doubling scale, a line for what is worked out and dots with interval bars for what was counted; beside it, ten bars of how often chance gives a fit that loose, against the level chance alone puts in each | every line and dot read from the recorded runs of `harbor spread`, `harbor gossip` and `harbor fits`; exact against counted; every gate against one gate named beforehand; no loss against one exchange in four lost; the 200 other seeds against this Book's own, marked | a linear scale of gates that crowds the small sizes; a single mark for "the fit passed"; means with no intervals; numbers typed by hand |
+| `V/fig:anchor-warrant-who` | Whose warrant takes back which card of a chain? | a small matrix of every case: signers down and cards across, both in the order of the chain; a filled mark for each warrant the gate takes and an open mark for each it refuses, with the staircase between them drawn as a guide | every mark read from the recorded runs of `harbor warrants`, with and without the check of the signer, and held to them by a test; a warrant the rule takes against one taken only with the guard removed; a holder's own card against the cards above it and below it | the count alone, which does not say which nine; the chain drawn as a tree with an arrow for each warrant; marks typed by hand with no test behind them |
 
 ## Volume VI: The Bonded Commons
 

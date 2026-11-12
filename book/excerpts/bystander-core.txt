@@ -1,0 +1,37 @@
+$ harbor scenario bystander --design core
+scenario bystander, design core: someone who holds no card of a
+  chain tells the gate to take its last card back
+
+t=0      harbor signs alice a card: read shop/*, write shop/*;
+                good until t=600000
+t=0      alice  hands heron a card: write shop/checkout.ts; good
+                until t=600000
+t=0      heron  hands finch a card: write shop/checkout.ts; good
+                until t=600000
+t=0      finch  asks to write shop/checkout.ts
+                -> admitted as finch
+t=60000  wren   copies finch's cards as he sends them, and holds
+                none of the keys they name
+t=60000  wren   sends the gate finch's cards, and tells it to take
+                his card back
+                -> refused: no-warrant (no warrant came with the
+                   cards)
+t=60000  wren   signs a warrant with her own key, and sends it
+                with his cards
+                -> refused: not-above (the warrant's key is not
+                   the harbor's, and no card of the chain names
+                   it)
+t=60000  wren   signs another, and writes heron's key on it as the
+                key that signed it
+                -> refused: not-warranted (the warrant is not a
+                   signature for this card at this harbor)
+t=60000  finch  asks to write shop/checkout.ts
+                -> admitted as finch
+t=120000 heron  signs a warrant for finch's card, and sends it
+                with the cards
+                -> written down
+t=120000 finch  asks to write shop/checkout.ts
+                -> refused: withdrawn (card 3 was taken back)
+
+verdict: no stranger's word was taken: finch's card stayed good
+         until heron, who signed it, had it taken back
