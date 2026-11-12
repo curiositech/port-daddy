@@ -1,0 +1,11 @@
+$ sh formal/patterns/run.sh
+a_pattern_reaches_itself
+  successful
+a_wrong_order_is_caught
+  fails, as it must
+covering_carries_down
+  successful; its cover is satisfied
+patterns_that_reach_each_other_are_the_same
+  successful; its cover is satisfied
+reaching_carries_down
+  successful; its cover is satisfied

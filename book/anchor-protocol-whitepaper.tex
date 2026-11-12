@@ -1229,6 +1229,40 @@ exactly the documented finite sets. These results establish the stated bounded
 checks.
 \pdscope{They do not certify the cryptographic primitives, arbitrary strings, or the daemon's use of the library.}
 
+\paragraph{The Book's kernel under the same tool.}
+Everything above is about Port Daddy's card crate. \pdkernelname{} checks
+cards with other code, the verifier of \S\ref{sec:anchor-build}, and one
+part of that code has harnesses of its own. They are of the order on
+patterns in Listing~\ref{alg:anchor-build-within}: \texttt{reaches}, and
+the test of one right against another that calls it. A pattern here is up
+to four bytes of ASCII, and the solver chooses every bit of it
+(Listing~\ref{alg:anchor-kernel-kani}).
+
+\pdlistingroom{11}
+\pdrun[caption={Kani~0.68 on the kernel's order on patterns, as
+compiled.},label={alg:anchor-kernel-kani}]{kani-patterns}
+
+The line a chain depends on is \texttt{reaching\_carries\_down}: if one
+pattern reaches a second, and the second a third, then the first reaches
+the third. The verifier measures each card against the card above it, and
+this is why that is enough for every card further up
+(\S\ref{sec:delegation}). \texttt{covering\_carries\_down} says the same
+of rights, which add a verb. Two more harnesses complete the laws of a
+partial order: a pattern reaches itself, and two patterns that reach each
+other are one pattern.
+
+Two things show that these verdicts could have come out otherwise. Each
+harness that starts from a condition has a cover statement, and every
+cover is satisfied. And \texttt{a\_wrong\_order\_is\_caught} is a negative
+control. It puts the last of those questions to an order in which a
+pattern with no star reaches everything. There the assertion fails, as it
+must.
+\pdscope{Four bytes is a small bound. Five passes without the cover
+statements, and beyond that the solver ran out of memory on the machine
+that made this run. Neither the signature check nor the header check is
+under Kani, and neither is \texttt{within}, which compares whole lists of
+rights.}
+
 \pdexercisepointer{\ref{ex:anchor-kani-scope}}{\ref{ex:anchor-model-vs-code}}{\pageref{ex:anchor-kani-scope}}
 
 % ═════════════════════════════════════════════════════════════════════════════
