@@ -1,0 +1,11 @@
+$ harbor scenario one-wallet --design core
+scenario one-wallet, design core: one principal is both sides of a
+  plan, and its wallet covers each amount and not the two together
+
+step 1   bob    deposit 400 -> ok: bob 400, escrow 0, commons 0
+step 2   both   open a plan: bob's bounty 400, bob's bond 100
+                -> refused: uncovered (the wallet holds 400, and
+                   the plan asks 500 of it)
+
+verdict: the 400 units deposited are all still held, and no wallet
+         is overdrawn

@@ -1,0 +1,41 @@
+/// Open a plan: take the bounty from the requester and the bond
+/// from the provider, both or neither.
+pub fn reserve(
+    books: &Books,
+    bounty: u64,
+    bond: u64,
+) -> Result<Booked, Reason> {
+    bonded(bond)?;
+    let (requester, provider) = if one_wallet(books) {
+        // It is asked for the two amounts together.
+        let asked = bounty.saturating_add(bond);
+        let left = covered(books.requester, asked)?;
+        (left, left)
+    } else {
+        (
+            covered(books.requester, bounty)?,
+            covered(books.provider, bond)?,
+        )
+    };
+    let (id, stage) = (books.next_id, Stage::Open);
+    let plan = Plan {
+        id,
+        bounty,
+        bond,
+        stage,
+    };
+    Ok(Booked {
+        requester,
+        provider,
+        commons: books.commons,
+        plan: Some(plan),
+    })
+}
+
+/// The guard: a wallet that pays both sides is seen as one.
+fn one_wallet(books: &Books) -> bool {
+    if cfg!(feature = "mutant-reserve-apiece") {
+        return false; // MUTANT: guard removed.
+    }
+    books.shared
+}

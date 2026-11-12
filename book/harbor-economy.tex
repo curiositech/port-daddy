@@ -733,7 +733,7 @@ set a grade.
 \end{tabularx}
 \end{table}
 
-
+\input{additions/he-build-the-plan}
 
 
 
@@ -750,7 +750,7 @@ bond ledger is already per-agent, so this needs no new mechanism). Its profit is
 $\text{bounty} - \Sigma(\text{slashed sub-bonds}) - \text{ledger fee}$. The
 operator carries its fleet's risk.
 
-\pdexercisepointer*{\ref{ex:he-partial-settlement-trace}}{\ref{ex:he-floatplan-amendment}}{\pageref{ex:he-partial-settlement-trace}}
+\pdexercisepointer*{\ref{ex:he-partial-settlement-trace}}{\ref{ex:he-plan-stand-in}}{\pageref{ex:he-partial-settlement-trace}}
 
 \begin{pdrecitation}
 \item Without looking: who funds the bounty, who funds the bond, and what must the daemon check before committing their reservations?
@@ -2633,6 +2633,50 @@ retaining the old plan and the causal link to it. A timeout on the proposal eith
 continues settlement under the original plan or cancels under its own terms.
 No party may unilaterally rewrite acceptance criteria after seeing
 the work.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:he-plan}}{Build the layer: one escrow for both sides of a job}
+
+\begin{pdexercise}[kind=Trace,rating=1]{ex:he-plan-two-thirds}
+Take the plan of Listing~\ref{alg:he-plan-run-thirds}, with a bounty of 100 and a bond of 10, and pay it out at 2 milestones of 3. Write what each wallet and the commons hold afterwards, first by the keeper of Listing~\ref{alg:he-plan-apiece} and then by \texttt{split} in Listing~\ref{alg:he-plan-split}. Which side has the odd unit of each amount?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-plan-two-thirds}
+The first try rounds each share down by itself. Two thirds of 100 is 66 for Alice, and one third is 33 for Bob. Two thirds of the bond is 6 back to Alice, and one third is 3 for the commons. Bob holds 33 and Alice 72, with 3 in the commons. That is 108 of the 110 units, and the missing two are one from each amount, as they were at 1 milestone of 3.
+
+\texttt{split} gives Alice the same 66 and 6, since hers is the share that is rounded down. Bob has 100 less 66, which is 34, and the commons has 10 less 6, which is 4. Bob holds 34 and Alice 72, with 4 in the commons, and that is 110. The odd unit of the bounty is Bob's and the odd unit of the bond is the commons', as at 1 of 3. Alice's share changed from one count to the other. The side that has the odd unit did not.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Check,rating=2]{ex:he-plan-floors}
+An amount $a$ is split at $d$ milestones done of $n$, with $0 \le d \le n$ and $n \ge 1$. Show that $\lfloor ad/n \rfloor + \lfloor a(n-d)/n \rfloor$ is $a$ when $n$ divides $ad$, and $a-1$ when it does not. Then say which rows of Figure~\ref{fig:he-odd-unit} lose a unit at a bounty of 30, and check your answer against the figure.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-plan-floors}
+Write $ad = qn + r$ with $0 \le r < n$, so that the first share is $q$. Then $a(n-d) = an - qn - r = (a-q)n - r$. If $r = 0$ the second share is $a-q$, and the two come to $a$. If $r > 0$, write $(a-q)n - r$ as $(a-q-1)n + (n-r)$. Since $0 < n-r < n$, the second share is $a-q-1$, and the two come to $a-1$. So two shares rounded down by themselves lose one unit or none, and they lose one exactly when $n$ does not divide $ad$.
+
+At a bounty of 30 the question is whether $n$ divides $30d$. It does for every $d$ when $n$ is 2, 3, 5 or 6, since each of those divides 30. For $n = 4$ it does when $d = 2$, where $30d$ is 60, and it does not when $d$ is 1 or 3, where $30d$ is 30 or 90. So the column for 30 has two squares, in the rows for 1 of 4 and 3 of 4.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=2]{ex:he-plan-odd-unit}
+\texttt{split} in Listing~\ref{alg:he-plan-split} rounds the provider's share down. Suppose it rounded that share up, and still took the other part by subtraction. Does Design Invariant~\ref{prop:conservation} still hold? Pay out a plan with a bounty of 1 unit and a bond of 1 unit at 1 milestone of 3 under each rule, and say what is wrong with the second. Then propose one more way to place the odd unit, and say what it would cost.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-plan-odd-unit}
+The invariant holds under both rules, because the second part is still whatever the first leaves.
+
+Rounded down, the provider's third of 1 unit is nothing. The requester has the bounty back, and the bond is forfeited whole. Rounded up, the provider's third is 1 unit: it earns the whole bounty and has the whole bond back, for a third of the work. A provider that can choose how a job is cut into plans would cut it into plans of 1 unit, and be paid in full whatever it finished.
+
+Rounding down has the mirror fault at this size. The provider did a third of the work, and is paid nothing and forfeits everything. The fault costs the side that chose to take the work, and a provider can refuse a plan too small to split. That is the reason for the kernel's choice, and it is a judgment.
+
+One more way is to carry the fraction. The books keep what each split left over between a pair of principals, and pay a unit when the fractions come to one. Over many plans each side then has its exact share. The cost is state: the remainder is one more entry that every settlement must read and write, and one more thing for Design Invariant~\ref{prop:conservation} to count. \pdchapref{bonded}{The Bonded Commons} meets the same question when a forfeit is divided, and makes the answer a term of the contract.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Check,rating=2]{ex:he-plan-stand-in}
+\texttt{some\_share} in Listing~\ref{alg:he-plan-kani-settle} promises that its answer is no more than the amount only when \texttt{count} is no more than \texttt{of}. Suppose it promised that for every count. Which entry of Listing~\ref{alg:he-plan-kani-guards} would change, and what would the listing then seem to say? State the rule this suggests for anything put in a function's place in a proof.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-plan-stand-in}
+The entry for \texttt{any-count} would lose its first line. That build lets through a count with more milestones done than there are. The real \texttt{share} then returns more than the amount, and the subtraction in \texttt{split} goes below nothing. As listed, \texttt{some\_share} may return such a number for such a count, so the harness on a settlement fails on that build.
+
+A stand-in that promised a small answer for every count would never return more than the amount. The subtraction would always be safe, and the harness on a settlement would pass on a build that pays out more than a plan holds. The harness on the real \texttt{share} would still fail, so the build would not go unnoticed. But the listing would seem to say that a settlement is safe without the guard, and it is not.
+
+The rule: what stands in for a function may promise no more than the function delivers, and only under the conditions in which it delivers it. A stand-in that behaves better than the code proves things about a program nobody has.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:three-on-one}}{Three sides on one escrow}

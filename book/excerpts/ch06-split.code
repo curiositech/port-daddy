@@ -1,0 +1,21 @@
+/// Split an amount in the proportion `done` to `of`. The first
+/// part is rounded down. The second is whatever is left, so the
+/// two are the whole amount.
+fn split(
+    amount: u64,
+    done: u64,
+    of: u64,
+) -> Result<(u64, u64), Reason> {
+    counted(done, of)?;
+    let part = share(amount, done, of);
+    if cfg!(feature = "mutant-split-apiece") {
+        // MUTANT: the second part is worked out by itself.
+        return Ok((part, share(amount, of - done, of)));
+    }
+    Ok((part, amount - part))
+}
+
+/// The proportion `count` to `of` of an amount, rounded down.
+fn share(amount: u64, count: u64, of: u64) -> u64 {
+    amount * count / of
+}
