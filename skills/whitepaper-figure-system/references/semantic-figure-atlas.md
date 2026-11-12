@@ -166,7 +166,7 @@ dual-runtime mirror were cut with a written rationale in the figure triage.
 
 ## Volume III: From Spawn to Person
 
-Canonical root: `book/spawn-to-person.tex` (14 figures).
+Canonical root: `book/spawn-to-person.tex` (15 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -187,6 +187,7 @@ Canonical root: `book/spawn-to-person.tex` (14 figures).
 | `III/fig:stp-audit-amortization` | Is a constant audit rate the cheapest way to sustain deterrence over time, and by how much do alternatives save? | xy plot comparing three spend schedules over horizon T with T=200 marked | asymptotic classes: flat Theta(T), logarithmic Theta(log T), bounded O(1); model A cheaper than model B at T=200 despite model B's eventual convergence | bar chart at T=200 alone; prose table hiding curve geometry; claiming bounded total implies cheaper at every finite horizon |
 | `III/fig:stp-resurrection-soundness` | Which migration safeguard prevents each shortest failure witness? | aligned safeguard-to-witness evidence matrix | principal-scoped sanction premise separate from three migration clauses; continuity link, engine-attested outcome and obligation settlement; shortest model witnesses 1, 2, 2, 2; 747 states and depth 7 as bounded evidence | unconditional engine swap; collapsing global premise into a migration action; general software correctness from zero bounded-model violations |
 | `III/fig:audit-person` | What persists when the processes doing the work exit? | lifeline row over one ledger band | three PIDs with exit crosses; signed succession records; each process's write landing in an account field; fields confirmed / may / lineage / owes | agent portrait; chained process boxes with no separate record |
+| `III/fig:stp-rule-not-price` | Does the agent's rate of deviation respond to the stated incentive, as the deterrence conditions assume? | two panels of measured shares against the stated incentive: required runs skipped against expected penalty less gain, and first filings kept true against the chance of another round; filled marks for sessions where deviating is forbidden and open marks for sessions where it is not; a guide where the incentive changes sign | every mark a share of answers at one setting, read from the battery's result files and held to them by a test; the forbidden sessions against the permitted ones; the settings where deviating pays against those where it does not; one model, one date, and that every subject took the work for a test | one bar for each kind of session; a curve fitted through marks that are all zero or one; marks typed by hand with no test behind them |
 
 ## Volume IV: The Harbor Economy
 

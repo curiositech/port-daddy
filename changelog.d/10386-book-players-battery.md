@@ -1,0 +1,3 @@
+type: added
+
+- **The Book now reports its own test of whether an AI agent answers to incentives.** The players appendix proposed eight tests and had run one. The other seven ran on 12 November: 57 sessions, sealed beforehand. Where skipping a required check or filing a false claim would have paid, no subject did either, at any price. Given the same numbers with nothing forbidden, every answer followed the price exactly. The appendix prints the result for each test, a figure shows the two findings side by side, and the chapter that states the hypothesis is no longer marked untested. Every subject said afterwards that it took the work for a test, and the Book says that before any result.
