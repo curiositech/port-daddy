@@ -1,0 +1,94 @@
+% Brief (grammar: a small table of what can occur, one mark for each way
+%   that did; atlas VI/fig:bonded-pairs).
+% Reader question: how can a claim and the bond behind it stand, in a
+% harbor that asks a bond for a claim?
+% Claim: in the kernel's harbor they stand in four ways, and in each the
+% bond is held while the claim is not released. A harbor that decides
+% claims and funds apart comes to six more with its first wrong move, each
+% a claim with no bond, and admits changes after a bond has gone back.
+% Evidence: every state each harbor came to in the walk of every state
+% within the bounds [internal, harbor stakes --each; sessions
+% stakes-each.txt and stakes-each-apart.txt, drawn as printed, and
+% tests/harbor-research/test_bonded_stake_numbers.py holds the counts in
+% the caption to them].
+% Must distinguish: a way the rules allow from one they do not; a claim
+% under which changes were admitted from one under which none were.
+% Grammar chosen: the claim's standing down the side and the bond's along
+% the top, so that the ways the rules allow are a fixed set of cells, which
+% are tinted, and a mark outside the tint is a fault at a glance.
+% Grammar rejected: a state diagram of one claim's life, which shows the
+% order of moves and hides which pairs occur; bars of the counts, which
+% compare sizes that depend on the bounds and say nothing.
+% Five-second test: on which side is there a mark outside the tint?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1.4cm,y=.6cm,
+    allowed/.style={fill=pdfocus!11},
+    met/.style={circle,fill=pdink,inner sep=0pt,minimum size=4.4pt},
+    bare/.style={circle,fill=pderror,inner sep=0pt,minimum size=4.4pt},
+    changed/.style={draw=pdink,line width=.5pt},
+    changed bare/.style={draw=pderror,line width=.8pt}]
+  % The tables are the recorded runs, read as they were printed: the first
+  % line is the command, and every remark starts with '#'.
+  \pgfplotstableread[skip first n=1]{excerpts/stakes-each.txt}\pdpairsreal
+  \pgfplotstableread[skip first n=1]{excerpts/stakes-each-apart.txt}\pdpairsapart
+  % Counts taken from the tables as they are drawn.
+  \ifdefined\pdpairsin\else \newcount\pdpairsin \newcount\pdpairsout \fi
+  % One panel. A claim's standing is a row, live at the top. A bond's
+  % standing is a column.
+  \newcommand{\pdpairspanel}[1]{%
+    \global\pdpairsin=0 \global\pdpairsout=0
+    % The ways the rules allow: a bond held behind a claim that is not
+    % released, and a bond refunded behind one that is.
+    \foreach \y in {3,2,0}{ \fill[allowed] (.5,\y-.5) rectangle (1.5,\y+.5); }
+    \fill[allowed] (1.5,.5) rectangle (2.5,1.5);
+    \foreach \x in {-.5,.5,1.5,2.5,3.5}{ \draw[pdinkmuted!35,line width=.3pt] (\x,-.5) -- (\x,3.5); }
+    \foreach \y in {-.5,.5,1.5,2.5,3.5}{ \draw[pdinkmuted!35,line width=.3pt] (-.5,\y) -- (3.5,\y); }
+    \pgfplotstablegetrowsof{#1}
+    \pgfmathtruncatemacro{\pdlastpair}{\pgfplotsretval-1}
+    \foreach \i in {0,...,\pdlastpair}{
+      \pgfplotstablegetelem{\i}{claim}\of#1 \let\cl\pgfplotsretval
+      \pgfplotstablegetelem{\i}{bond}\of#1 \let\bo\pgfplotsretval
+      \pgfplotstablegetelem{\i}{changes}\of#1 \let\ch\pgfplotsretval
+      \pgfmathtruncatemacro{\y}{3-\cl}
+      % A claim that is not released, with a bond that is not held.
+      \pgfmathtruncatemacro{\nobond}{and(\cl!=2,\bo!=1)}
+      \ifnum\nobond=1 \global\advance\pdpairsout 1 \node[bare] at (\bo,\y) {};
+      \else \global\advance\pdpairsin 1 \node[met] at (\bo,\y) {};\fi
+      % A ring: changes were admitted under such a claim.
+      \ifnum\ch>0
+        \ifnum\bo=1 \draw[changed] (\bo,\y) circle[radius=4.6pt];
+        \else \draw[changed bare] (\bo,\y) circle[radius=4.6pt];\fi
+      \fi
+    }
+    \foreach \name [count=\row from 0] in {live,run out,released,left}{
+      \node[pd label,text=pdinkmuted,anchor=east] at (-.6,3-\row) {\name};
+    }
+  }
+  \pdpairspanel{\pdpairsreal}
+  \foreach \name [count=\x from 0] in {none,held,refunded,slashed}{
+    \node[pd label,text=pdinkmuted,anchor=base] at (\x,3.85) {\name};
+  }
+  \node[pd label,anchor=base east] at (-.6,3.85) {the claim};
+  \node[pd label,anchor=base] at (1.5,4.85) {the bond behind it};
+  \node[pd title,anchor=north west,align=left] at (3.75,3.4) {the kernel's harbor};
+  \node[pd label,anchor=north west,align=left] at (3.75,2.5)
+    {\the\pdpairsin\ ways, each of them\\in a tinted cell};
+  \begin{scope}[yshift=-2.95cm]
+    \pdpairspanel{\pdpairsapart}
+    \node[pd title,anchor=north west,align=left] at (3.75,3.4) {claims and funds\\decided apart};
+    \node[pd label,anchor=north west,align=left] at (3.75,1.6)
+      {\the\pdpairsout\ more, each a claim\\with no bond behind it};
+  \end{scope}
+\end{tikzpicture}
+\caption{\textbf{In the kernel's harbor a claim and its bond stand
+together in four ways.} A row is where a claim stands and a column is
+where the bond behind it stands. A mark means that some state of the walk
+held such a pair, and a ring means that changes were admitted under such a
+claim. The tinted cells are the ways the rules allow. In the lower table
+the claim and the bond are kept by two parts that are each right, and the
+red marks are claims with no bond. The red ring is work done after its
+bond went back. [internal, \texttt{harbor stakes -{}-each}]}
+\label{fig:bonded-pairs}
+\end{figure}

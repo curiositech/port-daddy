@@ -1,0 +1,21 @@
+$ harbor scenario free-hold --design core
+scenario free-hold, design core: a worker claims a path, and asks
+  for the bond back while it holds the claim
+
+step 1   alice  top up 10 -> ok: wallet 10, escrow 0, pool 0
+step 2   wren   claim shop/checkout.ts
+                -> token 1, bond 1: wallet 4, escrow 6, pool 0
+step 3   wren   refund bond 1
+                -> refused: at-stake (bond 1 stands behind a claim
+                   (token 1), and is settled with the claim and
+                   not by itself)
+step 4   wren   claim shop/cart.ts
+                -> refused: short (the wallet holds 4, and the
+                   bond asks 6)
+step 5   wren   refund bond 2
+                -> refused: no-bond (there is no bond 2)
+step 6   heron  claim shop/checkout.ts
+                -> refused: held (held by wren until t=30)
+
+verdict: one claim is held, with its bond behind it: 6 units in
+         escrow

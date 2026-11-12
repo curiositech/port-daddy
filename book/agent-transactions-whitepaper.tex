@@ -1833,6 +1833,8 @@ enabled recovery action and fairness for its selection. \texttt{Dismiss} also
 deletes the retained session. The implementation's removal
 (\texttt{pd session rm}) archives instead (Theorem~\ref{lem:integrity}), so
 Dismiss models a stronger, destructive action than the API offers.
+\S\ref{sec:bonded-stake} builds the safety property in the book's own
+kernel, where a session at work is a claim, and checks it there.
 \pdscope{These are properties of a design model: that the escrow value is backed by funds, that the runtime enforces the rules, and that unchecked processes cannot act are separate implementation obligations.}
 
 \subsection{The Conservation Theorem}\label{sec:conservation}
@@ -2135,7 +2137,9 @@ mechanism efficient or proof against larger coalitions.
 
 \input{additions/bonded-build-the-ledger}
 
-\pdexercisepointer*{\ref{ex:bonded-conservation-states}}{\ref{ex:bonded-build-split}}{\pageref{ex:bonded-conservation-states}}
+\input{additions/bonded-build-the-stake}
+
+\pdexercisepointer*{\ref{ex:bonded-conservation-states}}{\ref{ex:bonded-stake-judge}}{\pageref{ex:bonded-conservation-states}}
 
 \begin{pdrecitation}
 \item Which lifecycle action guarantees that every active session carries positive escrow?
@@ -2575,6 +2579,54 @@ Work out one part and take the other by subtraction. If the forfeit is the half 
 For three parties, each share rounded down is 3, and three of those are 9, so one unit has nowhere to go. Rounded to the nearest, the shares are again 3 each. Rounded up they are 4 each, and the parties are owed 12 from a forfeit of 10. No rounding of the shares one at a time gives 10. A rule that works is to give each party the share rounded down, and then hand out what is left one unit at a time in an order the contract fixes. The shares are 4, 3 and 3. The last party's share can also be defined as the rest, which is the two-party rule again.
 
 A rule that always gives the odd unit to the same party is unfair by a little over many settlements. Taking turns needs a memory of whose turn it is, and drawing lots needs a source of chance that the parties trust. Each of those is state that the ledger does not have today. \pdchapref{he}{The Harbor Economy} meets the same question when a plan's budget is divided.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:bonded-stake}}{Build the layer: a claim with a bond behind it}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:bonded-stake-cells}
+The upper table of Figure~\ref{fig:bonded-pairs} has sixteen cells and four marks. Take the column for no bond and the row for a released claim. For each empty cell in them, name the rule of \S\ref{sec:bonded-stake} that keeps it empty. Then say which empty cells a harbor with a judge would have to fill.
+\end{pdexercise}
+\begin{pdsolution}{ex:bonded-stake-cells}
+The column for no bond has four cells, and one rule empties all of them. A claim is given with its bond posted in the same decision, or it is not given (\texttt{back}, Listing~\ref{alg:bonded-stake-back}). So no grant on this harbor was ever without a stake, wherever its claim stands now.
+
+The row for a released claim has two more. A released claim with its bond still held would need a moment between the release and the refund, and there is none: \texttt{free} gives the bond back in the decision that releases the claim (Listing~\ref{alg:bonded-stake-free}). A released claim with its bond slashed would need a slash of a bond that stood behind a grant, and \texttt{loose} refuses every one (Listing~\ref{alg:bonded-stake-loose}).
+
+A judge rules on the claims that were left. A ruling that the worker did nothing wrong refunds the bond, and a ruling of breach slashes it, so the two empty cells at the right of the bottom row would fill. The cell they empty is the one this build cannot leave: a left claim with its bond held, which 480 states of the walk hold today.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-stake-order}
+A project holds 12 units and the price is 6. Wren holds \texttt{shop/checkout.ts} with a bond of 6, and Heron asks for the same path. Suppose the desk of Listing~\ref{alg:bonded-stake-apart} posted the bond first and asked for the claim second. Write the funds after each of its two requests. Then take the desk as listed, with the claim asked for first, and suppose the process stops between its two requests on a path that is free. What is left in each case, and why does the kernel's harbor have neither problem?
+\end{pdexercise}
+\begin{pdsolution}{ex:bonded-stake-order}
+Bond first. Before Heron asks, the funds are $(6,6,0)$. The desk posts Heron's bond, and they are $(0,12,0)$. Then it asks for the claim, and Chapter~1's rules refuse it, because Wren holds the path. Six units now sit in escrow behind no claim. The desk has to undo its first request with a refund. Until it does, the project cannot post a bond for any other path, and if the desk stops here the units stay where they are.
+
+Claim first, as listed. On a free path the claim is given. If the process stops before the bond is posted, what is left depends on where the grant was kept. The desk of the listing keeps the grant itself, and only after the bond has posted, so nothing is left. A desk in front of Chapter~1's kernel has no such choice. That kernel stores a grant in the transaction that decides it, and the desk would be left with a claim that has no bond, which is the break of Listing~\ref{alg:bonded-stake-run-apart} with nobody having asked for it.
+
+Either order has a moment when one of the two exists without the other, and code to put it right that may not run. The kernel's harbor has one request. The core answers it with a grant and a bond together or with a refusal, and the kernel stores what it is given in one step. There is no order to choose.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-stake-borrowed}
+Take the build of the core without \texttt{own}, on a harbor with a price of 6 and a project that holds 12 units. Wren claims a path. Every lease runs out. Heron claims the same path, and then releases it. Write the funds after each of the four steps, and say where bond 1 stands at the end. Which claim was never released? State the property that this run breaks, and say why \texttt{backed} in Listing~\ref{alg:bonded-stake-kani-step} is true after every step.
+\end{pdexercise}
+\begin{pdsolution}{ex:bonded-stake-borrowed}
+After Wren's claim the funds are $(6,6,0)$, and bond 1 is held behind token 1. Time changes no funds. Heron's claim gets token 2. \texttt{back} is shown the stake of the path's newest grant, which is token 1's, and with the guard gone it takes that stake for token 2's own. It finds the bond held and posts nothing, so the funds are still $(6,6,0)$. Heron's release then refunds bond 1, and the funds are $(12,0,0)$.
+
+Wren's claim was never released, and its bond is back in the wallet. Nobody ruled on it. Heron worked on the path at no cost, and the project has paid 6 units for two claims.
+
+The property is that one bond stands behind one grant, or the same thing said of a claim: a grant with a new token posts a bond of its own. \texttt{backed} looks at the path's newest grant and asks whether its stake holds a bond that is held. After Wren's claim that is bond 1 behind token 1. After Heron's it is bond 1 behind token 2. After the release the newest grant is released, and the property asks nothing of it. It is true each time, and it never mentions the older grant.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=3]{ex:bonded-stake-judge}
+Bond 1 in Listing~\ref{alg:bonded-stake-run-left} waits for a judge. Propose the fewest new moves that would let it be settled, and say who may make each. Your rules must not let Wren settle its own bond, and must not let Wren and Heron get it back between them with no ruling. Say what the core would have to be shown, and what should happen to a bond that no judge ever rules on.
+\end{pdexercise}
+\begin{pdsolution}{ex:bonded-stake-judge}
+One move is enough: a ruling on one bond, with a forfeit from nothing up to the whole of it. A forfeit of nothing is the ruling that the worker did no wrong. \texttt{loose} would let a ruling through for a bond whose claim was left, and go on refusing everything else.
+
+Who may rule cannot be a name in the request, since Chapter~1 showed what a name is worth. The core has to be shown something it can check. \pdchapref{anchor}{The Anchor Protocol} built that: a chain of cards from the harbor that grants its last holder a right, and a proof that whoever asks holds the key. The right here would be to rule on bonds in this project. The core would also need the stake, to see that the claim was left and that the judge is not the worker who held it.
+
+That stops Wren. It does not stop a pair, if the judge is Heron or is paid by the two of them. Property~\ref{prop:third-party-forfeiture} answers the half of this that money can: a forfeit goes to the pool, so a ruling against Wren pays neither of them. The other half is a ruling of no fault bought from a friendly judge, and no rule in the core sees that. \S\ref{sec:pricing:settlement} proposes more than one oracle and a sampled audit of their rulings for this reason.
+
+A bond that is never ruled on needs a default, and each default can be played. If it is refunded after a wait, walking away costs only the wait. If it is forfeited, an honest worker whose machine failed loses its bond. The chapter leaves this to the contract, which must also say who pays if a ruling is later reversed.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:federated-sovereign}}{Key custody and recovery across machines}

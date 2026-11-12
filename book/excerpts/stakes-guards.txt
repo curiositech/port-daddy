@@ -1,0 +1,10 @@
+$ harbor stakes --guards
+every state a harbor can reach, on the core with one guard
+  removed: 2 workers and 2 paths, a claim costs 2 units, at most 4
+  units topped up, 3 bonds posted and 2 grants for a path
+
+guard removed      wrongly  claims   changes   bonds
+                     taken    bare  unbonded  shared
+borrowed-stake         304     256         0     648
+refund-at-stake      18240   17120         0       0
+write-unstaked        7032       0      7032       0

@@ -1,0 +1,27 @@
+/// The property. A grant that has not been released has its own
+/// stake, and the stake's bond is held.
+fn backed(path: &Path) -> bool {
+    let Some(grant) = path.latest.as_ref() else {
+        return true;
+    };
+    let held = |stake: &Stake| {
+        stake.token == grant.token
+            && stake.bond.standing == Standing::Held
+    };
+    grant.released || path.stake.as_ref().is_some_and(held)
+}
+
+/// The step of the induction. From a path whose claim has its
+/// bond, any move that is admitted leaves a path whose claim
+/// has its bond, and the same count of units.
+#[kani::proof]
+fn every_move_leaves_the_claim_its_bond() {
+    let (before, bonds) = (any_path(), any_bonds());
+    let price: u64 = kani::any();
+    kani::assume(backed(&before) && price > 0);
+    match kani::any::<u8>() % 3 {
+        0 => a_claim(&before, &bonds, price),
+        1 => a_release(&before, &bonds),
+        _ => a_refund_by_itself(&before),
+    }
+}

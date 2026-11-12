@@ -1,0 +1,7 @@
+/// The bond that stands behind one grant of a path.
+pub struct Stake {
+    /// The grant's token.
+    pub token: u64,
+    /// The bond, as the funds hold it now.
+    pub bond: Bond,
+}
