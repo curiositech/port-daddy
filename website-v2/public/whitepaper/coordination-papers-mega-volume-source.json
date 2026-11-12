@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40511304,
+    "bytes": 40515766,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/38d06dfae0f979a10ca9c2fd9ba8b430c35a05ad07231217e933a9d32b75dabf.tar.gz",
-    "sha256": "38d06dfae0f979a10ca9c2fd9ba8b430c35a05ad07231217e933a9d32b75dabf",
-    "url": "https://media.portdaddy.dev/book/source/sha256/38d06dfae0f979a10ca9c2fd9ba8b430c35a05ad07231217e933a9d32b75dabf.tar.gz"
+    "key": "book/source/sha256/aef1de9d44688bee79aeded5cd4169c2b4a952cda7ee909672710bfd2896a235.tar.gz",
+    "sha256": "aef1de9d44688bee79aeded5cd4169c2b4a952cda7ee909672710bfd2896a235",
+    "url": "https://media.portdaddy.dev/book/source/sha256/aef1de9d44688bee79aeded5cd4169c2b4a952cda7ee909672710bfd2896a235.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,10 +16,10 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "de7ea5351680221a08c3aa64347abcceb921283e7700d6a1f47c45df86b829a5",
+  "manifestSha256": "421dd40d2bb5a95ef0c83ae48ec37ca28177452d9fd975f89770eddbceaa4802",
   "schemaVersion": 1,
   "source": {
-    "fileCount": 712,
+    "fileCount": 713,
     "files": [
       {
         "bytes": 1202,
@@ -70,10 +70,10 @@
         "sha256": "f0b1e6b18ba65b3fcdbdcf89be8074709c06a96cab3b3bc260745666839b78b9"
       },
       {
-        "bytes": 7683,
+        "bytes": 15142,
         "mode": 420,
         "path": "book/additions/app-players.tex",
-        "sha256": "0f479e269b098558aafcffb9404131cb3e71915760e7eacca498dbbebebef619"
+        "sha256": "07b42dfb03d6ded3b397a5be5ec198f9583303532a5f979314f50832880d5794"
       },
       {
         "bytes": 1833,
@@ -208,10 +208,10 @@
         "sha256": "3c09d7b0a7b6e295f212b70424a52f0e1036e1dbd9cd5b4e07a4fc3640577fc8"
       },
       {
-        "bytes": 5887,
+        "bytes": 6858,
         "mode": 420,
         "path": "book/additions/stp-transmission.tex",
-        "sha256": "37f5ab9fd5e09de76a44ef7aabf6ce74ba163a9aa32ebd5160cb063055dd4e13"
+        "sha256": "95bb0af6aab8a1737170d19faa138744a0dcfed38d1bfdbef9bc2122378df029"
       },
       {
         "bytes": 16484,
@@ -2120,6 +2120,12 @@
         "mode": 420,
         "path": "book/figures/fig-stp-role-vs-person.tex",
         "sha256": "6f49a83812d2f39b7ef32f3cbbd52bddbf20f4f3534518033623b885be92881f"
+      },
+      {
+        "bytes": 4047,
+        "mode": 420,
+        "path": "book/figures/fig-stp-rule-not-price.tex",
+        "sha256": "341e1efd7a3c72d5b4e2cd9a92de0a4e0c1d4cf24ea242dcc6a181ea4c98042c"
       },
       {
         "bytes": 3157,
@@ -4294,6 +4300,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "86e5e77472cf66ef39bed7f126652a39eb731db0ddfaa7d2e2658b80003b03e4"
+    "sha256": "11093a31877910316a9be4d1547bcf255e2b53d6b056672c1abf94516d9733b5"
   }
 }
