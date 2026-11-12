@@ -223,10 +223,36 @@ The third guard is the refusal of a request that brings no warrant.
 Without it the stranger's first try in
 Listing~\ref{alg:anchor-warranted-refused} is written down, and the run
 ends as Listing~\ref{alg:anchor-warranted-break} did.
-\pdscope{One chain of three cards and five signers, at gates in one
-process. Longer chains rest on the comparison of keys being the same for
-every card. No tool has checked a model of the warrant, as ProVerif
-checked the first two builds of this chapter.}
+
+The check is also three ProVerif models
+(Listing~\ref{alg:anchor-warranted-models}).
+
+\pdlistingroom{16}
+\pdrun[caption={ProVerif~2.05 on models of a
+warrant.},label={alg:anchor-warranted-models}]{models-warrant}
+
+\texttt{Made} marks a key signing a warrant for a card at a harbor, and
+\texttt{Took} marks a gate taking that card back on it. \texttt{Herons}
+marks the gate taking Heron's card back on the key named. In every model
+the harbors and holders sign whatever the attacker asks them to. Under
+\texttt{warranted.pv}, which is the fix, a gate still takes a card back
+only on a warrant that the key it accepted made, for that card at that
+harbor. It never takes Heron's card back on the key of Finch, who holds
+the card under his, or on Wren's. In \texttt{any-signer.pv} every line is
+false. \texttt{no-harbor-in-the-text.pv} leaves the harbor's key out of
+what a warrant signs, and a warrant made for one harbor is taken at
+another (Exercise~\ref{ex:anchor-warranted-harbor}).
+
+One line of the fix says \texttt{false}, and it is meant to. The
+\texttt{inj-event} line asks whether a warrant is taken no more often than
+it was made, which is what \S\ref{sec:anchor-build-holder} demanded of a
+proof. A warrant is taken as often as it is sent. That is the property
+this section set out to get.
+\pdscope{The runs cover one chain of three cards and five signers, which
+is 15 warrants, at gates in one process. The models cover the same chain
+with any number of warrants and an attacker who chooses what is signed.
+Their cryptography cannot be broken. Longer chains rest on the comparison
+of keys being the same for every card.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}

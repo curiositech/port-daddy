@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "0b44b3d2ecc93eeab4b0c93b19737c76ec35d983",
+  "commit": "a2a532e827e3ddb7fcaf6e2a24eaf336a325c2ca",
   "scan": "harbord",
   "excerpts": [
     {
@@ -589,6 +589,12 @@
       "path": "harbord/sessions/models-possession.txt",
       "lines": 13,
       "sha256": "e1fda8b21577234aa45536a9dff92d7e67eb3a5192b7b1da9598248c2368d9f5"
+    },
+    {
+      "name": "models-warrant",
+      "path": "harbord/sessions/models-warrant.txt",
+      "lines": 16,
+      "sha256": "8e8b196772567a0306b488c437504672f6075f237a21df7ad61853bcbbbf8ab7"
     },
     {
       "name": "models-withdrawal",

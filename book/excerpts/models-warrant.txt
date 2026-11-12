@@ -1,0 +1,16 @@
+$ sh formal/warrant/run.sh
+any-signer.pv
+RESULT event(Took(k,h,c)) ==> event(Made(k,h,c)) is false.
+RESULT not event(Herons(pk(finch[]))) is false.
+RESULT not event(Herons(pk(wren[]))) is false.
+no-harbor-in-the-text.pv
+RESULT event(Took(k,h,c)) ==> event(Made(k,h,c)) is false.
+RESULT not event(Herons(pk(finch[]))) is true.
+RESULT not event(Herons(pk(wren[]))) is true.
+warranted.pv
+RESULT event(Took(k,h,c)) ==> event(Made(k,h,c)) is true.
+RESULT not event(Herons(pk(finch[]))) is true.
+RESULT not event(Herons(pk(wren[]))) is true.
+RESULT inj-event(Took(k,h,c)) ==> inj-event(Made(k,h,c)) is false.
+RESULT (but event(Took(k,h,c)) ==> event(Made(k,h,c)) is true.)
+RESULT not event(Took(k,h,c)) is false.
