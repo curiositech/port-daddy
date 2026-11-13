@@ -1,39 +1,40 @@
-/// Check a chain of cards, the harbor's first, then the ask.
+/// Check a chain of cards, the harbor's first, and a request.
 pub fn admit(
     chain: &[String],
-    ask: Option<&Right>,
+    requested: Option<&Right>,
     gate: &Gate,
     now: u64,
 ) -> Result<Pass, Reason> {
     let mut links: Vec<Link> = Vec::new();
     for (at, card) in chain.iter().enumerate() {
         let no = at + 1;
-        // The key this card must be signed with: the one the
-        // card above names, or the harbor's for the first card.
-        let up = links.last();
-        let key = up.map_or(&gate.key, |up| &up.says.key);
-        let (says, tag) = signed(card, key, no)?;
-        let id = match (up, &says.jti, &says.par) {
+        // The key this card must be signed with: the one its
+        // parent names, or the harbor's for the first card.
+        let parent = links.last();
+        let key = parent.map_or(&gate.key, |p| &p.claims.key);
+        let (claims, tag) = signed(card, key, no)?;
+        let id = match (parent, &claims.jti, &claims.par) {
             // The harbor's card carries a serial number.
             (None, Some(serial), None) => serial.clone(),
-            // A card handed on names the card it came from.
-            (Some(up), None, Some(par)) if names(par, up) => {
-                within(&says, measure(&links, up), no)?;
+            // A delegated card names its parent.
+            (Some(parent), None, Some(par)) => {
+                names_parent(par, parent, no)?;
+                within(&claims, limit(&links, parent), no)?;
                 hash(&tag)
             }
             _ => return Err(Reason::Unbound { card: no }),
         };
-        if past(now, says.exp) {
-            let until = says.exp;
+        if expired(now, claims.exp) {
+            let until = claims.exp;
             return Err(Reason::Expired { card: no, until });
         }
-        links.push(Link { id, says });
+        links.push(Link { id, claims });
     }
     let pass = Pass::from(&links).ok_or(Reason::NoCard)?;
-    match ask {
-        Some(ask) if !pass.can.iter().any(|r| covers(r, ask)) => {
-            Err(Reason::NotGranted { right: ask.clone() })
-        }
-        _ => Ok(pass),
+    match requested.filter(|r| !grants(&pass.can, r)) {
+        Some(right) => Err(Reason::NotGranted {
+            right: right.clone(),
+        }),
+        None => Ok(pass),
     }
 }

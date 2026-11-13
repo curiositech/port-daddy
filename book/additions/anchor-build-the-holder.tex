@@ -1,9 +1,9 @@
-% Build the layer, Chapter 2, second build: who is showing a card.
+% Build the layer, Chapter 2, second build: who is presenting a card.
 % Inserted in \S\ref{sec:adversary}, after the paragraph on signing each
 % request with the holder's key, which this section builds.
 %
-% No code or output in this file is typed. \pdexcerpt, \pdrun and
-% \pdrunlines set files under excerpts/, which the kernel's
+% No code or output in this file is typed by hand. \pdexcerpt, \pdrun and
+% \pdrunlines print files under excerpts/, which the kernel's
 % tools/excerpts.mjs cuts from its source and its recorded runs (see
 % figures/pd-listing.tex). To change a listing, change the kernel and cut
 % again. The prose names functions, never line numbers, so that a listing
@@ -11,115 +11,115 @@
 %
 % \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
 % listing changes length, change the number with it.
-\subsection{Build the layer: a card that cannot be borrowed}
+\subsection{Build the layer: proof of possession}
 \label{sec:anchor-build-holder}
 
-\noindent\emph{Express lane: the gate of \S\ref{sec:anchor-build} takes
-whoever shows good cards for their holder. Here the holder must sign
-something new at every showing. Two repairs that look right are built and
-broken first. The one that holds puts a check and a change in a single
+\noindent\emph{Express lane: the gate of \S\ref{sec:anchor-build} admits
+whoever presents valid cards, as their holder. Here the holder must sign
+something new at every presentation. Two repairs that look correct are built
+and broken first. The one that works does a check and a change in a single
 step, as the cell of Chapter~0 did.}
 
 The build of \S\ref{sec:anchor-build} stopped at a card that is a bearer
-credential, and the paragraph above says what would end that. This section
+credential, and the paragraph above says what would fix that. This section
 builds it, in \pdkernelname{} again and in the same four parts. Its
 \emph{Naive} is where the first build finished.
 
-\subsubsection{Naive: whoever shows the cards}
+\subsubsection{Naive: whoever presents the cards}
 
 The verifier of Listing~\ref{alg:anchor-build-admit} checks the cards. It
-asks nothing of whoever shows them. \pdkernelname{} keeps that gate under
-the name \texttt{bearer}, so that it can be run.
+checks nothing about whoever presents them. \pdkernelname{} keeps that gate
+under the name \texttt{bearer}, so that it can be run.
 
 \subsubsection{Break: a copied card}
 
 Heron keeps his cards in a file, as an agent must keep them somewhere. Wren
 reads the file.
 
-\pdlistingroom{16}
-\pdrun[caption={A copied card. Wren shows Heron's cards and is let through
+\pdlistingroom{17}
+\pdrun[caption={A copied card. Wren presents Heron's cards and is admitted
 as Heron.},label={alg:anchor-holder-theft}]{theft-bearer}
 
 Nothing in Listing~\ref{alg:anchor-holder-theft} is forged. Every check of
 \S\ref{sec:anchor-build} passes, because the cards are Heron's own. The
-gate was shown the right cards by the wrong party, and it had no way to
-ask which party that was.
+gate was presented the right cards by the wrong party, and it had no way to
+tell which party that was.
 
-\subsubsection{A first repair: sign the ask}
+\subsubsection{A first repair: sign the request}
 
 A card already names its holder's public key, since the next card in a
-chain must be signed with it. So a holder can show that it has the other
-half of that key. It signs what it asks, and the gate checks the signature
-with the key the last card names. Listing~\ref{alg:anchor-holder-prove} is
-the holder's side.
+chain must be signed with it. So a holder can prove that it has the private
+half of that key. It signs its request, and the gate verifies the signature
+with the key the last card names. Listings~\ref{alg:anchor-holder-prove}
+and~\ref{alg:anchor-holder-signed} are the two sides.
 
-\pdlistingroom{23}
-\pdexcerpt[caption={The holder's side. A proof is a signature made for one
-showing of its cards.},label={alg:anchor-holder-prove}]{ch02b-prove}
-
-\texttt{said} writes out what is signed, as a list of four things: the
-word \texttt{proof}, a challenge, the ask, and the id of the card the ask
-is made under. The first repair has no challenge yet and leaves it blank.
-The id is there for the reason \S\ref{sec:anchor-build} gave for
-\texttt{par}. A holder may have two cards that name one key, so its
+\texttt{proofText} builds the text that is signed, a list of four items:
+the word \texttt{proof}, a challenge, the requested right, and the id of the
+card the request is made under. The first repair has no challenge yet and
+leaves it empty. The id is there for the reason \S\ref{sec:anchor-build}
+gave for \texttt{par}. A holder may have two cards that name one key, so its
 signature must name the card.
 
-\pdlistingroom{17}
+\pdlistingroom{24}
+\pdexcerpt[caption={The holder's side. A proof is a signature made for one
+presentation of its cards.},label={alg:anchor-holder-prove}]{ch02b-prove}
+
+\pdlistingroom{18}
 \pdexcerpt[caption={The first repair. The cards are checked as before, and
-then the signature on the ask.},label={alg:anchor-holder-signed}]{ch02b-signed}
+then the signature on the request.},label={alg:anchor-holder-signed}]{ch02b-signed}
 
 Wren's copied cards are refused now. She can sign, but only with her own
 key, and the last card names Heron's.
 
-\subsubsection{Break again: the ask is sent twice}
+\subsubsection{Break again: the request is sent twice}
 
 Wren does not need Heron's key. She needs one message that was signed with
 it.
 
-\pdlistingroom{15}
-\pdrun[caption={A recording. What Heron sent is good a second
+\pdlistingroom{16}
+\pdrun[caption={A replay. What Heron sent is accepted a second
 time.},label={alg:anchor-holder-replay}]{replay-signed}
 
-The signature in Wren's message is Heron's. It is over the ask she makes
-and under the card she shows. The gate cannot know that it has seen this
-message before. A signature shows that a key was used. It does not show
+The signature in Wren's message is Heron's. It covers the right she
+requests and the card she presents. The gate cannot know that it has seen
+this message before. A signature shows that a key was used. It does not show
 when.
 
-\subsubsection{A second repair: a challenge, looked up and struck out}
+\subsubsection{A second repair: a challenge, looked up and then deleted}
 
-A recording cannot hold the answer to a question that had not been asked
-when it was made. So the gate asks one. Before each showing it hands out a
-\emph{challenge}, sixteen random bytes, and the holder signs the challenge
-together with the ask. The gate keeps the challenges it has handed out in a
-table, and strikes one out when its answer is let through. The protocols
-that introduced the device called such a number a nonce, a number used
-once~\pdcite{needham1978using}.
+A recorded message cannot contain the answer to a question that had not
+been asked when it was recorded. So the gate asks one. Before each
+presentation it issues a \emph{challenge}, sixteen random bytes, and the
+holder signs the challenge together with the request. The gate keeps the
+challenges it has issued in a table, and deletes one when its answer is
+admitted. The protocols that introduced this called such a number a nonce, a
+number used once~\pdcite{needham1978using}.
 
 A gate serves many agents, and it does not make them all wait while it
-checks one signature. Listing~\ref{alg:anchor-holder-lookup} checks a
-showing in two steps, and other requests may run between them.
+verifies one signature. Listing~\ref{alg:anchor-holder-lookup} checks a
+presentation in two steps, and other requests may run between them.
 
-\pdlistingroom{13}
+\pdlistingroom{14}
 \pdexcerpt[caption={The second repair. The challenge is looked up in one
-step and struck out in another.},label={alg:anchor-holder-lookup}]{ch02b-lookup}
+step and deleted in another.},label={alg:anchor-holder-lookup}]{ch02b-two-step}
 
 The \texttt{yield} marks the pause, as it did in the workers of
-\weld{prereq:sec:prereq-build}{yield}. Run one showing after the other and
-this gate refuses the recording: by the time Wren sends it, Heron's
-challenge has been struck out.
+\weld{prereq:sec:prereq-build}{yield}. Run one presentation after the other
+and this gate refuses the replay: by the time Wren sends it, Heron's
+challenge has been deleted.
 
-\subsubsection{Break a third time: two showings at once}
+\subsubsection{Break a third time: two presentations at once}
 
 Wren sends her copy while the gate is still checking Heron's own message.
 The gate takes two turns over each message, and the turns can fall in six
 orders. \pdkernelname{} tries them all.
 
 \pdlistingroom{15}
-\pdrun[caption={Every order of the gate's turns over two showings of one
-proof.},label={alg:anchor-holder-showings}]{showings-lookup}
+\pdrun[caption={Every order of the gate's turns over two presentations of
+one proof.},label={alg:anchor-holder-showings}]{presentations-two-step}
 
 In four orders both messages are looked up before either challenge is
-struck out, and both are let through. Four of six is the count of
+deleted, and both are admitted. Four of six is the count of
 Chapter~0's first break, and the cause is the same: a check and a change
 with a pause between them
 (\weld{prereq:sec:prereq-build}{lose an update}). The two safe orders are
@@ -129,152 +129,151 @@ why those two have three turns and not four.
 
 \subsubsection{Fix: one decision}
 
-The fix is a function in the decision core. It runs once \texttt{admit}
-has passed the cards (Listing~\ref{alg:anchor-holder-held}).
+The fix has two parts. The gate looks the challenge up and deletes it in
+the same turn as the decision (Listing~\ref{alg:anchor-holder-gate}). A
+function in the decision core, \texttt{held}, makes that decision after
+\texttt{admit} has accepted the cards
+(Listing~\ref{alg:anchor-holder-held}).
+
+\pdlistingroom{27}
+\pdexcerpt[caption={The gate. The lookup and the deletion are in one turn
+with the decision.},label={alg:anchor-holder-gate}]{ch02b-gate}
+
+\texttt{admit} has no \texttt{yield} in it and waits on nothing. From the
+lookup to the deletion nothing else runs, so two presentations of one proof
+cannot both find the challenge open. The core keeps no table, so the gate
+passes it one row: the challenge that the proof names, if it is open.
 
 \pdlistingroom{35}
-\pdexcerpt[caption={The core's check of who is showing a
+\pdexcerpt[caption={The core's check of who is presenting a
 chain.},label={alg:anchor-holder-held}]{ch02b-held}
 
-\texttt{held} is shown one row of the gate's table: the challenge that the
-proof names, if it is open. A proof that names any other challenge is
-refused, and so is one whose challenge was handed out more than thirty
-seconds ago. Then the core writes out for itself what the proof must be a
-signature over (Listing~\ref{alg:anchor-holder-text}). It takes the
-challenge from that row and the rest from the showing in front of it. From
-the proof it takes only the signature. The pass that \texttt{held} returns
-names the challenge that was answered.
+A proof that names any other challenge is refused, and so is one whose
+challenge was issued more than thirty seconds ago. Then the core computes
+for itself the text that the proof must be a signature over
+(Listing~\ref{alg:anchor-holder-text}). It takes the challenge from the
+gate's row and the rest from the presentation it is deciding. From the proof
+it takes only the signature. The pass that \texttt{held} returns names the
+challenge that was answered.
 
 \pdlistingroom{8}
 \pdexcerpt[caption={What a proof is a signature
 over.},label={alg:anchor-holder-text}]{ch02b-text}
 
 The text begins with the word \texttt{proof}, and the signed text of a
-card begins with the harbor's header. A gate, or someone in its place, can
-send a holder anything at all as a challenge. Whatever it sends, what the
-holder signs in answer cannot be shown as a card.
-
-The core keeps no table. Listing~\ref{alg:anchor-holder-gate} is the gate
-that does.
-
-\pdlistingroom{26}
-\pdexcerpt[caption={The gate. The lookup and the strike are in one turn
-with the decision.},label={alg:anchor-holder-gate}]{ch02b-gate}
-
-\texttt{admit} has no \texttt{yield} in it and waits on nothing. From the
-lookup to the strike nothing else runs, so two showings of one proof cannot
-both find the challenge open.
+card begins with the harbor's header. A gate, or someone impersonating it,
+can send a holder anything at all as a challenge. Whatever it sends, what
+the holder signs in answer cannot be presented as a card.
 
 % A page may break here. See the note in anchor-build-the-verifier.tex.
 \pagebreak[0]
 \keyidea[A proof answers a question that had not been asked]{A copy of a
-card is as good as the card, and a recording of a signature is as good as
-the signature. What neither can hold is the answer to a question nobody
-had asked when it was made. So the gate asks one, and takes each answer
+card is as good as the card, and a replay of a signature is as good as
+the signature. What neither can contain is the answer to a question nobody
+had asked when it was made. So the gate asks one, and accepts each answer
 once.}
 
 \subsubsection{Verify: the same runs, then every order}
 
 The copied card first (Listing~\ref{alg:anchor-holder-theft-core}).
 
-\pdlistingroom{12}
+\pdlistingroom{13}
 \pdrunlines[caption={The copied card, against the fix. Wren has the cards
-and no key.},label={alg:anchor-holder-theft-core}]{theft-core}{1,13-23}{1 and 13\textendash 23}
+and no key.},label={alg:anchor-holder-theft-core}]{theft-core}{1,13-24}{1 and 13\textendash 24}
 
-Then the recording (Listing~\ref{alg:anchor-holder-replay-core}). Wren
-tries it twice. The second time she asks for a challenge of her own and
+Then the replay (Listing~\ref{alg:anchor-holder-replay-core}). Wren
+tries it twice. The second time she requests a challenge of her own and
 sends Heron's old signature as her answer to it.
 
 \pdlistingroom{15}
-\pdrunlines[caption={The recording, against the fix. Heron's signature was
+\pdrunlines[caption={The replay, against the fix. Heron's signature was
 made for another challenge.},label={alg:anchor-holder-replay-core}]{replay-core}{1,9-22}{1 and 9\textendash 22}
 
 Then both messages at once (Listing~\ref{alg:anchor-holder-showings-core}).
 
 \pdlistingroom{11}
 \pdrun[caption={Every order, against the fix. The gate takes one turn over
-a message.},label={alg:anchor-holder-showings-core}]{showings-core}
+a message.},label={alg:anchor-holder-showings-core}]{presentations-core}
 
-There are two orders now, and the proof is let through once in each. Look
-at the second. Wren's copy arrives first, and it is the copy that gets
-through, while Heron's own message is refused. The gate cannot tell the
+There are two orders now, and the proof is admitted once in each. Look
+at the second. Wren's copy arrives first, and it is the copy that is
+admitted, while Heron's own message is refused. The gate cannot tell the
 two apart, since both carry Heron's signature. What it guarantees is
-narrower than ``only Heron'': his signature is good once, for the ask he
-signed. The note that closes this section returns to that.
+narrower than ``only Heron'': his signature is accepted once, for the
+request he signed. The note that closes this section returns to that.
 
-Next, what the signed text has to hold
+Next, what the signed text has to contain
 (Listing~\ref{alg:anchor-holder-proofs}).
 
 \pdlistingroom{18}
-\pdrun[caption={What gets through when the signed text leaves one thing
+\pdrun[caption={Which attacks succeed when the signed text leaves one part
 out.},label={alg:anchor-holder-proofs}]{proofs}
 
 The first row is the core's own gate. Each other row is a gate built like
-it whose text leaves one thing blank, and each lets one changed showing
-through. Without the challenge, Heron's signature answers a challenge that
-Wren asked for herself, which is the column \texttt{sent again}. Without
-the ask, a request to read \texttt{shop/checkout.ts} can be sent on as a
+it whose text leaves one part blank, and each admits one changed
+presentation. Without the challenge, Heron's signature answers a challenge
+that Wren requested herself, which is the column \texttt{replayed}. Without
+the right, a request to read \texttt{shop/checkout.ts} can be forwarded as a
 request to write it. The last row is the moved card of
-\S\ref{sec:anchor-build} one level down: an ask that Alice signed under
-her narrow card is shown under her wide one. The core has no guard for
-these that could be removed, because it never compares: it rebuilds the
-text. These gates are the control in its place.
+\S\ref{sec:anchor-build} one level down: a request that Alice signed under
+her narrow card is presented under her wide one. The core has no guard for
+these that could be removed, because it never compares: it computes the
+text itself. These gates are the control in its place.
 
-Last, the guards that can be removed. Take the strike out of the gate and
-both showings get through in both orders
+Last, the guards that can be removed. Remove the deletion from the gate and
+both presentations are admitted in both orders
 (Listing~\ref{alg:anchor-holder-showings-mutant}).
-
-\pdlistingroom{11}
-\pdrun[caption={The fix with the strike removed from its
-gate.},label={alg:anchor-holder-showings-mutant}]{showings-keep-challenge}
-
-Four more builds each take one guard out of the core: the demand for a
-proof, the check of its signature, the test that its challenge is open,
+Four more builds each remove one guard from the core: the requirement of a
+proof, the check of its signature, the check that its challenge is open,
 and the limit of thirty seconds. For each, the kernel names a test that
 passes on the real core and fails on that build.
 
-The showing is also three ProVerif models
+\pdlistingroom{11}
+\pdrun[caption={The fix with the deletion removed from its
+gate.},label={alg:anchor-holder-showings-mutant}]{presentations-keep-challenge}
+
+The protocol is also three ProVerif models
 (Listing~\ref{alg:anchor-holder-models}).
 
 \pdlistingroom{13}
 \pdrun[caption={ProVerif~2.05 on models of a holder answering a
 challenge.},label={alg:anchor-holder-models}]{models-possession}
 
-\texttt{Made} marks the holder signing a proof, and \texttt{Taken} marks
-the gate letting one through. The first line of each model says that
-whatever the gate takes, the holder made. The line that starts
-\texttt{inj-event} says more: nothing is taken more often than it was
-made. It holds for \texttt{answered-once.pv}, which is the fix. It fails
-for the two repairs. In \texttt{no-challenge.pv} one signed ask is taken
-twice, and in \texttt{challenge-left-open.pv} one answer is. In all of
-them the attacker chooses what the holder signs and sees every signature.
-\pdscope{The runs cover two showings of one proof at one gate. The models
-cover any number of showings, with cryptography that cannot be broken and
-no clock. That a gate takes one answer to a challenge is how the fix's
-model is written, so the model cannot show that the code has no pause
-between its lookup and its strike. The run of every order shows that.}
+\texttt{Signed} marks the holder signing a proof, and \texttt{Accepted}
+marks the gate accepting one. The first query of each model says that
+whatever the gate accepts, the holder signed. The query that starts
+\texttt{inj-event} says more: nothing is accepted more often than it was
+signed. It holds for \texttt{answered-once.pv}, which is the fix. It fails
+for the two repairs. In \texttt{no-challenge.pv} one signed request is
+accepted twice, and in \texttt{challenge-left-open.pv} one answer is. In all
+of them the attacker chooses what the holder signs and sees every signature.
+\pdscope{The runs cover two presentations of one proof at one gate. The
+models cover any number of presentations, with cryptography that cannot be
+broken and no clock. The fix's model assumes that a gate accepts one answer
+to a challenge, so the model cannot show that the code has no pause
+between its lookup and its deletion. The run of every order shows that.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-A proof is good once, for whoever delivers it first: that is the second
-order of Listing~\ref{alg:anchor-holder-showings-core}. If Wren can take
-Heron's message off the wire before the gate sees it, she is let through
-in his place, and the answer to his ask comes to her. She cannot change
-the ask, and she cannot use the signature again. In this build a request
-is no more than its ask, such as \texttt{write shop/checkout.ts}. A
-request that carried something to write would need that under the
+A proof is accepted once, for whoever delivers it first: that is the second
+order of Listing~\ref{alg:anchor-holder-showings-core}. If Wren can
+intercept Heron's message before the gate receives it, she is admitted
+in his place, and the reply to his request goes to her. She cannot change
+the request, and she cannot use the signature again. In this build a request
+is no more than a right, such as \texttt{write shop/checkout.ts}. A
+request that carried data to write would need that data covered by the
 signature too, or whoever delivered the proof could choose what was
-written. Tying a proof to the connection it arrives on would close this
+written. Binding a proof to the connection it arrives on would close this
 gap, and this build has no connections: its gate is a function call.
 
-The private key sits in the holder's memory, and a process that can read
-that memory has it. The gate's table has no limit, so whoever may ask for
-challenges can fill it for 30 seconds at a time. Two gates that shared
-their challenges would need a table that tests and sets in one step
-(Exercise~\ref{ex:anchor-holder-two-gates}). The recorded runs grow their
-keys from names and their challenges from a count, so that each run
-repeats byte for byte. Neither is a secret, and a gate that guards
-anything rolls its own. Nothing here withdraws a card before its time
-(\S\ref{sec:anchor-build-taken-back}), and \pdkernelname{} as a running service still
-does not ask for a card.
+The private key is in the holder's memory, and a process that can read
+that memory has it. The gate's table has no size limit, so whoever may
+request challenges can fill it for 30 seconds at a time. Two gates that
+shared their challenges would need a table with an atomic test-and-set
+(Exercise~\ref{ex:anchor-holder-two-gates}). The recorded runs derive their
+keys from names and their challenges from a counter, so that each run
+repeats byte for byte. Neither is secret, and a gate that protects
+anything generates its own at random. Nothing here revokes a card before it
+expires (\S\ref{sec:anchor-build-taken-back}), and \pdkernelname{} as a
+running service still does not require a card.
 \end{pdboundary}

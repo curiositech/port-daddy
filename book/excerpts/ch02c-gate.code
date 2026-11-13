@@ -1,33 +1,35 @@
-/** Decide one showing. Every card of the chain is looked up in
- * the record, in the same turn as the decision. */
+/** Decide one presentation. Every card of the chain is looked
+ * up in the revocation list, in the same turn as the decision. */
 override admit(
   chain: readonly string[],
-  ask: Right | undefined,
+  requested: Right | undefined,
   now: number,
   proof?: Proof,
 ): Verdict {
-  const asked = chain.map(idIfCard);
-  const looked = { asked, found: this.#denials.among(asked) };
+  const checked = chain.map(idIfCard);
+  const revoked = this.#list.revoked(checked);
+  const lookup = { checked, revoked };
   const open = this.opened(proof);
-  const state = { gate: { key: this.key, open, looked } };
-  const shown = { op: 'present', chain, ask, proof } as const;
-  const answer = this.core.decide(shown, state, POLICY, now);
+  const state = { gate: { key: this.key, open, lookup } };
+  const op = 'present' as const;
+  const proposal = { op, chain, requested, proof };
+  const answer = this.core.decide(proposal, state, POLICY, now);
   if (answer.verdict === 'refuse') {
     return refused(answer.reason.code, explain(answer.reason));
   }
-  this.struck(answer.pass.answered);
+  this.close(answer.pass.answered);
   return { ok: true, holder: answer.pass.holder };
 }
 
-/** Take back the last card of a chain. The core checks the
- * chain, so the end the entry records is the card's own. */
-withdraw(chain: readonly string[], now: number): Taking {
-  const take = { op: 'withdraw', chain } as const;
+/** Revoke the last card of a chain. The core checks the chain,
+ * so the expiry the entry records is the card's own. */
+revoke(chain: readonly string[], now: number): RevokeResult {
+  const proposal = { op: 'revoke', chain } as const;
   const state = { gate: { key: this.key } };
-  const answer = this.core.decide(take, state, POLICY, now);
+  const answer = this.core.decide(proposal, state, POLICY, now);
   if (answer.verdict === 'refuse') {
     return refused(answer.reason.code, explain(answer.reason));
   }
-  this.#denials.add(answer.entry, now);
+  this.#list.add(answer.entry, now);
   return { ok: true, until: answer.entry.until };
 }

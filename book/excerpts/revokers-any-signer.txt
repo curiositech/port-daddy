@@ -1,0 +1,17 @@
+$ harbor revokers --mutant any-signer
+who can have which card of a chain of three revoked: each signs a
+  revocation of each card (mutant any-signer)
+
+signed by   alice's  heron's  finch's
+the harbor  revoked  revoked  revoked
+alice       revoked  revoked  revoked
+heron       REVOKED  revoked  revoked
+finch       REVOKED  REVOKED  revoked
+wren        REVOKED  REVOKED  REVOKED
+
+15 of 15 revocations are accepted, and 6 against the rule
+
+the rule: a card is revoked for the harbor, and for whoever holds
+  that card or one of its ancestors
+the cards are in the order of the chain: the harbor signed
+  alice's, and each holder signed the next. wren holds none

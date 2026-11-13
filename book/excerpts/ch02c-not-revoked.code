@@ -1,0 +1,22 @@
+/// Refuse a chain if any card in it was revoked. The gate must
+/// have looked up every card, and not only the last.
+pub fn not_revoked(
+    pass: Pass,
+    lookup: &Lookup,
+    policy: &Policy,
+) -> Result<Pass, Reason> {
+    if policy.lookups == Lookups::Skipped {
+        return Ok(pass);
+    }
+    for (card, id) in checked_cards(&pass) {
+        // The core computed each id itself. If the gate did not
+        // look an id up, the core has no result for that card.
+        if !looked_up(lookup, id) {
+            return Err(Reason::NotLookedUp { card });
+        }
+        if lookup.revoked.contains(id) {
+            return Err(Reason::Revoked { card });
+        }
+    }
+    Ok(pass)
+}

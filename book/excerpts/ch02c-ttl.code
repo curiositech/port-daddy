@@ -1,0 +1,11 @@
+/** Remove every entry added more than five minutes ago. */
+prune(now: number): number {
+  let removed = 0;
+  for (const [id, at] of this.#added) {
+    if (now - at > TTL) {
+      this.#added.delete(id);
+      removed += 1;
+    }
+  }
+  return removed;
+}

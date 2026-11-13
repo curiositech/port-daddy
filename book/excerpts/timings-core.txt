@@ -1,0 +1,22 @@
+$ harbor timings --design core
+a card valid for ten minutes, revoked at one minute and presented
+  at another, design core
+
+revoked     presented at minute
+at minute    0  1  2  3  4  5  6  7  8  9 10
+     0       .  .  .  .  .  .  .  .  .  .  .
+     1          .  .  .  .  .  .  .  .  .  .
+     2             .  .  .  .  .  .  .  .  .
+     3                .  .  .  .  .  .  .  .
+     4                   .  .  .  .  .  .  .
+     5                      .  .  .  .  .  .
+     6                         .  .  .  .  .
+     7                            .  .  .  .
+     8                               .  .  .
+     9                                  .  .
+    10                                     .
+
+0 of 66 presentations admit the card after it was revoked
+
+. refused, ! admitted. Before each presentation the gate prunes
+  its revocation list.

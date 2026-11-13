@@ -1,0 +1,37 @@
+$ harbor scenario outsider --design core
+scenario outsider, design core: someone who holds no card of a
+  chain asks the gate to revoke its last card
+
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      alice  delegates to heron: write shop/checkout.ts; valid
+                until t=600000
+t=0      heron  delegates to finch: write shop/checkout.ts; valid
+                until t=600000
+t=0      finch  requests to write shop/checkout.ts
+                -> admitted as finch
+t=60000  wren   copies finch's cards as he sends them, and holds
+                none of the keys they name
+t=60000  wren   sends the gate finch's cards, and asks it to
+                revoke his card
+                -> refused: no-revocation (no signed revocation
+                   came with the cards)
+t=60000  wren   signs a revocation with her own key, and sends it
+                with his cards
+                -> refused: not-in-chain (the revocation's key is
+                   not the harbor's, and no card of the chain
+                   names it)
+t=60000  wren   signs another, and names heron's key as the key
+                that signed it
+                -> refused: bad-revocation (the revocation is not
+                   a signature for this card at this harbor)
+t=60000  finch  requests to write shop/checkout.ts
+                -> admitted as finch
+t=120000 heron  signs a revocation of finch's card, and sends it
+                with the cards
+                -> revoked
+t=120000 finch  requests to write shop/checkout.ts
+                -> refused: revoked (card 3 was revoked)
+
+verdict: no outsider's request was accepted: finch's card stayed
+         valid until heron, who signed it, had it revoked

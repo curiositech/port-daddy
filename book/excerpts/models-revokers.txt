@@ -1,0 +1,16 @@
+$ sh formal/revokers/run.sh
+any-signer.pv
+RESULT event(Revoked(m)) ==> event(Signed(m)) is false.
+RESULT not event(HeronsRevokedBy(pk(finch[]))) is false.
+RESULT not event(HeronsRevokedBy(pk(wren[]))) is false.
+authorized.pv
+RESULT event(Revoked(m)) ==> event(Signed(m)) is true.
+RESULT not event(HeronsRevokedBy(pk(finch[]))) is true.
+RESULT not event(HeronsRevokedBy(pk(wren[]))) is true.
+RESULT inj-event(Revoked(m)) ==> inj-event(Signed(m)) is false.
+RESULT (but event(Revoked(m)) ==> event(Signed(m)) is true.)
+RESULT not event(Revoked(m)) is false.
+no-harbor-in-the-text.pv
+RESULT event(Revoked(m)) ==> event(Signed(m)) is false.
+RESULT not event(HeronsRevokedBy(pk(finch[]))) is true.
+RESULT not event(HeronsRevokedBy(pk(wren[]))) is true.

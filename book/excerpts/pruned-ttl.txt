@@ -1,0 +1,20 @@
+$ harbor scenario pruned --design ttl
+scenario pruned, design ttl: a gate prunes its revocation list
+  while a revoked card is still valid
+
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      alice  delegates to heron: write shop/checkout.ts; valid
+                until t=600000
+t=180000 alice  asks the gate to revoke heron's card -> revoked
+t=180000 heron  requests to write shop/checkout.ts
+                -> refused: revoked (card 2 was revoked)
+t=500000 gate   removes 1 entry from its revocation list
+t=500000 heron  requests to write shop/checkout.ts
+                -> admitted as heron
+t=600001 gate   removes nothing from its revocation list
+t=600001 heron  requests to write shop/checkout.ts
+                -> refused: expired (card 1 expired at t=600000)
+
+verdict: ACCEPTED AGAIN: heron may write shop/checkout.ts on a
+         revoked card

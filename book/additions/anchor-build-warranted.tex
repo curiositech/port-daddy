@@ -1,10 +1,10 @@
-% Build the layer, Chapter 2, fifth build: who may take a card back.
+% Build the layer, Chapter 2, fifth build: who may revoke a card.
 % Inserted after the fourth build (\S\ref{sec:anchor-build-told}), whose
-% gate it mends. It closes the boundary that the third and fourth builds
-% each wrote down, and works the two exercises that ask for it.
+% gate it fixes. It closes the limitation that the third and fourth builds
+% each recorded, and works through the two exercises that ask for it.
 %
-% No code or output in this file is typed. \pdexcerpt, \pdrun and
-% \pdrunlines set files under excerpts/, which the kernel's
+% No code or output in this file is typed by hand. \pdexcerpt, \pdrun and
+% \pdrunlines print files under excerpts/, which the kernel's
 % tools/excerpts.mjs cuts from its source and its recorded runs (see
 % figures/pd-listing.tex). To change a listing, change the kernel and cut
 % again. The prose names functions, never line numbers, so that a listing
@@ -12,264 +12,273 @@
 %
 % \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
 % listing changes length, change the number with it.
-\subsection{Build the layer: who may take a card back}
+\subsection{Build the layer: who may revoke a card}
 \label{sec:anchor-build-warranted}
 
-\noindent\emph{Express lane: the last two gates take a card back for
-anyone who shows its chain, and a chain is no secret. Asking for an answer
-to a challenge keeps a stranger out at one gate, and leaves that gate with
-nothing the others can check. The gate that holds takes a card back only
-on a signature over the harbor and the card, made by the harbor or by a
-holder the chain names. That signature answers no challenge, so every gate
-can check the same one.}
+\noindent\emph{Express lane: the last two gates revoke a card for
+anyone who presents its chain, and a chain is not a secret. Requiring an
+answer to a challenge keeps an outsider out at one gate, and leaves that
+gate with nothing the others can verify. The gate that works revokes a card
+only on a signature over the harbor's key and the card's id, made by the
+harbor or by a holder the chain names. That signature answers no challenge,
+so every gate can verify the same one.}
 
-Two boundaries have been waiting. \S\ref{sec:anchor-build-taken-back} said
-that its gate does not ask who is taking a card back.
-\S\ref{sec:anchor-build-told} made that matter more. The news of a card
-taken back is its chain, so every gate that hears the news holds the cards
-above that card, and so does anyone reading the wire. This section builds
+Two limitations have been waiting. \S\ref{sec:anchor-build-taken-back} said
+that its gate does not check who is revoking a card.
+\S\ref{sec:anchor-build-told} made that matter more. The notice of a
+revocation is the card's chain, so every gate that receives the notice
+holds the ancestors of that card, and so does anyone reading the network
+traffic. This section builds
 the rule both sections asked for, in \pdkernelname{}.
 Exercises~\ref{ex:anchor-taken-who} and~\ref{ex:anchor-told-above} ask the
 reader to design it first, and they are worth trying before reading on.
 
-\subsubsection{Break: a stranger takes a card back}
+\subsubsection{Break: an outsider revokes a card}
 
-Alice holds a card from the harbor. She has handed one to Heron, and he
-has handed one to Finch. Wren holds none of the three. She has a copy of
-Finch's chain, taken as he sent it to the gate, and since
-\S\ref{sec:anchor-build-holder} a copy opens nothing for her. The gate is
+Alice holds a card from the harbor. She has delegated to Heron, and he
+has delegated to Finch. Wren holds none of the three cards. She has a copy
+of Finch's chain, copied as he sent it to the gate, and since
+\S\ref{sec:anchor-build-holder} a copy grants her nothing. The gate is
 the fourth build's, of Listing~\ref{alg:anchor-told-tell}.
 
-\pdlistingroom{17}
-\pdrunlines[caption={A stranger with a copy of a chain has its last card
-taken back.},label={alg:anchor-warranted-break}]{bystander-told}{1,11-26}{1 and 11\textendash 26}
+\pdlistingroom{16}
+\pdrunlines[caption={An outsider with a copy of a chain has its last card
+revoked.},label={alg:anchor-warranted-break}]{outsider-verified}{1,11-25}{1 and 11\textendash 25}
 
-Wren gains nothing she can use, and Finch loses his card on the word of
-someone who holds no card at all. When Heron comes a minute later to take
-the card back himself, the gate writes down what it already has. This
-gate also tells the others. The chain is its news, and each gate that
-hears it writes Finch's card down in turn.
+Wren gains nothing she can use, and Finch loses his card at the request of
+someone who holds no card at all. When Heron comes a minute later to revoke
+the card himself, the gate answers that it is revoked, as it already was.
+This gate also gossips. The chain is its notice, and each gate that
+receives it revokes Finch's card in turn.
 
-\subsubsection{A first repair: ask as a showing is asked}
+\subsubsection{A first repair: require a proof, as a presentation does}
 
-\S\ref{sec:anchor-build-holder} met this trouble at the window, where a
-copied card was let through, and its answer is ready. Let the gate hand
-out a challenge, and take a card back only for an answer signed with a key
-that has a say over the card: the harbor's, or one that a card of the
+\S\ref{sec:anchor-build-holder} met this problem with presentations, where
+a copied card was admitted, and its fix is available. Let the gate issue a
+challenge, and revoke a card only for an answer signed with a key
+that has authority over the card: the harbor's, or one that a card of the
 chain names. This is the design that the solution to
 Exercise~\ref{ex:anchor-taken-who} arrives at.
 
 \pdlistingroom{29}
-\pdexcerpt[caption={The first try. A card is taken back for whoever
+\pdexcerpt[caption={The first attempt. A card is revoked for whoever
 answers this gate's challenge.},label={alg:anchor-warranted-challenged}]{ch02e-challenged}
 
-Run the break against this gate and it is mended. Wren is refused when she
+Run the break against this gate and it is fixed. Wren is refused when she
 sends no answer. She is refused again with each answer she can make: one
-signed with her own key, which no card of the chain names, and one with
-Heron's key written on it over a signature of her own. Then Heron answers
-a challenge, and Finch's card is taken back for him.
+signed with her own key, which no card of the chain names, and one that
+names Heron's key over a signature of her own. Then Heron answers
+a challenge, and Finch's card is revoked for him.
 
-\subsubsection{Break again: the answer stays where it was given}
+\subsubsection{Break again: the answer cannot be verified at another gate}
 
-The fourth build asked what one gate can tell another. Ask it of this
+The fourth build asked what one gate can send another. Ask it of this
 gate. Two gates trust one harbor, as in \S\ref{sec:anchor-build-told}, and
-Alice takes Heron's card back at the near one.
+Alice revokes Heron's card at the near one.
 
 \pdlistingroom{20}
-\pdrunlines[caption={A card taken back on an answer at one gate. The gates
-compare records, and it is still good at the
-other.},label={alg:anchor-warranted-unheard}]{unheard-challenged}{1,11-29}{1 and 11\textendash 29}
+\pdrunlines[caption={A card revoked on an answer at one gate. The gates
+exchange notices, and it is still accepted at the
+other.},label={alg:anchor-warranted-unheard}]{two-gates-challenged}{1,11-29}{1 and 11\textendash 29}
 
-The line at $t=240000$ is where it goes wrong: the gates compare records,
-and neither hears anything new. The near gate sent what it had, which is
+The line at $t=240000$ is where it goes wrong: the gates exchange notices,
+and neither adds anything. The near gate sent what it had, which is
 the chain and Alice's answer. The far gate checked them as it checks
 anything sent to it, and refused them as \texttt{unknown-challenge},
-because the answer is to a challenge the far gate never set. It could skip
-that check for news from another gate. Then it would be taking a gate's
-word, which is the hearsay of Listing~\ref{alg:anchor-told-rumour} again.
-So the first repair keeps the stranger out and undoes the last build. Wren
-walks to the other gate, and 60 seconds after the card was taken back she
-is let through there.
+because the answer is to a challenge the far gate never issued. It could
+skip that check for a notice from another gate. Then it would be trusting
+what a gate says, which is the unverified notice of
+Listing~\ref{alg:anchor-told-rumour} again.
+So the first repair keeps the outsider out and breaks the last build. Wren
+goes to the other gate, and 60 seconds after the card was revoked she
+is admitted there.
 
 \subsubsection{Fix: a signature with no challenge in it}
 
-Why does a showing need a challenge at all? The same showing taken twice
-lets someone in twice, and the challenge is what makes the second one
-stale. Taking a card back is different. Taken back a second time, the card
-is where the first time left it: the record holds one entry for it, with
-the same end. A second copy of the request does nothing, so nothing has to
-make it stale.
+Why does a presentation need a challenge at all? The same presentation
+accepted twice admits someone twice, and the challenge is what makes the
+second one invalid. Revoking a card is different. Revoked a second time,
+the card is in the state the first revocation left it: the list has one
+entry for it, with the same expiry. A second copy of the request changes
+nothing, so nothing has to make it invalid.
 
-So drop the challenge. What is left is a signature that says which card,
-at which harbor. This book calls it a \pdterm{warrant}.
+So remove the challenge. What is left is a signature that says which card,
+at which harbor. This book calls it a \pdterm{signed revocation}.
 
-\pdlistingroom{20}
-\pdexcerpt[caption={Signing a warrant. The text holds no
+\pdlistingroom{21}
+\pdexcerpt[caption={Signing a revocation. The text contains no
 challenge.},label={alg:anchor-warranted-sign}]{ch02e-sign}
 
-The core checks a warrant once it has checked the chain.
-
-\pdlistingroom{29}
-\pdexcerpt[caption={The core's check of a
-warrant.},label={alg:anchor-warranted-core}]{ch02e-warranted}
-
-It asks two things, in this order. First, whose key signed? It must be the
-harbor's, or a key that some card of the chain names. Those are the keys
-of the card's own holder and of every holder above it. A holder below the
-card has no say over it, and neither has a holder beside it, whose card is
-in another chain. Second, is it a signature over the right text?
+Listing~\ref{alg:anchor-warranted-text} is the same text in the core.
 
 \pdlistingroom{8}
-\pdexcerpt[caption={What a warrant is a signature
+\pdexcerpt[caption={What a revocation is a signature
 over.},label={alg:anchor-warranted-text}]{ch02e-text}
 
-A warrant carries no card id. The core works the text out from the gate's
-own key and the last card of the chain it was sent, as it works out what a
-proof must say (Listing~\ref{alg:anchor-holder-text}). So a warrant has
-nothing written on it for a gate to believe, and sent with another chain
+A revocation carries no card id. The core computes the text from the gate's
+own key and the last card of the chain it was sent, as it computes the text
+of a proof (Listing~\ref{alg:anchor-holder-text}). So a revocation contains
+nothing that a gate has to trust, and sent with another chain
 it is a signature over the wrong text.
 
-The gate keeps the warrant beside the chain, and the two together are its
-news.
+The core checks a revocation after it has checked the chain.
+
+\pdlistingroom{29}
+\pdexcerpt[caption={The core's check of a signed
+revocation.},label={alg:anchor-warranted-core}]{ch02e-authorized}
+
+It checks two things, in this order. First, whose key signed? It must be
+the harbor's, or a key that some card of the chain names. Those are the keys
+of the card's own holder and of the holder of every ancestor. The holder of
+a descendant has no authority over the card, and neither has the holder of
+a sibling, whose card is in another chain. Second, is it a signature over
+the right text?
+
+The gate keeps the revocation with the chain, and the two together are its
+notice.
 
 \pdlistingroom{36}
-\pdexcerpt[caption={The gate that takes a card back on a warrant, and sends
-the warrant on.},label={alg:anchor-warranted-gate}]{ch02e-gate}
+\pdexcerpt[caption={The gate that revokes a card on a signed revocation,
+and forwards the revocation.},label={alg:anchor-warranted-gate}]{ch02e-gate}
 
-\texttt{hear} hands what it is sent to \texttt{withdraw}, as the fourth
-build's did. There is still one way into the record, and now it asks who.
+\texttt{receive} passes what it is sent to \texttt{revoke}, as the fourth
+build's did. There is still one way onto the list, and now it checks who is
+asking.
 
 % A page may break here. See the note in anchor-build-the-verifier.tex.
 \pagebreak[0]
 \keyidea[What may be repeated needs no challenge]{A challenge makes a
-message good once. Before adding one, ask what a second copy of the
-message could do. If it could do nothing, the message can stay good, and
-then any gate can check it and anyone can carry it.}
+message valid once. Before adding one, ask what a second copy of the
+message could do. If it could do nothing, the message can stay valid, and
+then any gate can verify it and anyone can forward it.}
 
-Two published designs each hold half of this rule. OAuth lets a token be
-revoked by the client it was issued to, which is the holder giving its own
-card up~\pdcite{rfc7009revocation}. UCAN lets a delegation be revoked by
-any issuer in its chain, which is the holders above, and its record leaves
-the nonce empty because revoking twice changes
+Two published designs each have half of this rule. OAuth lets a token be
+revoked by the client it was issued to, which is the holder revoking its own
+card~\pdcite{rfc7009revocation}. UCAN lets a delegation be revoked by
+any issuer in its chain, which is the holders of its ancestors, and its
+record leaves the nonce empty because revoking twice changes
 nothing~\pdcite{ucan2026revocation}. \pdkernelname{} takes both halves.
 
 \subsubsection{Verify: the same runs, and every signer}
 
-The stranger first (Listing~\ref{alg:anchor-warranted-refused}).
+The outsider first (Listing~\ref{alg:anchor-warranted-refused}).
 
 \pdlistingroom{26}
-\pdrunlines[caption={The stranger against the fix. She is refused each way
-she tries, and the holder above is
-not.},label={alg:anchor-warranted-refused}]{bystander-core}{1,13-37}{1 and 13\textendash 37}
+\pdrunlines[caption={The outsider against the fix. She is refused each way
+she tries, and the holder of the parent card is
+not.},label={alg:anchor-warranted-refused}]{outsider-core}{1,13-37}{1 and 13\textendash 37}
 
 Each refusal has its own reason, and each reason is a line of
-Listing~\ref{alg:anchor-warranted-core}. With no warrant there is nothing
-to check. Of the two she signs, one is under a key the chain does not
+Listing~\ref{alg:anchor-warranted-core}. With no revocation there is nothing
+to check. Of the two she signs, one is signed with a key the chain does not
 name, and the other names Heron's key over a signature that is not his.
 
-Now a real warrant, sent with a card it was not signed for. Heron has
-handed Wren a card as well, beside Finch's, and takes it back. Wren keeps
-a copy of his warrant.
+Now a valid revocation, sent with a card it was not signed for. Heron has
+delegated to Wren as well, a sibling of Finch's card, and revokes it. Wren
+keeps a copy of his revocation.
 
 \pdlistingroom{22}
-\pdrunlines[caption={A warrant for one card, sent again with two
-others.},label={alg:anchor-warranted-misdirected}]{misdirected-core}{1,13-33}{1 and 13\textendash 33}
+\pdrunlines[caption={A revocation of one card, sent again with two
+others.},label={alg:anchor-warranted-misdirected}]{wrong-card-core}{1,13-33}{1 and 13\textendash 33}
 
-Heron's key has a say over all three cards, so the first question does not
-stop her. The second does: the text the core works out for Finch's card is
+Heron's key has authority over all three cards, so the first check does not
+stop her. The second does: the text the core computes for Finch's card is
 not the text Heron signed.
 
 The two gates of \S\ref{sec:anchor-build-told} need no new listing. Under
-this gate, \texttt{harbor scenario unheard --design core} prints
+this gate, \texttt{harbor scenario two-gates --design core} prints
 Listing~\ref{alg:anchor-told-heard} again, line for line, and the
-stranger's run prints Listing~\ref{alg:anchor-told-refused}. In that run
-Wren holds Heron's key, so she can sign a warrant for his card, and she
+false notice's run prints Listing~\ref{alg:anchor-told-refused}. In that run
+Wren holds Heron's key, so she can sign a revocation of his card, and she
 sends one with her changed chain. The core refuses the chain before it
-reads the warrant.
+reads the revocation.
 
 A scenario tries a few signers. The rule is small enough to try them all.
-Take the chain of the first run, and let five people each sign a warrant
-for each of its cards. Four are the harbor and the chain's holders, and
-the fifth is Wren.
+Take the chain of the first run, and let five signers each sign a
+revocation of each of its cards. Four are the harbor and the chain's
+holders, and the fifth is Wren.
 
 \pdlistingroom{9}
 \pdrunlines[caption={Every signer, and every card of a chain of
-three.},label={alg:anchor-warranted-every}]{warrants}{1,5-12}{1 and 5\textendash 12}
+three.},label={alg:anchor-warranted-every}]{revokers}{1,5-12}{1 and 5\textendash 12}
 
-The table is a staircase. Each holder can have its own card taken back and
-every card under it, and nothing above. The harbor can have any card taken
-back, and Wren none. Figure~\ref{fig:anchor-warrant-who} draws it.
+The table is a staircase. Each holder can have its own card revoked and
+every card delegated from it, and none of its ancestors. The harbor can have
+any card revoked, and Wren none. Figure~\ref{fig:anchor-warrant-who} draws
+it.
 
 \input{figures/fig-anchor-warrant-who}
 
 Each check this build added is a guard that can be removed. Build the
-core without the question of whose key signed
+core without the check of whose key signed
 (Listing~\ref{alg:anchor-warranted-any-signer}).
 
 \pdlistingroom{9}
 \pdrunlines[caption={The fix with the check of the signer removed. Every
-warrant is taken.},label={alg:anchor-warranted-any-signer}]{warrants-any-signer}{1,5-12}{1 and 5\textendash 12}
+revocation is accepted.},label={alg:anchor-warranted-any-signer}]{revokers-any-signer}{1,5-12}{1 and 5\textendash 12}
 
-Six cells change, and they are the six the rule left empty. Then build it
+Six cells change, and they are the six the rule refused. Then build it
 without the check of the signature
 (Listing~\ref{alg:anchor-warranted-unwarranted}).
 
-\pdlistingroom{15}
-\pdrunlines[caption={The fix with the signature check removed. One warrant
-takes back three
-cards.},label={alg:anchor-warranted-unwarranted}]{misdirected-unwarranted}{1,18-31}{1 and 18\textendash 31}
+\pdlistingroom{14}
+\pdrunlines[caption={The fix with the signature check removed. One
+revocation revokes three
+cards.},label={alg:anchor-warranted-unwarranted}]{wrong-card-any-revocation}{1,18-30}{1 and 18\textendash 30}
 
-The third guard is the refusal of a request that brings no warrant.
-Without it the stranger's first try in
-Listing~\ref{alg:anchor-warranted-refused} is written down, and the run
+The third guard is the refusal of a request that carries no revocation.
+Without it the outsider's first attempt in
+Listing~\ref{alg:anchor-warranted-refused} is accepted, and the run
 ends as Listing~\ref{alg:anchor-warranted-break} did.
 
 The check is also three ProVerif models
 (Listing~\ref{alg:anchor-warranted-models}).
 
 \pdlistingroom{16}
-\pdrun[caption={ProVerif~2.05 on models of a
-warrant.},label={alg:anchor-warranted-models}]{models-warrant}
+\pdrun[caption={ProVerif~2.05 on models of a signed
+revocation.},label={alg:anchor-warranted-models}]{models-revokers}
 
-\texttt{Made} marks a key signing a warrant for a card at a harbor, and
-\texttt{Took} marks a gate taking that card back on it. \texttt{Herons}
-marks the gate taking Heron's card back on the key named. In every model
+\texttt{Signed} marks a key signing a revocation of a card at a harbor, and
+\texttt{Revoked} marks a gate revoking that card on it.
+\texttt{HeronsRevokedBy} marks the gate revoking Heron's card on a
+revocation signed with the key named. In every model
 the harbors and holders sign whatever the attacker asks them to. Under
-\texttt{warranted.pv}, which is the fix, a gate still takes a card back
-only on a warrant that the key it accepted made, for that card at that
-harbor. It never takes Heron's card back on the key of Finch, who holds
-the card under his, or on Wren's. In \texttt{any-signer.pv} every line is
-false. \texttt{no-harbor-in-the-text.pv} leaves the harbor's key out of
-what a warrant signs, and a warrant made for one harbor is taken at
-another (Exercise~\ref{ex:anchor-warranted-harbor}).
+\texttt{authorized.pv}, which is the fix, a gate still revokes a card
+only on a revocation that the key it accepted signed, for that card at that
+harbor. It never revokes Heron's card on the key of Finch, who holds
+a card delegated from Heron's, or on Wren's. In \texttt{any-signer.pv} every
+line is false. \texttt{no-harbor-in-the-text.pv} leaves the harbor's key out
+of the text a revocation signs, and a revocation signed for one harbor is
+accepted at another (Exercise~\ref{ex:anchor-warranted-harbor}).
 
-One line of the fix says \texttt{false}, and it is meant to. The
-\texttt{inj-event} line asks whether a warrant is taken no more often than
-it was made, which is what \S\ref{sec:anchor-build-holder} demanded of a
-proof. A warrant is taken as often as it is sent. That is the property
-this section set out to get.
+Two lines of the fix say \texttt{false}, and both are meant to. The last
+shows that a card can be revoked at all. The \texttt{inj-event} line asks
+whether a revocation is accepted no more often than it was signed, which is
+what \S\ref{sec:anchor-build-holder} required of a proof. A revocation is
+accepted as often as it is sent. That is the property this section set out
+to get.
 \pdscope{The runs cover one chain of three cards and five signers, which
-is 15 warrants, at gates in one process. The models cover the same chain
-with any number of warrants and an attacker who chooses what is signed.
-Their cryptography cannot be broken. Longer chains rest on the comparison
+is 15 revocations, at gates in one process. The models cover the same chain
+with any number of revocations and an attacker who chooses what is signed.
+Their cryptography cannot be broken. Longer chains depend on the comparison
 of keys being the same for every card.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-A warrant is checked against a key, and a key belongs to whoever has it.
-Wren with Heron's key can take back his card and every card under it. She
-can take back nothing above it, and she could already do whatever Heron
-could.
+A revocation is verified with a key, and a key belongs to whoever has it.
+Wren with Heron's key can revoke his card and every card delegated from it.
+She can revoke none of its ancestors, and she could already do whatever
+Heron could.
 
-A warrant cannot be called back. Once it has been seen, it works at every
-gate of its harbor until the card ends, for whoever sends it. A holder
-above who takes a card back by mistake signs a new card, and the old one
-stays taken back (Design invariant~\ref{prop:no-reanim}).
+A signed revocation cannot itself be revoked. Once it has been seen, it
+works at every gate of its harbor until the card expires, for whoever sends
+it. A holder who revokes a card by mistake signs a new card, and the old one
+stays revoked (Design invariant~\ref{prop:no-reanim}).
 
-A warrant says whose key signed, and nothing about who brought it or when
-it was signed. A gate that wants to know those things has to write them
-down itself.
+A revocation shows whose key signed, and nothing about who sent it or when
+it was signed. A gate that needs those facts has to record them itself.
 
-The news is still a chain, and now a warrant with it, so a gate that hears
-learns who took the card back as well as who held what under whom.
+The notice is still a chain, and now a revocation with it, so a gate that
+receives one learns who revoked the card as well as who held which rights,
+delegated from whom.
 \end{pdboundary}

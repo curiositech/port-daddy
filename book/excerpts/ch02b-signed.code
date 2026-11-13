@@ -1,17 +1,18 @@
-/** Let a chain through if its cards are good and its holder has
- * signed what is asked. `nonce` is the gate's challenge, if it
- * hands them out. */
-export function signedAsk(
-  shown: Showing,
+/** Admit a chain if its cards are valid and its holder has
+ * signed the request. `nonce` is the gate's challenge, if it
+ * issues them. */
+export function checkSigned(
+  presented: Presentation,
   cards: Gate,
   now: number,
   nonce = '',
 ): Verdict {
-  const good = cards.admit(shown.chain, shown.ask, now);
-  if (!good.ok) return good;
-  if (!shown.proof) return refused('no-proof', NO_PROOF);
-  const last = shown.chain.at(-1) ?? '';
-  const text = said(nonce, shown.ask, idOf(last));
-  if (signedBy(last, text, shown.proof)) return good;
+  const { chain, requested, proof } = presented;
+  const valid = cards.admit(chain, requested, now);
+  if (!valid.ok) return valid;
+  if (!proof) return refused('no-proof', NO_PROOF);
+  const last = chain.at(-1) ?? '';
+  const text = proofText(nonce, requested, idOf(last));
+  if (signedBy(last, text, proof)) return valid;
   return refused('not-proved', NOT_PROVED);
 }

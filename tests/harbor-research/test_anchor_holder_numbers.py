@@ -1,10 +1,10 @@
-"""Chapter 2's second build quotes facts from its recorded runs. Hold each to its run.
+"""Chapter 2's second build section states facts from its recorded runs. Check each one.
 
-The section's listings cannot drift: they are the recorded files. Its prose
-can. A sentence that says "in four orders" was typed by hand from a run the
-kernel printed, and a later recording may print another number. Each test
-here reads a fact out of a recorded run, or out of the code the section
-prints, and requires the sentence that quotes it.
+The section's listings are the recorded files, so they cannot go out of
+date. Its prose can. A sentence that says "in four orders" was typed from a
+run the kernel printed, and a later recording may print a different number.
+Each test here reads a fact from a recorded run, or from the code the
+section prints, and checks that the text states it.
 """
 import json
 import re
@@ -28,7 +28,7 @@ def run(name):
     return (EXCERPTS / f'{name}.txt').read_text().splitlines()
 
 
-def said(name):
+def unwrapped(name):
     """A recorded scenario with each wrapped line joined to the line it continues."""
     joined = []
     for line in run(name):
@@ -40,9 +40,9 @@ def said(name):
 
 
 def sends(name):
-    """Who sent the gate something, and its answer, for each showing in a recorded scenario."""
+    """Who sent the gate something, and its answer, for each presentation in a recorded scenario."""
     found = []
-    for line in said(name):
+    for line in unwrapped(name):
         match = re.match(r'^t=\d+\s+(\w+)\s+.*? -> (admitted as \w+|refused: [a-z-]+)', line)
         if match:
             found.append((match[1], match[2]))
@@ -50,7 +50,7 @@ def sends(name):
 
 
 def orders(name):
-    """A recorded `harbor showings`: for each order, its turns and how it ended."""
+    """A recorded `harbor presentations`: for each order, its turns and how it ended."""
     found = []
     for line in run(name):
         match = re.match(r'^((?:heron|wren)(?: +(?:heron|wren))*) +-> (.*)$', line)
@@ -76,58 +76,58 @@ class QuotedFacts(unittest.TestCase):
 
     def test_the_copied_card(self):
         self.assertEqual(sends('theft-bearer'), [('heron', 'admitted as heron'), ('wren', 'admitted as heron')])
-        self.quoted("Wren shows Heron's cards and is let through as Heron.")
-        self.assertTrue(said('theft-bearer')[-1].startswith('verdict: THEFT: wren may write shop/checkout.ts'))
+        self.quoted("Wren presents Heron's cards and is admitted as Heron.")
+        self.assertTrue(unwrapped('theft-bearer')[-1].startswith('verdict: THEFT: wren may write shop/checkout.ts'))
         self.assertIn("t=0      wren   copies heron's cards from his files", run('theft-bearer'))
         self.quoted('Heron keeps his cards in a file')
 
-    def test_the_first_repair_and_the_recording(self):
+    def test_the_first_repair_and_the_replay(self):
         signed = (EXCERPTS / 'ch02b-signed.code').read_text()
-        self.assertIn("said(nonce, shown.ask, idOf(last))", signed)
+        self.assertIn("proofText(nonce, requested, idOf(last))", signed)
         self.assertIn("nonce = ''", signed)
-        self.quoted('The first repair has no challenge yet and leaves it blank.')
-        # What is signed: a list of four things.
+        self.quoted('The first repair has no challenge yet and leaves it empty.')
+        # What is signed: a list of four items.
         prove = (EXCERPTS / 'ch02b-prove.code').read_text()
-        self.assertIn("JSON.stringify(['proof', nonce, asked, card])", prove)
-        self.quoted('as a list of four things')
-        # The recording gets through.
+        self.assertIn("JSON.stringify(['proof', nonce, right, card])", prove)
+        self.quoted('a list of four items')
+        # The replay is admitted.
         self.assertEqual(sends('replay-signed'), [('heron', 'admitted as heron'), ('wren', 'admitted as heron')])
         self.assertIn('t=0      wren   sends it again -> admitted as heron', run('replay-signed'))
-        self.assertTrue(said('replay-signed')[-1].startswith('verdict: REPLAY:'))
-        self.quoted('What Heron sent is good a second time.')
+        self.assertTrue(unwrapped('replay-signed')[-1].startswith('verdict: REPLAY:'))
+        self.quoted('What Heron sent is accepted a second time.')
 
     def test_every_order_under_the_second_repair(self):
-        found = orders('showings-lookup')
+        found = orders('presentations-two-step')
         self.assertEqual(len(found), 6)
         self.quoted('the turns can fall in six orders')
-        twice = [turns for turns, ended in found if 'LET THROUGH TWICE' in ended]
+        twice = [turns for turns, ended in found if 'ACCEPTED TWICE' in ended]
         self.assertEqual(len(twice), 4)
-        self.assertIn('4 of 6 orders let the proof through twice', run('showings-lookup'))
-        self.quoted('In four orders both messages are looked up before either challenge is struck out')
+        self.assertIn('4 of 6 orders accept the proof twice', run('presentations-two-step'))
+        self.quoted('In four orders both messages are looked up before either challenge is deleted')
         self.quoted('Four of six is the count of Chapter~0')
-        # In each of the four, both lookups come before either strike.
+        # In each of the four, both lookups come before either deletion.
         for turns in twice:
             self.assertEqual(len(turns), 4)
             self.assertEqual(sorted(turns[:2]), ['heron', 'wren'])
         # The two safe orders finish one message before starting the other, in three turns.
-        safe = [turns for turns, ended in found if 'LET THROUGH TWICE' not in ended]
+        safe = [turns for turns, ended in found if 'ACCEPTED TWICE' not in ended]
         self.assertEqual(safe, [['heron', 'heron', 'wren'], ['wren', 'wren', 'heron']])
         self.quoted('why those two have three turns and not four')
         # The pause is in the code the section prints.
-        self.assertIn('yield;', (EXCERPTS / 'ch02b-lookup.code').read_text())
+        self.assertIn('yield;', (EXCERPTS / 'ch02b-two-step.code').read_text())
         self.quoted('The \\texttt{yield} marks the pause')
 
     def test_the_fix_as_printed(self):
         held = (EXCERPTS / 'ch02b-held.code').read_text()
         text = (EXCERPTS / 'ch02b-text.code').read_text()
-        self.assertIn('json!(["proof", nonce, ask, card])', text)
-        self.assertIn('let text = text(&open.nonce, ask, card);', held)
+        self.assertIn('json!(["proof", nonce, right, id])', text)
+        self.assertIn('let text = text(&open.nonce, requested, card);', held)
         self.quoted('From the proof it takes only the signature')
         self.assertIn('signed(&pass.key, &text, &proof.tag)', held)
         self.quoted('The text begins with the word \\texttt{proof}')
         self.assertIn('Reason::StaleChallenge', held)
         gate = (EXCERPTS / 'ch02b-gate.code').read_text()
-        self.assertIn('good for thirty seconds', gate)
+        self.assertIn('valid for thirty seconds', gate)
         self.quoted('more than thirty seconds ago')
         # The gate's check has no pause in it.
         self.assertNotIn('yield', gate)
@@ -140,8 +140,8 @@ class QuotedFacts(unittest.TestCase):
             ('wren', 'refused: no-proof'),
             ('wren', 'refused: not-proved'),
         ])
-        self.partial('theft-core', '1,13-23')
-        self.assertEqual(len(run('theft-core')), 23)
+        self.partial('theft-core', '1,13-24')
+        self.assertEqual(len(run('theft-core')), 24)
         self.assertTrue(run('theft-core')[12].endswith("copies heron's cards from his files"))
         self.assertEqual(sends('replay-core'), [
             ('heron', 'admitted as heron'),
@@ -150,45 +150,45 @@ class QuotedFacts(unittest.TestCase):
         ])
         self.partial('replay-core', '1,9-22')
         self.assertEqual(len(run('replay-core')), 22)
-        self.assertTrue(run('replay-core')[8].endswith('hands heron a challenge'))
+        self.assertTrue(run('replay-core')[8].endswith('sends heron a challenge'))
         self.quoted('Wren tries it twice.')
         self.assertIn("t=0      wren   sends heron's signature as her answer", run('replay-core'))
         self.quoted("sends Heron's old signature as her answer to it")
 
     def test_every_order_under_the_fix(self):
-        found = orders('showings-core')
+        found = orders('presentations-core')
         self.assertEqual([turns for turns, _ in found], [['heron', 'wren'], ['wren', 'heron']])
-        self.quoted('There are two orders now, and the proof is let through once in each.')
-        self.assertEqual(found[1][1], "the copy in, heron's refused")
-        self.quoted("Wren's copy arrives first, and it is the copy that gets through")
-        self.assertIn('0 of 2 orders let the proof through twice', run('showings-core'))
-        # With the strike removed.
-        kept = orders('showings-keep-challenge')
+        self.quoted('There are two orders now, and the proof is admitted once in each.')
+        self.assertEqual(found[1][1], "the copy admitted, heron's refused")
+        self.quoted("Wren's copy arrives first, and it is the copy that is admitted")
+        self.assertIn('0 of 2 orders accept the proof twice', run('presentations-core'))
+        # With the deletion removed.
+        kept = orders('presentations-keep-challenge')
         self.assertEqual(len(kept), 2)
-        self.assertTrue(all('LET THROUGH TWICE' in ended for _, ended in kept))
-        self.quoted('both showings get through in both orders')
-        self.assertEqual(run('showings-keep-challenge')[0], '$ harbor showings --design core --mutant keep-challenge')
+        self.assertTrue(all('ACCEPTED TWICE' in ended for _, ended in kept))
+        self.quoted('both presentations are admitted in both orders')
+        self.assertEqual(run('presentations-keep-challenge')[0], '$ harbor presentations --design core --mutant keep-challenge')
 
-    def test_what_the_signed_text_holds(self):
+    def test_what_the_signed_text_contains(self):
         printed = run('proofs')
-        at = printed.index('left out       sent again  ask changed  card changed')
+        at = printed.index('left out       replayed    right changed  card changed')
         table = [line.split() for line in printed[at:at + 5]]
-        self.assertEqual(table[0], ['left', 'out', 'sent', 'again', 'ask', 'changed', 'card', 'changed'])
+        self.assertEqual(table[0], ['left', 'out', 'replayed', 'right', 'changed', 'card', 'changed'])
         self.assertEqual(table[1], ['nothing', 'refused', 'refused', 'refused'])
         self.quoted("The first row is the core's own gate.")
         self.assertEqual(table[2:], [
-            ['the', 'challenge', 'THROUGH', 'refused', 'refused'],
-            ['the', 'ask', 'refused', 'THROUGH', 'refused'],
-            ['the', 'card', 'refused', 'refused', 'THROUGH'],
+            ['the', 'challenge', 'ADMITTED', 'refused', 'refused'],
+            ['the', 'right', 'refused', 'ADMITTED', 'refused'],
+            ['the', 'card', 'refused', 'refused', 'ADMITTED'],
         ])
-        self.quoted('each lets one changed showing through')
+        self.quoted('each admits one changed presentation')
         notes = ' '.join(line.strip() for line in printed[at + 6:])
         self.assertIn("wren answers a challenge of her own with heron's signature", notes)
-        self.quoted("Heron's signature answers a challenge that Wren asked for herself")
-        self.assertIn('heron signs an ask to read, and wren sends it on as an ask to write', notes)
-        self.quoted('a request to read \\texttt{shop/checkout.ts} can be sent on as a request to write it')
-        self.assertIn('alice signs an ask under her narrow card, and wren shows it under her wide one', notes)
-        self.quoted('an ask that Alice signed under her narrow card is shown under her wide one')
+        self.quoted("Heron's signature answers a challenge that Wren requested herself")
+        self.assertIn('heron signs a request to read, and wren forwards it as a request to write', notes)
+        self.quoted('a request to read \\texttt{shop/checkout.ts} can be forwarded as a request to write it')
+        self.assertIn('alice signs a request under her narrow card, and wren presents it under her wide one', notes)
+        self.quoted('a request that Alice signed under her narrow card is presented under her wide one')
 
     def test_the_models(self):
         printed = run('models-possession')
@@ -197,37 +197,37 @@ class QuotedFacts(unittest.TestCase):
         fix = printed[at('answered-once.pv') + 1:at('challenge-left-open.pv')]
         left_open = printed[at('challenge-left-open.pv') + 1:at('no-challenge.pv')]
         no_challenge = printed[at('no-challenge.pv') + 1:]
-        made = 'RESULT event(Taken(m)) ==> event(Made(m)) is true.'
+        signed = 'RESULT event(Accepted(m)) ==> event(Signed(m)) is true.'
         self.assertEqual(fix, [
-            made,
-            'RESULT inj-event(Taken(m)) ==> inj-event(Made(m)) is true.',
-            'RESULT not event(Taken(m)) is false.',
+            signed,
+            'RESULT inj-event(Accepted(m)) ==> inj-event(Signed(m)) is true.',
+            'RESULT not event(Accepted(m)) is false.',
         ])
         self.quoted('It holds for \\texttt{answered-once.pv}, which is the fix.')
         for model in (left_open, no_challenge):
-            self.assertEqual(model[0], made)
-            self.assertEqual(model[1], 'RESULT inj-event(Taken(m)) ==> inj-event(Made(m)) is false.')
+            self.assertEqual(model[0], signed)
+            self.assertEqual(model[1], 'RESULT inj-event(Accepted(m)) ==> inj-event(Signed(m)) is false.')
         self.quoted('It fails for the two repairs.')
-        self.quoted('The showing is also three ProVerif models')
+        self.quoted('The protocol is also three ProVerif models')
         self.assertEqual(sum(line.endswith('.pv') for line in printed), 3)
 
     def test_the_exercises(self):
         # The first exercise's count of the orders with four turns.
-        found = orders('showings-lookup')
+        found = orders('presentations-two-step')
         self.assertEqual(sum(len(turns) == 4 for turns, _ in found), 2 * 2)
         self.assertEqual(sum(len(turns) == 3 for turns, _ in found), 2)
         self.assertIn('Two of them have three turns and the other four have four.', self.chapter)
         self.assertIn('$2\\times2=4$ orders of four turns', self.chapter)
         self.assertIn('there are two such orders', self.chapter)
         # The second exercise's refusal is the one the run prints.
-        self.assertIn('unknown-challenge (the proof answers a challenge that is not open at this gate)', ' '.join(said('replay-core')))
+        self.assertIn('unknown-challenge (the proof answers a challenge that is not open at this gate)', ' '.join(unwrapped('replay-core')))
         self.assertIn('refused as answering a challenge that is not open', self.chapter)
 
     def test_every_recorded_run_of_this_build_is_printed(self):
         manifest = json.loads((EXCERPTS / 'manifest.json').read_text())
         runs = {session['name'] for session in manifest['sessions']}
-        for name in ['theft-bearer', 'replay-signed', 'showings-lookup', 'theft-core', 'replay-core',
-                     'showings-core', 'showings-keep-challenge', 'proofs', 'models-possession']:
+        for name in ['theft-bearer', 'replay-signed', 'presentations-two-step', 'theft-core', 'replay-core',
+                     'presentations-core', 'presentations-keep-challenge', 'proofs', 'models-possession']:
             self.assertIn(name, runs)
             self.assertRegex(self.text, r'\\pdrun(lines)?\[[^\]]*\]\{%s\}' % re.escape(name))
 
@@ -237,8 +237,8 @@ class QuotedFacts(unittest.TestCase):
         asked = re.findall(
             r'\\pdlistingroom\{(\d+)\}\n\\(pdexcerpt|pdrun|pdrunlines)\[.*?label=\{[^}]*\}\]'
             r'\{([^}]*)\}(?:\{([^}]*)\})?', source, flags=re.S)
-        set_here = len(re.findall(r'^\\(?:pdexcerpt|pdrun|pdrunlines)\[', source, flags=re.M))
-        self.assertEqual(len(asked), set_here, 'a listing is set with no \\pdlistingroom before it')
+        printed = len(re.findall(r'^\\(?:pdexcerpt|pdrun|pdrunlines)\[', source, flags=re.M))
+        self.assertEqual(len(asked), printed, 'a listing is printed with no \\pdlistingroom before it')
         for room, macro, name, ranges in asked:
             if macro == 'pdexcerpt':
                 lines = len((EXCERPTS / f'{name}.code').read_text().splitlines())

@@ -1,0 +1,33 @@
+$ harbor scenario false-notice --design core
+scenario false-notice, design core: someone who is not a gate
+  sends a gate notices of revoked cards
+
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      alice  delegates to heron: write shop/checkout.ts; valid
+                until t=600000
+t=0      harbor issues finch a card: write shop/cart.ts; valid
+                until t=600000
+t=180000 wren   copies heron's key from his memory, and his cards
+                with it
+t=180000 alice  asks the near gate to revoke heron's card
+                -> revoked
+t=180000 wren   sends the far gate a notice that heron's card
+                expires at t=180000, and that finch's card was
+                revoked
+                -> nothing added
+t=180000 wren   sends the far gate heron's cards as a notice, with
+                the expiry of his card changed to t=180000
+                -> nothing added
+t=180000 gates  exchange notices
+                -> the far gate adds 1 card to its revocation list
+t=180000 finch  requests to write shop/cart.ts at the far gate
+                -> admitted as finch
+t=180001 gate   the far gate removes nothing from its revocation
+                list
+t=180001 wren   requests to write shop/checkout.ts at the far
+                gate, presenting heron's cards
+                -> refused: revoked (card 2 was revoked)
+
+verdict: no unverified notice was accepted: finch was admitted,
+         and heron's card stayed refused

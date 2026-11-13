@@ -1,22 +1,22 @@
 % Build the layer, Chapter 2: a verifier for cards.
 % Inserted in \S\ref{sec:architecture}, after Phase 3 and before the
-% subsection on withdrawing a card.
+% subsection on revoking a card.
 %
-% No code or output in this file is typed. \pdexcerpt, \pdrun and
-% \pdrunlines set files under excerpts/, which the kernel's
+% No code or output in this file is typed by hand. \pdexcerpt, \pdrun and
+% \pdrunlines print files under excerpts/, which the kernel's
 % tools/excerpts.mjs cuts from its source and its recorded runs (see
 % figures/pd-listing.tex). The figure draws one of those recorded runs as it
 % was printed. To change a listing or the figure, change the kernel and cut
 % again. The prose names functions, never line numbers, so that a listing
 % which moves in its file does not make a sentence wrong.
-\subsection{Build the layer: a card that cannot grow}
+\subsection{Build the layer: a verifier for delegated cards}
 \label{sec:anchor-build}
 
-\noindent\emph{Express lane: a verifier is built twice. The first is written
-the way a card's format invites, and it lets through a forged card and two
-chains of real ones. The second makes one check, whatever a card says, and
-compares each card with the card above it. Every chain of three cards over
-two rights is then shown to both.}
+\noindent\emph{Express lane: this section builds a verifier twice. The first
+reads a card's header to choose how to verify it, and it admits a forged card
+and two chains of validly signed ones. The second verifies every card with
+one algorithm and compares each card with its parent. Every chain of three
+cards over two rights is then presented to both.}
 
 Phases 1 to 3 said what a verifier must do, and this section builds one. The
 code is \pdkernelname{}, the small kernel written for this book. It is not
@@ -25,81 +25,81 @@ the daemon whose verifier the rest of this chapter describes.
 The section has the same four parts as \weld{prereq:sec:prereq-build}{Naive}:
 \emph{Naive}, \emph{Break}, \emph{Fix} and \emph{Verify}. As there, a
 script cuts each listing from the kernel's source, and each run is a
-recording. The build stops where Phase~3 stops. Nothing below withdraws a
-card, and nothing ties a card to the process that shows it.
-\S\ref{sec:anchor-build-taken-back} builds the first, and
-\S\ref{sec:anchor-build-holder} an answer to the second.
+recording. The build stops where Phase~3 stops. Nothing below revokes a
+card, and nothing ties a card to the process that presents it.
+\S\ref{sec:anchor-build-taken-back} builds revocation, and
+\S\ref{sec:anchor-build-holder} makes the presenter prove that it holds the
+card's key.
 
-\subsubsection{Naive: ask the card how to check it}
+\subsubsection{Naive: read the header to choose the algorithm}
 
-\pdkernelname{} writes a card as this chapter does, as a JSON Web Token.
-Listing~\ref{alg:anchor-build-cards} opens up a chain of three.
+\pdkernelname{} encodes a card as this chapter does, as a JSON Web Token.
+Listing~\ref{alg:anchor-build-cards} decodes a chain of three.
 
-\pdrun[caption={Three cards, opened. Each names the key that the next must
+\pdrun[caption={Three cards, decoded. Each names the key that the next must
 be signed with.},label={alg:anchor-build-cards}]{cards}
 
 Card 1 is the harbor's. Its \texttt{sub} is the holder's name, and its
 \texttt{key} is the holder's public key. \texttt{can} lists the holder's
 rights. A right is a verb, \texttt{read} or \texttt{write}, on a path, and a
-path that ends in a star stands for every path that begins with what comes
-before the star. \texttt{exp} is the card's last moment, in milliseconds on a
-clock that the runs below set by hand, so 600000 is ten minutes.
-\texttt{jti} is a serial number. The harbor gives one to each card it
-issues.
+path that ends in a star matches every path that starts with the text before
+the star. \texttt{exp} is the card's expiry time, in milliseconds on a clock
+that the runs below set explicitly, so 600000 is ten minutes. \texttt{jti} is
+a serial number. The harbor gives one to each card it issues.
 
-Alice made card 2 without the harbor. She wrote what it says and signed it
+Alice made card 2 without the harbor. She wrote its claims and signed it
 with her own private key, the one whose public half card 1 names. A card
 made this way has no serial number. It carries \texttt{par}, the identifier
-of the card it came from. For card 3 that identifier is the SHA-256 of card
+of its parent. For card 3 that identifier is the SHA-256 of card
 2's signature, which is the rule of \S\ref{sec:algorithms} for a link that
 no issuer numbered.
 
 The verifier holds one key, the harbor's public key. Someone writing it
 would reasonably start from the format. A token's header names the algorithm
-that signed it, so read the header and check the card that way. For a chain,
-check each signature under the key that the card above names, and then make
-sure the last card grants nothing that the harbor's card did not.
+that signed it, so read the header and verify the card with that algorithm.
+For a chain, verify each signature with the key that the parent names, and
+then make sure the last card grants nothing that the harbor's card did not.
 Listing~\ref{alg:anchor-build-naive} is that verifier.
 
 \Needspace{14\baselineskip}
-\pdexcerpt[caption={The naive verifier. \texttt{signed} asks the header how
-to check a card. \texttt{check} compares the last card with the
+\pdexcerpt[caption={The naive verifier. \texttt{signed} reads the header to
+choose how to verify a card. \texttt{check} compares the last card with the
 first.},label={alg:anchor-build-naive}]{ch02-naive}
 
 This is careful code. \texttt{signed} knows two algorithms, as a
 general-purpose library would, and refuses any other. \texttt{check} refuses
-a card whose time has passed, and \texttt{holds} knows the rule for stars.
+an expired card, and \texttt{grants} knows the rule for stars.
 It gets the chapter's own example right
 (Listing~\ref{alg:anchor-build-handing-on}).
 
-\pdrun[caption={Handing on, under the naive verifier. Every ask gets the
-answer its cards call for.},label={alg:anchor-build-handing-on}]{handing-on-naive}
+\pdrun[caption={Delegation, under the naive verifier. Every request gets the
+answer its cards require.},label={alg:anchor-build-handing-on}]{delegation-naive}
 
-Alice's card had ten minutes to run. She asked for twenty for Heron, and the
-card she signed runs for ten, because the code that hands a card on never
-signs past the life of the card it comes from. Heron handed Finch five
-minutes. Finch's card stopped working first. Heron's stopped five minutes
+Alice's card had ten minutes left. She requested twenty minutes for Heron,
+and the card she signed is valid for ten, because the code that delegates a
+card never signs past the expiry of its parent. Heron delegated to Finch for
+five minutes. Finch's card expired first. Heron's expired five minutes
 later, and Alice's own card with it.
 
-\subsubsection{Break: the card says how to check it}
+\subsubsection{Break: the attacker writes the header}
 
 Wren has no card. She has the harbor's public key, as everyone does. In the
 runs that follow, the \emph{gate} is the verifier.
 
-\pdrun[caption={Algorithm confusion. The second of Wren's cards is let
-through.},label={alg:anchor-build-confusion-naive}]{confusion-naive}
+\pdrun[caption={Algorithm confusion. The second of Wren's cards is
+admitted.},label={alg:anchor-build-confusion-naive}]{confusion-naive}
 
-Wren tried the same card under different headers. The verifier refused the
+Wren tried the same card with three headers. The verifier refused the
 header that says \texttt{none}, and it refused the card she signed with her
-own key. It let the middle one through. That card's header says HS256, so
+own key. It admitted the middle one. That card's header says HS256, so
 \texttt{signed} computed a message authentication code over the card with the
 only key it holds, and compared the result with the card's tag. Wren had
 computed the same code with the same key. The key is the harbor's public key,
-which is published so that anyone can check a signature. As the secret of a
+which is published so that anyone can verify a signature. As the secret of a
 message authentication code, a MAC for short, it is a secret that everyone
 has.
 
-Nothing in the cryptography failed. The header decided which check ran, and
+Nothing in the cryptography failed. The header chose the algorithm, and
 Wren wrote the header. This is the flaw recorded as
 CVE-2015-9235~\pdcite{cve20159235}, found in several token libraries at
 once~\pdcite{mclean2015critical}.
@@ -107,124 +107,126 @@ once~\pdcite{mclean2015critical}.
 \subsubsection{Break again: the last card is compared with the first}
 
 The second break needs no forgery. Every signature in
-Listing~\ref{alg:anchor-build-escalation-naive} is real.
+Listing~\ref{alg:anchor-build-escalation-naive} is valid.
 
 \pdrun[caption={Escalation. Heron may not write the file, and the card he
 signs lets Finch write it.},label={alg:anchor-build-escalation-naive}]{escalation-naive}
 
-Alice may read and write under \texttt{shop/}. She handed Heron a card to
-read one file, and the verifier duly refused Heron's own ask to write it.
-Heron then signed Finch a card to write the file. Heron's signature on it is
-good, since he signed with the key that his card names. Writing the file is
-within what card 1 grants. The card passes both tests, and Finch may do what
-Heron, who gave Finch the card, may not.
+Alice may read and write under \texttt{shop/}. She delegated to Heron the
+right to read one file, and the verifier correctly refused Heron's own
+request to write it. Heron then signed Finch a card to write the file.
+Heron's signature on it is valid, since he signed with the key that his card
+names. Writing the file is within what card 1 grants. The card passes both
+checks, and Finch may do what Heron, who signed Finch's card, may not.
 Figure~\ref{fig:anchor-v6v7-escalation} draws this chain, and the ProVerif
 model called v6 in \S\ref{sec:attn-soundness} makes the same mistake.
 
-\subsubsection{Break a third time: the card is shown under another card}
+\subsubsection{Break a third time: the card is presented under another parent}
 
-The third break is quieter. The naive verifier takes a good signature as
-proof that a card belongs under the card above it. A signature shows which
-key signed. It does not show which card the signer had in mind.
+The third break is less obvious. The naive verifier takes a valid signature
+as proof that a card was delegated from the card presented as its parent. A
+signature shows which key signed. It does not show which card the signer
+was delegating from.
 
 \Needspace{14\baselineskip}
-\pdrun[caption={A moved card. Alice signed it under her narrow card, and
-Heron shows it under her wide one.},label={alg:anchor-build-moved-naive}]{moved-naive}
+\pdrun[caption={A moved card. Alice delegated it from her narrow card, and
+Heron presents it under her wide one.},label={alg:anchor-build-moved-naive}]{moved-naive}
 
 Alice holds two cards from the harbor, and both name her key. The second
-grants \texttt{read shop/checkout.ts} and nothing more. Under it she signs
-what Heron asks for, which is \texttt{write shop/checkout.ts}. That is not
-reckless of her. The code that hands a card on, \texttt{handOn} in the
-kernel's source, shortens the card's life and does not inspect its rights, on
-the understanding that the verifier refuses a card that grants more than the
-card it came from. The verifier does refuse it, under the narrow card. Heron
-then puts Alice's wide card above his. Her signature is as good there, and
-writing is within the wide card, so he is let through. A holder may well have
-several cards: one for standing work, and one cut down for a single task.
+grants \texttt{read shop/checkout.ts} and nothing more. From it she
+delegates what Heron requests, which is \texttt{write shop/checkout.ts}.
+That is not careless of her. The code that delegates a card,
+\texttt{delegate} in the kernel's source, caps the card's expiry and does not
+inspect its rights, on the understanding that the verifier refuses a card
+that grants more than its parent. The verifier does refuse it, under the
+narrow card. Heron then presents Alice's wide card as the parent. Her
+signature is as valid there, and writing is within the wide card, so he is
+admitted. A holder may well have several cards: one for standing work, and
+one narrowed for a single task.
 
-\subsubsection{Fix: one check, and each card against the card above it}
+\subsubsection{Fix: one algorithm, and each card compared with its parent}
 
-The fix is in the kernel's decision core, the Rust function through which
-every proposal in this book's code is decided
+The fix is in the kernel's decision core, the Rust function that decides
+every proposal in this book's code
 (\weld{prereq:sec:prereq-build}{decision core}).
 Listing~\ref{alg:anchor-build-signed} is its check of one card.
 
 \Needspace{14\baselineskip}
-\pdexcerpt[caption={One card. The check is made before anything the card
-says is read.},label={alg:anchor-build-signed}]{ch02-signed}
+\pdexcerpt[caption={One card. The signature is verified before any of the
+card's claims is read.},label={alg:anchor-build-signed}]{ch02-signed}
 
-\texttt{signed} is given a key by its caller and makes one check with it,
-\texttt{ed25519}. Nothing the card says is read before that check, and
-nothing the card says can change it. Then the header is compared, whole,
-with the one header the harbor writes. It is never parsed, so there is no
-field in it to believe. Last, the claims are read, and a card that says
-something a card does not say, such as an extra field, is refused.
+\texttt{signed} is given a key by its caller and verifies with one
+algorithm, \texttt{ed25519}. Nothing in the card is read before that, and
+nothing in the card can change it. Then the header is compared, whole, with
+the one header the harbor writes. It is never parsed, so no field of it is
+trusted. Last, the claims are parsed, and a card with an unknown field is
+refused.
 
 The check is the strict form of Ed25519. The scheme as first deployed lets
 anyone turn a valid signature into a second valid one for the same message,
 and libraries differ on whether they accept the
-second~\pdcite{chalkias2020taming}. A card that was handed on is known by
-the hash of its signature. A verifier that accepted both forms would know
-one card by two names.
+second~\pdcite{chalkias2020taming}. A delegated card is identified by the
+hash of its signature. A verifier that accepted both forms would have two
+identifiers for one card.
 
-Listing~\ref{alg:anchor-build-admit} walks a chain.
+Listing~\ref{alg:anchor-build-admit} checks a chain.
 
 \Needspace{14\baselineskip}
-\pdexcerpt[caption={A chain. Each card is checked under the key that the
-card above it names.},label={alg:anchor-build-admit}]{ch02-admit}
+\pdexcerpt[caption={A chain. Each card is verified with the key that its
+parent names.},label={alg:anchor-build-admit}]{ch02-admit}
 
-The key for a card comes from the card above, and by then that card's own
-signature has passed. For the first card the key is the harbor's. The
-\texttt{match} sorts cards into the two kinds of
+The key for a card comes from its parent, and by then the parent's own
+signature has been verified. For the first card the key is the harbor's. The
+\texttt{match} separates the two kinds of card in
 Listing~\ref{alg:anchor-build-cards}. A first card must carry a serial
-number. A later card must name the card above it, which is what
-\texttt{names} checks, and it is then measured against that card by
-\texttt{within} (Listing~\ref{alg:anchor-build-within}). Anything else is
-refused. A card's own time is checked wherever the card sits in the chain,
-and at the end the last card must grant what was asked.
+number. A later card must name its parent, which is what
+\texttt{names\_parent} checks, and \texttt{within} then compares it with
+that parent (Listing~\ref{alg:anchor-build-within}). Anything else is
+refused. A card's expiry is checked wherever the card is in the chain, and
+at the end the last card must grant the requested right.
 
 \Needspace{14\baselineskip}
 \pdexcerpt[caption={The order on grants, for rights written as a verb on a
 path.},label={alg:anchor-build-within}]{ch02-within}
 
 \texttt{within} is the order of \S\ref{sec:architecture}. Each right on the
-card must be covered by a right on the card above, and the card must end no
-later. \texttt{reaches} is the whole rule for stars. The naive verifier had
+card must be covered by a right on its parent, and the card must expire no
+later. \texttt{includes} is the whole rule for stars. The naive verifier had
 the same rule and the same loop over rights. What differs is the card that
-\texttt{within} is handed. Here it is the card above. There it was the
-first card.
+\texttt{within} is given. Here it is the parent. There it was the first
+card.
 
 % A page may break here. Without this the two last lines above are carried
 % over with the key idea, which is set to stay with the text before it.
 \pagebreak[0]
 \keyidea[The verifier decides what a card is checked against]{A card is the
-thing under test. If its header picks the check, its author has picked the
-check. If it is compared with the harbor's card, or with whichever card is
-placed above it, then what its signer actually held has been forgotten. In
-each break a question that belongs to the verifier was answered by the
-party being checked.}
+input being checked. If its header chooses the algorithm, its author has
+chosen the algorithm. If it is compared with the harbor's card, or with
+whichever card is presented as its parent, then what its signer actually
+held is not checked. In each break a question that belongs to the verifier
+was answered by the party being checked.}
 
 \subsubsection{Verify: the same runs, then every chain}
 
-The honest chain first. The fixed verifier gives every ask of
+The honest chain first. The fixed verifier gives every request of
 Listing~\ref{alg:anchor-build-handing-on} the answer the naive one gave,
-and each refusal now says which card stopped the ask
+and each refusal now names the card that caused it
 (Listing~\ref{alg:anchor-build-handing-on-core}).
 
 \Needspace{14\baselineskip}
-\pdrunlines[caption={Handing on, against the fix, after time has
-passed.},label={alg:anchor-build-handing-on-core}]{handing-on}{1,18-23,26-27}{1, 18\textendash 23, 26 and 27}
+\pdrunlines[caption={Delegation, against the fix, after time has
+passed.},label={alg:anchor-build-handing-on-core}]{delegation}{1,18-23,26-27}{1, 18\textendash 23, 26 and 27}
 
 Then Wren (Listing~\ref{alg:anchor-build-confusion-core}).
 
 \Needspace{14\baselineskip}
 \pdrunlines[caption={Algorithm confusion, against the fix. Each card fails
-at its signature.},label={alg:anchor-build-confusion-core}]{confusion-core}{1,11-28}{1 and 11\textendash 28}
+its signature check.},label={alg:anchor-build-confusion-core}]{confusion-core}{1,11-28}{1 and 11\textendash 28}
 
 All of her cards are refused, and for one reason. The card whose header
-says HS256 was never checked as HS256. Its tag is a MAC, and a MAC is not an
-Ed25519 signature of anything. The comparison of headers did not come into
-it. Design invariant~\ref{prop:alg-pinning} says why it should not have to:
+says HS256 was never verified as HS256. Its tag is a MAC, and a MAC is not an
+Ed25519 signature of anything. The comparison of headers was never reached.
+Design invariant~\ref{prop:alg-pinning} says why it should not have to be:
 the algorithm was fixed before the card arrived.
 
 Next Finch, whose card grants what Heron's does not
@@ -232,67 +234,68 @@ Next Finch, whose card grants what Heron's does not
 
 \Needspace{13\baselineskip}
 \pdrunlines[caption={Escalation, against the fix. The refusal names both
-cards.},label={alg:anchor-build-escalation-core}]{escalation-core}{1,13-20}{1 and 13\textendash 20}
+cards.},label={alg:anchor-build-escalation-core}]{escalation-core}{1,14-21}{1 and 14\textendash 21}
 
 Last the moved card. Under Alice's narrow card it grants too much. Under her
-wide card it names the wrong card above it
+wide card it names a different parent
 (Listing~\ref{alg:anchor-build-moved-core}).
 
 \Needspace{16\baselineskip}
 \pdrunlines[caption={The moved card, against the fix. Heron's card names
 Alice's narrow card, and is refused under any other.},label={alg:anchor-build-moved-core}]{moved-core}{1,11-21}{1 and 11\textendash 21}
 
-One chain refused is one chain. Three cards that each hold some of two
+One chain refused is one chain. Three cards that each grant some of two
 rights make 64 chains. \pdkernelname{} builds every one of them with real
-signatures and shows it to both verifiers
+signatures and presents it to both verifiers
 (Listing~\ref{alg:anchor-build-chains}).
 
 \Needspace{14\baselineskip}
 \pdrun[caption={Every chain of three cards, by kind, and how many of each
-kind a verifier lets through.},label={alg:anchor-build-chains}]{chains}
+kind a verifier admits.},label={alg:anchor-build-chains}]{chains}
 
-In 16 chains no card holds more than the card above it, and both verifiers
+In 16 chains no card grants more than its parent, and both verifiers
 accept those. The naive verifier accepts 20 more. In 11 of them the last
-card holds a right that the middle card lacks, which is Finch's case. In the
-other 9 the middle card holds a right the first lacks, and the last card
-leaves it alone. Those 9 give the last holder nothing the harbor did not
+card has a right that the middle card lacks, which is Finch's case. In the
+other 9 the middle card has a right the first lacks, and the last card
+does not use it. Those 9 give the last holder nothing the harbor did not
 grant. Each still has a middle card that was never a valid card.
 
 Figure~\ref{fig:anchor-64-chains} shows where the counts come from.
-Take one right. Each of the three cards holds it or does not, which makes
-eight ways. In four of them no card holds the right unless the card above
-does. The check at every card accepts a chain when both rights sit in one
-of those four ways, and $4\times4=16$. Comparing the last card with the
-first allows two more ways, and $6\times6=36$. One of the two is the right
-on the first and last cards and not on the middle one. A chain with a right
-placed like that is an escalation, and there are $36-25=11$ of them.
+Take one right. Each of the three cards has it or does not, which makes
+eight combinations. In four of them no card has the right unless its parent
+does. The check at every card accepts a chain when both rights are in one
+of those four combinations, and $4\times4=16$. Comparing the last card with
+the first allows two more combinations, and $6\times6=36$. One of the two is
+the right on the first and last cards and not on the middle one. A chain
+with a right placed like that is an escalation, and there are $36-25=11$ of
+them.
 \emph{Now you try:} Exercise~\ref{ex:anchor-build-count} asks for the 9.
 
 \input{figures/fig-anchor-64-chains}
 
 Last, the guard. \pdkernelname{} keeps a second build of its core in which
-\texttt{measure}, the function that Listing~\ref{alg:anchor-build-admit}
-calls to choose what a card is measured against, returns the first card.
-Finch is let through again (Listing~\ref{alg:anchor-build-escalation-mutant}),
+\texttt{limit}, the function that Listing~\ref{alg:anchor-build-admit}
+calls to choose what a card is compared with, returns the first card.
+Finch is admitted again (Listing~\ref{alg:anchor-build-escalation-mutant}),
 and the count changes (Listing~\ref{alg:anchor-build-chains-mutant}).
 
 \Needspace{10\baselineskip}
 \pdrunlines[caption={Escalation, against the fix with its guard
-changed.},label={alg:anchor-build-escalation-mutant}]{escalation-compare-root}{1,15-19}{1 and 15\textendash 19}
+changed.},label={alg:anchor-build-escalation-mutant}]{escalation-compare-root}{1,16-20}{1 and 16\textendash 20}
 
 \Needspace{9\baselineskip}
 \pdrunlines[caption={The fix with its guard changed to compare with the
 first card.},label={alg:anchor-build-chains-mutant}]{chains-compare-root}{1,5-8}{1 and 5\textendash 8}
 
-Nine escalations get through, and not eleven. This build compares every
+Nine escalations are admitted, and not eleven. This build compares every
 card with the first, where the naive verifier compared only the last, so it
 catches two chains that the naive verifier missed. It is the repair a
 careful reader might have tried, and it is still wrong.
 Exercise~\ref{ex:anchor-build-two} finds the two chains. Four more builds
-each take out one other guard: the signature check, the name of the card
-above, the comparison of lifetimes, and the check of a card's own time. For
-each, the kernel names a test that passes on the real core and fails on
-that build.
+each remove one other guard: the signature check, the check that a card
+names its parent, the comparison of expiry times, and the check of a card's
+own expiry. For each, the kernel names a test that passes on the real core
+and fails on that build.
 
 The first two breaks and the fix are also ProVerif models, written for
 this code (Listing~\ref{alg:anchor-build-models}).
@@ -301,40 +304,41 @@ this code (Listing~\ref{alg:anchor-build-models}).
 \pdrun[caption={ProVerif~2.05 on models of the card
 check.},label={alg:anchor-build-models}]{models-cards}
 
-A query of the form \texttt{not event(...)} that comes back \texttt{false}
+A query of the form \texttt{not event(...)} that is reported \texttt{false}
 means ProVerif found a run in which the event happens. So
 \texttt{chain-root-only.pv} admits someone to \texttt{both}, which stands
 for reading and writing, on a chain of three cards whose middle card grants
 reading alone. \texttt{chain-per-hop.pv} admits no one that way. The third
-query of each chain model is there to come back \texttt{false}: it shows
-that the model can admit a chain at all, so the lines above it are not true
-for want of anything to admit. In \texttt{header-picks-the-check.pv} the
-verifier that reads the header accepts a card that was never issued, and the
-verifier that does not read it accepts none.
+query of each chain model is meant to be \texttt{false}: it shows that the
+model can admit a chain at all, so the queries above it are not true only
+because nothing can be admitted. In
+\texttt{header-chooses-the-algorithm.pv} the verifier that reads the header
+accepts a card that was never issued, and the verifier that does not read it
+accepts none.
 
 These models differ from v6 and v7 of \S\ref{sec:attn-soundness} in one way
 that the chapter lists there as a gap. In \texttt{chain-per-hop.pv} the
 verifier is given the harbor's key and no other. It reads each later key
-from the card above, as Listing~\ref{alg:anchor-build-admit} does, so these
-models do say that a card names the right key.
+from the parent card, as Listing~\ref{alg:anchor-build-admit} does, so these
+models also cover which key a card must be signed with.
 \pdscope{The count covers the 64 chains of three cards over two rights on
 one path, with real signatures. The models cover the same sizes for any
-number of sessions, with cryptography that cannot be broken. Longer chains rest on
-the order carrying down a chain (\S\ref{sec:delegation}). Tests check it
-on a finite set of grants, and \S\ref{sec:implementation} on every pattern
-of up to four bytes. No model here has two
-cards for one holder, so the moved card rests on its run and its test.}
+number of sessions, with cryptography that cannot be broken. Longer chains
+depend on the order being transitive (\S\ref{sec:delegation}). Tests check
+that on a finite set of grants, and \S\ref{sec:implementation} on every
+pattern of up to four bytes. No model here has two cards for one holder, so
+the moved card is covered only by its run and its test.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
 A card in this build is still a bearer credential. Wren could not forge
 one, and she did not need to: a card copied from Heron's files works for
-whoever shows it until its time passes, which in these runs is ten minutes
-(\S\ref{sec:limitations}). \S\ref{sec:anchor-build-holder} builds what
-ends that. Nothing here withdraws a card early
+whoever presents it until it expires, which in these runs is ten minutes
+(\S\ref{sec:limitations}). \S\ref{sec:anchor-build-holder} builds the fix
+for that. Nothing here revokes a card early
 (\S\ref{sec:anchor-build-taken-back}). The verifier puts no limit on the length of a
 chain. It trusts its signature library, \texttt{ed25519-dalek}, which no
 check in this section examines. And \pdkernelname{} as a running service
-does not yet ask for a card. The verifier is called by \texttt{harbor
+does not yet require a card. The verifier is called by \texttt{harbor
 scenario} and \texttt{harbor chains}, as above, and by the kernel's tests.
 \end{pdboundary}

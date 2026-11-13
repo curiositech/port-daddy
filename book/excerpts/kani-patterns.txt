@@ -1,11 +1,11 @@
 $ sh formal/patterns/run.sh
-a_pattern_reaches_itself
+a_pattern_includes_itself
   successful
-a_wrong_order_is_caught
-  fails, as it must
-covering_carries_down
+control_a_wrong_order_is_caught
+  fails, as a control should
+covering_is_transitive
   successful; its cover is satisfied
-patterns_that_reach_each_other_are_the_same
+inclusion_is_transitive
   successful; its cover is satisfied
-reaching_carries_down
+patterns_that_include_each_other_are_equal
   successful; its cover is satisfied

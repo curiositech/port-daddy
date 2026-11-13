@@ -1,0 +1,3 @@
+$ sh formal/revocation/run.sh
+revoked.pv
+RESULT not event(Admitted(card_1)) cannot be proved.

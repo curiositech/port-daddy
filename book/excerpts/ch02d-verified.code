@@ -1,0 +1,27 @@
+/** Revoke a card, and keep its chain to send other gates. */
+override revoke(
+  chain: readonly string[],
+  now: number,
+): RevokeResult {
+  const result = super.revoke(chain, now);
+  const id = idIfCard(chain.at(-1) ?? '');
+  if (result.ok) this.#chains.set(id, chain);
+  return result;
+}
+
+/** The notices: the chain of every card in the list. */
+notices(): Chains {
+  return [...this.#chains.values()];
+}
+
+/** Receive another gate's notices. Each chain new to this gate
+ * is checked here, as if it had been presented here. */
+receive(notices: unknown, now: number): number {
+  let added = 0;
+  for (const chain of chainsIn(notices)) {
+    const id = idIfCard(chain.at(-1) ?? '');
+    if (this.#chains.has(id)) continue;
+    if (this.revoke(chain, now).ok) added += 1;
+  }
+  return added;
+}

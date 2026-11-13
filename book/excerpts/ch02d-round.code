@@ -1,17 +1,17 @@
 /** One round. Every gate picks one of the others, and the two
- * swap news as their records stood when the round began. */
+ * exchange notices as their lists were when the round began. */
 export function round(
-  gates: readonly Teller[],
+  gates: readonly Gossiper[],
   random: Random,
   now: number,
   lost: Lost = () => false,
 ): void {
-  const news = gates.map((gate) => gate.news());
+  const notices = gates.map((gate) => gate.notices());
   gates.forEach((gate, at) => {
     const pick = Math.floor(random() * (gates.length - 1));
     const peer = pick < at ? pick : pick + 1;
     if (lost(at, peer)) return;
-    gate.hear(news[peer], now);
-    gates[peer]?.hear(news[at], now);
+    gate.receive(notices[peer], now);
+    gates[peer]?.receive(notices[at], now);
   });
 }

@@ -1,0 +1,30 @@
+$ harbor scenario two-gates --design core
+scenario two-gates, design core: a card is revoked at one gate and
+  presented at another
+
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      alice  delegates to heron: write shop/checkout.ts; valid
+                until t=600000
+t=180000 wren   copies heron's key from his memory, and his cards
+                with it
+t=180000 alice  asks the near gate to revoke heron's card
+                -> revoked
+t=180000 wren   requests to write shop/checkout.ts at the near
+                gate, presenting heron's cards
+                -> refused: revoked (card 2 was revoked)
+t=180000 wren   requests to write shop/checkout.ts at the far
+                gate, presenting heron's cards
+                -> admitted as heron
+t=240000 gates  exchange notices
+                -> the far gate adds 1 card to its revocation list
+t=240000 wren   requests to write shop/checkout.ts at the near
+                gate, presenting heron's cards
+                -> refused: revoked (card 2 was revoked)
+t=240000 wren   requests to write shop/checkout.ts at the far
+                gate, presenting heron's cards
+                -> refused: revoked (card 2 was revoked)
+
+verdict: refused at both gates: once the gates had exchanged
+         notices, heron's card was refused at each. Before that
+         the far gate admitted it once

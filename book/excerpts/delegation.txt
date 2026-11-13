@@ -1,0 +1,27 @@
+$ harbor scenario delegation --design core
+scenario delegation, design core: a card is delegated twice, each
+  time with less
+
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      alice  delegates to heron: write shop/checkout.ts;
+                requested until t=1200000, signed until t=600000
+t=0      heron  delegates to finch: write shop/checkout.ts; valid
+                until t=300000
+t=0      heron  requests to write shop/checkout.ts
+                -> admitted as heron
+t=0      heron  requests to write shop/cart.ts
+                -> refused: not-granted (the last card does not
+                   grant write shop/cart.ts)
+t=0      finch  requests to write shop/checkout.ts
+                -> admitted as finch
+t=300001 finch  requests to write shop/checkout.ts
+                -> refused: expired (card 3 expired at t=300000)
+t=300001 heron  requests to write shop/checkout.ts
+                -> admitted as heron
+t=600001 heron  requests to write shop/checkout.ts
+                -> refused: expired (card 1 expired at t=600000)
+t=600001 alice  requests to write shop/cart.ts
+                -> refused: expired (card 1 expired at t=600000)
+
+verdict: every request got the answer its cards require

@@ -1,21 +1,21 @@
 $ harbor scenario moved --design core
-scenario moved, design core: a card is shown under a card it was
-  not signed under
+scenario moved, design core: a card is presented under a parent it
+  does not name
 
-t=0      harbor signs alice a card: read shop/*, write shop/*;
-                good until t=600000
-t=0      harbor signs alice a second card: read shop/checkout.ts;
-                good until t=600000
-t=0      alice  hands heron a card under her second card: write
-                shop/checkout.ts; good until t=600000
-t=0      heron  asks to write shop/checkout.ts, showing alice's
-                second card above his
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      harbor issues alice a second card: read shop/checkout.ts;
+                valid until t=600000
+t=0      alice  delegates to heron from her second card: write
+                shop/checkout.ts; valid until t=600000
+t=0      heron  requests to write shop/checkout.ts, with alice's
+                second card as the parent
                 -> refused: widens (card 2 grants write
                    shop/checkout.ts, and card 1 does not)
-t=0      heron  asks to write shop/checkout.ts, showing alice's
-                first card above his
+t=0      heron  requests to write shop/checkout.ts, with alice's
+                first card as the parent
                 -> refused: unbound (card 2 does not name card 1
-                   as the card it came from)
+                   as its parent)
 
-verdict: no card moved: nobody was let through on a card shown
-         under a card it does not name
+verdict: no card moved: nobody was admitted on a card presented
+         under a parent it does not name

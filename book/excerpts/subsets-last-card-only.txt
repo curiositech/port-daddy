@@ -1,0 +1,20 @@
+$ harbor subsets --mutant last-card-only
+every set of cards of a chain of three that can be revoked, and
+  whether the holder of the third is still admitted (mutant
+  last-card-only)
+
+revoked     last-card  core
+none        admitted   admitted
+1           ADMITTED   ADMITTED
+2           ADMITTED   ADMITTED
+1 2         ADMITTED   ADMITTED
+3           refused    refused
+1 3         refused    refused
+2 3         refused    refused
+1 2 3       refused    refused
+
+of the 7 sets with a revoked card, 3 are still admitted at the
+  last-card gate, and 3 at the core's
+
+a card's number is its position in the chain, the harbor's card
+  first

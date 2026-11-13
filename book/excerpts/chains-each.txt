@@ -1,14 +1,14 @@
 $ harbor chains --each
 # every chain of three cards that hold some of the rights read and
 #   write on one file, one row for each
-# read, write: the cards that hold the right, first to last; x
-#   holds it and . does not
-# r, w: where that way of holding a right sits on an axis, in the
-#   order ... x.. xx. xxx .x. x.x .xx ..x
-# kind 0: each card within the card above it
-# kind 1: the last card holds what the middle one lacks
-# kind 2: the middle card holds what the first lacks
-# naive, core: 1 if that gate lets the chain through
+# read, write: the cards that have the right, first to last; x has
+#   it and . does not
+# r, w: the index of that placement on an axis, in the order ...
+#   x.. xx. xxx .x. x.x .xx ..x
+# kind 0: each card within its parent
+# kind 1: the last card has a right the middle one lacks
+# kind 2: the middle card has a right the first lacks
+# naive, core: 1 if that gate admits the chain
 read write  r  w  kind  naive  core
 ...  ...    0  0     0      1     1
 ..x  ...    7  0     1      0     0

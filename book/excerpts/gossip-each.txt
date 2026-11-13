@@ -1,21 +1,21 @@
 $ harbor gossip --each --runs 4000
 # 5 gates, 4000 runs, design core, seed 20261111: the round by the
-#   end of which every gate had heard
-# in a round every gate picks one other gate, and the two compare
-#   records; no exchange is lost
-# seen: the runs that took that many rounds; due: the runs the
-#   model expects to
-# share: seen / runs; exact: the chance the model gives
-# the last row stands for round 4 and every later one: alone, each
-#   later round has fewer than 5 runs due
-rounds  seen       due   share   exact
-     1    45     62.50  0.0112  0.0156
-     2  2515   2474.12  0.6288  0.6185
-     3  1356   1395.71  0.3390  0.3489
-     4    84     67.67  0.0210  0.0169
+#   end of which every gate was informed
+# in a round every gate picks one other gate, and the two exchange
+#   notices; no exchange is lost
+# observed: the runs that took that many rounds; expected: the
+#   runs the model expects to
+# share: observed / runs; exact: the probability the model gives
+# the last row is round 4 and every later one: alone, each later
+#   round has fewer than 5 runs expected
+rounds  observed  expected   share   exact
+     1        45     62.50  0.0112  0.0156
+     2      2515   2474.12  0.6288  0.6185
+     3      1356   1395.71  0.3390  0.3489
+     4        84     67.67  0.0210  0.0169
 # chi-square 10.65 on 3 degrees of freedom: the sum over the rows
-#   of (seen - due)^2 / due
-# when runs follow the model, a figure this large or larger comes
-#   up once in 72 tries
-# once in 100 tries was set beforehand as the mark of a fit to
-#   look into; harbor fits makes this fit for other seeds
+#   of (observed - expected)^2 / expected
+# p = 0.0138: the probability of a chi-square this large or larger
+#   when the runs follow the model
+# the significance level, set in advance, is 0.01; harbor fits
+#   repeats this fit for other seeds

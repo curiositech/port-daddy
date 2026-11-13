@@ -1,10 +1,11 @@
 $ harbor spread
-# rounds until news that starts at one gate has reached the
-#   others, worked out exactly
-# in a round every gate picks one other gate, and the two compare
-#   records; no exchange is lost
-# all: the expected rounds until every gate has heard
-# one: the expected rounds until a gate named beforehand has heard
+# rounds until a revocation that starts at one gate has reached
+#   the others, computed exactly
+# in a round every gate picks one other gate, and the two exchange
+#   notices; no exchange is lost
+# all: the expected rounds until every gate is informed
+# one: the expected rounds until one gate named in advance is
+#   informed
 # the same numbers follow as fractions, where a fraction is short
 #   enough to print
 gates     all     one
@@ -22,5 +23,5 @@ gates     all     one
 # 5 gates: all 76367/32258, one 216557/129032
 # each doubling of the gates, from 2 to 64, adds 1.02, 1.10, 1.03,
 #   0.95, 0.89 rounds to all
-# log3 D + log2 ln D, the growth proved for many gates D, is under
+# log3 D + log2 ln D, the growth proved for many gates D, is below
 #   all by 0.28, 0.17, 0.16, 0.16, 0.15 for 4 to 64 gates

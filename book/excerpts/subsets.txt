@@ -1,0 +1,19 @@
+$ harbor subsets
+every set of cards of a chain of three that can be revoked, and
+  whether the holder of the third is still admitted
+
+revoked     last-card  core
+none        admitted   admitted
+1           ADMITTED   refused
+2           ADMITTED   refused
+1 2         ADMITTED   refused
+3           refused    refused
+1 3         refused    refused
+2 3         refused    refused
+1 2 3       refused    refused
+
+of the 7 sets with a revoked card, 3 are still admitted at the
+  last-card gate, and 0 at the core's
+
+a card's number is its position in the chain, the harbor's card
+  first
