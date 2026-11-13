@@ -1,0 +1,3 @@
+type: changed
+
+- **Chapter 8's worked example is now the checkout repair.** Chapters 0 to 7 follow one job: Alice's team repairs Bob's checkout. Chapter 8 opened with that job and then worked its example with two robotics firms. The example is now the job itself. Bob accepts the repair only if his payment tests pass against a staging copy of the checkout's database, on a server that Carol operates. Heron, one of Alice's workers, runs the migration there. The joining example, the worked example and its figure, the late-signal example, the witness-log build and the exercises all use this cast. The roots that the witness-log runs print changed with the names of the events, and every run was recorded again. The Book is still 1,270 pages.

@@ -1540,7 +1540,7 @@
   item: "Ch. 8 repairs: worked-example figure no longer has escrow adjudicate"
   file: book/figures/fig-fh-worked-example.tex
   before: "Escrow adjudicates under the signed acceptance policy"
-  after: "the escrow, as custodian, pays the cleanup cost to Beta"
+  after: "the escrow, as custodian, pays the cleanup cost to Bob"
   source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
 - id: fh-22
   item: "Ch. 8 repairs: Listing 8.4 verifies nothing; say so"

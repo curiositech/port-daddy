@@ -200,8 +200,8 @@ own fixes none of these.
 
 This is the \pdterm{two-machine problem}: permission, knowledge of revocations
 and collectible funds do not cross from one owner's machine to another's on
-their own, and they do not cross together. We first set up a robotics case that
-names the resources and owners. Then we develop local acceptance, revocation,
+their own, and they do not cross together. We first set out the staging test
+of the checkout repair, and name its resources and their owners. Then we develop local acceptance, revocation,
 evidence comparison and settlement, and return to that case to check the whole
 protocol. The scenarios are constructed; none describes a deployment.
 
@@ -221,20 +221,20 @@ has been checked against.
 
 \section{A staging task with three owners}\label{sec:fh-ex-setup}
 
-For this constructed case, take two organizations: Acme Robotics (Alice's employer) and Beta Vision (Bob's employer). The shared project is a perception-and-control stack. Acme owns the controller, Beta owns the vision system, and both run against a shared staging environment on a third machine that neither maintains.
+This constructed case is the job the Book began with. Bob owns the checkout repository, and Alice's team has a candidate repair for it. Bob accepts the repair only if his payment tests pass against a staging copy of the checkout's database. That copy runs on a third machine, which Carol operates and which neither Alice nor Bob maintains.
 
-Three machines, three harbors: Alice's laptop (harbor $A$, controller code, controller test database), Bob's laptop (harbor $B$, vision code, vision test database), and the staging server (harbor $S$, shared staging database, no agents resident).
+Three machines, three harbors: Alice's machine (harbor $A$, her team's worktrees and a test database), Bob's machine (harbor $B$, the checkout repository and its payment tests), and Carol's staging server (harbor $S$, the staging database, no agents resident).
 
-Each harbor joined the federation through the sponsored ceremony of \S\ref{sec:fh-admission}, in which an existing member, the sponsor, posts a bond that is lost if the newcomer misbehaves. A partner harbor at the open-source consortium that hosts the staging server sponsored Acme; Acme in turn sponsored Beta through a six-month probation and reviewed the
-evidence Beta kept. In this constructed policy, Beta then met the graduation
-criteria and funded its own coverage before Acme's sponsorship ended. The consortium sponsored the staging server's harbor directly, and this example treats that harbor as an honest verifier.
+Each harbor joined the federation through the sponsored ceremony of \S\ref{sec:fh-admission}, in which an existing member, the sponsor, posts a bond that is lost if the newcomer misbehaves. Carol's harbor was a member before the other two, and it sponsored Bob's. Bob's in turn sponsored Alice's through a six-month probation and reviewed the
+evidence Alice's harbor kept. In this constructed policy, Alice's harbor then met the graduation
+criteria and funded its own coverage before Bob's sponsorship ended. This example treats Carol's harbor as an honest verifier.
 
 \subsection{The agent task}\label{sec:fh-ex-task}
 
-Acme's agent, Controller-7, needs to run a schema migration on the staging database to add a column for a new sensor type. The migration is destructive (it drops and recreates the column); if it goes wrong, the staging database is unusable for the joint demo three hours later.
+Heron, one of Alice's workers, needs to run a schema migration on the staging database. The repair stores the amount charged for each order in one column, and the migration changes that column's type. The migration is destructive (it drops and recreates the column); if it goes wrong, the staging database is unusable for Bob's acceptance test three hours later.
 
-Controller-7's local card $C_A$ authorizes \texttt{db:migrate} against the controller test database, narrowed by Acme's risk policy ($\mathrm{att}_A$ = ``only against tables in the \texttt{controller} schema; only between 9am and 5pm; only if a human operator has approved within the last 30 minutes''). The card is valid at $A$, but the database it needs to migrate is at $S$.
-These are different resources. The test-database card shows that Controller-7
+Heron's local card $C_A$ authorizes \texttt{db:migrate} against Alice's test database, narrowed by Alice's risk policy ($\mathrm{att}_A$ = ``only against tables in the \texttt{checkout} schema; only between 9am and 5pm; only if a human operator has approved within the last 30 minutes''). The card is valid at $A$, but the database it needs to migrate is at $S$.
+These are different resources. The test-database card shows that Heron
 may ask; it gives no authority over staging. Before the task, $S$ must publish a
 local policy that maps this kind of $A$-issued request to a separately
 authorized staging grant, and the policy's identifier and version go into the
@@ -331,17 +331,17 @@ A witness log $W$ meets the Federated Harbor's requirements if it provides:
 \end{pdclaim}
 \begin{pdexample}{An Epoch Root, Its Proofs, and an Equivocation}
 \setlength{\parskip}{4pt plus 1pt}
-This is a constructed example. In epoch~7 Acme's harbor $A$ records four card events: $\ell_1$ issues $C_A$ to Controller-7; $\ell_2$ narrows $C_A$ to the \texttt{controller} schema; $\ell_3$ issues a second card $T$; $\ell_4$ revokes $T$. Hash each event, $h_i=H(\ell_i)$, then hash pairs upward:
+This is a constructed example. In epoch~7 Alice's harbor $A$ records four card events: $\ell_1$ issues $C_A$ to Heron; $\ell_2$ narrows $C_A$ to the \texttt{checkout} schema; $\ell_3$ issues a second card $T$; $\ell_4$ revokes $T$. Hash each event, $h_i=H(\ell_i)$, then hash pairs upward:
 \[
 R_A^{(7)}=H\bigl(H(h_1,h_2),\,H(h_3,h_4)\bigr).
 \]
-Acme signs that one value and posts it to the witness log.
+$A$ signs that one value and posts it to the witness log.
 
-\emph{Inclusion.} To show that $\ell_4$ (revoke $T$) is recorded, Acme hands an auditor two hashes, $h_3$ and $H(h_1,h_2)$. The auditor computes $H(h_3,h_4)$, then $H\bigl(H(h_1,h_2),H(h_3,h_4)\bigr)$, and compares the result with the signed $R_A^{(7)}$.
+\emph{Inclusion.} To show that $\ell_4$ (revoke $T$) is recorded, $A$ hands an auditor two hashes, $h_3$ and $H(h_1,h_2)$. The auditor computes $H(h_3,h_4)$, then $H\bigl(H(h_1,h_2),H(h_3,h_4)\bigr)$, and compares the result with the signed $R_A^{(7)}$.
 
-\emph{Consistency.} In epoch~8 Acme appends $\ell_5$, which revokes $C_A$, and posts $R_A^{(8)}=H(R_A^{(7)},h_5)$. The consistency proof is the single hash $h_5$. An auditor who kept $R_A^{(7)}$ checks that $H(R_A^{(7)},h_5)$ equals the signed $R_A^{(8)}$, which shows that the four epoch-7 events are still there, unchanged and in order.
+\emph{Consistency.} In epoch~8 $A$ appends $\ell_5$, which revokes $C_A$, and posts $R_A^{(8)}=H(R_A^{(7)},h_5)$. The consistency proof is the single hash $h_5$. An auditor who kept $R_A^{(7)}$ checks that $H(R_A^{(7)},h_5)$ equals the signed $R_A^{(8)}$, which shows that the four epoch-7 events are still there, unchanged and in order.
 
-\emph{Equivocation.} Suppose Acme shows Beta's auditor one signed $R_A^{(8)}$ and the staging server's auditor a different signed $R_A^{(8)}$. Each signature verifies on its own, and any auditor who holds both holds proof that Acme signed two histories for one epoch.
+\emph{Equivocation.} Suppose $A$ shows Bob's auditor one signed $R_A^{(8)}$ and Carol's auditor a different signed $R_A^{(8)}$. Each signature verifies on its own, and any auditor who holds both holds proof that $A$ signed two histories for one epoch.
 \end{pdexample}
 The five witness-log requirements above have the same shape as the five required properties of the key-management service in \pdchapref{bonded}{The Bonded Commons}. As there, the requirements are stated apart from any construction that might meet them. Section~\ref{sec:fh-formal} sketches one construction, built on Certificate Transparency-style append-only logs~\pdcite{laurie2013ct} that witness one another in the Sigstore/Rekor pattern~\pdcite{newman2022sigstore}; other constructions could meet the same list.
 
@@ -1035,16 +1035,16 @@ contractual responsibility for a bounded initial exposure, putting up a bond
 and so gaining a reason to investigate the entrant. Sponsorship moves the risk
 onto the sponsor; it neither sets a fair price nor shows the newcomer is safe.
 
-\begin{pdexample}{Beta's Six Months, Traced through the Ceremony}
+\begin{pdexample}{Alice's Six Months, Traced through the Ceremony}
 \setlength{\parskip}{4pt plus 1pt}
-The robotics case in \S\ref{sec:fh-ex-setup} supplies a concrete example. Beta Vision had no reputation in the consortium, so Acme, an existing member, posted the sponsor bond on Beta's behalf.
+The checkout case in \S\ref{sec:fh-ex-setup} supplies a concrete example. Alice's harbor had no reputation in the federation, so Bob's, an existing member, posted the sponsor bond on its behalf.
 
-Beta then operated under probation for six months: its cards were accepted and its evidence trail was witness-logged, but it was Acme's bond, not Beta's own standing, that would have been forfeit had Beta forged a signature, equivocated on a root, or refused a settled bond during that window.
+Alice's harbor then operated under probation for six months: its cards were accepted and its evidence trail was witness-logged, but it was Bob's bond, not the harbor's own standing, that would have been forfeit had it forged a signature, equivocated on a root, or refused a settled bond during that window.
 
-Acme's risk officer spent the same six months watching Beta's evidence trail closely, per \S\ref{sec:fh-ex-setup}, before the joint work traced in \S\ref{sec:fh-worked-example} takes place.
+Bob spent the same six months watching the harbor's evidence trail closely, per \S\ref{sec:fh-ex-setup}, before the repair traced in \S\ref{sec:fh-worked-example} takes place.
 
-In this constructed run, the consortium's declared graduation test accepts
-the six-month record and Beta posts its own funded bond before Acme's is
+In this constructed run, the federation's declared graduation test accepts
+the six-month record and Alice posts her own funded bond before Bob's is
 released. Six quiet months alone do not statistically establish low risk.
 
 That is all four items of the ceremony below, in order, under a declared illustrative probation policy.
@@ -1088,7 +1088,7 @@ of concurrent jobs. Several witness logs give independent inspection only if the
 \section{Worked Example}\label{sec:fh-worked-example}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The four protocols are easier to follow in a concrete case. We work the robotics example end to end: two organizations, three machines, one shared project. The example is deliberately ordinary; only the way the protocols combine is new.
+The four protocols are easier to follow in a concrete case. We work the checkout case of \S\ref{sec:fh-ex-setup} end to end, across its three harbors. The example is deliberately ordinary; only the way the protocols combine is new.
 
 Figure~\ref{fig:fh-worked-example} shows the joining precondition and the
 whole incident end to end across the three harbors, escrow, and witness log,
@@ -1099,13 +1099,13 @@ in the subsections below.
 
 \subsection{Step 1: Cross-harbor transfer}\label{sec:fh-ex-xfer}
 
-Controller-7 invokes $\mathsf{xfer\_req}(C_A, S)$ on $D_A$. $D_A$ constructs the envelope:
+Heron invokes $\mathsf{xfer\_req}(C_A, S)$ on $D_A$. $D_A$ constructs the envelope:
 
 \[
 \mathsf{xfer\_offer}\langle \mathit{xid}, S, \bar{C}_A, \mathrm{map}_{A\to S}, R_A^{(e_A)} \rangle \;\;\text{signed under}\;\; \mathit{sk}_A,
 \]
 
-and sends it to $D_S$ (the staging-server harbor). The attestation $\bar{C}_A$ names Controller-7's key as holder; $C_A$ itself stays on Alice's laptop. $D_S$ verifies the signature against $A$'s public key as recorded in the witness log, checks that the envelope names $S$ and an unused $\mathit{xid}$, checks $R_A^{(e_A)}$ against the latest root for $A$ that it has accepted, and applies its own narrowing $\mathrm{att}_S$ (``only the \texttt{controller} schema; only after a backup snapshot has been taken; only if no other migration is in flight''). Here the destination is a different database, so $D_S$ performs a token
+and sends it to $D_S$ (Carol's staging harbor). The attestation $\bar{C}_A$ names Heron's key as holder; $C_A$ itself stays on Alice's machine. $D_S$ verifies the signature against $A$'s public key as recorded in the witness log, checks that the envelope names $S$ and an unused $\mathit{xid}$, checks $R_A^{(e_A)}$ against the latest root for $A$ that it has accepted, and applies its own narrowing $\mathrm{att}_S$ (``only the \texttt{checkout} schema; only after a backup snapshot has been taken; only if no other migration is in flight''). Here the destination is a different database, so $D_S$ performs a token
 exchange: it accepts $A$'s card as evidence and issues a new local grant under
 the pre-agreed resource mapping. The grant keeps the restrictions from $A$ and
 adds $S$'s, without claiming that staging operations are a subset of
@@ -1113,13 +1113,13 @@ test-database operations. It records the parent card's identifier, the mapping v
 expiry, and its dependency on the parent's revocation status.
 Design Invariant~\ref{inv:fh-transfer} bounds the grant through $\mathrm{map}_{A\to S}$; Theorem~\ref{lem:fh-att} does not apply, because the two cards name different resources.
 
-$D_S$ delivers $C_S'$, bound to Controller-7's key, to Controller-7, which proves possession of that key each time it presents the grant. Controller-7 takes the snapshot, then runs the migration against $S$. The migration's actions are recorded in $S$'s harbor log and roll up into $R_S^{(e_S)}$.
+$D_S$ delivers $C_S'$, bound to Heron's key, to Heron, which proves possession of that key each time it presents the grant. Heron takes the snapshot, then runs the migration against $S$. The migration's actions are recorded in $S$'s harbor log and roll up into $R_S^{(e_S)}$.
 
 \subsection{Step 2: Damage detection}\label{sec:fh-ex-damage}
 
-The migration runs cleanly. Two hours later, well after the agent has moved on, Beta's vision system runs an integration test against the staging database and observes that the new column has the wrong type (Acme assumed \texttt{float32}; Beta needs \texttt{float64} for the sensor data they will produce). The integration test fails.
+The migration runs cleanly. Two hours later, well after Heron has moved on, Bob's payment tests run against the staging database and find that the column has the wrong type. Alice's team assumed \texttt{real}, a 32-bit float. Bob's tests need \texttt{numeric}, an exact decimal, because sums of money must agree to the cent. An integration test fails.
 
-$D_B$ (Beta's harbor) verifies the failure against its local invariants and produces a damage claim:
+$D_B$ (Bob's harbor) verifies the failure against its local invariants and produces a damage claim:
 
 \[
 \mathsf{cl}_B = (R_S^{(e_S)}, R_B^{(e_B)}, \mathrm{evidence}),
@@ -1127,24 +1127,24 @@ $D_B$ (Beta's harbor) verifies the failure against its local invariants and prod
 
 where the evidence binds the migration records and the base and result
 snapshots, which sit under the staging root $R_S^{(e_S)}$, and the failed test
-receipt, exact work item and acceptance policy, which sit under Beta's root
-$R_B^{(e_B)}$. Merkle inclusion authenticates those records; causation and whether \texttt{float64} was promised remain
+receipt, exact work item and acceptance policy, which sit under Bob's root
+$R_B^{(e_B)}$. Merkle inclusion authenticates those records; causation and whether \texttt{numeric} was promised remain
 questions for the agreed adjudication rule. The claim is sent to the escrow.
 
 \subsection{Step 3: Settlement}\label{sec:fh-ex-settle}
 
-Acme posted a bond when Controller-7 was authorized to run the migration. The bond is held in the federation escrow with a lifetime (TTL) of 24 hours, long enough for downstream consequences to surface and short enough not to lock collateral indefinitely. Its signed terms list Beta as the beneficiary, name an adjudicator, and name the staging and Beta harbors as holders of evidence; they are recorded under the roots of all three harbors. Three parties now meet in one settlement: Acme posted, the staging harbor holds the migration records, and Beta claims.
+Alice posted a bond when Heron was authorized to run the migration. The bond is held in the federation escrow with a lifetime (TTL) of 24 hours, long enough for downstream consequences to surface and short enough not to lock collateral indefinitely. Its signed terms list Bob as the beneficiary and name an adjudicator. They also name Carol's and Bob's harbors as holders of evidence, and they are recorded under the roots of all three harbors. Three parties now meet in one settlement: Alice posted, Carol's harbor holds the migration records, and Bob claims.
 
 The escrow, as custodian, verifies $\mathsf{cl}_B$: it checks the two inclusion proofs against $R_S^{(e_S)}$ and $R_B^{(e_B)}$ in the witness log, matches the claim against the acceptance preconditions signed at bond-post time (which named the staging schema as a covered surface), and checks the ruling of the adjudicator those terms named. For this branch assume the
-contract explicitly required \texttt{float64} and the bound evidence
+contract explicitly required \texttt{numeric} and the bound evidence
 establishes the unauthorized type change. The ruling authorizes \emph{clear}.
 Had that requirement been absent, a failed integration test alone would not
-justify the same ruling. Acme's bond is debited; Beta receives the cleanup-cost portion; the remainder is refunded to Acme. The settlement record is written to the witness log. Had the claim asked for payment to a party the terms did not list, the custodian would have had no move that makes it.
+justify the same ruling. Alice's bond is debited; Bob receives the cleanup-cost portion; the remainder is refunded to Alice. The settlement record is written to the witness log. Had the claim asked for payment to a party the terms did not list, the custodian would have had no move that makes it.
 
 \subsection{Step 4: Revocation propagation}\label{sec:fh-ex-revocation}
 
-At this point, Acme's risk officer revokes Controller-7's \texttt{db:migrate}
-card and publishes its next root $R_A^{(e_A+1)}$. Staging refuses the derivative after receiving
+At this point, Alice revokes Heron's \texttt{db:migrate}
+card, and her harbor publishes its next root $R_A^{(e_A+1)}$. Staging refuses the derivative after receiving
 and enforcing that parent revocation. The three-harbor calculation in
 \S\ref{sec:fh-revocation} illustrates dissemination under reliable rounds;
 it supplies no deadline for this incident during a partition.
@@ -1361,9 +1361,9 @@ A signed root proves what was committed, not who has received it or what each pa
 
 \begin{pdexample}{A Traffic Light That Arrives Late}
 \setlength{\parskip}{4pt plus 1pt}
-This is a constructed example. Acme and Beta each want to migrate the shared staging database this hour. Running alone pays $+3$ to the runner and $0$ to the one who waits; if both run, each gets $-5$; if neither runs, each gets $0$. A mediator flips a fair coin and posts ``Acme goes'' or ``Beta goes''. Told to go, a harbor earns $+3$ by obeying and $0$ by waiting; told to wait, it earns $0$ by obeying and $-5$ by running. Both obey.
+This is a constructed example. Alice's harbor and Bob's each want to migrate the staging database this hour. Running alone pays $+3$ to the runner and $0$ to the one who waits; if both run, each gets $-5$; if neither runs, each gets $0$. A mediator flips a fair coin and posts ``Alice goes'' or ``Bob goes''. Told to go, a harbor earns $+3$ by obeying and $0$ by waiting; told to wait, it earns $0$ by obeying and $-5$ by running. Both obey.
 
-Now let Beta see the posted root one epoch late, while the mediator posts a fresh recommendation every epoch. Beta was told to go last epoch. If $p$ is Beta's belief that a newer ``Acme goes'' has been posted, running is worth $3(1-p)-5p=3-8p$ to Beta and waiting is worth $0$, so Beta runs only if $p<3/8$. With a fresh fair coin $p=1/2$ whatever Beta was told, so Beta always waits. Acme, told to wait, then earns $+3$ by running instead of $0$, so the late signal stops binding Acme as well.
+Now let Bob's harbor see the posted root one epoch late, while the mediator posts a fresh recommendation every epoch. Bob's harbor was told to go last epoch. If $p$ is its belief that a newer ``Alice goes'' has been posted, running is worth $3(1-p)-5p=3-8p$ to it and waiting is worth $0$, so it runs only if $p<3/8$. With a fresh fair coin $p=1/2$ whatever it was told, so it always waits. Alice's harbor, told to wait, then earns $+3$ by running instead of $0$, so the late signal stops binding Alice's harbor as well.
 \end{pdexample}
 
 \subsection{Trustless settlement for non-fungible bonds}\label{sec:fh-lim-trustless}
@@ -1442,7 +1442,7 @@ What to carry away from this chapter:
 \pdexercisesfor{\S\ref{sec:fh-log}}{Build the layer: a witness log}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:fh-log-third}
-Acme publishes three different roots for epoch~8 to one log of
+Harbor $A$ publishes three different roots for epoch~8 to one log of
 \S\ref{sec:fh-log}, one after another. Use
 Listings~\ref{alg:fh-log-publish} and~\ref{alg:fh-log-second} to say what
 the log holds after each. In an exchange, which of the three does the log
@@ -1461,7 +1461,7 @@ proof.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-log-count}
-Take two logs that ask the core, and only Acme's two roots for epoch~8.
+Take two logs that ask the core, and only $A$'s two roots for epoch~8.
 Either root may be published to either log, in any order and any number
 of times. List the states one log can be in, and count the states of the
 two logs together. In how many of them do the logs hold different roots?
@@ -1484,60 +1484,59 @@ counts the same columns for three logs and five roots.
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-log-epoch}
 Suppose a harbor signed only its key and its root, and sent the epoch
-beside the signature. Acme signs one root for each epoch, as in
+beside the signature. Harbor $A$ signs one root for each epoch, as in
 Listing~\ref{alg:fh-log-run-outsider}. What does Wren publish to make
-log~1 hold evidence against Acme? Which check of
+log~1 hold evidence against $A$? Which check of
 Listing~\ref{alg:fh-log-evidence} then passes when it should not, and
 which model of Listing~\ref{alg:fh-log-models} is this?
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-log-epoch}
-Acme's root for epoch~7 is the hash of its four events, and under this
-scheme its signature covers that hash and Acme's key. Wren copies the
+$A$'s root for epoch~7 is the hash of its four events, and under this
+scheme its signature covers that hash and $A$'s key. Wren copies the
 signed root, changes the epoch beside it from 7 to 8, and publishes it to
-log~1, which already holds Acme's real root for epoch~8. The signature
+log~1, which already holds $A$'s real root for epoch~8. The signature
 still verifies, because the epoch is not part of what was signed. The log
-now has a second, different root for Acme's epoch~8 with a valid
+now has a second, different root for $A$'s epoch~8 with a valid
 signature, and it holds the two as evidence. Every check of
 \texttt{proves} passes. The check of the epoch passes wrongly: it
 compares two epochs that Wren wrote. The model is
 \texttt{no-epoch-in-the-text.pv}, in which an auditor accepts evidence
-against Beta. With the epoch inside the signed text, the relabelled root
+against Bob's harbor. With the epoch inside the signed text, the relabelled root
 fails \texttt{signed}, and the kernel has a test of exactly this.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:fh-log-rewrite}
-In epoch~9 Acme publishes a root over $\ell_1$, $\ell_2$, $\ell_3$ and one
+In epoch~9 $A$ publishes a root over $\ell_1$, $\ell_2$, $\ell_3$ and one
 new event. Both revocations are gone from the list. Why does the log of
 \S\ref{sec:fh-log} record this root? An auditor has kept $R_A^{(8)}$.
 Using the example of \S\ref{sec:fh-witness}, say what proof the auditor
-would ask Acme for. What would that proof be if Acme had honestly
-appended a sixth event, and why can Acme not supply one for the list it
-published?
+would ask $A$ for. What would that proof be if $A$ had honestly appended
+a sixth event, and why can $A$ not supply one for the list it published?
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-log-rewrite}
-It is the first root the log has been given for Acme's epoch~9, and
+It is the first root the log has been given for $A$'s epoch~9, and
 \texttt{publish} looks up a root by harbor and epoch. It never compares
 the roots of two epochs. The auditor would ask for a consistency proof: a
 few hashes from which it can compute both $R_A^{(8)}$, which it kept, and
-the new $R_A^{(9)}$. Had Acme appended a sixth event with hash $h_6$, the
+the new $R_A^{(9)}$. Had $A$ appended a sixth event with hash $h_6$, the
 new root would be $H\bigl(R_A^{(7)},H(h_5,h_6)\bigr)$. The proof would be
 $R_A^{(7)}$ together with the two leaf hashes $h_5$ and $h_6$. The
 auditor would check that $H(R_A^{(7)},h_5)$ is the root it kept, and that
-the same hashes give the new root. The root Acme published is $H\bigl(H(h_1,h_2),H(h_3,h')\bigr)$
+the same hashes give the new root. The root $A$ published is $H\bigl(H(h_1,h_2),H(h_3,h')\bigr)$
 for the new event's hash $h'$. No hashes rebuild both that root and
 $R_A^{(8)}$ unless two different inputs to $H$ have the same hash, so
-Acme has no proof to give, and the auditor has caught the rewrite.
+$A$ has no proof to give, and the auditor has caught the rewrite.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-log-withhold}
 \emph{A log that keeps its evidence back.} The boundary of
 \S\ref{sec:fh-log} says an auditor cannot tell when a log holds a pair
-and shows one root. Why does Acme's signature on that root not help the
+and shows one root. Why does $A$'s signature on that root not help the
 auditor? What would the log have to sign for the log itself to be caught,
 and who would have to compare what?
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-log-withhold}
-Acme's signature shows that Acme signed the root the auditor was shown.
+$A$'s signature shows that $A$ signed the root the auditor was shown.
 It says nothing about what else the log holds. To be caught, the log has
 to commit to all of its contents each time it answers. It signs a head:
 one hash over every entry it holds. Two auditors who are shown different
@@ -1548,8 +1547,8 @@ exchange the heads they were given, which is the fork consistency of
 Design invariant~\ref{prop:fh-witness}. They also need the consistency
 proof of Exercise~\ref{ex:fh-log-rewrite}, to decide whether one head
 extends another. Signed heads do not catch a log that shows every auditor
-the same contents with the pair left out. Someone else who holds Acme's
-second root can prove that Acme equivocated. That does not prove the log
+the same contents with the pair left out. Someone else who holds $A$'s
+second root can prove that $A$ equivocated. That does not prove the log
 ever received the root, because an honest log that was never sent it
 looks the same. To be caught at this, the log would also have to sign a
 receipt for each root it accepts, as a Certificate Transparency log signs
@@ -1639,10 +1638,10 @@ so both-$\mathsf{ret}$ and both-$\mathsf{del}$ remain possible without other pin
 \pdexercisesfor{\S\ref{sec:fh-settlement}}{Cross-Harbor Settlement}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:fh-three-party-settlement}
-In the worked example (\S\ref{sec:fh-ex-settle}), take $b_\alpha=\$100$, an adjudicated cleanup cost of \$30, and an escrow fee of \$4 under a cap $\phi=\$5$. Name the custodian, the adjudicator and the beneficiary, and say whose root holds the migration records and whose holds the failed test. Give the payments on clearance and the bond's lifecycle row. What does the custodian do if Beta's claim asks for \$10 of the payment to go to Beta's contractor, whom the bond's terms do not list?
+In the worked example (\S\ref{sec:fh-ex-settle}), take $b_\alpha=\$100$, an adjudicated cleanup cost of \$30, and an escrow fee of \$4 under a cap $\phi=\$5$. Name the custodian, the adjudicator and the beneficiary, and say whose root holds the migration records and whose holds the failed test. Give the payments on clearance and the bond's lifecycle row. What does the custodian do if Bob's claim asks for \$10 of the payment to go to Bob's consultant, whom the bond's terms do not list?
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-three-party-settlement}
-The federation escrow is the custodian, the adjudicator is the one the bond's signed terms name, and Beta is the listed beneficiary. The migration records sit under the staging root $R_S^{(e_S)}$ and the failed test under Beta's root $R_B^{(e_B)}$, so the claim carries an inclusion proof against each. Clearance pays Beta \$30 and the fee recipient \$4 and refunds \$66 to Acme; the payments sum to \$100. The lifecycle row is $(0,0,100,0)$: the whole bond is cleared, and the \$66 refund belongs to the clearance, not to a second lifecycle entry. The custodian has no move that pays an unlisted party, so it cannot pay the contractor. It can clear to the listed recipients, and Beta then pays its contractor itself.
+The federation escrow is the custodian, the adjudicator is the one the bond's signed terms name, and Bob is the listed beneficiary. The migration records sit under the staging root $R_S^{(e_S)}$ and the failed test under Bob's root $R_B^{(e_B)}$, so the claim carries an inclusion proof against each. Clearance pays Bob \$30 and the fee recipient \$4 and refunds \$66 to Alice; the payments sum to \$100. The lifecycle row is $(0,0,100,0)$: the whole bond is cleared, and the \$66 refund belongs to the clearance, not to a second lifecycle entry. The custodian has no move that pays an unlisted party, so it cannot pay the consultant. It can clear to the listed recipients, and Bob then pays his consultant himself.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:fh-formal}}{Formal Model}

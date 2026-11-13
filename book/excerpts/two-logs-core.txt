@@ -2,25 +2,25 @@ $ harbor scenario two-logs --design core
 scenario two-logs, design core: a harbor publishes one root for an
   epoch to each of two logs
 
-step 1   acme    publishes its root for epoch 8 to log 1: 5 events
-                 -> recorded
-step 2   acme    publishes another root for epoch 8 to log 2: 4
-                 events
-                 -> recorded
-step 3   beta    audits acme's epoch 8 at log 1
-                 -> root 3c657ada, and acme's 5 events hash to it.
-                    C_A is revoked
-step 4   staging audits acme's epoch 8 at log 2
-                 -> root 38936ba2, and acme's 4 events hash to it.
-                    C_A is not revoked
-step 5   logs    log 1 and log 2 exchange the roots they hold
-                 -> each now holds evidence that acme equivocated
-step 6   beta    audits acme's epoch 8 at log 1
-                 -> evidence that acme signed two roots for it,
-                    3c657ada and 38936ba2. Both signatures verify
-step 7   staging audits acme's epoch 8 at log 2
-                 -> evidence that acme signed two roots for it,
-                    38936ba2 and 3c657ada. Both signatures verify
+step 1   alice  publishes a root for epoch 8 to log 1: 5 events
+                -> recorded
+step 2   alice  publishes another root for epoch 8 to log 2: 4
+                events
+                -> recorded
+step 3   bob    audits alice's epoch 8 at log 1
+                -> root 408dc067, and alice's 5 events hash to it.
+                   C_A is revoked
+step 4   carol  audits alice's epoch 8 at log 2
+                -> root e88dca6c, and alice's 4 events hash to it.
+                   C_A is not revoked
+step 5   logs   log 1 and log 2 exchange the roots they hold
+                -> each now holds evidence that alice equivocated
+step 6   bob    audits alice's epoch 8 at log 1
+                -> evidence that alice signed two roots for it,
+                   408dc067 and e88dca6c. Both signatures verify
+step 7   carol  audits alice's epoch 8 at log 2
+                -> evidence that alice signed two roots for it,
+                   e88dca6c and 408dc067. Both signatures verify
 
-verdict: both logs hold evidence that acme signed two roots for
+verdict: both logs hold evidence that alice signed two roots for
          epoch 8, and both auditors have checked it

@@ -2,35 +2,34 @@ $ harbor scenario false-evidence --design core
 scenario false-evidence, design core: an outsider tries to make it
   look as if a harbor signed two roots for one epoch
 
-step 1   acme    publishes its root for epoch 7 to log 1: 4 events
-                 -> recorded
-step 2   acme    publishes its root for epoch 8 to log 1: 5 events
-                 -> recorded
-step 3   beta    publishes its root for epoch 8 to log 1: 3 events
-                 -> recorded
-step 4   wren    publishes a root for acme's epoch 8, signed with
-                 her own key
-                 -> refused: root-not-signed (the root is not
-                    signed with the key of the harbor it names)
-step 5   wren    publishes acme's root for epoch 8 again
-                 -> known: log 1 already holds this root
-step 6   wren    shows staging acme's root for epoch 8 and the
-                 root she signed
-                 -> refused: root-not-signed (the root is not
-                    signed with the key of the harbor it names)
-step 7   wren    shows staging acme's roots for epochs 7 and 8
-                 -> refused: other-epoch (the two roots are for
-                    different epochs)
-step 8   wren    shows staging acme's root and beta's root for
-                 epoch 8
-                 -> refused: other-harbor (the two roots name
-                    different harbors)
-step 9   wren    shows staging acme's root for epoch 8 twice
-                 -> refused: same-root (the two roots are the same
-                    root)
-step 10  staging audits acme's epoch 8 at log 1
-                 -> root 3c657ada, and acme's 5 events hash to it.
-                    C_A is revoked
+step 1   alice  publishes a root for epoch 7 to log 1: 4 events
+                -> recorded
+step 2   alice  publishes a root for epoch 8 to log 1: 5 events
+                -> recorded
+step 3   bob    publishes a root for epoch 8 to log 1: 3 events
+                -> recorded
+step 4   wren   publishes a root for alice's epoch 8, signed with
+                her own key
+                -> refused: root-not-signed (the root is not
+                   signed with the key of the harbor it names)
+step 5   wren   publishes alice's root for epoch 8 again
+                -> known: log 1 already holds this root
+step 6   wren   shows carol alice's root for epoch 8 and the root
+                she signed
+                -> refused: root-not-signed (the root is not
+                   signed with the key of the harbor it names)
+step 7   wren   shows carol alice's roots for epochs 7 and 8
+                -> refused: other-epoch (the two roots are for
+                   different epochs)
+step 8   wren   shows carol alice's root and bob's for epoch 8
+                -> refused: other-harbor (the two roots name
+                   different harbors)
+step 9   wren   shows carol alice's root for epoch 8 twice
+                -> refused: same-root (the two roots are the same
+                   root)
+step 10  carol  audits alice's epoch 8 at log 1
+                -> root 408dc067, and alice's 5 events hash to it.
+                   C_A is revoked
 
 verdict: nothing wren sent was recorded, and nothing she showed
-         was accepted as evidence against acme
+         was accepted as evidence against alice

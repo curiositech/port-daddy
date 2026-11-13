@@ -1,25 +1,25 @@
 $ sh formal/witness/run.sh
 any-epoch.pv
 RESULT event(Accepted(m)) ==> event(Signed(m)) is false.
-RESULT not event(Evidence(pk(beta[]))) is false.
-RESULT not event(Evidence(pk(acme[]))) is false.
+RESULT not event(Evidence(pk(bob[]))) is false.
+RESULT not event(Evidence(pk(alice[]))) is false.
 any-harbor.pv
 RESULT event(Accepted(m)) ==> event(Signed(m)) is false.
-RESULT not event(Evidence(pk(beta[]))) is false.
-RESULT not event(Evidence(pk(acme[]))) is false.
+RESULT not event(Evidence(pk(bob[]))) is false.
+RESULT not event(Evidence(pk(alice[]))) is false.
 evidence.pv
 RESULT event(Accepted(m)) ==> event(Signed(m)) is true.
-RESULT not event(Evidence(pk(beta[]))) is true.
-RESULT not event(Evidence(pk(acme[]))) is false.
+RESULT not event(Evidence(pk(bob[]))) is true.
+RESULT not event(Evidence(pk(alice[]))) is false.
 no-epoch-in-the-text.pv
 RESULT event(Accepted(m)) ==> event(Signed(m)) is false.
-RESULT not event(Evidence(pk(beta[]))) is false.
-RESULT not event(Evidence(pk(acme[]))) is false.
+RESULT not event(Evidence(pk(bob[]))) is false.
+RESULT not event(Evidence(pk(alice[]))) is false.
 one-signature.pv
 RESULT event(Accepted(m)) ==> event(Signed(m)) is false.
-RESULT not event(Evidence(pk(beta[]))) is false.
-RESULT not event(Evidence(pk(acme[]))) is false.
+RESULT not event(Evidence(pk(bob[]))) is false.
+RESULT not event(Evidence(pk(alice[]))) is false.
 same-root.pv
 RESULT event(Accepted(m)) ==> event(Signed(m)) is true.
-RESULT not event(Evidence(pk(beta[]))) is false.
-RESULT not event(Evidence(pk(acme[]))) is false.
+RESULT not event(Evidence(pk(bob[]))) is false.
+RESULT not event(Evidence(pk(alice[]))) is false.

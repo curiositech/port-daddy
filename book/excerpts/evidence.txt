@@ -1,20 +1,20 @@
 $ harbor evidence
 every pair of five signed roots, offered to the core as evidence
   that a harbor signed two roots for one epoch. The roots: one
-  that acme signs for epoch 7, two different ones it signs for
-  epoch 8, one that beta signs for its own epoch 8, and one that
-  wren signs and that names acme
+  that alice signs for epoch 7, two different ones she signs for
+  epoch 8, one that bob signs for his own epoch 8, and one that
+  wren signs and that names alice
 
-first      second:   acme-7   acme-8  acme-8'   beta-8   wren-8
-acme-7                 same    epoch    epoch   harbor unsigned
-acme-8                epoch     same      yes   harbor unsigned
-acme-8'               epoch      yes     same   harbor unsigned
-beta-8               harbor   harbor   harbor     same unsigned
+first      second:  alice-7  alice-8 alice-8'    bob-8   wren-8
+alice-7                same    epoch    epoch   harbor unsigned
+alice-8               epoch     same      yes   harbor unsigned
+alice-8'              epoch      yes     same   harbor unsigned
+bob-8                harbor   harbor   harbor     same unsigned
 wren-8             unsigned unsigned unsigned unsigned unsigned
 
 yes: the pair is accepted. unsigned: a root is not signed with the
   key of the harbor it names. harbor: the roots name two harbors.
   epoch: they are for two epochs. same: they are one root
 
-2 of the 25 pairs are accepted: the two orders of acme's two roots
-  for epoch 8
+2 of the 25 pairs are accepted: the two orders of alice's two
+  roots for epoch 8
