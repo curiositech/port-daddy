@@ -1,21 +1,18 @@
-/// The guard on a line that was not read: the first of its
-/// claims that the operator has not opened.
-fn unopened(read: &Read) -> Option<usize> {
-    if cfg!(feature = "mutant-land-unseen") {
+/// Guard: every claim on the line must have been opened.
+/// Returns the first claim that has not been.
+fn first_unopened(review: &Review) -> Option<usize> {
+    if cfg!(feature = "mutant-land-unopened") {
         return None; // MUTANT: guard removed.
     }
-    let claims = read.line.claims.iter();
-    claims
-        .enumerate()
-        .find(|at| !seen(read, *at))
-        .map(|at| at.0)
+    let mut claims = review.line.claims.iter().enumerate();
+    claims.position(|(n, claim)| !opened(review, n, &claim.sha))
 }
 
-/// The guard on what counts as opened: the claim's own hash.
-fn seen(read: &Read, (number, claim): (usize, &Claim)) -> bool {
+/// Guard: a claim counts as opened only by its own hash.
+fn opened(review: &Review, number: usize, sha: &Sha) -> bool {
     if cfg!(feature = "mutant-count-opened") {
-        // MUTANT: as many things opened as there are claims.
-        return read.opened.len() > number;
+        // MUTANT: count how many were opened, not which.
+        return review.opened.len() > number;
     }
-    read.opened.contains(&claim.sha)
+    review.opened.contains(sha)
 }

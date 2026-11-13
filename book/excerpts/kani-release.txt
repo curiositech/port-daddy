@@ -1,24 +1,24 @@
 $ sh formal/release/run.sh
-a_gate_that_reads_the_candidate_is_caught
-  fails, as it must
-a_used_slot_lets_nothing_out
+a_release_is_the_declared_bits_at_the_deadline
+  successful; its cover is satisfied
+a_used_slot_releases_nothing
   successful
-only_the_clock_lets_anything_out
+control_a_gate_that_reads_the_candidate_is_caught
+  fails, as a control should
+only_a_tick_releases_anything
   successful; its cover is satisfied
-two_rooms_with_one_declared_part_look_the_same
+two_rooms_with_the_same_declared_bits_release_the_same
   successful; its 2 covers are satisfied
-what_leaves_is_the_declared_part_when_it_is_due
-  successful; its cover is satisfied
-with one guard removed, the harnesses that fail
+the harnesses that fail when one guard is removed
 trust-candidate
-  two_rooms_with_one_declared_part_look_the_same
-  what_leaves_is_the_declared_part_when_it_is_due
+  a_release_is_the_declared_bits_at_the_deadline
+  two_rooms_with_the_same_declared_bits_release_the_same
 raw-record
-  two_rooms_with_one_declared_part_look_the_same
-  what_leaves_is_the_declared_part_when_it_is_due
+  a_release_is_the_declared_bits_at_the_deadline
+  two_rooms_with_the_same_declared_bits_release_the_same
 early-release
-  two_rooms_with_one_declared_part_look_the_same
-  what_leaves_is_the_declared_part_when_it_is_due
+  a_release_is_the_declared_bits_at_the_deadline
+  two_rooms_with_the_same_declared_bits_release_the_same
 release-twice
-  a_used_slot_lets_nothing_out
-  what_leaves_is_the_declared_part_when_it_is_due
+  a_release_is_the_declared_bits_at_the_deadline
+  a_used_slot_releases_nothing

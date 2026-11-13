@@ -1,16 +1,16 @@
-/// The clock has moved to `now`. If the slot is due and has not
-/// been used, the declared part of the record leaves.
-pub fn tick(room: &Room, now: u64) -> Passed {
+/// The clock has moved to `now`. If the slot is due and has
+/// not been used, release the declared bits of the record.
+pub fn tick(room: &Room, now: u64) -> RoomUpdate {
     if !due(room, now) || spent(room) {
-        return kept(room);
+        return unchanged(room);
     }
     let Some(from) = source(room) else {
-        return kept(room);
+        return unchanged(room);
     };
     let value = declared(room, from);
-    Passed {
+    RoomUpdate {
         used: true,
         out: Some(Release { at: now, value }),
-        ..kept(room)
+        ..unchanged(room)
     }
 }

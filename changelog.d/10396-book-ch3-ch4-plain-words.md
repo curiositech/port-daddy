@@ -1,0 +1,3 @@
+type: changed
+
+- **Chapters 3 and 4: the build sections are rewritten in plain words.** The first two "Build the layer" sections used names the Book had made up for its own code. The kernel now uses the words engineers already use, and both sections are rewritten to match, with their listings cut again from the renamed code. No number changes. Chapter 3's earlier gates are now the "submitted" and "on-request" designs, and Chapter 4's first surface is the "self-reported" one. Chapter 3's boundary gains one limit that was missing: the gate is built for a slot that releases a record's low bits, and for no other function.

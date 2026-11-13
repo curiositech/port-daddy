@@ -1,337 +1,353 @@
 % Build the layer, Chapter 3, first build: the gate of a sealed room.
 % Inserted at the end of \S\ref{sec:sealed-noninterference}, after the
 % figure of the laundering fork. That section's boundary lists one
-% extension of its model as open: a worker that hands the gate a value.
-% This builds it in the kernel's decision core, with a clock.
+% extension of its model as open: a worker that submits a value to the
+% gate. This section builds it in the kernel's decision core, with a clock.
 %
-% No code or output in this file is typed. \pdexcerpt, \pdrun and
-% \pdrunlines set files under excerpts/, which the kernel's
-% tools/excerpts.mjs cuts from its source and its recorded runs (see
-% figures/pd-listing.tex). The figure draws one of those recorded tables as
-% it was printed. To change a listing or the figure, change the kernel and
-% cut again. The prose names functions, never line numbers, so that a
-% listing which moves in its file does not make a sentence wrong.
+% No code or output in this file is typed by hand. Each listing is a file
+% under excerpts/, which the kernel's tools/excerpts.mjs cuts from its
+% source and its recorded runs (see figures/pd-listing.tex). The figure
+% plots recorded tables exactly as they were printed. To change a listing
+% or the figure, change the kernel and cut again. The prose refers to
+% functions by name and never by line number, so a listing that moves
+% within its file does not make a sentence wrong.
 %
 % \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
 % listing changes length, change the number with it.
-\subsection{Build the layer: a gate that reads the record and keeps the time}
+\subsection{Build the layer: a gate the worker cannot influence}
 \label{sec:sealed-gate}
 
-\noindent\emph{Express lane: the gate is built three times. The first
-applies the declared function to whatever the worker hands in, and a worker
-that hands in half the record sends a bit the contract never released. The
-second reads the committed record and opens when the worker asks. Its value
-is right, and the time it leaves is a message. The third works the value
-out by itself and lets the clock open the slot. A walk of two rooms as one
-system finds no state in 1,870 where Erin can tell two records of one
-parity apart, and a worker that could choose among 9 things to show her is
-left with 1.}
+\noindent\emph{Express lane: this section builds the room's gate three
+times. The first version applies the declared function to whatever value
+the worker submits, so a worker that submits half the record leaks a bit
+the contract never released. The second version reads the committed record
+and releases when the worker asks. The value is now correct, but the
+worker chooses the time of the release, and the time carries a message.
+The third version computes the value itself and releases it at a fixed
+deadline. An exhaustive test of two rooms run side by side finds no state,
+out of 1,870, in which Erin can distinguish two records with the same
+parity. A worker that could cause 9 different outputs under the first
+version can cause only 1.}
 
-The boundary above ends on a gap. The checked model's \texttt{submit}
-carries no payload, so no mutation of it can launder, and
-Figure~\ref{fig:sealed-laundering-fork} is arithmetic and not a run.
-\pdkernelname{} builds the missing piece here: a worker that hands the gate
-a value, a gate that has to decide what to do with it, and a clock.
+The boundary above ends on a gap. In the checked model, \texttt{submit}
+carries no payload, so no mutation of that model can launder a secret, and
+Figure~\ref{fig:sealed-laundering-fork} is arithmetic that was never run.
+\pdkernelname{} builds the missing piece here: a gate that receives a
+value from the worker and has to decide what to release, and when.
 
-A \emph{room} holds one record. Derek commits it, and a worker inside reads
-it and hands the gate values. Erin sees what the gate lets out and the time
-on the room's clock when it left. The work order gives the room one
-\emph{slot}: a count of the record's low bits that may leave, and the time
-they leave (Listing~\ref{alg:sealed-gate-slot}). One low bit is the parity
-$g(s)=s\bmod 2$ of Property~\ref{thm:sealed-noninterference}.
+A \emph{room} holds one record. Derek commits it. A worker inside the room
+reads it and submits values to the gate. Erin sees what the gate releases,
+and the time on the room's clock when it was released. The work order
+gives the room one \emph{slot}, which says how many of the record's low
+bits are released and when (Listing~\ref{alg:sealed-gate-slot}). One low
+bit is the parity $g(s)=s\bmod 2$ of
+Property~\ref{thm:sealed-noninterference}.
 
 \pdlistingroom{22}
 \pdexcerpt[caption={A slot, and what the decision core is shown of a
 room.},label={alg:sealed-gate-slot}]{ch03-slot}
 
 Every run below is one room in two worlds, printed side by side. Derek's
-record is 0 in one world and 2 in the other, the pair of the example above.
-The slot declares their parity, which is 0 in both, so Erin must see the
-same thing in both columns.
+record is 0 in one world and 2 in the other, the pair from the example
+above. The slot releases their parity, which is 0 in both, so Erin must
+see the same thing in both columns.
 
-\subsubsection{Naive: the function of what is handed in}
+\subsubsection{Naive: apply the function to the submitted value}
 
-The obvious gate follows the contract's words. The worker computes a result
-and hands it in. The gate applies the declared function to it and lets that
-out through the slot, once (Listing~\ref{alg:sealed-gate-handed}).
+The obvious gate does what the contract says. The worker computes a result
+and submits it. The gate applies the declared function to that value and
+releases the result through the slot, once
+(Listing~\ref{alg:sealed-gate-handed}).
 
 \pdlistingroom{9}
-\pdexcerpt[caption={The first try. \texttt{low} keeps the low bits that the
-slot declares.},label={alg:sealed-gate-handed}]{ch03-handed}
+\pdexcerpt[caption={The first version. \texttt{low} keeps the low bits that
+the slot declares.},label={alg:sealed-gate-handed}]{ch03-submitted}
 
-This gate is not careless. It uses its slot once, and nothing wider than
-the declared bits can pass it. With a worker that hands in the record it is
-right (Listing~\ref{alg:sealed-gate-run-honest}).
+This gate is not careless. It uses its slot only once, and it never
+releases more bits than the slot declares. With a worker that submits the
+record, it is correct (Listing~\ref{alg:sealed-gate-run-honest}).
 
 \pdlistingroom{15}
-\pdrun[caption={A worker that hands in the record, at the first gate.
-Nobody here is asked who they are: the names say who would
-act.},label={alg:sealed-gate-run-honest}]{honest-handed}
+\pdrun[caption={A worker that submits the record, at the first gate. The
+word at the left of each step says who acts. The gate does not check
+it.},label={alg:sealed-gate-run-honest}]{honest-submitted}
 
-Erin sees a 0 in both worlds. A reader who tested this gate with an honest
-worker would pass it.
+Erin sees 0 in both worlds. A test with an honest worker would pass this
+gate.
 
-\subsubsection{Break: half the record}
+\subsubsection{Break: submit half the record}
 
-The worker is Erin's agent, and nothing makes it hand in the record. It can
-hand in anything it can compute from the record.
+The worker is Erin's agent, and nothing forces it to submit the record. It
+can submit any value it can compute from the record.
 Figure~\ref{fig:sealed-laundering-fork} proposed $t=\lfloor s/2\rfloor$
 (Listing~\ref{alg:sealed-gate-run-launder}).
 
 \pdlistingroom{16}
 \pdrun[caption={The break. The gate applies the parity function to half the
-record.},label={alg:sealed-gate-run-launder}]{launder-handed}
+record.},label={alg:sealed-gate-run-launder}]{launder-submitted}
 
 Half of 0 is 0, and half of 2 is 1. The gate took the parity of each, as it
-was written to, and let out 0 in one world and 1 in the other. Erin now
+was written to do, and released 0 in one world and 1 in the other. Erin now
 knows the record's second bit, which the contract never released. The gate
-held the opening to one bit and had no say in which bit went through it.
-This is the laundering attack of the boundary above, as a run.
+limited the release to one bit, but the worker chose which bit. This is
+the laundering attack of the boundary above, as a recorded run.
 
-\subsubsection{Break again: the right value at a chosen time}
+\subsubsection{Break again: the right value at a time the worker chooses}
 
-The property's hypothesis says what to repair: the gate should read the
-record Derek committed. What the worker hands in then becomes a request to
-open (Listing~\ref{alg:sealed-gate-prompt}).
+The property's hypothesis says what to fix: the gate should read the
+record that Derek committed. A submission from the worker then becomes
+only a request to release (Listing~\ref{alg:sealed-gate-prompt}).
 
 \pdlistingroom{11}
-\pdexcerpt[caption={The second try. The value comes from the committed
-record, and the worker says when.},label={alg:sealed-gate-prompt}]{ch03-prompt}
+\pdexcerpt[caption={The second version. The value comes from the committed
+record, and the worker chooses when it is
+released.},label={alg:sealed-gate-prompt}]{ch03-on-request}
 
-The worker that hands in half the record now gets nowhere
+The worker that submits half the record now achieves nothing
 (Listing~\ref{alg:sealed-gate-run-launder-prompt}).
 
 \pdlistingroom{6}
-\pdrunlines[caption={The first break, repaired. What is handed in no longer
-reaches Erin.},label={alg:sealed-gate-run-launder-prompt}]{launder-prompt}{1,5,8-9,14-15}{1, 5, 8\textendash 9 and 14\textendash 15}
+\pdrunlines[caption={The first break, fixed. The submitted value no longer
+reaches Erin.},label={alg:sealed-gate-run-launder-prompt}]{launder-on-request}{1,5,8-9,14-15}{1, 5, 8\textendash 9 and 14\textendash 15}
 
-The gate still opens when the worker asks. A worker that has read the
-record can ask at once in one world and a tick later in the other
-(Listing~\ref{alg:sealed-gate-run-timing}).
+The gate still releases whenever the worker asks. A worker that has read
+the record can ask immediately in one world and one tick later in the
+other (Listing~\ref{alg:sealed-gate-run-timing}).
 
 \pdlistingroom{18}
 \pdrun[caption={The second break. The value is the same in both worlds, and
-the time is not.},label={alg:sealed-gate-run-timing}]{timing-prompt}
+the time is not.},label={alg:sealed-gate-run-timing}]{timing-on-request}
 
-Erin sees a 0 in both worlds, and it is the right value. It left at time 0
-in one world and at time 1 in the other, and she reads the record's second
-bit off her clock. Section~\ref{sec:sealed-budget} counts this channel: a
-release that may pick one of $w$ times carries $\log_2 w$ bits beyond its
-payload. The property above set timing outside its model. This gate meets
-that property's hypothesis and still leaks.
+Erin sees 0 in both worlds, and it is the correct value. It was released
+at time 0 in one world and at time 1 in the other, so she learns the
+record's second bit from the timing. Section~\ref{sec:sealed-budget}
+measures this channel: a release that can happen at one of $w$ times
+carries $\log_2 w$ bits beyond its payload. The property above left timing
+out of its model. This gate satisfies that property's hypothesis and still
+leaks.
 
-\subsubsection{Fix: the gate works it out, and the clock opens it}
+\subsubsection{Fix: the gate computes the value, and the deadline sets the time}
 
-The two faults are one. The worker chose something that Erin can see: the
-value under the first gate, and the time under the second. \pdkernelname{}
-takes both choices away. The decision is in the decision core
-(\weld{prereq:sec:prereq-build}{decision core}), and the core makes it when
-the clock moves and at no other moment. \texttt{tick} is given the room and
-the time. Something leaves only if \texttt{due} finds that the slot's time
-has come and \texttt{spent} finds the slot unused, and what leaves is
-worked out by \texttt{source} and \texttt{declared}
-(Listing~\ref{alg:sealed-gate-tick}).
+Both breaks have the same cause. The worker controls something that Erin
+can see: the value under the first gate, and the time under the second.
+\pdkernelname{} removes both controls. The decision is made in the
+decision core (\weld{prereq:sec:prereq-build}{decision core}), and the
+core makes it only when the clock ticks. \texttt{tick} is given the room
+and the current time. It releases something only if \texttt{due} finds
+that the slot's deadline has arrived and \texttt{spent} finds that the
+slot has not been used. The value comes from \texttt{source} and
+\texttt{declared} (Listing~\ref{alg:sealed-gate-tick}).
 
 \pdlistingroom{16}
-\pdexcerpt[caption={The decision the core makes each time the clock
-moves.},label={alg:sealed-gate-tick}]{ch03-tick}
+\pdexcerpt[caption={The decision the core makes on each tick of the
+clock.},label={alg:sealed-gate-tick}]{ch03-tick}
 
-Those four functions are the gate's guards, in two pairs. One pair answers
-the first break (Listing~\ref{alg:sealed-gate-what}).
+Those four functions are the gate's guards, in two pairs. One pair deals
+with the first break (Listing~\ref{alg:sealed-gate-what}).
+\texttt{source} reads the record its owner committed, and \texttt{declared}
+keeps only the bits the slot declares. The worker can still submit values.
+The core stores the latest one, and neither guard reads it. The other pair
+deals with the second break (Listing~\ref{alg:sealed-gate-when}).
+\texttt{due} compares the current time with the slot's deadline, and does
+not look at anything the worker did. \texttt{spent} allows the slot to be
+used once.
 
-\pdlistingroom{18}
-\pdexcerpt[caption={The guards on what leaves. A line marked
-\texttt{MUTANT} is compiled only into a build of the core that has that
-guard removed, and the verification below runs each of those
+\pdlistingroom{17}
+\pdexcerpt[caption={The guards on the value released. A line marked
+\texttt{MUTANT} is compiled only into a test build of the core that has
+that guard removed. The verification below runs each of those
 builds.},label={alg:sealed-gate-what}]{ch03-what}
 
-\texttt{source} reads the record its owner committed, and \texttt{declared}
-keeps the bits the slot names. The worker may still hand the gate values.
-The core keeps the last one, and neither guard reads it. The worker that
-hands in half the record changes nothing
-(Listing~\ref{alg:sealed-gate-run-launder-core}).
+\pdlistingroom{16}
+\pdexcerpt[caption={The guards on the time of the
+release.},label={alg:sealed-gate-when}]{ch03-when}
 
-\pdlistingroom{15}
-\pdrun[caption={The first break, on the kernel's
+A worker that submits half the record changes nothing
+(Listing~\ref{alg:sealed-gate-run-launder-core}). A worker that asks early
+in one world and late in the other gets its release at the same time in
+both (Listing~\ref{alg:sealed-gate-run-timing-core}).
+
+\pdlistingroom{14}
+\pdrun[caption={The first break, at the kernel's
 gate.},label={alg:sealed-gate-run-launder-core}]{launder-core}
 
-The other pair answers the second break
-(Listing~\ref{alg:sealed-gate-when}).
-
 \pdlistingroom{16}
-\pdexcerpt[caption={The guards on when it
-leaves.},label={alg:sealed-gate-when}]{ch03-when}
-
-\texttt{due} compares the time the core is given with the time the slot
-names, and asks nothing of the worker. \texttt{spent} lets the slot be
-used once. A worker that asks early in one world and late in the other is
-answered at one time in both
-(Listing~\ref{alg:sealed-gate-run-timing-core}).
-
-\pdlistingroom{16}
-\pdrun[caption={The second break, on the kernel's
+\pdrun[caption={The second break, at the kernel's
 gate.},label={alg:sealed-gate-run-timing-core}]{timing-core}
 
-Nothing leaves when the worker hands a value in. The parity leaves when the
-clock reaches time 2, in both worlds at once.
+Nothing is released when the worker submits a value. The parity is
+released when the clock reaches time 2, in both worlds.
 
-\keyidea[Take the choice away]{Whatever a worker can choose and a recipient
-can see is a channel, whether it is a value or the moment a value arrives.
-Narrowing the choice makes the channel smaller. It is closed when the
-choice is gone: the gate works out what leaves from what the owner
-committed, and the clock says when.}
+\keyidea[Remove the worker's choice]{Anything a worker can choose and a
+recipient can see is a channel. It can be a value, and it can be the time
+at which a value arrives. Limiting the choice makes the channel smaller.
+Removing the choice closes it: the gate computes the value from what the
+owner committed, and the deadline fixes the time.}
 
 \Needspace{12\baselineskip}
-\subsubsection{Verify: two rooms as one system}
+\subsubsection{Verify: two rooms run as one system}
 
 \paragraph{Every pair of worlds.}
 Property~\ref{thm:sealed-noninterference} is about pairs of runs, and its
-proof idea builds two worlds side by side. The kernel's tests do the same
-with the kernel's own gate. Two rooms are set up as one system, with
-records that differ, and a walk visits every state the pair can reach.
-Which moves the two rooms share says what a worker knows
-(Listing~\ref{alg:sealed-gate-pair}).
-
-Derek's commit and the clock are one move in both rooms. So is anything a
-worker does before it has read the record, since it has nothing to go on.
-After the read, the worker in each world moves by itself, and the walk
-tries every way the two can differ. In each state it asks one question of
-two records with the same parity: has Erin seen the same thing in both
-rooms? Every room is also held to a rule written apart from the core, which
-says what Erin should have seen by each time: nothing until the slot's
-time, and then the record's low bits, once.
+proof idea sets two worlds side by side. The kernel's tests do the same
+with the kernel's own gate. Two rooms with different records are run as
+one system, and an exhaustive test visits every state the pair can reach.
+Listing~\ref{alg:sealed-gate-pair} gives every move the pair can make
+from one state.
 
 \pdlistingroom{29}
 \pdexcerpt[caption={Every move a pair of rooms can make. A worker that has
 not read the record does the same thing in both
 worlds.},label={alg:sealed-gate-pair}]{ch03-pair}
 
-The bounds are small. Records run from 0 to 3, the slot declares one bit at
-time 2, the clock runs to time 3, and each worker hands in up to 2 values
-from 0 to 3. Two of the six pairs of records have one parity, as the
-example above counted (Listing~\ref{alg:sealed-gate-worlds}).
+Derek's commit and the clock's ticks happen in both rooms together. So
+does anything a worker does before it has read the record, because until
+then it has nothing to base a choice on. After the read, the worker in
+each world acts independently, and the test tries every way the two can
+differ. In each state it asks one question about two records with the
+same parity: has Erin seen the same thing in both rooms? Each room is also
+compared with a reference model, written separately from the core, of
+what Erin should have seen by each time: nothing until the slot's
+deadline, and then the record's low bits, once.
+
+The bounds are small. Records run from 0 to 3, and the slot releases one
+bit at time 2. The clock runs to time 3, and each worker submits up to 2
+values from 0 to 3. Two of the six pairs of records have the same parity,
+as the example above counted (Listing~\ref{alg:sealed-gate-worlds}).
 
 Under the first gate Erin has seen different things in 5,760 of 8,046
-states. In 1,280 of those, both rooms let something out at the same time
-and the values differ, which is laundering. The second gate has none of
-that kind, and all 4,800 of its differences are in time. The kernel's gate
-has no difference of either kind in 1,870 states, and in every state it
-had let out what the rule says.
+states. In 1,280 of those, both rooms released something at the same time
+and the values differ, which is laundering. The second gate has no leak of
+that kind, and all 4,800 of its leaks are in the timing. The kernel's gate
+has no leak of either kind in 1,870 states, and in every state it had
+released exactly what the reference model says.
 
 \pdlistingroom{22}
-\pdrun[caption={Every state of two rooms whose records have one parity,
-under each gate.},label={alg:sealed-gate-worlds}]{worlds}
+\pdrun[caption={Every state of two rooms whose records have the same
+parity, at each gate.},label={alg:sealed-gate-worlds}]{worlds}
 
-\paragraph{Every view.}
-A count of states says that a gate leaks and not how much. The last column
-of the listing does. It takes one record and counts the different things a
-worker can make Erin see by the time the clock stops
-(Figure~\ref{fig:sealed-views}).
+\paragraph{Every output.}
+A count of states shows that a gate leaks. It does not show how much. The
+last column of the listing does. For one record, it counts the different
+outputs a worker can cause by the time the clock stops, where an output
+is everything Erin has seen (Figure~\ref{fig:sealed-views}).
 
 \input{figures/fig-sealed-views}
 
-Under the first gate the worker picks a bit and one of 4 times to send it,
-or sends nothing. That is $2\times4+1=9$ things, whatever the record is.
-Theorem~\ref{thm:sealed-capacity} gives one release of $b=1$ bit at one of
-$w=4$ times a capacity of $b+\log_2 w=3$ bits, which is 8 things. The ninth
-is silence. The theorem assumes that the number of releases is fixed, and
-this gate lets the worker decide whether there is one. Under the second
-gate the bit is the record's own, and the worker keeps the 4 times and the
-silence, which is 5 things. Under the kernel's gate there is 1, and a
-choice among 1 carries nothing.
+Under the first gate the worker picks a bit and one of 4 times to release
+it, or releases nothing. That is $2\times4+1=9$ outputs, whatever the
+record is. Theorem~\ref{thm:sealed-capacity} gives one release of $b=1$
+bit at one of $w=4$ times a capacity of $b+\log_2 w=3$ bits, which is 8
+outputs. The ninth is no release at all. The theorem assumes that the
+number of releases is fixed, and this gate lets the worker decide whether
+there is one. Under the second gate the bit is the record's own, and the
+worker still chooses among the 4 times and no release, which is 5
+outputs. Under the kernel's gate there is 1, and a choice among 1 carries
+no information.
 
 \paragraph{Any record, any time.}
-The walk stops at records of 2 bits and a clock that runs to 3. Kani lifts
-both bounds (\weld{anchor:sec:correct}{Kani}). It compiles the core's own
-\texttt{tick} and asks a solver about every input at once. A statement
-about two runs needs two rooms in one harness, which is the
-self-composition of the proof idea above, done on the code
+The exhaustive test stops at records of 2 bits and a clock that runs to 3.
+Kani removes both bounds (\weld{anchor:sec:correct}{Kani}). It compiles
+the core's own \texttt{tick} and has a solver consider every input at
+once. A property of two runs needs two rooms in one harness. That is the
+self-composition of the proof idea above, applied to the code
 (Listing~\ref{alg:sealed-gate-kani-pair}).
 
 \pdlistingroom{27}
 \pdexcerpt[caption={Two rooms in one Kani harness. Their records are any 64
-bits with one declared part.},label={alg:sealed-gate-kani-pair}]{ch03-kani-pair}
+bits with the same declared
+bits.},label={alg:sealed-gate-kani-pair}]{ch03-kani-pair}
 
-\texttt{two\_rooms} builds any two rooms that Erin cannot tell apart so
-far. They have one slot, used in both or in neither, and their records
-have one declared part. Records of 0 and 2 under a slot of 1 bit are one
-such pair, and the solver has every record of 64 bits to pick from.
-Everything else is its to choose as well, what each worker handed in
-included. The harness moves the clock to any time, and its 2 assertions
-say that the same thing leaves both rooms and that they are alike
-afterwards. Its two \texttt{cover} lines
-make the solver find a case in which something leaves two rooms with
-different records, and a case in which the workers handed in different
-values. Without them the assertion could hold for want of any case to
-try.
+\texttt{two\_rooms} builds any two rooms that Erin cannot distinguish so
+far. They have the same slot, used in both or in neither. Their records
+have the same declared bits. Records of 0 and 2 under a slot of 1
+bit are one such pair, and the solver can pick any 64-bit records. It also
+picks everything else, including the value each worker submitted. The
+harness moves the clock to any time. Its 2 assertions say that both rooms
+release the same thing, and that both slots are in the same state
+afterwards. Its two \texttt{cover} lines make the solver find a case where
+something is released from two rooms with different records, and a case
+where the workers submitted different values. Without them the assertions
+could pass just because no case reached them.
 
-That is one step. A second harness shows that a commit and a submission let
-nothing out. So two rooms that start alike are alike after any number of
-moves. That sentence is an induction, and the tool checked its two premises
-and not the sentence (Listing~\ref{alg:sealed-gate-kani}).
+That is one step. A second harness shows that a commit and a submission
+release nothing. Together these give an induction: two rooms that start
+indistinguishable stay indistinguishable after any number of moves. Kani
+checked the two premises. The induction itself is an argument, and no
+tool checked it (Listing~\ref{alg:sealed-gate-kani}).
 
 \pdlistingroom{11}
 \pdrunlines[caption={Kani~0.68 on the core's
 gate.},label={alg:sealed-gate-kani}]{kani-release}{1-11}{1\textendash 11}
 
-The first verdict is a control. It puts the same question to a gate that
-works from what the worker handed in, and that harness fails as it must.
+The third result is a control. Its harness asserts the same one-step
+property of a gate that computes the release from the value the worker
+submitted. That assertion is false, and Kani reports the failure, which
+is what a control is for.
 
 \paragraph{Each guard removed.}
-This build has four guards, and the kernel has a build with each one taken
-out. The walk is run on each (Listing~\ref{alg:sealed-gate-guards-walk}),
-and so are the harnesses (Listing~\ref{alg:sealed-gate-kani-guards}).
+This build has four guards. The core can be compiled with any one of them
+removed, and the checks should then fail. The exhaustive test is run on
+each of those builds (Listing~\ref{alg:sealed-gate-guards-walk}), and so
+are the harnesses (Listing~\ref{alg:sealed-gate-kani-guards}).
 
-The first row is the first break, inside the core. The second lets the
-whole record out, and Erin tells the worlds apart with no help from the
-worker: that build still has 1 view of each record. The third opens early
-when the worker has asked, which is the second break.
+The first row is the first break, inside the core. The second build
+releases the whole record. Erin can then distinguish the worlds without
+any help from the worker, and that build still has 1 output for each
+record. The third build releases early when the worker has asked, which
+is the second break.
 
-\pdlistingroom{23}
-\pdrun[caption={The walk again, on four builds of the core with one guard
-removed from each.},label={alg:sealed-gate-guards-walk}]{worlds-guards}
+The last row is the important one. A core that releases the parity a
+second time shows Erin the same thing in both worlds, in every one of
+1,870 states, because both rooms repeat the release identically. The
+two-room check cannot detect that this guard is missing. The comparison
+with the reference model detects it in 1,080 states, and Kani detects it
+too. Two rooms that are wrong in the same way look the same. A check that
+compares two runs with each other needs a second check next to it, one
+that compares a run with what should have happened.
+
+\pdlistingroom{21}
+\pdrun[caption={The exhaustive test again, on four builds of the core with
+one guard removed from
+each.},label={alg:sealed-gate-guards-walk}]{worlds-guards}
 
 \pdlistingroom{14}
 \pdrunlines[caption={The harnesses again, on the same four
 builds.},label={alg:sealed-gate-kani-guards}]{kani-release}{1,12-24}{1 and 12\textendash 24}
 
-The last row is the one to study. A core that lets the parity out a second
-time shows Erin the same thing in both worlds, in every one of 1,870
-states, because both rooms repeat themselves alike. The walk of pairs
-cannot see that guard at all. The rule each room is held to sees it in
-1,080 states, and Kani sees it. Two rooms that are wrong in the same way
-look the same. A statement that compares two runs with each other needs a
-second check beside it, one that compares a run with what should have
-happened.
-
-\pdscope{The walk covers records of 2 bits, one slot of one bit and a clock
-of 3 ticks, within the bounds that Listing~\ref{alg:sealed-gate-worlds}
-prints. Its counts are of what can happen, with no chances attached. The
-harnesses cover one move of two rooms, with any record of 64 bits and any
-slot. That rooms which are alike stay alike over a whole run is argued
-from two of them.}
+\pdscope{The exhaustive test covers records of 2 bits and one slot of one
+bit. Its clock runs for 3 ticks, and
+Listing~\ref{alg:sealed-gate-worlds} prints its other bounds. It counts
+states and says nothing about how likely a state is. The harnesses cover
+one move of two rooms, with any 64-bit record and any slot. That
+indistinguishable rooms stay indistinguishable over a whole run is an
+argument built on two of those harnesses.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-The gate does the work. The declared part is one the gate can work out
-from the record, so the worker adds nothing to what leaves, and a room that
-nobody works in lets out the same parity. A room is rented for work the
-gate cannot redo. For that work the gate cannot ask whether an answer is
-the declared function of the committed record, and
-Section~\ref{sec:sealed-budget} offers a budget in place of silence. That
-is this chapter's next build.
+The gate does the work. The declared bits are something the gate can
+compute from the record, so the worker adds nothing to what is released,
+and a room with no worker releases the same parity. A room is rented for
+work that the gate cannot redo. For that work the gate cannot check
+whether an answer is the declared function of the committed record.
+Section~\ref{sec:sealed-budget} limits how many bits such a room may
+release instead, and that is this chapter's next build.
 
 Time is a count of ticks that the room's host supplies. Nothing here says
 how long a step takes, and a recipient with a finer clock than the gate's
-is outside the model. A record that Derek commits after the slot's time
-leaves at the next tick, so the time of a release still tells Erin when he
-committed.
+is outside the model. A record that Derek commits after the slot's
+deadline is released at the next tick, so the time of a release still
+tells Erin when he committed.
 
-Nobody is asked who they are. Whoever reaches the core first commits the
-record, the worker included. The signed work order of
+Requests are not authenticated. Whoever reaches the core first commits
+the record, and that can be the worker. The signed work order of
 \S\ref{sec:sealed-design} is not built, and neither is its measured
 hardware.
 
-Only the gate is built. A worker that sends what it read by some other way
-is the business of the two fences, and no test here runs one.
+Only the gate is built, and for one kind of slot. A slot declares how
+many of the record's low bits are released. A release of any other
+function of the record, such as whether it exceeds a threshold, is not
+built, and the checks above say nothing about one. A worker that sends what it read
+through some other channel is a problem for the two fences, and no test
+here runs one.
 \end{pdboundary}

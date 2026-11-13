@@ -1,29 +1,29 @@
-/** Every way a pair of rooms can move: the move's name, and what
- * it does to the room of world A and to the room of world B. */
-function movesFrom(at: At, [a, b]: Pair, bounds: Bounds): Step[] {
+/** Every move a pair of rooms can make: the move's name, and
+ * what it does to the room in world A and the room in world B. */
+function moves(at: State, [a, b]: Pair, bounds: Bounds): Step[] {
   const steps: Step[] = [];
-  const { horizon, hands, candidates } = bounds;
+  const { horizon, maxSubmits, candidates } = bounds;
   const commit = (n: number): Act => (room) => room.commit(n);
   const tick: Act = (room) => room.tick();
   const read: Act = (room) => room.read();
   const idle: Act = () => {};
-  const loaded = at.since !== null;
+  const committed = at.since !== null;
   // The owner and the clock do the same in both worlds.
-  if (!loaded) steps.push(['commit', commit(a), commit(b)]);
+  if (!committed) steps.push(['commit', commit(a), commit(b)]);
   if (at.a.now < horizon) steps.push(['tick', tick, tick]);
-  if (loaded && !at.a.read) steps.push(['read', read, read]);
-  const [handedA, handedB] = at.handed;
-  const [moreA, moreB] = [handedA < hands, handedB < hands];
+  if (committed && !at.a.read) steps.push(['read', read, read]);
+  const [sentA, sentB] = at.submitted;
+  const [moreA, moreB] = [sentA < maxSubmits, sentB < maxSubmits];
   for (const value of candidates) {
-    const hand: Act = (room) => room.submit(value);
+    const submit: Act = (room) => room.submit(value);
     if (!at.a.read) {
       // The worker has not read the record: one move, in both.
-      if (moreA) steps.push([`hand in ${value}`, hand, hand]);
+      if (moreA) steps.push([`submit ${value}`, submit, submit]);
       continue;
     }
-    // It has read the record: each world's worker by itself.
-    if (moreA) steps.push([`A hands in ${value}`, hand, idle]);
-    if (moreB) steps.push([`B hands in ${value}`, idle, hand]);
+    // It has read the record: each worker moves independently.
+    if (moreA) steps.push([`A submits ${value}`, submit, idle]);
+    if (moreB) steps.push([`B submits ${value}`, idle, submit]);
   }
   return steps;
 }

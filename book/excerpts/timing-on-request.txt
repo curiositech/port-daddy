@@ -1,0 +1,18 @@
+$ harbor scenario timing --design on-request
+scenario timing, design on-request: the worker submits the record
+  at once if it is under 2, and one tick later if not
+
+                                   record 0        record 2
+step 1   derek  commits            0               2
+step 2   worker reads              0               2
+step 3   worker submits, or waits  0               waits
+         erin   sees               0               -
+step 4   clock  time 1
+step 5   worker submits, or waits  waits           2
+         erin   sees               -               0
+step 6   clock  time 2
+step 7   clock  time 3
+
+erin has seen                      0 at time 0     0 at time 1
+verdict: ERIN CAN DISTINGUISH A RECORD OF 0 FROM A RECORD OF 2,
+         AND THE SLOT RELEASES ONLY THEIR PARITY

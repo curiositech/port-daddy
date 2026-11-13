@@ -1,14 +1,14 @@
-/// The guard on a line with nothing behind it: no diff, no line.
-fn backing(work: &Work) -> Option<Sha> {
-    if cfg!(feature = "mutant-bare-line") {
-        // MUTANT: a line is made with or without a diff.
+/// Guard: work with no stored diff gets no line.
+fn stored_diff(work: &Work) -> Option<Sha> {
+    if cfg!(feature = "mutant-missing-diff") {
+        // MUTANT: make a line with or without a diff.
         return Some(work.diff.clone().unwrap_or_default());
     }
     work.diff.clone()
 }
 
-/// The guard on which run counts: one of this revision.
-fn current(work: &Work) -> Option<&Run> {
+/// Guard: only a run of the current revision counts.
+fn current_run(work: &Work) -> Option<&Run> {
     if cfg!(feature = "mutant-any-run") {
         return work.run.as_ref(); // MUTANT: guard removed.
     }

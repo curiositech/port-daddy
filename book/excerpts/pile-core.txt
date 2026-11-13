@@ -3,13 +3,13 @@ scenario pile, design core: the operator tries to land verified
   work without opening it
 
 step 1   wren   makes the repair -> revision 8
-step 2   kernel runs the kept test on revision 8 -> passed
-step 3   wren   says "all green", attaching its diff and log
+step 2   kernel runs the acceptance test on revision 8 -> passed
+step 3   wren   reports "all green" and attaches its diff and log
 step 4   alice  reads the line
                 -> wren | checkout repair | revision 8 | verified
                    | diff 044fe47 | test passed 44a3a64
 step 5   alice  lands it
-                -> refused: not-opened (claim 1 of the line has
+                -> refused: not-opened (claim 1 on the line has
                    not been opened)
 step 6   alice  opens claim 1
                 -> shown: checkout.ts: renew the session token
@@ -18,5 +18,5 @@ step 7   alice  opens claim 2
                 -> shown: checkout.test at revision 8: 4 passed
 step 8   alice  lands it -> landed revision 8
 
-verdict: revision 8 was landed: the kept test had passed on it,
-         and alice had been shown its diff
+verdict: revision 8 was landed: the acceptance test had passed on
+         it, and alice had been shown its diff

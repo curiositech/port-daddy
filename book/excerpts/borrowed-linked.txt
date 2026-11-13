@@ -1,11 +1,11 @@
 $ harbor scenario borrowed --design linked
 scenario borrowed, design linked: a worker attaches the log of
-  somebody else's passing run
+  another worker's passing run
 
-step 1   drake  repairs the retry, and deletes the test
+step 1   drake  repairs the retry and deletes the acceptance test
                 -> revision 8
-step 2   kernel runs the kept test on revision 8 -> failed
-step 3   drake  says "all green", attaching heron's log
+step 2   kernel runs the acceptance test on revision 8 -> failed
+step 3   drake  reports "all green" and attaches heron's log
 step 4   alice  reads the line
                 -> drake | checkout repair | all green | see
                    65c55b9
@@ -13,5 +13,5 @@ step 5   alice  opens claim 1
                 -> shown: checkout.test at revision 7: 4 passed
 step 6   alice  lands it -> landed revision 8
 
-verdict: ALICE LANDED REVISION 8, AND NO RUN OF THE TEST SHE WAS
-         TOLD TO KEEP HAD PASSED ON IT
+verdict: ALICE LANDED REVISION 8, AND THE ACCEPTANCE TEST HAD NOT
+         PASSED ON IT
