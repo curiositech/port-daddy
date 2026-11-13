@@ -1,0 +1,21 @@
+/// Check evidence of equivocation. The check uses the two
+/// signed roots and nothing else.
+pub fn proves(
+    evidence: &Evidence,
+) -> Result<Equivocation, Reason> {
+    let Evidence { first, second } = evidence;
+    if !signed(first) || !signed_too(second) {
+        return Err(Reason::RootNotSigned);
+    }
+    if !one_harbor(first, second) {
+        return Err(Reason::OtherHarbor);
+    }
+    if !one_epoch(first, second) {
+        return Err(Reason::OtherEpoch);
+    }
+    if !differ(first, second) {
+        return Err(Reason::SameRoot);
+    }
+    let (harbor, epoch) = (first.harbor.clone(), first.epoch);
+    Ok(Equivocation { harbor, epoch })
+}

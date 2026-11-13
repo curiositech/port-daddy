@@ -1,0 +1,32 @@
+/// The root of a list of events, in hex: the Merkle tree hash
+/// of RFC 6962.
+pub fn root(events: &[String]) -> String {
+    let leaves: Vec<&[u8]> =
+        events.iter().map(String::as_bytes).collect();
+    hex(&tree(&leaves))
+}
+
+/// A leaf is hashed after a 0 byte, and two subtrees after a 1
+/// byte, so the hash of a leaf is never the hash of a pair.
+fn tree(leaves: &[&[u8]]) -> [u8; 32] {
+    let hash = Sha256::new();
+    match leaves {
+        [] => hash.finalize().into(),
+        [leaf] => hash
+            .chain_update([0])
+            .chain_update(leaf)
+            .finalize()
+            .into(),
+        _ => {
+            // The left subtree takes the largest power of two
+            // that is less than the number of leaves.
+            let split = leaves.len().next_power_of_two() / 2;
+            let (left, right) = leaves.split_at(split);
+            hash.chain_update([1])
+                .chain_update(tree(left))
+                .chain_update(tree(right))
+                .finalize()
+                .into()
+        }
+    }
+}

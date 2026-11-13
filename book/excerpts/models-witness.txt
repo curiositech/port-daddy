@@ -1,0 +1,25 @@
+$ sh formal/witness/run.sh
+any-epoch.pv
+RESULT event(Accepted(m)) ==> event(Signed(m)) is false.
+RESULT not event(Evidence(pk(beta[]))) is false.
+RESULT not event(Evidence(pk(acme[]))) is false.
+any-harbor.pv
+RESULT event(Accepted(m)) ==> event(Signed(m)) is false.
+RESULT not event(Evidence(pk(beta[]))) is false.
+RESULT not event(Evidence(pk(acme[]))) is false.
+evidence.pv
+RESULT event(Accepted(m)) ==> event(Signed(m)) is true.
+RESULT not event(Evidence(pk(beta[]))) is true.
+RESULT not event(Evidence(pk(acme[]))) is false.
+no-epoch-in-the-text.pv
+RESULT event(Accepted(m)) ==> event(Signed(m)) is false.
+RESULT not event(Evidence(pk(beta[]))) is false.
+RESULT not event(Evidence(pk(acme[]))) is false.
+one-signature.pv
+RESULT event(Accepted(m)) ==> event(Signed(m)) is false.
+RESULT not event(Evidence(pk(beta[]))) is false.
+RESULT not event(Evidence(pk(acme[]))) is false.
+same-root.pv
+RESULT event(Accepted(m)) ==> event(Signed(m)) is true.
+RESULT not event(Evidence(pk(beta[]))) is false.
+RESULT not event(Evidence(pk(acme[]))) is false.

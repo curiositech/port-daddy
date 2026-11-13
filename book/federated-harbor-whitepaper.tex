@@ -344,6 +344,9 @@ Acme signs that one value and posts it to the witness log.
 \emph{Equivocation.} Suppose Acme shows Beta's auditor one signed $R_A^{(8)}$ and the staging server's auditor a different signed $R_A^{(8)}$. Each signature verifies on its own, and any auditor who holds both holds proof that Acme signed two histories for one epoch.
 \end{pdexample}
 The five witness-log requirements above have the same shape as the five required properties of the key-management service in \pdchapref{bonded}{The Bonded Commons}. As there, the requirements are stated apart from any construction that might meet them. Section~\ref{sec:fh-formal} sketches one construction, built on Certificate Transparency-style append-only logs~\pdcite{laurie2013ct} that witness one another in the Sigstore/Rekor pattern~\pdcite{newman2022sigstore}; other constructions could meet the same list.
+
+\input{additions/fh-build-the-log}
+
 \subsection{What the federation is not}\label{sec:fh-not}
 Three things the federation is not, stated once so that the rest of the chapter need not keep refuting them.
 The federation is \emph{not} a consensus protocol. No one agrees on a global order of events. Each harbor's epoch roots only ever extend its own history, each root is published to the shared log, and equivocation can be detected. None of this needs harbors to agree on an order, and the earlier chapters' designs avoid that overhead on purpose.
@@ -1169,9 +1172,9 @@ the evidence, current policy, and funded remedy required for its own decision.
 \section{Formal Model}\label{sec:fh-formal}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\pdstatus{\Designed}{cross-harbor listings are sketches; no executable cross-harbor model}
+\pdstatus{\Designed}{cross-harbor listings are sketches; only the witness log has an executable model}
 
-The formal program has two layers: ProVerif~\pdcite{blanchet2016modeling} proof obligations for the cryptographic protocols and TLA+ proof obligations for cross-harbor accounting. The executable artifacts that exist cover narrower single-harbor accounting and a vault-secrecy query whose encoding flaw is stated below.
+The formal program has two layers: ProVerif~\pdcite{blanchet2016modeling} proof obligations for the cryptographic protocols and TLA+ proof obligations for cross-harbor accounting. The executable artifacts that exist cover narrower single-harbor accounting and a vault-secrecy query whose encoding flaw is stated below. One part of the cross-harbor design does run: the witness log of \S\ref{sec:fh-log}, with ProVerif models of its check of equivocation evidence.
 
 \subsection{ProVerif extensions to Anchor}\label{sec:fh-proverif-ext}
 
@@ -1189,7 +1192,7 @@ query b: id, ha: id, hb: id, cap: capability, e: epoch;
 
 The condition asks that every acceptance at $B$ be preceded by matching issuance, envelope and root events. It is a specification target. A past \texttt{RootCurrent} event does not show that the root was still current at acceptance, so a complete model must also express epoch order and stale-root rejection, key compromise, the resource mapping, the recipient binding, the holder's proof of possession, and a compromised receiving daemon.
 
-No executable cross-harbor model or run transcript exists; Appendix~\ref{app:fh-mech} records the gap.
+No executable model of the transfer exists, and no run transcript; Appendix~\ref{app:fh-mech} records the gap.
 
 The separate artifact \path{proofs/bonded/federated/federated.pv} has a committed successful ProVerif transcript with daemon, KMS, and email shares exposed. Its query, however, concerns a fresh private constant \texttt{account\_root} that is never bound to \texttt{combine4} of those shares or published. The success establishes secrecy of that unused constant; it does not establish the intended four-principal reconstruction claim. The query is vacuous: it would still report true if all four shares were published, because nothing connects them to the queried name. The recorded result is:
 \begin{pdlisting}{Output}{\path{proofs/bonded/federated/federated.pv}}
@@ -1234,7 +1237,7 @@ The listing verifies nothing. \texttt{BucketPartition} holds for every function 
 
 Each claim sits in one band of Figure~\ref{fig:fh-threat-bands}.
 
-\paragraph{Available model evidence.} Single-harbor capability models are inherited from Anchor. The committed TLC transcript concerns Bonded's single-machine Conservation model. Cross-realm protocol sketches and the cross-harbor bucket partition have no executable verification evidence here. The separate vault model's successful query is vacuous: it does not encode the intended reconstructed root.
+\paragraph{Available model evidence.} Single-harbor capability models are inherited from Anchor. The committed TLC transcript concerns Bonded's single-machine Conservation model. Cross-realm protocol sketches and the cross-harbor bucket partition have no executable verification evidence here. The check of equivocation evidence does: \S\ref{sec:fh-log} tests it and proves it in ProVerif. The separate vault model's successful query is vacuous: it does not encode the intended reconstructed root.
 
 \paragraph{Conditional (assumption scope).} Revocation dissemination is expected $\Theta(\Delta\log m)$ only under the stated reliable complete-overlay model with uniform peer choice (Theorem~\ref{thm:fh-conv}). The escrow extraction bound is conditional on a non-bypassable recipient-whitelisted custody ledger (Design Invariant~\ref{thm:fh-escrow-bound}).
 
@@ -1435,6 +1438,120 @@ What to carry away from this chapter:
 \section{Exercises}
 \label{sec:fh-exercises}
 % ═══════════════════════════════════════════════════════════════════════════════
+
+\pdexercisesfor{\S\ref{sec:fh-log}}{Build the layer: a witness log}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:fh-log-third}
+Acme publishes three different roots for epoch~8 to one log of
+\S\ref{sec:fh-log}, one after another. Use
+Listings~\ref{alg:fh-log-publish} and~\ref{alg:fh-log-second} to say what
+the log holds after each. In an exchange, which of the three does the log
+not send? Does a log that receives the other two lose anything by that?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-log-third}
+The first root is recorded. The second is a different root for the same
+harbor and epoch, so \texttt{second} leaves the first in place and stores
+the two as a pair. The third also goes to \texttt{second}, which finds
+that a pair is already held for that epoch and stores nothing. The
+outcome is \texttt{Equivocation} again, and the log is unchanged. In an
+exchange the log sends its recorded root and the second root of its pair.
+It never held the third, so it cannot send it. The receiver loses nothing
+it needs: two roots prove the equivocation, and a third adds no more
+proof.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-log-count}
+Take two logs that ask the core, and only Acme's two roots for epoch~8.
+Either root may be published to either log, in any order and any number
+of times. List the states one log can be in, and count the states of the
+two logs together. In how many of them do the logs hold different roots?
+If the logs exchange nothing, in how many of those does at least one log
+lack the evidence? What does one exchange do to each of them?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-log-count}
+Call the roots $r$ and $r'$. A log holds nothing, or it holds one of the
+roots, with or without the other as the second of a pair. That is 5
+states: empty, $r$, $r'$, $r$ with $r'$, and $r'$ with $r$. Two logs have $5\times 5=25$
+states between them, and publishing reaches every one. The logs hold
+different roots when one has recorded $r$ and the other $r'$. Each of
+them may or may not also hold the pair, which gives $2\times 2=4$ states,
+and 4 more with the two logs swapped: 8 in all. In 2 of the 8, both logs
+hold the pair. In the other 6, at least one log lacks it. An exchange
+sends each log the other's recorded root, which is the root it lacks, so
+afterwards both hold a pair in all 8. Listing~\ref{alg:fh-log-walk}
+counts the same columns for three logs and five roots.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-log-epoch}
+Suppose a harbor signed only its key and its root, and sent the epoch
+beside the signature. Acme signs one root for each epoch, as in
+Listing~\ref{alg:fh-log-run-outsider}. What does Wren publish to make
+log~1 hold evidence against Acme? Which check of
+Listing~\ref{alg:fh-log-evidence} then passes when it should not, and
+which model of Listing~\ref{alg:fh-log-models} is this?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-log-epoch}
+Acme's root for epoch~7 is the hash of its four events, and under this
+scheme its signature covers that hash and Acme's key. Wren copies the
+signed root, changes the epoch beside it from 7 to 8, and publishes it to
+log~1, which already holds Acme's real root for epoch~8. The signature
+still verifies, because the epoch is not part of what was signed. The log
+now has a second, different root for Acme's epoch~8 with a valid
+signature, and it holds the two as evidence. Every check of
+\texttt{proves} passes. The check of the epoch passes wrongly: it
+compares two epochs that Wren wrote. The model is
+\texttt{no-epoch-in-the-text.pv}, in which an auditor accepts evidence
+against Beta. With the epoch inside the signed text, the relabelled root
+fails \texttt{signed}, and the kernel has a test of exactly this.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-log-rewrite}
+In epoch~9 Acme publishes a root over $\ell_1$, $\ell_2$, $\ell_3$ and one
+new event. Both revocations are gone from the list. Why does the log of
+\S\ref{sec:fh-log} record this root? An auditor has kept $R_A^{(8)}$.
+Using the example of \S\ref{sec:fh-witness}, say what proof the auditor
+would ask Acme for. What would that proof be if Acme had honestly
+appended a sixth event, and why can Acme not supply one for the list it
+published?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-log-rewrite}
+It is the first root the log has been given for Acme's epoch~9, and
+\texttt{publish} looks up a root by harbor and epoch. It never compares
+the roots of two epochs. The auditor would ask for a consistency proof: a
+few hashes from which it can compute both $R_A^{(8)}$, which it kept, and
+the new $R_A^{(9)}$. Had Acme appended a sixth event with hash $h_6$, the
+new root would be $H\bigl(R_A^{(7)},H(h_5,h_6)\bigr)$. The proof would be
+$R_A^{(7)}$ together with the two leaf hashes $h_5$ and $h_6$. The
+auditor would check that $H(R_A^{(7)},h_5)$ is the root it kept, and that
+the same hashes give the new root. The root Acme published is $H\bigl(H(h_1,h_2),H(h_3,h')\bigr)$
+for the new event's hash $h'$. No hashes rebuild both that root and
+$R_A^{(8)}$ unless two different inputs to $H$ have the same hash, so
+Acme has no proof to give, and the auditor has caught the rewrite.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=3]{ex:fh-log-withhold}
+\emph{A log that keeps its evidence back.} The boundary of
+\S\ref{sec:fh-log} says an auditor cannot tell when a log holds a pair
+and shows one root. Why does Acme's signature on that root not help the
+auditor? What would the log have to sign for the log itself to be caught,
+and who would have to compare what?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-log-withhold}
+Acme's signature shows that Acme signed the root the auditor was shown.
+It says nothing about what else the log holds. To be caught, the log has
+to commit to all of its contents each time it answers. It signs a head:
+one hash over every entry it holds. Two auditors who are shown different
+contents then hold two heads signed by the log. If neither head extends
+the other, the two heads are evidence against the log, in the way two
+roots are evidence against a harbor. For that the auditors have to
+exchange the heads they were given, which is the fork consistency of
+Design invariant~\ref{prop:fh-witness}. They also need the consistency
+proof of Exercise~\ref{ex:fh-log-rewrite}, to decide whether one head
+extends another. Signed heads do not catch a log that shows every auditor
+the same contents with the pair left out. That log is caught only by
+someone else who holds Acme's second root: whoever gave it to the log, or
+another log that received it in an exchange.
+\end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:fh-xfer}}{Cross-Harbor Capability Transfer}
 
@@ -1891,7 +2008,7 @@ Single-harbor capability authenticity (inherited) & ProVerif 2.05 & \Closed & An
 Cross-realm authenticity (\S\ref{sec:fh-xfer}) & ProVerif query sketch & \Partial\ no executable model or verification run & \S\ref{sec:fh-proverif-ext} \\
 Attenuation monotonicity across boundary (Lem.~\ref{lem:fh-att}) & Set-inclusion argument & \Partial\ requires shared resource universe; protocol unmechanized & \S\ref{sec:fh-xfer-att} \\
 Federated revocation dissemination (Theorem~\ref{thm:fh-conv}) & Conditional push or push-pull model~\pdcite{pittel1987rumor,karp2000rumor} & \Partial\ expected asymptotic result; no partition deadline & \S\ref{sec:fh-revocation} (argument) \\
-Cross-witness equivocation evidence & Signed-root comparison; dissemination model & \Partial\ verification immediate once views meet; no hard delivery bound & --- \\
+Cross-witness equivocation evidence & Signed-root comparison, built in \S\ref{sec:fh-log}; dissemination model & \Partial\ the check is tested on every state of three logs and proved in ProVerif~2.05; verification immediate once views meet; no hard delivery bound & \path{harbord/core/src/witness.rs}, \path{harbord/formal/witness/} \\
 Escrow extraction bound (Design invariant~\ref{thm:fh-escrow-bound}) & Transition-system case analysis & \Partial\ conditional on non-bypassable custody; no runtime conformance & \S\ref{sec:fh-settlement} \\
 Cross-harbor Conservation (\S\ref{sec:fh-tla-ext}) & Lifecycle-accounting sketch & \Partial\ no executable specification or verification run & \S\ref{sec:fh-cross-conservation} \\
 Sheaf detection of equivocation (Thm.~\ref{thm:sheaf-equivocation}) & Pre-registered statistical harness, 200 trials/arm & \Partial\ gates pass at the stated scope (one offset, real-valued encoding, prefix restrictions); the direct checker dominates on equal evidence; not mechanized & \path{sheaf_harness_v2.py} \\

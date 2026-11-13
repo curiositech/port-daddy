@@ -1,0 +1,12 @@
+/** A root is published to the log. The log checks its
+ * signature and stores it under its harbor and epoch. */
+publish(sent: unknown): Reply {
+  if (!isSignedRoot(sent)) return NOT_A_ROOT;
+  if (!verifies(sent)) return NOT_SIGNED;
+  const at = key(sent.harbor, sent.epoch);
+  const old = this.#roots.get(at);
+  this.#roots.set(at, sent);
+  if (old === undefined) return { ok: true, outcome: 'recorded' };
+  const same = old.root === sent.root;
+  return { ok: true, outcome: same ? 'known' : 'replaced' };
+}
