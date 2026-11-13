@@ -1,13 +1,13 @@
 {
   "schema": 1,
-  "commit": "7a694a096e16b0aee4dac23d0ce347a3b0dbd8e5",
+  "commit": "75e3ea255e52d014bbb1dd93af166c97e31881d1",
   "scan": "harbord",
   "excerpts": [
     {
       "name": "ch00-blind",
       "path": "harbord/src/cell/workers.ts",
-      "firstLine": 26,
-      "lastLine": 31,
+      "firstLine": 25,
+      "lastLine": 30,
       "lines": 6,
       "language": "TypeScript",
       "sha256": "d5e4ed52480caf119563fa3402ebc048e82ecf0f0247707877c4819998175534"
@@ -15,11 +15,11 @@
     {
       "name": "ch00-checked",
       "path": "harbord/src/cell/workers.ts",
-      "firstLine": 51,
-      "lastLine": 59,
+      "firstLine": 50,
+      "lastLine": 58,
       "lines": 9,
       "language": "TypeScript",
-      "sha256": "ae4cf8c7dbbe4fcc9c639408f6d365e25c9023bf6294d1524c7693ff3993b030"
+      "sha256": "2fc062a10243f7110c4f49b591efeb218c5acef2b73f1b07b92e65edc25591ec"
     },
     {
       "name": "ch00-current",
@@ -42,11 +42,11 @@
     {
       "name": "ch00-look-twice",
       "path": "harbord/src/cell/workers.ts",
-      "firstLine": 35,
-      "lastLine": 47,
+      "firstLine": 34,
+      "lastLine": 46,
       "lines": 13,
       "language": "TypeScript",
-      "sha256": "d2f4a23e5b6cf0cd116e5f7c1ee695788105ee72c35cde5b25681ee8bbd82de4"
+      "sha256": "6cd9fd785febd62f13e63f4d9bb525a2a4cc9542664354370648b7ce406cfc83"
     },
     {
       "name": "ch00-put",
@@ -73,7 +73,7 @@
       "lastLine": 51,
       "lines": 12,
       "language": "TypeScript",
-      "sha256": "c02f8b70609a001e38c27efbdef5d155eb93ac9440d7280f9b317d198028e3b5"
+      "sha256": "5260bbcdd95a374cfeff51aa783a877d677c67e1dcdbb1ac2d576087303dd240"
     },
     {
       "name": "ch01-check-then-write",
@@ -100,7 +100,7 @@
       "lastLine": 92,
       "lines": 16,
       "language": "Rust",
-      "sha256": "f38c17fdc35c3abec834a99706a563222ce1bc5f48f06e0f51b676b18fb3657e"
+      "sha256": "8ef8a1f6688771c90c99d7ff8888fc25d61287bfb4f8cf2ff02740ca64d0d6c6"
     },
     {
       "name": "ch01-naive-acquire",
@@ -109,7 +109,7 @@
       "lastLine": 55,
       "lines": 28,
       "language": "TypeScript",
-      "sha256": "f6f219739c65300757e46367c56d5cc71741d916734aa5788e9135bbaea3cf1c"
+      "sha256": "ced22d316c32d6938711f4d216d35121d46fe38b23b34a7672619ac988674fe8"
     },
     {
       "name": "ch01-newest",
@@ -136,7 +136,7 @@
       "lastLine": 169,
       "lines": 43,
       "language": "Rust",
-      "sha256": "ccde06ccec29eff7f9370a2001fa7f662c92151856753c982181e014a6582e94"
+      "sha256": "e40ee63a51bea8a165e4b3bf96439e1341535c3bc8306f3fabe6b1175a7555d9"
     },
     {
       "name": "ch01b-guard",
@@ -154,7 +154,7 @@
       "lastLine": 157,
       "lines": 28,
       "language": "TypeScript",
-      "sha256": "f1d6675c5cf1de77903fc28c44adf218420c4e71b0bb14530bba088cabfd9199"
+      "sha256": "ea489016748d942342138ff3819bd8d15da0a5e3a4a96666dc7eb3900cfadd47"
     },
     {
       "name": "ch01b-passing",
@@ -163,7 +163,7 @@
       "lastLine": 231,
       "lines": 36,
       "language": "Rust",
-      "sha256": "7e04e2410e437e7be0f8f403f292f9ed38a3f2edde218f5160b7c1885f0c0405"
+      "sha256": "2f1f4bafd24b8ac2bb13600bcc418d061c544c9eb6a45825dff4b288c62bb019"
     },
     {
       "name": "ch02-admit",
@@ -1383,24 +1383,6 @@
       "sha256": "2778249fd573b230ff9844433ac63669dad249b09aad309db0922fd2f3192015"
     },
     {
-      "name": "roads-fence-only",
-      "path": "harbord/sessions/roads-fence-only.txt",
-      "lines": 31,
-      "sha256": "61da4a96ab5f332f56127e1ed586f42ad015ef7a938f924cf8206882d46d4163"
-    },
-    {
-      "name": "roads-kernel",
-      "path": "harbord/sessions/roads-kernel.txt",
-      "lines": 51,
-      "sha256": "5d9e19eb91ee652dbcefd0ee338d4db88acc55e3c0eab95fb2af8ce93617f01f"
-    },
-    {
-      "name": "roads-rewrite",
-      "path": "harbord/sessions/roads-rewrite.txt",
-      "lines": 56,
-      "sha256": "be5b4664d0b6b364237a26ba8eac48553c8ee1259b1f0074e00414d80ae048ec"
-    },
-    {
       "name": "rumour-core",
       "path": "harbord/sessions/rumour-core.txt",
       "lines": 30,
@@ -1506,25 +1488,25 @@
       "name": "survival-blind",
       "path": "harbord/sessions/survival-blind.txt",
       "lines": 40,
-      "sha256": "92da3210aa8c7b3a8f0af6838958792cecb06653df15cf95c39e2e82c02d91ab"
+      "sha256": "3acc4535bc804201effff9b9e73a81bab174dd9c7074373130740f1ab0a58202"
     },
     {
       "name": "survival-bursty",
       "path": "harbord/sessions/survival-bursty.txt",
       "lines": 40,
-      "sha256": "c8d4de096d222bdb93ab8d1570db3951869b4c7b4b464321118931bf74ac27b5"
+      "sha256": "dc16b8fee145019c1ee135060b46bb963aa14709909584312690ded7d6ac25b8"
     },
     {
       "name": "survival-checked",
       "path": "harbord/sessions/survival-checked.txt",
       "lines": 41,
-      "sha256": "9704ceb0135bd47ca2103e1f307ca46c742bc8faaaa544138b4a62415825265b"
+      "sha256": "cfebac5a2ca2a4e9040c9d9fa307d3417ec03399613d8b95a539308b689d46c5"
     },
     {
       "name": "survival-look-twice",
       "path": "harbord/sessions/survival-look-twice.txt",
       "lines": 40,
-      "sha256": "281c943bc3f15a5f2bb825808d64774b4204ef5886940bf8d25dac69fed05652"
+      "sha256": "0e78827eded763bbaa08ad8ae7ca475af71a1c4af30b254dc95ec7dc66511c33"
     },
     {
       "name": "switch-core",
@@ -1537,6 +1519,24 @@
       "path": "harbord/sessions/switch-linked.txt",
       "lines": 21,
       "sha256": "20f4ccdc5b18f75c9eb8ef5f30558d589774c8367755f189bf13dbfa665ad1c7"
+    },
+    {
+      "name": "test-deletion-fencing-only",
+      "path": "harbord/sessions/test-deletion-fencing-only.txt",
+      "lines": 31,
+      "sha256": "b9d1eceda7d99f2d696d531b385abb9dc644116e86742e2c44accef90c2bfad6"
+    },
+    {
+      "name": "test-deletion-kernel",
+      "path": "harbord/sessions/test-deletion-kernel.txt",
+      "lines": 52,
+      "sha256": "383175b457fc8010a2c3aa42eccabaccc0a9d1a900397ae7aa8600cd3824c3ca"
+    },
+    {
+      "name": "test-rewrite-kernel",
+      "path": "harbord/sessions/test-rewrite-kernel.txt",
+      "lines": 56,
+      "sha256": "be5b4664d0b6b364237a26ba8eac48553c8ee1259b1f0074e00414d80ae048ec"
     },
     {
       "name": "theft-bearer",

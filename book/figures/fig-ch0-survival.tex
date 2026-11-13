@@ -1,9 +1,9 @@
 % Reader question: if each round has only a small chance of losing an update,
-% how many long jobs get through with none lost? And does a worker that
-% checks its own work change the answer?
-% Claim: any fixed chance per round empties the jobs geometrically; looking
-% twice slows the fall and does not stop it; a check at the write keeps
-% every job.
+% how many long jobs finish with none lost? And does a worker that checks
+% its own read change the answer?
+% Claim: with any fixed chance per round, the share of safe jobs falls
+% geometrically to zero. Looking twice slows the fall and does not stop it.
+% A check at the write keeps every job safe.
 % Evidence: 1,000 seeded jobs of 600 rounds per design, counted every 25
 % rounds, with the exact curve from the workload and every order of turns
 % [internal, harbor survival; sessions survival-*.txt, plotted as printed].
@@ -11,9 +11,9 @@
 % panel, the theorem's bound from the exact curve under it, and the bursty
 % curve from the steady one, which keeps its grey from the left panel.
 % Grammar chosen: two panels on one vertical scale; a line for what is
-% worked out, dots with interval bars for what was counted; each line named
+% computed, dots with interval bars for what was counted; each line labelled
 % at the line.
-% Grammar rejected: a logarithmic scale, which makes the falls straight and
+% Grammar rejected: a logarithmic scale, which makes the curves straight and
 % cannot show a share of zero or a design that stays at one.
 % Five-second test: which line never leaves the top?
 \begin{figure}[H]
@@ -64,8 +64,8 @@
   \end{axis}
 \end{tikzpicture}
 \caption{\textbf{A small chance of loss in every round leaves almost no long
-job safe, and no chance leaves all of them.} The share of 1,000 simulated
-jobs with no update lost yet. Lines are exact; dots are counts with 95\%
+job safe, and a chance of zero leaves every job safe.} The share of 1,000
+simulated jobs with no update lost yet. Lines are exact; dots are counts with 95\%
 intervals. On the right, the grey line repeats the blind curve from the
 left, and the line above both curves is the bound of
 Theorem~\ref{thm:non-determinism}. [internal, \texttt{harbor survival}]}

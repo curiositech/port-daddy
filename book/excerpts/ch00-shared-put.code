@@ -1,6 +1,6 @@
 /**
  * Ask to write `value`. `read`, if given, is the version it was
- * worked out from. Returns whether the write landed.
+ * computed from. Returns whether the write was applied.
  */
 put(me: string, value: number, read?: number): boolean {
   const asked = { op: 'put', agent: me, value, read } as const;

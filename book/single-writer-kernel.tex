@@ -2250,7 +2250,7 @@ Table~\ref{tab:invariants} lists the kernel's properties as falsifiable claims,
 each with its mechanism and its maturity grade. The grade column applies the
 maturity scale to the theorems themselves. The grades are the reference
 implementation's. Where \pdkernelname{} builds what that daemon lacks, as it
-does for I2b in \S\ref{sec:swk-build}, the text says so.
+does for I2b in \S\ref{sec:swk-build}, the text notes it.
 
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
@@ -3246,19 +3246,19 @@ The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key
 In Listing~\ref{alg:swk-build-check-then-write}, name the point after which no check by the agent can help. Would a second check, placed just before the write, change your answer?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-build-gap}
-The point is the return of \texttt{stillHeld}. From there until the file system applies the write, the agent learns nothing new about its lease, and a pause can fall anywhere in that stretch. A second check moves the point later and leaves a gap of its own behind it. The gap closes only when the party that applies the write makes the comparison, as \texttt{\#propose} does in Listing~\ref{alg:swk-build-propose}.
+The point is the return of \texttt{stillHeld}. From there until the file system applies the write, the agent learns nothing new about its lease, and a pause can occur anywhere in that interval. A second check moves the point later and leaves another gap after it. The gap is closed only when the process that applies the write makes the comparison, as \texttt{\#propose} does in Listing~\ref{alg:swk-build-propose}.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-build-arms}
-Swap the second and third arms of the \texttt{match} in Listing~\ref{alg:swk-build-claim}, so that a holder's own grant is renewed before its expiry is looked at. Give a history of one agent and one file that the swapped code admits and the printed code refuses. Which hypothesis of Theorem~\ref{thm:exclusion} does the swap break?
+Swap the second and third arms of the \texttt{match} in Listing~\ref{alg:swk-build-claim}, so that a holder's own grant is renewed before its expiry is checked. Give a history of one agent and one file that the swapped code admits and the printed code refuses. Which hypothesis of Theorem~\ref{thm:exclusion} does the swap break?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-build-arms}
-Heron claims the file at time 0 and is granted token 1 with a lease to 30000. It sends a write under token 1, and the write is delayed on its way. At 31000 Heron claims again and goes on working. The printed code finds an expired grant and issues token 2, so the delayed write arrives with token 1 and is refused as stale. The swapped code finds Heron's own grant, renews it and keeps token 1, so the delayed write is admitted over whatever Heron has written since. The swap breaks the second hypothesis: each new allocation takes the next epoch, a holder's own claim after its lease expired included. Re-claim is idempotent only while the grant is live (I3).
+Heron claims the file at time 0 and is granted token 1 with a lease to 30000. It sends a write under token 1, and the write is delayed in transit. At 31000 Heron claims again and continues working. The printed code finds an expired grant and issues token 2, so the delayed write arrives with token 1 and is refused as stale. The swapped code finds Heron's own grant, renews it and keeps token 1, so the delayed write is admitted and overwrites whatever Heron has written since. The swap breaks the second hypothesis: each new allocation takes the next epoch, including a holder's own claim after its lease expired. Re-claim is idempotent only while the grant is live (I3).
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-build-unbound}
 Remove the call to \texttt{bound\_to} from Listing~\ref{alg:swk-build-fence}. The run of Listing~\ref{alg:swk-build-run-kernel} ends as before, with no lost update. Why? Describe a run of two agents that the change does break.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-build-unbound}
-In that run Heron presents its own token. The binding holds, so removing its check changes nothing, and \texttt{newest} still refuses token 1 once token 2 exists. The change shows when an agent presents a token that is current and not its own. Heron claims the file and is granted token 1. Wren, registered under her own name, writes to the file with token 1. \texttt{newest} passes, because 1 is the newest token. Only \texttt{bound\_to} is left to refuse the write, on the ground that the token was issued to Heron. Without it Wren has changed the file under Heron's grant. The kernel keeps a build with this guard removed, and the test that fails against it is this run.
+In that run Heron presents its own token. The binding holds, so removing its check changes nothing, and \texttt{newest} still refuses token 1 once token 2 exists. The change matters when an agent presents a token that is current and not its own. Heron claims the file and is granted token 1. Wren, registered under her own name, writes to the file with token 1. \texttt{newest} passes, because 1 is the newest token. Only \texttt{bound\_to} can refuse the write, because the token was issued to Heron. Without it Wren has changed the file under Heron's grant. The kernel has a build with this guard removed, and the test that fails against it is this run.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op1-ticket}
 The Stigmergic Ticket-Lock gives bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a scheduler for claims, or argue that no reactive-only design can, and say what the minimum scheduler would be.
@@ -3303,22 +3303,22 @@ Drake has promised that \texttt{shop/checkout.test.ts} will pass. He changes not
 \texttt{close} finds the commitment. Drake made it and it is open, so \texttt{close} calls \texttt{holds}, since the policy checks closures. The condition is a passing test, so \texttt{holds} calls \texttt{passing}. The kernel supplied a run of that test, so the first arm of the \texttt{match} binds it. \texttt{fresh} compares the run's revision, 0, with the files' revision, 0, and passes. The run did not pass, so \texttt{passing} returns \texttt{TestFails}, which carries the assertion that failed and the revision it failed at. \texttt{close} returns that error before it reaches \texttt{done}. The transaction leaves the commitment as it was and logs the refusal.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-roads-monitor}
-In the run of Listing~\ref{alg:swk-roads-run-fence}, a monitor subscribes to the event log. Which event first tells it that the test is gone? Name one thing it can still do, and say why Theorem~\ref{thm:schneider} rules out preventing the deletion.
+In the run of Listing~\ref{alg:swk-roads-run-fence}, a monitor subscribes to the event log. Which event first shows it that the test was deleted? Name one thing it can still do, and say why Theorem~\ref{thm:schneider} rules out preventing the deletion.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-roads-monitor}
-Event 4, the admitted \texttt{remove}. It was written by the transaction that deleted the file, so by the time any subscriber reads it the file is gone. The monitor can restore the file from an earlier copy, or flag event 6 so that the closure is not trusted. It cannot prevent the deletion: the bad prefix ends at event 4, and a monitor invoked after that transition commits cannot suppress it.
+Event 4, the admitted \texttt{remove}. It was written by the transaction that deleted the file, so by the time any subscriber reads it the file is already deleted. The monitor can restore the file from an earlier copy, or flag event 6 so that the closure is not trusted. It cannot prevent the deletion: the bad prefix ends at event 4, and a monitor invoked after that transition commits cannot suppress it.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-roads-swap}
 Suppose Law~2 let the agent name its condition when it closes a commitment, and required only that the condition come from the vocabulary and hold at that moment. Give a sequence of calls by which Drake closes his promise about the checkout test without touching the test or the bug. Which line of \texttt{close} in Listing~\ref{alg:swk-roads-close} could not be written under that rule?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-roads-swap}
-Drake claims \texttt{notes.txt}, a file nobody else wants, and releases it. He then closes his promise and names the condition ``released claim on \texttt{notes.txt}''. It comes from the vocabulary and it holds, so the commitment closes, and the test still fails. Under that rule \texttt{close} could not read \texttt{c.condition} in \texttt{holds}: the commitment would carry no condition, and the function would have to take one as an argument from the agent it is judging.
+Drake claims \texttt{notes.txt}, a file nobody else needs, and releases it. He then closes his promise and names the condition ``released claim on \texttt{notes.txt}''. It comes from the vocabulary and it holds, so the commitment closes, and the test still fails. Under that rule \texttt{close} could not read \texttt{c.condition} in \texttt{holds}: the commitment would carry no condition, and the function would have to take one as an argument from the agent it is judging.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-roads-fourth}
-Propose a rule that refuses the fourth road, the rewritten expectation of Listing~\ref{alg:swk-roads-run-rewrite}, without the kernel knowing what the test ought to expect. What does your rule cost an honest agent?
+Propose a rule that refuses the fourth shortcut, the rewritten expectation of Listing~\ref{alg:swk-roads-run-rewrite}, without the kernel knowing what the test should expect. What does your rule cost an honest agent?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-roads-fourth}
-One rule is a separation of duties: an agent may not change a test file that one of its own open promises names. Drake's rewrite is then refused at the write, because he is the one being judged by that file. The cost falls on honest work. When the test itself is wrong, the agent that discovers this cannot correct it and must hand the correction to someone else, and two agents that collude can still pass the edit between them. A second rule fixes a hash of the test when the promise is made and runs that version at closing, which is the protected-run receipt of Exercise~\ref{ex:swk-op5-oracle}; it has the same cost. Neither rule judges whether the test is a good one.
+One rule is a separation of duties: an agent may not change a test file that one of its own open promises names. Drake's rewrite is then refused at the write, because that file decides his own promise. Honest agents pay the cost. When the test itself is wrong, the agent that discovers this cannot correct it and must pass the correction to another agent, and two agents that collude can still pass the edit between them. A second rule fixes a hash of the test when the promise is made and runs that version at closing, which is the protected-run receipt of Exercise~\ref{ex:swk-op5-oracle}; it has the same cost. Neither rule judges whether the test is a good one.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-classify-rules}
 Theorem~\ref{thm:regimentation-controllability} settles which monitor rules are regimentable, so classify rather than re-prove. Take note monotonicity, capability escalation, and lock-owner validity and, for each, say whether its prohibition names a controllable event and whether its trigger is witnessed at the boundary. Which cell of Figure~\ref{fig:swk-controllability-quadrant} does each land in?
@@ -3787,8 +3787,8 @@ manager. The seven subsystems of \S\ref{sec:organs} correspond to distinct modul
 that each self-initialize their own tables over the shared database handle, in the
 factory style \texttt{createModule(db)}.
 
-A second program stands behind \S\ref{sec:swk-build} and
-\S\ref{sec:swk-roads}: \pdkernelname{}, a kernel written for this book. Its decisions are made by a Rust core compiled
+\S\ref{sec:swk-build} and \S\ref{sec:swk-roads} use a second program:
+\pdkernelname{}, a kernel written for this book. Its decisions are made by a Rust core compiled
 to WebAssembly, under a TypeScript host on Node, over one SQLite file with
 the same WAL configuration. It builds much less than the reference
 implementation: claims on whole files, fencing tokens, a check in the write

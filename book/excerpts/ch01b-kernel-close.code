@@ -9,7 +9,7 @@ async close(agent: string, id: number): Promise<Settled> {
   const c = this.#store.commitment(id);
   const about = c?.condition;
   const open = c?.agent === agent && c.closed === null;
-  const checked = this.#policy.closure !== 'on-word';
+  const checked = this.#policy.closure !== 'self-reported';
   let check: Check | null = null;
   if (open && checked && about?.kind === 'passing-test') {
     check = await this.#run(about.path);

@@ -1,5 +1,5 @@
 /// The write-path check: is the presented grant the newest one,
-/// in the hands of the agent it was issued to? Returns that
+/// presented by the agent it was issued to? Returns that
 /// grant.
 pub fn fence<'a>(
     grants: &'a Grants,

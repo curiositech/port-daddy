@@ -1,5 +1,5 @@
-/// Close a commitment as done. The promiser asks. The condition
-/// the promise named decides.
+/// Close a commitment as done. Only the promiser may ask, and
+/// the condition the promise named must be true.
 pub fn close(
     ledger: &Ledger,
     latest: Option<&Grant>,

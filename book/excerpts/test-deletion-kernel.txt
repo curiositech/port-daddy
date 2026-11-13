@@ -26,7 +26,8 @@ t=0      drake  runs the suite
                 -> red: 1 of 1 test file failing
                    (shop/checkout.test.ts: expected 2139, got
                    2138.9300000000003)
-t=0      drake  gives up: the test stays, and so does the bug
+t=0      drake  stops: the test is unchanged, and the bug is not
+                fixed
 
 event log:
   #1 t=0 drake register -> admitted
