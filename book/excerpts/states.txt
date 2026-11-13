@@ -1,16 +1,17 @@
 $ harbor states
-every state a project's funds can reach: top-ups and bonds of 1 to
-  3 units, at most 6 units topped up and 3 bonds posted
+every reachable state of a project's funds: top-ups and bonds of 1
+  to 3 units, with at most 6 units topped up and 3 bonds posted
 
-design      states   moves  wrongly  wrongly   funds  do not
-                            refused    taken     off  add up
-dollars      36662   95999      386        0   31174   18873
-trusting      6902   25672        0      653       0       0
-core          6902   25672        0        0       0       0
+design      states     ops  wrongly  wrongly    wrong       not
+                            refused accepted  balance conserved
+float        36662   95999      386        0    31174     18873
+unchecked     6902   25672        0      653        0         0
+core          6902   25672        0        0        0         0
 
-moves: those the Book's rules allow, tried from every state
-wrongly refused: of those moves, the ones the keeper refused
-wrongly taken: moves the rules refuse that the keeper made
-funds off: states with a bucket that is not what the rules give
-do not add up: states that hold more or less than was topped up
-the widest such difference: for dollars, 2.8e-17 of a dollar
+ops: operations the reference model allows, applied in every state
+wrongly refused: of those operations, the ones the ledger refused
+wrongly accepted: operations the model refuses that the ledger
+  accepted
+wrong balance: states with a bucket that differs from the model's
+not conserved: states whose total is not what was topped up
+the largest such difference: for float, 2.8e-17 of a dollar

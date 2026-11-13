@@ -1,30 +1,30 @@
 % Brief (grammar: a grid of every case tried, with a mark on each case that
 %   went wrong; atlas IV/fig:he-odd-unit).
 % Reader question: when does a payout lose a unit, if each side's share is
-% worked out by itself and rounded down?
+% computed separately and rounded down?
 % Claim: whenever the milestones do not divide the bounty times the count
 % done. That is 424 of the 600 payouts tried, which the picture counts as
-% it draws them, and no bounty up to 40 units is clear at every count.
-% Evidence: one plan paid out by the first keeper at every count of 2 to 6
-% milestones, short of all of them, for every bounty from 1 to 40 units
-% [internal, harbor splits --each; session splits-each.txt, drawn as
-% printed, and tests/harbor-research/test_he_plan_numbers.py holds the
-% counts in the picture and the caption to it].
-% Must distinguish: a payout that lost a unit from one that came out whole;
+% it draws them, and no bounty up to 40 units is exact at every count.
+% Evidence: one plan paid out by the first ledger at every count of 2 to 6
+% milestones, with at least one not done, for every bounty from 1 to 40
+% units [internal, harbor splits --each; session splits-each.txt, drawn as
+% printed, and tests/harbor-research/test_he_plan_numbers.py compares the
+% counts in the picture and the caption with it].
+% Must distinguish: a payout that lost a unit from one that lost none;
 % one count of milestones from the next.
 % Grammar chosen: the bounty along the bottom and the count down the side,
-% so that the rule shows as stripes whose width is the row's own, and a
+% so that the rule shows as stripes whose width differs by row, and a
 % reader can find any one payout.
 % Grammar rejected: a bar for each number of milestones, which gives the
-% share that went wrong and hides the rule; the table itself, which is 600
-% rows.
+% proportion that lost a unit and hides the rule; the table itself, which
+% is 600 rows.
 % Five-second test: is any column empty?
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=.232cm,y=.3cm,
     lost/.style={fill=pderror},
-    whole/.style={fill=pdinkmuted!70}]
+    exact/.style={fill=pdinkmuted!70}]
   % The table is the recorded run, read as it was printed: the first line
   % is the command, and every remark starts with '#'.
   \pgfplotstableread[skip first n=1]{excerpts/splits-each.txt}\pdoddunit
@@ -40,12 +40,12 @@
     \pgfplotstablegetelem{\i}{of}\of\pdoddunit \let\mi\pgfplotsretval
     \pgfplotstablegetelem{\i}{done}\of\pdoddunit \let\dn\pgfplotsretval
     \pgfplotstablegetelem{\i}{bounty}\of\pdoddunit \let\bt\pgfplotsretval
-    \pgfplotstablegetelem{\i}{left}\of\pdoddunit \let\lf\pgfplotsretval
+    \pgfplotstablegetelem{\i}{lost}\of\pdoddunit \let\lf\pgfplotsretval
     \pgfmathsetmacro{\y}{\pdoddrow{\dn}{\mi}}
     \global\advance\pdoddall 1
     \ifnum\lf>0 \global\advance\pdoddlost 1
       \fill[lost] (\bt-.41,\y-.36) rectangle (\bt+.41,\y+.36);
-    \else \fill[whole] (\bt,\y) circle[radius=.6pt];\fi
+    \else \fill[exact] (\bt,\y) circle[radius=.6pt];\fi
   }
   \foreach \mi in {2,...,6}{
     \pgfmathtruncatemacro{\most}{\mi-1}
@@ -62,9 +62,9 @@
   \node[pd title,anchor=south west] at (.55,.75)
     {a unit is lost in \the\pdoddlost\ of \the\pdoddall\ payouts};
 \end{tikzpicture}
-\caption{\textbf{Two shares rounded down by themselves lose a unit unless
+\caption{\textbf{Two shares rounded down separately lose a unit unless
 the milestones divide the bounty times the count done.} A red square is a
-payout by the first keeper that lost one unit, and a dot is a payout that
-came out whole. [internal, \texttt{harbor splits -{}-each}]}
+payout by the first ledger that lost one unit, and a dot is a payout that
+lost none. [internal, \texttt{harbor splits -{}-each}]}
 \label{fig:he-odd-unit}
 \end{figure}

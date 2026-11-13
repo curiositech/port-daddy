@@ -1,0 +1,17 @@
+$ harbor scenario late-write --design core
+scenario late-write, design core: a worker releases its claim, and
+  writes to the path again
+
+step 1   alice  top up 10 -> ok: wallet 10, escrow 0, pool 0
+step 2   wren   claim shop/checkout.ts
+                -> token 1, bond 1: wallet 4, escrow 6, pool 0
+step 3   wren   write shop/checkout.ts
+                -> written: wallet 4, escrow 6, pool 0
+step 4   wren   release shop/checkout.ts
+                -> released, bond 1 refunded: wallet 10, escrow 0,
+                   pool 0
+step 5   wren   write shop/checkout.ts
+                -> refused: no-stake (no bond is held for this
+                   claim (token 1))
+
+verdict: every write that was admitted had a bond held

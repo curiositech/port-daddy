@@ -1,0 +1,25 @@
+/** Debit a plan's two amounts, if each wallet covers its own. */
+#debit(plan: PartyPlan): Reply | null {
+  const { requester, provider, bounty, bond } = plan;
+  const first = this.#shortfall(requester, bounty);
+  const short = first ?? this.#shortfall(provider, bond);
+  if (short !== null) return short;
+  this.#pay(requester, -bounty);
+  this.#pay(provider, -bond);
+  return null;
+}
+
+/** A share: the amount times the proportion, rounded down. */
+#share(amount: number, count: number, of: number): number {
+  return Math.floor((amount * count) / of);
+}
+
+/** Pay a plan out by the share of its milestones done. */
+#payOut(plan: PartyPlan, done: number, of: number): void {
+  const { requester, provider, bounty, bond } = plan;
+  const undone = of - done;
+  this.#pay(provider, this.#share(bounty, done, of));
+  this.#pay(requester, this.#share(bounty, undone, of));
+  this.#pay(provider, this.#share(bond, done, of));
+  this.#commons += this.#share(bond, undone, of);
+}

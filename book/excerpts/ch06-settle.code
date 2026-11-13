@@ -1,30 +1,30 @@
 /// Pay a plan out. `done` of its `of` milestones were done. The
-/// provider earns that share of the bounty and has that share
-/// of the bond back. The rest of the bounty goes home to the
+/// provider earns that share of the bounty and gets that share
+/// of the bond back. The rest of the bounty returns to the
 /// requester, and the rest of the bond is forfeited.
 pub fn settle(
-    books: &Books,
+    plans: &Plans,
     id: u64,
     done: u64,
     of: u64,
-) -> Result<Booked, Reason> {
-    let plan = open(books.plan.as_ref(), id)?;
+) -> Result<PlansUpdate, Reason> {
+    let plan = open_plan(plans.plan.as_ref(), id)?;
     let (earned, unearned) = split(plan.bounty, done, of)?;
-    let (kept, forfeit) = split(plan.bond, done, of)?;
+    let (returned, forfeit) = split(plan.bond, done, of)?;
     let (mut requester, mut provider) = (
-        books.requester + unearned,
-        books.provider + earned + kept,
+        plans.requester + unearned,
+        plans.provider + earned + returned,
     );
-    if books.shared {
-        // One wallet has both sides' money coming to it.
-        requester += earned + kept;
+    if plans.shared {
+        // One wallet receives both sides' payments.
+        requester += earned + returned;
         provider = requester;
     }
     let stage = Stage::Settled;
-    Ok(Booked {
+    Ok(PlansUpdate {
         requester,
         provider,
-        commons: books.commons + forfeit,
+        commons: plans.commons + forfeit,
         plan: Some(Plan { stage, ..*plan }),
     })
 }

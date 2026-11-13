@@ -6,8 +6,8 @@ fn held(bond: Option<&Bond>, id: u64) -> Result<&Bond, Reason> {
     if cfg!(feature = "mutant-settle-twice") {
         return Ok(bond); // MUTANT: guard removed.
     }
-    match bond.standing {
-        Standing::Held => Ok(bond),
+    match bond.status {
+        Status::Held => Ok(bond),
         _ => Err(Reason::AlreadySettled { id }),
     }
 }

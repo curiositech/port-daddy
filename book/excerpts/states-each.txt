@@ -1,13 +1,13 @@
 $ harbor states --each
-# every move design core made from a state with all 6 units topped
-#   up; top-ups and bonds of 1 to 3 units, at most 6 units topped
-#   up and 3 bonds posted
-# e0, p0: the units in escrow and in the pool before the move; e1,
-#   p1: after it. The wallet holds the rest
+# every operation design core accepted in a state with all 6 units
+#   topped up; top-ups and bonds of 1 to 3 units, with at most 6
+#   units topped up and 3 bonds posted
+# e0, p0: the units in escrow and in the pool before the
+#   operation; e1, p1: after it. The wallet holds the rest
 # kind 0: a bond posted; kind 1: a bond refunded; kind 2: a bond
 #   slashed
-# times: how many states the move was made from
-# wrong: 1 if the Book's rules refuse the move
+# times: how many states the operation was accepted in
+# wrong: 1 if the reference model refuses the operation
 e0  p0  e1  p1  kind  times  wrong
  0   0   1   0     0     43      0
  0   0   2   0     0     43      0

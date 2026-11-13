@@ -7,12 +7,12 @@ a_settlement_pays_out_what_was_reserved
   successful; its 2 covers are satisfied
 a_share_is_no_more_than_the_amount
   successful; its cover is satisfied
-two_parts_rounded_apiece_are_caught
-  fails, as it must
-with one guard removed, the harnesses that fail
-reserve-apiece
+control_two_parts_rounded_separately_are_caught
+  fails, as a control should
+the harnesses that fail when one guard is removed
+reserve-separately
   a_plan_reserves_both_amounts_or_neither
-split-apiece
+split-separately
   a_settlement_pays_out_what_was_reserved
   a_share_is_no_more_than_the_amount
 settle-plan-twice

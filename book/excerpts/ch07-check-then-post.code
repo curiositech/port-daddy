@@ -1,0 +1,9 @@
+/** Check the wallet, and post the bond only if it is covered. */
+export function* checkThenPost(
+  ledger: Ledger,
+  amount: number,
+): Worker {
+  const covered = ledger.covers(amount);
+  yield; // the check and the post are two requests
+  if (covered) ledger.post(amount);
+}

@@ -1,17 +1,18 @@
 $ harbor plans --guards
-every state a keeper can reach, on the core with one guard
+every reachable state of a plan ledger, on the core with one guard
   removed: 2 principals, deposits of up to 2 units and 3 in all, a
   bounty and a bond of up to 2, 3 milestones and 2 plans
 
 guard removed        wrongly  payouts  states     plans
-                       taken    short    over  unbonded
-reserve-apiece           636        0    1596         0
-split-apiece               0     6870       0         0
+                    accepted    short    over  unbonded
+reserve-separately       636        0    1596         0
+split-separately           0     6870       0         0
 settle-plan-twice      55764        0    9392         0
 any-count               5778        0    1676         0
 unbonded-plan           2092        0       0      2092
 
-wrongly taken: moves the rules refuse that the core made
+wrongly accepted: operations the model refuses that the core
+  accepted
 payouts short: plans paid out with fewer units than they held
 states over: states that hold more units than were deposited
-plans unbonded: states with a plan open and no bond in it
+plans unbonded: states with an open plan that has no bond

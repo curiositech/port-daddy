@@ -1,17 +1,17 @@
 $ sh formal/stakes/run.sh
-a_change_has_a_bond_held_behind_it
+a_new_grant_posts_its_own_bond
   successful; its cover is satisfied
-a_claim_given_with_no_bond_is_caught
-  fails, as it must
-a_new_grant_posts_a_bond_of_its_own
+a_write_needs_a_held_bond
   successful; its cover is satisfied
-every_move_leaves_the_claim_its_bond
+control_a_claim_with_no_bond_is_caught
+  fails, as a control should
+every_operation_keeps_a_claim_bonded
   successful; its 3 covers are satisfied
-with one guard removed, the harnesses that fail
-borrowed-stake
-  a_change_has_a_bond_held_behind_it
-  a_new_grant_posts_a_bond_of_its_own
-refund-at-stake
-  every_move_leaves_the_claim_its_bond
+the harnesses that fail when one guard is removed
+any-stake
+  a_new_grant_posts_its_own_bond
+  a_write_needs_a_held_bond
+refund-staked
+  every_operation_keeps_a_claim_bonded
 write-unstaked
-  a_change_has_a_bond_held_behind_it
+  a_write_needs_a_held_bond

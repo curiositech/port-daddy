@@ -1,6 +1,6 @@
-/// The guard: the wallet holds what the bond asks. It returns
-/// what the wallet has left, so whoever passes the guard has
-/// already paid.
+/// The guard: the wallet covers the bond. It returns the
+/// wallet's new balance, so the check and the debit are one
+/// step.
 fn covered(wallet: u64, asked: u64) -> Result<u64, Reason> {
     if cfg!(feature = "mutant-overdraw") {
         // MUTANT: guard removed.

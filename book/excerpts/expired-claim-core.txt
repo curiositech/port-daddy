@@ -1,0 +1,21 @@
+$ harbor scenario expired-claim --design core
+scenario expired-claim, design core: a worker's claim expires and
+  another worker claims the path; the first then requests a refund
+  of its bond
+
+step 1   alice  top up 12 -> ok: wallet 12, escrow 0, pool 0
+step 2   wren   claim shop/checkout.ts
+                -> token 1, bond 1: wallet 6, escrow 6, pool 0
+step 3   clock  every lease expires
+step 4   heron  claim shop/checkout.ts
+                -> token 2, bond 2: wallet 0, escrow 12, pool 0
+step 5   wren   release shop/checkout.ts
+                -> refused: stale-token (token 1 is older than the
+                   latest issued, 2)
+step 6   wren   refund bond 1
+                -> refused: at-stake (bond 1 is staked on a claim
+                   (token 1), and is settled only when the claim
+                   is released)
+
+verdict: bond 1 stays held until an adjudicator settles it: 12
+         units in escrow

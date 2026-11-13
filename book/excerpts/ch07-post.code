@@ -1,14 +1,17 @@
 /// Post a bond: move `amount` from the wallet into escrow.
-pub fn post(bonds: &Bonds, amount: u64) -> Result<Moved, Reason> {
+pub fn post(
+    bonds: &Bonds,
+    amount: u64,
+) -> Result<BondsUpdate, Reason> {
     let funds = bonds.funds;
     let wallet = covered(funds.wallet, amount)?;
     let escrow = funds.escrow + amount;
     let bond = Bond {
         id: bonds.next_id,
         amount,
-        standing: Standing::Held,
+        status: Status::Held,
     };
-    Ok(Moved {
+    Ok(BondsUpdate {
         funds: Funds {
             wallet,
             escrow,

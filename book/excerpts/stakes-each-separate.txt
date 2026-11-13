@@ -1,0 +1,23 @@
+$ harbor stakes --each --design separate
+# every combination of a claim's status and its bond's status, in
+#   the states design separate reached; 2 workers and 2 paths, a
+#   claim costs 2 units, at most 4 units topped up, 3 bonds posted
+#   and 2 grants for a path
+# claim 0: live; 1: expired, and still the newest grant; 2:
+#   released; 3: abandoned, which is expired and not released,
+#   with a newer grant after it
+# bond 0: none; 1: held; 2: refunded; 3: slashed
+# states: how many states contain the combination
+# writes: how many writes were admitted under a grant in that
+#   combination
+claim  bond  states   writes
+    0     1    4164     2428
+    0     2    2428        0
+    0     3    6652        0
+    1     1    3036     1652
+    1     2    1652        0
+    1     3    4500        0
+    2     2   19304     7032
+    3     1    1312        0
+    3     2     480        0
+    3     3    1408        0
