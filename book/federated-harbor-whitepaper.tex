@@ -1548,9 +1548,14 @@ exchange the heads they were given, which is the fork consistency of
 Design invariant~\ref{prop:fh-witness}. They also need the consistency
 proof of Exercise~\ref{ex:fh-log-rewrite}, to decide whether one head
 extends another. Signed heads do not catch a log that shows every auditor
-the same contents with the pair left out. That log is caught only by
-someone else who holds Acme's second root: whoever gave it to the log, or
-another log that received it in an exchange.
+the same contents with the pair left out. Someone else who holds Acme's
+second root can prove that Acme equivocated. That does not prove the log
+ever received the root, because an honest log that was never sent it
+looks the same. To be caught at this, the log would also have to sign a
+receipt for each root it accepts, as a Certificate Transparency log signs
+a promise to include each certificate~\pdcite{laurie2013ct}. A receipt for
+the second root, beside a later head that leaves the pair out, is
+evidence against the log.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:fh-xfer}}{Cross-Harbor Capability Transfer}

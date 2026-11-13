@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40641197,
+    "bytes": 40641212,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/047135de1ff3d4c15c1b5c62af8e2f35b9ffe88aadc697b1db5176597855d69c.tar.gz",
-    "sha256": "047135de1ff3d4c15c1b5c62af8e2f35b9ffe88aadc697b1db5176597855d69c",
-    "url": "https://media.portdaddy.dev/book/source/sha256/047135de1ff3d4c15c1b5c62af8e2f35b9ffe88aadc697b1db5176597855d69c.tar.gz"
+    "key": "book/source/sha256/2079682156f38505bc624534f64eb03e80c7ed223df610cbb0b7a8e3ce6392a6.tar.gz",
+    "sha256": "2079682156f38505bc624534f64eb03e80c7ed223df610cbb0b7a8e3ce6392a6",
+    "url": "https://media.portdaddy.dev/book/source/sha256/2079682156f38505bc624534f64eb03e80c7ed223df610cbb0b7a8e3ce6392a6.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "44ae5f514bc61e538d7a32bb0ac436979ac419b6d689b51e85705a0ea7931182",
+  "manifestSha256": "fca4e051dc0b67ab85c62352f59b34b24b4f6729baa28f973d978492dd96239f",
   "schemaVersion": 1,
   "source": {
     "fileCount": 931,
@@ -2482,10 +2482,10 @@
         "sha256": "b1474e17da8850c62dff4d34ac1c0f6725bc22b4cd2f0abe3d9afec6158369d6"
       },
       {
-        "bytes": 183313,
+        "bytes": 183652,
         "mode": 420,
         "path": "book/federated-harbor-whitepaper.tex",
-        "sha256": "9bc1e08060f3e55dd80713c43dd75e63f569461917536ea63456706c064c78ae"
+        "sha256": "1e25f7c0404d1e296b4c6dc2f6fb08307a4ae90b925d2179bff86421437b63fe"
       },
       {
         "bytes": 644,
@@ -5608,6 +5608,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "eef50c6b1cc6c124f9fc83bdb49e6f8ed637f9538f3fd32611fa4cb0b9acc552"
+    "sha256": "a4c86f9ac0ad65c5195fca73c0777932984b33274bea294408610027a8ca48fa"
   }
 }
