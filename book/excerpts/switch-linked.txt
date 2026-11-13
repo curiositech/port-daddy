@@ -3,8 +3,8 @@ scenario switch, design linked: a worker changes the work after
   the operator has read it
 
 step 1   wren   makes the repair -> revision 8
-step 2   kernel runs the kept test on revision 8 -> passed
-step 3   wren   says "all green", attaching its diff and log
+step 2   kernel runs the acceptance test on revision 8 -> passed
+step 3   wren   reports "all green" and attaches its diff and log
 step 4   alice  reads the line
                 -> wren | checkout repair | all green | see
                    044fe47 | see 44a3a64
@@ -14,7 +14,7 @@ step 5   alice  opens claim 1
 step 6   alice  opens claim 2
                 -> shown: checkout.test at revision 8: 4 passed
 step 7   wren   adds a migration to the change -> revision 9
-step 8   kernel runs the kept test on revision 9 -> passed
+step 8   kernel runs the acceptance test on revision 9 -> passed
 step 9   alice  lands it -> landed revision 9
 
 verdict: ALICE LANDED REVISION 9, AND SHE HAD NOT BEEN SHOWN ITS

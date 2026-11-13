@@ -1,25 +1,26 @@
 % Brief (grammar: small multiples, one panel for each gate and record, with
-%   a mark for every outcome a worker can bring about; atlas
-%   III/fig:sealed-views).
-% Reader question: of one record, how many different things can a worker
-% make Erin see, under each gate?
-% Claim: 9 under the gate that takes the worker's value, 5 under the gate
-% that reads the committed record and opens when asked, and 1 under the
-% kernel's gate. The one thing is the record's parity at the slot's time,
-% so the bottom row depends on the record's parity and on nothing else.
-% Evidence: every view a worker can bring about of each record from 0 to
-% 3, with a slot of one bit due at time 2 and a clock that runs to time 3
-% [internal, harbor worlds --each for each gate; sessions
-% worlds-each-handed.txt, worlds-each-prompt.txt and worlds-each.txt, drawn
-% as printed, and tests/harbor-research/test_sealed_gate_numbers.py holds
-% the counts in the picture and the caption to it].
-% Must distinguish: the view the contract allows from a view the worker
-% chose; a value from the time it left; one record from the next.
-% Grammar chosen: time along each panel and the value up it, with a box at
-% the left for a run in which nothing left, so that a gate's row fills as
-% the worker's choices do.
+%   a mark for every output a worker can cause; atlas VIII/fig:sealed-views).
+% Reader question: for one record, how many different outputs can a worker
+% cause under each gate?
+% Claim: 9 under the gate that uses the submitted value, 5 under the gate
+% that reads the committed record and releases on request, and 1 under the
+% kernel's gate. That one output is the record's parity at the slot's
+% deadline, so the bottom row depends only on the record's parity.
+% Evidence: every output a worker can cause for each record from 0 to 3,
+% with a slot of one bit and a deadline of 2, and a clock that runs to
+% time 3 [internal, harbor worlds --each for each gate; sessions
+% worlds-each-submitted.txt, worlds-each-on-request.txt and
+% worlds-each.txt, plotted as printed, and
+% tests/harbor-research/test_sealed_gate_numbers.py checks the counts in
+% the picture and the caption against them].
+% Must distinguish: the output the contract allows from an output the
+% worker chose; a value from the time of its release; one record from the
+% next.
+% Grammar chosen: time on the horizontal axis of each panel and the value
+% on the vertical, with a box at the left for a run with no release, so
+% that a gate's row fills up as the worker's choices grow.
 % Grammar rejected: a bar of the three counts, which gives 9, 5 and 1 and
-% hides that the 5 are all times; the table itself, which is 60 rows.
+% hides that the 5 differ only in time; the table itself, which is 60 rows.
 % Five-second test: which row has one mark in each panel?
 \begin{figure}[H]
 \centering
@@ -28,7 +29,7 @@
     chosen/.style={fill=pderror},
     allowed/.style={fill=pdink},
     empty/.style={fill=pdinkmuted!55}]
-  % Counts taken from the tables as they are drawn: the views of record 0.
+  % Counts taken from the tables as they are plotted: the outputs for record 0.
   \ifdefined\pdviewsfirst\else
     \newcount\pdviewsfirst \newcount\pdviewssecond \newcount\pdviewskernel
   \fi
@@ -49,30 +50,30 @@
   }
   % Each table is a recorded run, read as it was printed: the first line
   % is the command, and every remark starts with '#'.
-  \pgfplotstableread[skip first n=1]{excerpts/worlds-each-handed.txt}\pdviewtablefirst
-  \pgfplotstableread[skip first n=1]{excerpts/worlds-each-prompt.txt}\pdviewtablesecond
+  \pgfplotstableread[skip first n=1]{excerpts/worlds-each-submitted.txt}\pdviewtablefirst
+  \pgfplotstableread[skip first n=1]{excerpts/worlds-each-on-request.txt}\pdviewtablesecond
   \pgfplotstableread[skip first n=1]{excerpts/worlds-each.txt}\pdviewtablekernel
-  % One gate's views: #1 is its table, #2 its row and #3 its count.
+  % One gate's outputs: #1 is its table, #2 its row and #3 its count.
   \newcommand{\pdviewsof}[3]{%
     \pgfplotstablegetrowsof{#1}
     \pgfmathtruncatemacro{\pdlastview}{\pgfplotsretval-1}
     \foreach \i in {0,...,\pdlastview}{
       \pgfplotstablegetelem{\i}{record}\of#1 \let\rec\pgfplotsretval
-      \pgfplotstablegetelem{\i}{left}\of#1 \let\lf\pgfplotsretval
+      \pgfplotstablegetelem{\i}{released}\of#1 \let\lf\pgfplotsretval
       \pgfplotstablegetelem{\i}{at}\of#1 \let\at\pgfplotsretval
       \pgfplotstablegetelem{\i}{value}\of#1 \let\vl\pgfplotsretval
       \ifnum\rec=0 \global\advance#3 1 \fi
       \ifnum\lf=0
-        % Nothing left the room: the box at the left of the panel.
+        % No release: the box at the left of the panel.
         \fill[chosen] ({\pdviewx{\rec}-.36},#2+.14) rectangle ({\pdviewx{\rec}+.36},#2+.86);
       \else
-        % The contract's own view is the record's parity at the slot's time.
+        % The output the contract allows is the record's parity at the slot's deadline.
         \pgfmathtruncatemacro{\parity}{mod(\rec,2)}
         \def\pdviewstyle{chosen}
         \ifnum\at=2 \ifnum\vl=\parity \def\pdviewstyle{allowed}\fi\fi
         \fill[\pdviewstyle] ({\pdviewx{\rec}+1.6+\at-.36},#2+\vl-.36)
           rectangle ({\pdviewx{\rec}+1.6+\at+.36},#2+\vl+.36);
-        % A frame as well as a colour, so the two kinds differ in grey.
+        % A frame as well as a colour, so the two kinds also differ in greyscale.
         \ifnum\at=2 \ifnum\vl=\parity
           \draw[draw=pdink,line width=.5pt] ({\pdviewx{\rec}+1.6+\at-.5},#2+\vl-.5)
             rectangle ({\pdviewx{\rec}+1.6+\at+.5},#2+\vl+.5);
@@ -82,7 +83,7 @@
   \pdviewsof{\pdviewtablefirst}{\pdviewrowfirst}{\pdviewsfirst}
   \pdviewsof{\pdviewtablesecond}{\pdviewrowsecond}{\pdviewssecond}
   \pdviewsof{\pdviewtablekernel}{\pdviewrowkernel}{\pdviewskernel}
-  % What the rows and the panels are.
+  % Labels for the rows and the panels.
   \foreach \rec in {0,...,3}{
     \node[pd label,anchor=south] at ({\pdviewx{\rec}+2.3},3.05) {record \rec};
     \foreach \t in {0,...,3}{
@@ -91,7 +92,7 @@
     \node[pd label,text=pdinkmuted,anchor=north] at ({\pdviewx{\rec}},\pdviewrowkernel-.75) {--};
   }
   \node[pd label,anchor=north] at ({\pdviewx{1.5}+2.3},\pdviewrowkernel-2.2)
-    {along: the time it left, or a dash if nothing did\\up: the value that left};
+    {horizontal: the time of the release, or a dash for no release\\vertical: the value released};
   \foreach \row/\name/\count in {\pdviewrowfirst/{the first gate}/\the\pdviewsfirst,
       \pdviewrowsecond/{the second gate}/\the\pdviewssecond,
       \pdviewrowkernel/{the kernel's gate}/\the\pdviewskernel}{
@@ -101,9 +102,9 @@
     }
   }
 \end{tikzpicture}
-\caption{\textbf{A worker that could show Erin 9 things of one record is
-left with 1.} A framed black square is the record's parity at the slot's
-time, and a red one is the worker's choice.
+\caption{\textbf{A worker that could cause 9 outputs for one record can
+cause only 1.} A framed black square is the record's parity at the slot's
+deadline, and a red one is an output the worker chose.
 [internal, \texttt{harbor worlds -{}-each}]}
 \label{fig:sealed-views}
 \end{figure}

@@ -1,11 +1,11 @@
 $ harbor scenario borrowed --design core
 scenario borrowed, design core: a worker attaches the log of
-  somebody else's passing run
+  another worker's passing run
 
-step 1   drake  repairs the retry, and deletes the test
+step 1   drake  repairs the retry and deletes the acceptance test
                 -> revision 8
-step 2   kernel runs the kept test on revision 8 -> failed
-step 3   drake  says "all green", attaching heron's log
+step 2   kernel runs the acceptance test on revision 8 -> failed
+step 3   drake  reports "all green" and attaches heron's log
 step 4   alice  reads the line
                 -> drake | checkout repair | revision 8 | NOT
                    VERIFIED | diff 6f8f0dd | test failed af15061

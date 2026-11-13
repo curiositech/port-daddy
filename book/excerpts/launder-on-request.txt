@@ -1,0 +1,15 @@
+$ harbor scenario launder --design on-request
+scenario launder, design on-request: the worker submits half the
+  record
+
+                                   record 0        record 2
+step 1   derek  commits            0               2
+step 2   worker reads              0               2
+step 3   worker submits half of it 0               1
+         erin   sees               0               0
+step 4   clock  time 1
+step 5   clock  time 2
+step 6   clock  time 3
+
+erin has seen                      0 at time 0     0 at time 0
+verdict: erin has seen the same thing in both worlds: 0 at time 0

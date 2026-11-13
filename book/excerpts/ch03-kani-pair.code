@@ -1,6 +1,6 @@
-/// Two rooms the recipient cannot tell apart so far: one slot,
-/// used in both or in neither, and records with one declared
-/// part. Each worker has handed in what it liked.
+/// Two rooms the recipient cannot distinguish so far. They
+/// have the same slot, used in both or in neither, and records
+/// with the same declared bits. Each worker's candidate is any.
 fn two_rooms() -> (Room, Room) {
     let slot = any_slot();
     let (a, b) = (any_room(slot), any_room(slot));
@@ -11,10 +11,10 @@ fn two_rooms() -> (Room, Room) {
     (a, b)
 }
 
-/// The step. A tick of the clock lets the same thing out of
-/// both rooms, at the same time, and leaves them alike.
+/// One step. A tick releases the same value from both rooms
+/// at the same time, and leaves both slots in the same state.
 #[kani::proof]
-fn two_rooms_with_one_declared_part_look_the_same() {
+fn two_rooms_with_the_same_declared_bits_release_the_same() {
     let (a, b) = two_rooms();
     let now: u64 = kani::any();
     let (after_a, after_b) = (tick(&a, now), tick(&b, now));

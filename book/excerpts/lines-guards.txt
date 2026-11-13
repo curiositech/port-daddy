@@ -1,26 +1,25 @@
 $ harbor lines --guards
-every afternoon of one piece of work, on the core with one guard
-  removed: the worker changes it up to 2 times, well or badly, and
-  says up to 2 things of it. The kernel runs the kept test when it
-  gets to it, and the store may go wrong once. The operator opens
-  up to 3 claims, and may land the work in any state
+every sequence of events for one piece of work, on the core with
+  one guard removed: the worker changes it up to 2 times,
+  correctly or not, and reports on it up to 2 times. The kernel
+  runs the acceptance test at any point, and the store may return
+  the wrong text once. The operator opens up to 3 claims, and may
+  try to land the work in any state
 
-guard removed     lines  say more    lead landings      not   not
-                        than show nowhere          verified  read
-bare-line         14328         0      20     1092        0     0
-any-run           15328      1716       0     1632      462     0
-trust-store       20096         0       0     1678        0   376
-land-unverified   14308         0       0     3996     2904     0
-land-unseen       14308         0       0     4890        0  2712
-count-opened      14308         0       0     2604        0   912
+guard removed    lines overclaim broken landings unverified unseen
+missing-diff     14328         0     20     1092          0      0
+any-run          15328      1716      0     1632        462      0
+trust-store      20096         0      0     1678          0    376
+land-unverified  14308         0      0     3996       2904      0
+land-unopened    14308         0      0     4890          0   2712
+count-opened     14308         0      0     2604          0    912
 
 lines: states in which the operator is shown a line
-say more than show: lines that say the work is good, with no claim
-  that leads to a passing run of it
+overclaim: lines that say the work is good and have no claim that
+  links to a passing run of it
 landings: states in which the work can be landed
-not verified: landings of work that no run of its revision had
+unverified: landings of work that no run of its revision had
   passed
-not read: landings of work whose diff the operator had not been
+unseen: landings of work whose diff the operator had not been
   shown
-lead nowhere: lines with a claim that leads to nothing in the
-  store
+broken: lines with a claim that links to nothing in the store

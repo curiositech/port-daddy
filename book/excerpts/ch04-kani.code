@@ -1,13 +1,13 @@
-/// Work lands only if it is verified and every claim of its
+/// Work lands only if it is verified and every claim on its
 /// line is among the hashes that were opened.
 #[kani::proof]
 #[kani::unwind(4)]
-fn work_lands_only_verified_and_read() {
+fn work_lands_only_if_verified_and_opened() {
     let work = any_work();
-    let Ok(read) = land(&work) else { return };
-    kani::cover!(read.landed);
-    assert!(read.landed && read.line.verified);
-    for claim in &read.line.claims {
+    let Ok(review) = land(&work) else { return };
+    kani::cover!(review.landed);
+    assert!(review.landed && review.line.verified);
+    for claim in &review.line.claims {
         assert!(work.opened.contains(&claim.sha));
     }
 }

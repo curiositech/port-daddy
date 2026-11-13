@@ -1,16 +1,16 @@
 /// Make the line for a piece of work, from the record alone.
 pub fn render(work: &Work) -> Result<Line, Reason> {
-    let Some(diff) = backing(work) else {
-        return Err(Reason::NothingBehind);
+    let Some(diff) = stored_diff(work) else {
+        return Err(Reason::NoDiff);
     };
-    let mut claims = vec![claim(Says::Changed, diff)];
-    let run = current(work);
+    let mut claims = vec![claim(Kind::Changed, diff)];
+    let run = current_run(work);
     if let Some(run) = run {
-        let says = match run.passed {
-            true => Says::Passed,
-            false => Says::Failed,
+        let kind = match run.passed {
+            true => Kind::Passed,
+            false => Kind::Failed,
         };
-        claims.push(claim(says, run.log.clone()));
+        claims.push(claim(kind, run.log.clone()));
     }
     let verified = run.is_some_and(|run| run.passed);
     Ok(Line { claims, verified })

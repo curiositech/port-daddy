@@ -456,8 +456,8 @@ class QuotedFacts(unittest.TestCase):
             self.assertGreater(sum(self.guards[name][1:]), 0, name)
         self.quoted('Both tools catch all five.')
         # The two builds this one is compared with each had a guard that one tool could not see.
-        self.quoted('\\weld{sealed:sec:sealed-gate}{walk of pairs}')
-        self.assertIn('The walk of pairs cannot see that guard at all.',
+        self.quoted('\\weld{sealed:sec:sealed-gate}{two-room check}')
+        self.assertIn('The two-room check cannot detect that this guard is missing.',
                       prose(ROOT / 'book' / 'additions' / 'sealed-build-the-gate.tex'))
         self.assertIn('and no harness fails on it', prose(ROOT / 'book' / 'additions' / 'ls-build-the-line.tex'))
         self.quoted('\\weld{ls:sec:ls-line}{one byte}')

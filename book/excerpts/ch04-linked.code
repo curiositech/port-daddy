@@ -1,23 +1,24 @@
-/** The worker's words, and a claim for each thing it attached.
- * A link that leads to nothing stored is refused. */
-line(): Shown | Reply {
-  const { agent, job, said, links, store } = this.at;
+/** The worker's report, with a claim for each link attached.
+ * A link to something that is not in the store is refused. */
+line(): DisplayLine | Reply {
+  const { agent, job, statement, links, store } = this.at;
   const stored = links.every((link) => link in store);
   if (links.length === 0 || !stored) {
     return no('no-link', 'nothing is attached');
   }
-  const claims = links.map((sha) => ({ says: PASSED, sha }));
+  const claims = links.map((sha) => ({ kind: PASSED, sha }));
   const see = links.map((sha) => `see ${short(sha)}`).join(' | ');
-  return { text: `${agent} | ${job} | ${said} | ${see}`, claims };
+  const text = `${agent} | ${job} | ${statement} | ${see}`;
+  return { text, claims };
 }
 
-/** Landing waits until each claim's number has been opened. */
+/** Landing waits until every claim number has been opened. */
 land(): Reply {
   const line = this.line();
   if ('ok' in line) return line;
-  const { links, ticked } = this.at;
-  const seen = links.every((_, claim) => ticked.includes(claim));
-  if (!seen) return no('not-opened', 'a claim is unopened');
+  const { links, openedNumbers } = this.at;
+  const all = links.every((_, n) => openedNumbers.includes(n));
+  if (!all) return no('not-opened', 'a claim is unopened');
   this.at = { ...this.at, landed: this.at.revision };
   return { ok: true };
 }

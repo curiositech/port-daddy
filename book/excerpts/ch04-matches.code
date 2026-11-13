@@ -1,6 +1,6 @@
-/// The guard on what is shown: its SHA-256 is the claim's.
+/// Guard: the text shown must hash to the claim's SHA-256.
 #[cfg(not(kani))]
-fn same(sha: &Sha, shown: &str) -> bool {
+fn matches(sha: &Sha, shown: &str) -> bool {
     use sha2::{Digest, Sha256};
     if cfg!(feature = "mutant-trust-store") {
         return true; // MUTANT: guard removed.

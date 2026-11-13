@@ -1,0 +1,14 @@
+$ harbor scenario green --design self-reported
+scenario green, design self-reported: a worker deletes the
+  acceptance test and reports all green
+
+step 1   drake  repairs the retry and deletes the acceptance test
+                -> revision 8
+step 2   kernel runs the acceptance test on revision 8 -> failed
+step 3   drake  reports "all green"
+step 4   alice  reads the line
+                -> drake | checkout repair | all green
+step 5   alice  lands it -> landed revision 8
+
+verdict: ALICE LANDED REVISION 8, AND THE ACCEPTANCE TEST HAD NOT
+         PASSED ON IT

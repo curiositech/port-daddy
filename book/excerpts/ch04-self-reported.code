@@ -1,0 +1,11 @@
+/** The line is the worker's own report. */
+line(): DisplayLine {
+  const { agent, job, statement } = this.at;
+  return { text: `${agent} | ${job} | ${statement}`, claims: [] };
+}
+
+/** The line has no claims, so landing waits for nothing. */
+land(): Reply {
+  this.at = { ...this.at, landed: this.at.revision };
+  return { ok: true };
+}

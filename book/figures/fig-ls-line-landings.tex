@@ -1,28 +1,27 @@
-% Brief (grammar: small multiples, one bar for each surface, cut once
-%   across and once down by the two halves of the landing rule; atlas
-%   I/fig:ls-line-landings).
-% Reader question: of the landings each surface allows, how many are right,
-% and what is wrong with the others?
+% Brief (grammar: small multiples, one bar for each surface, divided once
+%   horizontally and once vertically by the two conditions of the landing
+%   rule; atlas I/fig:ls-line-landings).
+% Reader question: of the landings each surface allows, how many are
+% correct, and what is wrong with the others?
 % Claim: none of the first surface's 2,388, then 1,214 of the second's
 % 10,094, and all 1,092 of the kernel's. The wrong ones are of two kinds
 % that overlap: work no run had passed, and work whose diff Alice had not
 % been shown.
-% Evidence: every landing in every afternoon of one piece of work, within
-% the bounds the walk prints [internal, harbor lines --each; session
-% lines-each.txt, drawn as printed, and
-% tests/harbor-research/test_ls_line_numbers.py holds the counts in the
-% caption and the prose to it].
-% Must distinguish: a landing that was right from one that was not; work
-% that was not verified from work that was not read; one surface from the
-% next.
-% Grammar chosen: each bar is every landing one surface allowed. It is cut
-% across by whether a run of the work had passed, and each part is cut
-% down by whether Alice had been shown the diff, so that an area is a share
-% of that surface's landings and the four kinds keep their places from bar
-% to bar.
-% Grammar rejected: one stacked bar for each surface, which sets the four
-% kinds in a row and hides that two questions make them; a bar on one
-% scale for all landings, which compares counts of states from walks of
+% Evidence: every landing in every sequence of events for one piece of
+% work, within the bounds the exhaustive test prints [internal, harbor
+% lines --each; session lines-each.txt, plotted as printed, and
+% tests/harbor-research/test_ls_line_numbers.py checks the counts in the
+% caption and the prose against it].
+% Must distinguish: a correct landing from a wrong one; unverified work
+% from work whose diff was not seen; one surface from the next.
+% Grammar chosen: each bar is every landing one surface allowed. It is
+% divided from left to right by whether a run of the work had passed, and
+% each part is divided from top to bottom by whether Alice had been shown
+% the diff. An area is then a share of that surface's landings, and the
+% four kinds stay in the same places from bar to bar.
+% Grammar rejected: one stacked bar for each surface, which puts the four
+% kinds in a row and hides that two conditions produce them; a bar on one
+% scale for all landings, which compares counts of states from tests of
 % different sizes.
 % Five-second test: which bar is black from end to end?
 \begin{figure}[H]
@@ -46,43 +45,43 @@
     \fi}
   \foreach \row/\name in {0/{the first surface},1/{the second surface},2/{the kernel's surface}}{
     \pgfplotstablegetelem{\row}{landings}\of\pdlandings \let\pdall\pgfplotsretval
-    \pgfplotstablegetelem{\row}{right}\of\pdlandings \let\pdfine\pgfplotsretval
-    \pgfplotstablegetelem{\row}{unread}\of\pdlandings \let\pdunread\pgfplotsretval
+    \pgfplotstablegetelem{\row}{correct}\of\pdlandings \let\pdfine\pgfplotsretval
+    \pgfplotstablegetelem{\row}{unseen}\of\pdlandings \let\pdunread\pgfplotsretval
     \pgfplotstablegetelem{\row}{unverified}\of\pdlandings \let\pdunverified\pgfplotsretval
     \pgfplotstablegetelem{\row}{neither}\of\pdlandings \let\pdneither\pgfplotsretval
     \pgfmathsetmacro{\pdtop}{-\row*\pdbarstep}
     \pgfmathsetmacro{\pdfoot}{\pdtop-\pdbarhigh}
-    % Across: the landings of work that a run had passed, then the others.
+    % Left to right: the landings of work that a run had passed, then the others.
     \pgfmathtruncatemacro{\pdpassed}{\pdfine+\pdunread}
     \pgfmathtruncatemacro{\pdfailed}{\pdunverified+\pdneither}
     \pgfmathsetmacro{\pdcut}{\pdpassed/\pdall*\pdbarwide}
-    % Down each part: the landings she had been shown the diff of, then
-    % the others.
+    % Top to bottom in each part: the landings whose diff she had been
+    % shown, then the others.
     \ifnum\pdpassed>0
       \pgfmathsetmacro{\pdmid}{\pdtop-\pdfine/\pdpassed*\pdbarhigh}
-      \pdlandingcell{(0,\pdtop)}{(\pdcut,\pdmid)}{fill=pdink}{right}{\pdfine}
-      \pdlandingcell{(0,\pdmid)}{(\pdcut,\pdfoot)}{fill=pderror}{not read}{\pdunread}
+      \pdlandingcell{(0,\pdtop)}{(\pdcut,\pdmid)}{fill=pdink}{correct}{\pdfine}
+      \pdlandingcell{(0,\pdmid)}{(\pdcut,\pdfoot)}{fill=pderror}{not seen}{\pdunread}
     \fi
     \ifnum\pdfailed>0
       \pgfmathsetmacro{\pdmid}{\pdtop-\pdunverified/\pdfailed*\pdbarhigh}
       \pdlandingcell{(\pdcut,\pdtop)}{(\pdbarwide,\pdmid)}{fill=pderror}{not verified}{\pdunverified}
       \pdlandingcell{(\pdcut,\pdmid)}{(\pdbarwide,\pdfoot)}{fill=pderror}{neither}{\pdneither}
     \fi
-    % A line inside as well as a colour, so that right differs from wrong
-    % in grey.
+    % A line inside as well as a colour, so that correct also differs from
+    % wrong in greyscale.
     \ifnum\pdfine>0
       \pgfmathsetmacro{\pdmid}{\pdtop-\pdfine/\pdpassed*\pdbarhigh}
       \draw[draw=white,line width=.5pt] (.09,\pdtop-.09) rectangle (\pdcut-.09,\pdmid+.09);
     \fi
     \node[pd title,anchor=south west,inner sep=0pt] at (0,\pdtop+.13)
-      {\name: \pgfmathprintnumber{\pdfine} of \pgfmathprintnumber{\pdall} landings were right};
+      {\name: \pgfmathprintnumber{\pdfine} of \pgfmathprintnumber{\pdall} landings were correct};
   }
   \node[pd label,anchor=north,align=center] at (\pdbarwide/2,-2*\pdbarstep-\pdbarhigh-.25)
-    {across: a run of the work had passed, then none had\\
-     down: Alice had been shown its diff, then she had not};
+    {left to right: a run of the work had passed, then none had\\
+     top to bottom: Alice had been shown its diff, then she had not};
 \end{tikzpicture}
 \caption{\textbf{Of 10,094 landings under the surface with links, 1,214
-were right.} Each bar is every landing one surface allowed, and an area is
+were correct.} Each bar is every landing one surface allowed, and an area is
 a share of them. Black is a landing of verified work whose diff Alice had
 been shown.
 [internal, \texttt{harbor lines -{}-each}]}
