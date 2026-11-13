@@ -1,36 +1,36 @@
-/** Take back the last card of a chain, on a warrant. The core
- * checks the chain and then the warrant. The gate keeps both
- * to show other gates. */
-override withdraw(
+/** Revoke the last card of a chain, on a signed revocation.
+ * The core checks the chain and then the signature. The gate
+ * keeps both to send other gates. */
+override revoke(
   chain: readonly string[],
   now: number,
-  warrant?: Warrant,
-): Taking {
-  const take = { op: 'withdraw', chain, warrant } as const;
+  revocation?: Revocation,
+): RevokeResult {
+  const proposal = { op: 'revoke', chain, revocation } as const;
   const state = { gate: { key: this.key } };
-  const answer = this.core.decide(take, state, POLICY, now);
+  const answer = this.core.decide(proposal, state, POLICY, now);
   if (answer.verdict === 'refuse') {
     return refused(answer.reason.code, explain(answer.reason));
   }
   const { id, until } = answer.entry;
-  this.enter(answer.entry, now);
-  if (warrant) this.#taken.set(id, { chain, warrant });
+  this.add(answer.entry, now);
+  if (revocation) this.#notices.set(id, { chain, revocation });
   return { ok: true, until };
 }
 
-/** The news: each card taken back, as its chain and warrant. */
-news(): readonly Taken[] {
-  return [...this.#taken.values()];
+/** The notices: each revoked card's chain and its revocation. */
+notices(): readonly Notice[] {
+  return [...this.#notices.values()];
 }
 
-/** Hear another gate's news. Each chain new to this gate is
- * checked here with its warrant, whoever sent them. */
-hear(news: unknown, now: number): number {
-  let fresh = 0;
-  for (const { chain, warrant } of takenIn(news)) {
+/** Receive another gate's notices. Each chain new to this gate
+ * is checked here with its revocation, whoever sent them. */
+receive(notices: unknown, now: number): number {
+  let added = 0;
+  for (const { chain, revocation } of noticesIn(notices)) {
     const id = idIfCard(chain.at(-1) ?? '');
-    if (this.#taken.has(id)) continue;
-    if (this.withdraw(chain, now, warrant).ok) fresh += 1;
+    if (this.#notices.has(id)) continue;
+    if (this.revoke(chain, now, revocation).ok) added += 1;
   }
-  return fresh;
+  return added;
 }

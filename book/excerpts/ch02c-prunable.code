@@ -1,0 +1,17 @@
+/// An entry may be removed once the card it names has expired.
+/// From then on the card is refused as expired, with or without
+/// the entry.
+pub fn prunable(
+    entry: Option<&Entry>,
+    id: &str,
+    now: u64,
+) -> Result<Entry, Reason> {
+    let entry = entry
+        .filter(|entry| entry.id == id)
+        .ok_or(Reason::NoEntry)?;
+    if valid(now, entry.until) {
+        let until = entry.until;
+        return Err(Reason::StillValid { until });
+    }
+    Ok(entry.clone())
+}

@@ -1,20 +1,21 @@
-/** The text a warrant is a signature over. It holds no
- * challenge, so it reads the same at every gate. */
-export function withdraws(
+/** The text a revocation is a signature over. It holds no
+ * challenge, so it is the same at every gate. */
+export function revocationText(
   harborKey: string,
   card: string,
 ): string {
-  return JSON.stringify(['withdraw', harborKey, card]);
+  return JSON.stringify(['revoke', harborKey, card]);
 }
 
-/** Sign a warrant to take back the last card of a chain. */
-export function warrant(
+/** Sign a revocation of the last card of a chain. */
+export function signRevocation(
   keys: Keys,
   harborKey: string,
   chain: readonly string[],
-): Warrant {
+): Revocation {
   const last = chain.at(-1);
-  const text = withdraws(harborKey, last ? idOf(last) : '');
+  const card = last ? idOf(last) : '';
+  const text = revocationText(harborKey, card);
   const tag = sign(null, Buffer.from(text), keys.secret);
   return { by: keys.public, tag: tag.toString('base64url') };
 }

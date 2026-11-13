@@ -1,0 +1,25 @@
+$ harbor scenario outsider --design verified
+scenario outsider, design verified: someone who holds no card of a
+  chain asks the gate to revoke its last card
+
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      alice  delegates to heron: write shop/checkout.ts; valid
+                until t=600000
+t=0      heron  delegates to finch: write shop/checkout.ts; valid
+                until t=600000
+t=0      finch  requests to write shop/checkout.ts
+                -> admitted as finch
+t=60000  wren   copies finch's cards as he sends them, and holds
+                none of the keys they name
+t=60000  wren   sends the gate finch's cards, and asks it to
+                revoke his card
+                -> revoked
+t=60000  finch  requests to write shop/checkout.ts
+                -> refused: revoked (card 3 was revoked)
+t=120000 heron  asks the gate to revoke finch's card -> revoked
+t=120000 finch  requests to write shop/checkout.ts
+                -> refused: revoked (card 3 was revoked)
+
+verdict: LOCKED OUT: the gate revoked finch's card for wren, who
+         holds no card of his chain

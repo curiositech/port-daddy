@@ -1,0 +1,25 @@
+/**
+ * The probability that `some` gates, named in advance, are all
+ * still uninformed after a round that began with `informed`
+ * informed gates.
+ *
+ * A gate is informed in two ways. Its own exchange is with an
+ * informed gate, and is not lost. Or an informed gate picks it,
+ * and that exchange is not lost. So the named gates all stay
+ * uninformed when none of their own exchanges informs them, and
+ * no informed gate's exchange reaches any of them.
+ */
+export function stayUninformed(
+  gates: number,
+  informed: number,
+  some: number,
+  loss: Fraction = ZERO,
+): Fraction {
+  const others = whole(gates - 1);
+  const kept = minus(ONE, loss);
+  const informs = times(kept, over(whole(informed), others));
+  const reaches = times(kept, over(whole(some), others));
+  const ownMiss = power(minus(ONE, informs), some);
+  const noneReaches = power(minus(ONE, reaches), informed);
+  return times(ownMiss, noneReaches);
+}

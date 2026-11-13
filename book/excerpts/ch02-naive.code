@@ -1,40 +1,40 @@
-/** Check one card as its format invites: ask its header how. */
+/** Verify one card with the algorithm its header names. */
 function signed(card: string, key: Buffer): Claims | undefined {
-  const [head = '', says = '', given = ''] = card.split('.');
+  const [head = '', claims = '', given = ''] = card.split('.');
   const { alg } = JSON.parse(plain(head)) as { alg?: string };
-  const text = Buffer.from(`${head}.${says}`);
+  const text = Buffer.from(`${head}.${claims}`);
   const tag = Buffer.from(given, 'base64url');
-  const good =
+  const ok =
     alg === 'EdDSA'
       ? verify(null, text, publicKey(key), tag)
       : alg === 'HS256' && hmac(key, text).equals(tag);
-  return good ? (JSON.parse(plain(says)) as Claims) : undefined;
+  return ok ? (JSON.parse(plain(claims)) as Claims) : undefined;
 }
 
 /** Check a chain: each signature, then the rights of the last
  * card against those of the first. */
 function check(
   chain: readonly string[],
-  ask: Right | undefined,
+  requested: Right | undefined,
   harborKey: string,
   now: number,
 ): Verdict {
   const cards: Claims[] = [];
   let key = Buffer.from(harborKey, 'base64url');
   for (const card of chain) {
-    const says = signed(card, key);
-    if (!says) return refused('bad-signature', NOT_SIGNED);
-    if (now > says.exp) return refused('expired', ended(says));
-    cards.push(says);
-    key = Buffer.from(says.key, 'base64url');
+    const claims = signed(card, key);
+    if (!claims) return refused('bad-signature', NOT_SIGNED);
+    if (now > claims.exp) return refused('expired', EXPIRED);
+    cards.push(claims);
+    key = Buffer.from(claims.key, 'base64url');
   }
   const first = cards[0];
   const last = cards.at(-1);
   if (!first || !last) return refused('no-card', NO_CARD);
-  const more = last.can.find((right) => !holds(first, right));
-  if (more) return refused('widens', beyond(more));
-  if (ask && !holds(last, ask)) {
-    return refused('not-granted', spell(ask));
+  const extra = last.can.find((right) => !grants(first, right));
+  if (extra) return refused('widens', beyond(extra));
+  if (requested && !grants(last, requested)) {
+    return refused('not-granted', rightText(requested));
   }
   return { ok: true, holder: last.sub };
 }

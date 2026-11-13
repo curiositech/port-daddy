@@ -1,26 +1,27 @@
-/** Hand out a challenge, good for thirty seconds. */
+/** Issue a challenge, valid for thirty seconds. */
 challenge(now: number): string {
   this.#sweep(now);
-  const nonce = this.#dice();
+  const nonce = this.#nonces();
   this.#open.set(nonce, { nonce, until: now + ANSWER_WITHIN });
   return nonce;
 }
 
-/** Decide one showing in a single turn: the challenge is looked
- * up and struck out with nothing running in between. */
+/** Decide one presentation in a single turn: the challenge is
+ * looked up and deleted with nothing running in between. */
 admit(
   chain: readonly string[],
-  ask: Right | undefined,
+  requested: Right | undefined,
   now: number,
   proof?: Proof,
 ): Verdict {
   const open = proof && this.#open.get(proof.nonce);
   const state = { gate: { key: this.#key, open } };
-  const shown = { op: 'present', chain, ask, proof } as const;
-  const answer = this.#core.decide(shown, state, PROVED, now);
+  const op = 'present' as const;
+  const proposal = { op, chain, requested, proof };
+  const answer = this.core.decide(proposal, state, PROVED, now);
   if (answer.verdict === 'refuse') {
     return refused(answer.reason.code, explain(answer.reason));
   }
-  this.#strike(answer.pass.answered);
+  this.#close(answer.pass.answered);
   return { ok: true, holder: answer.pass.holder };
 }

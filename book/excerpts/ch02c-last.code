@@ -1,21 +1,21 @@
-/** Refuse a chain whose last card was taken back. */
+/** Refuse a chain whose last card was revoked. */
 admit(
   chain: readonly string[],
-  ask: Right | undefined,
+  requested: Right | undefined,
   now: number,
   proof?: Proof,
 ): Verdict {
   const last = chain.at(-1) ?? '';
-  if (this.#taken.has(idIfCard(last))) {
-    const detail = `card ${chain.length} was taken back`;
-    return refused('withdrawn', detail);
+  if (this.#revoked.has(idIfCard(last))) {
+    const detail = `card ${chain.length} was revoked`;
+    return refused('revoked', detail);
   }
-  return this.#inner.admit(chain, ask, now, proof);
+  return this.#inner.admit(chain, requested, now, proof);
 }
 
-/** Take back the last card of a chain. */
-withdraw(chain: readonly string[]): Taking {
+/** Revoke the last card of a chain. */
+revoke(chain: readonly string[]): RevokeResult {
   const last = chain.at(-1) ?? '';
-  this.#taken.add(idIfCard(last));
+  this.#revoked.add(idIfCard(last));
   return { ok: true, until: read(last).exp };
 }

@@ -3,7 +3,7 @@
 const HEADER: &str = "eyJhbGciOiJFZERTQSJ9";
 
 /// Check one card's signature under `key`, and read its claims.
-/// The check is Ed25519, whatever the card's header says.
+/// The check is Ed25519, whatever the card's header names.
 fn signed(
     card: &str,
     key: &str,
@@ -20,7 +20,7 @@ fn signed(
         return Err(Reason::WrongHeader { card: no });
     }
     let body = TEXT.decode(body).map_err(|_| broken())?;
-    let says =
+    let claims =
         serde_json::from_slice(&body).map_err(|_| broken())?;
-    Ok((says, tag))
+    Ok((claims, tag))
 }

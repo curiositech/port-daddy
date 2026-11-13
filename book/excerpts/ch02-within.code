@@ -1,23 +1,23 @@
-/// A card may grant only what the card above it grants, and may
-/// last only as long.
+/// A card may grant only what its parent grants, and may not
+/// expire later.
 fn within(
     card: &Claims,
-    above: &Claims,
+    parent: &Claims,
     no: usize,
 ) -> Result<(), Reason> {
     for right in &card.can {
-        if !above.can.iter().any(|held| covers(held, right)) {
+        if !grants(&parent.can, right) {
             return Err(Reason::Widens {
                 card: no,
                 right: right.clone(),
             });
         }
     }
-    if longer(card.exp, above.exp) {
+    if outlives(card.exp, parent.exp) {
         return Err(Reason::Outlives {
             card: no,
             until: card.exp,
-            above: above.exp,
+            parent: parent.exp,
         });
     }
     Ok(())
@@ -25,13 +25,13 @@ fn within(
 
 /// One right covers another: the same verb, on no more paths.
 fn covers(held: &Right, other: &Right) -> bool {
-    held.verb == other.verb && reaches(&held.on, &other.on)
+    held.verb == other.verb && includes(&held.on, &other.on)
 }
 
-/// A pattern that ends in `*` reaches every path that starts
-/// with what comes before the star, and every pattern that
-/// reaches only such paths. Any other pattern is one path.
-fn reaches(pattern: &str, other: &str) -> bool {
+/// A pattern that ends in `*` includes every path that starts
+/// with the text before the star, and every pattern that
+/// matches only such paths. Any other pattern is one path.
+fn includes(pattern: &str, other: &str) -> bool {
     match pattern.strip_suffix('*') {
         Some(start) => {
             let inner = other.strip_suffix('*').unwrap_or(other);

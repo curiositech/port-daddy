@@ -7,6 +7,6 @@ chain-root-only.pv
 RESULT not event(Admitted(two,k,both)) is true.
 RESULT not event(Admitted(three,k,both)) is false.
 RESULT not event(Admitted(three,k,reading)) is false.
-header-picks-the-check.pv
+header-chooses-the-algorithm.pv
 RESULT event(AdmittedPinned(m_3)) ==> event(Issued(m_3)) is true.
 RESULT event(AdmittedNaive(m_3)) ==> event(Issued(m_3)) is false.

@@ -1,23 +1,24 @@
 /** The text a proof is a signature over. */
-export function said(
+export function proofText(
   nonce: string,
-  ask: Right | undefined,
+  requested: Right | undefined,
   card: string,
 ): string {
-  const asked = ask ? spell(ask) : '';
-  return JSON.stringify(['proof', nonce, asked, card]);
+  const right = requested ? rightText(requested) : '';
+  return JSON.stringify(['proof', nonce, right, card]);
 }
 
-/** Answer a gate's challenge: sign it, with what is asked and
- * the id of the card it is asked under. */
+/** Answer a gate's challenge: sign it, with the requested right
+ * and the id of the last card. */
 export function prove(
   keys: Keys,
   chain: readonly string[],
-  ask: Right | undefined,
+  requested: Right | undefined,
   nonce: string,
 ): Proof {
   const last = chain.at(-1);
-  const text = said(nonce, ask, last ? idOf(last) : '');
+  const card = last ? idOf(last) : '';
+  const text = proofText(nonce, requested, card);
   const tag = sign(null, Buffer.from(text), keys.secret);
   return { nonce, tag: tag.toString('base64url') };
 }

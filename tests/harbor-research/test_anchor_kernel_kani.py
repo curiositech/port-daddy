@@ -1,7 +1,7 @@
-"""Chapter 2 prints Kani's verdicts on the kernel's order on patterns. Hold the prose to them.
+"""Chapter 2 prints Kani's verdicts on the kernel's order on patterns. Check the prose against them.
 
-The listing cannot drift: it is the recorded file. The sentences around it
-name harnesses and say what each found, and those were written by hand.
+The listing is the recorded file, so it cannot go out of date. The sentences
+around it name harnesses and say what each found, and those were typed.
 """
 import json
 import re
@@ -30,16 +30,16 @@ class KernelKani(unittest.TestCase):
     def test_the_recording(self):
         self.assertEqual(self.lines[0], '$ sh formal/patterns/run.sh')
         self.assertEqual(self.verdicts, {
-            'a_pattern_reaches_itself': 'successful',
-            'a_wrong_order_is_caught': 'fails, as it must',
-            'covering_carries_down': 'successful; its cover is satisfied',
-            'patterns_that_reach_each_other_are_the_same': 'successful; its cover is satisfied',
-            'reaching_carries_down': 'successful; its cover is satisfied',
+            'a_pattern_includes_itself': 'successful',
+            'control_a_wrong_order_is_caught': 'fails, as a control should',
+            'covering_is_transitive': 'successful; its cover is satisfied',
+            'inclusion_is_transitive': 'successful; its cover is satisfied',
+            'patterns_that_include_each_other_are_equal': 'successful; its cover is satisfied',
         })
         manifest = json.loads((EXCERPTS / 'manifest.json').read_text())
         self.assertIn('kani-patterns', {session['name'] for session in manifest['sessions']})
 
-    def test_the_listing_is_set_whole_with_room_for_it(self):
+    def test_the_whole_listing_is_printed_with_room_for_it(self):
         source = CHAPTER.read_text()
         found = re.search(r'\\pdlistingroom\{(\d+)\}\n\\pdrun\[[^\]]*label=\{alg:anchor-kernel-kani\}\]\{kani-patterns\}', source, flags=re.S)
         self.assertIsNotNone(found)
@@ -48,8 +48,8 @@ class KernelKani(unittest.TestCase):
     def test_the_prose_names_what_the_recording_shows(self):
         def named(harness):
             return '\\texttt{%s}' % harness.replace('_', '\\_')
-        # The two harnesses the prose leans on, and the control.
-        for harness in ['reaching_carries_down', 'covering_carries_down', 'a_wrong_order_is_caught']:
+        # The two harnesses the prose depends on, and the control.
+        for harness in ['inclusion_is_transitive', 'covering_is_transitive', 'control_a_wrong_order_is_caught']:
             self.assertIn(harness, self.verdicts)
             self.assertIn(named(harness), self.text)
         self.assertIn('Two more harnesses complete the laws of a partial order', self.text)
@@ -59,8 +59,8 @@ class KernelKani(unittest.TestCase):
         self.assertEqual(len(covered), 3)
         self.assertTrue(all(self.verdicts[name].endswith('its cover is satisfied') for name in covered))
         self.assertIn('has a cover statement, and every cover is satisfied', self.text)
-        self.assertEqual(self.verdicts['a_wrong_order_is_caught'], 'fails, as it must')
-        self.assertIn('There the assertion fails, as it must', self.text)
+        self.assertEqual(self.verdicts['control_a_wrong_order_is_caught'], 'fails, as a control should')
+        self.assertIn('There the assertion fails, as a control should', self.text)
 
     def test_the_first_build_points_here(self):
         self.assertIn('and \\S\\ref{sec:implementation} on every pattern of up to four bytes', prose(BUILD))

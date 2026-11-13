@@ -1,0 +1,15 @@
+$ harbor presentations --design two-step
+every order in which a gate can take its turns over two
+  presentations of one proof, design two-step
+
+heron heron wren         -> heron's admitted, the copy refused
+heron wren  heron wren   -> both admitted  ACCEPTED TWICE
+heron wren  wren  heron  -> both admitted  ACCEPTED TWICE
+wren  heron heron wren   -> both admitted  ACCEPTED TWICE
+wren  heron wren  heron  -> both admitted  ACCEPTED TWICE
+wren  wren  heron        -> the copy admitted, heron's refused
+
+4 of 6 orders accept the proof twice
+
+heron, wren: a turn the gate spends on heron's message, or on
+  wren's copy of it

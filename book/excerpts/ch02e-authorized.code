@@ -1,0 +1,29 @@
+/// Check the revocation of the last card of an admitted chain.
+/// It must be signed by the harbor, or by the holder of a card
+/// of that chain.
+pub fn authorized(
+    pass: Pass,
+    revocation: Option<&Revocation>,
+    gate: &Gate,
+    policy: &Policy,
+) -> Result<Pass, Reason> {
+    if policy.revokers == Revokers::Anyone {
+        return Ok(pass);
+    }
+    let Some(revocation) = revocation else {
+        return unsigned(pass);
+    };
+    // The key must be the harbor's, or one a card of this chain
+    // names: the card's own holder, or a holder before it.
+    if !in_chain(&pass, gate, &revocation.by) {
+        return Err(Reason::NotInChain);
+    }
+    // The gate computes the text the signature must be over. It
+    // does not accept the card's id from the request.
+    let card = pass.cards.last().map_or("", String::as_str);
+    let text = text(&gate.key, card);
+    if !signed(&revocation.by, &text, &revocation.tag) {
+        return Err(Reason::BadRevocation);
+    }
+    Ok(pass)
+}

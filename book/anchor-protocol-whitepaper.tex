@@ -246,7 +246,7 @@ Each later phase keeps the earlier checks. In Figure~\ref{fig:anchor-four-phases
 for example, Phase~2 separates signing from verification and still needs
 Phase~1's pinned algorithm. Table~\ref{tab:anchor-four-phases} in
 Appendix~\ref{app:anchor-mech} restates the figure one phase per row.
-One rule runs through every phase. Under capability attenuation, a card handed on to another agent never carries more authority than the card it came from. Each handing-on is a hop, one step from a parent card's holder to a child card's holder. A child's expiry is the earlier of its parent's expiry and the requested expiry, so a request for twenty minutes under a parent with ten minutes left produces a ten-minute card, and an already-signed child claiming the longer expiry must fail verification. Rights and expiry can narrow or stay the same; they never widen. Figure~\ref{fig:anchor-capability-attenuation} shows a valid child, a request shortened before signing, and a refused extra right.
+One rule runs through every phase. Under capability attenuation, a card delegated to another agent never carries more authority than its parent. Each delegation is a hop, one step from a parent card's holder to a child card's holder. A child's expiry is the earlier of its parent's expiry and the requested expiry, so a request for twenty minutes under a parent with ten minutes left produces a ten-minute card, and an already-signed child claiming the longer expiry must fail verification. Rights and expiry can narrow or stay the same; they never widen. Figure~\ref{fig:anchor-capability-attenuation} shows a valid child, a request shortened before signing, and a refused extra right.
 
 Every comparison of authority in this chapter uses one order. A card carries a grant: what its holder may do, and until when. Treat a grant $g$ as the set of pairs (request, time) it permits, so that $g$ permits a request at time $t$ when its rights cover the request and $t$ is no later than its expiry. One grant is no broader than another when it is a subset of it, $g \subseteq g'$. Set inclusion is reflexive, antisymmetric and transitive, so this is a partial order on grants, and transitivity is the property every argument about chains of more than one hop uses. For a grant that permits anything at all, $g \subseteq g'$ holds exactly when $g'$'s rights cover every request $g$'s rights cover and $g$ expires no later than $g'$. A grant that permits nothing is below every other, whatever its expiry. What a right covers depends on how it is written. A plain name such as \texttt{db:write} covers requests for that name only, so for plain names the rights condition is inclusion of the sets of names. A channel grant, used in the two-hop example of Phase~3, names an operation and a channel pattern, and may carry a rate or payload ceiling that narrows it further. Each check in this chapter tests the order for one way of writing rights, and none tests all of it: the ProVerif models compare rights with at most two values, the bounded checks of the Rust code in \S\ref{sec:implementation} compare plain names or channel grants on finite domains, and no model or bounded check compares expiries.
 \pdmarginanalogy{anchor-reduced-key}{A smaller set of permissions}{reduced-key}{Removing teeth suggests removing authority. A capability must also bind that restriction cryptographically.}
@@ -418,7 +418,7 @@ Two older bodies of work study the property checked here more directly than maca
 \input{additions/anchor-build-the-verifier}
 
 \subsection{Withdrawing a card before it expires}\label{sec:revocation}
-\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built. \S\ref{sec:anchor-build-taken-back} builds per-link identifiers for this book's kernel, \S\ref{sec:anchor-build-warranted} builds the rule for who may take a card back, and \S\ref{sec:anchor-build-told} builds the gossip}
+\pdstatus{\BuiltWeak}{the daemon and the relay check an exact revocation table; per-link identifiers, the filter, gossip and the revocation counter below are specified, not built. \S\ref{sec:anchor-build-taken-back} builds per-link identifiers for this book's kernel, \S\ref{sec:anchor-build-warranted} builds the rule for who may revoke a card, and \S\ref{sec:anchor-build-told} builds the gossip}
 
 \pdmarginanalogy{anchor-colander-mesh}{}{ch02-colander-mesh}{Like an analytical laboratory test sieve whose wire mesh retains coarse particles, contextual caveats filter out forbidden operations before execution.}%
 Alice withdraws Heron's test-database write grant three minutes into its
@@ -1233,7 +1233,7 @@ checks.
 Everything above is about Port Daddy's card crate. \pdkernelname{} checks
 cards with other code, the verifier of \S\ref{sec:anchor-build}, and one
 part of that code has harnesses of its own. They are of the order on
-patterns in Listing~\ref{alg:anchor-build-within}: \texttt{reaches}, and
+patterns in Listing~\ref{alg:anchor-build-within}: \texttt{includes}, and
 the test of one right against another that calls it. A pattern here is up
 to four bytes of ASCII, and the solver chooses every bit of it
 (Listing~\ref{alg:anchor-kernel-kani}).
@@ -1242,21 +1242,21 @@ to four bytes of ASCII, and the solver chooses every bit of it
 \pdrun[caption={Kani~0.68 on the kernel's order on patterns, as
 compiled.},label={alg:anchor-kernel-kani}]{kani-patterns}
 
-The line a chain depends on is \texttt{reaching\_carries\_down}: if one
-pattern reaches a second, and the second a third, then the first reaches
-the third. The verifier measures each card against the card above it, and
-this is why that is enough for every card further up
-(\S\ref{sec:delegation}). \texttt{covering\_carries\_down} says the same
+The line a chain depends on is \texttt{inclusion\_is\_transitive}: if one
+pattern includes a second, and the second a third, then the first includes
+the third. The verifier compares each card with its parent, and
+this is why that is enough for every ancestor
+(\S\ref{sec:delegation}). \texttt{covering\_is\_transitive} says the same
 of rights, which add a verb. Two more harnesses complete the laws of a
-partial order: a pattern reaches itself, and two patterns that reach each
-other are one pattern.
+partial order: a pattern includes itself, and two patterns that include each
+other are equal.
 
 Two things show that these verdicts could have come out otherwise. Each
 harness that starts from a condition has a cover statement, and every
-cover is satisfied. And \texttt{a\_wrong\_order\_is\_caught} is a negative
-control. It puts the last of those questions to an order in which a
-pattern with no star reaches everything. There the assertion fails, as it
-must.
+cover is satisfied. And \texttt{control\_a\_wrong\_order\_is\_caught} is a
+negative control. It puts the last of those questions to an order in which a
+pattern with no star includes everything. There the assertion fails, as a
+control should.
 \pdscope{Four bytes is a small bound. Five passes without the cover
 statements, and beyond that the solver ran out of memory on the machine
 that made this run. Neither the signature check nor the header check is
@@ -2475,39 +2475,39 @@ Work that composition once here and every quoted verdict below reads at a
 glance. [internal]
 \end{pdexample}
 
-\pdexercisesfor{\S\ref{sec:anchor-build}}{Build the layer: a card that cannot grow}
+\pdexercisesfor{\S\ref{sec:anchor-build}}{Build the layer: a verifier for delegated cards}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-build-count}
 Listing~\ref{alg:anchor-build-chains} counts 64 chains of three cards over two rights. Without running anything, derive the 16 that both verifiers accept and the 36 that the naive verifier accepts. Then derive the 11 and the 9.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-build-count}
-Take one right. Each of the three cards holds it or does not, so it can sit on the chain in $2^3=8$ ways. Write a way as three marks, first card to last, with \texttt{x} for a card that holds the right.
+Take one right. Each of the three cards has it or does not, so there are $2^3=8$ placements of the right on the chain. Write a placement as three marks, first card to last, with \texttt{x} for a card that has the right.
 
-The check at every card wants no card to hold the right unless the card above does. Four ways pass: \texttt{...}, \texttt{x..}, \texttt{xx.} and \texttt{xxx}. The two rights are placed independently, so $4\times4=16$ chains pass.
+The check at every card requires that no card has the right unless its parent does. Four placements pass: \texttt{...}, \texttt{x..}, \texttt{xx.} and \texttt{xxx}. The two rights are placed independently, so $4\times4=16$ chains pass.
 
-The naive verifier wants only that the last card not hold a right the first lacks. That rules out \texttt{..x} and \texttt{.xx} and allows the other six, so it accepts $6\times6=36$ chains.
+The naive verifier requires only that the last card has no right the first lacks. That rules out \texttt{..x} and \texttt{.xx} and allows the other six, so it accepts $6\times6=36$ chains.
 
-The two ways it allows beyond the four are \texttt{.x.}, where the middle card alone holds the right, and \texttt{x.x}, where the middle card alone lacks it. A chain with a right placed \texttt{x.x} is an escalation: the last holder has a right that the signer of its card did not. Leave that way out and five remain, so $5\times5=25$ accepted chains have no such right, and $36-25=11$ have one. Of the 25, the 16 are in order, and the other $25-16=9$ have a right placed \texttt{.x.} and none placed \texttt{x.x}. Figure~\ref{fig:anchor-64-chains} is this arithmetic drawn: squares of side 4, 5 and 6 in one corner of a square of side 8.
+The two placements it allows beyond the four are \texttt{.x.}, where the middle card alone has the right, and \texttt{x.x}, where the middle card alone lacks it. A chain with a right placed \texttt{x.x} is an escalation: the last holder has a right that the signer of its card did not. Leave that placement out and five remain, so $5\times5=25$ accepted chains have no such right, and $36-25=11$ have one. Of the 25, 16 have every card within its parent, and the other $25-16=9$ have a right placed \texttt{.x.} and none placed \texttt{x.x}. Figure~\ref{fig:anchor-64-chains} draws this arithmetic: squares of side 4, 5 and 6 in one corner of a square of side 8.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-build-two}
-With its guard changed to compare every card with the first card, the fixed verifier lets 9 of the 11 escalations through (Listing~\ref{alg:anchor-build-chains-mutant}). Name the two it refuses, and say which comparison refuses them.
+With its guard changed to compare every card with the first card, the fixed verifier admits 9 of the 11 escalations (Listing~\ref{alg:anchor-build-chains-mutant}). Name the two it refuses, and say which comparison refuses them.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-build-two}
-An escalation that the naive verifier accepts has one right placed \texttt{x.x}, in the marks of the previous solution. The other right sits in one of the six ways the naive verifier allows.
+An escalation that the naive verifier accepts has one right placed \texttt{x.x}, in the marks of the previous solution. The other right has one of the six placements the naive verifier allows.
 
-The changed build makes two comparisons, the middle card with the first and the last card with the first. The second is the naive verifier's own. The first is new, and it refuses a chain whose middle card holds a right the first lacks. Among the six ways, only \texttt{.x.} puts a right on the middle card and not on the first. So the two chains are the ones that pair \texttt{x.x} with \texttt{.x.}: reading placed \texttt{x.x} with writing placed \texttt{.x.}, and the reverse. In the first of them the harbor's card grants reading, the middle card grants writing, and the last card grants reading again. The middle holder has swapped the right it was given for the one it was not.
+The changed build makes two comparisons, the middle card with the first and the last card with the first. The second is the naive verifier's own. The first is new, and it refuses a chain whose middle card has a right the first lacks. Among the six placements, only \texttt{.x.} puts a right on the middle card and not on the first. So the two chains are the ones that pair \texttt{x.x} with \texttt{.x.}: reading placed \texttt{x.x} with writing placed \texttt{.x.}, and the reverse. In the first of them the harbor's card grants reading, the middle card grants writing, and the last card grants reading again. The middle holder has replaced the right it was given with the one it was not.
 
-The other 9 escalations have the second right in order, or also placed \texttt{x.x}. Every card in them is within the first card, and the changed build has nothing else to go on. Comparing each card with the first asks whether a right was ever granted. It does not ask whether the right was still there to hand on.
+The other 9 escalations have the second right placed so that each card is within its parent, or also placed \texttt{x.x}. Every card in them is within the first card, and the changed build checks nothing else. Comparing each card with the first checks whether a right was ever granted. It does not check whether the signer still had the right to delegate.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:anchor-build-move}
-In Listing~\ref{alg:anchor-build-moved-naive} Heron shows a card under a card it was not signed under. Suppose Alice's two cards granted the same rights and ended at the same moment. Would a verifier that does not check \texttt{par} then accept anything it should refuse? What changes once a card can be withdrawn before its time, as in \S\ref{sec:revocation}?
+In Listing~\ref{alg:anchor-build-moved-naive} Heron presents a card under a parent it was not delegated from. Suppose Alice's two cards granted the same rights and expired at the same time. Would a verifier that does not check \texttt{par} then accept anything it should refuse? What changes once a card can be revoked before it expires, as in \S\ref{sec:revocation}?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-build-move}
-With two cards alike in rights and in lifetime, moving a card from under one to under the other changes no answer. The verifier compares a handed card with the card above it on those two things and no others, so a card within one parent is within the other. The break in the listing needs the parents to differ: the card was refused under the narrow one and passes under the wide one.
+With two cards that have the same rights and the same expiry, moving a card from one parent to the other changes no answer. The verifier compares a delegated card with its parent on those two things and no others, so a card within one parent is within the other. The break in the listing needs the parents to differ: the card was refused under the narrow one and is accepted under the wide one.
 
-Withdrawal makes two cards differ that are otherwise alike. Suppose the narrow card is withdrawn because its task was cancelled. Every card under it should stop working, and \S\ref{sec:revocation} relies on exactly that: a withdrawn ancestor fails every chain below it. A card that can be moved under the holder's other card escapes. The name of the parent is what makes a chain one chain, and without it a withdrawal reaches only the cards whose holders choose to show them under the withdrawn parent.
+Revocation makes two cards differ that are otherwise the same. Suppose the narrow card is revoked because its task was cancelled. Every card delegated from it should stop working, and \S\ref{sec:revocation} relies on exactly that: a revoked ancestor fails every chain through it. A card that can be moved to the holder's other card escapes. The name of the parent is what ties a card to one chain, and without it a revocation covers only the cards whose holders choose to present them under the revoked parent.
 
-The signer could always sign the same grant again under the other card, so the name protects no one from the signer. It protects the signer, and the harbor, from the holder further down.
+The signer could always sign the same grant again under the other card, so the name protects no one from the signer. It protects the signer, and the harbor, from the holder the card was delegated to.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:correct}}{How we know it is correct}
@@ -2605,137 +2605,137 @@ Because Harbor Cards are bearer credentials, so that whoever presents the bytes 
 A status table sharper than this chapter's three tiers (\Closed, \Partial, \Open) would keep four things distinct rather than folding them into one word: symbolic protocol correspondence at a fixed modeled hop depth (what ProVerif proved); bounded implementation policy, memory, and control-flow checks (the scope of Kani); runtime verifier integration (whether the deployed path actually calls the verified routine on every effect); and system-level complete mediation (whether every effect-producing path is reachable only through that call). This chapter's artifacts presently evidence the first two; the last two remain separate integration and enforcement obligations, not consequences of the harness results (\S\ref{sec:implementation}). Reading any result in this chapter as more than it is means collapsing exactly this distinction.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:anchor-build-holder}}{Build the layer: a card that cannot be borrowed}
+\pdexercisesfor{\S\ref{sec:anchor-build-holder}}{Build the layer: proof of possession}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-holder-orders}
 Listing~\ref{alg:anchor-holder-showings} has six orders. Two of them have three turns and the other four have four. Explain why, and say why the two short orders are the safe ones.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-holder-orders}
-The gate's check of a message has two steps. It looks the challenge up, and in a later turn it strikes the challenge out. A check that finds no open challenge at its first step ends there, after one turn.
+The gate's check of a message has two steps. It looks the challenge up, and in a later turn it deletes the challenge. A check that finds no open challenge at its first step ends there, after one turn.
 
-In a safe order the gate finishes with one message before it starts on the other. The first message takes two turns, and its second turn strikes the challenge out. The other message is refused at its lookup, after one turn. That is three turns, and there are two such orders, one for each message that can go first.
+In a safe order the gate finishes with one message before it starts on the other. The first message takes two turns, and its second turn deletes the challenge. The other message is refused at its lookup, after one turn. That is three turns, and there are two such orders, one for each message that can go first.
 
-In every other order both lookups come before either strike. Both find the challenge open, so both checks go on to a second turn and both messages are let through. The two lookups can come in either order and so can the two strikes, which gives $2\times2=4$ orders of four turns.
+In every other order both lookups come before either deletion. Both find the challenge open, so both checks go on to a second turn and both messages are admitted. The two lookups can come in either order and so can the two deletions, which gives $2\times2=4$ orders of four turns.
 
 Chapter~0's first break has the same shape, with a read and a write for each of two workers: in four orders of six, both read before either writes (\weld{prereq:sec:prereq-build}{lose an update}).
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-holder-first}
-In the second order of Listing~\ref{alg:anchor-holder-showings-core}, Wren's copy is let through and Heron's own message is refused. Say what Wren has gained and what she still cannot do. Then say what Heron should do next.
+In the second order of Listing~\ref{alg:anchor-holder-showings-core}, Wren's copy is admitted and Heron's own message is refused. Say what Wren has gained and what she still cannot do. Then say what Heron should do next.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-holder-first}
-Wren has been let through once, as Heron, for the ask Heron signed. Whatever the gate gives in answer to that ask, it gave to her. In this build a request is no more than its ask. A request that also carried something to write would need that under the signature as well, or whoever delivered the proof could choose what was written.
+Wren has been admitted once, as Heron, for the request Heron signed. Whatever the gate returns for that request, it returned to her. In this build a request is no more than a right. A request that also carried data to write would need that data covered by the signature as well, or whoever delivered the proof could choose what was written.
 
-She cannot ask for anything else, because the gate rebuilds the signed text from the ask it is sent, and Heron's signature matches only his own. She cannot be let through a second time on that signature, because its challenge has been struck out.
+She cannot request anything else, because the gate computes the signed text from the request it is sent, and Heron's signature matches only his own. She cannot be admitted a second time on that signature, because its challenge has been deleted.
 
-Heron's message was refused as answering a challenge that is not open. He asks for a new challenge and shows his cards again. A refusal of that kind, on a challenge he has just been handed, also tells him that someone else delivered his answer, which is worth reporting.
+Heron's message was refused as answering a challenge that is not open. He requests a new challenge and presents his cards again. A refusal of that kind, on a challenge he has just been issued, also tells him that someone else delivered his answer, which is worth reporting.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:anchor-holder-two-gates}
-Two gates stand in front of one harbor. They share one table of open challenges, kept where both can reach it. Each gate checks a showing in a single turn, as Listing~\ref{alg:anchor-holder-gate} does, looking a challenge up with one request to the table and striking it out with another. Is a proof still taken once? What must the table offer for the answer to be yes, and where has this book met that operation before?
+Two gates serve one harbor. They share one table of open challenges, stored where both can reach it. Each gate checks a presentation in a single turn, as Listing~\ref{alg:anchor-holder-gate} does, looking a challenge up with one request to the table and deleting it with another. Is a proof still accepted only once? What must the table provide for the answer to be yes, and where has this book used that operation before?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-holder-two-gates}
-No. Each gate takes its own turns, and the two gates run side by side, so their requests to the table can fall in the orders of Listing~\ref{alg:anchor-holder-showings}. Both look the challenge up and find it open, and both strike it out. It is the second repair again, spread over two machines.
+No. Each gate takes its own turns, and the two gates run concurrently, so their requests to the table can fall in the orders of Listing~\ref{alg:anchor-holder-showings}. Both look the challenge up and find it open, and both delete it. It is the second repair again, spread over two machines.
 
-The table must make the test and the change one operation: strike this challenge out, and say whether it was open, with no other request able to come between. A gate then checks the signature first and strikes last, and lets a showing through only if its strike found the challenge open. Striking first would let a bad proof use up a good challenge.
+The table must make the test and the change one operation: delete this challenge, and report whether it was open, with no other request able to run in between. A gate then verifies the signature first and deletes last, and admits a presentation only if its deletion found the challenge open. Deleting first would let an invalid proof use up a valid challenge.
 
-That operation is the checked write of Chapter~0. The cell refuses a write that names a version which has passed, and its comparison and its change are one decision (\weld{prereq:sec:prereq-build}{decision}).
+That operation is the checked write of Chapter~0. The cell refuses a write that names a stale version, and its comparison and its change are one decision (\weld{prereq:sec:prereq-build}{decision}).
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:anchor-build-taken-back}}{Build the layer: a card that can be taken back}
+\pdexercisesfor{\S\ref{sec:anchor-build-taken-back}}{Build the layer: revoking a card}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-taken-count}
-Listing~\ref{alg:anchor-taken-links} has eight rows. Without running anything, say which rows the first try's gate gets wrong, and why there are three of them. How many would there be for a chain of five cards?
+Listing~\ref{alg:anchor-taken-links} has eight rows. Without running anything, say which rows the first attempt's gate gets wrong, and why there are three of them. How many would there be for a chain of five cards?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-taken-count}
-The first try looks up the last card and no other, so it refuses the chain exactly when the last card was taken back. Three cards give $2^3=8$ sets of cards that could be taken back. Half of them, four, hold the third card, and the gate rightly refuses those.
+The first attempt looks up the last card and no other, so it refuses the chain exactly when the last card was revoked. Three cards give $2^3=8$ sets of cards that could be revoked. Half of them, four, contain the third card, and the gate correctly refuses those.
 
-The other four do not hold the third card, and the gate lets all four through. One of them is the empty set, where nothing was taken back and the chain should be let through. The remaining three are the sets that take back one or both of the first two cards, and they are the rows it gets wrong.
+The other four do not contain the third card, and the gate admits all four. One of them is the empty set, where nothing was revoked and the chain should be admitted. The remaining three are the sets that revoke one or both of the first two cards, and they are the rows it gets wrong.
 
-For five cards the same count gives $2^4=16$ sets without the last card, one of them empty: 15 wrong, of the 31 ways to take some card back. For a chain of $n$ cards it is $2^{n-1}-1$ of $2^n-1$, a little under half however long the chain.
+For five cards the same count gives $2^4=16$ sets without the last card, one of them empty: 15 wrong, of the 31 sets with a revoked card. For a chain of $n$ cards it is $2^{n-1}-1$ of $2^n-1$, a little under half however long the chain.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-taken-fifteen}
-Count the marks in Listing~\ref{alg:anchor-taken-moments} from the rule in Listing~\ref{alg:anchor-taken-aged}, without counting them on the page. Then say how many there would be if the record kept an entry for eight minutes, and for ten. What does the last answer say about Design invariant~\ref{def:revocation-truncation}?
+Count the marks in Listing~\ref{alg:anchor-taken-moments} from the rule in Listing~\ref{alg:anchor-taken-aged}, without counting them on the page. Then say how many there would be if the list kept an entry for eight minutes, and for ten. What does the last answer say about Design invariant~\ref{def:revocation-truncation}?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-taken-fifteen}
-The record drops an entry when it is more than five minutes old. So a card taken back at minute $w$ is honoured at minute $a$ when $a-w>5$, as long as the card is still good, which is $a\le 10$. For $w=0$ that is $a$ from 6 to 10, five showings. For $w=1,2,3,4$ it is four, then three, two and one. From $w=5$ on there are none. The sum is 15.
+The list removes an entry when it is more than five minutes old. So a card revoked at minute $w$ is accepted at minute $a$ when $a-w>5$, as long as the card is still valid, which is $a\le 10$. For $w=0$ that is $a$ from 6 to 10, five presentations. For $w=1,2,3,4$ it is four, then three, two and one. From $w=5$ on there are none. The sum is 15.
 
-Kept for eight minutes, an entry lets the card back when $a-w>8$: two showings for $w=0$ and one for $w=1$, three in all. Kept for ten, it lets none back, because no showing of a card that lasts ten minutes can come more than ten minutes after anything.
+Kept for eight minutes, an entry lets the card be accepted again when $a-w>8$: two presentations for $w=0$ and one for $w=1$, three in all. Kept for ten, it never does, because a card valid for ten minutes cannot be presented more than ten minutes after it was revoked.
 
-So a fixed age is safe when it is at least the longest life a card may have. That is the window $T_{\max}$ of Design invariant~\ref{def:revocation-truncation}. It costs a record that keeps the entry for a card of thirty seconds as long as the entry for a card of ten minutes. Recording each card's own end, as the fix does, keeps each entry no longer than it is needed.
+So a fixed age is safe when it is at least the longest lifetime a card may have. That is the window $T_{\max}$ of Design invariant~\ref{def:revocation-truncation}. Its cost is a list that keeps the entry for a card valid for thirty seconds as long as the entry for a card valid for ten minutes. Recording each card's own expiry, as the fix does, keeps each entry no longer than it is needed.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:anchor-taken-who}
-Wren has copies of Heron's cards and none of his keys. Say what she can do with them at the gate of Listing~\ref{alg:anchor-taken-gate}, and what it costs Heron. Then design the check that stops her. Who should be able to take a card back, and what must they send? Use what \S\ref{sec:anchor-build-holder} built.
+Wren has copies of Heron's cards and none of his keys. Say what she can do with them at the gate of Listing~\ref{alg:anchor-taken-gate}, and what it costs Heron. Then design the check that stops her. Who should be able to revoke a card, and what must they send? Use what \S\ref{sec:anchor-build-holder} built.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-taken-who}
-She cannot use the cards: the gate asks for a proof made with Heron's key. She can show the chain to \texttt{withdraw}, which asks for no proof, and the gate writes Heron's card down. Heron is refused from then on, and so is everyone holding a card under his. Alice can sign him a new card, and Wren can do the same again once she has copied it.
+She cannot use the cards: the gate requires a proof made with Heron's key. She can send the chain to \texttt{revoke}, which requires no proof, and the gate revokes Heron's card. Heron is refused from then on, and so is everyone holding a card delegated from his. Alice can sign him a new card, and Wren can do the same again once she has copied it.
 
-A card should be taken back by someone with a say over it. One answer is the holder of the card above it, who signed it and can sign another. A second is its own holder, who may want to give it up when a key leaks. Either can be asked for what a showing is asked for: the chain down to their own card, and a proof that they hold that card's key.
+A card should be revoked by someone with authority over it. One answer is the holder of its parent, who signed it and can sign another. A second is its own holder, who may want to revoke it when a key leaks. Either can be required to send what a presentation requires: the chain down to their own card, and a proof that they hold that card's key.
 
-The proof is \S\ref{sec:anchor-build-holder}'s, with the withdrawal as the ask. The gate hands out a challenge. The sender signs the four things a holder signs for any ask (Listing~\ref{alg:anchor-holder-prove}), with the ask set to the word \texttt{withdraw} and the id of the card to take back. The core rebuilds that text from what it is shown, as it does for any ask, so a proof made for one card cannot take back another. The card to take back must still check out under the sender's own card, or be that card.
+The proof is \S\ref{sec:anchor-build-holder}'s, adapted to a revocation. The gate issues a challenge. The sender signs a text like the one a holder signs for a request (Listing~\ref{alg:anchor-holder-prove}): the word \texttt{revoke}, the challenge, and the id of the card to revoke. The gate computes that text from what it is sent, as it does for any request, so a proof made for one card cannot revoke another. The card to revoke must be the sender's own card or a descendant of it.
 
-Two things remain. Whoever steals a key can take back every card signed with it, which is a nuisance and no more than the key allowed. And a holder who gives up a card cannot get it back, which is Design invariant~\ref{prop:no-reanim} doing its work.
+Two things remain. Whoever steals a key can revoke every card signed with it, which is a nuisance and no more than the key allowed. And a holder who revokes a card cannot restore it, which is Design invariant~\ref{prop:no-reanim} working as intended.
 
 \S\ref{sec:anchor-build-warranted} builds this design as its first repair (Listing~\ref{alg:anchor-warranted-challenged}), and then finds what it cannot do.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-told-three}
-Three gates compare records in the rounds of Listing~\ref{alg:anchor-told-round}, and one of them has heard that a card was taken back. \S\ref{sec:anchor-build-told} shows that all three have heard after $\tfrac32$ rounds on average. Without running anything, find the average wait of one of the other two gates, named beforehand. Check your answer against Listing~\ref{alg:anchor-told-spread}.
+Three gates exchange notices in the rounds of Listing~\ref{alg:anchor-told-round}, and one of them is informed that a card was revoked. \S\ref{sec:anchor-build-told} shows that all three are informed after $\tfrac32$ rounds on average. Without running anything, find the average wait of one of the other two gates, named in advance. Check your answer against Listing~\ref{alg:anchor-told-spread}.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-told-three}
-Call the gate that has heard A, and the named gate B. In the first round A picks B half the time, and B then hears. The other half of the time A picks the third gate. B still hears in that round if B itself picks A, which it does half the time. So B hears in round one with chance $\tfrac12+\tfrac12\cdot\tfrac12=\tfrac34$. Otherwise both other gates have heard by round two, and B hears from whichever it picks. The average is $\tfrac34\cdot1+\tfrac14\cdot2=\tfrac54$, which is the \texttt{one} column for 3 gates.
+Call the informed gate A, and the named gate B. In the first round A picks B half the time, and B is then informed. The other half of the time A picks the third gate. B is still informed in that round if B itself picks A, which it does half the time. So B is informed in round one with probability $\tfrac12+\tfrac12\cdot\tfrac12=\tfrac34$. Otherwise both other gates are informed by round two, and B is informed by whichever it picks. The average is $\tfrac34\cdot1+\tfrac14\cdot2=\tfrac54$, which is the \texttt{one} column for 3 gates.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-told-first-round}
-Listing~\ref{alg:anchor-told-each} expects $62.50$ of 4{,}000 runs of five gates to end in the first round. Say where that number comes from. Then give the chance that four gates all hear in one round.
+Listing~\ref{alg:anchor-told-each} expects $62.50$ of 4{,}000 runs of five gates to end in the first round. Say where that number comes from. Then give the probability that four gates are all informed in one round.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-told-first-round}
-One gate has heard, and it tells the gate it picks. Each of the other three hears in this round only by picking the gate that began with the news, since no other gate had anything to tell when the round began. Each picks it with chance $\tfrac14$, so all three do with chance $\tfrac1{64}$, and $4000/64=62.5$. With four gates two are left over, each picks the first with chance $\tfrac13$, and the chance is $\tfrac19$.
+One gate is informed, and it informs the gate it picks. Each of the other three is informed in this round only by picking the gate that began informed, since no other gate had a notice to send when the round began. Each picks it with probability $\tfrac14$, so all three do with probability $\tfrac1{64}$, and $4000/64=62.5$. With four gates two are left over, each picks the first with probability $\tfrac13$, and the probability is $\tfrac19$.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-told-window}
-The gates of a harbor compare records every 30 seconds. Heron's card is taken back at one gate with seven minutes of its life left. Using Listing~\ref{alg:anchor-told-spread}, say for how long on average Wren can still use the card at one given gate among five, and among 64. What would you change so that this time did not matter?
+The gates of a harbor exchange notices every 30 seconds. Heron's card is revoked at one gate with seven minutes left before it expires. Using Listing~\ref{alg:anchor-told-spread}, say for how long on average Wren can still use the card at one given gate among five, and among 64. What would you change so that this time did not matter?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-told-window}
-The column \texttt{one} gives the wait of a gate named beforehand: $1.68$ rounds among five gates and $3.93$ among 64, so about 50 seconds and about two minutes. More gates cost little, because the wait grows with the logarithm of their number. To make the time not matter, shorten the round, or give the card a life shorter than the wait, so that it ends before the news would have arrived. A card good for a minute needs no taking back at 64 gates.
+The column \texttt{one} gives the wait of a gate named in advance: $1.68$ rounds among five gates and $3.93$ among 64, so about 50 seconds and about two minutes. More gates cost little, because the wait grows with the logarithm of their number. To make the time not matter, shorten the round, or give the card a lifetime shorter than the wait, so that it expires before the notice would have arrived. A card valid for a minute needs no revocation at 64 gates.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:anchor-told-above}
-The gate of Listing~\ref{alg:anchor-told-tell} sends the whole chain as news. Say what a gate that hears it, or anyone reading the wire, can now do to the holders of the cards above the one taken back. Then repair it with the rule of Exercise~\ref{ex:anchor-taken-who}. The proof there answers a challenge that one gate handed out. What can the news carry that every gate can check?
+The gate of Listing~\ref{alg:anchor-told-tell} sends the whole chain as its notice. Say what a gate that receives it, or anyone reading the network traffic, can now do to the holders of the revoked card's ancestors. Then fix it with the rule of Exercise~\ref{ex:anchor-taken-who}. The proof there answers a challenge that one gate issued. What can the notice carry that every gate can verify?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-told-above}
-The news for Heron's card holds Alice's card. Shown alone, Alice's card is a chain, and \texttt{withdraw} asks for no proof, so whoever hears the news can have her card taken back, and Heron's with it, at every gate. No right is gained. Alice is locked out until the harbor signs her a new card.
+The notice for Heron's card contains Alice's card. Presented alone, Alice's card is a chain, and \texttt{revoke} requires no proof, so whoever receives the notice can have her card revoked, and Heron's with it, at every gate. No right is gained. Alice is locked out until the harbor signs her a new card.
 
-With the rule of Exercise~\ref{ex:anchor-taken-who}, a card is taken back only by someone who proves they hold it or the card above it. A proof that answers one gate's challenge is no use to the next gate, which handed out no such challenge. The challenge was there to stop a proof being used twice, and here a second use does no harm: taking a card back a second time changes nothing, and it cannot be undone either way. So the request needs no challenge. It is a signature, by the key of the holder or of a holder above, over the word \texttt{withdraw} and the card's id. The news is the chain with that signature, and every gate checks both. A listener who copies the news can send it on, which only helps, and cannot make such a signature for any other card. \S\ref{sec:anchor-build-warranted} builds it and calls the signature a warrant.
+With the rule of Exercise~\ref{ex:anchor-taken-who}, a card is revoked only by someone who proves they hold it or its parent. A proof that answers one gate's challenge is no use to the next gate, which issued no such challenge. The challenge was there to stop a proof being used twice, and here a second use does no harm: revoking a card a second time changes nothing, and it cannot be undone either way. So the request needs no challenge. It is a signature, with the key of the card's holder or of the holder of an ancestor, over the word \texttt{revoke} and the card's id. The notice is the chain with that signature, and every gate verifies both. Someone who copies the notice can forward it, which only helps, and cannot make such a signature for any other card. \S\ref{sec:anchor-build-warranted} builds it and calls the signature a signed revocation.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:anchor-build-warranted}}{Build the layer: who may take a card back}
+\pdexercisesfor{\S\ref{sec:anchor-build-warranted}}{Build the layer: who may revoke a card}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:anchor-warranted-count}
-Listing~\ref{alg:anchor-warranted-every} has 15 cells, and 9 of them say \texttt{taken}. Without running anything, say how many would for a chain of five cards, signed for by the harbor, by each of its five holders and by one stranger. Then give the count for a chain of $n$ cards.
+Listing~\ref{alg:anchor-warranted-every} has 15 cells, and 9 of them say \texttt{revoked}. Without running anything, say how many would for a chain of five cards, with revocations signed by the harbor, by each of its five holders and by one outsider. Then give the count for a chain of $n$ cards.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-warranted-count}
-The harbor's warrant is taken for every card, which is $n$ cells. The holder of card $i$ can have that card taken back and each card under it, which is $n-i+1$ cells. Summed over the holders, that is $n+(n-1)+\cdots+1=n(n+1)/2$. The stranger adds none. So $n+n(n+1)/2$ cells say \texttt{taken}, of $n(n+2)$.
+The harbor's revocation is accepted for every card, which is $n$ cells. The holder of card $i$ can have that card revoked and each of its descendants, which is $n-i+1$ cells. Summed over the holders, that is $n+(n-1)+\cdots+1=n(n+1)/2$. The outsider adds none. So $n+n(n+1)/2$ cells say \texttt{revoked}, of $n(n+2)$.
 
-For three cards that is $3+6=9$ of 15, as printed. For five it is $5+15=20$ of 35. The share taken falls toward a half as the chain grows, because the staircase fills half of the holders' square.
+For three cards that is $3+6=9$ of 15, as printed. For five it is $5+15=20$ of 35. The share accepted falls toward a half as the chain grows, because the staircase fills half of the holders' square.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:anchor-warranted-harbor}
-Listing~\ref{alg:anchor-warranted-text} puts the harbor's key into the text of a warrant. Leave it out, so that a warrant is a signature over the word \texttt{withdraw} and the card's id. Alice holds the first card of two harbors. Say what Wren can do with a warrant that Alice signed at one of them. Why are the cards that holders hand on not at risk?
+Listing~\ref{alg:anchor-warranted-text} puts the harbor's key into the text of a revocation. Leave it out, so that a revocation is a signature over the word \texttt{revoke} and the card's id. Alice holds the first card of two harbors. Say what Wren can do with a revocation that Alice signed at one of them. Why are delegated cards not at risk?
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-warranted-harbor}
-A harbor numbers its own cards, and each of the two calls its first card \texttt{card-1}. Both cards name Alice's key. Without the harbor's key in the text, Alice's warrant for \texttt{card-1} at one harbor is also a signature over the text for \texttt{card-1} at the other. A warrant travels as news, so Wren can copy it. She sends it to a gate of the second harbor with Alice's chain there, and Alice is refused at that harbor from then on, with everyone holding a card under hers.
+A harbor numbers its own cards, and each of the two calls its first card \texttt{card-1}. Both cards name Alice's key. Without the harbor's key in the text, Alice's revocation of \texttt{card-1} at one harbor is also a signature over the text for \texttt{card-1} at the other. A revocation is sent in notices, so Wren can copy it. She sends it to a gate of the second harbor with Alice's chain there, and Alice is refused at that harbor from then on, with everyone holding a card delegated from hers.
 
-With the harbor's key in the text, the two texts differ, and the kernel's tests send a warrant across in just this way and see it refused. A card handed on is not at risk either way. Its id is the hash of its signature, and no card at any other harbor has that id.
+With the harbor's key in the text, the two texts differ, and the kernel's tests send a revocation to another harbor in just this way and check that it is refused. A delegated card is not at risk either way. Its id is the hash of its signature, and no card at any other harbor has that id.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:anchor-warranted-undo}
-A holder above takes a card back by mistake. Design a message that undoes a warrant. Then say what a gate must now keep, and what two gates do when the warrant and its undoing reach them in different orders. Compare the cost with signing a new card.
+The holder of a parent card revokes a card by mistake. Design a message that cancels a signed revocation. Then say what a gate must now store, and what two gates do when the revocation and its cancellation reach them in different orders. Compare the cost with signing a new card.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-warranted-undo}
-An undoing has to beat the warrant it undoes, so the two need an order. Say each carries a number, and the higher wins. A gate must now keep the highest number it has seen for the card for as long as the card lasts, or an old warrant sent again would take the card back once more. Whoever can sign a warrant can sign an undoing, so a thief with a key can now bring a card back as well as take it away.
+A cancellation has to override the revocation it cancels, so the two need an order. Say each carries a number, and the higher wins. A gate must now store the highest number it has seen for the card until the card expires, or an old revocation sent again would revoke the card once more. Whoever can sign a revocation can sign a cancellation, so a thief with a key can now restore a card as well as revoke it.
 
-The deeper cost is to the news. A warrant made the record something that only grows. Two gates that hear the same warrants end with the same record, whatever order the news came in and however often it was repeated, and \S\ref{sec:anchor-build-told} counted its rounds on that footing. With undoing, a gate that has heard the warrant and a gate that has heard both disagree until the numbers have spread, and during that time the card is good at one and refused at the other, in either direction.
+The larger cost is to the gossip. With signed revocations alone, a revocation list only grows. Two gates that receive the same revocations end with the same list, whatever order the notices came in and however often they were repeated, and \S\ref{sec:anchor-build-told} counted its rounds on that assumption. With cancellation, a gate that has received the revocation and a gate that has received both disagree until the numbers have spread, and during that time the card is accepted at one and refused at the other, in either direction.
 
-A new card costs one signature and needs none of this. The old id stays taken back and the new card has a new id. That is why Design invariant~\ref{prop:no-reanim} forbids bringing a card back, and why the kernel has no message for it.
+A new card costs one signature and needs none of this. The old id stays revoked and the new card has a new id. That is why Design invariant~\ref{prop:no-reanim} forbids restoring a revoked card, and why the kernel has no message for it.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{app:phase3}}{Phase 3: Multi-hop Delegation}

@@ -1,0 +1,30 @@
+$ harbor scenario wrong-card --design core --mutant any-revocation
+scenario wrong-card, design core (mutant any-revocation): the
+  revocation of one card is sent again with another card
+
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      alice  delegates to heron: write shop/checkout.ts; valid
+                until t=600000
+t=0      heron  delegates to finch: write shop/checkout.ts; valid
+                until t=600000
+t=0      heron  delegates to wren: write shop/checkout.ts; valid
+                until t=600000
+t=60000  heron  signs a revocation of wren's card, and sends it
+                with the cards
+                -> revoked
+t=60000  wren   requests to write shop/checkout.ts
+                -> refused: revoked (card 3 was revoked)
+t=120000 wren   has a copy of what heron sent the gate, and of the
+                cards he and finch present
+t=120000 wren   sends the gate what heron sent it, with finch's
+                cards in place of her own
+                -> revoked
+t=120000 wren   sends it once more, with heron's cards -> revoked
+t=120000 finch  requests to write shop/checkout.ts
+                -> refused: revoked (card 2 was revoked)
+t=120000 heron  requests to write shop/checkout.ts
+                -> refused: revoked (card 2 was revoked)
+
+verdict: LOCKED OUT: finch and heron are refused, on a card the
+         gate revoked for wren

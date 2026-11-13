@@ -1,5 +1,5 @@
 $ harbor cards
-the cards of scenario handing-on, opened
+the cards of scenario delegation, decoded
 
 card 1: the harbor signs it for alice
   header  {"alg":"EdDSA"}

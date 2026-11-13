@@ -1,0 +1,11 @@
+$ harbor presentations --design core
+every order in which a gate can take its turns over two
+  presentations of one proof, design core
+
+heron wren   -> heron's admitted, the copy refused
+wren  heron  -> the copy admitted, heron's refused
+
+0 of 2 orders accept the proof twice
+
+heron, wren: a turn the gate spends on heron's message, or on
+  wren's copy of it

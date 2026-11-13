@@ -1,0 +1,16 @@
+/** The notices: the revocation list, entry by entry. */
+notices(): readonly Entry[] {
+  return [...this.#entries.values()];
+}
+
+/** Receive another gate's notices, and add each to the list. */
+receive(notices: unknown, now: number): number {
+  let added = 0;
+  for (const entry of entriesIn(notices)) {
+    if (this.#entries.has(entry.id)) continue;
+    this.#entries.set(entry.id, entry);
+    this.add(entry, now);
+    added += 1;
+  }
+  return added;
+}

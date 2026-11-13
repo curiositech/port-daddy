@@ -1,14 +1,14 @@
 $ harbor gossip --loss 1/4
-# news of a card taken back at one gate, among gates that compare
-#   records; design core, seed 20261111
-# in a round every gate picks one other gate, and the two compare
-#   records; an exchange is lost with chance 1/4
+# a card revoked at one gate, among gates that gossip; design
+#   core, seed 20261111
+# in a round every gate picks one other gate, and the two exchange
+#   notices; an exchange is lost with probability 1/4
 # 400 runs for each number of gates
-# rounds: until every gate had heard
+# rounds: until every gate was informed
 # exact: what the model expects (harbor spread)
-# mean: the average over the runs; low, high: its 95% interval,
-#   which is the mean give or take 1.96 standard errors
-# z: how many standard errors the mean sits from exact
+# mean: the average over the runs; low, high: its 95% confidence
+#   interval, which is the mean plus or minus 1.96 standard errors
+# z: how many standard errors the mean is from exact
 gates   exact    mean     low    high       z
     3  1.8279  1.7825  1.7193  1.8457   -1.41
     4  2.4497  2.5050  2.4319  2.5781    1.48
@@ -18,5 +18,5 @@ gates   exact    mean     low    high       z
    32  6.4691  6.4500  6.3496  6.5504   -0.37
 # exact is inside the interval in 6 of 6 rows; a 95% interval
 #   misses about one time in twenty
-# for the rounds until a given gate had heard, it is inside in 6
-#   of 6 (harbor gossip --one)
+# for the rounds until a given gate was informed, it is inside in
+#   6 of 6 (harbor gossip --one)

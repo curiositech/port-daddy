@@ -1,21 +1,23 @@
 % Brief (grammar: every case in a small matrix; atlas
 %   V/fig:anchor-warrant-who).
-% Reader question: whose warrant takes back which card of a chain?
-% Claim: a card is taken back for the harbor, and for whoever holds it or a
-% card above it. The cells the rule leaves empty are the ones a core built
-% without the check of the signer fills in.
-% Evidence: 15 warrants, five signers for each of three cards, put to the
-% core's gate and to a core built without the check of the signer
-% [internal, harbor warrants; sessions warrants.txt and
-% warrants-any-signer.txt, and
-% tests/harbor-research/test_anchor_warranted_numbers.py holds every mark to
-% them].
-% Must distinguish: a warrant the rule takes from one taken only with the
-% guard removed; a holder's own card from the cards above it and below it.
+% Reader question: whose signed revocation revokes which card of a chain?
+% Claim: a card is revoked for the harbor, and for whoever holds it or one
+% of its ancestors. The revocations the rule refuses are the ones a core
+% built without the check of the signer accepts.
+% Evidence: 15 revocations, five signers for each of three cards, sent to
+% the core's gate and to a core built without the check of the signer
+% [internal, harbor revokers; sessions revokers.txt and
+% revokers-any-signer.txt, and
+% tests/harbor-research/test_anchor_warranted_numbers.py checks every mark
+% against them].
+% Must distinguish: a revocation the rule accepts from one accepted only
+% with the guard removed; a holder's own card from its ancestors and its
+% descendants.
 % Grammar chosen: signers down and cards across, both in the order of the
-% chain, one mark for each warrant, so that the rule shows as a staircase.
+% chain, one mark for each revocation, so that the rule shows as a
+% staircase.
 % Grammar rejected: the count alone, which does not say which nine; the
-% chain drawn as a tree with an arrow for each warrant, where fifteen
+% chain drawn as a tree with an arrow for each revocation, where fifteen
 % arrows cross.
 % Five-second test: what shape do the filled marks make?
 \begin{figure}[H]
@@ -23,28 +25,28 @@
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure]
   \pgfplotsset{
-    taken/.style={only marks,mark=*,mark size=3.2pt,draw=pdfocus,
+    revoked/.style={only marks,mark=*,mark size=3.2pt,draw=pdfocus,
       mark options={fill=pdfocus,draw=pdpage,line width=.3pt}},
-    loose/.style={only marks,mark=o,mark size=3.2pt,draw=pdinkmuted,
+    unchecked/.style={only marks,mark=o,mark size=3.2pt,draw=pdinkmuted,
       mark options={draw=pdinkmuted,line width=.6pt}},
   }
   \begin{axis}[pd axis,width=5.4cm,height=4.4cm,
     xmin=0.5,xmax=3.5,ymin=0.4,ymax=5.6,
     xtick={1,2,3},xticklabels={Alice's,Heron's,Finch's},
     ytick={1,2,3,4,5},yticklabels={Wren,Finch,Heron,Alice,the harbor},
-    xlabel={the card a warrant is signed for},
+    xlabel={the card the revocation names},
     ylabel={who signs it}]
-    % The staircase: under it and left of it, the rule refuses.
+    % The staircase: below it and left of it, the rule refuses.
     \addplot[pd guide,mark=none] coordinates {(0.5,3.5) (1.5,3.5) (1.5,2.5) (2.5,2.5) (2.5,1.5) (3.5,1.5)};
-    % series: taken
-    \addplot[taken] coordinates {(1,5) (2,5) (3,5) (1,4) (2,4) (3,4) (2,3) (3,3) (3,2)};
-    % series: taken only without the check of the signer
-    \addplot[loose] coordinates {(1,3) (1,2) (2,2) (1,1) (2,1) (3,1)};
+    % series: revoked
+    \addplot[revoked] coordinates {(1,5) (2,5) (3,5) (1,4) (2,4) (3,4) (2,3) (3,3) (3,2)};
+    % series: revoked only without the check of the signer
+    \addplot[unchecked] coordinates {(1,3) (1,2) (2,2) (1,1) (2,1) (3,1)};
   \end{axis}
 \end{tikzpicture}
-\caption{\textbf{A card is taken back for the harbor, and for whoever holds
-it or a card above it.} Filled marks are the nine warrants the gate takes.
-Open marks are the six it refuses, which a core built without the check of
-the signer takes too. [internal, \texttt{harbor warrants}]}
+\caption{\textbf{A card is revoked for the harbor, and for whoever holds
+it or one of its ancestors.} Filled marks are the nine revocations the gate
+accepts. Open marks are the six it refuses, which a core built without the
+check of the signer accepts too. [internal, \texttt{harbor revokers}]}
 \label{fig:anchor-warrant-who}
 \end{figure}

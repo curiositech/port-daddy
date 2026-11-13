@@ -1,18 +1,18 @@
 $ harbor proofs
-what gets through when the text a proof is signed over leaves one
-  thing out
+which attacks succeed when the text a proof is signed over leaves
+  one part out
 
-left out       sent again  ask changed  card changed
-nothing        refused     refused      refused
-the challenge  THROUGH     refused      refused
-the ask        refused     THROUGH      refused
-the card       refused     refused      THROUGH
+left out       replayed    right changed  card changed
+nothing        refused     refused        refused
+the challenge  ADMITTED    refused        refused
+the right      refused     ADMITTED       refused
+the card       refused     refused        ADMITTED
 
 nothing: the core's own gate. Each other row is a gate like it
-  whose text leaves that one thing blank.
-sent again: wren answers a challenge of her own with heron's
+  whose text leaves that one part blank.
+replayed: wren answers a challenge of her own with heron's
   signature
-ask changed: heron signs an ask to read, and wren sends it on as
-  an ask to write
-card changed: alice signs an ask under her narrow card, and wren
-  shows it under her wide one
+right changed: heron signs a request to read, and wren forwards it
+  as a request to write
+card changed: alice signs a request under her narrow card, and
+  wren presents it under her wide one

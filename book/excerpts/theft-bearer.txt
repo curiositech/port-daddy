@@ -1,15 +1,16 @@
 $ harbor scenario theft --design bearer
-scenario theft, design bearer: a copy of a card is shown by
+scenario theft, design bearer: a copy of a card is presented by
   someone who does not hold its key
 
-t=0      harbor signs alice a card: read shop/*, write shop/*;
-                good until t=600000
-t=0      alice  hands heron a card: write shop/checkout.ts; good
+t=0      harbor issues alice a card: read shop/*, write shop/*;
+                valid until t=600000
+t=0      alice  delegates to heron: write shop/checkout.ts; valid
                 until t=600000
-t=0      heron  asks to write shop/checkout.ts
+t=0      heron  requests to write shop/checkout.ts
                 -> admitted as heron
 t=0      wren   copies heron's cards from his files
-t=0      wren   shows them, and asks to write shop/checkout.ts
+t=0      wren   presents them, and requests to write
+                shop/checkout.ts
                 -> admitted as heron
 
 verdict: THEFT: wren may write shop/checkout.ts with a copy of

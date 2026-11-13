@@ -1,0 +1,14 @@
+/** Remove each entry the core allows to be pruned. */
+prune(now: number): number {
+  let removed = 0;
+  for (const [id, entry] of this.#entries) {
+    const prune = { op: 'prune', id } as const;
+    const state = { gate: { entry } };
+    const answer = this.#core.decide(prune, state, POLICY, now);
+    if (answer.verdict === 'admit') {
+      this.#entries.delete(id);
+      removed += 1;
+    }
+  }
+  return removed;
+}

@@ -1,0 +1,14 @@
+/** Check one presentation in two steps: look its challenge up,
+ * then verify the proof and delete the challenge. */
+*admitting(presented: Presentation, now: number): Checking {
+  if (!presented.proof) return refused('no-proof', NO_PROOF);
+  const { nonce } = presented.proof;
+  if (!this.#open.has(nonce)) {
+    return refused('unknown-challenge', NOT_OPEN);
+  }
+  yield; // verifying is slow: other requests run now
+  const cards = this.#cards;
+  const result = checkSigned(presented, cards, now, nonce);
+  if (result.ok) this.#open.delete(nonce);
+  return result;
+}

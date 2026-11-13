@@ -1,8 +1,8 @@
-/// Check that whoever showed an admitted chain holds the key its
-/// last card names.
+/// Check that whoever presented an admitted chain holds the key
+/// its last card names.
 pub fn held(
     pass: Pass,
-    ask: Option<&Right>,
+    requested: Option<&Right>,
     proof: Option<&Proof>,
     gate: &Gate,
     policy: &Policy,
@@ -14,22 +14,22 @@ pub fn held(
     let Some(proof) = proof else {
         return unproved(pass);
     };
-    // The challenge must be one this gate handed out and has not
-    // had back, and its time must not have passed.
+    // The challenge must be one this gate issued and has not
+    // accepted an answer to, and it must not have expired.
     let open = open(gate, &proof.nonce)
         .ok_or(Reason::UnknownChallenge)?;
     if stale(now, open.until) {
         let until = open.until;
         return Err(Reason::StaleChallenge { until });
     }
-    // The gate works out what the proof must be a signature
-    // over. It takes nobody's word for the ask or the card.
+    // The gate computes the text the proof must be a signature
+    // over, from the request and the card it has checked.
     let card = pass.cards.last().map_or("", String::as_str);
-    let text = text(&open.nonce, ask, card);
+    let text = text(&open.nonce, requested, card);
     if !signed(&pass.key, &text, &proof.tag) {
         return Err(Reason::NotProved);
     }
-    // Admitting the chain uses the challenge up.
+    // Admitting the chain uses the challenge.
     let answered = Some(open.nonce);
     Ok(Pass { answered, ..pass })
 }
