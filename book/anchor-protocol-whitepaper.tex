@@ -1025,8 +1025,8 @@ daemon calls only two of the library's functions, the constant-time comparator
 and the flat-string subset check (Appendix~\ref{app:anchor-mech}). It never
 calls the crate's \texttt{verify()}: the daemon checks cards in TypeScript, in
 \path{lib/harbor-tokens.ts}, and the relay, which cannot load the library,
-uses its own TypeScript verifier, held to the crate by a shared set of test
-cards whose file records every case where the two disagree. So the harnesses
+uses its own TypeScript verifier. A shared set of test cards is run against
+both, and its file records every case where the two disagree. So the harnesses
 on \texttt{verify()} and the decoded claims check a reference implementation,
 not code on either acceptance path. For the two functions the daemon does
 call, sharing source removes one way for the checked code and the shipped code
@@ -1768,7 +1768,7 @@ Relay payload secrecy via HPKE (daemon key pinned) & ProVerif (design) & \Partia
 Webhook replay-freedom + in-order delivery & TLA+ / TLC (exhaustive at bound) & \Partial\ design model-checked; runtime via ordered-chain ingest & \path{Webhook}\allowbreak\path{Delivery.tla} \\
 Card revocation finality when restoring pre-revocation state & TLA+ / TLC & \Partial\ rollback attack and its mitigation, an external counter that a restore cannot roll back, both model-checked; the mitigation also refuses every card issued before the latest revocation, and \pdchapref{fh}{The Federated Harbor} gives the repair & \path{Card}\allowbreak\path{Revocation.tla} \\
 \midrule
-Mechanized gossip-convergence bound & exact expectation and seeded runs (\S\ref{sec:anchor-build-told}) & \Open\ no machine-checked proof. The expected rounds are worked out exactly for 2 to 64 gates under the model of \S\ref{sec:revocation}, and runs of the kernel's gates agree with them; standard asymptotics beyond that~\pdcite{demers1987epidemic}; no partition deadline & \texttt{harbor spread}, \texttt{harbor gossip} \\
+Mechanized gossip-convergence bound & exact expectation and seeded runs (\S\ref{sec:anchor-build-told}) & \Open\ no machine-checked proof. The expected rounds are computed exactly for 2 to 64 gates under the model of \S\ref{sec:revocation}, and runs of the kernel's gates agree with them; standard asymptotics beyond that~\pdcite{demers1987epidemic}; no partition deadline & \texttt{harbor spread}, \texttt{harbor gossip} \\
 \end{xltabular}}
 
 \paragraph{Limitations.} Gossiping the append-only log avoids the unsound filter merge described in \S\ref{sec:revocation} (``Why filters cannot be merged bitwise''), but how fast gossip spreads still rests on the standard anti-entropy analysis, not a machine-checked proof. The resistance of signature comparison to timing attacks comes from an audited library and is not re-proved here. Both remain open.
@@ -2469,8 +2469,8 @@ Compose them and the sentence comes out as: the event
 escalating chain was accepted, so the attack works.
 
 A ProVerif
-\texttt{false} on a safety query is a found attack, not a failed run, and the
-tool says so twice over by printing \texttt{A trace has been found} above it.
+\texttt{false} on a safety query is a found attack, not a failed run: the
+tool prints \texttt{A trace has been found} above it.
 Work that composition once here and every quoted verdict below reads at a
 glance. [internal]
 \end{pdexample}
