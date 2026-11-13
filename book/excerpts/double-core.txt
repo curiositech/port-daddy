@@ -1,0 +1,12 @@
+$ harbor scenario double --design core
+scenario double, design core: a second process is started under an
+  account while the first is still running
+
+step 1   alice  registers a worker called heron
+                -> process 0, under account 0
+step 2   kernel checks a delivery by process 0 -> passed
+step 3   alice  starts a process to continue heron
+                -> refused: already-running (process 0 is already
+                   running under account 0)
+
+verdict: only one process is running under the account

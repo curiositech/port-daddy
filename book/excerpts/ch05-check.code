@@ -1,0 +1,19 @@
+/// The kernel checked a delivery. A pass goes on the account,
+/// and a failed check is a sanction against its principal.
+pub fn record_check(
+    registry: &Registry,
+    process: u32,
+    passed: bool,
+) -> Result<Registry, Reason> {
+    let (account, entry) = account_of(registry, process)?;
+    let mut registry = registry.clone();
+    if passed {
+        let passed = entry.passed.saturating_add(1);
+        let entry = Account { passed, ..*entry };
+        registry = replace(registry, account, entry);
+    } else {
+        let principal = entry.principal;
+        registry.sanctions.push(Sanction { principal, account });
+    }
+    Ok(registry)
+}

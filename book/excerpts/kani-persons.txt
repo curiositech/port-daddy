@@ -1,0 +1,29 @@
+$ sh formal/persons/run.sh
+a_fresh_account_shows_its_principals_sanctions
+  successful; its cover is satisfied
+a_pass_counts_on_its_own_account_only
+  successful; its 2 covers are satisfied
+a_sanction_counts_on_every_account_of_its_principal
+  successful; its 2 covers are satisfied
+an_owner_can_continue_its_idle_account
+  successful
+control_per_account_sanctions_are_caught
+  fails, as a control should
+no_decision_panics_on_any_registry
+  successful
+only_the_owner_continues_an_account_one_process_at_a_time
+  successful; its cover is satisfied
+only_the_running_process_is_answered_or_clears_its_account
+  successful; its 2 covers are satisfied
+the harnesses that fail when one guard is removed
+any-principal
+  only_the_owner_continues_an_account_one_process_at_a_time
+two-processes
+  only_the_owner_continues_an_account_one_process_at_a_time
+late-exit
+  only_the_running_process_is_answered_or_clears_its_account
+answer-exited
+  only_the_running_process_is_answered_or_clears_its_account
+sanction-per-account
+  a_fresh_account_shows_its_principals_sanctions
+  a_sanction_counts_on_every_account_of_its_principal

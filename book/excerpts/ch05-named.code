@@ -1,0 +1,19 @@
+/** A process starts under whatever name it gives. */
+start(name: string): number {
+  const { names, records, processes } = this.#state;
+  const seen = name in records;
+  this.#state = {
+    names: seen ? names : [...names, name],
+    records: seen ? records : { ...records, [name]: EMPTY },
+    processes: [...processes, name],
+  };
+  return processes.length;
+}
+
+/** Its record is whatever is filed under that name. */
+show(process: number): Shown {
+  const name = this.#state.processes[process];
+  if (name === undefined) return unknown(process);
+  const record = this.#state.records[name] ?? EMPTY;
+  return { ok: true, record };
+}

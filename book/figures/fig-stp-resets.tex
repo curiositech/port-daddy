@@ -1,0 +1,50 @@
+% Brief (grammar: two lines on one pair of axes, with the region between
+%   them filled; atlas III/fig:stp-resets).
+% Reader question: after a sanction, how much of it does a reset win back,
+% and above what score does a reset win back nothing?
+% Claim: where a fresh identity is free, the principal ends up with the
+% newcomer's 50 whatever it lost, so a reset wins back all 30 points of
+% the sanction at a score of 50 and none of them from 80 up. Under the
+% kernel's registry the principal ends 30 points down at every score.
+% Evidence: seven records, each run at each registry [internal, harbor
+% resets --each; session resets-each.txt, plotted as printed, and
+% tests/harbor-research/test_stp_account_numbers.py checks the numbers in
+% the caption and the prose against it].
+% Must distinguish: a registry where a fresh identity is free from the
+% kernel's; the score at which the two lines meet.
+% Grammar chosen: the score before the sanction on the horizontal axis,
+% and the best score available after it on the vertical axis, so the gap
+% between the lines is what a reset wins back.
+% Grammar rejected: bars for the rows of the Book's table, which show a
+% gap at each row and not where the gap closes; a table, which is the
+% listing beside it.
+% Five-second test: where do the two lines meet?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure]
+  % The table is a recorded run, read as it was printed: the first line is
+  % the command, and every remark starts with '#'.
+  \pgfplotstableread[skip first n=1]{excerpts/resets-each.txt}\pdresets
+  \begin{axis}[pd axis,width=8.2cm,height=4.5cm,
+      xmin=44,xmax=116,ymin=8,ymax=92,
+      xtick={50,60,70,80,90,100,110},ytick={20,50,80},
+      xlabel={score before the sanction},
+      ylabel={best score after it}]
+    \addplot[name path=free,pd breach series] table[x=before,y=named]{\pdresets};
+    \addplot[name path=kept,pd series] table[x=before,y=core]{\pdresets};
+    \addplot[pd breach fill,draw=none] fill between[of=free and kept];
+    \node[pd breach label,anchor=south west,align=left] at (axis cs:50.5,52) {a fresh identity\\is free};
+    \node[pd label,anchor=north west] at (axis cs:86,54) {the kernel's registry};
+    \node[pd label,text=pdinkmuted,anchor=west,align=left] at (axis cs:50.5,42) {won back\\by a reset};
+    % Where the two lines meet: the newcomer's 50 plus the sanction's 30.
+    \draw[pd guide] (axis cs:80,8) -- (axis cs:80,50);
+    \node[pd note,anchor=south west] at (axis cs:80.8,9) {they meet at $50+30$};
+  \end{axis}
+\end{tikzpicture}
+\caption{\textbf{A reset wins back the whole sanction at a score of 50, and
+none of it from 80 up.} Each point is a run. Under the kernel's registry
+a principal ends 30 points down whatever it does.
+[internal, \texttt{harbor resets -{}-each}]}
+\label{fig:stp-resets}
+\end{figure}

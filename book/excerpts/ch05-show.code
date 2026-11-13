@@ -1,0 +1,16 @@
+/// The record of a process that is running.
+pub fn show(
+    registry: &Registry,
+    process: u32,
+) -> Result<Standing, Reason> {
+    let (account, entry) = account_of(registry, process)?;
+    if !is_running(entry, process) {
+        return Err(Reason::Exited { process });
+    }
+    Ok(Standing {
+        account,
+        principal: entry.principal,
+        passed: entry.passed,
+        sanctions: count(registry, entry.principal, account),
+    })
+}

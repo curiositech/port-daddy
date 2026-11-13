@@ -1,0 +1,19 @@
+/// A sanction counts on every account of its principal only.
+#[kani::proof]
+#[kani::unwind(6)]
+fn a_sanction_counts_on_every_account_of_its_principal() {
+    let registry = any_registry();
+    let (failed, asker): (u32, u32) = (kani::any(), kani::any());
+    kani::assume(failed < PROCESSES);
+    let Ok(before) = show(&registry, asker) else {
+        return;
+    };
+    let next = record_check(&registry, failed, false).unwrap();
+    let after = show(&next, asker).unwrap();
+    let (earner, principal) = owner_of(&registry, failed);
+    let same = before.principal == principal;
+    kani::cover!(same && before.account != earner);
+    kani::cover!(!same);
+    assert!(after.sanctions == before.sanctions + same as u32);
+    assert!(after.passed == before.passed);
+}

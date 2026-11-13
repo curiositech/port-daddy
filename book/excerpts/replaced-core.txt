@@ -1,0 +1,16 @@
+$ harbor scenario replaced --design core
+scenario replaced, design core: a process that has been replaced
+  asks for its record
+
+step 1   alice  registers a worker called heron
+                -> process 0, under account 0
+step 2   kernel checks a delivery by process 0 -> passed
+step 3   kernel records that process 0 exited
+step 4   alice  starts a process to continue heron
+                -> process 1, under account 0
+step 5   bob    asks for the record of process 0
+                -> refused: exited (process 0 is no longer running
+                   under its account)
+
+verdict: only the process now running under the account gets an
+         answer

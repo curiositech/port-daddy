@@ -1,0 +1,22 @@
+$ harbor resets
+a worker gets a sanction, and its principal either keeps the
+  account or resets by registering a new worker. Scores follow the
+  Book's example: a newcomer starts at 50, and a sanction costs
+  30. A pass adds 10, which is this build's own choice
+
+design    passes  before  keep  reset  best  regained
+named          0      50    20     50    50        30
+named          2      70    40     50    50        10
+named          4      90    60     50    60         0
+minted         0      50    20     50    50        30
+minted         2      70    40     50    50        10
+minted         4      90    60     50    60         0
+core           0      50    20     20    20         0
+core           2      70    40     20    40         0
+core           4      90    60     20    60         0
+
+before: the score before the sanction
+keep: the score after it, if the principal keeps the account
+reset: the score of the new worker, if the principal resets
+best: the higher of the two
+regained: how many of the sanction's 30 points the reset won back

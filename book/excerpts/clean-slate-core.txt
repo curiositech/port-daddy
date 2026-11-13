@@ -1,0 +1,15 @@
+$ harbor scenario clean-slate --design core
+scenario clean-slate, design core: a sanctioned worker is
+  registered again as a new worker
+
+step 1   alice  registers a worker called drake
+                -> process 0, under account 0
+step 2   kernel checks a delivery by process 0
+                -> failed: it deleted a test it was told to keep
+step 3   kernel records that process 0 exited
+step 4   alice  registers a worker called drake-2
+                -> process 1, under account 1
+step 5   bob    asks for the record of process 1
+                -> 0 passes and 1 sanction
+
+verdict: alice's new worker still shows her sanction

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "8ecab4c88c968360bcc9d2d329abf4c8575983f9",
+  "commit": "8b7ed1b5e686ac009f56b17ae34b9f84cedc4a56",
   "scan": "harbord",
   "excerpts": [
     {
@@ -544,6 +544,78 @@
       "sha256": "813ec5da0d44c8ecc39a771cb9f1dda221a3be4eb09d0910fb940938c0a7d6c9"
     },
     {
+      "name": "ch05-check",
+      "path": "harbord/core/src/persons.rs",
+      "firstLine": 211,
+      "lastLine": 229,
+      "lines": 19,
+      "language": "Rust",
+      "sha256": "02a0e67c894da44323bb4fd076f14808fd28e208bb9cc8621cce3b9a1a956282"
+    },
+    {
+      "name": "ch05-kani",
+      "path": "harbord/core/src/persons/proofs.rs",
+      "firstLine": 87,
+      "lastLine": 105,
+      "lines": 19,
+      "language": "Rust",
+      "sha256": "2afae7c37cebb5f33553c7f1ab52f20c668fef346fa5d318af7dcf9f43cd6634"
+    },
+    {
+      "name": "ch05-minted",
+      "path": "harbord/src/naive/names.ts",
+      "firstLine": 143,
+      "lastLine": 163,
+      "lines": 21,
+      "language": "TypeScript",
+      "sha256": "dfe198983fbfd8ba210ed857cc8f00862a094521335150661bf7fcd40be1fdd7"
+    },
+    {
+      "name": "ch05-named",
+      "path": "harbord/src/naive/names.ts",
+      "firstLine": 44,
+      "lastLine": 62,
+      "lines": 19,
+      "language": "TypeScript",
+      "sha256": "85d4de283c21ec9d357020cdf7bb47681944e2a8c4b7eee8dc940bd30f3910df"
+    },
+    {
+      "name": "ch05-show",
+      "path": "harbord/core/src/persons.rs",
+      "firstLine": 233,
+      "lastLine": 248,
+      "lines": 16,
+      "language": "Rust",
+      "sha256": "3c3d9fa876f7132f44369df3bcd902f3934d272d8ddf1452adbe58bd0daa929e"
+    },
+    {
+      "name": "ch05-show-guards",
+      "path": "harbord/core/src/persons.rs",
+      "firstLine": 252,
+      "lastLine": 270,
+      "lines": 19,
+      "language": "Rust",
+      "sha256": "8efd9c64e6ab4b5b96828cce4e9ee14ec935998932268486b5ed805fc118f296"
+    },
+    {
+      "name": "ch05-succeed",
+      "path": "harbord/core/src/persons.rs",
+      "firstLine": 148,
+      "lastLine": 167,
+      "lines": 20,
+      "language": "Rust",
+      "sha256": "cd21fde5f3de15d855e4eee40412cb8ec403658e0f25000885ae9152a05c7490"
+    },
+    {
+      "name": "ch05-succeed-guards",
+      "path": "harbord/core/src/persons.rs",
+      "firstLine": 171,
+      "lastLine": 185,
+      "lines": 15,
+      "language": "Rust",
+      "sha256": "f26667ff9ecad7dc1d4e62aadc5f79bb8d9b0cae3938779ee2e3c3e4de76b6df"
+    },
+    {
       "name": "ch06-apiece",
       "path": "harbord/src/naive/apiece.ts",
       "firstLine": 60,
@@ -735,6 +807,18 @@
   ],
   "sessions": [
     {
+      "name": "accounts-guards",
+      "path": "harbord/sessions/accounts-guards.txt",
+      "lines": 20,
+      "sha256": "8d8d3e5530c4fe3b35fa20ceba6a3fad4dcbc13ad6cbc532449be0df48adcc72"
+    },
+    {
+      "name": "accounts",
+      "path": "harbord/sessions/accounts.txt",
+      "lines": 22,
+      "sha256": "402498df5481119ac536fe4c74e1e6bc6894230ae426b8451d9d9fe442d3d396"
+    },
+    {
       "name": "after-release-apart",
       "path": "harbord/sessions/after-release-apart.txt",
       "lines": 17,
@@ -795,6 +879,24 @@
       "sha256": "a36512a62fd227fa3babb57886ea7455ad2bfee8b18cd795227c6d73fc80a315"
     },
     {
+      "name": "clean-slate-core",
+      "path": "harbord/sessions/clean-slate-core.txt",
+      "lines": 15,
+      "sha256": "6592dd7f2e38229e78820038c75f012460b757c6531d5875cc6b2934194177d4"
+    },
+    {
+      "name": "clean-slate-minted",
+      "path": "harbord/sessions/clean-slate-minted.txt",
+      "lines": 15,
+      "sha256": "fd0187f4b6ba825897f42e99672064c1c6e8514e4d086b9063d215cfd865a577"
+    },
+    {
+      "name": "clean-slate-named",
+      "path": "harbord/sessions/clean-slate-named.txt",
+      "lines": 15,
+      "sha256": "043bc042a97636f111439f7887287afc097d8876a30ab8439b2e372f4a111add"
+    },
+    {
       "name": "confusion-core",
       "path": "harbord/sessions/confusion-core.txt",
       "lines": 28,
@@ -805,6 +907,12 @@
       "path": "harbord/sessions/confusion-naive.txt",
       "lines": 26,
       "sha256": "ca02103ed971987cea29b6f17861d0fc46b1279d9f4661aa0df766539ebfe1af"
+    },
+    {
+      "name": "double-core",
+      "path": "harbord/sessions/double-core.txt",
+      "lines": 12,
+      "sha256": "8ce90dffb7b1e6bdd90576e90062c020d1a53a3c885975116ee09da2b970d78a"
     },
     {
       "name": "escalation-compare-root",
@@ -915,6 +1023,12 @@
       "sha256": "edaea7bac9c95c65a6495c9116c043bd31c6e28a1e8db1b962f3cc95ce07fbf6"
     },
     {
+      "name": "handover-named",
+      "path": "harbord/sessions/handover-named.txt",
+      "lines": 15,
+      "sha256": "c668a63e6e9fb415dd431e0844ff89c693334d86392c414727e074b2e68e3f3e"
+    },
+    {
       "name": "honest-handed",
       "path": "harbord/sessions/honest-handed.txt",
       "lines": 15,
@@ -949,6 +1063,12 @@
       "path": "harbord/sessions/kani-patterns.txt",
       "lines": 11,
       "sha256": "31920094a398c04f4f7ac909f816a0511bed4f78d8e2a199a7bc281d54b4056c"
+    },
+    {
+      "name": "kani-persons",
+      "path": "harbord/sessions/kani-persons.txt",
+      "lines": 29,
+      "sha256": "81e01f70d23a0bf5193c53a6d59599f4b5a76d03241b287aced3e9192aaac94e"
     },
     {
       "name": "kani-plans",
@@ -1113,6 +1233,24 @@
       "sha256": "2c323b2b360a056fff504f1759bfda5826f1ec020e5bfebc64a279cafdfd1cb9"
     },
     {
+      "name": "namesake-core",
+      "path": "harbord/sessions/namesake-core.txt",
+      "lines": 14,
+      "sha256": "2697c463fd6aac0a103fca9c69094fdaab0b92051186f6d93ac45d314251e4d8"
+    },
+    {
+      "name": "namesake-minted",
+      "path": "harbord/sessions/namesake-minted.txt",
+      "lines": 14,
+      "sha256": "274c85d9117eb49164ec81ac201f6cafb02d19b539a0f3df65a19a785bcb5d1e"
+    },
+    {
+      "name": "namesake-named",
+      "path": "harbord/sessions/namesake-named.txt",
+      "lines": 15,
+      "sha256": "149c7b553de6d11ac55a2c31c1617acefa34ebd752d1f901e00cef48e8309282"
+    },
+    {
       "name": "one-wallet-apiece",
       "path": "harbord/sessions/one-wallet-apiece.txt",
       "lines": 11,
@@ -1221,6 +1359,12 @@
       "sha256": "eefa96a786ea0f79c4c51c7a8e8cca872fd3b349a9d815ada4edfe34a8ba4575"
     },
     {
+      "name": "replaced-core",
+      "path": "harbord/sessions/replaced-core.txt",
+      "lines": 16,
+      "sha256": "442b35485dd3fa527cc2c0f71eac95460df6c9688b4aac0314000bfdf591bab3"
+    },
+    {
       "name": "replay-core",
       "path": "harbord/sessions/replay-core.txt",
       "lines": 22,
@@ -1231,6 +1375,18 @@
       "path": "harbord/sessions/replay-signed.txt",
       "lines": 15,
       "sha256": "ffac66bbc4ee29db4c538603673196405dff95768fe3138c96013782749a9dc8"
+    },
+    {
+      "name": "resets-each",
+      "path": "harbord/sessions/resets-each.txt",
+      "lines": 18,
+      "sha256": "c34cfb2c002d26491b91446be24118a0e65af963d875dfb7d91ba74de36b0379"
+    },
+    {
+      "name": "resets",
+      "path": "harbord/sessions/resets.txt",
+      "lines": 22,
+      "sha256": "2778249fd573b230ff9844433ac63669dad249b09aad309db0922fd2f3192015"
     },
     {
       "name": "roads-fence-only",
@@ -1514,6 +1670,7 @@
     "ch02e": 122,
     "ch03": 148,
     "ch04": 146,
+    "ch05": 148,
     "ch06": 150,
     "ch07": 145,
     "ch07b": 139

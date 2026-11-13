@@ -1,0 +1,14 @@
+$ harbor scenario namesake --design minted
+scenario namesake, design minted: a second operator starts a
+  process to continue another operator's worker
+
+step 1   alice  registers a worker called heron
+                -> process 0, under account 0
+step 2   kernel checks a delivery by process 0 -> passed
+step 3   kernel checks a delivery by process 0 -> passed
+step 4   kernel records that process 0 exited
+step 5   carol  starts a process to continue heron
+                -> refused: no-credential (account 0 has another
+                   principal's credential)
+
+verdict: carol's process does not get heron's passes
