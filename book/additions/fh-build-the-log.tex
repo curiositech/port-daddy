@@ -16,7 +16,7 @@
 \subsection{Build the layer: a witness log}
 \label{sec:fh-log}
 
-\noindent\emph{Express lane: Acme's harbor signs two roots for epoch~8
+\noindent\emph{Express lane: Alice's harbor signs two roots for epoch~8
 and shows each to a different auditor. A log that stores the latest root
 it is given loses the first one, and then nobody can show what happened. The log
 built here keeps the first root and holds a second one beside it. The two
@@ -27,16 +27,16 @@ them two logs hold different roots, and in every one of those a single
 exchange leaves both logs with the evidence.}
 
 Design invariant~\ref{prop:fh-witness} lists five requirements for a
-witness log, and the example after it ends with an equivocation: Acme signs
-two roots for epoch~8. None of that has been run. This section builds the
+witness log, and the example after it ends with an equivocation: Alice's
+harbor signs two roots for epoch~8. None of that has been run. This section builds the
 part of the log that the example needs, in \pdkernelname{}, and runs the
 example against it.
 
-The cast is the example's. Acme's harbor has recorded four card events by
-the end of epoch~7. In epoch~8 it records a fifth, which revokes the card
-$C_A$. Beta and the staging server each run an auditor, a program that
-reads Acme's root at a log and checks what it reads. Wren is an outsider,
-as she was in the builds of \pdchapref{anchor}{The Anchor Protocol}. She
+The cast is the example's. Alice's harbor has recorded four card events
+by the end of epoch~7. In epoch~8 it records a fifth, which revokes the
+card $C_A$. Bob and Carol each run an auditor, a program that reads the
+harbor's root at a log and checks what it reads. Wren is an outsider, as
+she was in the builds of \pdchapref{anchor}{The Anchor Protocol}. She
 runs no harbor and holds no harbor's key.
 
 The section builds two of the five requirements: a log records one root
@@ -56,8 +56,8 @@ harbor and an auditor get the same value from the same list
 
 \texttt{tree} is the Merkle tree hash of Certificate
 Transparency~\pdcite{laurie2013ct}. It splits the list in two and hashes
-each part, and the hash of those two results is the root. For Acme's first
-four events that gives the tree of the example,
+each part, and the hash of those two results is the root. For the harbor's
+first four events that gives the tree of the example,
 $H\bigl(H(h_1,h_2),H(h_3,h_4)\bigr)$. With five events the split falls
 after the fourth, so the root for epoch~8 is $H(R_A^{(7)},h_5)$, as the
 example has it. The code adds one byte to the example's formula: a leaf is
@@ -67,9 +67,9 @@ different lists would have the same root. A test in the kernel compares
 \texttt{tree} with the known roots of Certificate Transparency's
 reference test inputs.
 
-The root of Acme's four events begins \texttt{38936ba2}, and the root of
-all five begins \texttt{3c657ada}. The runs below print those eight
-digits.
+The root of the harbor's four events begins \texttt{e88dca6c}, and the
+root of all five begins \texttt{408dc067}. The runs below print those
+eight digits.
 
 A harbor signs more than the root (Listing~\ref{alg:fh-log-signed}).
 
@@ -86,11 +86,11 @@ text for a reason that the verification below returns to.
 
 A log is a table, and the obvious table stores each signed root under its
 harbor and epoch (Listing~\ref{alg:fh-log-latest}). Its \texttt{publish}
-checks the signature before it stores anything, so only Acme can store a
-root as Acme's. With a harbor that signs one root for each epoch, this log
-works. For epoch~7 an auditor reads the root \texttt{38936ba2} and asks
-Acme for its events. If the four events hash to that root, the auditor
-knows what Acme had recorded by then.
+checks the signature before it stores anything, so only Alice's harbor
+can store a root as its own. With a harbor that signs one root for each
+epoch, this log works. For epoch~7 an auditor reads the root
+\texttt{e88dca6c} and asks the harbor for its events. If the four hash to
+that root, the auditor knows what was recorded by then.
 
 \pdlistingroom{12}
 \pdexcerpt[caption={The first attempt. A root is stored under its harbor
@@ -98,23 +98,25 @@ and epoch.},label={alg:fh-log-latest}]{ch08-latest}
 
 \subsubsection{Break: a second root for the same epoch}
 
-Acme publishes its root for epoch~8, and Beta's auditor reads it. Then
-Acme signs a second root for epoch~8, over its first four events only, and
-publishes that one too (Listing~\ref{alg:fh-log-run-latest}).
+Alice's harbor publishes its root for epoch~8, and Bob's auditor reads
+it. Then the harbor signs a second root for epoch~8, over its first four
+events only, and publishes that one too
+(Listing~\ref{alg:fh-log-run-latest}).
 
 \pdlistingroom{22}
 \pdrun[caption={A second root for one epoch, at the first log. The word at
-the left of each step says who acts.},label={alg:fh-log-run-latest}]{two-roots-latest}
+the left of each step says who acts, and \texttt{alice} is Alice's
+harbor.},label={alg:fh-log-run-latest}]{two-roots-latest}
 
 \texttt{publish} stored the second root where the first had been. Both
 auditors did their job. Each checked a signature that verifies, and each
-was shown events that hash to the root it read. Beta's auditor concluded
-that $C_A$ is revoked, and the staging server's that it is not. So the
-staging server goes on honoring a card that Acme has revoked.
+was shown events that hash to the root it read. Bob's auditor concluded
+that $C_A$ is revoked, and Carol's that it is not. So Carol's staging
+harbor goes on honoring a card that Alice has revoked.
 
-The log no longer holds the first root. Beta's auditor read it and kept no
+The log no longer holds the first root. Bob's auditor read it and kept no
 copy, so at step~5 it is given the second root like everyone else, and
-nobody can now show that Acme ever signed the first. This is the
+nobody can now show that Alice's harbor ever signed the first. This is the
 equivocation that \S\ref{sec:fh-scope} describes: one party signs two
 versions of a record and shows each to a different audience.
 
@@ -170,8 +172,9 @@ compares those with the harbor and epoch it asked the log about.
 \subsubsection{Break again: two logs, and a root for each}
 
 One log is a single point of failure, and \S\ref{sec:fh-not} asks for a
-few logs that anyone can read. So Acme changes its approach. It publishes
-one root to each of two logs (Listing~\ref{alg:fh-log-run-separate}).
+few logs that anyone can read. So Alice's harbor changes its approach. It
+publishes one root to each of two logs
+(Listing~\ref{alg:fh-log-run-separate}).
 
 In that run each log does what the fix requires. Each holds one root for
 epoch~8 and would keep a second as evidence, but neither is given a
@@ -200,15 +203,15 @@ logs.},label={alg:fh-log-exchange}]{ch08-exchange}
 
 Nothing new has to be trusted. A root that arrives from another log goes
 through \texttt{publish} like a root that arrives from a harbor, and it is
-recorded only if its harbor signed it. A log that wanted to accuse Acme
-falsely would have to forge Acme's signature. Gates in
+recorded only if its harbor signed it. A log that wanted to accuse Alice's
+harbor falsely would have to forge its signature. Gates in
 \pdchapref{anchor}{The Anchor Protocol} treat a notice of a revoked card
 the same way (\weld{anchor:sec:anchor-build-told}{notices}): the receiver
 checks it as if it had been presented there.
 
 A log sends the second root of each pair it holds, as well as the roots it
-has recorded. A third log that has seen neither of Acme's roots then gets
-the evidence from either of the first two.
+has recorded. A third log that has seen neither of the two roots then
+gets the evidence from either of the first two.
 
 \pdlistingroom{12}
 \pdrunlines[caption={The same run with logs that exchange. The steps left
@@ -219,8 +222,8 @@ Log~1 still holds the root it recorded first, and so does log~2. Each now
 holds the other's root as the second of a pair, and each auditor checks
 the pair for itself.
 
-The exchange happened at step~5. The staging server's auditor read that
-$C_A$ is not revoked at step~4. The log finds the equivocation after the
+The exchange happened at step~5. Carol's auditor read that $C_A$ is not
+revoked at step~4. The log finds the equivocation after the
 fact and prevents nothing, and \S\ref{sec:fh-attacks-in} is plain about
 that: a bond on a witness pays out once an equivocation is confirmed, and
 does not make the proof arrive by any deadline.
@@ -236,40 +239,42 @@ believed.}
 
 \paragraph{An outsider.}
 Evidence that is easy to check must also be hard to fake. In
-Listing~\ref{alg:fh-log-run-outsider} Acme signs one root for each epoch,
-and Wren tries to make it look as if Acme signed two.
+Listing~\ref{alg:fh-log-run-outsider} Alice's harbor signs one root for
+each epoch, and Wren tries to make it look as if it signed two.
 
-\pdlistingroom{36}
-\pdrun[caption={An outsider at the kernel's log. Beta's harbor publishes
+\pdlistingroom{35}
+\pdrun[caption={An outsider at the kernel's log. Bob's harbor publishes
 a root of its own at step
 3.},label={alg:fh-log-run-outsider}]{false-evidence-core}
 
 Steps 6 to 9 are the four checks of \texttt{proves}, each refusing a pair
-that fails it. Step~5 is the retry: Acme's own root, published again, is
-not a second root. Step~4 is refused by \texttt{signed}.
+that fails it. Step~5 is the retry: the harbor's own root, published
+again, is not a second root. Step~4 is refused by \texttt{signed}.
 
-Step~7 is worth a second look. Acme's root for epoch~7 covers four events.
-The second root that Acme signed for epoch~8, in the runs above, covers
-the same four events, so it is the same hash. If a harbor signed its root
-and nothing else, Acme's honest signature for epoch~7 would also be a
-valid signature on a second root for epoch~8, and Wren could publish it
+Step~7 is worth a second look. The harbor's root for epoch~7 covers four
+events. The second root that it signed for epoch~8, in the runs above,
+covers the same four events, so it is the same hash. If a harbor signed
+its root and nothing else, the honest signature for epoch~7 would also be
+a valid signature on a second root for epoch~8, and Wren could publish it
 as one. That is why the epoch is inside the signed text of
 Listing~\ref{alg:fh-log-signed}. \emph{Now you try:}
 Exercise~\ref{ex:fh-log-epoch} works the forgery through.
 
 \paragraph{Every pair.}
 The kernel offers the core every pair that can be made from five signed
-roots (Listing~\ref{alg:fh-log-pairs}). Acme signed three of them: one
-for epoch~7, and two different ones for epoch~8. Beta signed one for its
-own epoch~8. Wren signed the fifth, which names Acme.
+roots (Listing~\ref{alg:fh-log-pairs}). Alice's harbor signed three of
+them: one for epoch~7, and two different ones for epoch~8. Bob's harbor
+signed one for its own epoch~8. Wren signed the fifth, which names Alice's
+harbor.
 
 \pdlistingroom{20}
 \pdrun[caption={Every pair of five signed roots, offered as
 evidence.},label={alg:fh-log-pairs}]{evidence}
 
-Of the 25 pairs the core accepts 2, which are the two orders of Acme's
-two roots for epoch~8. The pair of \texttt{acme-7} and \texttt{acme-8'}
-is refused as \texttt{epoch}, although their roots are the same hash.
+Of the 25 pairs the core accepts 2, which are the two orders of the two
+roots that Alice's harbor signed for epoch~8. The pair of
+\texttt{alice-7} and \texttt{alice-8'} is refused as \texttt{epoch},
+although their roots are the same hash.
 
 \paragraph{Every order.}
 Which root a log records depends on which arrives first, so a few runs
@@ -294,7 +299,7 @@ epoch. Those three columns are zero for both.
 
 The column \texttt{split} is not zero for any design, and it cannot be.
 In 4,608 of the core's 8,000 states two logs hold different roots for one
-epoch, because Acme can always give two logs two roots. The last column
+epoch, because a harbor can always give two logs two roots. The last column
 is what the exchange adds. Without it, one of the two logs lacks the
 evidence in 3,840 of those states. With it, one exchange between the two
 logs leaves both holding the evidence, in all 4,608. \emph{Now you try:}
@@ -324,8 +329,9 @@ real one.
 \paragraph{The check, as a protocol.}
 The exhaustive test uses five roots that the kernel made. ProVerif asks
 the same question about any roots an attacker can make
-(\weld{anchor:sec:correct}{ProVerif}). In the model, Beta signs one root
-for each epoch, and Acme signs whatever it is asked to. The attacker sees
+(\weld{anchor:sec:correct}{ProVerif}). In the model, Bob's harbor signs
+one root for each epoch, and Alice's signs whatever it is asked to. The
+attacker sees
 every signed root and has a key of its own
 (Listing~\ref{alg:fh-log-models}).
 
@@ -336,13 +342,14 @@ controls.},label={alg:fh-log-models}]{models-witness}
 \texttt{evidence.pv} is the check as the core makes it. Its first result
 says that each root an auditor accepts was signed by the harbor, for that
 epoch. Its second says that no auditor ever accepts evidence against
-Beta. Its third is \texttt{false} on purpose: an auditor can accept
-evidence against Acme, so the first two results are not true merely
-because nothing is ever accepted.
+Bob's harbor. Its third is \texttt{false} on purpose: an auditor can
+accept evidence against Alice's, so the first two results are not true
+merely because nothing is ever accepted.
 
 The other five files are controls. Four leave out one check of
 \texttt{proves} each, and the fifth takes the epoch out of the signed
-text. In every one of them an auditor accepts evidence against Beta.
+text. In every one of them an auditor accepts evidence against Bob's
+harbor.
 
 \pdscope{The exhaustive test covers three logs and the five roots printed
 in Listing~\ref{alg:fh-log-pairs}. It counts states and says nothing
@@ -352,8 +359,8 @@ stores them.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-Nothing here ties one epoch to the next. Acme can publish a root for
-epoch~9 over a list that leaves out the revocation of $C_A$, and the log
+Nothing here ties one epoch to the next. Alice's harbor can publish a root
+for epoch~9 over a list that leaves out the revocation of $C_A$, and the log
 records it, because it is the first root for epoch~9. The third
 requirement of Design invariant~\ref{prop:fh-witness} answers this with a
 consistency proof, and the kernel does not build that proof yet

@@ -2,21 +2,21 @@ $ harbor scenario two-roots --design latest
 scenario two-roots, design latest: a harbor publishes two roots
   for one epoch to one log
 
-step 1   acme    publishes its root for epoch 8 to log 1: 5 events
-                 -> recorded
-step 2   beta    audits acme's epoch 8 at log 1
-                 -> root 3c657ada, and acme's 5 events hash to it.
-                    C_A is revoked
-step 3   acme    publishes another root for epoch 8 to log 1: 4
-                 events
-                 -> replaced: log 1 now holds this root in place
-                    of the first
-step 4   staging audits acme's epoch 8 at log 1
-                 -> root 38936ba2, and acme's 4 events hash to it.
-                    C_A is not revoked
-step 5   beta    audits acme's epoch 8 at log 1
-                 -> root 38936ba2, and acme's 4 events hash to it.
-                    C_A is not revoked
+step 1   alice  publishes a root for epoch 8 to log 1: 5 events
+                -> recorded
+step 2   bob    audits alice's epoch 8 at log 1
+                -> root 408dc067, and alice's 5 events hash to it.
+                   C_A is revoked
+step 3   alice  publishes another root for epoch 8 to log 1: 4
+                events
+                -> replaced: log 1 now holds this root in place of
+                   the first
+step 4   carol  audits alice's epoch 8 at log 1
+                -> root e88dca6c, and alice's 4 events hash to it.
+                   C_A is not revoked
+step 5   bob    audits alice's epoch 8 at log 1
+                -> root e88dca6c, and alice's 4 events hash to it.
+                   C_A is not revoked
 
-verdict: BETA READ THAT C_A IS REVOKED, STAGING READ THAT IT IS
-         NOT, AND LOG 1 NO LONGER HOLDS THE FIRST ROOT
+verdict: BOB READ THAT C_A IS REVOKED, CAROL READ THAT IT IS NOT,
+         AND LOG 1 NO LONGER HOLDS THE FIRST ROOT

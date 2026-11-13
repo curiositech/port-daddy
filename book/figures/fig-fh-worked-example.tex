@@ -7,9 +7,9 @@
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \node[pd note,anchor=north west,text width=10.6cm] at (0,7.3)
-    {Joining precedes the task. Acme posts $b_\alpha$ to independent
+    {Joining precedes the task. Alice posts $b_\alpha$ to independent
      escrow before the staging grant; collateral remains available for $24$ hours.};
-  \foreach \name/\x/\heading in {a/.7/{Acme $A$},s/3/{Staging $S$},b/5.3/{Beta $B$},e/7.6/{Escrow},w/9.9/{Witness log}}{
+  \foreach \name/\x/\heading in {a/.7/{Alice $A$},s/3/{Carol $S$},b/5.3/{Bob $B$},e/7.6/{Escrow},w/9.9/{Witness log}}{
     \node[pd title] at (\x,5.8) {\heading};
     \draw[pd uml lifeline] (\x,5.4)--(\x,1.6);
     \draw[pd uml lifeline] (\x,.8)--(\x,-4.9);}
@@ -22,10 +22,10 @@
   \node[pd tag,anchor=west] at (3.35,3.45) {local grant; backup; migration};
   \draw[pd hairline] (0,1.55)--(10.6,1.55);
   \node[pd note,anchor=west] at (0,1.15) {$+2$ hours: the downstream test runs};
-  %3: Beta detects the concrete type mismatch.
+  %3: Bob's tests detect the concrete type mismatch.
   \node[pd breach datum] at (5.3,.35) {};
   \node[pd badge] at (5.3,.35) {3};
-  \node[pd tag,anchor=east] at (4.95,.35) {\texttt{float32} $\ne$ \texttt{float64}};
+  \node[pd tag,anchor=east] at (4.95,.35) {\texttt{real} $\ne$ \texttt{numeric}};
   %4: proof-bound claim to a separate adjudicator.
   \draw[pd protocol arrow] (5.3,-.85)--(7.6,-.85);
   \node[pd badge] at (6.45,-.85) {4};
@@ -45,11 +45,12 @@
   \node[pd tag,anchor=south] at (5.3,-5.2) {publish revocation root};
 \end{tikzpicture}
 \caption{One constructed incident across five authorities.
-(1) Acme offers a transfer. (2) Staging authorizes its own resource mapping
-and executes. (3--4) Beta detects the mismatch and submits evidence, with
+(1) Alice's harbor offers a transfer. (2) Carol's staging harbor authorizes
+its own resource mapping and executes. (3--4) Bob's harbor detects the mismatch
+and submits evidence, with
 inclusion proofs against the staging root and its own. (5) The adjudicator
 named in the bond's terms rules; the escrow, as custodian, pays the cleanup
-cost to Beta, the listed beneficiary, and refunds the remainder. (6) Acme publishes revocation; later gossip
+cost to Bob, the listed beneficiary, and refunds the remainder. (6) Alice's harbor publishes revocation; later gossip
 has no guaranteed delivery deadline. Inclusion proves record membership,
 not causation. [internal; constructed example]}
 \label{fig:fh-worked-example}

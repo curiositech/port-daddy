@@ -1,9 +1,9 @@
 $ harbor logs --guards
 every sequence of events for two logs and five signed roots, on
-  the core with one guard removed. The roots: one that acme signs
-  for epoch 7, two different ones it signs for epoch 8, one that
-  beta signs for its own epoch 8, and one that wren signs and that
-  names acme. Any root may be published to any log, any number of
+  the core with one guard removed. The roots: one that alice signs
+  for epoch 7, two different ones she signs for epoch 8, one that
+  bob signs for his own epoch 8, and one that wren signs and that
+  names alice. Any root may be published to any log, any number of
   times and in any order, and the two logs may exchange the roots
   they hold
 

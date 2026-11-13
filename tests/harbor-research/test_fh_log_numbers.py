@@ -22,10 +22,10 @@ SNIPPETS = ['ch08-root', 'ch08-signed', 'ch08-latest', 'ch08-publish', 'ch08-sec
             'ch08-exchange']
 DESIGNS = ['latest', 'separate', 'core']
 GUARDS = ['unsigned-root', 'replace-root', 'one-signature', 'any-harbor', 'any-epoch', 'same-root']
-ROOTS = ['acme-7', 'acme-8', "acme-8'", 'beta-8', 'wren-8']
+ROOTS = ['alice-7', 'alice-8', "alice-8'", 'bob-8', 'wren-8']
 EXERCISES = ['ex:fh-log-third', 'ex:fh-log-count', 'ex:fh-log-epoch', 'ex:fh-log-rewrite', 'ex:fh-log-withhold']
-# The first eight digits of the roots of Acme's four events and of its five.
-FOUR, FIVE = '38936ba2', '3c657ada'
+# The first eight digits of the roots of the harbor's four events and of its five.
+FOUR, FIVE = 'e88dca6c', '408dc067'
 
 
 def prose(path):
@@ -104,9 +104,9 @@ class QuotedFacts(unittest.TestCase):
 
     def test_the_two_roots_of_the_example(self):
         first = steps('two-roots-latest')
-        self.assertIn(f"-> root {FIVE}, and acme's 5 events hash to it. C_A is revoked", first[1])
-        self.assertIn(f"-> root {FOUR}, and acme's 4 events hash to it. C_A is not revoked", first[3])
-        self.quoted(f"The root of Acme's four events begins \\texttt{{{FOUR}}}, and the root of all five begins "
+        self.assertIn(f"-> root {FIVE}, and alice's 5 events hash to it. C_A is revoked", first[1])
+        self.assertIn(f"-> root {FOUR}, and alice's 4 events hash to it. C_A is not revoked", first[3])
+        self.quoted(f"The root of the harbor's four events begins \\texttt{{{FOUR}}}, and the root of all five begins "
                     f'\\texttt{{{FIVE}}}.')
         # The chapter's example, which the section says the code follows.
         self.quoted('R_A^{(8)}=H(R_A^{(7)},h_5)', self.chapter)
@@ -115,13 +115,13 @@ class QuotedFacts(unittest.TestCase):
     def test_the_first_log_and_its_break(self):
         first = steps('two-roots-latest')
         self.assertEqual(len(first), 5)
-        self.assertTrue(first[0].endswith('publishes its root for epoch 8 to log 1: 5 events -> recorded'))
-        self.assertIn('acme publishes another root for epoch 8 to log 1: 4 events -> replaced', first[2])
-        self.assertTrue(first[4].startswith('step 5 beta audits'))
+        self.assertTrue(first[0].endswith('publishes a root for epoch 8 to log 1: 5 events -> recorded'))
+        self.assertIn('alice publishes another root for epoch 8 to log 1: 4 events -> replaced', first[2])
+        self.assertTrue(first[4].startswith('step 5 bob audits'))
         self.assertIn(f'root {FOUR}', first[4])
         self.assertIn('LOG 1 NO LONGER HOLDS THE FIRST ROOT', ' '.join(run('two-roots-latest')[-2:]))
         self.quoted('\\texttt{publish} stored the second root where the first had been.')
-        self.quoted("Beta's auditor concluded that $C_A$ is revoked, and the staging server's that it is not.")
+        self.quoted("Bob's auditor concluded that $C_A$ is revoked, and Carol's that it is not.")
         self.quoted('so at step~5 it is given the second root like everyone else')
         self.quoted('one party signing two different versions of the same record and showing each version to a '
                     'different audience', self.chapter)
@@ -135,7 +135,7 @@ class QuotedFacts(unittest.TestCase):
         fixed = steps('two-roots-core')
         self.assertIn('-> equivocation: log 1 keeps the first root, and holds the two as evidence', fixed[2])
         for step in fixed[3:5]:
-            self.assertIn(f'evidence that acme signed two roots for it, {FIVE} and {FOUR}. Both signatures verify', step)
+            self.assertIn(f'evidence that alice signed two roots for it, {FIVE} and {FOUR}. Both signatures verify', step)
         self.quoted('Both auditors now get the same answer, and the answer is the pair.')
         self.quoted('It makes four checks: both signatures verify, both roots name one harbor, both are for one '
                     'epoch, and the two roots differ.')
@@ -166,30 +166,29 @@ class QuotedFacts(unittest.TestCase):
         self.quoted('The steps left out are the first four of Listing~\\ref{alg:fh-log-run-separate}.')
         core = steps('two-logs-core')
         self.assertIn('C_A is not revoked', core[3])
-        self.assertTrue(core[3].startswith('step 4 staging audits'))
+        self.assertTrue(core[3].startswith('step 4 carol audits'))
         self.assertIn('log 1 and log 2 exchange the roots they hold -> each now holds evidence', core[4])
         self.assertIn(f'{FIVE} and {FOUR}', core[5])
         self.assertIn(f'{FOUR} and {FIVE}', core[6])
         self.quoted('Log~1 still holds the root it recorded first, and so does log~2.')
-        self.quoted("The exchange happened at step~5. The staging server's auditor read that $C_A$ is not revoked "
-                    'at step~4.')
+        self.quoted("The exchange happened at step~5. Carol's auditor read that $C_A$ is not revoked at step~4.")
         self.quoted('A witness bond pays out once equivocation is confirmed; it does not make the proof arrive by '
                     'any deadline.', self.chapter)
 
     def test_the_outsider(self):
         outsider = steps('false-evidence-core')
         self.assertEqual(len(outsider), 10)
-        self.assertTrue(outsider[2].startswith('step 3 beta publishes its root for epoch 8'))
+        self.assertTrue(outsider[2].startswith('step 3 bob publishes a root for epoch 8'))
         self.assertIn('refused: root-not-signed', outsider[3])
         self.assertIn('-> known: log 1 already holds this root', outsider[4])
         codes = [re.search(r'refused: ([\w-]+)', step).group(1) for step in outsider[5:9]]
         self.assertEqual(codes, ['root-not-signed', 'other-epoch', 'other-harbor', 'same-root'])
-        self.assertIn("acme's roots for epochs 7 and 8", outsider[6])
+        self.assertIn("alice's roots for epochs 7 and 8", outsider[6])
         self.quoted('Steps 6 to 9 are the four checks of \\texttt{proves}, each refusing a pair that fails it.')
-        self.quoted("Step~5 is the retry: Acme's own root, published again, is not a second root.")
+        self.quoted("Step~5 is the retry: the harbor's own root, published again, is not a second root.")
         self.quoted('Step~4 is refused by \\texttt{signed}.')
         self.quoted('Step~7 is worth a second look.')
-        self.quoted("Beta's harbor publishes a root of its own at step 3.")
+        self.quoted("Bob's harbor publishes a root of its own at step 3.")
 
     def test_every_pair(self):
         lines = run('evidence')
@@ -198,12 +197,13 @@ class QuotedFacts(unittest.TestCase):
         cells = {line.split()[0]: line.split()[1:] for line in lines if line.split() and line.split()[0] in ROOTS}
         self.assertEqual(sorted(cells), sorted(ROOTS))
         accepted = [(first, ROOTS[at]) for first, row in cells.items() for at, cell in enumerate(row) if cell == 'yes']
-        self.assertEqual(sorted(accepted), [('acme-8', "acme-8'"), ("acme-8'", 'acme-8')])
+        self.assertEqual(sorted(accepted), [('alice-8', "alice-8'"), ("alice-8'", 'alice-8')])
         self.assertEqual(sum(len(row) for row in cells.values()), 25)
-        self.quoted("Of the 25 pairs the core accepts 2, which are the two orders of Acme's two roots for epoch~8.")
-        # The roots of acme-7 and acme-8' are one hash, and the pair is refused for its epochs.
-        self.assertEqual(cells['acme-7'][ROOTS.index("acme-8'")], 'epoch')
-        self.quoted("The pair of \\texttt{acme-7} and \\texttt{acme-8'} is refused as \\texttt{epoch}, although "
+        self.quoted("Of the 25 pairs the core accepts 2, which are the two orders of the two roots that Alice's harbor "
+                    'signed for epoch~8.')
+        # The roots of alice-7 and alice-8' are one hash, and the pair is refused for its epochs.
+        self.assertEqual(cells['alice-7'][ROOTS.index("alice-8'")], 'epoch')
+        self.quoted("The pair of \\texttt{alice-7} and \\texttt{alice-8'} is refused as \\texttt{epoch}, although "
                     'their roots are the same hash.')
 
     def test_every_order(self):
@@ -259,16 +259,16 @@ class QuotedFacts(unittest.TestCase):
                 results[files[len(results) - 1]].append(line)
         self.assertEqual(results['evidence.pv'], [
             'RESULT event(Accepted(m)) ==> event(Signed(m)) is true.',
-            'RESULT not event(Evidence(pk(beta[]))) is true.',
-            'RESULT not event(Evidence(pk(acme[]))) is false.',
+            'RESULT not event(Evidence(pk(bob[]))) is true.',
+            'RESULT not event(Evidence(pk(alice[]))) is false.',
         ])
         controls = [name for name in files if name != 'evidence.pv']
         self.assertEqual(len(controls), 5)
         for name in controls:
-            self.assertIn('RESULT not event(Evidence(pk(beta[]))) is false.', results[name], name)
+            self.assertIn('RESULT not event(Evidence(pk(bob[]))) is false.', results[name], name)
         self.assertIn('no-epoch-in-the-text.pv', controls)
         self.quoted('The other five files are controls.')
-        self.quoted('In every one of them an auditor accepts evidence against Beta.')
+        self.quoted("In every one of them an auditor accepts evidence against Bob's harbor.")
         self.quoted('ProVerif~2.05 on the check of evidence, and on five controls.')
         self.quoted('Its third is \\texttt{false} on purpose')
 
