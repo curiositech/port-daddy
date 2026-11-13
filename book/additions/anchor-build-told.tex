@@ -22,7 +22,7 @@ revoked on, and each gate verifies it for itself. Among five gates a
 revocation takes $2.37$ rounds on average to reach them all, and until it
 reaches a gate the card is accepted there.}
 
-\S\ref{sec:anchor-build-taken-back} built one gate, and said so. A harbor
+\S\ref{sec:anchor-build-taken-back} built one gate. A harbor
 has several, and \S\ref{sec:revocation} says how they should learn of a
 revocation: each exchanges notices with another, chosen at random,
 round after round. That section gives the time this takes as about
@@ -139,8 +139,8 @@ once it has received the notice.},label={alg:anchor-told-heard}]{two-gates-core}
 Look at Wren's first request at the far gate. Before the gates
 exchange notices, the far gate admits her, under this design as
 under every other. A gate cannot refuse for a reason that has not reached
-it. The verdict says so, and the rest of this section measures how long
-that lasts.
+it. The verdict line reports it, and the rest of this section measures how
+long that lasts.
 
 Then the false notice (Listing~\ref{alg:anchor-told-refused}). Wren's
 entries are not chains, and her changed chain fails the check. Finch is

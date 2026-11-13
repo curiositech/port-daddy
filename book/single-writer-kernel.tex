@@ -3061,7 +3061,7 @@ The chapter's main results, in the order the rest of the book relies on them:
   those extra guarantees. The reference implementation does not build fencing;
   \pdkernelname{} does, and \S\ref{sec:swk-build} runs the paused holder
   against it with the guard and without.
-\item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
+\item The bus delivers each message at least once. Benign redelivery is deduplicated by an
   idempotency key the coordination layer has yet to supply; only protocol violations raise alarms.
 \item Two chains, never one name. The authorization chain proves who authorized whom;
   the coordination lineage says what work is in flight. The second is carried inside
@@ -3795,7 +3795,8 @@ implementation: claims on whole files, fencing tokens, a check in the write
 path, promises closed by a check, minted credentials and an event log. The
 listings in those two sections are cut from it by a script. Its source is not yet
 published. The grades in this chapter remain the reference implementation's,
-and where \pdkernelname{} builds what that daemon lacks the text says so.
+and the text notes each place where \pdkernelname{} builds something that
+daemon lacks.
 
 \subsection{Mechanism-to-artifact map}
 
