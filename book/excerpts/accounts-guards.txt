@@ -1,0 +1,20 @@
+$ harbor accounts --guards
+every sequence of events for two principals, on the core with one
+  guard removed: they start up to 3 processes between them, each
+  one a new worker or a continuation of any existing account. The
+  kernel records up to 2 exits and checks up to 2 deliveries
+
+guard removed         states whitewashed unearned doubled stale
+any-principal           5349         246      314       0     0
+two-processes           6937           0      612    1102     0
+late-exit               3941           0        8      20     0
+answer-exited           3717           0        0       0  3392
+sanction-per-account    3717        1262        0       0     0
+
+whitewashed: states in which a running process shows fewer
+  sanctions than its principal has
+unearned: states in which a running process shows passes that its
+  own chain of processes did not earn
+doubled: states in which two processes are running under one
+  account
+stale: states in which a process that exited still gets an answer

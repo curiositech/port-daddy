@@ -1,0 +1,19 @@
+/// Guard: only the process now running gets an answer.
+fn is_running(entry: &Account, process: u32) -> bool {
+    if cfg!(feature = "mutant-answer-exited") {
+        return true; // MUTANT: guard removed.
+    }
+    entry.running == Some(process)
+}
+
+/// Guard: a sanction counts on every account of its principal.
+fn count(registry: &Registry, owner: u32, account: u32) -> u32 {
+    let counts = |sanction: &&Sanction| {
+        if cfg!(feature = "mutant-sanction-per-account") {
+            // MUTANT: only on the account that earned it.
+            return sanction.account == account;
+        }
+        sanction.principal == owner
+    };
+    registry.sanctions.iter().filter(counts).count() as u32
+}

@@ -1,0 +1,15 @@
+/// Guard: only an account's own principal can continue it.
+fn owns(entry: &Account, principal: u32) -> bool {
+    if cfg!(feature = "mutant-any-principal") {
+        return true; // MUTANT: guard removed.
+    }
+    entry.principal == principal
+}
+
+/// Guard: one process at a time. Returns the running process.
+fn busy(entry: &Account) -> Option<u32> {
+    if cfg!(feature = "mutant-two-processes") {
+        return None; // MUTANT: guard removed.
+    }
+    entry.running
+}

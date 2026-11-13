@@ -1472,6 +1472,8 @@ created.
 \pdmarginpagebreak
 \fi
 
+\input{additions/stp-build-the-account}
+
 \subsection{The body behind the name: engine swaps and resurrection}\label{sec:body-behind-name}
 
 \pdmarginanalogy{stp-stagecoach-relay}{}{ch05-stagecoach-relay-post}{Like a stagecoach team swap at a relay post, fresh horses are hitched while the passengers, luggage, and route remain unchanged: hot-swapping an LLM engine preserves the agent's identity and contract.}%
@@ -3293,6 +3295,84 @@ $G_{\max}(\delta_h/\delta_f)^t$ and reports ``\texttt{strictly increasing in
 t: yes}''. By hand: with $\delta_h>\delta_f$, $(\delta_h/\delta_f)>1$, so its
 powers strictly increase in $t$, so deterrence placed later always costs the
 honest newcomer more. That is the whole exchange argument in one inequality.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-account-eighty}
+One of Alice's workers earns 3 passes and then gets a sanction. Using the
+scores of Listing~\ref{alg:stp-account-resets}, what does its account
+score before the sanction, and after? If Alice resets instead, what does
+the fresh account score under the second registry of
+\S\ref{sec:stp-account}, and under the kernel's?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-account-eighty}
+Before the sanction the score is $50+3\cdot 10=80$, and after it
+$80-30=50$. Under the second registry a fresh account has an empty record
+and scores 50, so a reset neither gains nor loses. This is the point
+where the two lines of Figure~\ref{fig:stp-resets} meet, and it is the
+indifference point of Example~\ref{ex:newcomer-floor}. Under the kernel's
+registry the fresh account shows the sanction and no passes, so it scores
+$50-30=20$. A reset costs Alice the 30 points that the 3 passes were
+worth.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-account-siblings}
+Alice runs Heron and Drake at the same time. Heron has 4 passes, and
+Drake has none. One of Drake's deliveries fails the kernel's check. Use
+Listings~\ref{alg:stp-account-check} and~\ref{alg:stp-account-show-guards}
+to work out the record that the kernel's registry reports for each
+worker, and score both by the rule of
+Listing~\ref{alg:stp-account-resets}. What would the second registry
+report for Heron?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-account-siblings}
+\texttt{record\_check} adds one sanction to the registry with Alice as
+its principal, and changes neither account. \texttt{count} counts that
+sanction for every process whose account belongs to Alice. Heron shows 4
+passes and 1 sanction, a score of $50+40-30=60$. Drake shows 1 sanction
+and no passes, a score of 20. The second registry files the sanction with
+Drake's account, so it reports 4 passes and no sanction for Heron, a
+score of 90. Under the kernel's registry both workers show the sanction,
+and only their passes tell them apart.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-account-late-exit}
+\S\ref{sec:stp-account} describes the guard on an exit without printing
+it. Remove that guard, so that recording any exit clears the account,
+whichever process is running under it. Give a sequence of events that
+ends with two processes running under one account. Which row of
+Listing~\ref{alg:stp-account-guards-walk} counts it, and why must the
+same exit be recorded twice to get there?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-account-late-exit}
+Alice registers Heron, which starts process~0. Process~0 exits, and Alice
+continues the account with process~1. The record of process~0's exit
+then arrives a second time. Without the guard, the account is cleared
+while process~1 is still running. \texttt{succeed} then lets Alice start
+process~2 beside it. That takes 3 processes and 2 recorded exits, which
+are exactly the test's bounds, and the row is \texttt{late-exit} with its
+20 states. The other guards are still in place, so an account gets a new
+process only after its previous process has an exit on record. The first
+exit that finds a different process running must therefore be one that
+was already recorded.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-account-principal}
+\emph{A principal is only a number.} The boundary of
+\S\ref{sec:stp-account} says that Alice, under a different principal's
+number, is shown no sanctions. What would the exhaustive test of
+Listing~\ref{alg:stp-account-walk} need to know in order to count that
+as whitewashing? Why can no guard inside the core refuse it, and what
+could a harbor check when a principal first enters?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-account-principal}
+The test's reference model files sanctions by principal number, and
+treats that number as the identity of whoever is acting. To count this
+escape it would need one more level: which party is using each number. A
+state would then count as whitewashed if a running process shows fewer
+sanctions than the party behind its principal number has earned. The
+core cannot refuse the escape, because all it receives is a number, with
+nothing to compare it against. Whoever issues the numbers can make a new
+one cost something. A card can record who vouched for a principal
+(\pdchapref{anchor}{The Anchor Protocol}), and a bond can be forfeited
+along with the number (\pdchapref{bonded}{The Bonded Commons}).
+Property~\ref{prop:reality} warns that a cost is not yet a deterrent,
+and Example~\ref{ex:maturation-cost} works that out for one schedule.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-resurrection-soundness}
 Run \texttt{skills/harbor-results/scripts/b5\_engine\_substitution.py} (seed

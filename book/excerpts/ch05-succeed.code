@@ -1,0 +1,20 @@
+/// A principal starts a new process under an existing account.
+pub fn succeed(
+    registry: &Registry,
+    principal: u32,
+    account: u32,
+) -> Result<Updated, Reason> {
+    let entry = lookup(registry, account)?;
+    if !owns(entry, principal) {
+        return Err(Reason::NotOwner { account });
+    }
+    if let Some(process) = busy(entry) {
+        return Err(Reason::AlreadyRunning { account, process });
+    }
+    let mut registry = registry.clone();
+    let started = Some(start(&mut registry, account));
+    let mut entry = *entry;
+    entry.running = started;
+    let registry = replace(registry, account, entry);
+    Ok(Updated { registry, started })
+}

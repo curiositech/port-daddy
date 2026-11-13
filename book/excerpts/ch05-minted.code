@@ -1,0 +1,21 @@
+/** A new account gets a number, and its owner the credential. */
+register(principal: number): Started {
+  const fresh = { owner: principal, ...EMPTY, running: null };
+  const accounts = [...this.#state.accounts, fresh];
+  this.#state = { ...this.#state, accounts };
+  return this.#start(accounts.length - 1);
+}
+
+/** Only the owner continues it, one process at a time. */
+succeed(principal: number, account: number): Started {
+  const entry = this.#state.accounts[account];
+  if (entry === undefined) return missing(account);
+  if (entry.owner !== principal) return notOwner(account);
+  if (entry.running !== null) return busy(account, entry);
+  return this.#start(account);
+}
+
+/** A pass and a sanction are both filed with the account. */
+check(process: number, passed: boolean): Reply {
+  return this.#update(process, passed ? addPass : addSanction);
+}

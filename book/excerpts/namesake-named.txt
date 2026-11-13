@@ -1,0 +1,15 @@
+$ harbor scenario namesake --design named
+scenario namesake, design named: a second operator starts a
+  process to continue another operator's worker
+
+step 1   alice  registers a worker called heron
+                -> process 0, under the name heron
+step 2   kernel checks a delivery by process 0 -> passed
+step 3   kernel checks a delivery by process 0 -> passed
+step 4   kernel records that process 0 exited
+step 5   carol  starts a process to continue heron
+                -> process 1, under the name heron
+step 6   bob    asks for the record of process 1
+                -> 2 passes and 0 sanctions
+
+verdict: CAROL'S PROCESS SHOWS 2 PASSES THAT ALICE'S WORKER EARNED

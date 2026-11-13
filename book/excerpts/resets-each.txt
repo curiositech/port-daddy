@@ -1,0 +1,18 @@
+$ harbor resets --each
+# a worker earns passes and then a sanction, and its principal
+#   either keeps the account or resets by registering a new worker
+# Scores follow the Book's example: a newcomer starts at 50, and a
+#   sanction costs 30. A pass adds 10, which is this build's own
+#   choice
+# before: the score before the sanction
+# keep: the score after it, if the principal keeps the account
+# the other columns: the higher of keep and the new worker's
+#   score, at each registry
+passes  before   keep   named  minted    core
+     0      50     20      50      50      20
+     1      60     30      50      50      30
+     2      70     40      50      50      40
+     3      80     50      50      50      50
+     4      90     60      60      60      60
+     5     100     70      70      70      70
+     6     110     80      80      80      80

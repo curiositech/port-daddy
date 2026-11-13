@@ -1,0 +1,22 @@
+$ harbor accounts
+every sequence of events for two principals at one registry: they
+  start up to 3 processes between them, each one a new worker or a
+  continuation of any existing account. The kernel records up to 2
+  exits and checks up to 2 deliveries
+
+design   states whitewashed unearned doubled stale
+named     11545        2452     3154    3106 10454
+minted     3405        1042        0       0     0
+core       3717           0        0       0     0
+
+whitewashed: states in which a running process shows fewer
+  sanctions than its principal has
+unearned: states in which a running process shows passes that its
+  own chain of processes did not earn
+doubled: states in which two processes are running under one
+  account
+stale: states in which a process that exited still gets an answer
+
+the core reported every running process with the passes it had
+  earned, and never refused a principal its own account when no
+  process was running under it

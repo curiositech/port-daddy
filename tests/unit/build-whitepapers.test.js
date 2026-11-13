@@ -60,7 +60,11 @@ describe('reproducible whitepaper source scoping', () => {
     // (the listing head strip and numbered callouts).
     // 36 since the players battery: additions/stp-transmission.tex inputs
     // figures/fig-stp-rule-not-price.tex, the plot of tests T2 and T3.
-    expect(sources).toHaveLength(36);
+    // 38 since the chapter's first build: additions/stp-build-the-account.tex
+    // and the figure it inputs, figures/fig-stp-resets.tex.
+    expect(sources).toHaveLength(38);
+    expect(sources).toContain('book/additions/stp-build-the-account.tex');
+    expect(sources).toContain('book/figures/fig-stp-resets.tex');
     expect(sources).toContain('book/figures/fig-stp-rule-not-price.tex');
     expect(sources).toContain('book/figures/pd-listing.tex');
     expect(sources).toContain('book/figures/fig-audit-person.tex');

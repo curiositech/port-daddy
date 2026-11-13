@@ -1,0 +1,412 @@
+% Build the layer, Chapter 5, first build: the registry of worker accounts.
+% Inserted in \S\ref{sec:identity}, after the definition of a principal.
+% That section's theorem is an argument about scores, and its scenario S2
+% is a story. This section builds the registry both describe, in the
+% kernel's decision core, and runs them.
+%
+% No code or output in this file is typed by hand. Each listing is a file
+% under excerpts/, which the kernel's tools/excerpts.mjs cuts from its
+% source and its recorded runs (see figures/pd-listing.tex). The figure
+% plots one of those recorded tables exactly as it was printed. To change a
+% listing or the figure, change the kernel and cut again. The prose refers
+% to functions by name and never by line number, so a listing that moves
+% within its file does not make a sentence wrong.
+%
+% \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
+% listing changes length, change the number with it.
+\subsection{Build the layer: a sanction that survives a reset}
+\label{sec:stp-account}
+
+\noindent\emph{Express lane: this section builds the registry, the part of
+the kernel that keeps each worker's track record, three times. The first
+version identifies a worker by the name it gives, and it fails twice: a
+second operator claims a good worker's record just by using its name, and
+a sanctioned worker gets a clean record just by picking a new one. The
+second version issues account numbers and credentials. That stops the
+second operator, but a new account is free, so the sanction is still
+lost. The third version records a sanction against the operator who runs
+the worker. An exhaustive test of every short sequence of events finds a
+sanctioned operator showing a clean record in 1,042 of 3,405 states under
+the second version, and in none of 3,717 under the third.}
+
+Theorem~\ref{thm:necessity} is an argument about scores, and S2 above is
+a story. Neither has been run. This section builds the piece of the
+kernel they both describe, the \emph{registry}, and runs both against it.
+
+The registry has one job. Before Bob gives a process any work, he asks
+the registry for that process's record: how many of its deliveries passed
+the kernel's check, and how many sanctions are on file. The cast is the
+same as before. Alice is an operator, and Heron and Drake are two of her
+workers. Carol is a second operator. Heron has two passed deliveries.
+Drake has a sanction, because it deleted a test it was told to keep.
+
+The chapter has already said what the right answer is. A worker's record
+belongs to its person, the account that continues when one process
+exits and another takes over (Definition~\ref{def:person}). A sanction
+has to count against every identity the sanctioned party can route work
+through (Definition~\ref{def:sanction-respecting}), and for Alice's
+workers that party is Alice, their principal
+(Definition~\ref{def:principal}).
+
+\subsubsection{Naive: file the record under the name a worker gives}
+
+The obvious registry keeps one record per name. A process gives a name
+when it starts, and the registry reports whatever is filed under that
+name (Listing~\ref{alg:stp-account-named}).
+
+\pdlistingroom{19}
+\pdexcerpt[caption={The first version. Records are filed by name, and a
+process picks its own name.},label={alg:stp-account-named}]{ch05-named}
+
+This is the self-asserted string that the text above warns about. With
+one honest operator it works. Heron's process exits, Alice starts a new
+one under the same name, and the new process has Heron's record
+(Listing~\ref{alg:stp-account-run-handover}).
+
+\pdlistingroom{15}
+\pdrun[caption={A later process continues a worker's record, at the first
+registry. The word at the left of each step says who acts. The registry
+never checks it.},label={alg:stp-account-run-handover}]{handover-named}
+
+The new process is reported with Heron's 2 passes, which is correct. A
+test suite of honest workers would pass this registry.
+
+\subsubsection{Break: a second operator uses the name}
+
+A name is not tied to whoever used it first. This time Carol starts the
+later process and gives it Heron's name
+(Listing~\ref{alg:stp-account-run-namesake}).
+
+\pdlistingroom{7}
+\pdrunlines[caption={The first break. Carol's process is reported with
+Heron's record. The steps left out are the first four of
+Listing~\ref{alg:stp-account-run-handover}.},label={alg:stp-account-run-namesake}]{namesake-named}{1,10-15}{1 and 10\textendash 15}
+
+Bob is told that Carol's process has 2 passes. Alice's worker earned
+them. \S\ref{sec:intro} asked what entitles a process calling itself
+Heron to use Heron's history. Under this registry, calling itself Heron
+is enough.
+
+\subsubsection{Break again: a sanctioned worker takes a new name}
+
+The second break is the S2 scenario. Drake's delivery fails the kernel's
+check, and the registry records a sanction. The next day Alice registers
+the same worker under the name \texttt{drake-2}
+(Listing~\ref{alg:stp-account-run-slate}).
+
+\pdlistingroom{15}
+\pdrun[caption={The second break. The sanction is still filed under
+\texttt{drake}, a name that no process uses any
+more.},label={alg:stp-account-run-slate}]{clean-slate-named}
+
+Nothing was forged or deleted. The sanction is still on file under
+\texttt{drake}. Bob asked about \texttt{drake-2}, which has no record.
+This is the reset of Example~\ref{ex:newcomer-floor}, and
+Property~\ref{prop:reality} names the result: whitewashing.
+
+\subsubsection{Break a third time: a fresh account is free}
+
+The text above describes the usual repair, a credential. The second
+registry issues each new worker an account number, and gives the
+credential for that account to the principal who registered it. A later
+process can continue an account only if its principal holds the
+credential, and only one process can run under an account at a time
+(Listing~\ref{alg:stp-account-minted}).
+
+\pdlistingroom{21}
+\pdexcerpt[caption={The second version. The registry issues account
+numbers, and a sanction is filed with the account it was earned
+under.},label={alg:stp-account-minted}]{ch05-minted}
+
+Carol is now refused, because she does not hold the credential for
+Heron's account (Listing~\ref{alg:stp-account-run-namesake-minted}).
+
+\pdlistingroom{6}
+\pdrunlines[caption={The first break, repaired. The steps left out are the
+first four of Listing~\ref{alg:stp-account-run-handover}, with an account
+number where that run has a
+name.},label={alg:stp-account-run-namesake-minted}]{namesake-minted}{1,10-14}{1 and 10\textendash 14}
+
+The sanction is a different matter. \texttt{check} files a sanction with
+the account it was earned under, and \texttt{register} opens a fresh
+account for anyone who asks. So Alice registers the same worker again
+(Listing~\ref{alg:stp-account-run-slate-minted}).
+
+\pdlistingroom{7}
+\pdrunlines[caption={The third break. The credential is authentic, and the
+account is new. The steps left out are the first three of
+Listing~\ref{alg:stp-account-run-slate}, with an account number where
+that run has a
+name.},label={alg:stp-account-run-slate-minted}]{clean-slate-minted}{1,10-15}{1 and 10\textendash 15}
+
+This is the case Theorem~\ref{thm:necessity} describes. The account
+number cannot be forged, and that does not help. A sanction filed with
+one identity is lost whenever a fresh identity is free. As the chapter
+puts it, an authentic credential can still be disposable.
+
+\subsubsection{Fix: record the sanction against the principal}
+
+Both registries file everything about a worker in one place, and that is
+the mistake. \pdkernelname{} files the two kinds of entry in different
+places. A pass stays with the worker's account. A sanction is recorded
+against the principal, so it counts on every worker that principal runs.
+The scope note under Theorem~\ref{thm:necessity} calls this a
+principal-wide sanction.
+
+The decision is made in the decision core
+(\weld{prereq:sec:prereq-build}{decision core}). The kernel stores the
+registry and hands it to the core with each request. The registry lists
+every account with its principal, and every sanction. It also records
+which account each process was started under. Nobody is asked for a
+name: the kernel numbers the accounts and the processes itself, and
+tells the core which process or which principal is asking.
+
+Bob's question goes to \texttt{show}
+(Listing~\ref{alg:stp-account-show}). It uses \texttt{account\_of} to
+find the account the process was started under, and returns that
+account's passes together with the sanctions that \texttt{count} finds.
+\texttt{record\_check} decides where the result of each check goes
+(Listing~\ref{alg:stp-account-check}). A pass is added to the account's
+own entry. A sanction is added to the registry's list with the account's
+principal on it.
+
+\pdlistingroom{16}
+\pdexcerpt[caption={The record reported for a process.},label={alg:stp-account-show}]{ch05-show}
+
+\pdlistingroom{19}
+\pdexcerpt[caption={Recording the result of a check. A pass goes on the
+account, and a sanction is recorded against the
+principal.},label={alg:stp-account-check}]{ch05-check}
+
+Two guards then decide what \texttt{show} reports
+(Listing~\ref{alg:stp-account-show-guards}).
+
+\pdlistingroom{19}
+\pdexcerpt[caption={The guards on what is reported. A line marked
+\texttt{MUTANT} is compiled only into a test build of the core that has
+that guard removed. The verification below runs each of those
+builds.},label={alg:stp-account-show-guards}]{ch05-show-guards}
+
+\texttt{count} counts every sanction recorded against the asking
+process's principal, whichever worker earned it. \texttt{is\_running}
+answers only the process now running under an account, and refuses any
+process that ran under it earlier. Alice resets Drake again
+(Listing~\ref{alg:stp-account-run-slate-core}).
+
+\pdlistingroom{7}
+\pdrunlines[caption={The second and third breaks, at the kernel's
+registry. The same three steps are left
+out.},label={alg:stp-account-run-slate-core}]{clean-slate-core}{1,10-15}{1 and 10\textendash 15}
+
+The new account has no passes, and it still shows the sanction. So does
+every other worker Alice runs. That is the cost of a principal-wide
+sanction, and the boundary below returns to it.
+
+\texttt{succeed} starts a new process under an existing account
+(Listing~\ref{alg:stp-account-succeed}), and it has two guards of its
+own (Listing~\ref{alg:stp-account-succeed-guards}).
+
+\pdlistingroom{20}
+\pdexcerpt[caption={Continuing an account with a new
+process.},label={alg:stp-account-succeed}]{ch05-succeed}
+
+\texttt{owns} lets a principal continue only the accounts it registered,
+which is what refuses Carol
+(Listing~\ref{alg:stp-account-run-namesake-core}). \texttt{busy} refuses
+a second process while one is still running
+(Listing~\ref{alg:stp-account-run-double}).
+
+\pdlistingroom{15}
+\pdexcerpt[caption={The guards on who may continue an account, and
+when.},label={alg:stp-account-succeed-guards}]{ch05-succeed-guards}
+
+\pdlistingroom{6}
+\pdrunlines[caption={The first break, at the kernel's registry. The same
+four steps are left
+out.},label={alg:stp-account-run-namesake-core}]{namesake-core}{1,10-14}{1 and 10\textendash 14}
+
+\pdlistingroom{12}
+\pdrun[caption={One process at a time.},label={alg:stp-account-run-double}]{double-core}
+
+A process that has been replaced may not know it, like the worker whose
+lease has run out (\weld{swk:sec:swk-build}{lease}). \texttt{is\_running}
+refuses it (Listing~\ref{alg:stp-account-run-replaced}).
+
+\pdlistingroom{7}
+\pdrunlines[caption={A replaced process asks for its record. Process 1
+took over the account in the steps left
+out.},label={alg:stp-account-run-replaced}]{replaced-core}{1,11-16}{1 and 11\textendash 16}
+
+One more guard is not printed. When an exit is recorded, the account is
+cleared only if the process that exited is the one running under it. A
+late or repeated record of an old exit therefore cannot clear an account
+that a newer process is using.
+
+\keyidea[File a sanction where a fresh identity cannot escape it]{A name
+is something a process says, and a credential is something it holds.
+Neither tells you who answers for what the process does. A sanction
+survives a reset only if it is recorded against a party that the reset
+does not change. Here that party is the principal, and the worker's
+passes stay with the worker's own account.}
+
+\Needspace{12\baselineskip}
+\subsubsection{Verify: every short sequence of events}
+
+\paragraph{The chapter's table.}
+Table~\ref{tab:necessity-numbers} works out by arithmetic what a reset
+wins back, for records that score from 50 to 90. The kernel reproduces
+the table from runs (Listing~\ref{alg:stp-account-resets}). In each run
+a worker earns some passes and then a sanction: no pass for the table's
+first row, and 4 for its last. Its principal then either keeps the
+account or resets, and the registry is asked for the record that each
+choice leaves.
+
+\input{figures/fig-stp-resets}
+
+\pdlistingroom{22}
+\pdrun[caption={The chapter's table, reproduced from runs at each
+registry.},label={alg:stp-account-resets}]{resets}
+
+The registry reports counts and the table is in scores, so the run
+converts one to the other. A newcomer starts at 50 and a sanction costs
+30, as in the table. The table gives no value for a pass, so each adds 10
+here. Under the first two registries the column \texttt{best} matches
+the table's last column. A reset is worth the newcomer's 50, so it wins
+back all 30 points of the sanction at a score of 50, and 10 of them at
+70. Under the kernel's registry a reset is worth 20 whatever the worker
+had, and wins back nothing.
+
+Figure~\ref{fig:stp-resets} plots the same runs for seven records. Its
+two lines meet at 80, which is $r_0+\sigma$, the score at which
+Example~\ref{ex:newcomer-floor} finds the actor indifferent.
+
+\paragraph{Every sequence of events.}
+Those runs are a handful of cases. The kernel's exhaustive test goes
+through every sequence of events for two principals, within small bounds
+(Listing~\ref{alg:stp-account-walk}). The principals start up to 3
+processes between them, each one a new worker or a continuation of any
+existing account, their own or the other's. The kernel records up to 2
+exits, possibly the same exit twice, and checks up to 2 deliveries.
+
+\pdlistingroom{22}
+\pdrun[caption={Every sequence of events for two principals, at each
+registry.},label={alg:stp-account-walk}]{accounts}
+
+After every event the test asks the registry for the record of every
+process, and compares each answer with a small reference model that
+keeps its own list of who started what.
+
+The registry of names fails in every column. In 2,452 of its 11,545
+states a running process shows fewer sanctions than its principal has
+earned, which is the whitewashing. The registry that issues account
+numbers has zeros in the other three columns, and it is still whitewashed
+in 1,042 of 3,405 states. The kernel's registry has zeros in every column
+across 3,717 states. It also reported every running process with the
+passes it had earned, and never refused a principal its own idle account.
+
+\paragraph{Any registry.}
+That test only reaches the registries its own events can build. Kani
+starts from any registry at all (\weld{anchor:sec:correct}{Kani}). It
+compiles the core's real \texttt{record\_check} and \texttt{show}, and
+has a solver consider every registry of a fixed size at once
+(Listing~\ref{alg:stp-account-kani}).
+
+\pdlistingroom{19}
+\pdexcerpt[caption={A Kani harness on a sanction. The registry is any
+registry with three accounts and four processes, with three sanctions
+on it.},label={alg:stp-account-kani}]{ch05-kani}
+
+In the harness, \texttt{any\_registry} is any registry the rules could
+have produced. The solver picks the principal of each account and which
+process is running under it. Any process then fails a check, and the
+harness compares the record of any running process before and after. The
+first assertion says that the process shows one more sanction if the
+sanction's principal is its own, and the same number if not. The second
+says that its passes have not changed. The 2 \texttt{cover} lines make
+the solver produce both cases: a process of the same principal under a
+different account, and a process of a different principal.
+
+Nothing in these rules is a string, so Kani checks exactly the code that
+runs. That was not true in the chapter before this one, where a hash had
+to be shrunk for the solver (\weld{ls:sec:ls-line}{one byte}). One more
+harness asserts nothing. It calls every decision on a registry that the
+rules could \emph{not} have produced. Kani fails a harness if any path
+through it can panic, so a pass means the core returns an answer
+whatever registry it is handed
+(Listing~\ref{alg:stp-account-kani-run}).
+
+\pdlistingroom{17}
+\pdrunlines[caption={Kani~0.68 on the core's rules for the
+registry.},label={alg:stp-account-kani-run}]{kani-persons}{1-17}{1\textendash 17}
+
+The fifth result is a control. Its harness counts sanctions per account,
+as the second registry does, and asserts that a fresh account would
+still show its principal's sanctions. That assertion is false, and Kani
+reports the failure, which is what a control is for.
+
+\paragraph{Each guard removed.}
+The build has five guards. The core can be compiled with any one of them
+removed, and the checks should then fail. The harnesses are run on each
+of those five builds (Listing~\ref{alg:stp-account-kani-guards}), and so
+is the exhaustive test (Listing~\ref{alg:stp-account-guards-walk}).
+
+\pdlistingroom{13}
+\pdrunlines[caption={The harnesses again, on five builds of the core with
+one guard removed from
+each.},label={alg:stp-account-kani-guards}]{kani-persons}{1,18-29}{1 and 18\textendash 29}
+
+\pdlistingroom{20}
+\pdrun[caption={The exhaustive test again, on the same five
+builds.},label={alg:stp-account-guards-walk}]{accounts-guards}
+
+Compare the rows with the breaks. A core that counts a sanction only on
+the account that earned it is the second registry again, and 1,262 of its
+states are whitewashed. A core that clears an account on any exit ends up
+with two processes running under one account in 20 states, each of them
+reached by recording the same exit twice
+(Exercise~\ref{ex:stp-account-late-exit}).
+
+Both tools catch all five. In each of the two builds before this one, one
+tool missed a guard: the exhaustive test in one
+(\weld{sealed:sec:sealed-gate}{walk of pairs}), and Kani in the other.
+Here the rules are small enough for both tools to cover.
+
+\pdscope{The exhaustive test covers two principals and 3 processes,
+within the bounds printed in Listing~\ref{alg:stp-account-walk}. It
+counts states and says nothing about how likely a state is. Each harness
+covers one decision of the core on any registry with three accounts and
+four processes.}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+A principal is only a number, the \texttt{u32} that \texttt{succeed} is
+handed. The registry records a sanction against that number and never
+checks who is using it. If Alice comes back under a different principal's
+number, she is shown 0 sanctions. That is the same whitewashing, moved up
+from the worker to the operator. Definition~\ref{def:principal} requires
+a durable party, and something outside this build has to check that an
+entrant is one. Inside one harbor that is the job of the cards in
+\pdchapref{anchor}{The Anchor Protocol}. Across operators it is unsolved,
+and \S\ref{sec:keystone} says what is missing
+(Exercise~\ref{ex:stp-account-principal}).
+
+One worker's sanction shows on every worker of the same principal.
+Heron's record now carries Drake's sanction.
+Definition~\ref{def:sanction-respecting} requires exactly that. It also
+means that a customer comparing Alice's workers can tell them apart only
+by their passes (Exercise~\ref{ex:stp-account-siblings}).
+
+A fork is refused. The no-mint rule above lets one process have several
+successors and divides its record among them. This build turns away a
+second process under an account, and the no-mint rule is the chapter's
+next build.
+
+The core reports a record and computes no score. The scores in
+Listing~\ref{alg:stp-account-resets} are worked out from the record
+afterwards, and this build admits or refuses nothing because of a score.
+\S\ref{sec:substrate} gives the reason.
+
+A sanction is never withdrawn here. The build trusts the kernel's check,
+and \S\ref{sec:revoke} deals with a recorded outcome that later proves
+false.
+\end{pdboundary}
