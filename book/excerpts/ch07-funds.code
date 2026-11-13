@@ -4,12 +4,12 @@ pub struct Funds {
     pub wallet: u64,
     /// Held against the bonds that are posted.
     pub escrow: u64,
-    /// Forfeited. No move here pays out of it.
+    /// Forfeited. No operation here pays out of it.
     pub pool: u64,
 }
 
-/// How many units a project holds, if that is a count the host
-/// can keep.
+/// The project's total units, if the host can represent that
+/// count exactly.
 pub fn supply(funds: &Funds) -> Option<u64> {
     let free = funds.wallet.checked_add(funds.escrow)?;
     free.checked_add(funds.pool).filter(|all| *all <= CEILING)

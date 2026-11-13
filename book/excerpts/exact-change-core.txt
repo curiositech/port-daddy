@@ -1,9 +1,0 @@
-$ harbor scenario exact-change --design core
-scenario exact-change, design core: a project with thirty cents
-  posts a bond of ten and then one of twenty
-
-step 1   alice  top up 30 -> ok: wallet 30, escrow 0, pool 0
-step 2   wren   post 10 -> bond 1: wallet 20, escrow 10, pool 0
-step 3   wren   post 20 -> bond 2: wallet 0, escrow 30, pool 0
-
-verdict: both bonds posted: 30 units in escrow of the 30 topped up

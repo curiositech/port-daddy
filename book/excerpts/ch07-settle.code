@@ -4,18 +4,18 @@ fn settle(
     bonds: &Bonds,
     id: u64,
     forfeit: u64,
-    standing: Standing,
-) -> Result<Moved, Reason> {
+    status: Status,
+) -> Result<BondsUpdate, Reason> {
     let bond = held(bonds.bond.as_ref(), id)?;
-    let back = kept(bond.amount, forfeit)?;
+    let back = after_forfeit(bond.amount, forfeit)?;
     let funds = bonds.funds;
     let escrow = backed(funds.escrow, bond.amount)?;
-    Ok(Moved {
+    Ok(BondsUpdate {
         funds: Funds {
             wallet: funds.wallet + back,
             escrow,
             pool: funds.pool + forfeit,
         },
-        bond: Some(Bond { standing, ..*bond }),
+        bond: Some(Bond { status, ..*bond }),
     })
 }

@@ -1,0 +1,10 @@
+$ harbor scenario one-wallet --design separate
+scenario one-wallet, design separate: one principal is both sides
+  of a plan, and its wallet covers each amount but not their sum
+
+step 1   bob    deposit 400 -> ok: bob 400, escrow 0, commons 0
+step 2   both   open a plan: bob's bounty 400, bob's bond 100
+                -> plan 1: bob -100, escrow 500, commons 0
+
+verdict: A WALLET IS OVERDRAWN: bob -100, and escrow shows 500
+         where 400 were deposited

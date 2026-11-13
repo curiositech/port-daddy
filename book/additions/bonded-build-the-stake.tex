@@ -1,178 +1,179 @@
-% Build the layer, Chapter 7, second build: a claim with a bond behind it.
+% Build the layer, Chapter 7, second build: a claim that requires a bond.
 % Inserted after the first build (additions/bonded-build-the-ledger.tex),
 % at the end of \S\ref{sec:conservation}. It builds the safety property of
 % the session lifecycle of \S\ref{sec:tlaplus}, which that section says no
 % model checker has run.
 %
-% No code or output in this file is typed. \pdexcerpt, \pdrun and
-% \pdrunlines set files under excerpts/, which the kernel's
+% No code or output in this file is typed by hand. \pdexcerpt, \pdrun and
+% \pdrunlines print files under excerpts/, which the kernel's
 % tools/excerpts.mjs cuts from its source and its recorded runs (see
 % figures/pd-listing.tex). The figure draws two of those recorded tables as
-% they were printed. To change a listing or the figure, change the kernel
-% and cut again. The prose names functions, never line numbers, so that a
-% listing which moves in its file does not make a sentence wrong.
+% printed. To change a listing or the figure, change the kernel and cut the
+% excerpts again. The prose refers to functions by name and never by line
+% number, so a listing can move within its file.
 %
 % \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
-% listing changes length, change the number with it.
-\subsection{Build the layer: a claim with a bond behind it}
+% listing changes length, change the number to match.
+\subsection{Build the layer: a claim that requires a bond}
 \label{sec:bonded-stake}
 
-\noindent\emph{Express lane: the lifecycle's rule, that no work goes on
-without units in escrow, is built twice. The first harbor is made of two
-parts this book has already checked, with a careful desk between them. In
-it a worker takes back the bond of a claim and keeps the claim. The second
-harbor gives the claim and posts the bond in one decision. A walk
-takes it through all 7,639 states of two workers and two paths within
-small bounds, and a solver takes one step of an induction for any numbers. One of its guards closes a
-gap that Chapter~1 left open on purpose.}
+\noindent\emph{Express lane: this section builds the lifecycle's safety
+property, that no session works without units in escrow, twice. The first
+harbor combines two components this book has already checked, with a
+wrapper that links them. On it a worker gets the bond of a claim refunded
+and keeps the claim. The second harbor grants the claim and posts the bond
+in one decision. An exhaustive test visits all 7,639 states of two workers
+and two paths within small bounds, and Kani checks the step of an
+induction for any 64-bit numbers. One of the new guards refuses a write
+that Chapter~1 deliberately allowed.}
 
 \S\ref{sec:tlaplus} states the session lifecycle in words, and says that no
 model checker has run it. Its safety property is that every active session
-carries positive escrow: an agent may not begin without posting it, and
-nothing lowers it while the session is at work. \pdkernelname{} now has
-both halves of that sentence. Chapter~1 gave it claims
-(\weld{swk:sec:swk-build}{lease}), and a worker at work on a path is one
-that holds a claim on it. The last section gave it funds and bonds. This
-section asks what it takes to make the sentence true of the two together.
+has positive escrow: an agent may not begin without posting it, and
+nothing lowers it while the session is working. \pdkernelname{} now has
+both parts of that sentence. Chapter~1 built claims
+(\weld{swk:sec:swk-build}{lease}), and a worker that is working on a path
+is one that holds a claim on it. The previous section built funds and
+bonds. This section makes the property hold for the two together.
 
-It takes more than having both. \S\ref{sec:conservation} remarks that
-positive escrow and conservation are independent, and the same holds one
-level up. The rules for claims and the rules for funds can each be right,
-and a sentence about both can still be false, because it is a rule that
-neither part owns.
+Having both is not enough. \S\ref{sec:conservation} notes that positive
+escrow and conservation are independent, and the same is true here. The
+rules for claims and the rules for funds can each be correct while a
+property about both is false, because neither set of rules enforces it.
 
-\subsubsection{Naive: two right parts and a desk}
+\subsubsection{Naive: two correct components and a wrapper}
 
-The obvious way to build this is out of what is already there. Call the
-thing a worker talks to the \emph{desk}. For a claim the desk asks
-Chapter~1's rules, and for a bond it asks the keeper of the last section.
-Both answer through the decision core. The desk decides nothing about
-either, and only keeps the two in step
-(Listing~\ref{alg:bonded-stake-apart}).
+The obvious design reuses what exists. A wrapper receives each request
+from a worker. For a claim it calls Chapter~1's rules, and for a bond it
+calls the ledger of the previous section. Both go through the decision
+core. The wrapper makes no decision about either. Its only job is to keep
+the two consistent (Listing~\ref{alg:bonded-stake-separate}).
 
-\pdlistingroom{19}
-\pdexcerpt[caption={The desk gives a claim. It asks for the claim, and then
-posts the bond.},label={alg:bonded-stake-apart}]{ch07b-apart}
+\pdlistingroom{20}
+\pdexcerpt[caption={The first harbor grants a claim. It decides the claim,
+and then posts the bond.},label={alg:bonded-stake-separate}]{ch07b-separate}
 
-This desk is careful. A claim that is renewed keeps the bond it has, so a
-worker is not charged again for staying. A grant is kept only if its bond
-posts, so a project with an empty wallet gets no claims. Every rule the
-desk leans on is one that an earlier section has checked.
+This wrapper is written with care. A renewed claim keeps its bond, so a
+worker is not charged again for renewing. A grant is stored only if its
+bond posts, so a project with an empty wallet gets no claims. Every rule
+the wrapper relies on was checked in an earlier section.
 
-The bond it posts is the harbor's \emph{price}, the units a claim must put
-up. How to set a price is the question of \S\ref{sec:pricing}, and this
-section does not take it up. In the runs below it is 6, the bond of the
-chapter's repair.
+The bond it posts is the harbor's \emph{price}: the units a claim must
+post. How to set a price is the subject of \S\ref{sec:pricing}, and this
+section does not address it. In the runs below it is 6, the bond in the
+chapter's worked settlement.
 
-\subsubsection{Break: a claim with nothing behind it}
+\subsubsection{Break: a claim with no bond}
 
-Wren claims a path, and then asks the keeper for the bond back
-(Listing~\ref{alg:bonded-stake-run-apart}).
+Wren claims a path, and then requests a refund of the bond
+(Listing~\ref{alg:bonded-stake-run-separate}).
 
 \pdlistingroom{17}
-\pdrun[caption={The break. Wren holds two claims, and escrow holds
-nothing.},label={alg:bonded-stake-run-apart}]{free-hold-apart}
+\pdrun[caption={The break. Wren holds two claims, and escrow is
+empty.},label={alg:bonded-stake-run-separate}]{early-refund-separate}
 
-Step 3 is no mistake of the keeper's. Bond 1 is held and has not been
-settled, and that is all the guard of Listing~\ref{alg:bonded-build-held}
-asks. The keeper does not know that a claim stands on that bond, and it has
-no way to find out. So the wallet is whole again and the claim is still
-Wren's. Steps 4 and 5 do it a second time with the same units, and at
-step 6 Heron is refused a path that costs Wren nothing to hold. A wallet
-that covers one bond now stands behind as many claims as Wren cares to
-make. \S\ref{sec:economic} asked the opposite, that each of a hundred
-identities should need a bond of its own.
+Step 3 is not a fault in the ledger. Bond 1 is held and has not been
+settled, and the guard of Listing~\ref{alg:bonded-build-held} checks
+nothing else. The ledger does not know that the bond belongs to a claim,
+and it has no way to find out. So the wallet is full again and Wren still
+holds the claim. Steps 4 and 5 repeat this with the same units, and at
+step 6 Heron is refused a path that Wren holds at no cost. A wallet that
+covers one bond now supports as many claims as Wren wants to make.
+\S\ref{sec:economic} required the opposite: each of a hundred identities
+should need its own bond.
 
-\subsubsection{Break again: a change after the bond has gone back}
+\subsubsection{Break again: a write after the bond is refunded}
 
-The desk's own care opens a second hole. It refunds the bond when the
-claim is released, which is right. Then Wren changes the path once more
-(Listing~\ref{alg:bonded-stake-run-after}).
+The wrapper's correct behaviour creates a second fault. It refunds the
+bond when the claim is released, as it should. Then Wren writes to the
+path again (Listing~\ref{alg:bonded-stake-run-late}).
 
-\pdlistingroom{9}
-\pdrunlines[caption={The second break. The release gives the bond back,
-and the change after it is admitted.},label={alg:bonded-stake-run-after}]{after-release-apart}{1,10-17}{1 and 10\textendash 17}
+\pdlistingroom{8}
+\pdrunlines[caption={The second break. The release refunds the bond, and
+the write after it is admitted.},label={alg:bonded-stake-run-late}]{late-write-separate}{1,10-16}{1 and 10\textendash 16}
 
-Step 5 is no mistake of the fence's either. Chapter~1's fence asks whether
-a token is the newest one for its path, in the hands of the worker it was
-given to (\weld{swk:sec:swk-build}{fence}). It does not ask whether the
-grant was released. That was right in Chapter~1: until someone else
-claims the path, a late write from its last holder hurts no claim. On this harbor it is a
-change with no bond behind it. If it breaks something,
-Theorem~\ref{thm:cleanup-bound} has nothing to pay for the cleanup with.
+Step 5 is not a fault in the fence either. Chapter~1's fence checks that a
+token is the newest one for its path and is presented by the worker it was
+granted to (\weld{swk:sec:swk-build}{fence}). It does not check whether
+the grant was released. That was correct in Chapter~1: until another
+worker claims the path, a late write from its last holder conflicts with
+no claim. On this harbor it is a write with no bond in escrow. If it
+breaks something, Theorem~\ref{thm:cleanup-bound} has no bond to pay for
+the cleanup.
 
 \subsubsection{Fix: one decision for both}
 
-Neither part can be taught the missing rule, because the rule is about
-both. \pdkernelname{} gives it a place of its own in the decision core
-(\weld{prereq:sec:prereq-build}{decision core}). The core gets a record
-that ties one grant to one bond, and calls it a \emph{stake}
-(Listing~\ref{alg:bonded-stake-stake}).
+Neither component can enforce the missing rule alone, because the rule
+involves both. \pdkernelname{} puts it in the decision core
+(\weld{prereq:sec:prereq-build}{decision core}), in a module of its own.
+The core gets a record that links one grant to one bond, called a
+\emph{stake} (Listing~\ref{alg:bonded-stake-stake}).
 
 \pdlistingroom{7}
-\pdexcerpt[caption={A stake: one grant's token, and the bond behind
+\pdexcerpt[caption={A stake: one grant's token, and the bond posted for
 it.},label={alg:bonded-stake-stake}]{ch07b-stake}
 
 A claim is now decided in two steps inside one decision. Chapter~1's rules
-say whether the claim is given and what token it gets. Then \texttt{back}
-puts a bond behind that grant (Listing~\ref{alg:bonded-stake-back}). The
-answer carries the grant and its bond together, and the kernel stores both
-before it returns. If the wallet cannot cover the bond,
-\texttt{post} refuses, the question mark after it hands that refusal back,
-and no grant is given.
+decide whether the claim is granted and which token it gets. Then
+\texttt{post\_for\_claim} posts a bond for that grant
+(Listing~\ref{alg:bonded-stake-post-for-claim}). The result contains the
+grant and its bond together, and the kernel stores both before it returns.
+If the wallet cannot cover the bond, \texttt{post} refuses. The question
+mark after it returns that refusal, and no grant is given.
 
 \pdlistingroom{27}
-\pdexcerpt[caption={The decision for a claim, once Chapter~1's rules have
-given the grant. \texttt{own} is its
-guard.},label={alg:bonded-stake-back}]{ch07b-back}
+\pdexcerpt[caption={The decision for a claim, after Chapter~1's rules have
+granted it. \texttt{stake\_of} is its
+guard.},label={alg:bonded-stake-post-for-claim}]{ch07b-post-for-claim}
 
-\texttt{own} looks slight. The kernel shows the core the stake of the
-path's newest grant, and \texttt{own} asks whether that grant is the one
-just given. For a renewal it is, since a renewal keeps its token, and the
-bond is kept. For any other grant a new bond is posted. The section ends
-with what happens without this guard.
+\texttt{stake\_of} looks minor. The kernel passes the core the stake of
+the path's newest grant, and \texttt{stake\_of} checks that this grant is
+the one just given. For a renewal it is, because a renewal keeps its
+token, and the bond is kept. For any other grant a new bond is posted. The
+end of this section shows what happens without this guard.
 
-A release runs the same way round. Chapter~1's rules release the grant,
-and \texttt{free} gives back the bond behind it
-(Listing~\ref{alg:bonded-stake-free}). It does so through the
-\texttt{refund} of the last section, so every guard there still applies.
-
-\pdlistingroom{19}
-\pdexcerpt[caption={The decision for a release. The bond comes back
-once.},label={alg:bonded-stake-free}]{ch07b-free}
-
-That leaves the two holes. The first was a refund asked for by itself.
-\texttt{loose} stands in front of every refund and every slash
-(Listing~\ref{alg:bonded-stake-loose}).
+A release works the same way. Chapter~1's rules release the grant, and
+\texttt{refund\_on\_release} refunds its bond
+(Listing~\ref{alg:bonded-stake-refund-on-release}). It calls the
+\texttt{refund} of the previous section, so every guard there still
+applies.
 
 \pdlistingroom{19}
-\pdexcerpt[caption={The guard on a refund or a slash that is asked for by
-itself.},label={alg:bonded-stake-loose}]{ch07b-loose}
+\pdexcerpt[caption={The decision for a release. The bond is refunded
+once.},label={alg:bonded-stake-refund-on-release}]{ch07b-refund-on-release}
 
-The second was a change after the bond had gone back. The fence is left as
-Chapter~1 wrote it, and \texttt{at\_stake} asks one more question after it
-(Listing~\ref{alg:bonded-stake-at-stake}). It does not ask whether the
-grant was released. It asks for the bond, which is the thing that matters,
-and so it also refuses a change whose bond has gone for any other reason.
+That leaves the two faults. The first was a refund requested directly.
+\texttt{not\_staked} is checked before every refund and every slash
+(Listing~\ref{alg:bonded-stake-not-staked}).
 
-\pdlistingroom{21}
-\pdexcerpt[caption={The guard on a change. A harbor whose price is nothing
-asks for no bond, and is
-Chapter~1's.},label={alg:bonded-stake-at-stake}]{ch07b-at-stake}
+\pdlistingroom{19}
+\pdexcerpt[caption={The guard on a refund or a slash that is requested
+directly.},label={alg:bonded-stake-not-staked}]{ch07b-not-staked}
+
+The second was a write after the bond was refunded. The fence stays as
+Chapter~1 wrote it, and \texttt{bond\_held} adds one check after it
+(Listing~\ref{alg:bonded-stake-bond-held}). It does not check whether the
+grant was released. It checks for the bond, which is what the property
+requires, so it also refuses a write whose bond is gone for any other
+reason.
+
+\pdlistingroom{19}
+\pdexcerpt[caption={The guard on a write. A harbor with a price of 0
+requires no bond, and behaves as Chapter~1's
+does.},label={alg:bonded-stake-bond-held}]{ch07b-bond-held}
 
 Wren's second run now stops at step 5
-(Listing~\ref{alg:bonded-stake-run-after-core}).
+(Listing~\ref{alg:bonded-stake-run-late-core}).
 
 \pdlistingroom{6}
-\pdrunlines[caption={The fix. The change after the release is
-refused.},label={alg:bonded-stake-run-after-core}]{after-release-core}{1,13-17}{1 and 13\textendash 17}
+\pdrunlines[caption={The fix. The write after the release is
+refused.},label={alg:bonded-stake-run-late-core}]{late-write-core}{1,13-17}{1 and 13\textendash 17}
 
-\keyidea[Give a rule about two things one owner]{Two parts that are each
-right can be wrong together, when a rule mentions both and neither holds
-it. Care in the code that joins them does not mend this, because each part
-still answers by its own rule to whoever asks it directly. The rule needs
-one place that decides for both, and every request has to pass through
-it.}
+\keyidea[Put a rule about two things in one place]{Two components that are
+each correct can be wrong together, when a rule involves both and neither
+enforces it. Careful code that links them does not fix this, because each
+component still answers a direct request by its own rule. The rule needs
+one place that decides for both, and every request has to go through it.}
 
 \Needspace{12\baselineskip}
 \subsubsection{Verify: every state, and then any numbers}
@@ -182,162 +183,166 @@ Wren's first run again, from step 3
 
 \pdlistingroom{15}
 \pdrunlines[caption={The fix. The refund is refused, and a second claim
-needs a second bond.},label={alg:bonded-stake-run-core}]{free-hold-core}{1,8-21}{1 and 8\textendash 21}
+needs a second bond.},label={alg:bonded-stake-run-core}]{early-refund-core}{1,8-21}{1 and 8\textendash 21}
 
-\paragraph{A claim that is left.}
-One case is new. A lease can run out with its claim never released, and
-another worker can then take the path
-(Listing~\ref{alg:bonded-stake-run-left}).
-
-\pdlistingroom{20}
-\pdrun[caption={A claim left to run out. Its bond stays where it
-is.},label={alg:bonded-stake-run-left}]{walked-away-core}
-
-Heron's claim posts a bond of its own at step 4. Wren's token is now an old
-one, so the fence refuses the release, and \texttt{loose} refuses the
-refund. Bond 1 is held, and nothing in this build can move it. That is on
-purpose. \S\ref{sec:pricing:settlement} says that a missed heartbeat
-decides no slash, and that a bond in doubt is held for someone with the
-authority to rule. A harbor in which step 6 went through would have made
-Wren that judge. Had nobody else claimed the path, Wren could still have
-released its claim and had the bond back, because a lease that runs out is
-not a breach.
-
-\paragraph{Every state.}
-The walk of the last section is run again on the larger harbor, with two
-workers and two paths at a price of 2 units. It tops up at most 4 units
-and posts at most 3 bonds, and a path is given at most 2 grants. From each
-state it tries every move the bounds allow, and most of them should be
-refused. Either worker
-claims a path the other holds. Either releases or changes a path under
-every token ever given for it, and under one that never was. Every bond is
-asked for by itself. Time is a move too, and it runs every lease out. Each
-answer is held to a second set of rules: the lifecycle's sentence and
-Chapter~1's, written out on plain values in a file that shares no code
-with the core.
+\paragraph{An abandoned claim.}
+One case is new. A lease can expire with its claim never released, and
+another worker can then claim the path
+(Listing~\ref{alg:bonded-stake-run-expired}).
 
 \pdlistingroom{21}
-\pdrun[caption={Every state each harbor can reach, held to the lifecycle's
-own rules.},label={alg:bonded-stake-states}]{stakes}
+\pdrun[caption={A claim that expires and is not released. Its bond stays
+held.},label={alg:bonded-stake-run-expired}]{expired-claim-core}
 
-The kernel's harbor reaches 7,639 states and takes none of the moves that
-the rules refuse. In every state a claim that has not been released has a
-bond held behind it, and no bond stands behind two claims. In 480 of them
-it holds a bond that waits, as bond 1 does above.
+Heron's claim posts its own bond at step 4. Wren's token is now stale, so
+the fence refuses the release, and \texttt{not\_staked} refuses the
+refund. Bond 1 is held, and no operation in this build can settle it. That
+is deliberate. \S\ref{sec:pricing:settlement} says that a missed heartbeat
+does not decide a slash, and that a disputed bond stays held until someone
+with the authority rules on it. If step 6 were admitted, Wren would be
+ruling on its own bond. If nobody else had claimed the path, Wren could
+still have released its claim and been refunded, because an expired lease
+is not a breach.
 
-The harbor made of two parts is walked along the same road, and takes
-25,272 moves that the rules refuse. It comes to 17,120 states in which a
-claim has no bond, and it admits 7,032 changes under a claim with none.
-The listing's last line matters as much as that row. Through all of this
-the funds add up and no bond is shared, because each part keeps its own
-rule in every state.
+\paragraph{Every state.}
+The exhaustive test of the previous section is run again on this larger
+harbor, with two workers and two paths at a price of 2 units. At most 4
+units are topped up and 3 bonds posted, and a path is granted at most
+twice. In each state the test applies every operation the bounds allow,
+and most of them should be refused. Either worker claims a path the other
+holds. Either worker releases or writes to a path with every token ever
+granted for it, and with one that was never granted. A refund and a slash
+of every bond are requested directly. The clock is an operation too: it
+expires every lease. Each result is compared with a reference model, which
+is the lifecycle's property and Chapter~1's rules written on plain values
+in a file that shares no code with the core.
 
-Figure~\ref{fig:bonded-pairs} draws what the two walks found.
+\pdlistingroom{20}
+\pdrun[caption={Every state each harbor can reach, compared with the
+reference model.},label={alg:bonded-stake-states}]{stakes}
+
+The kernel's harbor reaches 7,639 states and accepts none of the
+operations that the model refuses. In every state a claim that has not
+been released has a held bond, and no bond belongs to two claims. In 480
+states it holds the bond of an abandoned claim, as it holds bond 1 above.
+
+The first harbor is tested the same way, and accepts 25,272 operations
+that the model refuses. It reaches 17,120 states in which a claim has no
+bond, and it admits 7,032 writes under a claim with no bond. The last line
+of the listing is as important as that row. In all of these states the
+funds add up and no bond is shared, because each component enforces its
+own rule in every state.
+
+Figure~\ref{fig:bonded-pairs} shows what the two tests found.
 
 \input{figures/fig-bonded-pairs}
 
-The rows need a word each. A claim is \emph{live} while its lease runs.
-Once the lease has ended it has \emph{run out}, and it stays so until its
-holder releases it or another grant is given for its path. In the second
-case it is \emph{left}, as Wren's claim is after step 4 of
-Listing~\ref{alg:bonded-stake-run-left}: nobody released it, and nobody
-now can. In the
-kernel's harbor a claim and its bond stand together in four ways. The
-other harbor comes to six more, and each of them is a claim that was not
-released, with a bond that is not held. The red ring is the second break,
-step 5 of Listing~\ref{alg:bonded-stake-run-after}: changes admitted under
-a claim that had been released. The lower table
-shows the first wrong move from each state and no more, because the walk
-does not follow a harbor past a move the rules refuse.
+The rows need definitions. A claim is \emph{live} while its lease runs.
+After the lease ends it is \emph{expired}, until its holder releases it or
+another grant is given for its path. In the second case it is
+\emph{abandoned}, as Wren's claim is after step 4 of
+Listing~\ref{alg:bonded-stake-run-expired}: it was not released, and now
+it cannot be. In the kernel's harbor a claim and its bond occur in four
+combinations. The first harbor reaches six more, and each of them is a
+claim that was not released, with a bond that is not held. The red ring is
+the second break, step 5 of Listing~\ref{alg:bonded-stake-run-late}:
+writes admitted under a released claim. The lower table counts only the
+first wrong operation from each state, because the test does not continue
+from a state that a wrongly accepted operation produced.
 Exercise~\ref{ex:bonded-stake-cells} asks which rule keeps each empty cell
 of the upper table empty.
 
 \paragraph{Any numbers.}
-The walk stops at 2 workers and 4 units. Kani lifts the bound for one
-move, as it did for the funds. The property is \texttt{backed} in
-Listing~\ref{alg:bonded-stake-kani-step}: a grant that has not been
-released has its own stake, and the stake's bond is held. The harness
-starts from any path and any funds for which that is true, with every
-number in them chosen by the solver, and makes one move.
+The exhaustive test stops at 2 workers and 4 units. Kani removes the bound
+for one operation, as it did for the funds. The property is
+\texttt{bonded} in Listing~\ref{alg:bonded-stake-kani-step}: a grant that
+has not been released has its own stake, and the stake's bond is held. The
+harness starts from any path and any funds for which that is true, with
+every number in them chosen by the solver, and applies one operation.
 
 \pdlistingroom{27}
 \pdexcerpt[caption={The property, and the step of the induction as a Kani
 harness.},label={alg:bonded-stake-kani-step}]{ch07b-kani-step}
 
-The moves are the ones that touch a grant, or a bond behind one. For a
-claim, the harness takes every grant that Chapter~1's rules could give:
-the newest grant again if it was not released, or a grant with the next
-token. Which of the two a claim gets is decided by code that handles text,
-and that code is not under Kani. The walk does run it.
+The operations are the ones that affect a grant or its bond. For a claim,
+the harness takes every grant that Chapter~1's rules could give: the
+newest grant again if it was not released, or a grant with the next token.
+Which of the two a claim gets is decided by code that handles strings, and
+that code is not under Kani. The exhaustive test does run it.
 
 \pdlistingroom{17}
-\pdrun[caption={Kani~0.68 on the core's rules for a claim with a bond, and
-on three builds with a guard removed.},label={alg:bonded-stake-kani}]{kani-stakes}
+\pdrun[caption={Kani~0.68 on the core's rules for a claim that requires a
+bond, and on three builds with a guard
+removed.},label={alg:bonded-stake-kani}]{kani-stakes}
 
-The last of the four verdicts is the step. With the base case, that a
-path with no grant has no claim to back, it gives the lifecycle's safety
-property for any number of moves, on the one thing assumed of Chapter~1's
-rules: a claim gives the newest grant again or one with the next token. The first verdict says that a change is
-admitted only under a grant with its own stake and a bond held. The third
-says that a grant with a new token gets a bond with a new id. The second
-is a control. It puts the step's question to a claim that gives the grant
-and posts nothing, and that harness fails, as it must.
+The last of the four results is the step. With the base case, that a path
+with no grant has no claim, it gives the lifecycle's safety property for
+any number of operations, under one assumption about Chapter~1's rules: a
+claim gives the newest grant again or one with the next token. The first
+result says that a grant with a new token gets a bond with a new id. The
+second says that a write is admitted only under a grant with its own stake
+and a held bond. The third is a control. Its harness makes the step's
+assertion about a claim that gives the grant and posts no bond. That
+assertion is false, and Kani reports the failure.
 
 \paragraph{Each guard removed.}
 This build added three guards, and the kernel has a build with each one
-taken out. The walk is run on each
+removed. The exhaustive test is run on each
 (Listing~\ref{alg:bonded-stake-guards}).
 
 \pdlistingroom{10}
-\pdrun[caption={The walk again, on three builds of the core with one guard
-removed from each.},label={alg:bonded-stake-guards}]{stakes-guards}
+\pdrun[caption={The exhaustive test again, on three builds of the core
+with one guard removed from each.},label={alg:bonded-stake-guards}]{stakes-guards}
 
-Each build fails in a column of its own. Without \texttt{loose}, claims go
-bare in 17,120 states, as they did in the harbor made of two parts. Yet no
-change is made under one of them, because \texttt{at\_stake} is still there
-and asks for the bond. Without \texttt{at\_stake} no claim goes bare, and
-7,032 changes are made after a release. The two rows add up to that
-harbor's 25,272 wrong moves, and it had neither guard.
+Each build fails in a different column. Without \texttt{not\_staked},
+claims lose their bonds in 17,120 states, as in the first harbor. But no
+write is admitted under one of them, because \texttt{bond\_held} is still
+present and checks for the bond. Without \texttt{bond\_held} every claim
+keeps its bond, and 7,032 writes are admitted after a release. The two
+rows add up to the first harbor's 25,272 wrongly accepted operations, and
+that harbor had neither guard.
 
-The first row is the one to study. Without \texttt{own}, a new claim takes
-whatever stake the path's last grant left behind. Kani's verdicts on the
-three builds are the lower half of Listing~\ref{alg:bonded-stake-kani}.
-That build passes the step. Every claim in it does have a bond held behind
-it. What Heron's claim lacks is a bond of its own. It rides on the bond
-that Wren left, and when Heron releases, the kernel pays Wren's bond back
-to the wallet with nobody having judged it. The walk sees it, as 648
-states in which a bond is shared. The harness for the step cannot, because
-\texttt{backed} asks whether a bond is there and not whose it is. The last
-section met the same shape in its funds
-(Listing~\ref{alg:bonded-build-paid-twice}), where every unit was kept and
-one bond was paid twice. A property that holds says what
-it mentions and no more. Exercise~\ref{ex:bonded-stake-borrowed} follows
-the units through.
-\pdscope{The walk covers 2 workers and 2 paths at a price of 2 units,
-within the bounds that Listing~\ref{alg:bonded-stake-states} prints, and it holds
-the harbor to rules written by the same hand as the core. For a harbor that goes wrong it
-counts the first wrong move from each state. The harnesses cover one move
-on one path, on the functions of the new module, and say nothing of which
+The first row needs the most explanation. Without \texttt{stake\_of}, a
+new claim takes whatever stake the path's previous grant had. Kani's
+results for the three builds are the lower half of
+Listing~\ref{alg:bonded-stake-kani}. That build passes the step. Every
+claim in it does have a held bond. What Heron's claim lacks is its own
+bond. It uses the bond that Wren posted, and when Heron releases, the
+kernel refunds Wren's bond to the wallet with no ruling on it. The
+exhaustive test detects this, as 648 states in which a bond is shared. The
+harness for the step cannot, because \texttt{bonded} checks that a bond is
+held and not which claim it was posted for. The previous section had the
+same pattern in its funds (Listing~\ref{alg:bonded-build-refund-twice}),
+where units were conserved and one bond was refunded twice. A property
+that holds guarantees only what it states.
+Exercise~\ref{ex:bonded-stake-borrowed} traces the units.
+\pdscope{The exhaustive test covers 2 workers and 2 paths at a price of 2
+units, within the bounds that Listing~\ref{alg:bonded-stake-states}
+prints, and it compares the harbor with a reference model written by the
+same author as the core. For a harbor with a fault it counts the first
+wrong operation from each state. The harnesses cover one operation on one
+path, on the functions of the new module, and they do not cover which
 grant a claim is given.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-Nobody may judge. A bond whose claim was left stays held. This build has no
-move that settles it, and nobody who could make one. The oracles of
-\S\ref{sec:pricing:settlement} are not built.
+There is no adjudicator. The bond of an abandoned claim stays held. This
+build has no operation that settles it, and no caller with the authority
+to request one. The oracles of \S\ref{sec:pricing:settlement} are not
+built.
 
-Nobody is asked who they are, as before. The names in the runs say who
-would ask. The core takes a worker's name from the kernel on trust, as
-Chapter~1's does, and a refund names nobody.
+Callers are not authenticated, as before. The names in the runs show who
+would make each request. The core trusts the worker's name that the kernel
+passes it, as Chapter~1's does, and a refund request carries no name.
 
 The price is one number for the whole harbor. \S\ref{sec:pricing} wants it
-to depend on the work and on who is doing it.
+to depend on the work and on who does it.
 
-Every bond comes out of one wallet, the project's. The chapter's bond is
-posted by the principal that answers for the work, and here two workers
-draw on the same funds.
+Every bond is paid from one wallet, the project's. In the chapter a bond
+is posted by the principal that is liable for the work, and here two
+workers share the same funds.
 
-The harbor is held in memory, like the keeper of the last section.
+The harbor's state is in memory, like the ledger of the previous section.
 Chapter~1's kernel writes a grant to its database in the step that decides
 it. This harbor's grants and bonds are not in that database yet.
 \end{pdboundary}

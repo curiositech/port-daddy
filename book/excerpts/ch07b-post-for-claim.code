@@ -1,0 +1,27 @@
+/// Post the bond for a grant that claims.rs has just given. A
+/// renewal keeps its token, and so keeps its bond. Any other
+/// grant is new, and posts its own bond.
+pub fn post_for_claim(
+    grant: Grant,
+    stake: Option<&Stake>,
+    bonds: &Bonds,
+    price: u64,
+) -> Result<StakeUpdate, Reason> {
+    let existing = stake_of(stake, grant.token).filter(is_held);
+    let update = match existing {
+        Some(stake) => BondsUpdate {
+            funds: bonds.funds,
+            bond: Some(stake.bond),
+        },
+        None => bonds::post(bonds, price)?,
+    };
+    Ok(StakeUpdate { grant, update })
+}
+
+/// The guard: the stake passed in belongs to this grant.
+fn stake_of(stake: Option<&Stake>, token: u64) -> Option<&Stake> {
+    if cfg!(feature = "mutant-any-stake") {
+        return stake; // MUTANT: guard removed.
+    }
+    stake.filter(|stake| stake.token == token)
+}

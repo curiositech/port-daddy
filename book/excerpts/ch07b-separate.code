@@ -1,0 +1,20 @@
+/** Claim a path: decide the claim, then post its bond. */
+claim(agent: string, path: string): Answer {
+  const ttlMs = LEASE;
+  const claim = { op: 'claim', path, agent, ttlMs } as const;
+  const decided = this.#decide(claim);
+  if ('ok' in decided) return decided;
+  const { grant } = decided;
+  // A renewal already has its bond.
+  const id = this.#bondIds.get(path)?.[grant.token - 1] ?? 0;
+  const existing = this.#funds.bonds[id - 1];
+  if (existing?.status === 'held') {
+    this.#store(path, grant, id);
+    return { ok: true, grant, bond: existing };
+  }
+  // The grant is stored only if its bond posts.
+  const posted = asAnswer(this.#funds.post(this.price));
+  if (!posted.ok || posted.bond === null) return posted;
+  this.#store(path, grant, posted.bond.id);
+  return { ...posted, grant };
+}

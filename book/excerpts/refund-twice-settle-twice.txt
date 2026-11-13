@@ -1,0 +1,17 @@
+$ harbor scenario refund-twice --design core --mutant settle-twice
+scenario refund-twice, design core (mutant settle-twice): two
+  bonds are held, and the holder of one requests a refund twice
+
+step 1   alice  top up 10 -> ok: wallet 10, escrow 0, pool 0
+step 2   wren   post 3 -> bond 1: wallet 7, escrow 3, pool 0
+step 3   heron  post 6 -> bond 2: wallet 1, escrow 9, pool 0
+step 4   wren   refund bond 1
+                -> refunded: wallet 4, escrow 6, pool 0
+step 5   wren   refund bond 1
+                -> refunded: wallet 7, escrow 3, pool 0
+step 6   heron  refund bond 2
+                -> refused: unbacked (escrow holds 3, and the bond
+                   is recorded as 6)
+
+verdict: A SETTLED BOND WAS REFUNDED AGAIN, and heron's cannot be
+         paid: 10 units held of the 10 topped up

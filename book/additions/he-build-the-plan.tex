@@ -4,314 +4,321 @@
 % Protocol~\ref{prot:escrow} and the settlement of the section's worked
 % example, as arithmetic in the kernel's decision core.
 %
-% No code or output in this file is typed. \pdexcerpt, \pdrun and
-% \pdrunlines set files under excerpts/, which the kernel's
+% No code or output in this file is typed by hand. \pdexcerpt, \pdrun and
+% \pdrunlines print files under excerpts/, which the kernel's
 % tools/excerpts.mjs cuts from its source and its recorded runs (see
 % figures/pd-listing.tex). The figure draws one of those recorded tables as
-% it was printed. To change a listing or the figure, change the kernel and
-% cut again. The prose names functions, never line numbers, so that a
-% listing which moves in its file does not make a sentence wrong.
+% printed. To change a listing or the figure, change the kernel and cut the
+% excerpts again. The prose refers to functions by name and never by line
+% number, so a listing can move within its file.
 %
 % \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
-% listing changes length, change the number with it.
+% listing changes length, change the number to match.
 \subsection{Build the layer: one escrow for both sides of a job}
 \label{sec:he-plan}
 
-\noindent\emph{Express lane: the middle of the escrow ceremony is built
-twice. The first keeper checks each amount and works out each share by
-itself. It gets this section's worked settlement right, and then it
-overdraws a wallet and loses a unit. The second reserves both amounts in
-one decision, and takes the second part of every split by subtraction. A
-walk takes it through 4,213 states, and it pays one plan out 600 ways. A
-solver does the rest with one line of arithmetic taken out of its hands,
-and the section says which line and why.}
+\noindent\emph{Express lane: this section builds the middle step of the
+escrow ceremony twice. The first ledger checks each amount and computes
+each share separately. It pays this section's worked settlement correctly.
+In one other run it overdraws a wallet, and in another it loses a unit.
+The second ledger reserves both amounts in one decision, and gets the
+second part of every split by subtraction. An exhaustive test visits 4,213
+states of it, and it pays one plan out 600 ways with no unit lost. Kani
+then checks a settlement for any 64-bit amounts, with the one line that
+multiplies and divides replaced by a stub.}
 
 Protocol~\ref{prot:escrow} has a transaction in the middle. The daemon
 checks the balances again and debits the bounty and the bond into escrow,
 in one commit. Later a settlement splits each of the two by the share of
-the work that was done. \pdkernelname{} builds those two moves here. The
-signatures on either side of them wait for a later build, since the cards
-of \pdchapref{anchor}{The Anchor Protocol} are the means to make them.
+the work that was done. \pdkernelname{} builds those two operations here.
+The signatures before and after them are left for a later build, which
+will use the cards of \pdchapref{anchor}{The Anchor Protocol}.
 
 Money is counted in whole units, so every amount is a whole number. A
-\emph{keeper} holds the books: a wallet for each principal and the
-commons, and every plan with the two amounts it has in escrow.
+\emph{ledger} holds the state. It has a wallet for each principal and one
+balance for the commons. It also records every plan, with the two amounts
+the plan has in escrow.
 
-\subsubsection{Naive: each amount by itself}
+\subsubsection{Naive: each amount checked separately}
 
-The obvious keeper follows the ceremony's words. To open a plan it checks
-that the requester's wallet covers the bounty and that the provider's
-covers the bond, and debits both. To pay a plan out it follows
+The obvious ledger follows the ceremony's wording. To open a plan it
+checks that the requester's wallet covers the bounty and that the
+provider's covers the bond, and debits both. To pay a plan out it follows
 Table~\ref{tab:settlement}: each side's share is its proportion of the
-amount, rounded down to whole units (Listing~\ref{alg:he-plan-apiece}).
+amount, rounded down to whole units (Listing~\ref{alg:he-plan-separate}).
 
 \pdlistingroom{25}
-\pdexcerpt[caption={The first try. Each wallet is checked for its own
-amount, and each share is worked out by
-itself.},label={alg:he-plan-apiece}]{ch06-apiece}
+\pdexcerpt[caption={The first ledger. Each wallet is checked against its
+own amount, and each share is computed
+separately.},label={alg:he-plan-separate}]{ch06-separate}
 
-This keeper is not careless. It refuses a plan that a wallet cannot cover,
-and it pays a plan out once. On this section's own example it is right
+This ledger is not careless. It refuses a plan that a wallet cannot cover,
+and it pays a plan out once. It pays this section's own example correctly
 (Listing~\ref{alg:he-plan-run-partial}).
 
 \pdlistingroom{15}
 \pdrun[caption={The reduced contract of \S\ref{sec:float-plan}, run on the
-first try. Nobody here is asked who they are: \texttt{both} and
-\texttt{judge} say who would
-ask.},label={alg:he-plan-run-partial}]{partial-apiece}
+first ledger. The build does not authenticate callers: \texttt{both} and
+\texttt{judge} only show who would make each
+request.},label={alg:he-plan-run-partial}]{partial-separate}
 
 Bob ends with 240 of his 400 units and Alice with 200, and the other 60 are
 in the commons. Those are the net changes in the example's table. A reader
-who checked this keeper against the chapter would pass it.
+who checked this ledger against the chapter would accept it.
 
-\subsubsection{Break: one wallet behind two amounts}
+\subsubsection{Break: one wallet pays two amounts}
 
-A principal can be both sides of a plan. Bob asks for a piece of work and
+A principal can be both sides of a plan. Bob requests a piece of work and
 Bob's own agent does it, so the bounty and the bond come out of one wallet.
 The ceremony has a clause for this case: a wallet used for both must cover
-the two amounts together (Listing~\ref{alg:he-plan-run-wallet}).
+their sum (Listing~\ref{alg:he-plan-run-wallet}).
 
-\pdlistingroom{11}
-\pdrun[caption={The break. A wallet of 400 stands behind a bounty of 400
-and a bond of 100.},label={alg:he-plan-run-wallet}]{one-wallet-apiece}
+\pdlistingroom{10}
+\pdrun[caption={The break. A wallet of 400 pays a bounty of 400 and a bond
+of 100.},label={alg:he-plan-run-wallet}]{one-wallet-separate}
 
 Step 2 passed both checks. The wallet holds 400, which covers a bounty of
-400. It holds 400, which covers a bond of 100. Neither check knows of the
-other, and the wallet ends 100 below nothing. Escrow says 500 where 400
-units exist. A bond is meant to be something the provider stands to lose
-beyond the bounty. This one is the bounty's own units, counted a second
-time.
+400. It holds 400, which covers a bond of 100. Neither check takes the
+other into account, and the wallet ends at $-100$. Escrow shows 500 where
+400 units exist. A bond is supposed to be units the provider can lose in
+addition to the bounty. Here 100 of the units in escrow do not exist.
 
-\subsubsection{Break again: a unit in nobody's hands}
+\subsubsection{Break again: a payout loses a unit}
 
 The second fault needs two principals and amounts that the milestones do
 not divide (Listing~\ref{alg:he-plan-run-thirds}).
 
-\pdlistingroom{15}
+\pdlistingroom{14}
 \pdrun[caption={The second break. A plan of 110 units is paid out, and 108
-arrive.},label={alg:he-plan-run-thirds}]{thirds-apiece}
+units are paid.},label={alg:he-plan-run-thirds}]{thirds-separate}
 
-One milestone of 3 was done. A third of the bounty is 33 units and a third
-of a unit, so Alice earns 33. Two thirds is 66 and two thirds of a unit, so
-Bob has 66 back. Each share is right to within a unit, and together they
-come to 99. The bond goes the same way, with 3 back and 6 forfeited out of
-10. Two of the 110 units are now nowhere in the books. Design
+One milestone of 3 was done. A third of the bounty is $33\tfrac13$ units,
+so Alice earns 33. Two thirds is $66\tfrac23$, so Bob gets 66 back. Each
+share is within one unit of its exact value, and together they add up to
+99. The bond is split the same way: 3 returned and 6 forfeited, out of 10.
+Two of the 110 units are now in no wallet and not in the commons. Design
 Invariant~\ref{prop:conservation} is false after step 4, and no request
-was refused on the way.
+was refused.
 
-The example above did not show this because its numbers are round. A
-bounty of 400 at 2 milestones of 5 divides evenly, and so does a bond of
-100. A worked example with round numbers tests the rule it illustrates and
-little of the arithmetic under it. The verification below pays one plan
-out 600 ways, and Figure~\ref{fig:he-odd-unit} shows how much the round
-numbers hid.
+The earlier example did not show this because its numbers divide evenly.
+A bounty of 400 at 2 milestones of 5 divides evenly, and so does a bond of
+100. A worked example with round numbers tests the rule and very little
+of the arithmetic. The verification below pays one plan out 600 ways, and
+Figure~\ref{fig:he-odd-unit} shows how many of them lose a unit.
 
-\subsubsection{Fix: decide the whole, and subtract}
+\subsubsection{Fix: one decision for both amounts, and a split by subtraction}
 
-The two faults are one: the keeper checked parts where the rule was about
-a whole. \pdkernelname{} puts both moves in the decision core
-(\weld{prereq:sec:prereq-build}{decision core}), which is shown both of a
-plan's wallets at once (Listing~\ref{alg:he-plan-reserve}).
+Both faults have the same cause: the ledger checked each part separately,
+and the rule is about the total. \pdkernelname{} puts both operations in
+the decision core (\weld{prereq:sec:prereq-build}{decision core}), which
+is passed both of a plan's wallets at once
+(Listing~\ref{alg:he-plan-reserve}).
 
 \pdlistingroom{41}
-\pdexcerpt[caption={The decision to open a plan. \texttt{one\_wallet} is
+\pdexcerpt[caption={The decision to open a plan. \texttt{same\_wallet} is
 its guard.},label={alg:he-plan-reserve}]{ch06-reserve}
 
-\texttt{covered} is a subtraction that refuses when it would go below
-nothing, and the question mark after it hands that refusal back before
-anything is built. For two wallets each is asked for its own amount. For
-one wallet, \texttt{one\_wallet} sends the decision down the other arm,
-where the wallet is asked for the sum. Either way the answer is both
-wallets as they will be, with a plan that holds both amounts, or it is a
-refusal. The kernel stores the answer in one step. Bob's wallet of 400 is
-asked for 500 (Listing~\ref{alg:he-plan-run-wallet-core}).
+\texttt{covered} is a subtraction that returns an error if the result
+would be negative, and the question mark after it returns that error
+before any state is built. With two wallets, each is checked against its
+own amount. With one wallet, \texttt{same\_wallet} selects the other
+branch, where the wallet is checked against the sum. In both cases the
+result is either a refusal, or both wallets after the debit with a plan
+that holds both amounts. The kernel stores the result in one step. Bob's
+wallet of 400 is checked against 500
+(Listing~\ref{alg:he-plan-run-wallet-core}).
 
 \pdlistingroom{11}
-\pdrun[caption={The fix. One wallet is asked for 500 and holds
-400.},label={alg:he-plan-run-wallet-core}]{one-wallet-core}
+\pdrun[caption={The fix. One wallet holds 400, and the plan needs
+500.},label={alg:he-plan-run-wallet-core}]{one-wallet-core}
 
 A split subtracts (Listing~\ref{alg:he-plan-split}).
 
 \pdlistingroom{21}
-\pdexcerpt[caption={A split. The second part is what the first
-leaves.},label={alg:he-plan-split}]{ch06-split}
+\pdexcerpt[caption={A split. The second part is the remainder after the
+first.},label={alg:he-plan-split}]{ch06-split}
 
-The two parts are the amount whatever \texttt{share} returns, because the
-second is defined as the rest. Rounding can no longer lose a unit. It can
-only decide who has it. Here the provider's share is rounded down, so the
-odd unit of a bounty goes back to the requester and the odd unit of a bond
-goes to the commons. The milestone rule of this chapter does not say where
-an odd unit goes, and this is \pdkernelname{}'s choice: a provider is
-never paid above its share of the work. Exercise~\ref{ex:he-plan-odd-unit}
-weighs the other choice.
+The two parts add up to the amount whatever \texttt{share} returns,
+because the second is defined as the remainder. Rounding can no longer
+lose a unit. It only decides who gets it. Here the provider's share is
+rounded down, so the remainder of a bounty returns to the requester and
+the remainder of a bond goes to the commons. The milestone rule of this
+chapter does not say where a remainder goes, and this is
+\pdkernelname{}'s choice: a provider is never paid more than its share of
+the work. Exercise~\ref{ex:he-plan-odd-unit} considers the other choice.
 
-The subtraction must not go below nothing, and that rests on
-\texttt{counted}, which refuses a count of more milestones done than there
-are. When \texttt{done} is no more than \texttt{of}, the amount times
-\texttt{done} is no more than the amount times \texttt{of}, and dividing
-both by \texttt{of} gives a share that is no more than the amount. That
-argument comes back below. A settlement is then two splits by one count
-(Listing~\ref{alg:he-plan-settle}).
+The subtraction must not go below zero. \texttt{valid\_count} ensures
+that: it refuses a count with more milestones done than the plan has. When
+\texttt{done} is no more than \texttt{of}, the amount times \texttt{done}
+is no more than the amount times \texttt{of}, and dividing both by
+\texttt{of} gives a share that is no more than the amount. The
+verification uses that argument again. A settlement is then two splits by
+one count (Listing~\ref{alg:he-plan-settle}).
 
 \pdlistingroom{30}
 \pdexcerpt[caption={The decision to pay a plan out. Each amount is split
-by the same count, and each part has one place to
-go.},label={alg:he-plan-settle}]{ch06-settle}
+by the same count, and each part has one
+destination.},label={alg:he-plan-settle}]{ch06-settle}
 
-\texttt{open} refuses a plan that was paid out earlier, so the escrow
-leaves once. The plan of Listing~\ref{alg:he-plan-run-thirds} now pays out
-all 110 of its units (Listing~\ref{alg:he-plan-run-thirds-core}).
+\texttt{open\_plan} refuses a plan that was paid out earlier, so escrow is
+paid out once. The plan of Listing~\ref{alg:he-plan-run-thirds} now pays
+out all 110 of its units (Listing~\ref{alg:he-plan-run-thirds-core}).
 
 \pdlistingroom{6}
-\pdrunlines[caption={The fix. The odd unit of the bounty is Bob's, and the
-odd unit of the bond is the
-commons'.},label={alg:he-plan-run-thirds-core}]{thirds-core}{1,11-15}{1 and 11\textendash 15}
+\pdrunlines[caption={The fix. The remainder of the bounty goes to Bob, and
+the remainder of the bond goes to the
+commons.},label={alg:he-plan-run-thirds-core}]{thirds-core}{1,11-15}{1 and 11\textendash 15}
 
-\keyidea[Check the whole, and derive the last part]{Each amount was
-covered and each share was right to within a unit, and both times the
-whole was wrong. A rule about a sum has to be checked on the sum. Where
-parts must come to a whole, work out all of them but one and subtract, so
-that no way of rounding can leave the books short.}
+\keyidea[Check the total, and compute the last part by subtraction]{Each
+amount was covered and each share was within one unit of its exact value,
+and both times the total was wrong. A rule about a sum has to be checked
+on the sum. Where parts must add up to a total, compute all but one of
+them and get the last by subtraction, so that no rounding can lose a
+unit.}
 
 \Needspace{12\baselineskip}
-\subsubsection{Verify: small cases in full, and then any numbers}
+\subsubsection{Verify: small cases exhaustively, and then any numbers}
 
 \paragraph{Every state.}
-A walk tries everything a keeper can be asked, from every state it can
-come to, within small bounds: 2 principals, deposits of 1 or 2 units up to
-3 in all, a bounty and a bond of up to 2 units, counts of up to 3
-milestones, and 2 plans. Most of what it tries should be refused. A plan is asked for with no bond, or from a
-wallet that holds too little. A plan is paid out twice, or by a count of
-4 milestones done out of 3. Each answer is held to a second set of rules,
-which are the ceremony's clause and the settlement table written out on
-plain numbers in a file that shares no code with the core. The bounds are
-small because states multiply, and the walk has to run each time the
-kernel's tests do.
+An exhaustive test applies every operation to a ledger in every state it
+can reach, within small bounds: 2 principals, deposits of 1 or 2 units up
+to 3 in all, a bounty and a bond of up to 2 units, counts of up to 3
+milestones, and 2 plans. Most of the operations it applies should be
+refused: a plan with no bond, a plan a wallet cannot cover, a second
+payout of a plan, a count of 4 milestones done out of 3. Each result is
+compared with a reference model, which is the ceremony's clause and the
+settlement table written as arithmetic on plain numbers in a file that
+shares no code with the core. The bounds are small because the number of
+states grows quickly, and the test runs every time the kernel's tests do.
 
-The kernel's keeper reaches 4,213 states. It makes all 20,120 moves that
-the rules allow and none of the 164,482 they refuse. The first try takes
-650 moves that the rules refuse and comes to 682 states with a wallet
-below nothing. Of its payouts 6,918 are short, and they lose 8,560 units
-between them (Listing~\ref{alg:he-plan-states}).
+The kernel's ledger reaches 4,213 states. It accepts all 20,120 operations
+that the model allows and none of the 164,482 it refuses. The first ledger
+accepts 650 operations that the model refuses and reaches 682 states with
+a negative wallet. Of its payouts 6,918 are short, and they lose 8,560
+units in total (Listing~\ref{alg:he-plan-states}).
 
-\pdlistingroom{18}
-\pdrun[caption={Every state each keeper can reach, held to this section's
-own rules.},label={alg:he-plan-states}]{plans}
+\pdlistingroom{19}
+\pdrun[caption={Every state each ledger can reach, compared with the
+reference model.},label={alg:he-plan-states}]{plans}
 
 \paragraph{Every count.}
-The walk is where one wallet meets two amounts and where two plans meet.
-With amounts of 2 units it sees little rounding. So \pdkernelname{} also
-pays one plan out at every count of 2 to 6 milestones, short of all of
-them, for every bounty from 1 to 40 units. That is 600 payouts by each
-keeper (Figure~\ref{fig:he-odd-unit} and
-Listing~\ref{alg:he-plan-splits}).
+The exhaustive test covers one wallet paying two amounts and two plans
+open at once. With amounts of up to 2 units it sees little rounding. So
+\pdkernelname{} also pays one plan out at every count of 2 to 6
+milestones, with at least one milestone not done, for every bounty from 1
+to 40 units. That is 600 payouts by each ledger
+(Figure~\ref{fig:he-odd-unit} and Listing~\ref{alg:he-plan-splits}).
 
 \input{figures/fig-he-odd-unit}
 
 \pdlistingroom{16}
 \pdrun[caption={One plan paid out 600 ways by each
-keeper.},label={alg:he-plan-splits}]{splits}
+ledger.},label={alg:he-plan-splits}]{splits}
 
-A payout comes out whole only when the milestones divide the bounty times
+A payout loses no unit only when the milestones divide the bounty times
 the count done, which is why each row of the figure has stripes of its own
-width. No bounty up to 40 is clear in every row. The kernel's keeper lost
-no unit in any of the 600. Exercise~\ref{ex:he-plan-floors} asks for the
-proof that two shares rounded by themselves lose one unit of an amount or
-none.
+width. No bounty up to 40 is paid out exactly in every row. The kernel's
+ledger lost no unit in any of the 600. Exercise~\ref{ex:he-plan-floors}
+asks for the proof that two shares rounded separately lose one unit of an
+amount or none.
 
 \paragraph{Any numbers.}
-The walk stops at amounts of 2 units and the sweep at 40. Kani lifts the
-bound (\weld{anchor:sec:correct}{Kani}): it compiles the core's own
-functions and asks a solver about every input at once. Every wallet and
-every amount is 64 bits that the solver chooses, and so is each count.
+The exhaustive test stops at amounts of 2 units and the 600 payouts stop
+at 40. Kani removes the bound (\weld{anchor:sec:correct}{Kani}): it
+compiles the core's own functions and has a solver consider every input
+at once. Every wallet and every amount is 64 bits that the solver chooses,
+and so is each count.
 
-One line stands in the way. \texttt{share} multiplies and divides, and
-Kani's solver reasons one bit at a time, which is slow at both. With the
-real \texttt{share}, one split took it three minutes for amounts of 16
-bits, and a settlement with amounts of 32 bits was stopped after ten. So
-the proof is in two parts. The harness on a settlement does not run
-\texttt{share}. It runs \texttt{some\_share} in its place, a function
-that returns any number at all that is no more than the amount, when the
-count is one a plan can have. That is everything a settlement uses of a
-share. A second harness then asks the real \texttt{share} whether it
-keeps that promise, for numbers small enough for the solver
+One line is a problem. \texttt{share} multiplies and divides, and Kani's
+solver works bit by bit, which is slow for both. With the real
+\texttt{share}, one split took it three minutes for amounts of 16 bits,
+and a settlement with amounts of 32 bits was stopped after ten. So the
+proof is in two parts. The harness on a settlement does not run
+\texttt{share}. It runs the stub \texttt{any\_share} instead, a function
+that returns any number no greater than the amount, when the count is
+valid. That is the only property of a share that a settlement depends on.
+A second harness then checks that the real \texttt{share} has that
+property, for numbers small enough for the solver
 (Listing~\ref{alg:he-plan-kani-settle}).
 
 \pdlistingroom{33}
-\pdexcerpt[caption={A settlement as a Kani harness, and what the harness
-is given in place of
+\pdexcerpt[caption={A settlement as a Kani harness, and the stub it uses
+in place of
 \texttt{share}.},label={alg:he-plan-kani-settle}]{ch06-kani-settle}
 
-The second line of the listing makes the swap. The harness then says what
-each side can gain. The commons takes no more than the bond and the
-requester has back no more than the bounty, and what those two do not get
-is exactly the provider's gain. It speaks side by side because the solver
-was stopped after ten minutes on one equation with every gain in it, and
-takes 23 seconds this way.
+The second line of the listing substitutes the stub. The harness then
+checks what each side can gain. The commons receives no more than the bond
+and the requester gets back no more than the bounty, and whatever those
+two do not receive is exactly the provider's gain. It checks the gains
+separately because the solver was stopped after ten minutes on one
+equation that contained all of them, and takes 23 seconds this way.
 
-Kani's verdicts are in Listing~\ref{alg:he-plan-kani}, and the fourth is
-the other part. It runs the real \texttt{share}, for amounts and counts of
-8 bits, and finds that a share is no more than the amount. So the tool has
-checked two things. For any wallets and amounts of 64 bits, a settlement
-pays out what was reserved, if a share is no more than the amount. For
-amounts and counts up to 255, a share is no more than the amount. Past 255
-that fact rests on the sentence of arithmetic in the fix above, and on no
-tool. The last verdict is a control: it puts two shares rounded by
-themselves to the same question, and fails as it must.
+Kani's results are in Listing~\ref{alg:he-plan-kani}, and the fourth is
+the second part. It runs the real \texttt{share}, for amounts and counts
+of 8 bits, and finds that a share is no more than the amount. So the tool
+has checked two things. For any wallets and amounts of 64 bits, a
+settlement pays out what was reserved, provided a share is no more than
+the amount. For amounts and counts up to 255, a share is no more than the
+amount. Past 255 that property rests on the arithmetic argument in the fix
+above, and no tool checked it. The last result is a control: it asserts
+that two shares rounded separately add up to the amount, which is false,
+and Kani reports the failure.
 
 \pdlistingroom{11}
 \pdrunlines[caption={Kani~0.68 on the core's rules for a
 plan.},label={alg:he-plan-kani}]{kani-plans}{1-11}{1\textendash 11}
 
 \paragraph{Each guard removed.}
-This build has five guards, and the kernel has a build with each one taken
-out. The walk is run on each (Listing~\ref{alg:he-plan-guards}).
+This build has five guards, and the kernel has a build with each one
+removed. The exhaustive test is run on each
+(Listing~\ref{alg:he-plan-guards}).
 
-\pdlistingroom{17}
-\pdrun[caption={The walk again, on five builds of the core with one guard
-removed from each.},label={alg:he-plan-guards}]{plans-guards}
+\pdlistingroom{18}
+\pdrun[caption={The exhaustive test again, on five builds of the core with
+one guard removed from each.},label={alg:he-plan-guards}]{plans-guards}
 
-Every build goes wrong in the walk, and every build fails some harness
-under Kani (Listing~\ref{alg:he-plan-kani-guards}). The last row is Design
-Invariant~\ref{prop:nospawn}, as far as a build that starts no worker can
-take it: an open plan has a bond.
+The exhaustive test finds a fault in every build, and every build fails at
+least one harness under Kani (Listing~\ref{alg:he-plan-kani-guards}). The
+last row is Design Invariant~\ref{prop:nospawn}, as far as a build that
+starts no worker can check it: an open plan has a bond.
 
 \pdlistingroom{15}
 \pdrunlines[caption={The harnesses again, on the same five
 builds.},label={alg:he-plan-kani-guards}]{kani-plans}{1,12-25}{1 and 12\textendash 25}
 
-The first row of Listing~\ref{alg:he-plan-guards} repays a second look.
-Without \texttt{one\_wallet} the core treats one wallet as two. It debits
-each for its own amount and answers with two balances, and the kernel
-keeps the one it is handed second. No wallet goes below nothing. The
-bounty is in escrow and still in the wallet, and 1,596 states hold more
-units than were deposited. That is more than the 636 wrong moves, because
-a plan the wallet does cover is booked wrongly too. The first try showed
-this fault as a debt, and this build shows it as units from nowhere.
-\pdscope{The walk covers 2 principals and 2 plans with amounts of up to 2
-units, within the bounds that Listing~\ref{alg:he-plan-states} prints, and
-it holds each keeper to rules written by the same hand as the core. The
-sweep covers one plan, bounties of 1 to 40 units and 2 to 6 milestones.
-The harnesses cover one move from books that add up. For numbers past 255
-they take it as given that a share is no more than the amount.}
+The first row of Listing~\ref{alg:he-plan-guards} needs an explanation.
+Without \texttt{same\_wallet} the core treats one wallet as two. It debits
+each for its own amount and returns two balances, and the kernel stores
+the second one. No wallet goes negative. The bounty is in escrow and still
+in the wallet, and 1,596 states hold more units than were deposited. That
+is more than the 636 wrongly accepted operations, because a plan the
+wallet does cover is also recorded wrongly. The first ledger showed this
+fault as a negative wallet, and this build shows it as created units.
+\pdscope{The exhaustive test covers 2 principals and 2 plans with amounts
+of up to 2 units, within the bounds that Listing~\ref{alg:he-plan-states}
+prints, and it compares each ledger with a reference model written by the
+same author as the core. The 600 payouts cover one plan, bounties of 1 to
+40 units and 2 to 6 milestones. The harnesses cover one operation from a
+consistent state. For numbers past 255 they assume that a share is no
+more than the amount.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
-Nobody signs. The ceremony has both sides sign one plan, and has the
-daemon sign a receipt for the worker. This build is the transaction
-between those. Whoever reaches the keeper can open a plan between two
-principals.
+The plan is not signed. The ceremony has both sides sign one plan, and has
+the daemon sign a receipt for the worker. This build is only the
+transaction between those two steps. Any caller that reaches the ledger
+can open a plan between two principals.
 
-Nobody is asked who counts. A payout takes its count of milestones from
-whoever asks, and a count of none forfeits the whole bond. The oracle of
+The caller that counts milestones is not authenticated. A payout uses the
+count it is given, and a count of 0 forfeits the whole bond. The oracle of
 Table~\ref{tab:settlement} is not built, and neither is the hold for a
 dispute.
 
-Every milestone weighs the same, and a plan has one requester and one
+Every milestone has the same weight, and a plan has one requester and one
 provider. The lease and the licence of \S\ref{sec:three-on-one} would be
-more entries in the same escrow, and they are not here.
+more entries in the same escrow, and they are not built.
 
-The books live in the keeper's memory, as Chapter~0's number does.
-\pdchapref{bonded}{The Bonded Commons} builds a project's funds on the
-same footing, and the two sets of books are not yet joined.
+The state is held in the ledger's memory, as Chapter~0's number is.
+\pdchapref{bonded}{The Bonded Commons} builds a project's funds the same
+way, and the two sets of accounts are not yet connected.
 \end{pdboundary}

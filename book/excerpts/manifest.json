@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "f5335a74e4e8f816ae2b54a3dfe1881a678b1cc1",
+  "commit": "7a694a096e16b0aee4dac23d0ce347a3b0dbd8e5",
   "scan": "harbord",
   "excerpts": [
     {
@@ -616,22 +616,13 @@
       "sha256": "f26667ff9ecad7dc1d4e62aadc5f79bb8d9b0cae3938779ee2e3c3e4de76b6df"
     },
     {
-      "name": "ch06-apiece",
-      "path": "harbord/src/naive/apiece.ts",
-      "firstLine": 60,
-      "lastLine": 84,
-      "lines": 25,
-      "language": "TypeScript",
-      "sha256": "a2d1b7add75cb4163f6a4bee681e4eee81fb08a604986d4e271c06a7c2c8abe6"
-    },
-    {
       "name": "ch06-kani-settle",
       "path": "harbord/core/src/plans/proofs.rs",
-      "firstLine": 107,
-      "lastLine": 139,
+      "firstLine": 108,
+      "lastLine": 140,
       "lines": 33,
       "language": "Rust",
-      "sha256": "6f92919820abbd90af4f46219cb258a86e91e3b3391e91dcfb573cbc2148cbc9"
+      "sha256": "ecb4dc08a1550a235e113cafabf4a02e5f391f675aa5e468a14206e88e88eced"
     },
     {
       "name": "ch06-reserve",
@@ -640,160 +631,169 @@
       "lastLine": 141,
       "lines": 41,
       "language": "Rust",
-      "sha256": "8f3c787f1412d8315b6ab0c25b9a8b4a54a0306e284c4a3059017862c02cfabb"
+      "sha256": "bc8399eb7df049fc255c9923c9d72f6b88923f09b7555dc5a988b146741b8e4a"
+    },
+    {
+      "name": "ch06-separate",
+      "path": "harbord/src/naive/separate-ledger.ts",
+      "firstLine": 59,
+      "lastLine": 83,
+      "lines": 25,
+      "language": "TypeScript",
+      "sha256": "5da25b6cafc64bc0b8c5c543b58e7fcb515249fd28e3c446d8f1459c3ee8482c"
     },
     {
       "name": "ch06-settle",
       "path": "harbord/core/src/plans.rs",
-      "firstLine": 164,
-      "lastLine": 193,
+      "firstLine": 163,
+      "lastLine": 192,
       "lines": 30,
       "language": "Rust",
-      "sha256": "d6e76846ee13babde454411913f4958dba34108bb948b69bb8d240d96857fe40"
+      "sha256": "63c3dc1aed7a4e27563920aedaf8ee25042f46d3f07f382ae0ee5a450558f78c"
     },
     {
       "name": "ch06-split",
       "path": "harbord/core/src/plans.rs",
-      "firstLine": 197,
-      "lastLine": 217,
+      "firstLine": 196,
+      "lastLine": 216,
       "lines": 21,
       "language": "Rust",
-      "sha256": "d72644164c8e2ca977a4e38239412f090440802a9be392644521814104f0e276"
+      "sha256": "0e547233c3a557a3895fd794e748e732f1a08b976044a1e092978c3fcf37b302"
     },
     {
-      "name": "ch07-accounts",
-      "path": "harbord/src/bonds/accounts.ts",
+      "name": "ch07-check-then-post",
+      "path": "harbord/src/bonds/posts.ts",
+      "firstLine": 19,
+      "lastLine": 27,
+      "lines": 9,
+      "language": "TypeScript",
+      "sha256": "353cb1ae000be7d61e0973c542ce614ceab7696fcbd25ce6ba33b23b13290d9f"
+    },
+    {
+      "name": "ch07-core-ledger",
+      "path": "harbord/src/bonds/core-ledger.ts",
       "firstLine": 38,
       "lastLine": 60,
       "lines": 23,
       "language": "TypeScript",
-      "sha256": "84581958d14900d64503665dfbc0a6b58e8de2d495bf78480de0c22a9381cc47"
-    },
-    {
-      "name": "ch07-bidder",
-      "path": "harbord/src/bonds/posts.ts",
-      "firstLine": 18,
-      "lastLine": 24,
-      "lines": 7,
-      "language": "TypeScript",
-      "sha256": "928a0c9a19dbdde06fbd43311f1162ea0a568b4599539af5fa2baa7b2c7d3468"
+      "sha256": "fd25f209d1ba7795d651ff2f740862133d1d4931746c9f2b4630477a06864b02"
     },
     {
       "name": "ch07-covered",
       "path": "harbord/core/src/bonds.rs",
-      "firstLine": 148,
-      "lastLine": 158,
+      "firstLine": 152,
+      "lastLine": 162,
       "lines": 11,
       "language": "Rust",
-      "sha256": "cd14b334e5887a798aad21629a634628b8505f580f52931a0128ff7a9409a285"
+      "sha256": "974b55b98baced32081d614f9ed7dc0f7446b64d4ba8cb4dca3f3e0adcaf0e4f"
     },
     {
-      "name": "ch07-dollars",
-      "path": "harbord/src/naive/dollars.ts",
+      "name": "ch07-float",
+      "path": "harbord/src/naive/ledgers.ts",
       "firstLine": 48,
       "lastLine": 61,
       "lines": 14,
       "language": "TypeScript",
-      "sha256": "eea76b935a8363282367e23224a5a5560cc0535291118d010326e1b46126eedb"
+      "sha256": "abcb7bf6a639e7f1fcbec213c369b0809156aae4f74369dd573ab0bec180f94a"
     },
     {
       "name": "ch07-funds",
       "path": "harbord/core/src/bonds.rs",
-      "firstLine": 37,
-      "lastLine": 52,
+      "firstLine": 36,
+      "lastLine": 51,
       "lines": 16,
       "language": "Rust",
-      "sha256": "e9158eb0e25f8eddb15c777d6b699acbf3f21bd16f776604bbf60ea6bbb0eec0"
+      "sha256": "ead32742b9b17c4c244ad2e0cfcd774c14111640ecc5b4141ba581b4dbdbed29"
     },
     {
       "name": "ch07-held",
       "path": "harbord/core/src/bonds.rs",
-      "firstLine": 200,
-      "lastLine": 212,
+      "firstLine": 207,
+      "lastLine": 219,
       "lines": 13,
       "language": "Rust",
-      "sha256": "7f5dd597cebf4056df816e1871ef2008f25ee5b8cceeced1e6b4815ee285b628"
+      "sha256": "abe98480af89b2a6ecc851cae813a0e1fcb6ff88d7ec02d1bd2dfb0875fe5f8c"
     },
     {
       "name": "ch07-kani-step",
       "path": "harbord/core/src/bonds/proofs.rs",
-      "firstLine": 89,
-      "lastLine": 109,
+      "firstLine": 94,
+      "lastLine": 114,
       "lines": 21,
       "language": "Rust",
-      "sha256": "0d3679e266420e08750b6b4bb181d3f20cc227a5820ee64c491a3807a39426c3"
+      "sha256": "47a3d45f087d36662180fc7cfff7ca9124b0b9b86caae302bd5e81ec691079ca"
     },
     {
       "name": "ch07-post",
       "path": "harbord/core/src/bonds.rs",
-      "firstLine": 126,
-      "lastLine": 144,
-      "lines": 19,
+      "firstLine": 127,
+      "lastLine": 148,
+      "lines": 22,
       "language": "Rust",
-      "sha256": "4301c3c03c4f91ce618cf8a139337481177547cb73ad05a8c75eebd2b8a3acf3"
+      "sha256": "1ddca09c18309eb4512e1b12477207d17584197e7547720f5c7a90a9520c4fbb"
     },
     {
       "name": "ch07-settle",
       "path": "harbord/core/src/bonds.rs",
-      "firstLine": 176,
-      "lastLine": 196,
+      "firstLine": 183,
+      "lastLine": 203,
       "lines": 21,
       "language": "Rust",
-      "sha256": "1bf195df7e649850fb0d7dfcc3d020d501e874f721b3bbaeb73946ff1a26453d"
+      "sha256": "b0ce50cad27107e10721cda53bb085e282f78e0990d5aa51402076424162c506"
     },
     {
-      "name": "ch07b-apart",
-      "path": "harbord/src/naive/apart.ts",
-      "firstLine": 64,
-      "lastLine": 82,
-      "lines": 19,
-      "language": "TypeScript",
-      "sha256": "0deb5fb431624f04f37999a9d84a32f8664a1d067c8b385c037eaf6682f551ec"
-    },
-    {
-      "name": "ch07b-at-stake",
+      "name": "ch07b-bond-held",
       "path": "harbord/core/src/stakes.rs",
-      "firstLine": 151,
+      "firstLine": 153,
       "lastLine": 171,
-      "lines": 21,
-      "language": "Rust",
-      "sha256": "70b894ffed3d2494a8efd3a5d4ee5ce5cafc68d3b29f69cff14442ea4f2662ce"
-    },
-    {
-      "name": "ch07b-back",
-      "path": "harbord/core/src/stakes.rs",
-      "firstLine": 73,
-      "lastLine": 99,
-      "lines": 27,
-      "language": "Rust",
-      "sha256": "b9c4fc579e64f9202f3087ad65ef234c9245e683228d6667a115ede3a9df6793"
-    },
-    {
-      "name": "ch07b-free",
-      "path": "harbord/core/src/stakes.rs",
-      "firstLine": 107,
-      "lastLine": 125,
       "lines": 19,
       "language": "Rust",
-      "sha256": "29dec959b00df088ebc8faa38c2d264a05686d9de063a2e077f94faa30c2fd2b"
+      "sha256": "c6480e278c76c7747f5308eb13d1bbf19ed1b927a669ab43497001978e80d912"
     },
     {
       "name": "ch07b-kani-step",
       "path": "harbord/core/src/stakes/proofs.rs",
-      "firstLine": 98,
-      "lastLine": 124,
+      "firstLine": 99,
+      "lastLine": 125,
       "lines": 27,
       "language": "Rust",
-      "sha256": "2c815ffcc4af21051fd63fa7dab5ef5603ccf7ae58884971dbb51474a9affda9"
+      "sha256": "8a2785c13495bf105da59bd74224c91933b32548a2046d4b46e8b26279077707"
     },
     {
-      "name": "ch07b-loose",
+      "name": "ch07b-not-staked",
       "path": "harbord/core/src/stakes.rs",
-      "firstLine": 129,
-      "lastLine": 147,
+      "firstLine": 131,
+      "lastLine": 149,
       "lines": 19,
       "language": "Rust",
-      "sha256": "004d34f220274add7674454e3038976783380e64e8fc25b9e37004f82f0e0301"
+      "sha256": "02a0bc9244a97fa8fcacee4345ef27db5927771a320b97521d9b45824dab6526"
+    },
+    {
+      "name": "ch07b-post-for-claim",
+      "path": "harbord/core/src/stakes.rs",
+      "firstLine": 75,
+      "lastLine": 101,
+      "lines": 27,
+      "language": "Rust",
+      "sha256": "61cdf4c4ba7e40407684eaf350060ff680b44f134f8bbb4878e4d1828b927f7c"
+    },
+    {
+      "name": "ch07b-refund-on-release",
+      "path": "harbord/core/src/stakes.rs",
+      "firstLine": 109,
+      "lastLine": 127,
+      "lines": 19,
+      "language": "Rust",
+      "sha256": "5e3ce7ff85bb9d2de73825cf2deed0a40d593a8d62ded5214df425f6bc019232"
+    },
+    {
+      "name": "ch07b-separate",
+      "path": "harbord/src/naive/separate-harbor.ts",
+      "firstLine": 63,
+      "lastLine": 82,
+      "lines": 20,
+      "language": "TypeScript",
+      "sha256": "ce9c49f55c6c4fd955eaab83f08c1e6a5b04823d02ca59116bcb40ece22699e3"
     },
     {
       "name": "ch07b-stake",
@@ -802,7 +802,7 @@
       "lastLine": 31,
       "lines": 7,
       "language": "Rust",
-      "sha256": "362d07700c2b907cb2f967162b6656e52c2326aca5031589a33178e5f52b9bc6"
+      "sha256": "5813af758e29fa5a923223ffc4bf17f3132a19a3e9d3c716b3fcd5e4415bf15c"
     }
   ],
   "sessions": [
@@ -817,18 +817,6 @@
       "path": "harbord/sessions/accounts.txt",
       "lines": 22,
       "sha256": "402498df5481119ac536fe4c74e1e6bc6894230ae426b8451d9d9fe442d3d396"
-    },
-    {
-      "name": "after-release-apart",
-      "path": "harbord/sessions/after-release-apart.txt",
-      "lines": 17,
-      "sha256": "d71a29d72a5556f8fc227c1f5ad85e3d4b3004b2112f1543d34d4e20b44e6c74"
-    },
-    {
-      "name": "after-release-core",
-      "path": "harbord/sessions/after-release-core.txt",
-      "lines": 17,
-      "sha256": "49dca27d68467b41dc45b6b1327f4696275f9b1e9dd57e400b32d780e6892e2c"
     },
     {
       "name": "borrowed-core",
@@ -915,6 +903,18 @@
       "sha256": "8ce90dffb7b1e6bdd90576e90062c020d1a53a3c885975116ee09da2b970d78a"
     },
     {
+      "name": "early-refund-core",
+      "path": "harbord/sessions/early-refund-core.txt",
+      "lines": 21,
+      "sha256": "750588a1097eb274485ff6b5f0de6eef616c9a116f7f35d47cf06416305d6651"
+    },
+    {
+      "name": "early-refund-separate",
+      "path": "harbord/sessions/early-refund-separate.txt",
+      "lines": 17,
+      "sha256": "87b7380c305e1f21101c583395832d7aee75f722b991f750496452b3f07de0c2"
+    },
+    {
       "name": "escalation-compare-root",
       "path": "harbord/sessions/escalation-compare-root.txt",
       "lines": 19,
@@ -933,16 +933,10 @@
       "sha256": "f2b619c4f9ec7c743853f15dfae452d27e55b1450e7da0d8fff1922290b6d588"
     },
     {
-      "name": "exact-change-core",
-      "path": "harbord/sessions/exact-change-core.txt",
-      "lines": 9,
-      "sha256": "5a669c4d3a761646183ece5bbfbf6d718bdfef0dc53e12382e3b4c39c8bab93c"
-    },
-    {
-      "name": "exact-change-dollars",
-      "path": "harbord/sessions/exact-change-dollars.txt",
-      "lines": 14,
-      "sha256": "bdf852f58ad111dda60d21521113d85a16a6531c6cf78a43043de77a6928014c"
+      "name": "expired-claim-core",
+      "path": "harbord/sessions/expired-claim-core.txt",
+      "lines": 21,
+      "sha256": "b9fa8627e8b10103a547d2f9ad562ea95f2540bbc22dd6b980f3a9007eb65c2a"
     },
     {
       "name": "fits",
@@ -961,18 +955,6 @@
       "path": "harbord/sessions/forgotten-core.txt",
       "lines": 21,
       "sha256": "eed17ce766b02f916e7272b15ad15172b4a4eaf64f2d90866668660de4cf3a93"
-    },
-    {
-      "name": "free-hold-apart",
-      "path": "harbord/sessions/free-hold-apart.txt",
-      "lines": 17,
-      "sha256": "c197f0f6afa5dc9f239bea6bb9958b77a90480158080958de6f30850685a068f"
-    },
-    {
-      "name": "free-hold-core",
-      "path": "harbord/sessions/free-hold-core.txt",
-      "lines": 21,
-      "sha256": "358340342d7106dd441b8151e3f363d5265410db166d2a5eb58121fcab49017f"
     },
     {
       "name": "gossip-cut",
@@ -1056,7 +1038,7 @@
       "name": "kani-bonds",
       "path": "harbord/sessions/kani-bonds.txt",
       "lines": 23,
-      "sha256": "fbc78a900e747093078a53e3567242ba6b7f27ad512d3310927351c8f6b27b53"
+      "sha256": "8893cb64c8958988a5245e72fce24d409a6f68852812b44cd3b2594c46d03fff"
     },
     {
       "name": "kani-patterns",
@@ -1074,7 +1056,7 @@
       "name": "kani-plans",
       "path": "harbord/sessions/kani-plans.txt",
       "lines": 25,
-      "sha256": "957bf8c2bbadfe9ead7dbd72555d1da1428324508e0ced1b14390493d71a4b1e"
+      "sha256": "c454b2dcc3253c3a8280647e4e63a50bf0f3475ff0d3c0e08c261506e6854843"
     },
     {
       "name": "kani-release",
@@ -1086,13 +1068,25 @@
       "name": "kani-stakes",
       "path": "harbord/sessions/kani-stakes.txt",
       "lines": 17,
-      "sha256": "1d6f1292a4ebdf7e272eaf148603b627fd09f049d09e5a2c654d896e5f931539"
+      "sha256": "afaa996e47da3d81e477dc7ff2504236fb27c1be019361fa6ae975c8b9fe3997"
     },
     {
       "name": "kani-zoom",
       "path": "harbord/sessions/kani-zoom.txt",
       "lines": 22,
       "sha256": "b0902a10fc23a30eb08db162ea759244327e7b791ccc0f584a30cd9cf5cbe224"
+    },
+    {
+      "name": "late-write-core",
+      "path": "harbord/sessions/late-write-core.txt",
+      "lines": 17,
+      "sha256": "bd16007402ae8db3c58d011c87ea059d417df3031f0a728dedd5f1e19daadb72"
+    },
+    {
+      "name": "late-write-separate",
+      "path": "harbord/sessions/late-write-separate.txt",
+      "lines": 16,
+      "sha256": "0486cfc7d5548af3985e9bcbd800ce328c8ca7891cf3e1075b37043197afc543"
     },
     {
       "name": "launder-core",
@@ -1251,16 +1245,16 @@
       "sha256": "149c7b553de6d11ac55a2c31c1617acefa34ebd752d1f901e00cef48e8309282"
     },
     {
-      "name": "one-wallet-apiece",
-      "path": "harbord/sessions/one-wallet-apiece.txt",
-      "lines": 11,
-      "sha256": "4db6df9a49445f09896c35226aa9d508b441bdbdebb663b423df36b34144d3d8"
-    },
-    {
       "name": "one-wallet-core",
       "path": "harbord/sessions/one-wallet-core.txt",
       "lines": 11,
-      "sha256": "4398a5783e1d8189795fcc08681f50bcb33c8dd0eda9b3c2ca1667cafad9662a"
+      "sha256": "8f3482cfbd091f7a4ebd6ed2bb2031ad816a29154ecbfabc4caa62766cf06294"
+    },
+    {
+      "name": "one-wallet-separate",
+      "path": "harbord/sessions/one-wallet-separate.txt",
+      "lines": 10,
+      "sha256": "e078a2c7439bf032a2808b6b451b8ff1ba2beeb50fadb26f26f5cf2f14d593e8"
     },
     {
       "name": "orders-blind-put",
@@ -1293,22 +1287,10 @@
       "sha256": "acd10641649614d5738d8288a992bef694b4d6645c275be4744086f8e7b1cbf1"
     },
     {
-      "name": "paid-twice-core",
-      "path": "harbord/sessions/paid-twice-core.txt",
-      "lines": 16,
-      "sha256": "a5cd701aad7c8079ed92887affea36bd0653db179d288a0549e5fd974864c720"
-    },
-    {
-      "name": "paid-twice-settle-twice",
-      "path": "harbord/sessions/paid-twice-settle-twice.txt",
-      "lines": 17,
-      "sha256": "495197672c9fa907e8e17eaece7fe7c681961f2e6432e1bc5e7ee399ceb7e38a"
-    },
-    {
-      "name": "partial-apiece",
-      "path": "harbord/sessions/partial-apiece.txt",
+      "name": "partial-separate",
+      "path": "harbord/sessions/partial-separate.txt",
       "lines": 15,
-      "sha256": "0b5d98755ec4cbd2a4c3699ad997a78d6259fbb531c371c350fdb9eadbd0dc52"
+      "sha256": "c0ba3225b4686b91532e7cd409301460e955956580d3b95839c60dc78e724fd3"
     },
     {
       "name": "pile-core",
@@ -1319,32 +1301,32 @@
     {
       "name": "plans-guards",
       "path": "harbord/sessions/plans-guards.txt",
-      "lines": 17,
-      "sha256": "8f7a749411f557c85cc9b49ea24b2cd7cdb2e410f71a630e4e82680ac07ac75f"
+      "lines": 18,
+      "sha256": "70b3de7254a74fb75b5393c6262295cd1969a0b73ac636bca26c97c0424afdff"
     },
     {
       "name": "plans",
       "path": "harbord/sessions/plans.txt",
-      "lines": 18,
-      "sha256": "a2368a91f3b78f2a24e06946b79f1aa4742937c1be8443bf5bebbb693be63fa3"
+      "lines": 19,
+      "sha256": "283c88f0e86014c1fdf2107c702dbf190021ffebf0903b3dfa12e0f63064e5ec"
     },
     {
       "name": "posts-overdraw",
       "path": "harbord/sessions/posts-overdraw.txt",
       "lines": 9,
-      "sha256": "15dd594f4dd513c5851d0f42a7ab1215a3f71fe3dc11ca078ad8fd870f27e323"
+      "sha256": "9ef96c2086f6cf8f6afd9754a4f53d73f61f65926d0eaf71ca0f393873934e93"
     },
     {
-      "name": "posts-trusting",
-      "path": "harbord/sessions/posts-trusting.txt",
+      "name": "posts-unchecked",
+      "path": "harbord/sessions/posts-unchecked.txt",
       "lines": 12,
-      "sha256": "71167ad55b9dd6bdc45a6823e6f86dfda9523478e76d81901d6e328f24e9d6c4"
+      "sha256": "22778c97c6264817b401053e7fe105a9a92b8c178db7c94887b177f67285bf64"
     },
     {
       "name": "posts",
       "path": "harbord/sessions/posts.txt",
-      "lines": 9,
-      "sha256": "edbeabda89055bfadc983c852a182da2a54754e3700cdc6cc1937701a63396cd"
+      "lines": 8,
+      "sha256": "c88009952c0f14d850737f49ad2b1c671056258a10f097a91a497f5e1f1a1178"
     },
     {
       "name": "promise-demo",
@@ -1357,6 +1339,18 @@
       "path": "harbord/sessions/proofs.txt",
       "lines": 18,
       "sha256": "eefa96a786ea0f79c4c51c7a8e8cca872fd3b349a9d815ada4edfe34a8ba4575"
+    },
+    {
+      "name": "refund-twice-core",
+      "path": "harbord/sessions/refund-twice-core.txt",
+      "lines": 16,
+      "sha256": "85aed46f200d02794f94f518595e9643485c7b7d63d188290b0435b1d5b7c87c"
+    },
+    {
+      "name": "refund-twice-settle-twice",
+      "path": "harbord/sessions/refund-twice-settle-twice.txt",
+      "lines": 17,
+      "sha256": "463fb698ec065bd8c27f3650721588c79d80bf20ea90f0a5ea0020d448a447c4"
     },
     {
       "name": "replaced-core",
@@ -1428,7 +1422,7 @@
       "name": "settlement-core",
       "path": "harbord/sessions/settlement-core.txt",
       "lines": 10,
-      "sha256": "adf7541f26cb9a5c38efc964a80cec98f144199cd8df97a3e61dab032aff3ef5"
+      "sha256": "8421b35bc0af19cca5c4075739f4537feb4f069de255f0a7b2314388976d576a"
     },
     {
       "name": "showings-core",
@@ -1452,13 +1446,13 @@
       "name": "splits-each",
       "path": "harbord/sessions/splits-each.txt",
       "lines": 608,
-      "sha256": "3feffae0ddfbb43daa2899aee26c04095d70fc40189eab80ca30e824d30053ab"
+      "sha256": "64a5e5c616965417619b7bafbf9dd495cd21194f7108a7ec879b5900a7fa55e7"
     },
     {
       "name": "splits",
       "path": "harbord/sessions/splits.txt",
       "lines": 16,
-      "sha256": "29b105de71354134cb542201930aef845683bfa440330c70523d85160fa9a070"
+      "sha256": "f27098fdda5b6f89f9d29b876aa144d38b9577b8a148dbd41a5d6d7323e10ab0"
     },
     {
       "name": "spread",
@@ -1467,46 +1461,46 @@
       "sha256": "955e87c2f7d27555391f84d012527166e06c006c47603532840104c3a4182cf3"
     },
     {
-      "name": "stakes-each-apart",
-      "path": "harbord/sessions/stakes-each-apart.txt",
-      "lines": 21,
-      "sha256": "36da7e84d2d5796bd9ce21f05d6ae4f0627c475a927d0dbbfc2174ebc807c445"
+      "name": "stakes-each-separate",
+      "path": "harbord/sessions/stakes-each-separate.txt",
+      "lines": 23,
+      "sha256": "909de502928d6e749668cd05c3df3664254284eb2dd83d5d3a2133211acabf0d"
     },
     {
       "name": "stakes-each",
       "path": "harbord/sessions/stakes-each.txt",
-      "lines": 15,
-      "sha256": "9b3ce70243b68d52302bbf93d19f5910db90a18f5361194d6cca10ba21737de1"
+      "lines": 17,
+      "sha256": "4af8b165e40e3a78595fc876cc8109d16fb804ee7669bd937723bf1cdbc32303"
     },
     {
       "name": "stakes-guards",
       "path": "harbord/sessions/stakes-guards.txt",
       "lines": 10,
-      "sha256": "6ae1c920f577b2514014137169b40f1a1c32b7a7b2b607e37c3cff4181bc7971"
+      "sha256": "61e17c6aa03aa77b7bd8a01af75d70d44d87b381834db4ef0d7ff4a93843c8f1"
     },
     {
       "name": "stakes",
       "path": "harbord/sessions/stakes.txt",
-      "lines": 21,
-      "sha256": "bb2b0a612b00ca18997380fc4eb209e08bb4b102a57eadc6bf6cde31de8147bc"
+      "lines": 20,
+      "sha256": "87ce0305c33cf0e0bb8e34f4b72fca153b3cc008c6b31aa02d5d8ebad19b7676"
     },
     {
       "name": "states-each-overdraw",
       "path": "harbord/sessions/states-each-overdraw.txt",
       "lines": 244,
-      "sha256": "a76af3238512dedc7dcac20c3dd558487bbe6b224527ed9efa37fedbeacba63a"
+      "sha256": "630ffeb3708a4a9d02a53f49cbbcd02860bd91363e4dfd1567afe5afe2e9a2de"
     },
     {
       "name": "states-each",
       "path": "harbord/sessions/states-each.txt",
       "lines": 222,
-      "sha256": "6681c43ad93395896635f12bdb5619114b4b412dc32f4303b6a80f2757c42449"
+      "sha256": "f5fa5d52316a60ec344bbf6a2527ec40ae7a77d3b152f43c744ab550b8e3f79f"
     },
     {
       "name": "states",
       "path": "harbord/sessions/states.txt",
-      "lines": 16,
-      "sha256": "fc5d782810615a66443490cafa93eb4359a8e6ac5ee31655dc1613bc10c740e5"
+      "lines": 17,
+      "sha256": "0a1e8ee9644f00d9038c208496df8a653aea8f7f60e2cf1ad739c25e6d95c0f1"
     },
     {
       "name": "survival-blind",
@@ -1557,16 +1551,28 @@
       "sha256": "9e215665f3570f14b22d85880e1c494e87668b4c776f72f327cd9608cbb149af"
     },
     {
-      "name": "thirds-apiece",
-      "path": "harbord/sessions/thirds-apiece.txt",
-      "lines": 15,
-      "sha256": "c7cce40f43d27e941525efcf717f240a66ee93167913f6c6a1edbae2e6f78909"
-    },
-    {
       "name": "thirds-core",
       "path": "harbord/sessions/thirds-core.txt",
       "lines": 15,
       "sha256": "d2132733871cc0c8bd9d614714e501f7f94acad82cb9aa345fca226febe1224f"
+    },
+    {
+      "name": "thirds-separate",
+      "path": "harbord/sessions/thirds-separate.txt",
+      "lines": 14,
+      "sha256": "fdeae7844ee9a71458022c34963f4dae7f8bc21b62b03cda5516f25d571602e8"
+    },
+    {
+      "name": "thirty-cents-core",
+      "path": "harbord/sessions/thirty-cents-core.txt",
+      "lines": 9,
+      "sha256": "897531ba746baf03105606b3cf9dbbf1969e61e719efc141648fd8522de9a50c"
+    },
+    {
+      "name": "thirty-cents-float",
+      "path": "harbord/sessions/thirty-cents-float.txt",
+      "lines": 14,
+      "sha256": "5a3fe0e6f6e26767b739f088a3a118f6d00d3ca42d12410351247efc292b81de"
     },
     {
       "name": "timing-core",
@@ -1597,12 +1603,6 @@
       "path": "harbord/sessions/unheard-silent.txt",
       "lines": 30,
       "sha256": "c28637e0c0d6f1bdd3f7d205baba9c530e54e98edd028647d86af6c0584fd258"
-    },
-    {
-      "name": "walked-away-core",
-      "path": "harbord/sessions/walked-away-core.txt",
-      "lines": 20,
-      "sha256": "3b892136da62c6291feb52a22673efda0230bb35212bd1018a0183a14a355d5a"
     },
     {
       "name": "warrants-any-signer",
@@ -1672,7 +1672,7 @@
     "ch04": 144,
     "ch05": 148,
     "ch06": 150,
-    "ch07": 145,
-    "ch07b": 139
+    "ch07": 150,
+    "ch07b": 138
   }
 }

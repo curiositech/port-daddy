@@ -1,0 +1,19 @@
+/// The guard on a write: the grant's bond is held. Chapter 1's
+/// fence lets a holder that has released keep writing until
+/// someone else claims, because that write conflicts with no
+/// claim. On a harbor that requires a bond, it would be work
+/// with no bond in escrow.
+pub fn bond_held(
+    grant: &Grant,
+    stake: Option<&Stake>,
+    price: u64,
+) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-write-unstaked") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    let token = grant.token;
+    match stake_of(stake, token).filter(is_held) {
+        None if price > 0 => Err(Reason::NoStake { token }),
+        _ => Ok(()),
+    }
+}

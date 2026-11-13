@@ -1,0 +1,21 @@
+$ harbor scenario early-refund --design core
+scenario early-refund, design core: a worker claims a path, and
+  requests a refund of the bond while it holds the claim
+
+step 1   alice  top up 10 -> ok: wallet 10, escrow 0, pool 0
+step 2   wren   claim shop/checkout.ts
+                -> token 1, bond 1: wallet 4, escrow 6, pool 0
+step 3   wren   refund bond 1
+                -> refused: at-stake (bond 1 is staked on a claim
+                   (token 1), and is settled only when the claim
+                   is released)
+step 4   wren   claim shop/cart.ts
+                -> refused: short (the wallet holds 4, and the
+                   bond needs 6)
+step 5   wren   refund bond 2
+                -> refused: no-bond (there is no bond 2)
+step 6   heron  claim shop/checkout.ts
+                -> refused: held (held by wren until t=30)
+
+verdict: one claim is live, and its bond is held: 6 units in
+         escrow

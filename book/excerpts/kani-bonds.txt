@@ -1,23 +1,23 @@
 $ sh formal/bonds/run.sh
 a_bond_is_settled_once
   successful; its cover is satisfied
-a_post_that_does_not_look_is_caught
-  fails, as it must
-every_move_keeps_every_unit
+control_an_unchecked_post_is_caught
+  fails, as a control should
+every_operation_conserves_units
   successful; its 2 covers are satisfied
 two_bonds_cannot_overdraw_a_wallet
   successful; its cover is satisfied
-with one guard removed, the harnesses that fail
+the harnesses that fail when one guard is removed
 overdraw
-  every_move_keeps_every_unit
+  every_operation_conserves_units
   two_bonds_cannot_overdraw_a_wallet
 settle-twice
   a_bond_is_settled_once
 over-forfeit
   a_bond_is_settled_once
-  every_move_keeps_every_unit
+  every_operation_conserves_units
 no-ceiling
-  every_move_keeps_every_unit
+  every_operation_conserves_units
 unbacked
   a_bond_is_settled_once
-  every_move_keeps_every_unit
+  every_operation_conserves_units

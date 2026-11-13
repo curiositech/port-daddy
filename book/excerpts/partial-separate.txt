@@ -1,0 +1,15 @@
+$ harbor scenario partial --design separate
+scenario partial, design separate: the Book's settlement: a bounty
+  of 400 and a bond of 100, paid out at 2 milestones of 5
+
+step 1   bob    deposit 400
+                -> ok: bob 400, alice 0, escrow 0, commons 0
+step 2   alice  deposit 100
+                -> ok: bob 400, alice 100, escrow 0, commons 0
+step 3   both   open a plan: bob's bounty 400, alice's bond 100
+                -> plan 1: bob 0, alice 0, escrow 500, commons 0
+step 4   judge  pay out plan 1 at 2 of 5
+                -> paid: bob 240, alice 200, escrow 0, commons 60
+
+verdict: the 500 units deposited are all still held, and no wallet
+         is overdrawn

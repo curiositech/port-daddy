@@ -1,18 +1,19 @@
 $ harbor plans
-every state a keeper can reach: 2 principals, deposits of up to 2
-  units and 3 in all, a bounty and a bond of up to 2, 3 milestones
-  and 2 plans
+every reachable state of a plan ledger: 2 principals, deposits of
+  up to 2 units and 3 in all, a bounty and a bond of up to 2, 3
+  milestones and 2 plans
 
-design  states  moves  wrongly  payouts  units    wallets
-                         taken    short   lost  overdrawn
-apiece    6799  25776      650     6918   8560        682
-core      4213  20120        0        0      0          0
+design    states    ops   wrongly  payouts  units    wallets
+                         accepted    short   lost  overdrawn
+separate    6799  25776       650     6918   8560        682
+core        4213  20120         0        0      0          0
 
-moves: those the Book's rules allow, tried from every state
-wrongly taken: moves the rules refuse that the keeper made
+ops: operations the reference model allows, applied in every state
+wrongly accepted: operations the model refuses that the ledger
+  accepted
 payouts short: plans paid out with fewer units than they held
-units lost: the units those payouts left in nobody's hands
-wallets overdrawn: states the keeper came to with a wallet below
-  nothing
-the core refused no move the rules allow, and holds what they give
-  in every state
+units lost: the units missing after those payouts
+wallets overdrawn: states the ledger reached with a negative
+  wallet
+the core refused no operation the model allows, and its state
+  equals the model's in every state

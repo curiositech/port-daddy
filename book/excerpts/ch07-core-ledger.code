@@ -1,0 +1,23 @@
+/** Send one operation to the core, and store its result. */
+#decide(proposal: FundsProposal, id = 0): Outcome {
+  // The bond the operation names, if there is one with that id.
+  const bond = this.#bonds[id - 1];
+  const nextId = this.#bonds.length + 1;
+  const state = { bonds: { funds: this.#funds, bond, nextId } };
+  const answer = this.#core.decide(proposal, state, POLICY, 0);
+  if (answer.verdict === 'refuse') {
+    return refused(answer.reason);
+  }
+  const { funds, bond: changed } = answer.bonds;
+  this.#funds = funds;
+  if (changed !== null) this.#bonds[changed.id - 1] = changed;
+  return { ok: true, bond: changed };
+}
+
+post(amount: number): Outcome {
+  return this.#decide({ op: 'post', amount });
+}
+
+slash(id: number, forfeit: number): Outcome {
+  return this.#decide({ op: 'slash', id, forfeit }, id);
+}

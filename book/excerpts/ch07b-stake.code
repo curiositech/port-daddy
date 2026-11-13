@@ -1,7 +1,7 @@
-/// The bond that stands behind one grant of a path.
+/// The bond posted for one grant of a path.
 pub struct Stake {
     /// The grant's token.
     pub token: u64,
-    /// The bond, as the funds hold it now.
+    /// The bond, with its current status.
     pub bond: Bond,
 }

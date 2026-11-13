@@ -1,0 +1,12 @@
+$ harbor posts --design unchecked
+every order of two workers' turns, design unchecked; each posts a
+  bond of 6 from a wallet of 10
+
+heron heron wren  wren   -> wallet 4, escrow 6
+heron wren  heron wren   -> wallet -2, escrow 12  OVERDRAWN
+heron wren  wren  heron  -> wallet -2, escrow 12  OVERDRAWN
+wren  heron heron wren   -> wallet -2, escrow 12  OVERDRAWN
+wren  heron wren  heron  -> wallet -2, escrow 12  OVERDRAWN
+wren  wren  heron heron  -> wallet 4, escrow 6
+
+4 of 6 orders post both bonds

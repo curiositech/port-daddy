@@ -1,0 +1,19 @@
+/// Refund the bond of a grant that claims.rs has just
+/// released. A second release finds the bond settled, and
+/// changes nothing.
+pub fn refund_on_release(
+    grant: Grant,
+    stake: &Stake,
+    bonds: &Bonds,
+) -> Result<StakeUpdate, Reason> {
+    let (funds, bond) = (bonds.funds, Some(stake.bond));
+    let with_bond = Bonds {
+        bond,
+        ..bonds.clone()
+    };
+    let update = match stake.bond.status {
+        Status::Held => bonds::refund(&with_bond, stake.bond.id)?,
+        _ => BondsUpdate { funds, bond },
+    };
+    Ok(StakeUpdate { grant, update })
+}

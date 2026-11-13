@@ -1,0 +1,19 @@
+/// The guard on a refund or a slash requested directly: the
+/// bond is not the held bond of a grant. Such a bond is settled
+/// only by the release of its claim.
+pub fn not_staked(
+    stake: Option<&Stake>,
+    id: u64,
+) -> Result<(), Reason> {
+    if cfg!(feature = "mutant-refund-staked") {
+        return Ok(()); // MUTANT: guard removed.
+    }
+    let named = |stake: &&Stake| stake.bond.id == id;
+    match stake.filter(named).filter(is_held) {
+        Some(stake) => Err(Reason::AtStake {
+            id,
+            token: stake.token,
+        }),
+        None => Ok(()),
+    }
+}
