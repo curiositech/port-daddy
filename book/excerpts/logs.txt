@@ -1,0 +1,30 @@
+$ harbor logs
+every sequence of events for three logs and five signed roots. The
+  roots: one that acme signs for epoch 7, two different ones it
+  signs for epoch 8, one that beta signs for its own epoch 8, and
+  one that wren signs and that names acme. Any root may be
+  published to any log, any number of times and in any order. Logs
+  of the design core may also exchange the roots they hold, any
+  two at a time
+
+design     states  dropped  forged  accused  split  hidden
+latest      21952    20224       0        0  13824   13824
+separate     8000        0       0        0   4608    3840
+core         8000        0       0        0   4608       0
+
+dropped: states in which a log no longer holds a root it should:
+  the first to reach it for a harbor and an epoch, or a second
+  one, which it should hold as evidence
+forged: states in which a log holds a root that the harbor it
+  names did not sign
+accused: states in which a log holds evidence against a harbor for
+  an epoch, and two roots that harbor signed for it have not
+  reached the log
+split: states in which two logs hold different roots for one
+  harbor and epoch
+hidden: of those, the states in which the two logs would not both
+  hold evidence after an exchange. Logs that exchange nothing are
+  counted as they stand
+
+in every state, each log that asks the core holds exactly the
+  roots and the evidence that the reference model says it should

@@ -1,0 +1,8 @@
+/** Two logs exchange the roots they hold. Each publishes to
+ * itself what the other held when the exchange began, and
+ * checks it as it checks any root. */
+export function exchange(a: WitnessLog, b: WitnessLog): void {
+  const [fromA, fromB] = [a.held(), b.held()];
+  for (const root of fromB) a.publish(root);
+  for (const root of fromA) b.publish(root);
+}

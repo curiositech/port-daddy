@@ -1,0 +1,21 @@
+/// A signed root is published to a log. The log keeps the first
+/// root it is given for a harbor and an epoch.
+pub fn publish(
+    log: &Log,
+    new: &SignedRoot,
+) -> Result<Published, Reason> {
+    if !signed(new) {
+        return Err(Reason::RootNotSigned);
+    }
+    let mut log = log.clone();
+    let recorded = |old: &&SignedRoot| same_epoch(old, new);
+    let outcome = match log.roots.iter().find(recorded).cloned() {
+        None => {
+            log.roots.push(new.clone());
+            Outcome::Recorded
+        }
+        Some(old) if !differ(&old, new) => Outcome::Known,
+        Some(old) => second(&mut log, old, new),
+    };
+    Ok(Published { log, outcome })
+}

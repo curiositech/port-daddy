@@ -1,0 +1,17 @@
+/// The text a harbor signs: a JSON list of the word `root`, the
+/// harbor's key, the epoch and the root.
+fn text(root: &SignedRoot) -> String {
+    json!(["root", root.harbor, root.epoch, root.root])
+        .to_string()
+}
+
+/// Guard: a root is signed with the key of the harbor it names.
+fn signed(root: &SignedRoot) -> bool {
+    if cfg!(feature = "mutant-unsigned-root") {
+        return true; // MUTANT: guard removed.
+    }
+    let text = text(root);
+    TEXT.decode(&root.tag).is_ok_and(|tag| {
+        verifies(&root.harbor, text.as_bytes(), &tag)
+    })
+}

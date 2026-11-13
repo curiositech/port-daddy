@@ -1,0 +1,20 @@
+/// A second, different root for a harbor and an epoch. The log
+/// keeps the root it has, and holds the two as evidence.
+fn second(
+    log: &mut Log,
+    old: SignedRoot,
+    new: &SignedRoot,
+) -> Outcome {
+    if cfg!(feature = "mutant-replace-root") {
+        // MUTANT: the later root replaces the recorded one.
+        log.roots.retain(|root| *root != old);
+        log.roots.push(new.clone());
+        return Outcome::Recorded;
+    }
+    let held = |held: &Evidence| same_epoch(&held.first, new);
+    if !log.evidence.iter().any(held) {
+        let second = new.clone();
+        log.evidence.push(Evidence { first: old, second });
+    }
+    Outcome::Equivocation
+}

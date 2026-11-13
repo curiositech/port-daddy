@@ -1,0 +1,31 @@
+$ harbor logs --guards
+every sequence of events for two logs and five signed roots, on
+  the core with one guard removed. The roots: one that acme signs
+  for epoch 7, two different ones it signs for epoch 8, one that
+  beta signs for its own epoch 8, and one that wren signs and that
+  names acme. Any root may be published to any log, any number of
+  times and in any order, and the two logs may exchange the roots
+  they hold
+
+guard removed    states  dropped  forged  accused  hidden  pairs
+(none)              400        0       0        0       0      2
+unsigned-root      3136     1536    2736     1536       0      6
+replace-root        784      640       0        0     288      2
+one-signature       400        0       0        0       0      4
+any-harbor          400        0       0        0       0      6
+any-epoch           400        0       0        0       0      4
+same-root          6561     2592       0     5777       0      6
+
+dropped: states in which a log no longer holds a root it should:
+  the first to reach it for a harbor and an epoch, or a second
+  one, which it should hold as evidence
+forged: states in which a log holds a root that the harbor it
+  names did not sign
+accused: states in which a log holds evidence against a harbor for
+  an epoch, and two roots that harbor signed for it have not
+  reached the log
+hidden: states in which the two logs hold different roots for one
+  harbor and epoch, and would not both hold evidence after an
+  exchange
+pairs: of the 25 pairs of those roots, how many the core accepts
+  as evidence. Two pairs are evidence
