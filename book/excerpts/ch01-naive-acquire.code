@@ -15,8 +15,8 @@ export function acquire(
     return { ok: true, record };
   }
   if (held.expiresAt <= now) {
-    // The lease has run out, so anyone may break the lock.
-    // Breaking has a race of its own (two breakers can delete
+    // The lease has expired, so anyone may break the lock.
+    // Breaking has its own race (two breakers can delete
     // each other's fresh locks); the pause scenario needs only
     // one breaker, and the kernel removes the race by having a
     // single writer. One bounded retry, as in §1.5.2.

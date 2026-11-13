@@ -22,7 +22,7 @@ Phases 1 to 3 said what a verifier must do, and this section builds one. The
 code is \pdkernelname{}, the small kernel written for this book. It is not
 the daemon whose verifier the rest of this chapter describes.
 
-The section moves in the four beats of \weld{prereq:sec:prereq-build}{four beats}:
+The section has the same four parts as \weld{prereq:sec:prereq-build}{Naive}:
 \emph{Naive}, \emph{Break}, \emph{Fix} and \emph{Verify}. As there, a
 script cuts each listing from the kernel's source, and each run is a
 recording. The build stops where Phase~3 stops. Nothing below withdraws a
@@ -92,11 +92,12 @@ through.},label={alg:anchor-build-confusion-naive}]{confusion-naive}
 Wren tried the same card under different headers. The verifier refused the
 header that says \texttt{none}, and it refused the card she signed with her
 own key. It let the middle one through. That card's header says HS256, so
-\texttt{signed} computed a message authentication code over the card
-with the only key it holds, and compared the result with the card's tag. Wren had computed the same code with the same key. The key is the
-harbor's public key, which is published so that anyone can check a
-signature. As the secret of a message authentication code, a MAC for short,
-it is a secret that everyone has.
+\texttt{signed} computed a message authentication code over the card with the
+only key it holds, and compared the result with the card's tag. Wren had
+computed the same code with the same key. The key is the harbor's public key,
+which is published so that anyone can check a signature. As the secret of a
+message authentication code, a MAC for short, it is a secret that everyone
+has.
 
 Nothing in the cryptography failed. The header decided which check ran, and
 Wren wrote the header. This is the flaw recorded as
@@ -134,12 +135,12 @@ Alice holds two cards from the harbor, and both name her key. The second
 grants \texttt{read shop/checkout.ts} and nothing more. Under it she signs
 what Heron asks for, which is \texttt{write shop/checkout.ts}. That is not
 reckless of her. The code that hands a card on, \texttt{handOn} in the
-kernel's source, shortens the card's life and does not inspect its rights,
-on the understanding that the verifier refuses a card that grants more than
-the card it came from. The verifier does refuse it, under the narrow card. Heron then puts Alice's wide
-card above his. Her signature is as good there, and writing is within the
-wide card, so he is let through. A holder may well have several cards: one
-for standing work, and one cut down for a single task.
+kernel's source, shortens the card's life and does not inspect its rights, on
+the understanding that the verifier refuses a card that grants more than the
+card it came from. The verifier does refuse it, under the narrow card. Heron
+then puts Alice's wide card above his. Her signature is as good there, and
+writing is within the wide card, so he is let through. A holder may well have
+several cards: one for standing work, and one cut down for a single task.
 
 \subsubsection{Fix: one check, and each card against the card above it}
 

@@ -8,8 +8,8 @@ $ harbor survival --design blind --workload bursty
 # safe: jobs with no update lost yet; share: safe / jobs
 # low, high: the 95% Wilson interval for the chance a job is safe
 #   this long
-# exact: that chance, worked out from the workload and every order
-# bound: the Book's survival bound, taken from the calmest rounds
+# exact: that chance, computed from the workload and every order
+# bound: the Book's survival bound, computed from the calm rounds
 #   alone
 rounds  safe   share     low    high   exact   bound
      0  1000  1.0000  0.9962  1.0000  1.0000  1.0000

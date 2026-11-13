@@ -2,25 +2,25 @@
 % Inserted in \S\ref{sec:resource} after the fenced-lease theorem and its
 % pitfall, before the ticket lock.
 %
-% No code or output in this file is typed. \pdexcerpt, \pdrun, \pdrunlines
-% and \pdsessionfile set files under excerpts/, which the kernel's
-% tools/excerpts.mjs cuts from its source and its recorded runs (see
-% figures/pd-listing.tex). To change a listing, change the kernel and cut
-% again. The prose names functions and match arms, never line numbers, so
-% that a listing which moves in its file does not make a sentence wrong.
-\subsection{Build the layer: a fence where the write lands}
+% No code or output in this file is typed by hand. \pdexcerpt, \pdrun,
+% \pdrunlines and \pdsessionfile print files under excerpts/, which the
+% kernel's tools/excerpts.mjs cuts from its source and its recorded runs (see
+% figures/pd-listing.tex). To change a listing, change the kernel and cut the
+% excerpts again. The prose refers to functions and match arms by name and
+% never by line number, so a listing can move within its file.
+\subsection{Build the layer: a fence where the write is applied}
 \label{sec:swk-build}
 
 \noindent\emph{Express lane: the lease is built twice, as a lock file and then
-inside a kernel. One recorded run breaks the first. The same run cannot break
-the second, and breaks it again once a single guard is taken out.}
+inside a kernel. One recorded run breaks the first. The same run does not break
+the second, and breaks it again when one guard is removed.}
 
 Theorem~\ref{thm:exclusion} describes a gate, and this section builds it. The
 code is \pdkernelname{}, a small kernel written for this book. It is not the
 reference implementation that the rest of the chapter grades. That daemon has
 no such gate; \pdkernelname{} is far smaller and has one.
 
-The section moves in the four beats of \weld{prereq:sec:prereq-build}{four beats}:
+The section has the same four parts as \weld{prereq:sec:prereq-build}{Naive}:
 \emph{Naive}, \emph{Break}, \emph{Fix} and \emph{Verify}. As there, a
 script cuts each listing from the kernel's source, and each run is a
 recording. The kernel's repository checks both against its source and fails
@@ -30,71 +30,70 @@ when they differ.
 
 The usual way to keep two agents out of one file is a lock file beside it. An
 agent that wants \texttt{shop/checkout.ts} creates a lock recording its name
-and a time. While the lock is there and the time has not passed, the others
-stay out. The time makes the lock a lease, so a holder that dies does not
-shut everyone out for good.
+and a time. While the lock exists and the time has not passed, the other
+agents do not write the file. The time makes the lock a lease, so a holder
+that dies does not block everyone forever.
 
-Listing~\ref{alg:swk-build-naive-acquire} is that design, built so that its failure
-cannot be put down to careless code. Creating the lock is one atomic step:
-\texttt{tryCreate} writes the record to a private file and hard-links it into
-place. The link fails if a lock is already there, so two agents cannot both
-create it, and no reader sees half a record. A holder that asks again extends
-its lease. A lock whose time has passed may be broken by the next agent to
-ask.
+Listing~\ref{alg:swk-build-naive-acquire} is that design, written carefully so
+that its failure cannot be blamed on careless code. Creating the lock is one
+atomic step: \texttt{tryCreate} writes the record to a private file and
+hard-links it into place. The link fails if a lock is already there, so two
+agents cannot both create it, and no reader sees half a record. A holder that
+acquires again extends its lease. A lock whose time has passed may be broken
+by the next agent that tries to acquire it.
 
 \pdexcerpt[caption={The lock file's \texttt{acquire}. Whoever creates the
 file holds the lock.},label={alg:swk-build-naive-acquire}]{ch01-naive-acquire}
 
-The second comment admits a race of its own, between two agents breaking the
+The second comment admits another race, between two agents that break the
 same expired lock. The run below has only one agent breaking the lock, so
-that race does not arise.
+that race does not occur.
 
-An agent that uses the lock well does one thing more. Just before it writes,
-it checks that the lock is still its own and still in time
-(Listing~\ref{alg:swk-build-check-then-write}). The call to \texttt{beforeWrite}
-does nothing in an honest agent. It is there so that a test can put a delay
-at exactly that point.
+An agent that uses the lock correctly does one more thing. Just before it
+writes, it checks that it still holds the lock and that the lease has not
+expired (Listing~\ref{alg:swk-build-check-then-write}). The call to
+\texttt{beforeWrite} does nothing in an honest agent. It exists so that a test
+can insert a delay at exactly that point.
 
 \pdexcerpt[caption={The careful agent checks its lease, then
 writes.},label={alg:swk-build-check-then-write}]{ch01-check-then-write}
 
-The check and the write are two actions, and nothing joins them. The file
-system applies the write without asking about the lock, so the answer the
-agent got from its check is as old as the wait between the two. No care on
-the agent's side removes that gap. A check can be moved closer to the write,
-never into it. \emph{Now you try:} Exercise~\ref{ex:swk-build-gap} asks for
-the last point at which the agent's check can still help.
+The check and the write are two separate actions. The file system applies the
+write without consulting the lock, so the result of the agent's check is as
+old as the delay between the two. Nothing the agent does removes that gap. A
+check can be moved closer to the write, and never into it. \emph{Now you try:}
+Exercise~\ref{ex:swk-build-gap} asks for the last point at which the agent's
+check can still help.
 
 \subsubsection{Break: the holder pauses}
 
-The story is the checkout repair from the paragraph before the theorem. Heron
-holds a lease on \texttt{shop/checkout.ts} and means to raise the tax rate.
-Wren is waiting to fix the rounding of the total.
+The scenario is the checkout repair from the paragraph before the theorem.
+Heron holds a lease on \texttt{shop/checkout.ts} and intends to raise the tax
+rate. Wren is waiting to fix the rounding of the total.
 
-Listing~\ref{alg:swk-build-run-naive} is a run with a pause in the gap. Heron takes
-a lease of 30 seconds, reads the file, works out its edit and checks its
-lease, which is good. Then it stalls for 31 seconds, as a process does during
-a long garbage collection or a slow network call. The pause is not left to
-chance. The scenario owns the clock, and it moves the clock forward by 31
-seconds inside \texttt{beforeWrite}, so the run goes the same way every time.
+Listing~\ref{alg:swk-build-run-naive} is a run with a pause in the gap. Heron
+acquires a lease of 30 seconds, reads the file and computes its edit. It
+checks its lease, which is still valid. Then it stalls for 31 seconds, as a
+process does during a long garbage collection or a slow network call. The
+pause is deterministic. The scenario controls the clock, and it advances the
+clock by 31 seconds inside \texttt{beforeWrite}, so every run is the same.
 
 \pdrun[caption={The break. Every step obeys the lock, and Wren's fix is
 lost.},label={alg:swk-build-run-naive}]{lost-update-naive}
 
-Follow the times at the left. Until \texttt{t=31000} only Heron acts. By then
-its lease is a second past its end, so Wren's claim breaks the lock and is
-granted. Wren reads the file, rounds the total, checks its lease, writes and
-releases. Then Heron wakes. It
-has already made its check, so it writes. Its edit was worked out from the
-file as it stood before Wren's fix, and it replaces the whole file, so the tax
-rate is 0.08 and the rounding is gone.
+The times are in the left column. Until \texttt{t=31000} only Heron acts.
+By then its lease expired a second ago, so Wren's claim breaks the lock and
+is granted. Wren makes its edit under its own lease and releases. Then Heron
+resumes. It has already made its check, so it writes. Its edit was computed
+from the file as it was before Wren's fix, and it replaces the whole file, so
+the tax rate is 0.08 and the rounding is gone.
 
-No step in the run broke a rule. The lock went to one agent at a time, and
-each agent checked before it wrote. The design fails because a lease can end
-while its holder is not looking, and nothing in the holder's write says how
-old its permission is. The last lines show a second cost. The lock file keeps
-no record, so after the run nothing says that an update was lost, or whose it
-was.
+No step in the run broke a rule. One agent held the lock at a time, and
+each agent checked before it wrote. The design fails because a lease can
+expire while its holder is paused, and the holder's write carries nothing
+that shows how old its permission is. The last lines show a second cost. The
+lock file keeps no record, so after the run nothing shows that an update was
+lost, or whose it was.
 
 % Landmark 12 asks the question the break has just posed: how can work be
 % reassigned without admitting a stale worker? Its page is finished here, so
@@ -111,41 +110,41 @@ was.
 \subsubsection{Fix: number the grants, and check the number at the write}
 
 The fix has two parts, and neither is in the agent. Every grant gets a
-number, one more than the last grant for the same file. And the files move
-behind one process, the kernel, where every write presents its grant's number
-and the kernel refuses any number but the newest. A holder that slept through
-its lease wakes with an old number, and what it believes no longer matters.
+number, one more than the previous grant for the same file. And the files
+are moved behind one process, the kernel. Every write presents its grant's
+number, and the kernel refuses any number except the newest. A holder that
+paused past its lease resumes with an old number, and its write is refused.
 
-Listing~\ref{alg:swk-build-claim} hands out the numbers. The code calls a number a
+Listing~\ref{alg:swk-build-claim} issues the numbers. The code calls a number a
 \emph{token}; it is the epoch of Theorem~\ref{thm:exclusion}. The function is
-given the newest grant for the path and the time, and it returns a grant or a
-reason for refusing. The first arm of the \texttt{match} starts the count at
-1. The second is the one the theorem turns on: a grant that was released or
-has run out is followed by a new grant with the next token, whoever asks, the
-old holder included. The third renews a live grant for its holder and keeps
-the token, so a request that is sent twice gets the same token. The last
-tells anyone else who holds the file.
+passed the newest grant for the path and the time, and it returns a grant or
+a reason for refusing. The first arm of the \texttt{match} starts the count
+at 1. The second is the one the theorem depends on: a grant that was released
+or has expired is followed by a new grant with the next token, whoever claims,
+including the old holder. The third renews a live grant for its holder and
+keeps the token, so a request that is sent twice gets the same token. The
+last refuses any other agent and names the holder.
 
 \pdexcerpt[caption={\texttt{claim}. Each new grant takes the next
 token.},label={alg:swk-build-claim}]{ch01-claim}
 
-The second and third arms stand in the order that
-\S\ref{sec:swk-lifecycle} argued for, and the first version of this code had
-them the other way round. A holder with token 1 that claimed again after its
-lease had run out then kept token 1, and its own late writes passed the gate.
-What found the mistake was a short model of claims, written separately from
-the code. It gave that holder token 2 where the code gave it token 1 again,
-and the model was right. Verify comes back to that check. \emph{Now you try:}
-Exercise~\ref{ex:swk-build-arms} asks for a history that tells the two orders
-apart.
+The second and third arms are in the order that \S\ref{sec:swk-lifecycle}
+argued for. The first version of this code had them reversed. A
+holder with token 1 that claimed again after its lease had expired then kept
+token 1, and its own late writes were admitted. A short model of claims,
+written separately from the code, found the mistake. It gave that holder token
+2 where the code gave it token 1 again, and the model was right. The Verify
+part returns to that check. \emph{Now you try:}
+Exercise~\ref{ex:swk-build-arms} asks for a history that distinguishes the two
+orders.
 
-Listing~\ref{alg:swk-build-fence} is the check a write must pass. It asks two
-questions of the grant that the write presents. \texttt{bound\_to} asks
-whether the grant was issued to the agent presenting it, since a token is a
+Listing~\ref{alg:swk-build-fence} is the check a write must pass. It makes two
+checks on the grant that the write presents. \texttt{bound\_to} checks
+that the grant was issued to the agent presenting it, since a token is a
 small number that anyone could guess. \texttt{newest}, in
-Listing~\ref{alg:swk-build-newest}, asks whether a later grant exists. Neither looks
-at the clock. A release refuses no one, and neither does a lease running out.
-The next grant does.
+Listing~\ref{alg:swk-build-newest}, checks that no later grant exists.
+Neither reads the clock. A release does not cause any refusal, and neither
+does an expired lease. The next grant does.
 
 \pdexcerpt[caption={\texttt{fence}. The check every write must
 pass.},label={alg:swk-build-fence}]{ch01-fence}
@@ -153,26 +152,27 @@ pass.},label={alg:swk-build-fence}]{ch01-fence}
 \pdexcerpt[caption={\texttt{newest}. An older token is
 refused.},label={alg:swk-build-newest}]{ch01-newest}
 
-The first lines of \texttt{newest} are a switch. Built with that feature on,
-the function admits every token. Verify uses that build.
+The first lines of \texttt{newest} are a compile-time switch. With it on,
+the function admits every token, and the Verify part uses that build.
 
-These functions decide and do nothing else. Together they are the kernel's
-decision core. They are written in Rust and compiled to WebAssembly, and the
-compiled module imports nothing from the program that loads it. It therefore
-has no way to read a file or a clock: the time is an argument, like the
-grants. Listing~\ref{alg:swk-build-propose} is the
-code that acts on the decision. Every change an agent proposes goes through
-this one method, a claim or a release as much as a write. It reads the grants
-for the path, asks the core, applies the change if the core admits it, and
-logs the decision either way. All of that runs inside one database
-transaction, and the kernel is the only writer of its database, so no other
-request can come between the check and the change.
+These functions only decide. Together they are the kernel's decision core.
+They are written in Rust and compiled to WebAssembly, and the module
+imports nothing from the program that loads it. So it cannot read a file or a
+clock: the time is an argument, like the grants.
+Listing~\ref{alg:swk-build-propose} is the code that acts on the decision.
+Every change an agent proposes goes through this one method, including a
+claim and a release. The method reads the grants for the path and calls the
+core. It applies the change if the core admits it, and it logs the decision
+in both cases. All of that runs in one database transaction, and the
+kernel is the only writer of its database, so no other request runs
+between the check and the change.
 
-\pdexcerpt[caption={The kernel's one door. A change is checked and applied in
-one transaction, and the decision is logged in it
-too.},label={alg:swk-build-propose}]{ch01-propose}
+\pdlistingroom{12}
+\pdexcerpt[caption={The kernel's single entry point. A change is checked and
+applied in one transaction, and the decision is logged in the same
+transaction.},label={alg:swk-build-propose}]{ch01-propose}
 
-\keyidea[The check belongs where the write lands]{A check made by the agent
+\keyidea[Put the check where the write is applied]{A check made by the agent
 can be out of date by the time its write arrives. A check made by the process
 that applies the write, in the step that applies it, cannot. The kernel adds
 a number to each grant and one place that compares it, and that place is the
@@ -180,50 +180,52 @@ one that performs the write.}
 
 \subsubsection{Verify: the same run, then the run without the guard}
 
-Listing~\ref{alg:swk-build-run-kernel} is the break again, against the kernel. The
+Listing~\ref{alg:swk-build-run-kernel} is the same run against the kernel. The
 agents are the same code and the pause is the same 31 seconds. Only the
-workspace behind them has changed.
+workspace they write to has changed.
 
 \pdrun[caption={The same pause against the kernel. The late write is refused,
 and the refusal is logged.},label={alg:swk-build-run-kernel}]{lost-update-kernel}
 
-Heron is granted token 1 and Wren token 2. When Heron wakes it presents token
-1. The newest is 2, so the write is refused, and the release after it for the
-same reason. The file keeps Wren's rounding. Heron's own edit has not landed,
-but Heron has been told so, and it can claim the file again and make the edit
-on top of Wren's. This time there is also a record: events 7 and 8 are the two
-refusals with their reason, written by the transaction that made them.
+Heron is granted token 1 and Wren token 2. When Heron resumes it presents
+token 1. The newest is 2, so the write is refused, and so is the release
+after it, for the same reason. The file keeps Wren's rounding. Heron's own
+edit was not applied, but Heron has received a refusal, and it can claim the
+file again and make the edit on top of Wren's. This time there is also a
+record: events 7 and 8 are the two refusals with their reason, written by
+the transaction that made them.
 
-A passing run proves less than it seems to. It would pass just as well if the
+A passing run proves less than it appears to. It would also pass if the
 write had been refused for some other reason. So the run is repeated against
-a kernel with one change, \texttt{newest} built to admit every token.
+a kernel with one change: \texttt{newest} is built to admit every token.
 Listing~\ref{alg:swk-build-run-no-fence} is the end of that run.
 
 \pdrunlines[caption={The end of the same run with \texttt{newest} switched
 off.},label={alg:swk-build-run-no-fence}]{lost-update-no-fence}{1-1,17-32}{1 and 17\textendash 32}
 
-Events 7 and 8 are admitted and the update is lost, just as it was under the
-lock file. The guard is what stopped the break. The kernel's tests hold it to
-both runs: the run must pass with the guard and fail without it, and a guard
-that can be removed without any test failing fails the build.
+Events 7 and 8 are admitted and the update is lost, as it was under the
+lock file. So the guard is what prevented the lost update. The kernel's tests
+require both results: the run must pass with the guard and fail without it.
+If a guard can be removed without any test failing, the build fails.
 
-One more check stands behind the runs. While they execute, the tests record
-every call an agent makes about a claim, with the time it was made and the
-time it returned: asking for one, checking one, releasing one, and writing
-under one. They then look for an order of the calls that agrees with those
-times and in which a sequential model of claims gives every answer the kernel
-gave. Theorem~\ref{thm:consistency} states that property. Here it is checked
-on the histories the tests produce and not proved for every history. It is
-the check that caught the two arms of \texttt{claim} in the wrong order.
+The runs have one more check. While they execute, the tests record every
+call an agent makes about a claim, with the time it was made and the time it
+returned. The calls are a claim, a lease check, a release and a write under
+a claim. The tests then search for an order of the calls that is consistent
+with those times and in which a sequential model of claims gives every
+result the kernel gave. Theorem~\ref{thm:consistency} states that property.
+Here it is checked on the histories the tests produce and not proved for
+every history. This is the check that found the two arms of \texttt{claim}
+in the wrong order.
 
-Table~\ref{tab:swk-build-hypotheses} sets each hypothesis of
-Theorem~\ref{thm:exclusion} beside the code that meets it and the evidence
-that the code is doing the work.
+Table~\ref{tab:swk-build-hypotheses} lists each hypothesis of
+Theorem~\ref{thm:exclusion} with the code that satisfies it and the evidence
+that the code is what satisfies it.
 
 \begin{table}[H]
 \centering
 \caption{The hypotheses of Theorem~\ref{thm:exclusion} in \pdkernelname{}:
-the code that meets each one, and what shows it. [internal]}
+the code that satisfies each one, and the evidence. [internal]}
 \label{tab:swk-build-hypotheses}
 \footnotesize
 \renewcommand{\arraystretch}{1.2}
@@ -232,45 +234,46 @@ the code that meets each one, and what shows it. [internal]}
 \textbf{Hypothesis} & \textbf{Code} & \textbf{Evidence} \\
 \midrule
 Claims on a path are decided one at a time & \texttt{\#propose}: one transaction, one writer & every recorded history fits the sequential model \\
-A new grant takes the next token, the old holder's included & \texttt{claim}, second arm & the model caught the arms in the wrong order \\
+A new grant takes the next token, including a new grant to the old holder & \texttt{claim}, second arm & the model found the arms in the wrong order \\
 The count survives a restart & grants are rows in the SQLite file & the kernel is killed after each acknowledged step and restarted; the next claim gets the next token and an old token is still refused. A power loss is not covered (I1b) \\
 The process that issues tokens gates the write, in the same step & \texttt{\#propose} & without it: the lock file, Listing~\ref{alg:swk-build-run-naive} \\
 The write's token is the newest & \texttt{newest} & without it: Listing~\ref{alg:swk-build-run-no-fence} \\
 The token was issued to its presenter & \texttt{bound\_to} & without it: Exercise~\ref{ex:swk-build-unbound} \\
-The presenter is who it says it is & a credential minted at \texttt{register} & without the check, an agent that sends another's name is believed, and a test fails \\
+The presenter is the agent it claims to be & a credential issued at \texttt{register} & without the check, an agent that sends another agent's name is accepted, and a test fails \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\paragraph{The same kernel, by hand.}
-\pdkernelname{} also runs as a service, and \texttt{harbor} is the command
-that talks to it. The transcript below records two agents and one file. The
-service is started with its clock stopped at zero, so that the recording
+\paragraph{The same kernel, at the command line.}
+\pdkernelname{} also runs as a service, and \texttt{harbor} is its
+command-line client. The transcript below records two agents and one file.
+The service is started with its clock fixed at zero, so that the recording
 prints the same times on every run.
 
 \pdsessionfile[two agents and one file, at the command line]{lock-demo}
 
-\texttt{harbor register} asks the service to mint an identity. The service
-makes a credential and the command stores it. \texttt{HARBOR\_AGENT} then
-picks which stored credential a command sends. It does not tell the service
-who is asking; the service works that out from the credential
+\texttt{harbor register} asks the service to create an identity. The
+service issues a credential and the command stores it. \texttt{HARBOR\_AGENT}
+then selects which stored credential a command sends. It does not tell the
+service who is calling; the service determines that from the credential
 (\S\ref{sec:swk-identity}). Bob's first claim is refused with the holder's
-name and the time left. After Alice's release his claim is granted with token
-2. The release refused no one. The grant that followed it moved the fence.
+name and the time remaining. After Alice's release his claim is granted with
+token 2. The release caused no refusal. The grant that followed it is what
+makes token 1 stale.
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
 The runs show that the bad interleaving exists and that the fence refuses it.
-They do not say how often an agent pauses past its lease. The fence binds
-what goes through the kernel. In \pdkernelname{} the shared files are rows
-in the kernel's own database, so its interface is the only door an agent is
-given. A process running as the same user can still open that database, the
-file \texttt{.harbor/harbord.db}, beside the service, which makes this the
-cooperative rail of \S\ref{sec:swk-monitor}. Claims are on whole files: the
-line ranges and symbols of Table~\ref{tab:swk-claim-granularity} are not
-built. The costs
-named under Theorem~\ref{thm:exclusion} carry over unchanged. A holder whose
-lease has run out still passes until someone else claims: had Wren not
-claimed, Heron's write at \texttt{t=31000} would have been admitted, a second
-past its lease. And a power loss can roll the count back.
+They do not show how often an agent pauses past its lease. The fence applies
+only to writes that go through the kernel. In \pdkernelname{} the shared
+files are rows in the kernel's own database, so its interface is the only
+access an agent is given. A process running as the same user can still open
+that database, the file \texttt{.harbor/harbord.db}, without going through
+the service, which makes this the cooperative rail of
+\S\ref{sec:swk-monitor}. Claims are on whole files: the line ranges and
+symbols of Table~\ref{tab:swk-claim-granularity} are not built. The costs
+named under Theorem~\ref{thm:exclusion} apply here unchanged. A holder whose
+lease has expired is still admitted until another agent claims: if Wren had
+not claimed, Heron's write at \texttt{t=31000} would have been admitted, a
+second after its lease expired. And a power loss can roll the count back.
 \end{pdboundary}

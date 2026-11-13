@@ -197,7 +197,7 @@
   item: "Ch. 1 repairs: identity threat carried to the lock listing's introduction"
   file: book/additions/swk-build-the-layer.tex
   before: "looks like from two terminals"
-  after: "the service works that out from the credential"
+  after: "the service determines that from the credential"
   source: "code: cli/commands/locks.ts, cli/utils/actor-credential.ts (one slot, one persisted credential)"
   note: "The session this row introduced was replaced on 11 November 2026 by a recording of harbord (swk-build-1). Its two agents hold separate credentials, so the old sentence about one minted actor no longer applies; the row now holds the sentence that says where identity comes from."
 - id: swk-20
@@ -2090,7 +2090,7 @@
   item: "Ch. 1 build: the closure rule is printed from the Book's own kernel, not as pseudocode"
   file: book/additions/swk-build-the-guards.tex
   before: "oracle reference outside the finite vocabulary"
-  after: "The promiser asks, and the condition the promise named decides"
+  after: "the condition the promise named must be true"
   source: "code: curiositech/harbord-dev 21c4755, harbord/core/src/commitments.rs lines 127-169 (snippet ch01b-close)"
 - id: swk-roads-4
   item: "Ch. 1 build: the review of key ideas states the corrected closure rule"

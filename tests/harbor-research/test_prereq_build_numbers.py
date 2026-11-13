@@ -1,10 +1,10 @@
-"""Chapter 0's build quotes numbers from its recorded runs. Hold each to its run.
+"""Chapter 0's build section states numbers from its recorded runs. Check each one.
 
-The section's listings cannot drift: they are the recorded files. Its prose
-can. A sentence that says "from round 35" was typed by hand from a table
-that the kernel printed, and a later recording may print another number.
-Each test here reads a number out of a recorded run and requires the
-sentence that quotes it.
+The section's listings are the recorded files, so they cannot go out of
+date. Its prose can. A sentence that says "from round 35" was typed from a
+table the kernel printed, and a later recording may print a different
+number. Each test here reads a number from a recorded run and checks that
+the text states it.
 """
 import re
 import unittest
@@ -75,7 +75,7 @@ class QuotedNumbers(unittest.TestCase):
         self.assertIn('the workers overlap in 1 round of 50', self.blind[0][0])
         self.quoted('In 1 round of 50 their turns overlap')
         self.assertIn('1 round of 500 when calm, 1 of 5 when busy', self.bursty[0][0])
-        self.quoted('In a calm spell 1 round of 500 overlaps, and in a busy spell 1 round of 5.')
+        self.quoted('In a calm period 1 round of 500 overlaps, and in a busy period 1 round of 5.')
 
     def test_the_halfway_rounds(self):
         opening = 'the chance a job is still safe is a half or less '
@@ -125,14 +125,14 @@ class QuotedNumbers(unittest.TestCase):
         self.quoted('Four of the six lose an update.')
         self.assertEqual(two['look-twice'], (20, 12, Fraction(3, 8)))
         self.quoted('Looking twice has 20 orders')
-        self.quoted('12 orders of 20 come to a chance of 3/8')
+        self.quoted('12 orders of 20 give a chance of 3/8')
         self.assertEqual(two['checked'][1], 0)
         self.assertEqual(orders('orders-three')['checked'][:2], (198, 0))
         self.quoted('any of its 198 orders')
         self.assertGreater(orders('orders-three')['look-twice'][2], two['look-twice'][2])
         self.quoted('Looking twice gets worse with more workers')
         self.assertEqual(orders('orders-blind-put')['checked'], two['blind'])
-        self.quoted('loses the same four orders that the blind design loses')
+        self.quoted('loses an update in the same four orders as the blind design')
         blind = [line for line in (EXCERPTS / 'orders-blind.txt').read_text().splitlines() if ' -> ' in line]
         self.assertEqual(len(blind), 6)
         self.assertEqual(sum('LOST UPDATE' in line for line in blind), 4)
@@ -158,7 +158,7 @@ class QuotedNumbers(unittest.TestCase):
         self.assertIn('read -> 0, version 0', twice[6])
         self.assertTrue(twice[6].startswith('step 3'))
         self.assertTrue(twice[7].startswith('step 4'))
-        self.quoted('Steps 3 and 4 are the second looks.')
+        self.quoted('Steps 3 and 4 are the second reads.')
         checked = (EXCERPTS / 'increments-checked.txt').read_text()
         self.assertRegex(checked, r'step 4 +wren +put 1 \(read at version 0\)\n +-> refused: stale-read')
         self.quoted('Step 4 is the refusal.')

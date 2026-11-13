@@ -1554,22 +1554,22 @@ Section~\ref{sec:prereq-build} builds the second.
 \begin{pdexercise}[kind=Check,rating=1]{ex:prereq-build-orders}
 Listing~\ref{alg:prereq-build-orders} counts 20 orders for two workers that
 look twice, and 12 that lose an update. A worker reads on its first turn and
-writes on its third, and it looks in between. Say in one sentence which
+writes on its third, and it reads again in between. Say in one sentence which
 orders lose an update, and count them from your sentence.
 \end{pdexercise}
 \begin{pdsolution}{ex:prereq-build-orders}
-An update is lost exactly when both workers have looked before either
-writes. The first four turns are then the two reads and the two looks, with
-each worker's read before its own look, and that can happen in
-$\binom{4}{2}=6$ ways. The two writes follow in either order, so
-$6\times2=12$ orders lose an update. In the other 8, one worker's write
-lands before the other worker has looked, and that worker ends up writing
-from the new number.
+An update is lost exactly when both workers have made their second read
+before either writes. The first four turns are then the two first reads and
+the two second reads, with each worker's first read before its second, and
+that can happen in $\binom{4}{2}=6$ ways. The two writes follow in either
+order, so $6\times2=12$ orders lose an update. In the other 8, one worker's
+write is applied before the other worker's second read, and that worker
+then writes from the new number.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:prereq-build-walk}
-Let a worker think for $k$ turns, and let each turn go to either worker
-still at work with equal chance. (a)~Show that the blind design loses an
+Let a worker think for $k$ turns, and let each turn go to either unfinished
+worker with equal chance. (a)~Show that the blind design loses an
 update with chance $1-2^{-k}$. (b)~Show that looking twice loses one with
 chance $\binom{2k+2}{k+1}\big/4^{k+1}$, and check both against
 Listing~\ref{alg:prereq-build-orders-think}. (c)~For large $n$,
@@ -1577,45 +1577,45 @@ $\binom{2n}{n}/4^{n}$ is close to $1/\sqrt{\pi n}$. How much longer must a
 worker think to halve its chance of loss?
 \end{pdexercise}
 \begin{pdsolution}{ex:prereq-build-walk}
-(a)~The blind design keeps both updates only if one worker takes all
+(a)~The blind design loses no update only if one worker takes all
 $k+1$ of its turns before the other takes its first. The first $k+1$ turns
 must then all go to one worker, which has chance $2\cdot2^{-(k+1)}=2^{-k}$.
 (b)~Looking twice loses an update exactly when each worker has taken the
-$k+1$ turns that end with its look before either takes the turn that
+$k+1$ turns that end with its second read before either takes the turn that
 writes. The first $2k+2$ turns are then split evenly between the two, and
 $\binom{2k+2}{k+1}$ of the $4^{k+1}$ equally likely sequences do that. With
 $k=8$ the two chances are $255/256$ and $48620/262144=12155/65536$, as
 listed. (c)~The chance falls like $1/\sqrt{\pi(k+1)}$, so halving it takes
-about four times the thinking. The gap between the look and the write is
-one turn wide however long the workers think. What changes is how often two
-workers that set out together reach it together, and that is as often as a
-fair coin is level after $2k+2$ tosses. Longer work makes a collision rarer
-and never rules it out.
+about four times the thinking. The gap between the second read and the
+write is one turn wide however long the workers think. What changes is how
+often two workers that start together reach it together, and that is as
+often as a fair coin shows equal heads and tails after $2k+2$ tosses.
+Longer work makes a collision less likely and never impossible.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:prereq-build-skew}
-Alice's rule is that at least one of her two checkout tests stays switched
-on. Each test has a cell of its own, holding 1 for on and 0 for off, and
+Alice's rule is that at least one of her two checkout tests stays enabled.
+Each test has its own cell, holding 1 for enabled and 0 for disabled, and
 each cell checks versions as in Listing~\ref{alg:prereq-build-current}. Heron
-and Wren each read both cells and see two tests on. Each then switches off
-a different one. Show that both writes are taken. Propose a change that
+and Wren each read both cells and see two tests enabled. Each then disables
+a different one. Show that both writes are accepted. Propose a change that
 refuses one of them, and say what your change costs.
 \end{pdexercise}
 \begin{pdsolution}{ex:prereq-build-skew}
 Heron's write names the version of the first cell and Wren's the version of
 the second. Neither cell has been written since it was read, so both checks
-pass and both tests end up off. Each write was good for the cell it changed
-and stale for the cell it only read; databases call this write skew. One
-change gives the two cells a single version, or has a write name the version
-of every cell its worker read, which is the validation step of Kung and
-Robinson~\pdcite{kung1981optimistic}. Either one refuses Wren, and either
-also refuses writes that would have done no harm, such as switching a test
-back on. The other change keeps a version on each cell and has the store test
-Alice's rule itself, on the state the write would produce, in the same step
-as the write. That is part~(1) of Theorem~\ref{thm:kernel-gap} read
-literally, and it is what \pdchaplink{swk}{Chapter~1} builds
-(\weld{swk:sec:swk-roads}{guard}). Its cost is that the store must be told the rule.
-There is no single right answer.
+pass and both tests end up disabled. Each write was valid for the cell it
+changed and stale for the cell it only read; databases call this write skew.
+One change gives the two cells a single version, or has a write name the
+version of every cell its worker read, which is the validation step of Kung
+and Robinson~\pdcite{kung1981optimistic}. Either one refuses Wren, and either
+also refuses harmless writes, such as enabling a test again. The other
+change keeps a version on each cell and has the store check Alice's rule
+itself, on the state the write would produce, in the same step as the
+write. That is part~(1) of Theorem~\ref{thm:kernel-gap} read literally, and
+it is what \pdchaplink{swk}{Chapter~1} builds
+(\weld{swk:sec:swk-roads}{guard}). Its cost is that the store must be given
+the rule. There is no single right answer.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:prereq-risk}

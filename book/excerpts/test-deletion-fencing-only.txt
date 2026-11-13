@@ -27,5 +27,5 @@ commitments:
   1 drake: shop/checkout.test.ts passes, due t=1800000: done at
     t=0, revision 1
 
-verdict: TEST GONE: the suite is green because the checkout test
-         was deleted, and commitment 1 is closed as done
+verdict: TEST DELETED: the suite is green because the checkout
+         test was deleted, and commitment 1 is closed as done

@@ -19,9 +19,9 @@ fn passing(ledger: &Ledger, path: &str) -> Result<(), Reason> {
     Ok(())
 }
 
-/// The fence again: a check is good only for the revision it
-/// saw. A test that passed before the last change says nothing
-/// about the files as they are now.
+/// The fence again: a check is valid only for the revision it
+/// saw. A test that passed before the last change shows nothing
+/// about the current files.
 fn fresh(check: &Check, ledger: &Ledger) -> Result<(), Reason> {
     if cfg!(feature = "mutant-any-revision") {
         return Ok(()); // MUTANT: guard removed.

@@ -1,12 +1,12 @@
 /** Add one, looking twice: read again before writing, and start
- * over if the number has moved. */
+ * again if the version has changed. */
 export function* lookTwice(cell: Shared, me: string, think = 1) {
   for (;;) {
     const seen = cell.read(me);
     yield* thinking(think);
     const again = cell.read(me);
     if (again.version !== seen.version) continue;
-    yield; // the look and the write are two requests
+    yield; // the second read and the write are two requests
     cell.put(me, seen.value + 1);
     return;
   }
