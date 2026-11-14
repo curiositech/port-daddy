@@ -1332,8 +1332,42 @@ Part~(1) can be met by a local check, by a signed permit from another machine th
 Suppose the model that proposes a tool call is also asked to decide whether
 the call may take effect. It reviews its own proposal, and the harness runs
 whatever call the model finally emits. Could that model serve as the kernel of
-Definition~\ref{def:kernel}? This chapter already supplies the answer, and
-each part of it names a hypothesis that the arrangement does not meet.
+Definition~\ref{def:kernel}? This chapter already supplies the answer.
+Corollary~\ref{cor:no-self-kernel} states it. The paragraphs after it take
+its parts in turn, and add a fourth point that is not a theorem.
+
+\begin{corollary}[A Model That Reviews Its Own Proposals Is Not a Kernel]\label{cor:no-self-kernel}
+Let each worker review a change it proposes, by a procedure that reads the
+state before the change is applied, and let the change then be applied with
+no further check.
+\begin{enumerate}[leftmargin=1.5em,itemsep=1.5pt]
+  \item The review and the effect are two steps, so the hypothesis of
+  part~(1) of Theorem~\ref{thm:kernel-gap} fails. Suppose the review approves
+  a write whenever the state it reads is the state its worker read. Then two
+  such workers can still lose an update, as in part~(2).
+  \item In the model of Section~\ref{sec:prereq-supervisory} the review
+  disables no event. The controlled language is
+  $\mathrm{Lang}(\mathcal G)$, and it lies in $E$ only if every trace the
+  workers can produce is already safe.
+  \item If the review keeps its state only in the worker's context,
+  part~(3) of the theorem applies to that state after a crash.
+\end{enumerate}
+So the arrangement keeps an invariant only if no worker ever proposes a
+change that breaks it in the state where the change lands.
+\end{corollary}
+
+\begin{proof}
+(1) Let both workers read the value $v$, and let both reviews run next. Each
+review reads $v$, the value its worker read, and approves. Then both writes
+run. Each writes $v+1$, and one update is lost. No review ran after a
+write, so no step of the trace could have refused the second one.
+(2) The harness runs every call the workers emit, so the supervisor $\Gamma$
+enables every event after every trace, and
+$\mathrm{Lang}(\Gamma/\mathcal G)=\mathrm{Lang}(\mathcal G)$. A refusal that
+a model writes is an event of $\mathcal G$. It is not a choice of $\Gamma$.
+(3) This is part~(3) of the theorem, with the review's state as the state a
+crash erases.
+\end{proof}
 
 \paragraph{The decision is separate from the effect.}
 Part~(1) of Theorem~\ref{thm:kernel-gap} needs each change checked against the

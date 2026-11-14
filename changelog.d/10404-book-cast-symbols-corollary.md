@@ -1,0 +1,4 @@
+type: added
+
+- **The Book has a cast page and a key to its symbols.** The same people and workers return in every chapter, and nothing at the front said who they are. A new page, "The Cast", lists the seven people and Alice's five workers, each with what they own or do and the chapters they appear in. A second key, "Symbols", lists the symbols each chapter uses most, and then nine letters that mean one thing in one chapter and another in a later one. The imprint page no longer prints an address.
+- **Chapter 0 states as a corollary that a model which reviews its own proposals is not a kernel.** The section argued this in four paragraphs and had no numbered statement for a later chapter to cite. It now opens with Corollary 0.7.1, which follows from the chapter's theorem on what a kernel must guarantee, and a short proof. The build that follows it cites the corollary by number.

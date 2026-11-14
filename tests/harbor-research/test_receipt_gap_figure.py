@@ -135,7 +135,7 @@ class ReceiptGapFigureTests(unittest.TestCase):
             observed_cells(false_data)
 
     def test_scope_and_native_figure_contract(self):
-        for required in ("Twelve local SQLite cases", "not a Port Daddy test",
+        for required in ("Twelve local SQLite cases", "run apart from the kernel",
                          "atomically retains", "key, payload, effect and receipt",
                          r"\SGMeasuredFigure{swk-idempotency-gap}"):
             self.assertIn(required, self.source)

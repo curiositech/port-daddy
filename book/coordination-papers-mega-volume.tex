@@ -101,9 +101,9 @@
 {\color{hhgray}This book follows that claim from one machine run by one human to work shared
 across several owners whose interests differ and whose systems do not trust one another.
 Chapter~0 and the \pdchaptercountword{} chapters that follow are ordered by dependency:
-each chapter that proves a property comes after the chapter that relies on it.}\par\vspace{12pt}
-Erich Owens \textperiodcentered\ Curiositech LLC \textperiodcentered\ \texttt{engineering@portdaddy.dev}\par
-Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\ \textperiodcentered\ \url{https://portdaddy.dev/whitepaper}\par
+each chapter that relies on a property comes after the chapter that proves it.}\par\vspace{12pt}
+Erich Owens \textperiodcentered\ Curiositech LLC\par
+Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\par
 \end{minipage}
 \vspace*{1.0cm}
 \clearpage
@@ -271,7 +271,7 @@ chapter first uses it.
 the margin beside the claim it grades, or in a table cell, with a short note on
 what it covers. It grades the claim, not the chapter.\par\smallskip
 {\renewcommand{\arraystretch}{1.15}%
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
+\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
 \Built & shipped and exercised by tests in the reference implementation\\
 \BuiltWeak & shipped, but materially weaker than its name suggests\\
 \Designed & specified, with a proof or a written protocol, but not yet shipped\\
@@ -282,7 +282,7 @@ stated configuration\\
 
 \medskip\noindent{\pdtextface\bfseries Evidence on worked numbers.}\par\smallskip
 {\renewcommand{\arraystretch}{1.15}%
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
+\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
 \textsf{[verified]} & the stated check or reproducible calculation\\
 \textsf{[verified arithmetic]} & the calculation only\\
 \textsf{[internal]} & a chapter derivation or a project-reported run\\
@@ -291,7 +291,7 @@ stated configuration\\
 
 \medskip\noindent{\pdtextface\bfseries Markers in verification tables.}\par\smallskip
 {\renewcommand{\arraystretch}{1.15}%
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
+\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.1cm}X@{}}
 \Closed & the model is verified and its runtime conformance test passes\\
 \Partial & the design is verified; the runtime is tested empirically, not proved\\
 \Open & known, and not yet mechanized\\
@@ -308,6 +308,8 @@ Bold marks a definition; the glossary lists each with its page.
 \emph{Where this stops} marks the limit of a section's result. A margin analogy
 pictures a mechanism beside the plain statement, which carries the argument.
 A source's full entry appears in the margin at first use.\par}
+
+\input{additions/front-cast-and-symbols}
 
 \cleartoleftpage
 \input{figures/fig-book-reader-map}
