@@ -1,0 +1,25 @@
+/** An offer arrives. The core decides. If it accepts, this
+ * harbor issues a card of its own and records where the card
+ * came from. */
+receive(offer: unknown, now: number): Receipt {
+  if (!this.#design.offers) return NO_OFFERS;
+  if (!isOffer(offer)) return NOT_AN_OFFER;
+  const mapping = this.#mappings.get(offer.from);
+  const used = this.#honoredBefore(offer);
+  const revoked = this.#knowsRevoked(offer.from, offer.card);
+  const harbor = { key: this.key, mapping, used, revoked };
+  const proposal = { op: 'accept', offer } as const;
+  const answer = this.#decide(proposal, harbor, now);
+  if (answer.verdict === 'refuse') return refuse(answer.reason);
+  if (!('accepted' in answer)) throw new Error(UNEXPECTED);
+  if (answer.accepted.outcome === 'known') {
+    const ack = this.#ack(offer);
+    return { ok: true, outcome: 'known', ack };
+  }
+  const { transfer } = answer.accepted;
+  const { sub, key, can, exp } = transfer;
+  const card = this.#seal(sub, key, can, exp);
+  this.#issued.push({ transfer, card, revoked: false });
+  const ack = this.#ack(offer);
+  return { ok: true, outcome: 'issued', card, ack };
+}

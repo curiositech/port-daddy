@@ -1,0 +1,36 @@
+$ harbord log log-1 &
+harbord: witness log log-1 listening on .harbor/log-1.sock
+$ harbord log log-2 &
+harbord: witness log log-2 listening on .harbor/log-2.sock
+$ harbord harbor alice &
+harbord: alice's harbor listening on .harbor/alice.sock
+$ harbor publish alice --epoch 8 --events 5 --to log-1
+alice publishes a root for epoch 8 to log-1: 5 events -> recorded
+$ harbor publish alice --epoch 8 --events 4 --to log-2
+alice publishes a root for epoch 8 to log-2: 4 events -> recorded
+$ harbor audit alice --epoch 8 --at log-1
+alice's epoch 8 at log-1
+  -> root 408dc067, and alice's 5 events hash to it. C_A is
+     revoked
+$ harbor audit alice --epoch 8 --at log-2
+alice's epoch 8 at log-2
+  -> root e88dca6c, and alice's 4 events hash to it. C_A is not
+     revoked
+$ harbor exchange log-1 log-2
+log-1 is sent the root e88dca6c that log-2 holds
+  -> equivocation: log-1 keeps the first root, and holds the two
+     as evidence
+log-2 is sent the root 408dc067 that log-1 held
+  -> equivocation: log-2 keeps the first root, and holds the two
+     as evidence
+$ harbor audit alice --epoch 8 --at log-2
+alice's epoch 8 at log-2
+  -> evidence that alice signed two roots for it, e88dca6c and
+     408dc067. Both signatures verify
+$ kill -9 %1
+$ harbord log log-1 &
+harbord: witness log log-1 listening on .harbor/log-1.sock
+$ harbor audit alice --epoch 8 --at log-1
+alice's epoch 8 at log-1
+  -> evidence that alice signed two roots for it, 408dc067 and
+     e88dca6c. Both signatures verify

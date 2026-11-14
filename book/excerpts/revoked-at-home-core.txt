@@ -1,0 +1,33 @@
+$ harbor scenario revoked-at-home --design core
+scenario revoked-at-home, design core: a harbor revokes a card
+  after another harbor has issued a card from it
+
+step 1   carol  maps alice's write test-db/checkout/* to write
+                staging-db/checkout/*, as mapping checkout v3
+step 2   alice  issues heron the card alice-1: write
+                test-db/checkout/*
+step 3   alice  offers heron's card alice-1 to carol's harbor as
+                x-1
+                -> carol issues heron carol-1
+step 4   alice  signs offer x-2 of the same card, which is held up
+                on its way
+step 5   alice  revokes alice-1 -> revoked
+step 6   heron  requests to write test-db/checkout/orders at
+                alice's own gate
+                -> refused: revoked (card 1 was revoked)
+step 7   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> admitted as heron
+step 8   alice  sends carol's harbor its signed revocation of
+                alice-1
+                -> carol revokes carol-1
+step 9   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> refused: revoked (card 1 was revoked)
+step 10  carol  is sent offer x-2
+                -> refused: parent-revoked (the card the offer
+                   describes was revoked at its own harbor)
+
+verdict: carol's harbor revoked its card when it was told, and
+         took no later offer of the revoked card. heron was
+         admitted once in between

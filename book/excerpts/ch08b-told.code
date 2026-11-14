@@ -1,0 +1,20 @@
+/** A notice arrives: another harbor has revoked one of its
+ * cards. If the core accepts the signed revocation, this
+ * harbor remembers the card, and revokes every card it issued
+ * from it. */
+told(notice: Notice, now: number): Told {
+  if (!this.#design.follows) return IGNORED;
+  const { from, card, revocation } = notice;
+  const op = 'parent-revoked' as const;
+  const proposal = { op, from, card, revocation };
+  const answer = this.#decide(proposal, { key: this.key }, now);
+  if (answer.verdict === 'refuse') return refuse(answer.reason);
+  this.#revoked.add(parentKey(from, card));
+  let revoked = 0;
+  for (const { transfer, card: mine } of [...this.#issued]) {
+    const { from: harbor, parent } = transfer;
+    if (harbor !== from || parent !== card) continue;
+    if (this.#revokeIssued(mine, now)) revoked += 1;
+  }
+  return { ok: true, revoked };
+}

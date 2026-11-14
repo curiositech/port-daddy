@@ -1,0 +1,20 @@
+/// The text an offer is a signature over: a JSON list of the
+/// word `offer` and every field of the offer.
+fn text(offer: &Offer) -> String {
+    let can: Vec<String> =
+        offer.can.iter().map(right_text).collect();
+    let (from, to, xid) = (&offer.from, &offer.to, &offer.xid);
+    let (card, sub, key) = (&offer.card, &offer.sub, &offer.key);
+    let (exp, map) = (offer.exp, &offer.map);
+    json!(["offer", from, to, xid, card, sub, key, can, exp, map])
+        .to_string()
+}
+
+/// Guard: an offer is signed with the key of the harbor it is
+/// from.
+fn signed(offer: &Offer) -> bool {
+    if cfg!(feature = "mutant-unsigned-offer") {
+        return true; // MUTANT: guard removed.
+    }
+    verified(&offer.from, &text(offer), &offer.tag)
+}

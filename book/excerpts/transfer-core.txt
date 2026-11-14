@@ -1,0 +1,42 @@
+$ harbor scenario transfer --design core
+scenario transfer, design core: a worker with a card from one
+  harbor has a job at another harbor's database
+
+step 1   carol  maps alice's write test-db/checkout/* to write
+                staging-db/checkout/*, as mapping checkout v3
+step 2   alice  issues heron the card alice-1: write
+                test-db/checkout/*
+step 3   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> refused: bad-signature (card 1 is not signed
+                   with the harbor's key)
+step 4   heron  asks alice's harbor to offer alice-1 to carol's,
+                and answers the gate's challenge
+                -> admitted as heron
+step 5   alice  signs offer x-1 for carol's harbor: write
+                test-db/checkout/*, for heron's key
+step 6   carol  is sent offer x-1
+                -> issues carol-1 to heron's key: write
+                   staging-db/checkout/*
+step 7   carol  sends alice's harbor an acknowledgment of x-1
+                -> alice records carol-1
+step 8   carol  sends heron the card carol-1
+step 9   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> admitted as heron
+step 10  alice  issues finch the card alice-2: write test-db/*
+step 11  alice  offers finch's card alice-2 to carol's harbor as
+                x-2
+                -> carol issues finch carol-2
+step 12  finch  requests to write staging-db/billing/invoices at
+                carol's gate
+                -> refused: not-granted (the last card does not
+                   grant write staging-db/billing/invoices)
+step 13  alice  issues finch the card alice-3: write staging-db/*
+step 14  alice  offers finch's card alice-3 to carol's harbor as
+                x-3
+                -> refused: nothing-mapped (this harbor's mapping
+                   grants nothing for the rights offered)
+
+verdict: carol's harbor granted what its own mapping names, and
+         nothing else

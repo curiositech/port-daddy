@@ -1,0 +1,13 @@
+/// What the harbor grants for an offer: the right each rule
+/// names, for every rule whose offered right the offer covers.
+/// Nothing is granted because the offer says so.
+fn granted(offer: &Offer, mapping: &Mapping) -> Vec<Right> {
+    if cfg!(feature = "mutant-offered-rights") {
+        // MUTANT: the rights the offer names are granted.
+        return offer.can.clone();
+    }
+    let offered =
+        |rule: &&Rule| grants(&offer.can, &rule.offered);
+    let rules = mapping.rules.iter().filter(offered);
+    rules.map(|rule| rule.granted.clone()).collect()
+}

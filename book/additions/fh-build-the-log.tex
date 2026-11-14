@@ -351,11 +351,66 @@ The other five files are controls. Four leave out one check of
 text. In every one of them an auditor accepts evidence against Bob's
 harbor.
 
+\paragraph{As processes.}
+Every run so far kept its logs and its harbor inside one process, where
+an exchange is a function call. \pdkernelname{} can also start each as a
+process of its own. \texttt{harbord log} starts a witness log, and
+\texttt{harbord harbor} starts a harbor that signs roots. Each listens on
+a socket of its own name, such as \texttt{.harbor/log-1.sock}, and
+nothing passes between two of them but requests on those sockets. The harbor makes its key when it first starts,
+and keeps the private key in a file that only its owner can read. A log
+now has something to lose when it stops, so it keeps what it holds in a
+file (Listing~\ref{alg:fh-log-served}).
+
+\pdlistingroom{12}
+\pdexcerpt[caption={A log that runs as a process is sent a
+root.},label={alg:fh-log-served}]{ch08c-publish}
+
+The log decides as it did inside one process. What is new is the order of
+the last two steps: the file is written before the answer goes out. A
+harbor that has been told \texttt{recorded} will find the root there
+after the log is killed and started again.
+
+Each command of the session is a process too, and it asks the others.
+\texttt{harbor publish} tells the harbor to sign the root of its first
+few events for an epoch, and to publish it to a log. This harbor signs
+whatever it is told to, which is how the session makes it sign two roots
+for epoch~8. A harbor that kept its own rule would refuse the second.
+\texttt{harbor audit} asks the harbor for its key and the log for what it
+holds, and checks every signature itself. The last command,
+\texttt{harbor exchange}, gives one log the socket of another. That log
+asks the other for its roots and publishes each to itself. Then it sends
+the other what it held. Listing~\ref{alg:fh-log-processes} is the
+session, recorded from the processes themselves.
+
+\pdlistingroom{36}
+\pdrun[caption={Two logs and a harbor, each a process of its
+own.},label={alg:fh-log-processes}]{two-logs-processes}
+
+These are the steps of Listing~\ref{alg:fh-log-run-separate} and of
+Listing~\ref{alg:fh-log-run-exchange}. The harbor publishes a root of
+five events to \texttt{log-1} and a root of four to \texttt{log-2}, and
+the two audits read different answers about $C_A$. Neither audit finds
+anything wrong: each log holds one root that the harbor signed, and the
+harbor shows each auditor events that hash to the root it read. After the
+exchange each log holds the two roots as evidence.
+
+\texttt{kill -9} ends the first log with no chance to write anything
+more. Started again, it reads its file, and the last audit finds the same
+evidence there. A log that kept its roots in memory would come back
+empty, and the next root for epoch~8 would look like the first.
+
+A request on a socket may hold any value, so a log checks a root from
+another log as it checks any root. One of the kernel's tests starts a
+stand-in for a log that holds a root Wren signed in Alice's name. The log
+refuses that root and goes on working.
+
 \pdscope{The exhaustive test covers three logs and the five roots printed
 in Listing~\ref{alg:fh-log-pairs}. It counts states and says nothing
 about how likely a state is, or how long an exchange takes to happen. The
 ProVerif models cover the check of two signed roots, and not the log that
-stores them.}
+stores them. The session of Listing~\ref{alg:fh-log-processes} is one run
+on one machine.}
 
 \begin{pdboundary}
 \setlength{\parskip}{4pt plus 1pt}
@@ -382,7 +437,8 @@ is not built. Nothing is paid out on evidence either. The bond that a
 harbor or a witness would lose belongs to the settlement of
 \S\ref{sec:fh-settlement}.
 
-The logs run in one process. Running each harbor and each log as its own
-process is a later build, and so is the transfer ceremony of
-\S\ref{sec:fh-xfer}.
+The processes of Listing~\ref{alg:fh-log-processes} share a machine and
+a directory, and no message between them crosses a network. An auditor
+there takes the harbor's key from the harbor's own answer, and anyone who
+can open the harbor's socket can tell it to publish.
 \end{pdboundary}

@@ -1,0 +1,17 @@
+$ harbor scenario transfer --design foreign
+scenario transfer, design foreign: a worker with a card from one
+  harbor has a job at another harbor's database
+
+step 1   carol  honors the cards that alice's harbor signs
+step 2   alice  issues heron the card alice-1: write
+                staging-db/checkout/*
+step 3   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> admitted as heron
+step 4   alice  issues finch the card alice-2: write staging-db/*
+step 5   finch  requests to write staging-db/billing/invoices at
+                carol's gate
+                -> admitted as finch
+
+verdict: CAROL'S GATE ADMITTED A WRITE TO HER BILLING TABLE, ON A
+         CARD THAT ONLY ALICE'S HARBOR SIGNED

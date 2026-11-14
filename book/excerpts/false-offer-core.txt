@@ -1,0 +1,46 @@
+$ harbor scenario false-offer --design core
+scenario false-offer, design core: an outsider with a copy of
+  every message tries to get a card of her own
+
+step 1   carol  maps alice's write test-db/checkout/* to write
+                staging-db/checkout/*, as mapping checkout v3
+step 2   bob    maps alice's write test-db/checkout/* to write
+                shop-db/checkout/*, as mapping checkout v3 too
+step 3   alice  issues heron the card alice-1: write
+                test-db/checkout/*
+step 4   alice  offers heron's card alice-1 to carol's harbor as
+                x-1
+                -> carol issues heron carol-1
+step 5   wren   sends bob's harbor a copy of offer x-1
+                -> refused: other-recipient (the offer names
+                   another harbor)
+step 6   wren   sends carol's harbor an offer in alice's name for
+                her own key, signed with her own key
+                -> refused: offer-not-signed (the offer is not
+                   signed with the key of the harbor it is from)
+step 7   wren   sends carol's harbor offer x-1 with the holder's
+                key changed to her own
+                -> refused: offer-not-signed (the offer is not
+                   signed with the key of the harbor it is from)
+step 8   wren   sends carol's harbor offer x-1 again
+                -> known: nothing new is issued for x-1
+step 9   wren   presents carol-1 at carol's gate, and signs the
+                challenge with her own key
+                -> refused: not-proved (the proof is not signed
+                   with the last card's key for this presentation)
+step 10  wren   sends carol's harbor a revocation of alice-1,
+                signed with her own key
+                -> refused: not-its-harbor (the revocation is not
+                   signed with the key of the harbor that issued
+                   the card)
+step 11  wren   sends alice's harbor an acknowledgment of x-1 that
+                she signed
+                -> refused: ack-not-signed (the acknowledgment is
+                   not signed with the key of the harbor it is
+                   from)
+step 12  heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> admitted as heron
+
+verdict: nothing wren sent got her a card, and heron still has its
+         own

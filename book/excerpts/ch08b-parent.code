@@ -1,0 +1,21 @@
+/// A harbor is sent a signed revocation of a card of another
+/// harbor's. If it passes, the harbor revokes every card it
+/// issued from that card, and accepts no later offer of it.
+pub fn parent_revoked(
+    from: &str,
+    card: &str,
+    revocation: &Revocation,
+) -> Result<Revoked, Reason> {
+    if !by_its_harbor(&revocation.by, from) {
+        return Err(Reason::NotItsHarbor);
+    }
+    // The text is the one the card's own harbor checks
+    // (revokers.rs): the word `revoke`, that harbor's key and
+    // the card's id.
+    let text = json!(["revoke", from, card]).to_string();
+    if !verified(&revocation.by, &text, &revocation.tag) {
+        return Err(Reason::BadRevocation);
+    }
+    let (from, card) = (from.to_owned(), card.to_owned());
+    Ok(Revoked { from, card })
+}
