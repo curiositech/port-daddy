@@ -405,6 +405,9 @@ pub struct HarborBuffer {
     local_peer: PeerId,
     /// Unverified display label this replica was opened under (for diagnostics).
     identity: String,
+    /// Imported bytes may be waiting for dependencies and therefore absent from
+    /// the visible state frontier. A reload must not discard them as "clean".
+    received_import: std::cell::Cell<bool>,
 }
 
 impl HarborBuffer {
@@ -446,6 +449,7 @@ impl HarborBuffer {
             pending_receipts: RefCell::new(PendingReceipts::default()),
             local_peer,
             identity,
+            received_import: std::cell::Cell::new(false),
         }
     }
 
@@ -950,6 +954,7 @@ impl HarborBuffer {
     ) -> std::result::Result<Option<EditReceipt>, String> {
         let before = self.text.to_string();
         self.doc.import(export_bytes).map_err(|e| format!("{e}"))?;
+        self.received_import.set(true);
         self.doc.commit();
         let receipt = EditReceipt::between(&before, &self.text.to_string());
         if let Some(receipt) = &receipt {
@@ -969,6 +974,12 @@ impl HarborBuffer {
     #[cfg(test)]
     pub(crate) fn edit_receipt_batch_snapshot(&self) -> ReceiptBatch {
         self.pending_receipts.borrow().snapshot()
+    }
+
+    /// Conservative preservation barrier, including duplicate/dependency-pending
+    /// imports. This is not evidence that imported operations were authorized.
+    pub fn has_received_import(&self) -> bool {
+        self.received_import.get()
     }
 
     /// The full text content (all lines, newlines intact).
