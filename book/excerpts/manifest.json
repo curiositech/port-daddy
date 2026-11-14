@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "commit": "2e75ab7b1b211134052c89873c607b7cab008366",
+  "commit": "e2d9bd05edecc416fb222f52eccf1674448dc704",
   "scan": "harbord",
   "excerpts": [
     {
@@ -866,6 +866,78 @@
       "lines": 17,
       "language": "Rust",
       "sha256": "5071d3383cc722e231fdc4a0f067a05240f215766ec5ebdf7928c9eccf863655"
+    },
+    {
+      "name": "ch08b-accept",
+      "path": "harbord/core/src/transfer.rs",
+      "firstLine": 189,
+      "lastLine": 222,
+      "lines": 34,
+      "language": "Rust",
+      "sha256": "8c381b783fc1d52e7103bceba033f01d5a3fdbeaa30c16613090fba6b2afeb57"
+    },
+    {
+      "name": "ch08b-granted",
+      "path": "harbord/core/src/transfer.rs",
+      "firstLine": 282,
+      "lastLine": 294,
+      "lines": 13,
+      "language": "Rust",
+      "sha256": "aa084a75a84630e4c42d495bed791f4b3543ab0494b8c2a0445f73c7e24fe0c2"
+    },
+    {
+      "name": "ch08b-honor",
+      "path": "harbord/src/transfer/harbor.ts",
+      "firstLine": 139,
+      "lastLine": 147,
+      "lines": 9,
+      "language": "TypeScript",
+      "sha256": "79cce2266142360561c775ba8f779ba9e50aada71c7ebc77eaed873c6dc147d4"
+    },
+    {
+      "name": "ch08b-offer",
+      "path": "harbord/core/src/transfer.rs",
+      "firstLine": 160,
+      "lastLine": 179,
+      "lines": 20,
+      "language": "Rust",
+      "sha256": "59b8c9aa644dd5b322feced36fe593d07546e03d7ce4c057856c55789fddae9d"
+    },
+    {
+      "name": "ch08b-parent",
+      "path": "harbord/core/src/transfer.rs",
+      "firstLine": 312,
+      "lastLine": 332,
+      "lines": 21,
+      "language": "Rust",
+      "sha256": "3168cfe660a16baad38719444f0af4bc7a8a351dcc0f97df428fc35099ef30fc"
+    },
+    {
+      "name": "ch08b-receive",
+      "path": "harbord/src/transfer/harbor.ts",
+      "firstLine": 223,
+      "lastLine": 247,
+      "lines": 25,
+      "language": "TypeScript",
+      "sha256": "0a3204752bfb41c806924533c00518d7877bfecae135424a6c75646eac95ad10"
+    },
+    {
+      "name": "ch08b-told",
+      "path": "harbord/src/transfer/harbor.ts",
+      "firstLine": 279,
+      "lastLine": 298,
+      "lines": 20,
+      "language": "TypeScript",
+      "sha256": "055416e63980cebd7f284c8e90d5ce1c830efa3a6452bd30eab4d2e4de91c473"
+    },
+    {
+      "name": "ch08c-publish",
+      "path": "harbord/src/witness/served.ts",
+      "firstLine": 67,
+      "lastLine": 78,
+      "lines": 12,
+      "language": "TypeScript",
+      "sha256": "7ec0b34231793af97eb4e1b3292ca29d916e1d92538c5a575a513f65a497d45c"
     }
   ],
   "sessions": [
@@ -1030,6 +1102,12 @@
       "path": "harbord/sessions/false-notice-unverified.txt",
       "lines": 35,
       "sha256": "5404cca25bfb7efe076cf3fddbbdd1b44272c9ea466b6d154dbd013840c91826"
+    },
+    {
+      "name": "false-offer-core",
+      "path": "harbord/sessions/false-offer-core.txt",
+      "lines": 46,
+      "sha256": "fba8b8ddde6cf3366d2c3a56ac08f4c0152e1115194e09a87662a23b72516a04"
     },
     {
       "name": "fits",
@@ -1254,6 +1332,12 @@
       "sha256": "06a36c2ba8dbabb3f0874481b1409577c557aaec315b2714b051fbeaf384f4ab"
     },
     {
+      "name": "models-transfer",
+      "path": "harbord/sessions/models-transfer.txt",
+      "lines": 29,
+      "sha256": "2d903608d21dac0ba2bacb7e929a6fade1ea7069d8890927faca38642e503b3e"
+    },
+    {
       "name": "models-witness",
       "path": "harbord/sessions/models-witness.txt",
       "lines": 25,
@@ -1458,6 +1542,18 @@
       "sha256": "191c8c76a019cb4bc3bc32e66c9d25c0808f72af02c04d2c6026782b0d334b3b"
     },
     {
+      "name": "replayed-offer-core",
+      "path": "harbord/sessions/replayed-offer-core.txt",
+      "lines": 27,
+      "sha256": "ef26b9177f26e8a7ec696ac6dc6a8853891e848bbaad603f924837702e016ca1"
+    },
+    {
+      "name": "replayed-offer-offers",
+      "path": "harbord/sessions/replayed-offer-offers.txt",
+      "lines": 27,
+      "sha256": "00b77e129715eda6783ec1e6494a8e07ca46c200dddd134d7c56349a30c881ae"
+    },
+    {
       "name": "resets-each",
       "path": "harbord/sessions/resets-each.txt",
       "lines": 18,
@@ -1468,6 +1564,18 @@
       "path": "harbord/sessions/resets.txt",
       "lines": 22,
       "sha256": "2778249fd573b230ff9844433ac63669dad249b09aad309db0922fd2f3192015"
+    },
+    {
+      "name": "revoked-at-home-core",
+      "path": "harbord/sessions/revoked-at-home-core.txt",
+      "lines": 33,
+      "sha256": "4db6cddc570a0e7a34fd421068bfdca84d5af8c04abe92d5122bcd8b1bc6fbd4"
+    },
+    {
+      "name": "revoked-at-home-once",
+      "path": "harbord/sessions/revoked-at-home-once.txt",
+      "lines": 36,
+      "sha256": "775f65314658e458c007341c89a41e168fab19ffaa098f7bb05f696af24d5d3f"
     },
     {
       "name": "revoked-core",
@@ -1692,6 +1800,30 @@
       "sha256": "4dc6887eac096c2b522253f9b04050e55eb8b58c3903e9483a7c5e44cda54cd3"
     },
     {
+      "name": "transfer-core",
+      "path": "harbord/sessions/transfer-core.txt",
+      "lines": 42,
+      "sha256": "15d81c085e041dc979e4c101c32ef3c74037a14734975e836b4a41bcd02cf4bb"
+    },
+    {
+      "name": "transfer-foreign",
+      "path": "harbord/sessions/transfer-foreign.txt",
+      "lines": 17,
+      "sha256": "133acf6a98ab7ecdd827f57548ab6887c165291f362965c1bbacb77e013c26ba"
+    },
+    {
+      "name": "transfers-guards",
+      "path": "harbord/sessions/transfers-guards.txt",
+      "lines": 39,
+      "sha256": "32f2b1510ccd26d023c0358785d13cd612295e96562462e43bb891e82b1ab8cc"
+    },
+    {
+      "name": "transfers",
+      "path": "harbord/sessions/transfers.txt",
+      "lines": 37,
+      "sha256": "41d73f36ff4e984e886bf043faef7106d8351ca7b7a7c351dfa8166c02dcd079"
+    },
+    {
       "name": "two-gates-challenged",
       "path": "harbord/sessions/two-gates-challenged.txt",
       "lines": 29,
@@ -1714,6 +1846,12 @@
       "path": "harbord/sessions/two-logs-core.txt",
       "lines": 26,
       "sha256": "c399be45d481c18a0761f9099bea13b4516480c36d9395d559adc43938ba36da"
+    },
+    {
+      "name": "two-logs-processes",
+      "path": "harbord/sessions/two-logs-processes.txt",
+      "lines": 36,
+      "sha256": "510a53b202565cfeea5047230aa2f6a3b245b16a9e94ab79656cfdbba99314df"
     },
     {
       "name": "two-logs-separate",
@@ -1791,6 +1929,8 @@
     "ch06": 150,
     "ch07": 150,
     "ch07b": 138,
-    "ch08": 131
+    "ch08": 131,
+    "ch08b": 142,
+    "ch08c": 12
   }
 }

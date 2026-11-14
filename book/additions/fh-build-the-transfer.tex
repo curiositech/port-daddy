@@ -1,0 +1,392 @@
+% Build the layer, Chapter 8, second build: the transfer of a card.
+% Inserted in \S\ref{sec:fh-xfer}, after \S\ref{sec:fh-xfer-att}, which
+% states the bound on what a transfer may grant. This section builds the
+% four-message ceremony in the kernel's decision core, for the case of
+% \S\ref{sec:fh-ex-task}, and runs it.
+%
+% No code or output in this file is typed by hand. Each listing is a file
+% under excerpts/, which the kernel's tools/excerpts.mjs cuts from its
+% source and its recorded runs (see figures/pd-listing.tex). To change a
+% listing, change the kernel and cut again. The prose refers to functions
+% by name and never by line number, so a listing that moves within its file
+% does not make a sentence wrong.
+%
+% \pdlistingroom{n} before a listing of n lines keeps it on one page. When a
+% listing changes length, change the number with it.
+\subsection{Build the layer: the transfer of a card}
+\label{sec:fh-offer}
+
+\noindent\emph{Express lane: Heron holds a card from Alice's harbor, and
+its migration is at Carol's. A gate that honors Alice's cards as they are
+admits whatever Alice's harbor signs. In the build, Alice's harbor signs an
+offer that describes the card, and Carol's harbor issues a card of its own
+for what its own mapping grants. It honors an offer once. It revokes its
+card when Alice's harbor says, with its signature, that the old card is
+revoked. An exhaustive test of two harbors reaches 195 states and finds no
+card that should not be there. In 66 of them Alice's harbor has revoked the
+card, and a harbor that has not been told still admits its own.}
+
+Section~\ref{sec:fh-xfer-ceremony} gives the ceremony as four messages, and
+nothing in the chapter has run them. This section builds the ceremony in
+\pdkernelname{} for the task of \S\ref{sec:fh-ex-task}, and runs it.
+
+The cast is that task's. Heron is one of Alice's workers. Its card $C_A$
+lets it write the \texttt{checkout} schema of Alice's test database, which
+the runs write as \texttt{test-db/checkout/*}. From
+Listing~\ref{alg:fh-offer-run-core} on, the runs call that card
+\texttt{alice-1}. The migration is on Carol's staging database,
+\texttt{staging-db}. Finch is another of Alice's workers. Bob's harbor takes offers from Alice's as well. Wren is an
+outsider with a copy of every message.
+
+The section builds the offer and the card that answers it. It also builds
+the revocation that follows the card. It leaves out the epoch root that
+the chapter's offer carries, and the boundary at the end lists what else
+is missing.
+
+\subsubsection{Naive: honor the other harbor's cards}
+
+Carol's gate admits cards that Carol's harbor signed. The shortest way to
+let Heron in is to give the gate a second key, so that it honors a card
+from Alice's harbor as it honors its own
+(Listing~\ref{alg:fh-offer-honor}).
+
+\pdlistingroom{9}
+\pdexcerpt[caption={The first attempt. A gate honors another harbor's
+key.},label={alg:fh-offer-honor}]{ch08b-honor}
+
+Heron's card names tables of Alice's test database, and those are no use
+at Carol's. So Alice's harbor signs Heron a second card, for
+\texttt{staging-db/checkout/*}.
+
+\subsubsection{Break: a card for the whole database}
+
+Heron's migration goes through. Then Alice's harbor signs Finch a card
+for every table of the staging database
+(Listing~\ref{alg:fh-offer-run-foreign}).
+
+\pdlistingroom{17}
+\pdrun[caption={A card that only Alice's harbor signed, at Carol's gate.
+The word at the left of each step says who acts, and \texttt{alice} and
+\texttt{carol} are the two harbors.},label={alg:fh-offer-run-foreign}]{transfer-foreign}
+
+Nothing was forged, and Carol's gate did what it was built to do. At
+step~5 it admits a write to a billing table that is no part of the job.
+Whatever Alice's harbor writes in a card is now authority at Carol's, and
+Carol's harbor decided none of it. The example of
+\S\ref{sec:fh-sovereignty} draws this line: who signs a card is one
+question, and who rules on what the card touches is another.
+
+\subsubsection{Fix: an offer, and a card of the receiver's own}
+
+In the ceremony the card never leaves Alice's harbor. That harbor signs an
+offer instead (Listing~\ref{alg:fh-offer-text}). An offer names both
+harbors by their keys. It names the card by its id and the holder by its
+key. It lists the rights offered, and says when the card expires. It has
+an identifier, \texttt{xid}, and it names the mapping it asks under. The
+signature covers every one of those fields.
+
+What an offer is worth is for the harbor that receives it to say. Carol's
+harbor keeps a mapping for Alice's, which is a list of rules. A rule has a
+right that Alice's harbor may offer, and the right that Carol's harbor
+grants for it. Carol's one rule turns a write to
+\texttt{test-db/checkout/*} into a write to
+\texttt{staging-db/checkout/*}.
+
+\pdlistingroom{20}
+\pdexcerpt[caption={The text an offer is a signature over, and the check
+of the signature.},label={alg:fh-offer-text}]{ch08b-offer}
+
+\texttt{granted} applies the rules (Listing~\ref{alg:fh-offer-granted}).
+
+\pdlistingroom{13}
+\pdexcerpt[caption={What a harbor grants for an
+offer.},label={alg:fh-offer-granted}]{ch08b-granted}
+
+\texttt{granted} never copies a right out of the offer. This is the bound
+of Design invariant~\ref{inv:fh-transfer}: the new card holds what the
+mapping makes of the offer, and no more. \texttt{accept} puts the checks
+in order (Listing~\ref{alg:fh-offer-accept}).
+
+\pdlistingroom{34}
+\pdexcerpt[caption={A harbor is sent an
+offer.},label={alg:fh-offer-accept}]{ch08b-accept}
+
+\texttt{accept} checks that the offer is signed by the harbor it names as
+its sender, and that it names this harbor as its recipient. The harbor
+must have a mapping for the sender, and the offer must name the version of
+it that the harbor has now. The offered card must not have expired. The
+checks \texttt{used} and \texttt{revoked} belong to the two breaks below.
+
+The core holds no key
+(\weld{prereq:sec:prereq-build}{decision core}), so the harbor issues the
+card (Listing~\ref{alg:fh-offer-receive}).
+
+\pdlistingroom{25}
+\pdexcerpt[caption={A harbor asks the core about an offer, and issues the
+card.},label={alg:fh-offer-receive}]{ch08b-receive}
+
+\texttt{receive} gives the core this harbor's key and its mapping for the
+sender, with two facts it has looked up. It signs a card
+with the claims the core returns, and records which offer the card came
+from. The card is an ordinary card of Carol's harbor. Her gate checks it
+as it checks any other, and Heron has to prove it holds the card's key
+(\weld{anchor:sec:anchor-build-holder}{proof of possession}).
+
+Listing~\ref{alg:fh-offer-run-core} is the run. Steps 4 to 8 carry the
+four messages. At step~4 Heron asks its own harbor, and proves it holds
+the card by answering the gate's challenge. Step~5 is the offer. At
+step~6 Carol's harbor issues \texttt{carol-1}, and at step~7 it tells
+Alice's harbor which card it issued. The card goes to Heron at step~8.
+Carol's gate refused Heron's old card at step~3, and it admits the new
+one at step~9.
+
+The run goes on to two wider cards. Finch's card for the whole test
+database buys what Heron's did, because the mapping has one rule. The
+card that broke the first attempt is offered at step~14 and buys nothing,
+since no rule of Carol's has \texttt{staging-db} on its offered side.
+Alice's harbor can still sign whatever it likes. Its signature is no
+longer authority at Carol's.
+
+\pdlistingroom{39}
+\pdrunlines[caption={The four messages of a transfer, and then two wider
+cards, at harbors that ask the
+core.},label={alg:fh-offer-run-core}]{transfer-core}{1,5-42}{1 and 5\textendash 42}
+
+\subsubsection{Break again: the same offer, twice}
+
+An offer is a message, and a message can be copied. The harbor above, as
+first written, kept no record of the offers it had taken. Carol's harbor
+revokes the card it issued, and Wren sends the offer again
+(Listing~\ref{alg:fh-offer-run-replay}).
+
+\pdlistingroom{20}
+\pdrunlines[caption={An offer arrives a second time. Steps 1 and 2, left
+out, are those of
+Listing~\ref{alg:fh-offer-run-core}.},label={alg:fh-offer-run-replay}]{replayed-offer-offers}{1,9-27}{1 and 9\textendash 27}
+
+At step~7 the harbor issues \texttt{carol-2}, and Heron is back in. Wren
+gained nothing for herself, because the card names Heron's key. The loss
+is Carol's. Her harbor revoked a card, and anyone with a copy of the offer
+can undo that.
+
+\subsubsection{Fix: honor an identifier once}
+
+The harbor now keeps what it issued for each identifier.
+\texttt{receive} looks the identifier up and passes the answer to the
+core as \texttt{used}, and \texttt{accept} answers a used one with
+\texttt{Known} (Listing~\ref{alg:fh-offer-run-once}).
+
+\pdlistingroom{10}
+\pdrunlines[caption={The same run at a harbor that honors an identifier
+once. The steps left out are the first six of
+Listing~\ref{alg:fh-offer-run-replay}.},label={alg:fh-offer-run-once}]{replayed-offer-core}{1,19-27}{1 and 19\textendash 27}
+
+\texttt{Known} is an answer, and not a refusal. The harbor sends back the
+acknowledgment of the card it issued the first time. A sender whose
+acknowledgment was lost can send its offer again and learn what happened.
+The log of \S\ref{sec:fh-log} answers a root it already holds in the same
+way.
+
+\subsubsection{Break again: revoked at home}
+
+Alice revokes Heron's card, as she does at the end of the worked example
+(\S\ref{sec:fh-ex-revocation}). Carol's harbor issued its card before
+that, and nothing ties the two together
+(Listing~\ref{alg:fh-offer-run-home}).
+
+\pdlistingroom{29}
+\pdrunlines[caption={Alice's harbor revokes the card that Carol's harbor
+issued from. Steps 1 and 2 are left out
+again.},label={alg:fh-offer-run-home}]{revoked-at-home-once}{1,9-36}{1 and 9\textendash 36}
+
+Heron is refused at Alice's gate at step~6 and admitted at Carol's at
+step~7. Step~8 changes nothing, because this harbor keeps no record of
+another harbor's revocations. Step~10 is worse. A second offer of the
+card, signed before the revocation, arrives after it, and the harbor
+issues a card from a card that is revoked.
+
+\subsubsection{Fix: follow the card's own harbor}
+
+Carol's harbor has a record of which card each of its cards came from.
+When it is told that one of those is revoked, it checks who is telling it
+(Listing~\ref{alg:fh-offer-parent}).
+
+\pdlistingroom{21}
+\pdexcerpt[caption={A harbor is sent a revocation of another harbor's
+card.},label={alg:fh-offer-parent}]{ch08b-parent}
+
+The signed text is the one that Alice's own gate checks when a card is
+revoked there
+(\weld{anchor:sec:anchor-build-warranted}{signed revocation}), so one
+signature serves at both harbors. The two differ in whose signature they
+take. Alice's gate takes her harbor's, and also that of a holder the
+card's chain names. Carol's harbor never saw the chain. It knows one key
+that can speak for the card, and that is the key of the harbor that
+offered it.
+
+\texttt{told} is what the harbor does with a revocation that passes
+(Listing~\ref{alg:fh-offer-told}). It does two things. It revokes every
+card this harbor issued from the old one. It also remembers the old card,
+and \texttt{accept} refuses any later offer of it. The second is for the
+offer that was held up (Listing~\ref{alg:fh-offer-run-told}).
+
+\pdlistingroom{20}
+\pdexcerpt[caption={What a harbor does with a revocation that
+passes.},label={alg:fh-offer-told}]{ch08b-told}
+
+\pdlistingroom{14}
+\pdrunlines[caption={The same run at harbors that ask the core. The steps
+left out are the first seven of
+Listing~\ref{alg:fh-offer-run-home}.},label={alg:fh-offer-run-told}]{revoked-at-home-core}{1,21-33}{1 and 21\textendash 33}
+
+Step~9 is now a refusal, and step~10 refuses the late offer. Step~7 is as
+it was. Between Alice's revocation and its arrival, Carol's gate admitted
+Heron once. The build shortens that window to the time one message takes,
+and does not close it. Theorem~\ref{thm:fh-conv} is about how long that
+time is.
+
+\subsubsection{Verify: an outsider, then every order}
+
+\paragraph{An outsider.}
+Wren has a copy of every message, the offer and the new card among them
+(Listing~\ref{alg:fh-offer-run-outsider}).
+
+\pdlistingroom{34}
+\pdrunlines[caption={An outsider with a copy of every message. Steps 1 to
+4, left out, set up the transfer and give Bob's harbor a
+mapping.},label={alg:fh-offer-run-outsider}]{false-offer-core}{1,14-46}{1 and 14\textendash 46}
+
+At step~2 Bob's harbor took a mapping for Alice's too, with the same name
+and version as Carol's. So at step~5 the recipient's name is all that
+stands between Wren and a card at Bob's, and \texttt{addressed} is the
+check that reads it. Step~6 is an offer that Wren signed, and step~7 is
+Alice's offer with one field changed. Neither has a signature by Alice's
+harbor over what it says. Step~8 is \texttt{Known}. At step~9 she
+presents Heron's card and cannot answer for Heron's key. Steps 10 and 11
+are a revocation and an acknowledgment that she signed herself.
+
+\paragraph{Every order.}
+The order in which offers and revocations arrive is the network's to
+choose, or an attacker's, so a few runs are not enough. The exhaustive
+test sends two harbors seven offers and two revocations of
+\texttt{alice-1} in every order, and the heading of
+Listing~\ref{alg:fh-offer-walk} says which. In every state the test
+compares each harbor with a small reference model. The model checks no
+signature. It is told which offer was made for which harbor, and it keeps
+its own account of what each harbor has been sent.
+
+\pdlistingroom{37}
+\pdrun[caption={Every sequence of events for two harbors, at each design
+that takes offers.},label={alg:fh-offer-walk}]{transfers}
+
+Three of the offers are good: two of Heron's card to Carol's harbor, and
+one of it to Bob's. The other four should buy nothing. A harbor that
+issues a card for every offer would issue without end, so the test stops
+sending an offer to a harbor that has issued two cards for it. Even so,
+that design holds a card it should not in 7,455 of its 7,862 states.
+Honoring an identifier once brings that column to zero. It leaves
+\texttt{revived}: in 224 of 407 states a gate admits a card after its
+harbor was told that the old one is revoked. The harbors that ask the
+core have neither fault in any of their 195 states.
+
+The column \texttt{behind} is not zero for any design, and it cannot be.
+In 66 of the core's states Alice's harbor has revoked the card, and a
+harbor that has not been told admits its own. The last column says what
+one notice does. At the core's harbors it ends all 66. \emph{Now you
+try:} Exercise~\ref{ex:fh-offer-late} follows the offer that was held up
+through \texttt{told} and \texttt{accept}.
+
+\paragraph{Each guard removed.}
+The build has nine guards. Eight of them are in the path of this test,
+and the core can be compiled with any one removed
+(Listing~\ref{alg:fh-offer-guards}). The ninth is the signature on an
+acknowledgment. The test sends no acknowledgments, and unit tests in the
+kernel cover that guard.
+
+\pdlistingroom{11}
+\pdrunlines[caption={The exhaustive test on the core, and on eight builds
+of it with one guard removed from each. The heading and the notes on the
+columns, left out, are those of
+Listing~\ref{alg:fh-offer-walk}.},label={alg:fh-offer-guards}]{transfers-guards}{1,15-24}{1 and 15\textendash 24}
+
+Every row differs from the first. A core that takes an offer whichever
+harbor it names reaches 19,491 states, and in nearly all of them a harbor
+holds a card for an offer that was made for the other one. A core that
+grants the rights an offer names issues cards that Carol's gate then
+refuses for the migration, which is the 601 under \texttt{refused}. The
+row \texttt{late-offer} is the offer that was held up: without the memory
+of revoked cards, a gate admits a card in 130 states whose parent the
+harbor knows is revoked. A core that takes a revocation from any key lets
+Wren cost Heron its card in 382 states.
+
+\paragraph{The offer, as a protocol.}
+The exhaustive test uses seven offers that the kernel made. ProVerif asks
+about any offers an attacker can make
+(\weld{anchor:sec:correct}{ProVerif}). In the model the attacker chooses
+what each offer says and which harbor it is for, and Alice's harbor signs
+it as often as it is asked. The attacker sees every message and has a
+key of its own (Listing~\ref{alg:fh-offer-models}).
+
+\pdlistingroom{29}
+\pdrun[caption={ProVerif~2.05 on an offer and its revocation, and on five
+controls.},label={alg:fh-offer-models}]{models-transfer}
+
+\texttt{offer.pv} is the check as the core makes it. Its first result is
+an injective correspondence. Each card that a harbor issues answers an
+offer that Alice's harbor made for that harbor, and no two cards answer
+one offer. Its second is \texttt{false} on purpose: a card can be issued,
+so the first result is not true merely because nothing happens. Its third
+says that a harbor acts on a revocation only if Alice's harbor signed it.
+
+``No two cards'' rests on the rule that a harbor honors an identifier
+once. ProVerif has no table that is read and written in one step, so the
+model states the rule as a restriction on what a harbor's process may do.
+\texttt{reuse-offer.pv} is the model without it. ProVerif finds the
+replay there, and prints a second line: the same query without
+\texttt{inj-} still holds. Every card still answers an offer that was
+made, and two cards answer the same one.
+
+\keyidea[A card of your own, for an offer you checked]{A harbor does not
+honor another harbor's cards. It takes an offer, and decides from its own
+mapping what the offer is worth. The card it issues is its own to revoke.
+The offer is good once, at the harbor it names. The new card expires when
+the old one does, and is revoked when the harbor learns that the old one
+is.}
+
+\pdscope{The exhaustive test covers two harbors and the seven offers it
+names, at one moment. It counts states and says nothing about how likely
+a state is, or how long a revocation takes to arrive. The ProVerif models
+cover an offer and a revocation. They have no mapping and no expiry, and
+they say nothing about the order in which an offer and a revocation
+arrive. They assume that an identifier is honored once, and the
+exhaustive test is what checks that the kernel does so.}
+
+\begin{pdboundary}
+\setlength{\parskip}{4pt plus 1pt}
+The offer carries no epoch root. The chapter's offer names the root under
+which the card was issued, and the receiving harbor checks that root
+against a witness log. That needs the proof that an event is under a
+root, which \S\ref{sec:fh-log} does not build. So Carol's harbor takes
+Alice's harbor at its word that the card exists.
+
+Heron signs its request, and what it signs does not name Carol's harbor.
+Whoever carries the request to Alice's harbor can name Bob's instead
+(Exercise~\ref{ex:fh-offer-request}).
+
+A revocation reaches another harbor when someone sends it. These runs
+send it by hand. Section~\ref{sec:fh-revocation} is about what gossip can
+promise, and what it cannot.
+
+The chapter's card carries the identifier of the offer it answers. The
+card built here is an ordinary card of its harbor, and the harbor keeps
+the record of which offer it came from. A gate that has only the card
+cannot tell.
+
+A harbor never forgets an identifier, though it could drop one once its
+card has expired. The acknowledgment is checked, and no later step
+depends on it. No bond is posted for a transfer and nothing is paid,
+which is the subject of \S\ref{sec:fh-settlement}.
+
+The two harbors run in one process, though the logs of
+\S\ref{sec:fh-log} can each run as a process of its own.
+\end{pdboundary}

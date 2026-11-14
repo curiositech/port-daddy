@@ -1,0 +1,36 @@
+$ harbor scenario revoked-at-home --design once
+scenario revoked-at-home, design once: a harbor revokes a card
+  after another harbor has issued a card from it
+
+step 1   carol  maps alice's write test-db/checkout/* to write
+                staging-db/checkout/*, as mapping checkout v3
+step 2   alice  issues heron the card alice-1: write
+                test-db/checkout/*
+step 3   alice  offers heron's card alice-1 to carol's harbor as
+                x-1
+                -> carol issues heron carol-1
+step 4   alice  signs offer x-2 of the same card, which is held up
+                on its way
+step 5   alice  revokes alice-1 -> revoked
+step 6   heron  requests to write test-db/checkout/orders at
+                alice's own gate
+                -> refused: revoked (card 1 was revoked)
+step 7   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> admitted as heron
+step 8   alice  sends carol's harbor its signed revocation of
+                alice-1
+                -> nothing: a harbor of this design keeps no
+                   record of another harbor's revocations
+step 9   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> admitted as heron
+step 10  carol  is sent offer x-2
+                -> issues carol-2 to heron's key: write
+                   staging-db/checkout/*
+step 11  heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> admitted as heron
+
+verdict: ALICE REVOKED HERON'S CARD, AND HERON STILL WRITES TO
+         CAROL'S STAGING DATABASE

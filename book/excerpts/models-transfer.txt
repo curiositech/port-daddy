@@ -1,0 +1,29 @@
+$ sh formal/transfer/run.sh
+any-recipient.pv
+RESULT inj-event(Issued(m)) ==> inj-event(Offered(m)) is false.
+RESULT (even event(Issued(m)) ==> event(Offered(m)) is false.)
+RESULT not event(Issued(m)) is false.
+RESULT event(Told(m)) ==> event(Revoked(m)) is true.
+any-revoker.pv
+RESULT inj-event(Issued(m)) ==> inj-event(Offered(m)) is true.
+RESULT not event(Issued(m)) is false.
+RESULT event(Told(m)) ==> event(Revoked(m)) is false.
+no-recipient-in-the-text.pv
+RESULT inj-event(Issued(m)) ==> inj-event(Offered(m)) is false.
+RESULT (even event(Issued(m)) ==> event(Offered(m)) is false.)
+RESULT not event(Issued(m)) is false.
+RESULT event(Told(m)) ==> event(Revoked(m)) is true.
+offer.pv
+RESULT inj-event(Issued(m)) ==> inj-event(Offered(m)) is true.
+RESULT not event(Issued(m)) is false.
+RESULT event(Told(m)) ==> event(Revoked(m)) is true.
+reuse-offer.pv
+RESULT inj-event(Issued(m)) ==> inj-event(Offered(m)) is false.
+RESULT (but event(Issued(m)) ==> event(Offered(m)) is true.)
+RESULT not event(Issued(m)) is false.
+RESULT event(Told(m)) ==> event(Revoked(m)) is true.
+unsigned-offer.pv
+RESULT inj-event(Issued(m)) ==> inj-event(Offered(m)) is false.
+RESULT (even event(Issued(m)) ==> event(Offered(m)) is false.)
+RESULT not event(Issued(m)) is false.
+RESULT event(Told(m)) ==> event(Revoked(m)) is true.

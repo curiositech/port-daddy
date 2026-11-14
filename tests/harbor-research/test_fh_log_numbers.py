@@ -15,11 +15,14 @@ ROOT = Path(__file__).resolve().parents[2]
 EXCERPTS = ROOT / 'book' / 'excerpts'
 SECTION = ROOT / 'book' / 'additions' / 'fh-build-the-log.tex'
 CHAPTER = ROOT / 'book' / 'federated-harbor-whitepaper.tex'
-WHOLE_RUNS = ['two-roots-latest', 'false-evidence-core', 'evidence', 'logs', 'logs-guards', 'models-witness']
+WHOLE_RUNS = ['two-roots-latest', 'false-evidence-core', 'evidence', 'logs', 'logs-guards', 'models-witness',
+              'two-logs-processes']
 PART_RUNS = {'two-roots-core': [(14, '1,10-22')], 'two-logs-separate': [(20, '1-17,24-26')],
              'two-logs-core': [(12, '1,16-26')]}
 SNIPPETS = ['ch08-root', 'ch08-signed', 'ch08-latest', 'ch08-publish', 'ch08-second', 'ch08-evidence',
             'ch08-exchange']
+# The snippets of the third build, which runs the log as a process. The section prints them too.
+SERVED = ['ch08c-publish']
 DESIGNS = ['latest', 'separate', 'core']
 GUARDS = ['unsigned-root', 'replace-root', 'one-signature', 'any-harbor', 'any-epoch', 'same-root']
 ROOTS = ['alice-7', 'alice-8', "alice-8'", 'bob-8', 'wren-8']
@@ -81,7 +84,7 @@ class QuotedFacts(unittest.TestCase):
     def test_every_run_and_snippet_is_printed_with_the_right_room(self):
         source = SECTION.read_text()
         whole = re.findall(r'\\pdlistingroom\{(\d+)\}\n\\pd(run|excerpt)\[[^\]]*\]\{([\w-]+)\}', source, flags=re.S)
-        self.assertEqual(sorted(name for _, _, name in whole), sorted(SNIPPETS + WHOLE_RUNS))
+        self.assertEqual(sorted(name for _, _, name in whole), sorted(SNIPPETS + SERVED + WHOLE_RUNS))
         for room, kind, name in whole:
             path = EXCERPTS / (f'{name}.txt' if kind == 'run' else f'{name}.code')
             self.assertEqual(int(room), len(path.read_text().splitlines()), name)
@@ -100,6 +103,8 @@ class QuotedFacts(unittest.TestCase):
         # Every snippet this build has is printed in this section.
         cut = {excerpt['name'] for excerpt in manifest['excerpts'] if excerpt['name'].startswith('ch08-')}
         self.assertEqual(cut, set(SNIPPETS))
+        served = {excerpt['name'] for excerpt in manifest['excerpts'] if excerpt['name'].startswith('ch08c-')}
+        self.assertEqual(served, set(SERVED))
         self.assertIn('\\input{additions/fh-build-the-log}', CHAPTER.read_text())
 
     def test_the_two_roots_of_the_example(self):
@@ -271,6 +276,48 @@ class QuotedFacts(unittest.TestCase):
         self.quoted("In every one of them an auditor accepts evidence against Bob's harbor.")
         self.quoted('ProVerif~2.05 on the check of evidence, and on five controls.')
         self.quoted('Its third is \\texttt{false} on purpose')
+
+    def test_the_processes(self):
+        lines = run('two-logs-processes')
+        whole = re.sub(r'\s+', ' ', ' '.join(lines))
+        # Three processes start, each on a socket of its own name.
+        starts = [line for line in lines if line.startswith('$ harbord ')]
+        self.assertEqual(starts[:3], ['$ harbord log log-1 &', '$ harbord log log-2 &', '$ harbord harbor alice &'])
+        for name in ['log-1', 'log-2', 'alice']:
+            self.assertIn(f'listening on .harbor/{name}.sock', whole)
+        self.quoted('\\texttt{harbord log} starts a witness log, and \\texttt{harbord harbor} starts a harbor that '
+                    'signs roots.')
+        # The harbor publishes five events to one log and four to the other, and the audits read the roots of
+        # the runs inside one process.
+        self.assertIn('alice publishes a root for epoch 8 to log-1: 5 events -> recorded', whole)
+        self.assertIn('alice publishes a root for epoch 8 to log-2: 4 events -> recorded', whole)
+        self.assertIn(f"root {FIVE}, and alice's 5 events hash to it. C_A is revoked", whole)
+        self.assertIn(f"root {FOUR}, and alice's 4 events hash to it. C_A is not revoked", whole)
+        self.quoted('The harbor publishes a root of five events to \\texttt{log-1} and a root of four to '
+                    '\\texttt{log-2}, and the two audits read different answers about $C_A$.')
+        # After the exchange each log keeps its first root and holds the two as evidence.
+        for log in ['log-1', 'log-2']:
+            self.assertIn(f'-> equivocation: {log} keeps the first root, and holds the two as evidence', whole)
+        self.quoted('After the exchange each log holds the two roots as evidence.')
+        # Before the exchange an audit finds a signed root and events that hash to it, at each log.
+        self.assertEqual(whole.count('events hash to it'), 2)
+        self.quoted('Neither audit finds anything wrong')
+        # The first log is killed and started again, and the audit after that finds the evidence there.
+        kill = lines.index('$ kill -9 %1')
+        self.assertEqual(lines[kill + 1], '$ harbord log log-1 &')
+        last = re.sub(r'\s+', ' ', ' '.join(lines[kill + 3:]))
+        self.assertTrue(last.startswith('$ harbor audit alice --epoch 8 --at log-1 '))
+        self.assertIn(f'evidence that alice signed two roots for it, {FIVE} and {FOUR}. Both signatures verify', last)
+        self.quoted('Started again, it reads its file, and the last audit finds the same evidence there.')
+        # The listing of the served log: it writes its file before it answers.
+        code = (EXCERPTS / 'ch08c-publish.code').read_text()
+        order = [code.index(name) for name in ['log.publish(signed)', 'save(statePath', 'return reply']]
+        self.assertEqual(order, sorted(order))
+        self.assertIn('MUTANT unsaved-root', code)
+        self.quoted('the file is written before the answer goes out')
+        # The steps are those of the two runs inside one process that the section names.
+        self.quoted('These are the steps of Listing~\\ref{alg:fh-log-run-separate} and of '
+                    'Listing~\\ref{alg:fh-log-run-exchange}.')
 
     def test_the_exercises_are_in_the_chapter(self):
         source = CHAPTER.read_text()

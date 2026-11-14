@@ -537,6 +537,8 @@ where $\mathrm{map}_{A\to B}$ is the resource mapping that $B$ signed and versio
 
 \pdexercisepointer{\ref{ex:fh-xfer-offer}}{\ref{ex:fh-xfer-attenuation}}{\pageref{ex:fh-xfer-offer}}
 
+\input{additions/fh-build-the-transfer}
+
 \subsection{Threats foreclosed and threats deferred}\label{sec:fh-xfer-threats}
 
 The ceremony closes only the threats its signatures and bindings address;
@@ -551,9 +553,9 @@ other protocols handle the rest:
 Revocation, the first deferred threat, is the subject of the next section.
 
 \subsection{Mechanization status}\label{sec:fh-xfer-mech}
-\pdstatus{\Designed}{ProVerif query sketch only; no executable model}
+\pdstatus{\Designed}{the offer and its revocation run in the kernel, with ProVerif models; the root an offer carries is not built}
 
-The ceremony has a ProVerif query sketch (Appendix~\ref{app:fh-proverif}) and no executable model or verification transcript, so no machine has checked its authenticity, its recipient binding, the holder's proof of possession, or the freshness of the roots it relies on. Theorem~\ref{lem:fh-att} is a set-inclusion argument within one shared resource universe and says nothing about any of them.
+The ceremony runs in \S\ref{sec:fh-offer}. ProVerif has checked its offer, in \path{harbord/formal/transfer/offer.pv}: a harbor issues a card only for an offer that the sending harbor made for that harbor, and once for each offer. An exhaustive test of two harbors reaches 195 states, and in none of them does a harbor hold a card it should not. A harbor revokes its card when the sending harbor revokes the old one. The holder's proof of possession is the one \pdchapref{anchor}{The Anchor Protocol} built. No machine has checked the freshness of the root that the chapter's offer carries, because \S\ref{sec:fh-offer} leaves the root out. Theorem~\ref{lem:fh-att} is a set-inclusion argument within one shared resource universe and says nothing about any of these.
 
 % Keep the full questions readable without occupying the following revocation
 % diagram's caption rail. Only this recitation uses the body-column form.
@@ -1172,9 +1174,9 @@ the evidence, current policy, and funded remedy required for its own decision.
 \section{Formal Model}\label{sec:fh-formal}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\pdstatus{\Designed}{cross-harbor listings are sketches; only the witness log has an executable model}
+\pdstatus{\Designed}{cross-harbor listings are sketches; the witness log and the transfer of a card have executable models}
 
-The formal program has two layers: ProVerif~\pdcite{blanchet2016modeling} proof obligations for the cryptographic protocols and TLA+ proof obligations for cross-harbor accounting. The executable artifacts that exist cover narrower single-harbor accounting and a vault-secrecy query whose encoding flaw is stated below. One part of the cross-harbor design does run: the witness log of \S\ref{sec:fh-log}, with ProVerif models of its check of equivocation evidence.
+The formal program has two layers: ProVerif~\pdcite{blanchet2016modeling} proof obligations for the cryptographic protocols and TLA+ proof obligations for cross-harbor accounting. The executable artifacts that exist cover narrower single-harbor accounting and a vault-secrecy query whose encoding flaw is stated below. Two parts of the cross-harbor design do run, each with ProVerif models: the witness log of \S\ref{sec:fh-log}, and the transfer of a card of \S\ref{sec:fh-offer}.
 
 \subsection{ProVerif extensions to Anchor}\label{sec:fh-proverif-ext}
 
@@ -1192,7 +1194,7 @@ query b: id, ha: id, hb: id, cap: capability, e: epoch;
 
 The condition asks that every acceptance at $B$ be preceded by matching issuance, envelope and root events. It is a specification target. A past \texttt{RootCurrent} event does not show that the root was still current at acceptance, so a complete model must also express epoch order and stale-root rejection, key compromise, the resource mapping, the recipient binding, the holder's proof of possession, and a compromised receiving daemon.
 
-No executable model of the transfer exists, and no run transcript; Appendix~\ref{app:fh-mech} records the gap.
+The models of \S\ref{sec:fh-offer} prove part of this condition. In them a harbor issues a card only for an offer that the sending harbor made for it, and once for each offer. That covers the envelope and the recipient binding. The models have no root and no mapping. No harbor's key is compromised in them either, so the rest of the list above is still a target. Appendix~\ref{app:fh-mech} records what is checked.
 
 The separate artifact \path{proofs/bonded/federated/federated.pv} has a committed successful ProVerif transcript with daemon, KMS, and email shares exposed. Its query, however, concerns a fresh private constant \texttt{account\_root} that is never bound to \texttt{combine4} of those shares or published. The success establishes secrecy of that unused constant; it does not establish the intended four-principal reconstruction claim. The query is vacuous: it would still report true if all four shares were published, because nothing connects them to the queried name. The recorded result is:
 \begin{pdlisting}{Output}{\path{proofs/bonded/federated/federated.pv}}
@@ -1237,7 +1239,7 @@ The listing verifies nothing. \texttt{BucketPartition} holds for every function 
 
 Each claim sits in one band of Figure~\ref{fig:fh-threat-bands}.
 
-\paragraph{Available model evidence.} Single-harbor capability models are inherited from Anchor. The committed TLC transcript concerns Bonded's single-machine Conservation model. Cross-realm protocol sketches and the cross-harbor bucket partition have no executable verification evidence here. The check of equivocation evidence does: \S\ref{sec:fh-log} tests it and proves it in ProVerif. The separate vault model's successful query is vacuous: it does not encode the intended reconstructed root.
+\paragraph{Available model evidence.} Single-harbor capability models are inherited from Anchor. The committed TLC transcript concerns Bonded's single-machine Conservation model. The cross-harbor bucket partition has no executable verification evidence here. Two parts of the design do. \S\ref{sec:fh-log} tests the check of equivocation evidence and proves it in ProVerif, and \S\ref{sec:fh-offer} does the same for the offer of a transfer. The separate vault model's successful query is vacuous: it does not encode the intended reconstructed root.
 
 \paragraph{Conditional (assumption scope).} Revocation dissemination is expected $\Theta(\Delta\log m)$ only under the stated reliable complete-overlay model with uniform peer choice (Theorem~\ref{thm:fh-conv}). The escrow extraction bound is conditional on a non-bypassable recipient-whitelisted custody ledger (Design Invariant~\ref{thm:fh-escrow-bound}).
 
@@ -1575,6 +1577,128 @@ The proof sketch's step, ``each attenuation is a subset operation in the Anchor 
 In this case minting $C_B'$ is \textbf{token exchange and new authorization at $B$}, not attenuation of $C_A$. A correct $D_B$ must additionally establish: (a) \emph{$A$-side input eligibility}: a signed semantic/resource mapping saying that $C_A$'s authority over $A$'s test database is the kind of thing that may be exchanged at all, recorded with its dependency on $A$'s issuing epoch root $R_A^{(e_A)}$ so a later revocation of $C_A$ is traceable to $C_B'$; and (b) \emph{$B$-side local authorization}: $D_B$'s own policy minting a new child grant over its staging database, under $D_B$'s sovereignty (Design Invariant~\ref{def:fh-sovereignty}, items 1 and 4), rather than treating $\mathrm{att}_B$ as if it were narrowing $A$'s grant.
 
 A second gap comes with this one and should be named rather than assumed solved. Bob's harbor observing a failed acceptance check, or an inclusion proof against $R_B^{(e_B)}$, does not by itself establish that Alice's agent \emph{caused} the failure (\S\ref{sec:fh-settle-proto}'s damage-claim step). Settlement evidence must bind the exact work-unit, the base and result trees, the mediated effects, the acceptance policy in force, and the verifier that checked it; semantic causation (``$\alpha$'s write is why the check failed'') remains a claim for the adjudicator named in the bond's terms (\S\ref{sec:fh-escrow}) to weigh, not something the inclusion proof settles on its own. Theorem~\ref{lem:fh-att} still holds in the case its proof sketch covers; this exercise marks where that case ends.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:fh-offer}}{Build the layer: the transfer of a card}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:fh-offer-rule}
+Carol's harbor adds a second rule: for a write to \texttt{test-db/*} it
+grants a write to \texttt{staging-db/billing/*}. By
+Listing~\ref{alg:fh-offer-granted}, what does Heron's offer of
+Listing~\ref{alg:fh-offer-run-core} get now? What does Finch's offer of
+\texttt{test-db/*} get, and an offer of the one table
+\texttt{test-db/checkout/orders}?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-offer-rule}
+A rule applies when the offer covers the rule's offered right. Heron's
+offer is of \texttt{test-db/checkout/*}. That covers the first rule's
+offered right, which is the same pattern. It does not cover
+\texttt{test-db/*}, which names tables outside the \texttt{checkout}
+schema. So Heron is granted \texttt{staging-db/checkout/*}, as before.
+Finch's offer of \texttt{test-db/*} covers both offered rights, and Finch
+is granted both: the \texttt{checkout} schema and the \texttt{billing}
+schema of the staging database. The offer of one table covers neither
+pattern, because each pattern names more than that table. No rule
+applies, and the harbor refuses the offer as \texttt{nothing-mapped}. A
+rule asks for at least its offered right, so a narrow card buys nothing
+from a wide rule. The kernel has a test of this mapping.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-offer-order}
+In Listing~\ref{alg:fh-offer-accept} the check \texttt{used} comes before
+\texttt{revoked}. Carol's harbor issued \texttt{carol-1} for \texttt{x-1}
+and was then told that \texttt{alice-1} is revoked. What does it answer
+to \texttt{x-1} again, and to \texttt{x-2}, a new offer of the same card?
+What changes if the two checks swap places?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-offer-order}
+For \texttt{x-1} the harbor finds that it has honored the identifier, so
+\texttt{used} answers \texttt{Known} and nothing after it runs. The
+harbor sends the acknowledgment of \texttt{carol-1} again and issues no
+card. \texttt{carol-1} stays revoked, because \texttt{told} revoked it
+when the revocation arrived. For \texttt{x-2} the identifier is new, so
+\texttt{used} passes and \texttt{revoked} refuses the offer as
+\texttt{parent-revoked}. With the checks the other way round,
+\texttt{x-1} would be refused as \texttt{parent-revoked} too. No card is
+issued in either order. What differs is what the sender learns. As the
+listing has it, a sender that lost its acknowledgment can still find out
+which card was issued for \texttt{x-1}.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-offer-late}
+Alice's harbor signs offers \texttt{x-1} and \texttt{x-2} of
+\texttt{alice-1} and then revokes the card. Carol's harbor is sent the
+revocation first, and then the two offers. Walk \texttt{told}
+(Listing~\ref{alg:fh-offer-told}) and \texttt{accept}
+(Listing~\ref{alg:fh-offer-accept}) for each message. What does the
+harbor hold at the end? The core of the row \texttt{late-offer} in
+Listing~\ref{alg:fh-offer-guards} lacks the check \texttt{revoked}. What
+does a harbor that asks it hold, and which column counts that?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-offer-late}
+The revocation is signed by Alice's harbor, so \texttt{parent\_revoked}
+passes it. \texttt{told} remembers \texttt{alice-1}. The harbor has
+issued nothing from that card yet, so it revokes nothing. Then
+\texttt{x-1} arrives. It passes the checks of its signature and its
+recipient, and its identifier is new. The harbor reports that it knows
+the card to be
+revoked, and \texttt{accept} refuses the offer as
+\texttt{parent-revoked}. The same happens to \texttt{x-2}. Carol's harbor
+holds no card. A harbor that asks the core without that check also
+remembers the card, and its core does not look. It issues a card for
+\texttt{x-1} and another for \texttt{x-2}. Both are admitted, though
+Alice's harbor revoked their parent before either existed. They stay
+admitted unless the revocation is sent a second time. The column is
+\texttt{revived}, and it counts 130 of that build's 407 states.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-offer-recipient}
+Suppose an offer's signature left out the harbor the offer is for, and
+that harbor's key were sent beside it. Bob's mapping for Alice's has the
+name that Carol's has. What does Wren send to get Heron a card at Bob's,
+and which check of Listing~\ref{alg:fh-offer-accept} passes when it
+should not? Which model of Listing~\ref{alg:fh-offer-models} is this?
+Would another name for Bob's mapping have stopped her?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-offer-recipient}
+Wren copies offer \texttt{x-1}, changes the key beside the signature from
+Carol's to Bob's, and sends it to Bob's harbor. The signature still
+verifies, because the recipient is not part of what was signed.
+\texttt{addressed} passes wrongly: it compares Bob's key with a key that
+Wren wrote. The mapping check passes, since the two mappings share a
+name. Bob's harbor issues Heron a card for
+\texttt{shop-db/checkout/*}, which Alice's harbor never offered there.
+The model is \texttt{no-recipient-in-the-text.pv}. Another name for Bob's
+mapping would have stopped this offer at \texttt{current}, and only by
+luck. Each harbor names its own mappings, and nothing keeps two harbors
+from choosing the same name.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=3]{ex:fh-offer-request}
+\emph{The request that names no destination.} Heron's proof is a
+signature over the gate's challenge and two facts about the request: the
+right it asks for, and the id of its card. It does not name Carol's
+harbor. Who could change the destination, and what would each party then
+hold? What should Heron sign, and what must Alice's gate check? Does the
+repair need a fifth message?
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-offer-request}
+Whoever carries the request from Heron to Alice's harbor can change it.
+That is another process on Alice's machine, or the network if Heron runs
+somewhere else. It replaces Carol's key with Bob's. Alice's gate admits
+the proof, which says nothing about a destination, and Alice's harbor
+signs an offer for Bob's harbor. Bob's harbor issues a card for Heron's
+key. The carrier cannot use that card, since it lacks Heron's key. The
+damage is elsewhere. Alice's harbor has an offer on record that Heron
+never asked for, and Bob's harbor has issued a card that nobody wanted.
+Heron, for its part, has no card at Carol's. The repair is for Heron to
+sign the
+destination. The text of the proof gains the recipient's key and the
+name of the mapping, and Alice's gate computes that text from the
+request it received, as it already does for the right and the card. No
+fifth message is needed, because the first one carries the new fields.
+The kernel has a test that shows the redirect, and it does not have the
+repair.
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:fh-revocation}}{Federated Revocation}
@@ -2009,8 +2133,8 @@ Gabriele Farina.
 \bottomrule
 \endlastfoot
 Single-harbor capability authenticity (inherited) & ProVerif 2.05 & \Closed & Anchor \path{harbor_card_v*.pv} \\
-Cross-realm authenticity (\S\ref{sec:fh-xfer}) & ProVerif query sketch & \Partial\ no executable model or verification run & \S\ref{sec:fh-proverif-ext} \\
-Attenuation monotonicity across boundary (Lem.~\ref{lem:fh-att}) & Set-inclusion argument & \Partial\ requires shared resource universe; protocol unmechanized & \S\ref{sec:fh-xfer-att} \\
+Cross-realm authenticity (\S\ref{sec:fh-xfer}) & The offer and its revocation, built in \S\ref{sec:fh-offer} & \Partial\ tested on every state of two harbors and proved in ProVerif~2.05; the model assumes an identifier is honored once, and no root freshness is checked & \path{harbord/core/src/transfer.rs}, \path{harbord/formal/transfer/} \\
+Attenuation monotonicity across boundary (Lem.~\ref{lem:fh-att}) & Set-inclusion argument; the kernel tests what a mapping grants (\S\ref{sec:fh-offer}) & \Partial\ requires shared resource universe; no model has a mapping & \S\ref{sec:fh-xfer-att} \\
 Federated revocation dissemination (Theorem~\ref{thm:fh-conv}) & Conditional push or push-pull model~\pdcite{pittel1987rumor,karp2000rumor} & \Partial\ expected asymptotic result; no partition deadline & \S\ref{sec:fh-revocation} (argument) \\
 Cross-witness equivocation evidence & Signed-root comparison, built in \S\ref{sec:fh-log}; dissemination model & \Partial\ the check is tested on every state of three logs and proved in ProVerif~2.05; verification immediate once views meet; no hard delivery bound & \path{harbord/core/src/witness.rs}, \path{harbord/formal/witness/} \\
 Escrow extraction bound (Design invariant~\ref{thm:fh-escrow-bound}) & Transition-system case analysis & \Partial\ conditional on non-bypassable custody; no runtime conformance & \S\ref{sec:fh-settlement} \\
@@ -2027,7 +2151,7 @@ Cross-federation cartel-resistance bound & --- & \Open & --- \\
 
 \section{ProVerif Artifacts and Proof Obligations}\label{app:fh-proverif}
 
-The repository contains Anchor's executable capability models under \path{analyses/}, including \path{analyses/harbor_card_v3_delegation.pv}. It does not supply executable cross-realm transfer, attenuation, or escrow models. The correspondence in \S\ref{sec:fh-proverif-ext} is a query sketch; root freshness at acceptance and cross-realm resource mapping remain proof obligations.
+The repository contains Anchor's executable capability models under \path{analyses/}, including \path{analyses/harbor_card_v3_delegation.pv}. The kernel adds models of the witness log's check and of a transfer's offer, under \path{harbord/formal/witness/} and \path{harbord/formal/transfer/}. Nothing here models escrow. The correspondence in \S\ref{sec:fh-proverif-ext} is a query sketch, and the transfer's models prove the part of it that an offer carries. Root freshness at acceptance and the cross-realm resource mapping remain proof obligations.
 
 The separate \path{proofs/bonded/federated/federated.pv} and its committed transcript are available for inspection. Its queried private constant is unrelated to the computed vault term, so its successful result is vacuous and does not prove the intended four-principal security claim. Exercise~\ref{ex:fh-proverif-federation} identifies the missing term binding and compromise controls.
 

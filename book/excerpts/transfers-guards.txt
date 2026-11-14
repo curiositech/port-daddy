@@ -1,0 +1,39 @@
+$ harbor transfers --guards
+every sequence of events for two harbors, on the core with one
+  guard removed. The offers: alice's harbor signed six. Two are of
+  heron's card to carol's harbor, and one is of it to bob's. One
+  is under an old version of carol's mapping, and one is of a card
+  that has since expired. One is of a card that names carol's own
+  database. Wren signed a seventh in alice's name. Any offer may
+  be sent to either harbor, any number of times and in any order.
+  The test stops sending an offer to a harbor that has issued two
+  cards for it. Either harbor may revoke a card it issued. Alice's
+  harbor may revoke heron's card, and its signed revocation may
+  then be sent to either harbor. A revocation that wren signed may
+  be sent at any time
+
+guard removed    states  wrong  revived  refused  behind unreached
+(none)              195      0        0        0      66         0
+unsigned-offer      987    792        0        0     385         0
+any-recipient     19491  19296        0        0    7921         0
+any-mapping         987    792        0        0     385         0
+reuse-offer        2568   2373      943        0     924         0
+expired-offer       690    495        0        0     242         0
+offered-rights     1185   1180        0      601       0         0
+late-offer          407      0      130        0     102         0
+any-revoker         814      0        0      382     133         0
+
+wrong: states in which a harbor holds a card it should not. That
+  is a card for an offer that was not made for it, or a second
+  card for one identifier. A card that grants more than the
+  mapping does is counted here too
+revived: states in which a gate admits a holder after its harbor
+  revoked the card it issued, or was told that the card it came
+  from is revoked
+refused: states in which a gate refuses a holder whose card it
+  should admit
+behind: states in which alice's harbor has revoked heron's card,
+  and a harbor that has not been told still admits the card it
+  issued from it
+unreached: of those, the states in which the card is still
+  admitted after the harbor is sent alice's revocation

@@ -1,0 +1,9 @@
+/** The first attempt: this harbor's gate honors every card
+ * that `other` signs, as if this harbor had signed it. */
+honor(other: Harbor): boolean {
+  if (!this.#design.honors) return false;
+  const nonces = countedNonces(`${this.name} for ${other.name}`);
+  const gate = new AuthorizedGate(other.key, this.#core, nonces);
+  this.#honored.push(gate);
+  return true;
+}

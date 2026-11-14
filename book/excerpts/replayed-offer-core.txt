@@ -1,0 +1,27 @@
+$ harbor scenario replayed-offer --design core
+scenario replayed-offer, design core: a harbor revokes the card it
+  issued for an offer, and the same offer arrives again
+
+step 1   carol  maps alice's write test-db/checkout/* to write
+                staging-db/checkout/*, as mapping checkout v3
+step 2   alice  issues heron the card alice-1: write
+                test-db/checkout/*
+step 3   alice  offers heron's card alice-1 to carol's harbor as
+                x-1
+                -> carol issues heron carol-1
+step 4   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> admitted as heron
+step 5   carol  revokes carol-1 -> revoked
+step 6   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> refused: revoked (card 1 was revoked)
+step 7   wren   sends carol's harbor a copy of offer x-1
+                -> known: carol-1 was issued for x-1, and nothing
+                   new is issued
+step 8   heron  requests to write staging-db/checkout/orders at
+                carol's gate
+                -> refused: revoked (card 1 was revoked)
+
+verdict: carol's harbor honored x-1 once, and the card it revoked
+         stayed revoked

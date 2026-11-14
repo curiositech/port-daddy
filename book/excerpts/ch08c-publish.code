@@ -1,0 +1,12 @@
+/** A root arrives on the socket. The log decides as it did
+ * inside one process. If the root changed what the log holds,
+ * the log writes its file, and answers after that. */
+const publish = (signed: unknown): Reply => {
+  const reply = log.publish(signed);
+  const changed = reply.ok && reply.outcome !== 'known';
+  // MUTANT unsaved-root: answer without writing the file.
+  if (changed && mutant !== 'unsaved-root') {
+    save(statePath, log.state());
+  }
+  return reply;
+};

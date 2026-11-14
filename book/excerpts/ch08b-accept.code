@@ -1,0 +1,34 @@
+/// A harbor is sent an offer. If the offer passes, the harbor
+/// issues a card of its own for what its mapping grants.
+pub fn accept(
+    offer: &Offer,
+    harbor: &Harbor,
+    now: u64,
+) -> Result<Accepted, Reason> {
+    if !signed(offer) {
+        return Err(Reason::OfferNotSigned);
+    }
+    if !addressed(offer, harbor) {
+        return Err(Reason::OtherRecipient);
+    }
+    if used(harbor) {
+        return Ok(Accepted::Known);
+    }
+    if revoked(harbor) {
+        return Err(Reason::ParentRevoked);
+    }
+    let mapping = mapping_for(offer, harbor)?;
+    if !current(offer, mapping) {
+        return Err(Reason::OtherMapping);
+    }
+    if expired(now, offer.exp) {
+        let until = offer.exp;
+        return Err(Reason::OfferExpired { until });
+    }
+    let can = granted(offer, mapping);
+    if can.is_empty() {
+        return Err(Reason::NothingMapped);
+    }
+    let transfer = record(offer, can);
+    Ok(Accepted::Issue { transfer })
+}
