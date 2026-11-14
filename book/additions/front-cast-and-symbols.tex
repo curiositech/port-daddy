@@ -1,0 +1,151 @@
+% The cast and the symbols: two keys the chapters assume. The review of
+% 5 November 2026 asked for both at the front of the Book.
+%
+% Every row was read off the chapter it describes. To change a row, check the
+% chapter first: a key that disagrees with its chapter is worse than no key.
+\clearpage
+\phantomsection\label{book:cast}%
+\pdfbookmark[0]{The Cast}{book.cast}%
+{\pddisplayface\Huge\bfseries The Cast\par}
+\vspace{12pt}
+{\small
+\noindent The book follows one constructed job, the repair of Bob's checkout.
+The same people and the same workers return in every chapter, and a chapter
+that needs someone new introduces them where they enter.
+
+\medskip\noindent{\pdtextface\bfseries People.} Each owns something, or
+answers for the workers they run.\par\smallskip
+{\renewcommand{\arraystretch}{1.15}%
+\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{1.6cm}X@{}}
+Bob & Owns the checkout repository and pays for its repair. In Chapter~8 his
+machine is harbor~$B$.\\
+Alice & Operates the team of five workers that takes the repair. She is the
+operator most chapters mean. In Chapter~8 her machine is harbor~$A$.\\
+Carol & A third operator. In Chapter~6 she licenses one of her tools to the
+job, and in Chapter~8 she runs the staging server, harbor~$S$.\\
+Derek & Owns the confidential checkout records that the diagnosis of
+Chapter~3 needs.\\
+Erin & Owns the diagnostic model that reads Derek's records in Chapter~3.\\
+Dana & Rents a profiler to the job in Chapter~6.\\
+Mina & A senior reviewer hired in Chapter~5 to grade Heron's work.\\
+\end{tabularx}}
+
+\medskip\noindent{\pdtextface\bfseries Alice's workers.} Each is an agent, a
+program built around a language model.\par\smallskip
+{\renewcommand{\arraystretch}{1.15}%
+\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{1.6cm}X@{}}
+Heron & Makes the repair that should be accepted. Most chapters follow Heron,
+from its card in Chapter~2 to its migration on Carol's server in Chapter~8.\\
+Wren & Makes a real fix and bundles an unrelated migration with it. In the
+builds of Chapter~8, Wren plays an outsider to Alice's harbor.\\
+Drake & Makes the failing test pass by deleting the test.\\
+Finch & Presents a card in Chapter~2 that grants more than its signer held.
+In Chapter~4, proposes a force-push that would discard another worker's
+change.\\
+Pike & Starts work in Chapter~7 that overlaps Wren's, in a separate copy of
+the repository.\\
+\end{tabularx}}
+
+\medskip\noindent{\pdtextface\bfseries The programs.} \pdkernelname{} is the
+service this book builds, one layer in each chapter. \texttt{harbor} is the
+command that talks to it.\par}
+
+\clearpage
+\phantomsection\label{book:symbols}%
+\pdfbookmark[0]{Symbols}{book.symbols}%
+{\pddisplayface\Huge\bfseries Symbols\par}
+\vspace{12pt}
+{\small
+\noindent Each chapter defines its symbols where it first uses them. This
+key lists the ones each chapter uses most. The last table lists the letters
+that mean one thing in one chapter and another thing in a later one.
+
+% A head and its table stay on one page.
+\newenvironment{pdsymbols}[1]{\par\medskip\noindent\minipage{\linewidth}%
+  {\pdtextface\bfseries #1}\par\smallskip\renewcommand{\arraystretch}{1.12}%
+  \noindent\tabularx{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.7cm}X@{}}}%
+  {\endtabularx\endminipage\par}
+
+\begin{pdsymbols}{Chapter 0}
+$\mathcal G$, $\Sigma$ & The generator of every trace the workers could produce, and its set of events.\\
+$\Gamma$ & A supervisor. After each trace it chooses which events stay enabled.\\
+$E$ & The safe traces.\\
+$I$ & A state invariant: a rule that must hold in every state.\\
+$\epsilon_t$ & A lower bound on the chance that the effect admitted at step $t$ breaks the invariant.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Chapter 1}
+$L$ & The plant: every history that is possible before a policy is imposed.\\
+$K$, $\overline{K}$ & The histories a policy allows, and all their prefixes.\\
+$\Sigma_c$, $\Sigma_u$ & The events a supervisor can disable, and the events it cannot.\\
+$e$ & The epoch of the newest grant on a resource.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Chapter 2}
+$A$, $B$, $C$ & The holders along a chain of delegation, in order.\\
+$r$, $w$ & Permission to read, and permission to write.\\
+$\sigma_i$, $\mathit{jti}_i$ & The signature on link $i$ of a chain, and the link's identifier, which is the hash of that signature.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Chapter 3}
+$D$, $M$ & Derek's data and Erin's model. The answer both want is $y=f_M(D)$.\\
+$g$ & The declared function: what the slot is allowed to release.\\
+$b$, $q$ & The bits one release may carry, and the number of releases the work order allows.\\
+$\varepsilon$, $\varepsilon_{\max}$ & The privacy loss of one release, and the cap on the total.\\
+$\beta$, $j$ & The chance that one canary fails to detect a leak, and the number of canaries the leak captured.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Chapter 4}
+$N$, $k$ & The number of artifacts, and the number of critical ones among them.\\
+$m$ & The most artifacts the operator can open.\\
+$B$ & The number of bits in a digest.\\
+$(\sigma,\zeta)$ & A read surface: the summary, and the route from each of its claims to the artifact behind it.\\
+$g$, $x$ & A grant, and an action proposed under it.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Chapter 5}
+$R$ & The role a person fills.\\
+$\kappa$ & A person's continuity witness: the chain of signed records that links each of its processes back to the first.\\
+$o$ & An outcome: one delivery, and how it was judged.\\
+$r$, $s$ & The passes and the failures on a person's record.\\
+$G$, $d$ & The gain from one deviation, and the chance that it is detected.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Chapter 6}
+$a_2$ & Heron, when Alice rents it out as a specialist.\\
+$\mathcal{L}_c$ & The commitment fragment: the rules whose conflicts can be found in polynomial time.\\
+$k$, $d$ & The number of independent reviewers bought, and the least chance that each finds and reports a flaw.\\
+$W_\infty$ & The waiting time that no amount of skill removes when a sole specialist can go offline.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Chapter 7}
+$\alpha$, $\beta$ & Two agents.\\
+$T$, $F$ & A truthful claim, and a false one.\\
+$b$, $p_{\mathrm f}$ & A bond, and the chance that a false claim is detected and the bond forfeited.\\
+$\delta$, $\delta^\star$ & The weight a principal puts on the next round, and the least weight at which truthful claims are an equilibrium.\\
+$W_Q$, $E_Q$ & A project's wallet, and its escrow.\\
+$C_Q$, $S_Q$ & Its commons pool, and the supply: the sum of all its money, wherever it sits.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Chapter 8}
+$A$, $B$ & Alice's harbor, and Bob's.\\
+$S$ & Carol's staging server.\\
+$D_A$ & The daemon of harbor $A$. Its keys are $\mathit{sk}_A$ and $\mathit{pk}_A$.\\
+$C_A$, $C_B'$ & Heron's card at harbor $A$, and the card a receiving harbor $B$ issues after a transfer.\\
+$\mathrm{att}_A$ & The rule by which harbor $A$ narrows a card.\\
+$e_A$, $R_A^{(e_A)}$ & Harbor $A$'s epoch, and the root it signs for that epoch.\\
+$r$ & The completion residual: how far a set of reports is from any consistent set of values.\\
+\end{pdsymbols}
+
+\begin{pdsymbols}{Letters that change meaning}
+$b$ & The bits in one release (Chapter~3). A bond (Chapter~7).\\
+$B$ & A holder in a chain (Chapter~2). The bits in a digest (Chapter~4). Bob's harbor (Chapter~8).\\
+$\beta$ & The chance that a canary misses (Chapter~3). An agent (Chapter~7).\\
+$\delta$ & A transition function (Chapter~0). The weight on the next round (Chapter~7).\\
+$\epsilon$, $\varepsilon$ & A chance of an unsafe effect (Chapter~0). A privacy loss (Chapter~3).\\
+$g$ & The declared function of a release (Chapter~3). A grant (Chapter~4).\\
+$k$ & The critical artifacts (Chapter~4). The reviewers bought (Chapter~6).\\
+$\kappa$ & A continuity witness (Chapter~5). A card being revoked (Chapter~6).\\
+$r$ & Permission to read (Chapter~2). The passes on a record (Chapter~5). The completion residual (Chapter~8).\\
+\end{pdsymbols}
+\par}

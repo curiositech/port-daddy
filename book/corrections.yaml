@@ -2098,3 +2098,27 @@
   before: "free text bounces back and the commitment stays open"
   after: "There is no field for free text"
   source: "code: curiositech/harbord-dev 21c4755, harbord/core/src/lib.rs (Proposal::Promise, Proposal::Close; deny_unknown_fields)"
+- id: front-8
+  item: "The imprint page prints no address until harbord.ai serves the Book"
+  file: book/coordination-papers-mega-volume.tex
+  before: "engineering@portdaddy.dev"
+  after: null
+  source: "Erich, 13 November 2026: the Book does not name Port Daddy; the Book's address is harbord.ai (harbord-dev CLAUDE.md)"
+- id: front-9
+  item: "Review of 5 November, missing argument 1: the conclusion of the no-self-kernel argument is a numbered corollary"
+  file: book/coordination-papers-mega-volume-chapter-0.tex
+  before: null
+  after: "A Model That Reviews Its Own Proposals Is Not a Kernel"
+  source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
+- id: swk2-33
+  item: "Ch. 1: the caption of the receipt-gap figure names no outside system"
+  file: book/figures/fig-swk-idempotency-gap.tex
+  before: "not a Port Daddy test"
+  after: "run apart from the kernel"
+  source: "Erich, 13 November 2026: the Book does not name Port Daddy"
+- id: front-10
+  item: "Imprint page: the sentence on chapter order had the dependency backwards"
+  file: book/coordination-papers-mega-volume.tex
+  before: "proves a property comes after the chapter that relies on it"
+  after: "relies on a property comes after the chapter that proves it"
+  source: "derivation: the Book's own order. Chapter 2's cards rely on Chapter 1's kernel, and Chapter 1 comes first"

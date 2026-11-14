@@ -125,6 +125,14 @@ test('comments, math, references, code and TikZ are masked; captions are prose',
   assert.deepEqual(terms.map(({ sort, term }) => ({ sort, term })), [{ sort: 's t', term: 'u v' }]);
 });
 
+test('the key to the symbols is a reference, and its rows are not uses', () => {
+  const text = 'A k l.\n\\begin{pdsymbols}{Chapter 1}\n$K$ & m n\\\\\n\\end{pdsymbols}\nAn o p.';
+  const { masked } = maskChunk({ text, start: 0, end: text.length, kind: 'tex' });
+  assert.ok(!masked.includes('m n'));
+  for (const shown of ['k l', 'o p']) assert.ok(masked.includes(shown), shown);
+  assert.equal(masked.length, text.length);
+});
+
 test('terms match whole words, the last word in simple plurals', () => {
   assert.deepEqual(termVariants('work unit'), [['work', 'unit'], ['work', 'units']]);
   assert.deepEqual(termVariants('policy'), [['policy'], ['policies']]);

@@ -92,8 +92,11 @@ const ARGUMENT_IFS = new Set([
   'ifcsequal', 'ifcsstring', 'ifinlist', 'ifdefvoid', 'iftoggle', 'ifcsvoid', 'ifrmnum',
 ]);
 
-// Environments whose whole body is not running prose.
+// Environments whose whole body is not running prose. `pdsymbols` is the
+// front matter's key to each chapter's symbols: a reference a reader looks
+// things up in, like the glossary, and each row belongs to a later chapter.
 const MASKED_ENVIRONMENTS = new Set([
+  'pdsymbols',
   'tikzpicture', 'axis', 'lstlisting', 'verbatim', 'Verbatim', 'minted', 'comment',
   'equation', 'equation*', 'align', 'align*', 'alignat', 'alignat*', 'gather', 'gather*',
   'multline', 'multline*', 'eqnarray', 'eqnarray*', 'displaymath', 'math', 'flalign',
