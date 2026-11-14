@@ -2105,10 +2105,10 @@
   after: null
   source: "Erich, 13 November 2026: the Book does not name Port Daddy; the Book's address is harbord.ai (harbord-dev CLAUDE.md)"
 - id: front-9
-  item: "Review of 5 November, missing argument 1: the conclusion of the no-self-kernel argument is a numbered corollary"
+  item: "Review of 5 November, missing argument 1: the argument that a model cannot be its own kernel has a numbered corollary"
   file: book/coordination-papers-mega-volume-chapter-0.tex
   before: null
-  after: "A Model That Reviews Its Own Proposals Is Not a Kernel"
+  after: "A Model Is Not Its Own Kernel"
   source: "https://claude.ai/artifact/51k7t9YXqANsKXbkWuJhS4"
 - id: swk2-33
   item: "Ch. 1: the caption of the receipt-gap figure names no outside system"

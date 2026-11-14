@@ -1,11 +1,11 @@
 {
   "archive": {
-    "bytes": 40664499,
+    "bytes": 40663961,
     "contentType": "application/gzip",
     "file": "coordination-papers-mega-volume-source.tar.gz",
-    "key": "book/source/sha256/f1598a49eb214f1bf2e57b75b1819d21910814677987025abc44101bb66bff18.tar.gz",
-    "sha256": "f1598a49eb214f1bf2e57b75b1819d21910814677987025abc44101bb66bff18",
-    "url": "https://media.portdaddy.dev/book/source/sha256/f1598a49eb214f1bf2e57b75b1819d21910814677987025abc44101bb66bff18.tar.gz"
+    "key": "book/source/sha256/dd40890cbdd0b1b3e061e23acc35e18252326838ce980c7fa6be38819b052be9.tar.gz",
+    "sha256": "dd40890cbdd0b1b3e061e23acc35e18252326838ce980c7fa6be38819b052be9",
+    "url": "https://media.portdaddy.dev/book/source/sha256/dd40890cbdd0b1b3e061e23acc35e18252326838ce980c7fa6be38819b052be9.tar.gz"
   },
   "build": {
     "defaultFontProfile": "open-proof",
@@ -16,7 +16,7 @@
     "sourceDateEpoch": 1700000000,
     "texliveImage": "texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27"
   },
-  "manifestSha256": "173f5612fc0d769087a1aca0aeed1f28d4379f9eb0755ac9b0ef7cd4d08a3ca7",
+  "manifestSha256": "a963f232c8ba3b959f9646577344588b85a2beabbdacabe6e1880f8fbee56d38",
   "schemaVersion": 1,
   "source": {
     "fileCount": 960,
@@ -184,10 +184,10 @@
         "sha256": "030a6d4f08426d2a90bd249a1e7880fafabe548e2107c16027de46b35963d205"
       },
       {
-        "bytes": 18968,
+        "bytes": 18957,
         "mode": 420,
         "path": "book/additions/prereq-build-the-check.tex",
-        "sha256": "c87bf6e887351fa6ba5f940ed8216228cecf16c8c00fd7c005abde83f24f6292"
+        "sha256": "1cd8f09cb94180663eff995073e97117709ab0dcf933d01b0bc86fb67df6097b"
       },
       {
         "bytes": 17888,
@@ -352,10 +352,10 @@
         "sha256": "cdcfb10d8c874940530ed20c2838e45fd7fa96518738f9eb206e9187cb75b7fa"
       },
       {
-        "bytes": 136292,
+        "bytes": 135171,
         "mode": 420,
         "path": "book/coordination-papers-mega-volume-chapter-0.tex",
-        "sha256": "0cef104fa883c54db533f2ecd684101cb4e2c68fa1c2426f919f1e84721e7e35"
+        "sha256": "2a482fdc05654293b408ce7b76dcc7d1a56afdf660b1864503e663488541fd7b"
       },
       {
         "bytes": 30257,
@@ -424,10 +424,10 @@
         "sha256": "7360e70e81810b7e9f764a4381fb22a94bd006d0707aa1fa2a862f2cde893f84"
       },
       {
-        "bytes": 112495,
+        "bytes": 112476,
         "mode": 420,
         "path": "book/corrections.yaml",
-        "sha256": "fc48e9385195804e88ce860f755a148bcae196d4e58cf1aa06c11288b3735066"
+        "sha256": "42b3092ab36635fb84c49ebfd460f3d5fba9a15bae95db6216f2b2efaf849cb0"
       },
       {
         "bytes": 1006,
@@ -5782,6 +5782,6 @@
         "sha256": "86656e72bac26c7c509dbbb935a9ed74c884bc5e77b7e341be297ddc79d1f58f"
       }
     ],
-    "sha256": "37e5b82bd0e99d0f09c0e15ac024d461184be30bb568ed4c7d7883c1c4080ab2"
+    "sha256": "1e2072b5b1c82444744d7ab3fb39fe52b13071726531690339eaa9b8cad6861b"
   }
 }

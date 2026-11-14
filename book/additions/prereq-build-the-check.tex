@@ -19,7 +19,7 @@ workers' turns. A simulation then runs each design for 600 rounds.}
 
 The chapter opened with two workers and a counter, and one update was lost.
 Theorem~\ref{thm:kernel-gap} then said where the check must be made, and
-Corollary~\ref{cor:no-self-kernel} said that the worker cannot be the one
+\S\ref{sec:prereq-no-self-kernel} argued that the worker cannot be the one
 to make it. This section runs both claims as code. The code is part of
 \pdkernelname{}, a small kernel written for this book, which gains a layer
 in each chapter. Its source is not yet published. The layer here uses none
@@ -119,8 +119,9 @@ serve another worker between them. A worker can move its check closer to
 its write. It cannot move the check into the write, because the write
 happens in the cell.
 
-This is part~(1) of Corollary~\ref{cor:no-self-kernel}, as a program. A model that reviews its own tool call is looking twice: it judges
-the state that its prompt described, and the call takes effect later.
+This is Corollary~\ref{cor:no-self-kernel}, as a program. A model that
+reviews its own tool call is looking twice: it judges the state that its
+prompt described, and the call takes effect later.
 \pdchaplink{swk}{Chapter~1} has the same gap, with a lease and a clock in
 it (\weld{swk:sec:swk-build}{lease}). \emph{Now you try:}
 Exercise~\ref{ex:prereq-build-orders} asks which orders defeat the second
