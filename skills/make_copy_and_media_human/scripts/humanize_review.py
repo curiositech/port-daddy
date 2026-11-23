@@ -60,7 +60,9 @@ import re
 import statistics
 import sys
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
+from implemented_checks import implemented_ids
 
 CATALOG_PATH = Path(__file__).resolve().parent.parent / "references" / "catalog.json"
 
@@ -68,7 +70,7 @@ CATALOG_PATH = Path(__file__).resolve().parent.parent / "references" / "catalog.
 DEFAULT_THRESHOLDS = {
     "em-dash-density": {"min_words": 120, "cue": 1.0, "baseline_ratio": 2.5},
     "comma-inflation": {"min_words": 200, "cue": 9.0, "baseline_ratio": 1.5},
-    "staccato-fragment-triplet": {"min_sentences": 8, "max_words": 4, "cue": 0.22},
+    "staccato-fragment-triplet": {"min_run": 3, "max_words": 4},
     "low-burstiness-uniform-rhythm": {"min_sentences": 12, "cue_cv": 0.42, "baseline_ratio": 0.7},
     "zero-typo-zero-contraction-affect-flatness": {"min_words": 250, "baseline_ratio": 0.5},
     "deontic-softening": {"min_modals": 4, "cue_ratio": 0.8},
@@ -77,7 +79,6 @@ DEFAULT_THRESHOLDS = {
     "copula-avoidance": {"min_copular": 6, "cue_share": 0.35},
     "pronoun-evacuation": {"min_words": 250, "cue_per_100w": 0.8},
     "specificity-starvation": {"min_words": 300, "cue_per_100w": 2.0},
-    "unearned-prior-reference": {"min_words": 250},
     "repo-context-leak": {"min_count": 4, "cue_per_1000w": 3.0},
     "definition-after-use": {"min_terms": 2, "max_gap_lines": 12},
     "signposting-without-structure": {"min_count": 3},
@@ -170,24 +171,7 @@ DEFAULT_THRESHOLDS = {
     "auto-advancing-content-with-no-pause": {"min_count": 1},
     "instructions-live-only-in-the-placeholder": {"min_chars": 16},
     "accessibility-overlay-installed": {"min_count": 1},
-    "generic-failure-string": {"min_count": 1},
-    "apology-in-place-of-explanation": {"min_count": 1},
-    "forced-cheer-interjection": {"min_count": 1},
-    "assistant-register-in-product-chrome": {"min_count": 1},
-    "error-blames-the-user": {"min_count": 1},
-    "invalid-as-the-entire-diagnosis": {"min_count": 1},
-    "are-you-sure-without-the-object": {"min_count": 1},
-    "no-data-available-string": {"min_count": 1},
-    "http-status-as-user-prose": {"min_count": 1},
-    "welcome-tour-boilerplate": {"min_count": 1},
-    "success-toast-for-a-visible-result": {"min_count": 1},
-    "objectless-notification": {"min_count": 1},
-    "permission-ask-without-a-why": {"min_count": 1},
-    "widget-named-action-label": {"min_count": 1},
-    "joke-in-a-failure-state": {"min_count": 1},
     "exclamation-in-system-strings": {"max_rate": 0.083},
-    "emoji-in-system-status-strings": {"min_count": 1},
-    "unresolved-token-in-ui-string": {"min_count": 1},
     "global-line-height-never-scaled": {"min_display_rem": 2.0},
     "line-height-in-fixed-units": {"min_count": 1},
     "heading-space-symmetric": {"tolerance": 0.2},
@@ -460,12 +444,27 @@ def classify_lines(text, suffix=".md"):
     return lines, tags
 
 
+def blank_markup(match):
+    """Replace a markup span with a separator and keep its source newlines."""
+    return " " + "\n" * match.group().count("\n")
+
+
+def mask_markup_ignored(text, opener="<!--", closer="-->"):
+    """Keep the source lines and any text on either side of the region."""
+    start, end = re.escape(opener), re.escape(closer)
+    return re.sub(
+        rf"{start}\s*humanize:ignore-start\b.*?{end}.*?"
+        rf"(?:{start}\s*humanize:ignore-end\b.*?{end}|\Z)",
+        blank_markup, text, flags=re.S,
+    )
+
+
 def strip_markup(text):
-    """HTML to plain text. Removes style/script BODIES, not just their tags:
-    leaving CSS in the 'prose' inflated every density denominator."""
-    text = re.sub(r"<(style|script)\b[^>]*>.*?</\1>", " ", text, flags=re.S | re.I)
-    text = re.sub(r"<!--.*?-->", " ", text, flags=re.S)
-    return re.sub(r"<[^>]+>", " ", text)
+    """Remove HTML markup and script/style bodies while retaining source lines."""
+    text = mask_markup_ignored(text)
+    text = re.sub(r"<(style|script)\b[^>]*>.*?</\1>", blank_markup, text, flags=re.S | re.I)
+    text = re.sub(r"<!--.*?-->", blank_markup, text, flags=re.S)
+    return re.sub(r"<[^>]+>", blank_markup, text)
 
 
 def strip_code_comments(text):
@@ -503,6 +502,111 @@ def split_sentences(text):
 
 def word_count(text):
     return len(re.findall(r"[A-Za-z0-9'’-]+", text))
+
+
+def prose_sentence_groups(text, suffix=".md"):
+    """Paragraph-local sentence candidates with original source lines.
+
+    A small source scanner, not a grammar parser or TeX engine. Excludes common
+    non-prose blocks; does not infer fragments from a missing verb-list match.
+    """
+    def blank(match):
+        return re.sub(r"[^\n]", " ", match.group())
+
+    if suffix in {".tex", ".latex"}:
+        envs = (r"thebibliography|tabular\*?|table\*?|figure\*?|lstlisting|"
+                r"verbatim\*?|minted|equation\*?|align\*?|gather\*?|displaymath|tikzpicture")
+        text = re.sub(r"\\begin\{(" + envs + r")\}.*?\\end\{\1\}",
+                      blank, text, flags=re.S)
+        text = re.sub(r"\\\[.*?\\\]|\$\$.*?\$\$", blank, text, flags=re.S)
+        text = re.sub(r"(?m)(?<!\\)%.*$", blank, text)
+        text = re.sub(r"\\(?:label|cite\w*|(?:eq|auto|c|C)?ref)\*?(?:\[[^\]]*\])?\{[^}]*\}",
+                      blank, text)
+        text = re.sub(r"\\(?:qedhere|qed)\b|[∎□]", " ", text)
+        text = re.sub(r"\\(?:begin|end)\{(?:proof|theorem|corollary|lemma|remark)\}(?:\[[^\]]*\])?",
+                      blank, text)
+        text = re.sub(r"\\(?:textit|textbf|emph|texttt)\{([^{}]*)\}", r"\1", text)
+    lines, tags = classify_lines(text, suffix)
+    paragraph, start_line, in_list = [], 1, False
+
+    def sentences():
+        joined = "\n".join(paragraph)
+        spans, cursor = [], 0
+        for boundary in re.finditer(r"(?<=[.!?])\s+", joined):
+            spans.append((cursor, boundary.start()))
+            cursor = boundary.end()
+        spans.append((cursor, len(joined)))
+        group = []
+        for begin, end in spans:
+            raw = joined[begin:end]
+            leading = len(raw) - len(raw.lstrip())
+            sentence = raw.strip().strip("*_ ")
+            if not sentence or re.fullmatch(r"(?:Proof|Solution|Remark)\.?", sentence, re.I):
+                if group:
+                    yield group
+                    group = []
+                continue
+            line = start_line + joined.count("\n", 0, begin + leading)
+            group.append((line, sentence))
+        if group:
+            yield group
+
+    for index, (raw, tag) in enumerate(zip(lines, tags), 1):
+        s = raw.strip()
+        next_line = lines[index].strip() if index < len(lines) else ""
+        markdown_nonprose = False
+        if suffix in RENDERS_MARKDOWN:
+            if re.match(r"(?:[-*+]\s|\d+[.)]\s)", s):
+                in_list = True
+                markdown_nonprose = True
+            elif s and not raw[0].isspace():
+                in_list = False
+            markdown_nonprose |= (raw.startswith(("    ", "\t"))
+                                  or (in_list and bool(s) and raw[0].isspace()))
+        boundary = (tag != "prose" or not s
+                    or markdown_nonprose
+                    or (suffix in RENDERS_MARKDOWN
+                        and bool(re.fullmatch(r"={2,}|-{2,}", next_line)))
+                    or bool(re.match(r"(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|=+$|-+$)", s))
+                    or (suffix in {".tex", ".latex"}
+                        and s.startswith(("\\", "}"))))
+        if boundary:
+            if paragraph:
+                yield from sentences()
+                paragraph = []
+            continue
+        if not paragraph:
+            start_line = index
+        paragraph.append(re.sub(r"(`+).*?\1", "\x00", raw))
+    if paragraph:
+        yield from sentences()
+
+
+def staccato_findings(path, text, suffix=".md"):
+    # strip_markup() loses block boundaries and source lines. HTML needs a
+    # rendered/DOM-aware editorial pass; never infer local runs from that stream.
+    if suffix in {".html", ".htm"}:
+        return
+    cap = th("staccato-fragment-triplet", "max_words", 4)
+    minimum = th("staccato-fragment-triplet", "min_run", 3)
+    for group in prose_sentence_groups(text, suffix):
+        run = []
+        for candidate in group + [(0, "")]:
+            line, sentence = candidate
+            if sentence.endswith(".") and "\x00" not in sentence and 0 < word_count(sentence) <= cap:
+                run.append(candidate)
+                continue
+            if len(run) >= minimum:
+                yield finding(
+                    path, run[0][0], " ".join(s for _, s in run),
+                    "staccato-fragment-triplet", "low",
+                    f"Local run of {len(run)} sentences of at most {cap} words. "
+                    "Review whether the chopping hides a relation or adds false emphasis; "
+                    "sentence length alone cannot establish a defect or authorship.",
+                    "Keep complete useful steps. Join clauses where needed to state "
+                    "their actual relation, and remove emphasis-only fragments.",
+                    family="rhythm")
+            run = []
 
 
 def is_emoji(ch):
@@ -605,6 +709,34 @@ def rhythm_finding(path, line, excerpt, ism, explanation, rewrite, dialect,
 
 # ------------------------------------------------------------ prose signals
 
+def tracking_param_finding(path, line, count):
+    return finding(
+        path, line, f"{count} chat-attribution tracking param(s)",
+        "tracking-param-residue", "high",
+        "The shipped URL includes a chat-attribution tracking parameter.",
+        "Remove the chat-attribution parameter and keep query values the destination needs.",
+        "chatgpt", family="residue",
+    )
+
+
+class HtmlUrlTracking(HTMLParser):
+    """Find tracking parameters carried by links and other URL attributes."""
+
+    URL_ATTRIBUTES = {"action", "cite", "formaction", "href", "poster", "src", "srcset"}
+
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+        self.first_line = None
+
+    def handle_starttag(self, tag, attrs):
+        count = sum(len(TRACKING_PARAMS.findall(value)) for name, value in attrs
+                    if name in self.URL_ATTRIBUTES and value)
+        if count and self.first_line is None:
+            self.first_line = self.getpos()[0]
+        self.count += count
+
+
 def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
     """from_markup: text came from strip_markup(). Line structure is then an
     artifact of tag removal rather than an authoring choice, so the detectors
@@ -673,13 +805,8 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
 
     trk = TRACKING_PARAMS.findall(scan)
     if trk:
-        out.append(finding(
-            path, where(lambda l: TRACKING_PARAMS.search(l)),
-            f"{len(trk)} chat-attribution tracking param(s)", "tracking-param-residue",
-            "high", "A URL carrying utm_source=chatgpt.com was copied out of a chat "
-            "window. It is a fingerprint, not an inference.",
-            "Strip query params from every URL before shipping.",
-            "chatgpt", family="residue"))
+        out.append(tracking_param_finding(
+            path, where(lambda l: TRACKING_PARAMS.search(l)), len(trk)))
 
     low_body = body.lower()
     for sig in LEAKAGE_SIGNATURES:
@@ -717,7 +844,8 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
                 path, 1, f"{m['comma_per_100w']:.1f} commas/100w", "comma-inflation",
                 "Parenthetical smoothing: every clause gets an appositive. Measured "
                 "at +66% under LLM revision, but weak on its own.",
-                "Break the sentence in two instead of adding a clause to it.",
+                "Remove needless asides. If splitting helps, keep the cause, condition "
+                "or consequence explicit across the resulting sentences.",
                 "generic-llm", m["comma_per_100w"],
                 base and base.get("comma_per_100w"), "up", "baseline_ratio")
             if f:
@@ -749,33 +877,23 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
             if f:
                 out.append(f)
 
+    if not from_markup:
+        out.extend(staccato_findings(path, text, suffix))
     sents = split_sentences(body)
-    if len(sents) >= th("staccato-fragment-triplet", "min_sentences", 8):
-        lens = [word_count(s) for s in sents]
-        cap = th("staccato-fragment-triplet", "max_words", 4)
-        share = sum(1 for n in lens if n <= cap) / len(lens)
-        if share > th("staccato-fragment-triplet", "cue", 0.22):
-            out.append(finding(
-                path, 1, f"{share:.0%} of {len(lens)} sentences are <={cap} words",
-                "staccato-fragment-triplet", "medium",
-                "Runs of clipped fragments are a signature model rhythm: emphasis "
-                "applied by chopping rather than by word choice.",
-                "Merge the fragments back into the sentence they were cut from. The "
-                "fix is fewer sentences, not longer ones.",
-                "claude", family="rhythm"))
-        if m and len(lens) >= th("low-burstiness-uniform-rhythm", "min_sentences", 12) \
-           and m["sentence_cv"] < th("low-burstiness-uniform-rhythm", "cue_cv", 0.42):
-            f = rhythm_finding(
-                path, 1, f"sentence-length CV {m['sentence_cv']:.2f} over {len(lens)} sentences",
-                "low-burstiness-uniform-rhythm",
-                "Near-constant sentence length. Human prose scatters more widely; "
-                "models cluster in the 10-30 token band. Reported as coefficient of "
-                "variation, not as a proprietary 'burstiness score'.",
-                "Break one sentence in four. Then let one run long.",
-                "generic-llm", m["sentence_cv"],
-                base and base.get("sentence_cv"), "down", "baseline_ratio")
-            if f:
-                out.append(f)
+    if m and len(sents) >= th("low-burstiness-uniform-rhythm", "min_sentences", 12) \
+       and m["sentence_cv"] < th("low-burstiness-uniform-rhythm", "cue_cv", 0.42):
+        f = rhythm_finding(
+            path, 1, f"sentence-length CV {m['sentence_cv']:.2f} over {len(sents)} sentences",
+            "low-burstiness-uniform-rhythm",
+            "Near-constant sentence length is a weak review cue. Corpus differences "
+            "do not establish a desirable rhythm for this passage or genre.",
+            "Let sentence length follow the reasoning. Join dependent clauses with "
+            "their actual relation; split only where each resulting step remains clear. "
+            "Do not insert fragments or alternate lengths to hit a rhythm target.",
+            "generic-llm", m["sentence_cv"],
+            base and base.get("sentence_cv"), "down", "baseline_ratio")
+        if f:
+            out.append(f)
 
     # ------------------------------------ FORM. Closed grammatical classes.
     if words > th("participial-tail", "min_words", 150):
@@ -806,8 +924,8 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
                 "'the implementation of', 'provides an enhancement to'. Measured at "
                 "roughly 2x the human rate; instruction tuning specifically rewards "
                 "this noun-heavy register.",
-                "Turn the noun back into a verb and give it a subject. 'We added a "
-                "caching layer. Latency dropped.'", family="form"))
+                "Give the action a subject. 'Repeated reads reached the cache, so callers "
+                "spent less time waiting for a response.'", family="form"))
 
     copula_subs = sum(low_body.count(c) for c in COPULA_SUBSTITUTES)
     copulas = len(re.findall(r"\b(is|are|was|were)\b", low_body))
@@ -892,8 +1010,8 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
                 "which is irregular; a model breaks on a rhythm. Unlike sentence-length "
                 "variation this has no published baseline behind it, so the threshold is "
                 "a judgment call and the severity is capped accordingly.",
-                "Put a one-sentence paragraph where the argument turns, and let another "
-                "run long.", family="rhythm"))
+                "Break paragraphs where their subject or reasoning changes. Keep a "
+                "complete explanation together and preserve its links.", family="rhythm"))
 
     run = best_run = run_line = 0
     max_w = th("linkedin-broetry-one-line-runs", "max_words_per_line", 14)
@@ -1552,22 +1670,6 @@ def analyze_markup(path, text):
 
 # ------------------------------------------------------- exposition signals
 
-# Deictic frames that point at shared history. A closed set of GRAMMATICAL
-# forms, not a topic list, so this sits inside the Law 1 carve-out. The tell is
-# not the phrase; it is the phrase pointing at nothing the reader has seen.
-PRIOR_REFERENCE = (
-    "our previous", "our earlier", "our original", "our old", "the previous version",
-    "the earlier version", "as we discussed", "as discussed", "as we saw",
-    "as mentioned above", "as noted above", "as we mentioned", "you'll recall",
-    "you will recall", "as you know", "recall that", "last time", "previously we",
-    "building on our", "unlike our", "compared to our", "improves on our",
-    "in the last post", "in our last", "as covered",
-)
-VERSION_REFERENCE = re.compile(
-    r"\b(?:our|the)\s+(?:v\d+(?:\.\d+)?|version\s+\d+)(?![\w/-])"
-    r"\s+(?:approach|design|system|pipeline|implementation|release|version|"
-    r"architecture|model|api|schema|format|engine|stack)\b", re.I)
-
 # Meta-navigation: the shape of structure, announced instead of enacted.
 SIGNPOST = re.compile(
     r"\b(?:first|next|then|finally|lastly|now)\b[^.!?\n]{0,40}\b"
@@ -1632,37 +1734,12 @@ def analyze_exposition(path, lines, tags, body):
     """
     out = []
     words = word_count(body)
-    if words < th("unearned-prior-reference", "min_words", 250):
+    if words < 250:
         return out
 
     prose_idx = [i for i, t in enumerate(tags) if t == "prose" and lines[i].strip()]
     if not prose_idx:
         return out
-    early_cut = prose_idx[max(0, int(len(prose_idx) * 0.3)) - 1] if prose_idx else 0
-
-    # ---- prior reference with nothing prior. Scoped to the opening third,
-    # where by construction the document has not yet established anything.
-    hits = []
-    for i in prose_idx:
-        if i > early_cut:
-            break
-        low_l = lines[i].lower()
-        if any(f in low_l for f in PRIOR_REFERENCE) or VERSION_REFERENCE.search(lines[i]):
-            hits.append((i + 1, lines[i].strip()[:90]))
-    if hits:
-        out.append(finding(
-            path, hits[0][0], f"{len(hits)} back-reference(s) in the opening third, "
-                              f"e.g. \"{hits[0][1]}\"",
-            "unearned-prior-reference", "high",
-            "The piece points at a history the reader was not present for. A model "
-            "writes from its context window, which holds the previous versions, the "
-            "internal thread and the repo, and nothing in that loop marks which of it "
-            "the reader has seen.",
-            "Either establish the prior thing in one sentence before you improve on it, "
-            "or cut the comparison and state what the current thing does. \"Faster than "
-            "our v2 pipeline\" means nothing to someone who never saw v2; \"processes "
-            "40k invoices an hour\" means something to everyone.",
-            family="form"))
 
     # ---- repo artifacts in outward prose
     # URL path components are source citations, not repository context.
@@ -4182,195 +4259,6 @@ def scan_provenance(paths):
 
 # ----------------------------------------------------- in-product UI strings
 
-# Hard string matching is defensible HERE and nowhere else in this skill. In
-# prose a closed phrase list is a bad detector: the words have honest uses and
-# the list ages out in months. A product's user-facing string table is different
-# in kind -- small, enumerable, extractable -- and within it the phrase space is
-# genuinely narrow, because there are only so many ways to say nothing.
-# "Something went wrong" is not a phrase with a good use at a different
-# frequency; it is a phrase with no good use at all in a product that knows what
-# went wrong.
-#
-# Which is why extraction matters more than the sets do. These run over UI
-# strings only: JSX/template text, string literals in the render and error path,
-# and i18n catalog values. Running them over an article would be a false
-# positive, and an article is allowed to quote any of them.
-
-I18N_KEYISH = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z0-9_]+){1,}$")
-
-UI_SETS = {
-    "generic-failure-string": (
-        r"something went wrong|an (?:unexpected )?error (?:occurred|has occurred)"
-        r"|we(?:'re| are) having trouble|we ran into a problem"
-        r"|unable to complete your request|unknown error|error loading data"
-        r"|we couldn'?t process your request", "high"),
-    "apology-in-place-of-explanation": (
-        r"we(?:'re| are) sorry|sorry about that|sorry for the inconvenience"
-        r"|we apologi[sz]e|our apologies|please accept our apologies"
-        r"|the inconvenience|bear with us|thank you for your patience", "high"),
-    "forced-cheer-interjection": (
-        r"^\W{0,3}(?:oops|whoops|woops|uh[ -]oh|oh no|oh snap|yikes|eek|yay"
-        r"|woohoo|hoo?ray|bummer|darn)\b|well,? this is awkward", "high"),
-    "assistant-register-in-product-chrome": (
-        r"\blet'?s (?:get you|get started|dive in|take a look|begin|set up|make sure)"
-        r"|\bi'?ll help you\b|\bi can help you\b|\bi'?ve gone ahead and\b"
-        r"|\bfeel free to\b|\bhappy to help\b|\bgreat (?:choice|question)\b"
-        r"|\bno worries\b|\bdon'?t worry\b", "high"),
-    "error-blames-the-user": (
-        r"\byou (?:entered|forgot|failed to|did ?n[o']t|have not|provided|selected"
-        r"|incorrectly)\b|your entry is invalid", "high"),
-    "invalid-as-the-entire-diagnosis": (
-        r"^(?:invalid|not a valid|please enter a valid)\b", "medium"),
-    "are-you-sure-without-the-object": (
-        r"^are you sure\b|^please confirm\.?$|^confirm action\.?$"
-        r"|^this action (?:cannot|can'?t) be undone\.?$|^do you want to continue\??$",
-        "high"),
-    "no-data-available-string": (
-        r"^no (?:data|records?|items?|results?|content)(?: (?:available|found|to display))?\.?$"
-        r"|^nothing (?:here yet|to see here|found)\.?$|^it'?s (?:empty|lonely) (?:in )?here",
-        "medium"),
-    "http-status-as-user-prose": (
-        r"\b[45]\d\d\b.{0,3}(?:internal server error|bad gateway|service unavailable"
-        r"|forbidden|unauthorized|not found|bad request|gateway timeout"
-        r"|unprocessable entity|too many requests|request timeout|conflict)"
-        r"|^(?:internal server error|bad gateway|forbidden|unauthorized)\.?$", "medium"),
-    "welcome-tour-boilerplate": (
-        r"let'?s get (?:you )?started|getting started is easy|we(?:'re| are) (?:so )?glad "
-        r"you'?re here|we(?:'re| are) excited to have you|here'?s a quick tour"
-        r"|take a quick tour|welcome aboard", "medium"),
-    "success-toast-for-a-visible-result": (
-        r"\bsuccessfully\b|^success[!.]?$|^saved[!.]?$|^changes saved", "medium"),
-    "objectless-notification": (
-        r"^(?:update|sync|import|export|processing) (?:complete|finished)\.?$"
-        r"|^task completed\.?$|^operation (?:successful|completed)\.?$|^all set[!.]?$",
-        "medium"),
-    "permission-ask-without-a-why": (
-        r"to (?:improve|enhance) your experience|for a better experience"
-        r"|to provide better service|to help us serve you better|to improve our services",
-        "high"),
-    "widget-named-action-label": (
-        r"^(?:submit|ok|okay|confirm|done|apply|proceed)$", "high"),
-    "joke-in-a-failure-state": (
-        r"\bgremlins?\b|\bhamsters?\b|took a coffee break|our bad\b"
-        r"|this is embarrassing|sad panda|blame the interns", "medium"),
-}
-
-UI_WHY = {
-    "generic-failure-string":
-        "A model generating an error handler writes the string before the failure exists. "
-        "There is no caught exception it has inspected, so it emits the string valid for every "
-        "possible cause — which is the string carrying no cause.",
-    "apology-in-place-of-explanation":
-        "Apology is the single safest completion an assistant can produce: it cannot be "
-        "factually wrong and it cannot offend. So under uncertainty about what failed, the "
-        "model reaches for the token that costs nothing to assert — and it does not "
-        "merely waste the slot, it inflates the perceived severity.",
-    "forced-cheer-interjection":
-        "Emotional hedging that signals the message is not the reader's fault before the "
-        "message says anything. A bare failure sentence reads harsh, and harshness is what "
-        "alignment training discourages, so the safe completion prepends a softener.",
-    "assistant-register-in-product-chrome":
-        "Literal register bleed. The model's own conversational voice is its strongest prior, "
-        "and without a voice spec it writes UI strings in that voice — so the product "
-        "addresses the user as a helper rather than as a tool. \"Don't worry\" is the worst of "
-        "them, because it instructs the user about their emotional state.",
-    "error-blames-the-user":
-        "Second person is the house style of an assistant, so \"you\" is the default subject of "
-        "any sentence a model writes about a person. Right in chat, wrong in a validation "
-        "message, where it converts a system constraint into a personal accusation — and "
-        "the constraint is the product's fault, because the form permitted the input.",
-    "invalid-as-the-entire-diagnosis":
-        "\"Invalid\" is the model's word for THE PREDICATE RETURNED FALSE, available without "
-        "knowing which predicate. The real message requires reading the validator and restating "
-        "it in English; this one summarises the boolean.",
-    "are-you-sure-without-the-object":
-        "The safe completion for a dialog whose contents the model does not know. It is valid "
-        "for deleting a file, ending a subscription and dropping a database, which is exactly "
-        "what makes it worthless: a question carrying no new information can only be answered "
-        "one way.",
-    "no-data-available-string":
-        "A restatement of the render condition — the English translation of a zero-length "
-        "array, which is the only fact the generating model has. It describes the array, not "
-        "the user's situation.",
-    "http-status-as-user-prose":
-        "The status code is the one piece of vocabulary guaranteed correct, so a model with no "
-        "knowledge of the domain reaches for it. The giveaway is the protocol's word choice "
-        "leaking through unedited: \"Forbidden\" is a term of art nobody writing a permissions "
-        "message would choose.",
-    "welcome-tour-boilerplate":
-        "The most templated artifact in software, and what \"add onboarding\" retrieves. "
-        "Content-free by construction: the model has no idea what THIS user should do first, so "
-        "it writes the greeting, which is true of every product.",
-    "success-toast-for-a-visible-result":
-        "Every mutation handler gets the same completion block, because a model writing "
-        "handlers writes them uniformly. Nothing asks whether the user can already SEE the "
-        "outcome. Note \"successfully\" is near-diagnostic on its own — people rarely "
-        "write the adverb.",
-    "objectless-notification":
-        "Written at the point where the job finishes, where the object is a variable the string "
-        "does not interpolate and the time is implicit. Both omissions are invisible at write "
-        "time and obvious at read time, because a notification centre is read hours later, out "
-        "of order, in a stack.",
-    "permission-ask-without-a-why":
-        "The model knows what the API call requires and not what the feature is for, so it "
-        "writes the request precisely and the rationale generically. \"To improve your "
-        "experience\" is true of everything and commits to nothing.",
-    "widget-named-action-label":
-        "\"Submit\" is the HTML default and the most frequent button string in the web corpus, "
-        "so a model generating a form emits the corpus mode. Deeper: a model that has not "
-        "modelled the next screen cannot name it, so it names the interaction.",
-    "joke-in-a-failure-state":
-        "Humour is one of the few ways a model can make a string feel authored. But the joke is "
-        "generated without knowledge of stakes — the same quip for a mistyped URL and a "
-        "failed medical-record upload — because the generator sees an error SLOT, not a "
-        "SITUATION.",
-}
-
-UI_FIX = {
-    "generic-failure-string":
-        "Branch on the cause you already have in hand. One string per branch, each naming the "
-        "cause and the next action, plus one true fallback carrying a support reference.",
-    "apology-in-place-of-explanation":
-        "Delete the apology. Lead with what happened, follow with what to do. A genuinely "
-        "severe, self-inflicted failure earns one short acknowledgement AFTER the facts.",
-    "forced-cheer-interjection": "Delete the interjection. Nothing replaces it.",
-    "assistant-register-in-product-chrome":
-        "Strip the cohortative and the first person singular. State what the screen is and what "
-        "to do. \"We\" meaning the company is fine; \"let's\" and \"I'll\" are not.",
-    "error-blames-the-user":
-        "Drop the agent. An imperative for an empty field, a neutral description for a "
-        "constraint violation: \"Enter a postal code in the format SW1A 1AA.\"",
-    "invalid-as-the-entire-diagnosis":
-        "State the rule, and quote the value back where it helps: \"The postal code must be "
-        "five or nine digits. You entered seven (4872953).\"",
-    "are-you-sure-without-the-object":
-        "Replace the question with the consequence — object, quantity, irreversibility "
-        "— and let the buttons carry the two outcomes.",
-    "no-data-available-string":
-        "Say what belongs here, why it is empty, and what fills it, with the action wired.",
-    "http-status-as-user-prose":
-        "Keep the number for support and lead with the situation. Map each status you emit to a "
-        "sentence about the user's world.",
-    "welcome-tour-boilerplate":
-        "Delete it and make the first real screen teach. If something must be said first, say "
-        "the one thing and get out of the way.",
-    "success-toast-for-a-visible-result":
-        "Toast only when the result is invisible, off-screen, asynchronous or reversible "
-        "— and when it is reversible, put the undo in the toast so it earns the "
-        "interruption.",
-    "objectless-notification":
-        "Object, time, action: what happened to what, when, and somewhere to go.",
-    "permission-ask-without-a-why":
-        "One sentence naming the concrete capability unlocked, shown at the moment the user "
-        "reaches for the feature.",
-    "widget-named-action-label":
-        "Verb plus object, naming the result, so the label answers the dialog's question.",
-    "joke-in-a-failure-state":
-        "Reserve humour for low-stakes failures that still say what happened and offer a route "
-        "back. Never on data, money, or a blocked task.",
-}
-
-
 def extract_ui_strings(text, suffix):
     """Candidate user-facing strings, with their line numbers.
 
@@ -4398,90 +4286,22 @@ def extract_ui_strings(text, suffix):
 
 
 def analyze_ui_strings(path, text):
-    """Closed-set matching over extracted UI strings only."""
-    out = []
+    """Measure punctuation frequency. Contextual UI copy belongs to the judge."""
     suffix = path.suffix.lower()
-    if suffix == ".json" and not re.search(r'"[a-z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)*"\s*:\s*"',
-                                           text):
-        return out
     text = "\n".join(mask_ignored(text.splitlines()))
     strings = extract_ui_strings(text, suffix)
-    if not strings:
-        return out
-    seen = set()
-    for ism, (pat, sev) in UI_SETS.items():
-        hits = [(ln, v) for ln, v in strings if re.search(pat, v, re.I)]
-        if not hits:
-            continue
-        # One finding per ism, naming up to three real strings, because a string
-        # table repeats the same phrase and forty identical findings is noise.
-        ex = "; ".join(f'"{v[:60]}"' for _, v in hits[:3])
-        out.append(finding(
-            path, hits[0][0],
-            f"{len(hits)} UI string(s) matching {ism.replace('-', ' ')}: {ex}",
-            ism, sev, UI_WHY[ism], UI_FIX[ism],
-            family="form" if ism != "success-toast-for-a-visible-result" else "defect"))
-        seen.add(ism)
-
-    # Exclamation marks: a rate, not a phrase. One celebratory string is a
-    # choice and forty is a default, which is the same argument the rhythm
-    # signals make -- so this is scored as a rate and capped accordingly.
-    bangs = [(ln, v) for ln, v in strings if "!" in v]
-    err_bangs = [(ln, v) for ln, v in bangs
-                 if re.search(r"error|fail|invalid|denied|unable|couldn'?t|cannot|wrong", v, re.I)]
-    if err_bangs or (len(strings) >= 12 and len(bangs) > len(strings) / 12):
-        hits = err_bangs or bangs
-        out.append(finding(
-            path, hits[0][0],
-            (f"{len(err_bangs)} error string(s) carrying an exclamation mark"
-             if err_bangs else
-             f"{len(bangs)} of {len(strings)} UI strings carry an exclamation mark"),
-            "exclamation-in-system-strings", "medium" if err_bangs else "low",
-            "Exclamation is the cheapest available warmth — one character that makes a "
-            "flat string feel friendly — so a model rewarded for warmth applies it "
-            "uniformly, which destroys the contrast it is reaching for. Human-written string "
-            "tables are UNEVEN: a couple at real milestones and none anywhere else. Generated "
-            "tables are flat, and the flatness is the tell.",
-            "Remove all of them from errors and warnings. Keep at most one or two in the whole "
-            "product, at genuine milestones.",
-            family="rhythm"))
-
-    emoji_hits = [(ln, v) for ln, v in strings
-                  if any(is_emoji(c) for c in v)
-                  and re.search(r"error|fail|invalid|unable|couldn'?t|wrong|warning|sorry", v,
-                                re.I)]
-    if emoji_hits:
-        out.append(finding(
-            path, emoji_hits[0][0],
-            f'{len(emoji_hits)} error or warning string(s) carrying emoji: '
-            f'"{emoji_hits[0][1][:60]}"',
-            "emoji-in-system-status-strings", "medium",
-            "Emoji are the highest-density warmth-per-token available and they survive every "
-            "style constraint a prompt imposes, so they are what a model reaches for when told "
-            "to make copy friendly. In a failure state the effect inverts: the emoji reads as "
-            "the product being pleased with itself while the user is stuck. Screen readers "
-            "announce emoji names aloud mid-sentence.",
-            "Replace with a real icon from the product's set, or with nothing. An error state "
-            "should carry no emoji at all.",
-            family="form"))
-
-    residue = [(ln, v) for ln, v in strings
-               if re.search(r"\bundefined\b|\bNaN\b|\[object Object\]|\{\{[^}]+\}\}", v)
-               or I18N_KEYISH.match(v)]
-    if residue:
-        out.append(finding(
-            path, residue[0][0],
-            f'{len(residue)} UI string(s) carrying unresolved scaffolding: '
-            f'"{residue[0][1][:60]}"',
-            "unresolved-token-in-ui-string", "high",
-            "Generated code assumes the happy shape of its own data: the name field is always "
-            "present in the mock, so the fallback is never written; the i18n key is added to "
-            "the component and not to the locale file. These are defects of never having looked "
-            "at the running screen with imperfect data.",
-            "Fallbacks at every interpolation, a locale-key linter in CI, and a probe suite "
-            "that renders every screen with null-heavy fixtures.",
-            family="residue"))
-    return out
+    bangs = [(ln, value) for ln, value in strings if "!" in value]
+    if len(strings) < th("exclamation-in-system-strings", "min_strings", 12) or \
+       len(bangs) <= len(strings) / th("exclamation-in-system-strings", "strings_per_mark", 12):
+        return []
+    return [finding(
+        path, bangs[0][0],
+        f"{len(bangs)} of {len(strings)} UI strings carry an exclamation mark",
+        "exclamation-in-system-strings", "low",
+        "The extracted strings use a repeated emphasis cue. Check whether it fits the actual workflow.",
+        "Retain the punctuation where it serves the message.",
+        family="rhythm",
+    )]
 
 
 def _has_form(text, low):
@@ -5465,50 +5285,17 @@ def analyze_forms(path, text):
 TEX_EXT = {".tex", ".bib", ".cls", ".sty", ".ltx"}
 PLOT_EXT = {".py", ".r", ".rmd", ".ipynb", ".jl"}
 
-# Cabanac/Labbe tortured phrases. These are evidence of word-level machine
-# PARAPHRASING to evade text matching, not of LLM generation -- modern
-# instruction-tuned models preserve technical terms. The remedy differs, so the
-# distinction is kept in the finding text.
-TORTURED = {
-    "counterfeit consciousness": "artificial intelligence",
-    "man-made brainpower": "artificial intelligence",
-    "bosom peril": "breast cancer",
-    "kidney disappointment": "kidney failure",
-    "joined together states": "United States",
-    "irregular esteem": "random value",
-    "mean square blunder": "mean square error",
-    "profound learning": "deep learning",
-    "gullible bayes": "naive Bayes",
-    "bolster vector machine": "support vector machine",
-    "colossal information": "big data",
-    "lung malignancy": "lung cancer",
-}
-
 CHAT_RESIDUE = (
-    r"as an AI language model|I (?:do not|don't) have (?:access to|the ability)"
-    r"|my (?:knowledge )?(?:cut[- ]?off|training data)(?: date)?"
-    r"|as of my last (?:knowledge )?update|Regenerate response"
-    r"|certainly[,!]? here (?:is|are)|I hope this helps"
-    r"|as a large language model|I'm sorry,? but (?:I|as)"
+    r"\bas (?:an AI|a large) language model\b"
+    r"|\bas of my last knowledge update\b"
 )
 
 
 def analyze_manuscript(path, text):
-    """Research-paper surfaces: the manuscript and the referee report.
-
-    A paper's sentences and its checkable commitments come out of the same
-    machinery at the same confidence, and nothing in the finished artifact marks
-    which is which. So every check here points OUTWARD at the world -- does this
-    resolve, does the body contain the abstract's number -- rather than inward at
-    style. Those cost an accused author nothing when they come back clean, which
-    matters more here than anywhere else in this skill: the population most
-    likely to leave a style marker in a manuscript is the one writing in its
-    second language, and the cost of being wrong is a career rather than an edit.
-    """
+    """Check literal manuscript residue. Route meaning and genre to the judge."""
     out = []
     lines = mask_ignored(text.splitlines())
     text = "\n".join(lines)
-    low = text.lower()
 
     def first(pat, default=1):
         return next((i + 1 for i, l in enumerate(lines)
@@ -5531,27 +5318,14 @@ def analyze_manuscript(path, text):
             "of 56 publishers with a public AI policy, 82.1% require disclosure.",
             family="residue"))
 
-    # ---- a paper addressed to a chat user rather than a reader
-    if re.search(r"\b(?:as you\s+(?:can see|requested|mentioned)|you\s+(?:asked|wanted|said)|"
-                 r"in your\s+(?:question|prompt|request)|let me know if)\b", low) \
-       and re.search(r"\\begin\{abstract\}|\babstract\b|\bwe (?:present|propose|show)\b", low):
+    placeholder = (
+        r"\[(?:Author|Title|Journal|Year|Citation|Reference|insert [^\]]{2,30})\]"
+        r"|\bAuthor et al\., Title, Journal, Year\b"
+        r"|\\cite\{(?:TODO|XXX)\}"
+    )
+    if re.search(placeholder, text, re.I):
         out.append(finding(
-            path, first(r"as you |you asked|in your (?:question|prompt)|let me know if"),
-            "second person addressed to a requester, in a manuscript",
-            "manuscript-addressed-to-the-user", "high",
-            "A paper addresses a reader who is not in the room. Second person aimed at a "
-            "requester is the conversational frame surviving the copy-paste; Academ-AI finds "
-            "it in 11.3% of its documented cases.",
-            "Rewrite in the register of the venue. If the sentence only makes sense as an "
-            "answer to someone, it is not a finding and should go.",
-            family="residue"))
-
-    # ---- placeholder left in a reference or a heading
-    if re.search(r"\[(?:Author|Title|Journal|Year|Citation|Reference|insert [^\]]{2,30})\]"
-                 r"|\bAuthor et al\., Title, Journal, Year\b"
-                 r"|\\cite\{(?:key|ref|citation|TODO|XXX)\}", text, re.I):
-        out.append(finding(
-            path, first(r"\[(?:Author|Title|Journal|Year|Citation)\]|\\cite\{(?:key|ref|TODO)"),
+            path, first(placeholder),
             "a template slot left unfilled in a reference or heading",
             "placeholder-token-left-in-a-reference-or-heading", "high",
             "The scaffold for a citation shipped in place of the citation. Unlike a style "
@@ -5560,82 +5334,6 @@ def analyze_manuscript(path, text):
             "Fill it or cut the sentence. Then verify the reference you fill it with, because "
             "a slot nobody filled is a slot nobody checked.",
             family="residue"))
-
-    # ---- a referee report with nothing to point at
-    # A referee report makes a recommendation to an editor. A document ABOUT
-    # peer review describes one in the third person and makes none -- and this
-    # skill's own reference files are exactly that, which is how the first
-    # version of this check came to flag its own documentation.
-    is_review = bool(re.search(r"\b(?:this (?:paper|manuscript|submission)|the authors)\b", low)) \
-        and bool(re.search(r"\b(?:weakness(?:es)?|strengths?|soundness|rebuttals?)\b", low)) \
-        and bool(re.search(r"\bI\s+(?:recommend|suggest|would\s+recommend|vote|lean)\b"
-                           r"|\bmy\s+(?:recommendation|score|rating|assessment)\b"
-                           r"|\brecommend\s+(?:major|minor|rejection|acceptance|revision)\b"
-                           r"|\b(?:overall|confidence)\s+(?:score|rating)\b", text, re.I))
-    if is_review and len(text.split()) > th("review-with-no-locator", "min_words", 150) \
-       and not re.search(r"\b(?:line|l\.|p\.|page|section|sec\.|fig(?:ure)?\.?|table|eq(?:uation)?\.?)"
-                         r"\s*\d|\bl\d+\b|§\s*\d", low):
-        out.append(finding(
-            path, 1,
-            f"{len(text.split())} words of review with no line, page, figure, table or "
-            f"section reference",
-            "review-with-no-locator", "high",
-            "A referee who read the paper points at it. A review that never cites a line, a "
-            "figure or an equation is compatible with never having opened the submission, "
-            "and it gives the authors nothing to act on. This is a property of the review's "
-            "usefulness, not a claim about how it was written.",
-            "Anchor every criticism to a locator. A weakness that cannot be pinned to a place "
-            "in the paper is either not about this paper or not yet a weakness.",
-            family="shape"))
-
-    # ---- tortured phrases: paraphrase laundering, NOT generation
-    hits = [(k, v) for k, v in TORTURED.items() if k in low]
-    if hits:
-        out.append(finding(
-            path, first(re.escape(hits[0][0])),
-            "; ".join(f'"{k}" for "{v}"' for k, v in hits[:4]),
-            "tortured-phrase", "high",
-            "A term of art replaced by a synonym-swapped near-miss. Widely repeated as an "
-            "\"AI writing\" signal and it is NOT one: Cabanac and Labbe's mechanism is "
-            "word-level machine paraphrasing used to evade text-matching plagiarism "
-            "detection, and modern instruction-tuned models preserve technical terms. Getting "
-            "this wrong gets the remedy wrong.",
-            "Treat it as a plagiarism-laundering signal, not a generation signal: find the "
-            "source text the passage was paraphrased FROM. The Problematic Paper Screener "
-            "runs this over ~130 million publications weekly.",
-            family="residue"))
-
-    # ---- a hosted model used as an instrument, with no way to reproduce it
-    if re.search(r"\b(?:gpt-?4|gpt-?3|chatgpt|claude|gemini|llama|mistral|qwen|deepseek)\b", low) \
-       and re.search(r"\bwe (?:used|prompt|queried|asked|ran)\b|\bmodel was (?:used|queried)\b", low):
-        miss = []
-        if not re.search(r"\b(?:gpt-4[o0-9.\-]*\d{4}|20\d{2}-\d{2}-\d{2}|version\s+\d|"
-                         r"-\d{4}(?:-\d{2}-\d{2})?)\b", low):
-            miss.append("no pinned version or snapshot date")
-        if not re.search(r"\btemperature\b|\btop[_\- ]?p\b|\bseed\b|\bmax[_\- ]?tokens\b", low):
-            miss.append("no inference parameters")
-        if not re.search(r"\bprompt(?:s)?\b[^.]{0,60}(?:appendix|supplement|available|verbatim|"
-                         r"listed|table)|\bfull prompt", low):
-            miss.append("no prompt text")
-        if re.search(r"latest (?:model|version|release)", low):
-            miss.append('"latest model release" instead of a version')
-        if len(miss) >= th("model-used-as-an-instrument-with-no-version-date-or-parameters",
-                           "min_gaps", 2):
-            out.append(finding(
-                path, first(r"gpt-?4|chatgpt|claude|gemini|llama|we used|we prompted"),
-                "; ".join(miss),
-                "model-used-as-an-instrument-with-no-version-date-or-parameters", "high",
-                "A hosted model used as a measuring device, reported in a way nobody can "
-                "reproduce. Not a text tell at all -- it is a methods defect, fully checkable "
-                "from the methods section, and it carries no fairness cost. Of 640 manually "
-                "coded LLM-for-software-engineering papers, 32.2% had versioning problems "
-                "including the literal phrase \"latest model release\", 199 gave no prompt "
-                "templates, 88 documented no inference parameters, and only 13.3% were clean.",
-                "Pin the snapshot, state temperature, top_p and seed, put the prompts verbatim "
-                "in an appendix, and say how many times you ran it. Temperature zero removes "
-                "deliberate sampling but not variation from silent model updates, so a date "
-                "is part of the method.",
-                family="defect"))
 
     return out
 
@@ -6030,52 +5728,6 @@ def analyze_latex(path, text):
             "slot nobody filled usually has siblings.",
             family="residue"))
 
-    # ---- a macro used and never defined (fatal)
-    defined = set(re.findall(r"\\(?:new|renew|provide)command\*?\{?\\(\w+)", body))
-    defined |= set(re.findall(r"\\DeclareMathOperator\*?\{?\\(\w+)", body))
-    defined |= set(re.findall(r"\\def\\(\w+)", body))
-    used = set(re.findall(r"\\([a-zA-Z]{3,})\b", body))
-    KNOWN = set("""documentclass usepackage begin end section subsection subsubsection
-        paragraph textbf textit texttt emph label ref cite eqref autoref caption
-        includegraphics centering item newpage clearpage footnote title author date
-        maketitle bibliography bibliographystyle newcommand renewcommand providecommand
-        def input include appendix tableofcontents hspace vspace textwidth linewidth
-        columnwidth frac sqrt sum prod int left right mathrm mathbf mathcal text
-        alpha beta gamma delta theta lambda sigma mu nu pi rho tau phi psi omega
-        times cdot leq geq neq approx sim infty partial nabla forall exists
-        toprule midrule bottomrule multicolumn multirow cmidrule textsc textsf
-        footnotesize scriptsize normalsize selectfont bibitem thebibliography
-        printbibliography addbibresource DeclareMathOperator operatorname
-        newtheorem theoremstyle qquad quad noindent par relax phantom hfill vfill
-        color textcolor colorbox fcolorbox href url texorpdfstring
-        institution affiliation email orcid keywords abstract acks
-        subfigure subcaption includepdf pagestyle thispagestyle setlength
-        renewcommandx mathbb mathfrak mathscr boldsymbol overline underline
-        widehat widetilde xrightarrow xleftarrow substack binom
-        qty SI si num unit ang celsius percent
-        cref Cref crefname autoref nameref pageref
-        maketitlesupplementary onecolumn twocolumn makeatletter makeatother""".split())
-    undef = sorted(u for u in used - defined - KNOWN
-                   if re.search(r"\\" + re.escape(u) + r"\b", body)
-                   and not re.search(r"\\usepackage[^}]*\b" + re.escape(u), body)
-                   and len(u) > 3 and u.islower() and "_" not in u)
-    # Only report when the file looks self-contained (it has a documentclass),
-    # because a fragment legitimately uses macros defined in its parent.
-    if undef and re.search(r"\\documentclass", body) \
-       and len(undef) >= th("macro-used-but-never-defined", "min_count", 2):
-        shown = ", ".join("\\" + u for u in undef[:5])
-        out.append(finding(
-            path, first(r"\\" + re.escape(undef[0])),
-            f"{len(undef)} command(s) used but not defined here or loaded by a package: "
-            f"{shown}",
-            "macro-used-but-never-defined", "medium",
-            "A command that resolves to nothing at all. This is a compile-reproducible defect "
-            "rather than an inference about anyone, and it is the commonest LaTeX failure in "
-            "both human and generated source -- so treat it as a build error, not a tell.",
-            "Run the file and read the log: Undefined control sequence names it. Then either "
-            "define it, load the package that provides it, or delete the call.",
-            family="defect"))
-
     # ---- a float labelled and never referred to
     labels = set(re.findall(r"\\label\{((?:fig|tab|alg|lst):[^}]+)\}", body))
     refs = set(re.findall(r"\\(?:ref|autoref|cref|Cref|pageref)\{([^}]+)\}", body))
@@ -6107,12 +5759,22 @@ def analyze_file(path, base=None):
         # bundle reads .json, so this is the only route to it.
         return analyze_ui_strings(path, text)
     if suffix in MARKUP_EXT:
+        text = mask_markup_ignored(text)
+        text = mask_markup_ignored(text, "/*", "*/")
+    if suffix not in {".html", ".htm"}:
+        text = "\n".join(mask_ignored(text.splitlines()))
+    if suffix in MARKUP_EXT:
         res = (analyze_markup(path, text) + analyze_web_build(path, text)
                + analyze_app_surfaces(path, text) + analyze_ui_strings(path, text)
                + analyze_motion(path, text) + analyze_forms(path, text))
         if suffix in {".html", ".htm"}:
             res += analyze_prose(path, strip_markup(text), suffix, base,
                                  from_markup=True)
+            tracking = HtmlUrlTracking()
+            tracking.feed(text)
+            tracking.close()
+            if tracking.count:
+                res.append(tracking_param_finding(path, tracking.first_line, tracking.count))
         if suffix in CODE_EXT:
             res += analyze_code(path, text)
         return res
@@ -6136,7 +5798,8 @@ def analyze_file(path, base=None):
         # stripped. Routing it straight at analyze_prose counted \usepackage as
         # vocabulary and scored the paper on it.
         res = analyze_manuscript(path, text) + analyze_latex(path, text)
-        res += analyze_prose(path, strip_markup(text), ".md", base, from_markup=True)
+        res += analyze_prose(path, strip_markup(text), suffix, base, from_markup=True)
+        res += list(staccato_findings(path, text, suffix))
         return res
     res = analyze_prose(path, text, suffix or ".txt", base)
     if suffix in {".md", ".mdx"}:
@@ -6507,12 +6170,10 @@ def run_validate():
               "followed by a group -- \\d(?:a|b) rather than [0-9](a|b).")
         return 1
 
-    rc = Path(__file__).resolve().parent / "render_check.py"
-    impl_src = "\n".join(p.read_text(encoding="utf-8") for p in Path(__file__).parent.glob("*.py")
-                         if p.name != "regenerate_references.py" and not p.name.startswith("test_"))
+    implemented = implemented_ids()
     mech = [i for i in CATALOG.get("items", [])
             if i.get("detection_type") in ("structural", "rendered")]
-    todo = [i["name"] for i in mech if f'"{i["name"]}"' not in impl_src]
+    todo = [i["name"] for i in mech if i["name"] not in implemented]
     print(f"of {len(mech)} mechanically-decidable item(s), "
           f"{len(mech) - len(todo)} are implemented by these scripts and "
           f"{len(todo)} are for the judge pass to ask by hand "

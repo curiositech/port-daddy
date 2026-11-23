@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate references/*.md from references/catalog.json. Stdlib only.
+"""Regenerate reference Markdown views from references/catalog.json. Stdlib only.
 
 The catalog is the source of truth; the markdown files are grouped, readable
 views of it. Re-run after editing catalog.json.
@@ -18,6 +18,7 @@ Two guarantees this script now enforces, because their absence cost real items:
 import json
 import sys
 from pathlib import Path
+from implemented_checks import implemented_ids
 
 ROOT = Path(__file__).resolve().parent.parent
 REF = ROOT / "references"
@@ -29,10 +30,7 @@ items, sources = cat["items"], cat["sources"]
 # never that this bundle automates it -- SKILL.md already tells the judge pass to
 # ask the unimplemented ones by hand, and this is what makes that instruction
 # actionable instead of a grep exercise.
-_SCRIPTS = "".join(
-    p.read_text(encoding="utf-8")
-    for p in sorted((ROOT / "scripts").glob("*.py")) if p.name != Path(__file__).name and not p.name.startswith("test_"))
-IMPLEMENTED = {i["name"] for i in items if f'"{i["name"]}"' in _SCRIPTS}
+IMPLEMENTED = implemented_ids(ROOT / "scripts")
 
 PROSE_GENERIC = {"prose"}
 VISUAL_MEDIA = {"web-ui", "typography", "color", "iconography", "layout"}
@@ -158,12 +156,12 @@ DIAGRAMS = {
     G -->|yes| H["A person must hear it.<br/>Do NOT write an assertion and<br/>call a pass evidence"]
     G -->|no| I["render_check.py --probe-a11y<br/>settles text-spacing and forced-colors"]""",
     "product-ux-writing.md": """flowchart TD
-    A["Strings a logged-in user reads mid-task"] --> B["EXTRACT first, match second"]
-    B --> C["i18n catalogs, JSX text, the render<br/>and error paths"]
-    C --> D["Closed phrase sets run ONLY over<br/>the extracted strings"]
-    D --> E{"Why is this the one lane<br/>where hard matching is allowed?"}
-    E --> F["A product's string table is small,<br/>enumerable and extractable.<br/>Prose is none of those"]
-    F --> G["Start with collapsed-empty-states:<br/>three different situations collapsing<br/>into one string is what makes users<br/>believe their data was deleted"]""",
+    A["Open the screen or state where the copy appears"] --> B["Identify the task and what the user knows"]
+    B --> C{"Can the claim be verified in the rendered state?"}
+    C -->|yes| D["Exercise the relevant state and record what renders"]
+    C -->|requires context| E["Judge whether the text conveys the facts and next action"]
+    D --> F["Keep source interpolation separate from visible output"]
+    E --> G["Compare first use, no search result, and failed load"]""",
     "typographic-craft-and-tokens.md": """flowchart TD
     A["A stylesheet or design system"] --> B["Read COMPUTED values, not declarations"]
     B --> C["Utility frameworks bundle line-height<br/>into the size scale, so a page with no<br/>explicit rule is usually correct"]
@@ -357,7 +355,7 @@ GROUPS = {
     },
     "product-ux-writing.md": {
         "title": "UX writing inside the product",
-        "intro": "The strings a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints. Their quality bar is not whether they read well \u2014 it is whether they unblock someone who is stuck.\n\n**The mechanism that runs through the whole file, and the reason its findings are legible.** Under uncertainty about what failed, every substantive clause a model could write risks being wrong, and exactly one clause carries zero risk: the one about how sorry everyone is. So the generated string is optimised for the WRITER'S UNCERTAINTY rather than for the READER'S BLOCKAGE \u2014 and the two are anti-correlated. The less the system knows about the failure, the warmer the copy gets. A person who does not know what went wrong writes something terse and slightly embarrassed; a model writes something fluent and kind.\n\n**Why hard string matching is defensible here and nowhere else in this skill.** In prose a closed phrase list is a bad detector: the words have honest uses and the list ages out in months. UI strings are different in kind. A product's user-facing string table is small, enumerable and extractable \u2014 from i18n catalogs, from string literals in the render path, from the error and empty and toast slots in the rendered DOM. Within that surface the phrase space is genuinely narrow, because there are only so many ways to say nothing. \"Something went wrong\" is not a phrase with a good use at a different frequency; it is a phrase with no good use at all in a product that knows what went wrong. So these sets are hard matches rather than frequency cues, and where a set does not close, the item says so and routes to a judge pass.\n\n**One entry is the headline.** `collapsed-empty-states` is not a wording problem and wording cannot repair it: three unrelated situations \u2014 the user has never had data, their filter matched nothing, the fetch failed \u2014 produce the same observable in the component and collapse into one string. It needs a three-way probe, because the defect is a missing branch rather than a present string, and the condition that matters most is the third: an empty list after a failed load is what makes users believe their data was deleted.",
+        "intro": "Review the words a person reads mid-task: errors, empty states, button labels, confirmations, notifications, and field hints. Start with what the user knows and what they need to do next.\n\nRead the entire state before judging the words. A phrase list cannot tell whether an apology displaces an explanation, whether a generic error is an honest fallback, or whether a toast reports an outcome the user could already see. Decide those questions in the judge pass. Check runtime tokens in a rendered fixture with missing data or translations. Source templates and localization files legitimately carry placeholders.\n\nTry the three states in `collapsed-empty-states`: a new account, a search with no matches, and a failed fetch. Each needs its own explanation and next action. An empty list after a failed load can make a person think their data was deleted.",
         "pick": lambda i: i.get("lane") == "microcopy",
     },
     "typographic-craft-and-tokens.md": {
@@ -409,6 +407,11 @@ GROUPS = {
 
 # Education and title chrome are independent review lanes, not model dialects.
 GROUPS.update({
+    "connected-prose.md": {
+        "title": "Connected prose and public-copy cadence",
+        "intro": "Review sentence relationships before polishing rhythm. These editorial rubrics cover missing causes, consequences, comparisons and referents, along with repetitive rhetoric and compressed syntax. Read connected-prose-research.md for evidence boundaries and examples/before-after-connected-prose.md for repairs. Meaning-based findings require a reader; numerical cutoffs locate candidates only.",
+        "pick": lambda i: i.get("lane") == "connected-prose",
+    },
     "educational-exposition.md": {
         "title": "Educational exposition and concept progression",
         "intro": "Audit what a reader can do with an idea before later material depends on it. These are pedagogical and editorial checks, not authorship tests. General learning research supports many repairs; evidence specific to AI tutoring is labeled and bounded in education-and-chrome-research.md. Learning-map checks validate reviewer annotations rather than learner mastery.",
@@ -426,6 +429,14 @@ GROUPS.update({
     },
 })
 DIAGRAMS.update({
+    "connected-prose.md": """flowchart TD
+    A[Read the paragraph for its intended reader] --> B{Missing relation or referent?}
+    B -->|yes| C[Verify and state the missing step]
+    B -->|no| D{Rhetorical pattern doing useful work?}
+    D -->|yes| E[Keep it]
+    D -->|no| F[State the claim directly]
+    C --> G[Check meaning, facts and reader action]
+    F --> G""",
     "educational-exposition.md": """flowchart TD
     A[State target task and prior knowledge] --> B{Prerequisites established?}
     B -->|no| C[Teach or explicitly declare them]
@@ -493,7 +504,7 @@ def contents_table(picked):
     check it are the three facts that decide whether an entry is worth opening.
     """
     rows = ["## What is in this file", "",
-            "Severity is how loudly the tell announces itself, never how sure you should "
+            "Severity reflects the consequence for the intended reader, never how sure you should "
             "be about who wrote it. **Automated** means these scripts implement the check; "
             "*no* means it is yours to ask in the judge pass.", "",
             "| item | severity | family | automated |",
@@ -508,6 +519,9 @@ def contents_table(picked):
 
 
 def block(i):
+    def quote(text):
+        return "\n".join("> " + line if line else ">" for line in text.split("\n"))
+
     L = [f"<a id=\"{i['name']}\"></a>",
          (f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · "
           + f"{i.get('detection_type','')} · family: {i.get('family','')}"
@@ -535,9 +549,9 @@ def block(i):
     if i.get("evidence"):
         L += [f"**Evidence:** {i['evidence']}", ""]
     if i.get("before"):
-        L += ["**Before**", "", "> " + i["before"].replace("\n", "\n> "), ""]
+        L += ["**Before**", "", quote(i["before"]), ""]
     if i.get("after"):
-        L += ["**After**", "", "> " + i["after"].replace("\n", "\n> "), ""]
+        L += ["**After**", "", quote(i["after"]), ""]
     return "\n".join(L)
 
 
@@ -589,6 +603,11 @@ for fname, g in GROUPS.items():
     print(f"{fname}: {len(picked)} items")
 
 HANDWRITTEN = {"fairness-and-false-positives.md", "five-minute-manual-pass.md",
+               "connected-prose-research.md",
+               "existing-artifact-review.md",
+               "review-workflow.md", "reader-context-and-evidence.md",
+               "activation-examples.md",
+               "structure-and-deck-tells.md",  # compatibility navigation, no stale rules
                "performance-budget-and-folklore.md", "education-and-chrome-research.md",
                "review-decisions.md", "INDEX.md"}
 _on_disk = {p.name for p in REF.glob("*.md")}

@@ -24,7 +24,7 @@ flowchart TD
 
 ## What is in this file
 
-Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+Severity reflects the consequence for the intended reader, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |
@@ -323,7 +323,7 @@ Kimi K2 holds voice well under ~300 words but degrades past ~3000: structure loo
 
 **Automated here:** yes, these scripts implement it.
 
-Sentences and paragraphs of near-identical length and cadence throughout, producing a metronomic evenness with no short punchy sentences against sprawling ones. The prosodic flatness humans call 'AI cadence.'
+Near-identical sentence lengths may produce monotonous pacing. Length variance alone does not determine readability or an appropriate voice.
 
 **Why it reads AI:** Human texts scatter more widely across sentence lengths; models cluster in the 10-30 token band. All human-vs-model sentence-length differences in the reference study were significant at p<0.001.
 
@@ -331,11 +331,11 @@ Sentences and paragraphs of near-identical length and cadence throughout, produc
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_sentences` = 12, `cue_cv` = 0.42, `baseline_ratio` = 0.7
 
-**Fix:** Deliberately vary length: drop a three-word sentence, then run a long stacked one, then snap back. Let one paragraph be a single line and the next be six. Read aloud and break the metronome.
+**Fix:** Let sentence length follow the thought. Connect dependent clauses with because, if, when, so or but where that relation is needed. Split at a real change of step and preserve the relation. Never insert fragments, arbitrary length alternation or invented anecdotes to raise variance.
 
 **False positive when:** Instructional, procedural and reference writing is legitimately uniform, because each step is one sentence. Low variance in a how-to is competence, not a machine.
 
-**Evidence:** Muñoz-Ortiz, Gómez-Rodríguez & Vilares, Artificial Intelligence Review 57:267 (2024). Note that 'perplexity and burstiness' as a paired metric is a detection product's marketing vocabulary, not a term of art from the literature.
+**Evidence:** Muñoz-Ortiz, Gómez-Rodríguez & Vilares, Artificial Intelligence Review 57:265 (2024), studied English news. Observed length distributions do not prescribe a drafting formula.
 
 **Before**
 
@@ -343,7 +343,7 @@ Sentences and paragraphs of near-identical length and cadence throughout, produc
 
 **After**
 
-> The system is fast. When a call fails it retries, backs off, and if the queue starts backing up under real load it sheds the lowest-priority work first rather than tipping over, which took three rewrites to get right. Monitoring catches the rest.
+> When a call fails, the system retries it. If the queue fills, it sheds lower-priority work so the remaining calls can finish. Monitoring alerts the team when retries fail.
 
 <a id="zero-typo-zero-contraction-affect-flatness"></a>
 ### `zero-typo-zero-contraction-affect-flatness`  ·  low · generic-llm · prose · structural · family: rhythm

@@ -26,7 +26,7 @@ flowchart TD
 
 ## What is in this file
 
-Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+Severity reflects the consequence for the intended reader, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |
@@ -116,7 +116,7 @@ The obligatory penultimate move: a 'Challenges and Future Directions' / 'Future 
 **Before**
 
 > ## Challenges and Future Directions
-> 
+>
 > Despite its rapid growth, the project faces challenges typical of open-source ecosystems.
 
 **After**
@@ -508,11 +508,11 @@ A heading every paragraph or two, labelling single paragraphs rather than organi
 **Before**
 
 > ## Why speed matters
-> 
+>
 > Speed matters because users leave.
-> 
+>
 > ## Why reliability matters
-> 
+>
 > Reliability matters because users return.
 
 **After**
@@ -541,15 +541,15 @@ A thematic break inserted between every section of a document.
 **Before**
 
 > ...end of section.
-> 
+>
 > ---
-> 
+>
 > ## Next section
 
 **After**
 
 > ...end of section.
-> 
+>
 > ## Next section
 
 <a id="markdown-bold-title-case-scaffold"></a>
@@ -816,15 +816,15 @@ The document repeats its own title as its first heading, or opens by restating t
 **Before**
 
 > # Caching in Production
-> 
+>
 > ## Caching in Production
-> 
+>
 > Caching in production is an important topic.
 
 **After**
 
 > # Caching in Production
-> 
+>
 > We cache three things, and two of them were mistakes.
 
 <!-- humanize:ignore-end -->

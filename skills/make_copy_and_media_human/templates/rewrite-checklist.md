@@ -15,14 +15,33 @@ Work the report top-down, highest severity first, then verify each line below.
 
 ## Voice restoration
 - [ ] Contractions present where a person would use them
-- [ ] At least one sentence per section a template would never produce (an aside, an admission, a specific memory)
-- [ ] Sentence lengths vary; read one paragraph aloud as the test
+- [ ] Concrete details come from the source; no invented anecdote, metric or mechanism
+- [ ] Sentence lengths follow the thought; no manufactured fragments or length alternation
 - [ ] Opinions stated as opinions, not hedged into mush
 
 ## Specificity
-- [ ] Every adjective either earns its place with a number/fact or is gone
+- [ ] Claims have support; no fact was invented to make an adjective sound specific
 - [ ] CTAs name what actually happens on click
 - [ ] No audience trifectas ("whether you're a, b, or c")
+
+## Connected prose (every public-facing draft)
+- [ ] Necessary causes, conditions, consequences and proof steps are stated or already established
+- [ ] Any added causal connective matches the evidence
+- [ ] Results have the comparison needed to interpret them
+- [ ] Claims lead directly; contrasts address a relevant distinction or plausible misconception
+- [ ] Paragraph endings add useful information or action; no appended punchline or empty maxim
+- [ ] Parallel clauses help comparison; no formulaic symmetry for emphasis alone
+- [ ] Pronouns have clear referents; metaphors leave the literal mechanism understandable
+- [ ] Noun stacks and improvised compound labels do not make ordinary actions harder to understand
+- [ ] Material conditions stay beside promises; CTA labels agree with the next screen
+- [ ] Short UI labels, grammatical imperatives and useful short sentences remain intact
+
+## Composed web UI (if applicable)
+- [ ] Inspect the whole rendered viewport, scroll sequence and relevant open tabs or drawers; mark the pass unverified if the render is unavailable.
+- [ ] Compare page and embedded headers, navigation and helper copy by meaning; name the distinct fact, orientation, action, constraint or evidence each keeps.
+- [ ] Inspect nested frames or cards, stacked toolbars and status rows, repeated badges, avatars, calls to action and controls, and layers explaining other layers; remove a redundant wrapper or control bar as well as its copy.
+- [ ] Delete demonstrated repetition rather than merely substituting synonyms; retain working boundaries, useful grouping, independent actions, deliberate persistent navigation, accessible names, captions, functional art and independent-context cues.
+- [ ] Judge whether card count follows real content and whether an eyebrow has a useful job; counts and word matches alone do not prove duplication, and a structural scan cannot decide it.
 
 ## Visual (if applicable)
 - [ ] Typeface was chosen, not defaulted; accent color traceable to a decision

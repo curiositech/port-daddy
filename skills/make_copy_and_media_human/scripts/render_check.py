@@ -34,7 +34,7 @@ dead citation: a fact about whether the thing works.
                                   1.4.12 spacing values and measures the clipping
   forced-colors-mode-erases-the-interface  with --probe-a11y: what loses its only
                                   boundary when the OS takes over the palette
-  escape-and-focus-declared-not-wired   with --probe-modals: opens each trigger and
+  escape-and-focus-declared-not-wired   with --probe-modals and --modal-trigger: opens selected dialogs and
                                   tests focus-in, Escape, Tab containment, restore
 """
 
@@ -84,21 +84,33 @@ PROBE = r"""() => {
     }
   }
 
-  const lum = (c) => {
-    const m = c.match(/[\d.]+/g); if (!m) return null;
-    const [r, g, b] = m.slice(0, 3).map(Number);
-    const a = m.length > 3 ? Number(m[3]) : 1;
-    if (a < 0.9) return null;               // translucent: not worth guessing
+  const parseColor = (color) => {
+    const match = /^rgba?\(([^()]*)\)$/.exec(color);
+    if (!match) return null;
+    const parts = match[1].split(',').map(part => part.trim());
+    if ((parts.length !== 3 && parts.length !== 4) ||
+        parts.some(part => !/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(part))) return null;
+    const [r, g, b, alpha = 1] = parts.map(Number);
+    if (r > 255 || g > 255 || b > 255 || alpha > 1) return null;
+    return {r, g, b, alpha};
+  };
+  const lum = (color) => {
+    const parsed = parseColor(color);
+    if (!parsed || parsed.alpha !== 1) return null;
     const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92
                                  : Math.pow((v + 0.055) / 1.055, 2.4); };
-    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    return 0.2126 * f(parsed.r) + 0.7152 * f(parsed.g) + 0.0722 * f(parsed.b);
   };
   const bgOf = (el) => {
     let n = el;
-    while (n && n !== document.documentElement) {
-      const c = getComputedStyle(n).backgroundColor;
-      const m = c.match(/[\d.]+/g);
-      if (m && (m.length < 4 || Number(m[3]) > 0.9)) return c;
+    while (n) {
+      const style = getComputedStyle(n);
+      if (style.backgroundImage !== 'none') return null;
+      const c = style.backgroundColor;
+      const parsed = parseColor(c);
+      if (!parsed) return null;
+      if (parsed.alpha === 1) return c;
+      if (parsed.alpha !== 0) return null;
       n = n.parentElement;
     }
     return 'rgb(255, 255, 255)';
@@ -134,7 +146,8 @@ PROBE = r"""() => {
                         text: txt.slice(0, 30)}); }
     }
 
-    const lf = lum(cs.color), lb = lum(bgOf(el));
+    const bg = bgOf(el);
+    const lf = lum(cs.color), lb = bg === null ? null : lum(bg);
     if (lf !== null && lb !== null) {
       const ratio = (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05);
       const bold = parseInt(cs.fontWeight, 10) >= 700;
@@ -143,7 +156,7 @@ PROBE = r"""() => {
       if (ratio < need) {
         const k = sel(el); if (!seenContrast.has(k)) { seenContrast.add(k);
           out.contrast.push({sel: k, ratio: Math.round(ratio * 100) / 100,
-                             need, color: cs.color, bg: bgOf(el),
+                             need, color: cs.color, bg,
                              text: txt.slice(0, 30)}); }
       }
     }
@@ -202,11 +215,19 @@ def finding(file, ism, severity, excerpt, explanation, rewrite):
 # Generated modals carried an Escape handler in 79% of trials and Escape worked
 # in 59%, and 1,031 of 1,032 failures threw no console error. So a static pass
 # reports success on a broken modal, and only driving it in a browser disagrees.
+VISIBLE_DIALOG = r"""() => Array.from(
+  document.querySelectorAll('dialog[open], [role="dialog"], [role="alertdialog"]')
+).find(dialog => {
+  const bounds = dialog.getBoundingClientRect();
+  const visibility = getComputedStyle(dialog).visibility;
+  return bounds.width > 0 && bounds.height > 0
+         && visibility !== 'hidden' && visibility !== 'collapse';
+})"""
+
+
 MODAL_PROBE = r"""() => {
-  const open = document.querySelector('dialog[open], [role="dialog"], [role="alertdialog"]');
+  const open = (""" + VISIBLE_DIALOG + r""")();
   if (!open) return null;
-  const r = open.getBoundingClientRect();
-  if (r.width === 0 || r.height === 0) return null;
   const focusable = open.querySelectorAll(
     'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])');
   return {
@@ -220,65 +241,55 @@ MODAL_PROBE = r"""() => {
 
 
 CONTAINED_JS = r"""() => {
-  const d = document.querySelector('dialog[open], [role="dialog"], [role="alertdialog"]');
-  return d ? d.contains(document.activeElement) : true;
+  const d = (""" + VISIBLE_DIALOG + r""")();
+  return !!d && d.contains(document.activeElement);
 }"""
 
 
-def probe_modals(page, target, limit=6):
-    """Open each plausible trigger, then test the four behaviours that matter:
-    focus moves in, Escape closes, Tab stays contained, focus returns."""
+def probe_modals(page, target, trigger_selectors, limit=6):
+    """Exercise only selectors for dialog-opening controls in a safe fixture."""
     out = []
-    triggers = page.query_selector_all(
-        'button, [role="button"], a[href="#"], [data-testid*="open"], [aria-haspopup="dialog"]')
-    tested = 0
-    for tr in triggers:
-        if tested >= limit:
+    attempted = 0
+    for selector in dict.fromkeys(trigger_selectors):
+        if attempted >= limit:
             break
+        matches = page.query_selector_all(selector)
+        if len(matches) != 1:
+            raise ValueError(f"modal trigger selector must match exactly one element: {selector}")
+        tr = matches[0]
         try:
             if not tr.is_visible() or not tr.is_enabled():
                 continue
             label = (tr.inner_text() or tr.get_attribute("aria-label") or "").strip()[:40]
-            tr.focus()
+            name = label or selector
+            initial_url = page.url
+            attempted += 1
             tr.press("Enter")
             page.wait_for_timeout(180)
+            if page.url != initial_url:
+                break                           # the selector led to another page
             st = page.evaluate(MODAL_PROBE)
             if not st:
-                continue                      # this control does not open a dialog
-            tested += 1
-            name = label or f"trigger #{tested}"
+                continue
             problems = []
 
             if not st["focusInside"]:
                 problems.append("focus was not moved into the dialog on open")
 
-            # Escape.
+            for _ in range(min(st["focusables"] + 2, 12)):
+                page.keyboard.press("Tab")
+                if not page.evaluate(CONTAINED_JS):
+                    problems.append("Tab moved focus out of the dialog into the page behind")
+                    break
+
             page.keyboard.press("Escape")
             page.wait_for_timeout(180)
-            still = page.evaluate(MODAL_PROBE)
-            if still:
+            if page.evaluate(MODAL_PROBE):
                 problems.append("Escape did not close it")
-            else:
-                back = page.evaluate(
-                    "() => document.activeElement && document.activeElement.tagName.toLowerCase()")
-                if back == "body":
-                    problems.append("focus was not restored to the trigger on close")
-
-            # Containment, only meaningful while it is still open.
-            if still and still["focusables"]:
-                escaped = False
-                for _ in range(min(still["focusables"] + 2, 12)):
-                    page.keyboard.press("Tab")
-                    if not page.evaluate(CONTAINED_JS):
-                        escaped = True
-                        break
-                if escaped:
-                    problems.append("Tab moved focus out of the dialog into the page behind")
-                page.keyboard.press("Escape")
-                page.wait_for_timeout(120)
-                if page.evaluate(MODAL_PROBE):
-                    page.reload(wait_until="domcontentloaded")
-                    page.wait_for_timeout(200)
+                page.reload(wait_until="domcontentloaded")
+                page.wait_for_timeout(200)
+            elif not page.evaluate("trigger => document.activeElement === trigger", tr):
+                problems.append("focus was not restored to the trigger on close")
 
             if problems:
                 out.append(finding(
@@ -427,7 +438,7 @@ def probe_forced_colors(page, target):
         "box-shadow does not.")]
 
 
-def run(target, viewports, timeout_ms, probe_modal=False, probe_a11y=False):
+def run(target, viewports, timeout_ms, modal_triggers=(), probe_a11y=False):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -479,8 +490,8 @@ def run(target, viewports, timeout_ms, probe_modal=False, probe_a11y=False):
             page.wait_for_timeout(250)
             r = page.evaluate(PROBE)
             out += interpret(target, name, w, r)
-            if probe_modal and name == "desktop":
-                out += probe_modals(page, target)
+            if modal_triggers and name == "desktop":
+                out += probe_modals(page, target, modal_triggers)
             if probe_a11y and name == "desktop":
                 # forced colors first: the spacing probe mutates the page.
                 out += probe_forced_colors(page, target)
@@ -588,8 +599,14 @@ def main():
                          "criteria nobody tests because both need a state the author's browser "
                          "is not in.")
     ap.add_argument("--probe-modals", action="store_true",
-                    help="open each plausible trigger and test the four modal behaviours: focus in, Escape closes, Tab contained, focus restored. The one check source review cannot settle.")
+                    help="probe explicitly selected dialog triggers in a disposable fixture")
+    ap.add_argument("--modal-trigger", action="append", default=[], metavar="CSS",
+                    help="selector for one safe dialog trigger; repeat to check several")
     args = ap.parse_args()
+    if args.probe_modals and not args.modal_trigger:
+        ap.error("--probe-modals requires at least one --modal-trigger CSS selector")
+    if args.modal_trigger and not args.probe_modals:
+        ap.error("--modal-trigger requires --probe-modals")
 
     vps = VIEWPORTS
     if args.viewport:
@@ -599,7 +616,7 @@ def main():
             w, _, h = dims.partition("x")
             vps.append((name, int(w), int(h)))
 
-    res = run(args.target, vps, args.timeout, probe_modal=args.probe_modals,
+    res = run(args.target, vps, args.timeout, modal_triggers=args.modal_trigger,
               probe_a11y=args.probe_a11y)
     if res is None:
         sys.exit(2)
