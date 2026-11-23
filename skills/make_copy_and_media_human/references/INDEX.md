@@ -38,3 +38,10 @@ Imported supporting material. Load a listed file only when it serves the active 
 - [Unopened surfaces — navigation, i18n, docs, commerce, email, print](unopened-surfaces.md) — imported supporting material.
 - [Visual design tells — the v0/Lovable look](visual-design-tells.md) — imported supporting material.
 - [Web build defects — the half you can reproduce](web-build-defects.md) — imported supporting material.
+
+- [Connected prose](connected-prose.md) — required public-copy paragraph review.
+- [Connected prose research](connected-prose-research.md) — corroboration and evidence boundaries.
+- [Existing artifact review](existing-artifact-review.md) — source, rendered experience, bounded repair and coverage.
+- [Review workflow](review-workflow.md) — commands, medium routing and catalog maintenance.
+- [Reader context and evidence](reader-context-and-evidence.md) — evidence families and audience assumptions.
+- [Selection examples](activation-examples.md) — selection boundaries.

@@ -61,6 +61,7 @@ import statistics
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from implemented_checks import implemented_ids
 
 CATALOG_PATH = Path(__file__).resolve().parent.parent / "references" / "catalog.json"
 
@@ -68,7 +69,7 @@ CATALOG_PATH = Path(__file__).resolve().parent.parent / "references" / "catalog.
 DEFAULT_THRESHOLDS = {
     "em-dash-density": {"min_words": 120, "cue": 1.0, "baseline_ratio": 2.5},
     "comma-inflation": {"min_words": 200, "cue": 9.0, "baseline_ratio": 1.5},
-    "staccato-fragment-triplet": {"min_sentences": 8, "max_words": 4, "cue": 0.22},
+    "staccato-fragment-triplet": {"min_run": 3, "max_words": 4},
     "low-burstiness-uniform-rhythm": {"min_sentences": 12, "cue_cv": 0.42, "baseline_ratio": 0.7},
     "zero-typo-zero-contraction-affect-flatness": {"min_words": 250, "baseline_ratio": 0.5},
     "deontic-softening": {"min_modals": 4, "cue_ratio": 0.8},
@@ -505,6 +506,108 @@ def word_count(text):
     return len(re.findall(r"[A-Za-z0-9'’-]+", text))
 
 
+def prose_sentence_groups(text, suffix=".md"):
+    """Paragraph-local sentence candidates with original source lines.
+
+    A small source scanner, not a grammar parser or TeX engine. Excludes common
+    non-prose blocks; does not infer fragments from a missing verb-list match.
+    """
+    def blank(match):
+        return re.sub(r"[^\n]", " ", match.group())
+
+    if suffix in {".tex", ".latex"}:
+        envs = (r"thebibliography|tabular\*?|table\*?|figure\*?|lstlisting|"
+                r"verbatim\*?|minted|equation\*?|align\*?|gather\*?|displaymath|tikzpicture")
+        text = re.sub(r"\\begin\{(" + envs + r")\}.*?\\end\{\1\}",
+                      blank, text, flags=re.S)
+        text = re.sub(r"\\\[.*?\\\]|\$\$.*?\$\$", blank, text, flags=re.S)
+        text = re.sub(r"(?m)(?<!\\)%.*$", blank, text)
+        text = re.sub(r"\\(?:label|cite\w*|(?:eq|auto|c|C)?ref)\*?(?:\[[^\]]*\])?\{[^}]*\}",
+                      blank, text)
+        text = re.sub(r"\\(?:qedhere|qed)\b|[∎□]", " ", text)
+        text = re.sub(r"\\(?:begin|end)\{(?:proof|theorem|corollary|lemma|remark)\}(?:\[[^\]]*\])?",
+                      blank, text)
+        text = re.sub(r"\\(?:textit|textbf|emph|texttt)\{([^{}]*)\}", r"\1", text)
+    lines, tags = classify_lines(text, suffix)
+    paragraph, start_line, in_list = [], 1, False
+
+    def sentences():
+        joined = "\n".join(paragraph)
+        spans, cursor = [], 0
+        for boundary in re.finditer(r"(?<=[.!?])\s+", joined):
+            spans.append((cursor, boundary.start()))
+            cursor = boundary.end()
+        spans.append((cursor, len(joined)))
+        group = []
+        for begin, end in spans:
+            raw = joined[begin:end]
+            leading = len(raw) - len(raw.lstrip())
+            sentence = raw.strip().strip("*_ ")
+            if not sentence or re.fullmatch(r"(?:Proof|Solution|Remark)\.?", sentence, re.I):
+                if group:
+                    yield group
+                    group = []
+                continue
+            line = start_line + joined.count("\n", 0, begin + leading)
+            group.append((line, sentence))
+        if group:
+            yield group
+
+    for index, (raw, tag) in enumerate(zip(lines, tags), 1):
+        s = raw.strip()
+        markdown_nonprose = False
+        if suffix in RENDERS_MARKDOWN:
+            if re.match(r"(?:[-*+]\s|\d+[.)]\s)", s):
+                in_list = True
+                markdown_nonprose = True
+            elif s and not raw[0].isspace():
+                in_list = False
+            markdown_nonprose |= (raw.startswith(("    ", "\t"))
+                                  or (in_list and bool(s) and raw[0].isspace()))
+        boundary = (tag != "prose" or not s
+                    or markdown_nonprose
+                    or bool(re.match(r"(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|=+$|-+$)", s))
+                    or (suffix in {".tex", ".latex"}
+                        and s.startswith(("\\", "}"))))
+        if boundary:
+            if paragraph:
+                yield from sentences()
+                paragraph = []
+            continue
+        if not paragraph:
+            start_line = index
+        paragraph.append(raw)
+    if paragraph:
+        yield from sentences()
+
+
+def staccato_findings(path, text, suffix=".md"):
+    # strip_markup() loses block boundaries and source lines. HTML needs a
+    # rendered/DOM-aware editorial pass; never infer local runs from that stream.
+    if suffix in {".html", ".htm"}:
+        return
+    cap = th("staccato-fragment-triplet", "max_words", 4)
+    minimum = th("staccato-fragment-triplet", "min_run", 3)
+    for group in prose_sentence_groups(text, suffix):
+        run = []
+        for candidate in group + [(0, "")]:
+            line, sentence = candidate
+            if sentence.endswith(".") and 0 < word_count(sentence) <= cap:
+                run.append(candidate)
+                continue
+            if len(run) >= minimum:
+                yield finding(
+                    path, run[0][0], " ".join(s for _, s in run),
+                    "staccato-fragment-triplet", "low",
+                    f"Local run of {len(run)} sentences of at most {cap} words. "
+                    "Review whether the chopping hides a relation or adds false emphasis; "
+                    "sentence length alone cannot establish a defect or authorship.",
+                    "Keep complete useful steps. Join clauses where needed to state "
+                    "their actual relation, and remove emphasis-only fragments.",
+                    family="rhythm")
+            run = []
+
+
 def is_emoji(ch):
     cp = ord(ch)
     return any(lo <= cp <= hi for lo, hi in EMOJI_RANGES)
@@ -717,7 +820,8 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
                 path, 1, f"{m['comma_per_100w']:.1f} commas/100w", "comma-inflation",
                 "Parenthetical smoothing: every clause gets an appositive. Measured "
                 "at +66% under LLM revision, but weak on its own.",
-                "Break the sentence in two instead of adding a clause to it.",
+                "Remove needless asides. If splitting helps, keep the cause, condition "
+                "or consequence explicit across the resulting sentences.",
                 "generic-llm", m["comma_per_100w"],
                 base and base.get("comma_per_100w"), "up", "baseline_ratio")
             if f:
@@ -749,33 +853,23 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
             if f:
                 out.append(f)
 
+    if not from_markup:
+        out.extend(staccato_findings(path, text, suffix))
     sents = split_sentences(body)
-    if len(sents) >= th("staccato-fragment-triplet", "min_sentences", 8):
-        lens = [word_count(s) for s in sents]
-        cap = th("staccato-fragment-triplet", "max_words", 4)
-        share = sum(1 for n in lens if n <= cap) / len(lens)
-        if share > th("staccato-fragment-triplet", "cue", 0.22):
-            out.append(finding(
-                path, 1, f"{share:.0%} of {len(lens)} sentences are <={cap} words",
-                "staccato-fragment-triplet", "medium",
-                "Runs of clipped fragments are a signature model rhythm: emphasis "
-                "applied by chopping rather than by word choice.",
-                "Merge the fragments back into the sentence they were cut from. The "
-                "fix is fewer sentences, not longer ones.",
-                "claude", family="rhythm"))
-        if m and len(lens) >= th("low-burstiness-uniform-rhythm", "min_sentences", 12) \
-           and m["sentence_cv"] < th("low-burstiness-uniform-rhythm", "cue_cv", 0.42):
-            f = rhythm_finding(
-                path, 1, f"sentence-length CV {m['sentence_cv']:.2f} over {len(lens)} sentences",
-                "low-burstiness-uniform-rhythm",
-                "Near-constant sentence length. Human prose scatters more widely; "
-                "models cluster in the 10-30 token band. Reported as coefficient of "
-                "variation, not as a proprietary 'burstiness score'.",
-                "Break one sentence in four. Then let one run long.",
-                "generic-llm", m["sentence_cv"],
-                base and base.get("sentence_cv"), "down", "baseline_ratio")
-            if f:
-                out.append(f)
+    if m and len(sents) >= th("low-burstiness-uniform-rhythm", "min_sentences", 12) \
+       and m["sentence_cv"] < th("low-burstiness-uniform-rhythm", "cue_cv", 0.42):
+        f = rhythm_finding(
+            path, 1, f"sentence-length CV {m['sentence_cv']:.2f} over {len(sents)} sentences",
+            "low-burstiness-uniform-rhythm",
+            "Near-constant sentence length is a weak review cue. Corpus differences "
+            "do not establish a desirable rhythm for this passage or genre.",
+            "Let sentence length follow the reasoning. Join dependent clauses with "
+            "their actual relation; split only where each resulting step remains clear. "
+            "Do not insert fragments or alternate lengths to hit a rhythm target.",
+            "generic-llm", m["sentence_cv"],
+            base and base.get("sentence_cv"), "down", "baseline_ratio")
+        if f:
+            out.append(f)
 
     # ------------------------------------ FORM. Closed grammatical classes.
     if words > th("participial-tail", "min_words", 150):
@@ -892,8 +986,8 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
                 "which is irregular; a model breaks on a rhythm. Unlike sentence-length "
                 "variation this has no published baseline behind it, so the threshold is "
                 "a judgment call and the severity is capped accordingly.",
-                "Put a one-sentence paragraph where the argument turns, and let another "
-                "run long.", family="rhythm"))
+                "Break paragraphs where their subject or reasoning changes. Keep a "
+                "complete explanation together and preserve its links.", family="rhythm"))
 
     run = best_run = run_line = 0
     max_w = th("linkedin-broetry-one-line-runs", "max_words_per_line", 14)
@@ -6136,7 +6230,8 @@ def analyze_file(path, base=None):
         # stripped. Routing it straight at analyze_prose counted \usepackage as
         # vocabulary and scored the paper on it.
         res = analyze_manuscript(path, text) + analyze_latex(path, text)
-        res += analyze_prose(path, strip_markup(text), ".md", base, from_markup=True)
+        res += analyze_prose(path, strip_markup(text), suffix, base, from_markup=True)
+        res += list(staccato_findings(path, text, suffix))
         return res
     res = analyze_prose(path, text, suffix or ".txt", base)
     if suffix in {".md", ".mdx"}:
@@ -6507,12 +6602,10 @@ def run_validate():
               "followed by a group -- \\d(?:a|b) rather than [0-9](a|b).")
         return 1
 
-    rc = Path(__file__).resolve().parent / "render_check.py"
-    impl_src = "\n".join(p.read_text(encoding="utf-8") for p in Path(__file__).parent.glob("*.py")
-                         if p.name != "regenerate_references.py" and not p.name.startswith("test_"))
+    implemented = implemented_ids()
     mech = [i for i in CATALOG.get("items", [])
             if i.get("detection_type") in ("structural", "rendered")]
-    todo = [i["name"] for i in mech if f'"{i["name"]}"' not in impl_src]
+    todo = [i["name"] for i in mech if i["name"] not in implemented]
     print(f"of {len(mech)} mechanically-decidable item(s), "
           f"{len(mech) - len(todo)} are implemented by these scripts and "
           f"{len(todo)} are for the judge pass to ask by hand "

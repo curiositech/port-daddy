@@ -26,7 +26,7 @@ flowchart TD
 
 ## What is in this file
 
-Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+Severity reflects the consequence for the intended reader, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |
@@ -147,13 +147,13 @@ The LinkedIn macro-frame, distinct from broetry: a standalone hook line, a blank
 **Before**
 
 > I got rejected 47 times.
-> 
+>
 > Here's what I learned:
-> 
+>
 > 1. Persistence matters
 > 2. Feedback is a gift
 > 3. Rejection isn't personal
-> 
+>
 > What's your experience?
 
 **After**
@@ -180,11 +180,11 @@ A post built as a vertical stack of one-line paragraphs separated by blank lines
 **Before**
 
 > I got rejected 40 times.
-> 
+>
 > Then everything changed.
-> 
+>
 > Here's what failure taught me about success.
-> 
+>
 > Lesson 1: Never give up. 🧵
 
 **After**
@@ -539,9 +539,9 @@ Bold headers, numbered sections and horizontal rules inside a threaded comment, 
 **Before**
 
 > **TL;DR:** yes.
-> 
+>
 > ### Why
-> 
+>
 > 1. **Cost** — it's cheaper
 > 2. **Speed** — it's faster
 

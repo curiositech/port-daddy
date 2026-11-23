@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
-name: make_copy_and_media_human
-description: Review and rewrite copy, web UI, slides, READMEs, commits, PRs, marketing pages, educational chapters, class materials, notebooks, and generated media to strip AI-isms — Claudeisms, GPT-isms, Codexisms, Geminisms, engineering-artifact slop, and the v0/Lovable design look — producing a line-item fix plan as static HTML. Use before shipping any outward-facing text or design, when something "reads like AI", or when auditing a property for machine tells. NOT for grammar/spell checking, SEO optimization, plagiarism detection, or judging whether a third party used AI (this is an editing skill, and the evidence says authorship detection does not work).
+name: make-copy-and-media-human
+description: Review and rewrite copy, web UI, slides, READMEs, commits, PRs, marketing pages, educational chapters, class materials, notebooks, and generated media to repair clipped or stilted prose, missing reasoning, and AI-isms — Claudeisms, GPT-isms, Codexisms, Geminisms, engineering-artifact slop, and the v0/Lovable design look — producing a line-item fix plan as static HTML. Use before shipping any outward-facing text or design, when something "reads like AI", or when auditing a property for machine tells. NOT for grammar/spell checking, SEO optimization, plagiarism detection, or judging whether a third party used AI (this is an editing skill, and the evidence says authorship detection does not work).
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebFetch
 argument-hint: '[file-or-directory] [--out report.html] [--findings findings.json] [--json findings.json]'
 metadata:
@@ -20,6 +20,8 @@ metadata:
     - engineering-artifacts
     - voice
   pairs-with:
+    - skill: product-reality-reviewer
+      reason: Reviews customer tasks, missing behavior and buyer decisions before polishing the words.
     - skill: agent-pr-authoring
       reason: that skill writes the PR; this skill catches the generated scaffold, the unverified test plan, and the commit-style drift before a maintainer does
     - skill: port-daddy-marketing-copy
@@ -51,6 +53,22 @@ and hands you a line-item fix plan as one self-contained HTML file.
 
 ## Read this first
 
+For every public-facing draft or rewrite, apply the connected-prose review below
+and load [connected-prose.md](references/connected-prose.md). This includes short
+marketing copy, product strings, social posts, documentation and long chapters.
+These are drafting defaults as well as review questions.
+
+For an existing document, web app, native app or manuscript, load
+[existing-artifact-review.md](references/existing-artifact-review.md). Audit the
+reader's task and rendered experience, record located findings, edit in bounded
+units and verify the result in context. A sample review does not establish
+coverage of unread chapters or unvisited screens.
+
+When the problem is a missing customer journey, a mismatch with audience
+knowledge, or a marketing page that fails to make the buying case, use
+`product-reality-reviewer` first. Return here to make the resulting public copy
+clear and natural.
+
 You are going to find things. Before you act on them, understand what a finding
 means, because the evidence here is uncomfortable and the skill is built around
 it.
@@ -74,7 +92,9 @@ allowed because they are not about topic or taste. The first is a closed set of
 <!-- humanize:ignore-start -->closed syntactic residues from metadata or transport, such
 as `oaicite` tokens or a `utm_source=chatgpt.com` parameter.<!-- humanize:ignore-end --> The second is closed sets of grammatical
 forms measured as a rate, like sentence-final participles or nominalization
-suffixes, which carry published effect sizes. The third is the era-versioned
+suffixes, which carry published effect sizes. Local sentence-run checks may also
+locate low-severity review candidates; their cutoffs are editorial heuristics,
+and their findings require contextual review. The third is the era-versioned
 excess-vocabulary marker list, reported as density against a baseline and always
 labelled with its era. Everything else belongs to the judge pass.
 
@@ -92,74 +112,14 @@ family at low severity, on purpose.
 oxide-red accent, nothing under 14px, no emoji, no indigo. Review the bundle with its own scripts and report residual findings explicitly. If this skill's own artifacts looked generated, nothing it says would
 land.
 
-## The six families
+## Classify the evidence
 
-Findings carry a `family`, and the family tells you how much to trust the
-finding. This matters more than severity.
-
-`residue` covers unconverted citation tokens, tracking parameters, and leaked
-assistant boilerplate. Verify their context before removing them: examples and
-quotations can contain these deliberately. Unicode spacing belongs to typography,
-not provenance. U+202F is used in French locale formatting; preserve meaningful
-spacing and script joiners unless a concrete rendering defect requires repair.
-
-`form` covers grammatical patterns with measured effect sizes, like participial
-tails at 5.3 times the human rate or nominalizations at roughly twice. Humans do
-these too, so read the `false_positive_when` line before you cut.
-
-`rhythm` covers punctuation and sentence-length habits. Weak on their own, real
-against a baseline. This is where false accusations come from.
-
-`shape` covers document assembly: heading density, bullet colonization, rules
-between every section, the obligatory future-directions block. Usually safe to
-act on, because the fix improves the document regardless.
-
-Weight `form` and `shape` over the phrase-level items when the two disagree. The
-largest community analysis of what makes writing sound like AI concluded against
-its own premise on this, finding cosmetic tells mostly noise. The quantitative
-version is stronger still: a study of 61,608 stories separated human from
-generated fiction at 93.2% macro-F1 using discourse-level narrative features
-alone, with every stylistic cue stripped out. Structure survives a model that has
-learned not to say "delve". Phrases do not.
-
-`code` covers engineering artifacts. The highest-precision checks here are all
-relative, comparing a change against the repo's own log, idiom, and PR norms.
-A contributor who read the surrounding code passes them automatically.
-
-### Declared but not wired
-
-A useful interaction-risk pattern is a visible affordance whose failure behavior
-was never tested. Static source can contain an Escape handler without proving
-that Escape closes the modal, restores focus, or works in the relevant state.
-The catalog includes a browser-trial study of this gap; its numerical claims
-were not live-verified in this research pass, so they are not a calibrated
-severity threshold here.
-
-So when auditing anything interactive, ask of each affordance whether its label
-is present without its behaviour. A sort caret with no `aria-sort`. A disabled
-button with no reason. A `<dialog>` written but opened with `.show()` rather than
-`.showModal()`. An `onMutate` with no `onError`. A "Last 30 days" label with no
-range control. Two related shapes travel with it: the interface that is a
-one-to-one rendering of the data model rather than a designed view (every column
-a column, every config key a switch), and the content whose cardinality exactly
-equals a layout constant (four cards because the grid has four columns).
-
-These patterns locate missing behavior. They do not distinguish a model
-author from a human author who did not test the interface.
-
-`defect` is the odd one out, and the most useful. These are not inferences about
-who built something; they are things that are broken. The page scrolls sideways
-at 390px. The button is not a button. The grey text fails contrast. You reproduce
-them by opening the page, so they carry no fairness caveat at all and you act on
-them with full confidence. Work this family first: a site that does not work on a
-phone has a bigger problem than a site that reads a bit generated.
-
-`defect` findings share their standing with one more class that sits outside the
-families and outranks everything. Citation pathology is about truth rather than
-authorship: a dead DOI, a reference that
-does not support its sentence, a statistic with no study behind it. Check those
-with complete confidence, because you are verifying a claim rather than inferring
-an author. It is the highest-yield check in the skill and it has no fairness cost.
+Use `residue` for transport artifacts, `form` for grammatical and comprehension
+rubrics, `rhythm` for baseline-sensitive style cues, `shape` for assembly, `code`
+for engineering artifacts, and `defect` for reproduced failures. Verify citations
+as factual claims. Work reproduced defects and false claims before weak style
+cues. Load `references/reader-context-and-evidence.md` when deciding which family
+or evidence standard applies. A machine tell never establishes authorship.
 
 ## The one rubric that matters most
 
@@ -175,63 +135,58 @@ describe the same failure. It's the rubric behind `specificity-starvation`,
 `mirror-back-research-opener`, and it survives every model improvement, because
 the thing it asks for is knowledge the model doesn't have.
 
-## Placeholder copy produces placeholder layout
+## Keep the reasoning visible in public copy
 
-For web pages the taste findings and the content findings are one family, and
-the arrow runs in a direction worth knowing. Underspecified input gets answered
-with the statistical average of every page on the internet, and the average page
-is mediocre. Ask for a landing page without giving it real content and it invents
-placeholder copy, and placeholder copy forces placeholder layout.
+Write connected sentences that let the intended reader follow the thought on
+first reading. Name the actor and action, and supply the cause, condition or
+consequence when the reader needs it. Use because, so, if, when or but when those
+words express the actual relation. A connective must not turn a sequence or a
+correlation into an unsupported causal claim.
 
-That explains the tells together rather than separately. The eyebrow is empty
-because the template has an eyebrow slot and nothing true was available to fill
-it. The hero has no image because there is no product to photograph. The grid has
-three cards because three is what you pick when the number of real things is
-unknown. The pull quote quotes nothing because a quote is a provenance relation
-and there was no document to pull from.
+State the claim directly. Remove stock negation-and-reveal frames, empty teaser
+openings, and short closing slogans. Preserve a contrast when it distinguishes
+real cases or corrects a plausible misunderstanding. End a paragraph when its
+last useful fact, implication or action is complete; do not add a punchline to
+make it sound finished.
 
-So the fix usually runs upstream of the design. Supply the real content, and most
-of the layout problems stop being layout problems. When you cannot supply it,
-that absence is the finding, and a page that admits it beats a page that fills
-the gap with a gradient.
+Let sentence and paragraph lengths follow the material. Never insert fragments,
+alternate short and long sentences, or manufacture one-line paragraphs to raise
+"burstiness." Join clauses when their relationship belongs in one sentence;
+split them when each step stays clear. Complete short sentences, useful parallel
+cases, colons that introduce explanations, and concise UI labels can all work.
+These defaults take priority over generic advice to make prose punchy, vary its
+rhythm, or drop names as punchlines in a paired voice skill.
 
-## Ask what the reader already knows
+For results, supply the expectation or comparison needed to understand them.
+For promises beside a CTA, keep material conditions beside the claim and verify
+that the next screen delivers it. Never invent measurements, mechanisms,
+personal experiences or product commitments to make a rewrite more specific.
 
-Expository writing fails in ways sentence-level review never catches. A blog post
-touts improvements over a v2 nobody saw. Internal codenames arrive unglossed. A
-term of art is used three times and defined never. Everything is explained at the
-same depth, so nothing is signposted as hard.
+Use familiar verbs and nouns. Unpack improvised noun stacks and compound labels
+when the reader has to decode them; bring a distant subject and verb together.
+Make a vague this, that or it explicit when two referents are plausible. Supply
+the literal mechanism when an analogy leaves it unstated. Keep useful technical
+terms, clear pronouns and explanatory metaphors.
 
-It is tempting to call these one failure, and I did until the evidence said
-otherwise. There are three mechanisms, and they need different fixes.
+Before handing over copy, read each paragraph as a reader arriving without the
+conversation. List the inferences needed to reach its claim. Check which are
+already established for this audience; write out the missing ones that affect
+understanding or action. Then check its final sentence for an unexplained verdict
+or a decorative restatement. This paragraph review is required even when the
+structural checker returns no findings.
 
-**Context leakage.** The model writes from its context window, which holds the
-previous versions, the internal thread and the repository, and nothing in the
-loop marks which parts the reader was present for. It treats availability as
-sharedness. This is the curse of knowledge with a machine behind it, and it is
-the family `unearned-prior-reference`, `repo-context-leak` and
-`definition-after-use` catch. **Fix it with a referent audit:** for every back-
-reference, name, and term, check that the thing it points at exists on the page.
+Record each confirmed problem with the source line, excerpt, missing relation
+or reader consequence, and a concrete repair. A missing proof step or misleading
+promise can be high severity. A short sentence or absent connective alone cannot.
+Use [the research note](references/connected-prose-research.md) to distinguish
+published findings, preliminary results and house preferences, and
+[the examples](examples/before-after-connected-prose.md) to calibrate the edits.
 
-**Altitude lock**, and this is the one that breaks the tidy story. When the
-audience is stated explicitly in the prompt — so the model has been told what the
-reader knows and the context confusion is gone — it still fails. Explanations
-generated for different stated audiences come out indistinguishable in reading
-level, and match their intended level about half the time against roughly
-four-fifths for human-written ones. **Prompting the audience does not fix this.**
-The author has to supply a depth plan: which two ideas are hard, which get a
-worked example, which get one sentence.
+## Check the reader's context
 
-**Template completion.** The structure is announced rather than built, the
-promised idea never arrives, the release notes wear an essay's clothes. Form
-before content, which is the `shape` family. **Fix it by deleting the scaffold.**
-
-The diagnostic, when you want one question: **could a competent stranger who
-arrived from a search result follow this, and where is the first place they would
-have to stop and look something up?** That spot is the fix. But note it only
-surfaces the first family reliably — altitude lock produces prose a stranger can
-follow and learn nothing from, so for that one ask instead which two things here
-are hard, and whether the piece spends more time on them than on the easy parts.
+When a page has placeholder content or an explanation assumes private context,
+load `references/reader-context-and-evidence.md`. Supply the missing product facts
+or prerequisite reasoning before polishing the layout or prose.
 
 ## Set severity by reader harm
 
@@ -274,6 +229,8 @@ and repeated figure/title/caption stacks. Three layers is a **local review cue**
 not a research-derived limit. Keep useful section labels, venue-required titles,
 accessible headings, theorem labels, and captions that explain a figure.
 `references/content-chrome.md` contains the decision tree and counterexamples.
+For web UI, also apply the whole-composition deletion pass in
+`references/existing-artifact-review.md`, including embedded controls and open states.
 
 ```bash
 python3 scripts/review_learning_structure.py chapter.md page.html chapter.tex \
@@ -290,271 +247,24 @@ source path and line numbers with reviewed locations; the validator checks the
 annotation structure, not whether those locations establish learning. A model reviewer must still
 check teaching quality and the rendered page or PDF.
 
-## Start here: what am I looking at?
-
-Answer one question — what kind of artifact is in front of you — and this
-says which files to open. Every reference file then opens with its own decision
-diagram for when it applies, and an index of its contents.
+## Review process
 
 ```mermaid
 flowchart TD
-    START(["What am I reviewing?"]) --> PROSE["Prose, essay, README,<br/>blog, email, reply"]
-    START --> WEB["Web page, component,<br/>CSS, JSX"]
-    START --> CODE["Commit, PR, review,<br/>test, source file"]
-    START --> DOC["Long document<br/>or slide deck"]
-    START --> MKT["Landing copy, social post,<br/>listing, resume"]
-    START --> PAPER["Paper, preprint,<br/>referee report, .tex"]
-    START --> EDU["Lesson, notes, textbook,<br/>notebook, tutorial"]
-    EDU --> E1["educational-exposition<br/>education-and-chrome-research"]
-    E1 --> RUN
-    START --> FIG["Figure, chart,<br/>plotting script"]
-    START --> MEDIA["Generated image,<br/>video or audio"]
-
-    PROSE --> P1["claudeisms · gptisms-codexisms<br/>other-model-dialects"]
-    WEB --> W1["web-build-defects FIRST"]
-    W1 --> W2["then: visual-design · typographic-craft<br/>interaction-and-motion · forms-and-input<br/>accessibility · performance · product-ux-writing<br/>unopened-surfaces · dark-patterns"]
-    CODE --> C1["engineering-artifact-tells"]
-    DOC --> D1["document-and-deck-structure<br/>content-chrome"]
-    MKT --> M1["marketing-and-platform-tells"]
-    PAPER --> R1["research-papers · latex-source"]
-    FIG --> F1["scientific-figures"]
-    MEDIA --> G1["generated-media-tells<br/>provenance first"]
-
-    P1 --> RUN["Run the pipeline"]
-    W2 --> RUN
-    C1 --> RUN
-    D1 --> RUN
-    M1 --> RUN
-    R1 --> RUN
-    F1 --> RUN
-    G1 --> RUN
+    A[Identify audience, task and artifact] --> B[Inspect source and rendered experience]
+    B --> C[Run supported mechanical checks]
+    C --> D[Judge paragraph reasoning and relevant catalog rubrics]
+    D --> E[Locate findings and propose concrete repairs]
+    E --> F[Apply authorized edits in bounded units]
+    F --> G[Recheck meaning, behavior and rendered output]
 ```
 
-**Open `references/web-build-defects.md` before anything else on a web page.**
-Everything in it is reproducible by opening the page, so it carries no fairness
-caveat and no claim about authorship — and a page that scrolls sideways at
-390px has a bigger problem than reading a bit generated.
-
-## The pipeline
-
-Three layers. The script is layer one; you are layer three.
-
-```mermaid
-flowchart TD
-    A(["Artifact in hand"]) --> B{"Author's prior writing available?"}
-    B -->|yes| C["Collect 2-3 samples"]
-    B -->|no| D["Proceed. Every rhythm finding caps at LOW"]
-    C --> E["LAYER 1 - STRUCTURAL<br/>humanize_review.py FILE --baseline GLOB"]
-    D --> E
-    E --> F{"Any finding marked rendered?"}
-    F -->|yes| G["LAYER 2 - RENDERED<br/>render_check.py FILE --viewports 390,768,1280<br/>--probe-modals --probe-a11y"]
-    F -->|no| H["LAYER 3 - JUDGE"]
-    G --> H
-    H --> I["Read catalog.json. Ask every llm-judge item,<br/>plus every structural item the scripts<br/>do NOT implement - each is marked<br/>'Automated here: no' in its reference file"]
-    I --> J{"Item marked assistive?"}
-    J -->|yes| K["A person must hear it. Do NOT write<br/>an assertion and call a pass evidence"]
-    J -->|no| L["Write findings.json"]
-    K --> L
-    L --> M["Merge: humanize_review.py FILE --findings findings.json"]
-    M --> N{"Fix now?"}
-    N -->|yes| O["Edit file by file, then re-run to verify"]
-    N -->|no| P["Deliver the report and stop"]
-    O --> Q{"Clean?"}
-    Q -->|no| E
-    Q -->|yes| P
-```
-
-## Process
-
-### Scope the input and find a baseline
-
-Identify the medium and the stakes. A tweet gets the judge pass only; a marketing
-site gets both layers plus a render check. Then go looking for the author's own
-earlier work, because it turns the weakest half of the catalog into the strongest.
-Two or three published pieces are enough. For a repo, the baseline is the repo:
-read `git log --oneline -30` and three recently merged PRs before you judge a
-commit or a description.
-
-For decks, dump the text and speaker notes first with python-pptx, review that as
-prose, then review the visual idiom separately.
-
-### Run the structural layer
-
-```bash
-python3 scripts/humanize_review.py FILE... --baseline 'posts/*.md' \
-    --out report.html --json structural.json
-```
-
-It measures countable things only: densities, variances, ratios, codepoints, hex
-values, font names, identifier overlap. Thresholds come from
-`references/catalog.json`, so the rubric and the code cannot drift apart. Run
-`--validate` if you ever doubt that they agree.
-
-### Render the page before you judge it
-
-For anything that ships as a web page, the static pass is half the story. It can
-tell you there are no responsive variants; it cannot tell you the pricing table
-is 1180px wide inside a 390px screen, or which element is at fault.
-
-```bash
-python3 scripts/render_check.py URL_OR_FILE --json render.json
-python3 scripts/humanize_review.py page.html --findings render.json --out report.html
-```
-
-That script is the one thing in this bundle with a dependency, on Playwright, and
-it says so when it is missing rather than failing obscurely. It opens the page at
-390, 768 and 1280, and reports horizontal overflow with the offending elements
-named, tap targets under 44px, text under 12px, and contrast below AA. Those
-findings merge into the same report through the normal `--findings` path.
-
-If you cannot run it, open the page yourself at phone width. Half the findings in
-`references/web-build-defects.md` are visible in ten seconds that way.
-
-Two of its flags turn a source-level guess into a verdict, and both cover states
-the author's own browser is never in:
-
-```bash
-python3 scripts/render_check.py URL --probe-modals --probe-a11y
-```
-
-`--probe-modals` opens each plausible trigger and tests the four behaviours that
-matter — focus moves in, Escape closes, Tab stays contained, focus returns.
-`--probe-a11y` applies the WCAG 1.4.12 text-spacing values and measures what
-stops fitting, then switches to forced colors and confirms which elements lost
-their only visible boundary. Both matter because a static pass reports success on
-exactly these: the Escape handler is present in source whether or not it runs,
-and a gradient looks like a boundary right up until the OS reverts it.
-
-### The mechanism of each lane, one line each
-
-Each lane file opens with its own mechanism and a decision diagram for when it
-applies, then an index of its contents with severity, family, and whether the
-scripts already automate the check. This table is the index; the file is the
-argument.
-
-| lane | the mechanism in one sentence |
-| --- | --- |
-| [web build defects](references/web-build-defects.md) | Reproducible by opening the page. No authorship claim, no fairness caveat — act on this file first. |
-| [visual design](references/visual-design-tells.md) | One default is a coincidence; the cluster is the finding. |
-| [generated media](references/generated-media-tells.md) | Provenance first, pixels last — the artifact heuristics age in months. |
-| [document and deck structure](references/document-and-deck-structure.md) | Assembly survives a full rewrite of the prose, which is why a reader feels it without being able to name it. |
-| [marketing and platform](references/marketing-and-platform-tells.md) | The venue has a house form, and the tell is the form arriving complete. |
-| [engineering artifacts](references/engineering-artifact-tells.md) | The diff is already visible; a commit that restates it says nothing. |
-| [unopened surfaces](references/unopened-surfaces.md) | Not that the output is strange — that a whole class of output was never looked at. |
-| [dark patterns](references/dark-patterns-the-model-inherits.md) | The violation is usually not in either component but in the gap between them. |
-| [accessibility](references/accessibility-beyond-the-checklist.md) | A machine fully verifies roughly 30% of the criteria; a clean scan is not a clean page. |
-| [product UX writing](references/product-ux-writing.md) | The less the system knows about the failure, the warmer the copy gets. |
-| [typographic craft](references/typographic-craft-and-tokens.md) | Never a wrong value — one value where a function of context belonged. |
-| [performance](references/performance-as-a-design-tell.md) | The generator can see the markup and cannot see the waterfall. |
-| [interaction and motion](references/interaction-and-motion.md) | Motion's quality lives in time, and it is emitted as a string nobody watches run. |
-| [forms and input](references/forms-and-input.md) | The one surface where the output is the START of the user's work. |
-| [research papers](references/research-papers.md) | Prose and checkable commitments arrive at the same confidence, and nothing marks which is which. |
-| [LaTeX source](references/latex-source.md) | Never that it failed to compile — it compiled, and nobody opened the PDF. |
-| [scientific figures](references/scientific-figures.md) | The render is on the far side of a step the author never watched, so the defect is in the code. |
-| [tool fingerprints](references/tool-fingerprints.md) | What made the page. Never who wrote it, never whether it is good. |
-
-### Provenance is a separate question, and a separate mode
-
-```bash
-python3 scripts/humanize_review.py page.html --provenance
-```
-
-This reports which tool published the page and stops. It writes no report and
-carries no severity, and that separation is the point: **a fingerprint tells you
-what made the page, never who wrote it and never whether it is any good.**
-
-Three collapses to refuse. Provenance is not authorship — a scaffold
-dependency proves where a project started, not who has committed since.
-Provenance is not defect — a CDN host is infrastructure, and stripping it
-gains nothing. And absence proves nothing, because every badge in that table is
-removable by paying, so "no badge" is not evidence of hand-building. Wix and
-Squarespace are the sharpest case: their AI flows now seed the ordinary editor,
-so AI-built and hand-built output are identical in markup, and "this is
-AI-generated because it is on Wix" is false.
-
-What does earn a finding is the overlap set, where a provenance string and a
-craft problem are the same bytes: a meta description reading `Generated by v0`,
-a share card that is the builder's logo or an auto-screenshot of a preview
-build, a favicon that is a build tool's logo, a palette still at a library's
-exact default values, a generated headshot on an author byline. The structural
-pass reports those as ordinary findings. For every one of them the fix is to do
-the work the string points at, never to hide the string — after which the
-string disappears on its own. An audit that says "strip the generator meta" is
-teaching concealment.
-
-`references/dark-patterns-the-model-inherits.md` is about shapes the commercial
-web supplied. A model producing a fake countdown or an accept-only cookie banner
-is not choosing to deceive; Princeton found 1,818 dark-pattern instances across
-1,254 of 11,000 shopping sites, so these ARE the majority pattern. The output is
-still deceptive and sometimes unlawful, which makes it the author's decision, not
-yours. The useful thing to notice is that the violation usually lives in the gap
-BETWEEN two correct components rather than inside either one: the analytics
-snippet is right, the consent banner is right, nothing gates one on the other.
-So the checks that matter most there are relational and rendered — load the
-page in a fresh profile and watch the network, rather than reading either half.
-
-### Run the judge pass
-
-Read `references/catalog.json`. For every item whose `detection_type` is
-`llm-judge`, ask its rubric question of the text. For every item whose
-`detection_type` is `structural` but which the script does not implement, ask it
-yourself; the script covers the countable subset, not all of them.
-
-Each catalog item carries a `detection_type` — the kind of evidence that
-settles it. Three of the four are mechanical: `structural` (decidable from the
-source text), `rendered` (needs a real browser at a real viewport), and
-`llm-judge` (needs you to read it and answer the item's rubric question).
-
-The fourth is `assistive`, and it means what it says: a headless browser cannot
-settle it, because the finding is what a person *hears*.
-Do not write an assertion for one and treat a pass as evidence — that is how a
-manual check gets laundered into a green tick, which is the failure this whole
-skill exists to name. Report those as "not checked" unless someone actually put a
-screen reader on, and point them at `references/five-minute-manual-pass.md`.
-
-Read as a hostile editor with taste, not as a checklist executor. Then do one
-free-form pass asking what else smells generated, because the catalog is a floor
-rather than a ceiling.
-
-Write findings to JSON matching `templates/output-template.md`. Each one needs a
-file, a line, an excerpt, an ism that exists in the catalog, a dialect, a
-severity, an explanation, and a rewrite. A high-severity finding without a
-rewrite is a complaint, not a fix.
-
-### Merge, render, fix, re-run
-
-```bash
-python3 scripts/humanize_review.py FILE... --findings judge.json --out report.html
-```
-
-Work `templates/rewrite-checklist.md` top-down, highest severity first. Then run
-both layers again. Use `--fail-on high` if you want this in CI. Never call
-something clean without the re-run.
-
-### Validate an update
-
-[README.md](README.md) contains the runnable entry points;
-[CHANGELOG.md](CHANGELOG.md) records revision scope. Read
-[the teaching and title examples](examples/before-after-learning-and-chrome.md)
-when a rubric needs a concrete repair. Run
-`scripts/test_learning_structure.py` for parser and annotation counterexamples,
-and `scripts/test_review_regressions.py` for the Unicode, citation-URL, and
-eyebrow judgment boundaries. These are offline checks; learner outcomes and
-rendered teaching quality still require direct review.
-
-### Maintaining the catalog
-
-`references/catalog.json` is the source of truth for rubrics, thresholds, false
-positives, and currency. Edit it, then run
-`python3 scripts/regenerate_references.py`, which rebuilds every per-dialect
-markdown view and refuses to write if any item would land in no file. The
-markdown files are generated, so do not hand-edit them.
-
-Every item carries a `currency` field, because tells decay. Vendors patch the
-famous ones: one provider's em-dash rate fell from 10.62 per thousand words to
-0.29 across model generations. Items marked `obsolete` stay in the catalog as
-cautions rather than tests. The entry on mangled hands in generated images is
-already one of them.
+For an existing artifact, follow `references/existing-artifact-review.md`.
+For commands, medium-specific routing, finding JSON, baselines, browser checks,
+catalog maintenance and validation, load `references/review-workflow.md`.
+Run the paragraph review even when no mechanical finding fires. Deliver the
+revised artifact when requested, located findings and the self-contained HTML
+report, with explicit coverage and remaining uncertainty.
 
 ## The references
 
@@ -564,16 +274,22 @@ rest.
 
 | Reference | Load when |
 |---|---|
+| `references/review-workflow.md` | Medium routing, commands, evidence layers, report delivery and catalog maintenance |
+| `references/reader-context-and-evidence.md` | Finding families, placeholder input, private context and audience depth |
+| `references/activation-examples.md` | Selection boundaries between copy editing, product review and unrelated requests |
 | `references/fairness-and-false-positives.md` | Before your first review, and any time someone asks you to judge authorship |
+| `references/connected-prose.md` | Every public-facing draft: missing relations, repetitive rhetoric, comparisons, referents and compressed syntax |
+| `references/connected-prose-research.md` | Evidence boundaries, corrections to the Claude audit, and what the checker actually implements |
+| `references/existing-artifact-review.md` | Auditing and repairing an existing document, web app, native app or book with explicit coverage |
 | `references/educational-exposition.md` | Teaching progression, worked examples, retrieval, transfer, research reasoning, and instructional media |
-| `references/content-chrome.md` | Repeated title layers and decorative navigation in HTML, Markdown, slides, and LaTeX |
+| `references/content-chrome.md` | Semantic duplication across rendered page/component layers, title stacks and useful navigation |
 | `references/education-and-chrome-research.md` | Evidence strength, study boundaries, source audit, and evaluation plan |
 | `references/review-decisions.md` | Detailed progression and title-layer decision trees, genre exceptions, and medium coverage |
 | `references/instructional-media-and-notes.md` | Video, audio, diagrams, notebooks and notes whose task fidelity needs direct inspection |
 | `references/source-audit-2026-09-19.json` | Dated inventory of source-note review and explicitly bounded live verification |
-| `references/catalog.json` | Always, at judge-pass time; the machine-readable rubric with thresholds and false positives |
-| `references/claudeisms.md` | Text suspected from Claude: staccato, dashes, negation frames, escalating compliments · **39 items** |
-| `references/gptisms-codexisms.md` | READMEs, code comments, service-voice copy, emoji headers · **35 items** |
+| `references/catalog.json` | Machine-readable details for the selected lane, thresholds and false positives |
+| `references/claudeisms.md` | Text suspected from Claude: staccato, dashes, negation frames, escalating compliments · **37 items** |
+| `references/gptisms-codexisms.md` | READMEs, code comments, service-voice copy, emoji headers · **34 items** |
 | `references/other-model-dialects.md` | Gemini caveat stacks, DeepSeek and Qwen register, Grok voice, register leveling · **14 items** |
 | `references/visual-design-tells.md` | Web UI and landing pages: the defaults nobody chose, clustering together · **33 items** |
 | `references/document-and-deck-structure.md` | Long documents, READMEs and slide decks — how the thing was assembled, independent of any sentence in it · **28 items** |
@@ -637,89 +353,55 @@ A sentence that announces significance should state the mechanism or evidence.
 A number, proper noun or participial clause is neither necessary nor sufficient
 for a useful sentence.
 
-## Dos and don'ts
+## Anti-pattern: manufacturing a human rhythm
 
-Do quantify before you flag rhythm, and get a baseline whenever you can. Do
-preserve meaning exactly when you rewrite, since you are removing an accent
-rather than content. Do read two or three adjacent published pieces to learn the
-property's voice first. Do run this pipeline over your own draft before you
-deliver it. Do say "clean" when it is clean, because a zero-finding report is a
-real result.
+**Novice:** Insert fragments, punchlines or arbitrary length changes to sound human.
+**Expert:** Preserve the actor, action and necessary relation; let length follow
+those needs. A numerical cadence cue is not a drafting target.
+**Detection:** The rewrite raises variety while deleting a cause or consequence.
 
-Don't paraphrase-launder. Running text through one more model adds a second
-accent on top of the first, and the fixes have to be surgical instead: edit the
-flagged span and leave the rest byte-identical.
-
-Don't build keyword lists to catch phrases. Don't strip personality along with
-tropes, since contractions, opinions and irregularity are the goal rather than
-the casualties. Don't treat low-severity items as a to-do list; they are taste
-calls the author gets to keep. Don't add findings as comments in the source file,
-because the HTML report is the deliverable.
-
-Don't strip an agent attribution trailer without checking the repo first. Roughly
-forty projects in the public contribution-policy survey require disclosure, so
-removing an honest one can violate policy. Detect it and ask.
-
-## Failure modes
-
-**Paraphrase laundering.** You spot it when the fixed text has new tropes the
-original lacked. Rewrites should touch only the flagged span.
-
-**Voice flattening.** The post-fix text is clean but beige, because the author's
-tics went out with the machine's. Diff against their known-human writing and put
-the fingerprints back. A baseline run makes this visible instead of a matter of
-taste.
-
-**Checklist myopia.** The judge pass returns only catalog items and no novel
-observations. The free-form pass is not optional.
-
-**Flagging quoted evidence.** A document that demonstrates AI-isms will flag the
-AI-isms it demonstrates. Wrap those regions in `<!-- humanize:ignore-start -->`
-and `<!-- humanize:ignore-end -->`, which is what this bundle's own examples do.
-
-**Stale advice.** Acting on an `obsolete` catalog item produces confident wrong
-answers. Check the currency line, especially on image forensics, where hands and
-garbled text stopped working as tests around 2025. Lead with provenance instead.
-
-**Forensics drift.** Someone asks whether a student or employee used AI, and the
-skill answers. It is out of scope. Detection-for-accusation has miserable
-false-positive economics, and the fairness reference exists so you can say why.
-
-Worked examples live alongside those: `examples/before-after-prose.md` is a
-launch announcement in machine accent and then edited,
-`examples/before-after-landing-page.md` walks the v0 look token by token, and
-`examples/sample-report.html` shows what a finished fix plan looks like.
+For rewrite safeguards, voice restoration and known failure modes, load
+`references/review-workflow.md`.
 
 <!-- humanize:ignore-start -->
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; from the repository root run `python3 skills/skill-architect/scripts/index_references.py skills/make_copy_and_media_human --fix`.*
+*Every file in this skill, and when to open it. Auto-generated. Maintainers: from the source repository root, run
+`python3 skills/skill-architect/scripts/index_references.py skills/make_copy_and_media_human --fix`.*
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Changelog — <!-- humanize:ignore-start A changelog is heading-and-bullet dense by design, which is the documented false positive for heading-spam and bu
 - [`README.md`](README.md) — Make Copy and Media Human — Strip the machine accent from copy, web UI, slides, READMEs, commits, PRs, marketing pages, lessons, academic books, notebooks, and generate
+- [`humanize-report.html`](humanize-report.html)
 
 **`agents/`**
 - [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
 
 **`examples/`**
+- [`examples/INDEX.md`](examples/INDEX.md) — examples for make_copy_and_media_human — Imported supporting material.
+- [`examples/before-after-connected-prose.md`](examples/before-after-connected-prose.md) — Connected prose: examples and counterexamples — These are synthetic editorial examples.
 - [`examples/before-after-landing-page.md`](examples/before-after-landing-page.md) — Before / After — Landing Page (the v0 look, token by token) — Verified by running `scripts/humanize_review.py` against the Before block above.
 - [`examples/before-after-learning-and-chrome.md`](examples/before-after-learning-and-chrome.md) — Before / After — Learning, Research, and Title Chrome — These specimens are synthetic teaching data and editorial demonstrations.
 - [`examples/before-after-prose.md`](examples/before-after-prose.md) — Before / After — Launch Announcement — The same announcement, machine accent vs.
 - [`examples/sample-report.html`](examples/sample-report.html)
 
 **`references/`**
+- [`references/INDEX.md`](references/INDEX.md) — references for make_copy_and_media_human — Imported supporting material.
 - [`references/accessibility-beyond-the-checklist.md`](references/accessibility-beyond-the-checklist.md) — Accessibility beyond the checklist — Everything in this file is in the part of accessibility that automation cannot reach.
+- [`references/activation-examples.md`](references/activation-examples.md) — Selection examples — These are reviewed selection fixtures, not a measured runtime activation test.
 - [`references/catalog.json`](references/catalog.json) — catalog (data/schema)
 - [`references/claudeisms.md`](references/claudeisms.md) — Claudeisms — and the generic prose tells Claude amplifies — Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers.
+- [`references/connected-prose-research.md`](references/connected-prose-research.md) — Evidence for connected public copy — This note responds to the supplied Claude artifact, "Why the prose reads clipped, and how to check for it." Its strongest diagnosis is that
+- [`references/connected-prose.md`](references/connected-prose.md) — Connected prose and public-copy cadence — Review sentence relationships before polishing rhythm.
 - [`references/content-chrome.md`](references/content-chrome.md) — Title layers and content chrome — Count visible layers, then ask what each contributes.
 - [`references/dark-patterns-the-model-inherits.md`](references/dark-patterns-the-model-inherits.md) — Dark patterns the model inherits — A model that produces a fake countdown or an asymmetric cookie banner is not choosing to deceive.
 - [`references/document-and-deck-structure.md`](references/document-and-deck-structure.md) — Document and deck structure — how the thing was assembled — Document-shape tells: how generated long-form docs, READMEs and slide decks are put together, independent of any sentence in them.
 - [`references/education-and-chrome-research.md`](references/education-and-chrome-research.md) — Education, semantic progression, and chrome — This memo adds an education and interface-structure lens to the humanization research.
 - [`references/educational-exposition.md`](references/educational-exposition.md) — Educational exposition and concept progression — Audit what a reader can do with an idea before later material depends on it.
 - [`references/engineering-artifact-tells.md`](references/engineering-artifact-tells.md) — Engineering-artifact tells — commits, PRs, reviews, code, tests, docs — What generated engineering work looks like in the artifacts maintainers actually read.
+- [`references/existing-artifact-review.md`](references/existing-artifact-review.md) — Reviewing an existing document, app or manuscript — Use this workflow when the artifact already has a structure, voice, design or reader journey.
 - [`references/fairness-and-false-positives.md`](references/fairness-and-false-positives.md) — Fairness and false positives — read this before you act on any finding — Hand-written, not generated from the catalog.
 - [`references/fiction-and-narrative-tells.md`](references/fiction-and-narrative-tells.md) — Fiction and narrative tells — What generated fiction does at the level of story rather than sentence.
 - [`references/five-minute-manual-pass.md`](references/five-minute-manual-pass.md) — The five-minute manual pass — Written for someone who has never used a screen reader.
@@ -734,11 +416,14 @@ launch announcement in machine accent and then edited,
 - [`references/performance-as-a-design-tell.md`](references/performance-as-a-design-tell.md) — Performance and payload as a design tell — **The organising idea.** A generator can see the markup it is writing.
 - [`references/performance-budget-and-folklore.md`](references/performance-budget-and-folklore.md) — A performance budget a designer can hold, and the folklore to drop — Two things in one file, because they are the same argument.
 - [`references/product-ux-writing.md`](references/product-ux-writing.md) — UX writing inside the product — The strings a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints.
+- [`references/reader-context-and-evidence.md`](references/reader-context-and-evidence.md) — Reader context and evidence families — Load this file when distinguishing kinds of evidence, diagnosing placeholder content, or deciding how an explanation fits its audience.
 - [`references/research-papers.md`](references/research-papers.md) — Research papers — checks that point outward, at the world — A paper's sentences and its checkable commitments come out of the same machinery at the same confidence, and nothing in the finished artifac
 - [`references/review-decisions.md`](references/review-decisions.md) — Review decisions — learning sequence and title chrome — This reference turns two high-confusion findings into editorial decisions.
+- [`references/review-workflow.md`](references/review-workflow.md) — Review workflow and maintenance — Load this file when running a review, selecting medium-specific checks, writing findings or maintaining the catalog.
 - [`references/scientific-figures.md`](references/scientific-figures.md) — Scientific figures — checked in the code that drew them — A figure is produced by code, and the render sits on the other side of a step the author never watched.
 - [`references/source-audit-2026-09-19.json`](references/source-audit-2026-09-19.json) — source audit 2026 09 19 (data/schema)
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
+- [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy navigation — This former combined catalog has been split.
 - [`references/tool-fingerprints.md`](references/tool-fingerprints.md) — Tool fingerprints — provenance, and the few that are also defects — Read the first two items in this file before the other nineteen, because they are the rules the rest depends on.
 - [`references/typographic-craft-and-tokens.md`](references/typographic-craft-and-tokens.md) — Typographic craft and design-system structure — **The governing mechanism, and the thing to say when you report any item here.** A generator emits a stylesheet that is internally consisten
 - [`references/unopened-surfaces.md`](references/unopened-surfaces.md) — Unopened surfaces — navigation, i18n, docs, commerce, email, print — Everything in this file is about a surface that was never opened.
@@ -746,14 +431,18 @@ launch announcement in machine accent and then edited,
 - [`references/web-build-defects.md`](references/web-build-defects.md) — Web build defects — the half you can reproduce — A different KIND of finding from the rest of this catalog.
 
 **`scripts/`**
+- [`scripts/INDEX.md`](scripts/INDEX.md) — scripts for make_copy_and_media_human — Imported supporting material.
 - [`scripts/humanize_review.py`](scripts/humanize_review.py) — humanize_review.py — flag AI-isms in copy/media and emit a static HTML fix plan.
-- [`scripts/regenerate_references.py`](scripts/regenerate_references.py) — Regenerate references/*.md from references/catalog.json. Stdlib only.
+- [`scripts/implemented_checks.py`](scripts/implemented_checks.py) — Inventory finding emissions, excluding examples, comments and thresholds.
+- [`scripts/regenerate_references.py`](scripts/regenerate_references.py) — Regenerate reference Markdown views from references/catalog.json. Stdlib only.
 - [`scripts/render_check.py`](scripts/render_check.py) — render_check.py — open a page at real viewports and report what breaks.
 - [`scripts/review_learning_structure.py`](scripts/review_learning_structure.py) — Offline structure and learning-map review for the humanization skill.
+- [`scripts/test_connected_prose.py`](scripts/test_connected_prose.py) — Offline regressions for local cadence and honest automation claims.
 - [`scripts/test_learning_structure.py`](scripts/test_learning_structure.py) — In-memory tests for review_learning_structure.py; no temporary files needed.
 - [`scripts/test_review_regressions.py`](scripts/test_review_regressions.py) — Regressions for semantic overreach; no network, model, or temporary files.
 
 **`templates/`**
+- [`templates/INDEX.md`](templates/INDEX.md) — templates for make_copy_and_media_human — Imported supporting material.
 - [`templates/learning-map.json`](templates/learning-map.json) — learning map (data/schema)
 - [`templates/output-template.md`](templates/output-template.md) — Judge-Pass Finding + Delivery Template — Fill this in during step 3 (judge pass) and step 4 (delivery) of the process in `SKILL.md`.
 - [`templates/rewrite-checklist.md`](templates/rewrite-checklist.md) — Rewrite Checklist — run after every humanizing pass — Work the report top-down, highest severity first, then verify each line below.

@@ -25,7 +25,7 @@ flowchart TD
 
 ## What is in this file
 
-Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+Severity reflects the consequence for the intended reader, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |

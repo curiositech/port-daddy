@@ -151,6 +151,50 @@ The positive-test group contains 90 true positives and 495 false positives.
 
 Now each layer earns its place: the eyebrow identifies the genre and topic; the H1 makes a falsifiable promise; the dek previews the route; the H2 names a distinct reasoning step; the figure caption describes the displayed evidence and carries the synthetic-data qualifier. The accessibility semantics remain explicit: one page H1, nested section headings, useful alternative text, and a caption associated with the figure. The [GOV.UK paragraph guidance](https://design-system.service.gov.uk/styles/paragraphs/) is a useful counterexample to “every lead is redundant”: a lead paragraph can summarize the page when it is used once and does not merely echo the title. Conversely, [GOV.UK's labels/legends guidance](https://design-system.service.gov.uk/get-started/labels-legends-headings/) warns that duplicated visible and assistive labels can be announced twice; consolidate when the second layer adds no information.
 
+## Composed Team page: remove the duplicate component introduction
+
+The navigation and page title have separate jobs: the link lets a visitor reach
+Team from elsewhere, and the H1 names the destination. The embedded component's
+heading and lead repeat that same proposition without adding information.
+
+### Before: each component is reasonable alone
+
+<!-- humanize:ignore-start -->
+```html
+<nav aria-label="Main"><a href="/team/" aria-current="page">Team</a></nav>
+<main>
+  <h1>Meet the team</h1>
+  <div class="decorative-panel"><!-- adds no grouping or interaction -->
+    <section aria-label="Team members">
+      <h2>Meet your team</h2>
+      <p>Get to know the people on your team.</p>
+      <ul><li>Edie — Career story</li><li>Iris — Design</li></ul>
+    </section>
+  </div>
+</main>
+```
+<!-- humanize:ignore-end -->
+
+### After: retain navigation and the page heading
+
+```html
+<nav aria-label="Main"><a href="/team/" aria-current="page">Team</a></nav>
+<main>
+  <h1>Meet the team</h1>
+  <section aria-label="Team members">
+    <ul><li>Edie — Career story</li><li>Iris — Design</li></ul>
+  </section>
+</main>
+```
+
+The component heading, lead and redundant decorative panel were deleted, not
+restated or merely relabeled. The section's
+accessible name still identifies its independent region, while the link and H1
+preserve navigation and page orientation. If the component also appeared alone
+on another page, review that context before removing its local heading. A safety
+instruction, a caption explaining an image, or a tab naming an action may need
+repetition even beside related copy; inspect the actual state and reader task.
+
 ## 3. Research prose: existence, alignment, causal scope
 
 A citation is not a magic stamp. A reviewer should ask three separate questions: **does the claim exist in the source, does the source align with the exact population and measure, and does the study support the causal scope of the sentence?** The following synthetic paragraph demonstrates the repair.

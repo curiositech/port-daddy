@@ -34,7 +34,7 @@ flowchart TD
 
 ## What is in this file
 
-Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+Severity reflects the consequence for the intended reader, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |
@@ -294,7 +294,7 @@ A control sequence used but defined nowhere: not in the kernel, not in the docum
 **After**
 
 > The first result holds.
-> 
+>
 > The second result follows.
 
 <a id="missing-or-absolute-path-include"></a>
@@ -521,7 +521,7 @@ A figure or table that no sentence points at: either it carries no \label, or it
 **After**
 
 > As \Cref{fig:throughput} shows, throughput saturates at eight workers.
-> 
+>
 > \begin{figure}[tbp]
 >   \centering
 >   \includegraphics{results}

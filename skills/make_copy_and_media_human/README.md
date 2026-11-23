@@ -36,6 +36,19 @@ matching `templates/output-template.md`, then merge them:
 python3 scripts/humanize_review.py FILE... --findings judge.json --out report.html
 ```
 
+For every public-facing draft, load [connected-prose.md](references/connected-prose.md)
+and review the relations inside each paragraph even when the script reports no
+findings. State the causes, conditions, comparisons and consequences the intended
+reader needs; remove formulaic reveals and empty punchline endings. Let length
+follow the thought. Never insert fragments, invent facts or force sentence-length
+variation to sound human. The [research note](references/connected-prose-research.md)
+records what is supported and where the Claude proposal needed qualification.
+
+The short-sentence checker reports paragraph-local runs with source lines. It
+cannot decide whether a premise, cause or consequence is missing. Those remain
+judge checks. Run `python3 scripts/test_connected_prose.py` for their mechanical
+boundaries and the automation-inventory regressions.
+
 If you're asked to apply fixes, work `templates/rewrite-checklist.md` top-down
 and re-run both layers afterward. A clean result has to come from a re-run and
 never from a claim. Use `--fail-on high` to gate this in CI, and `--validate` to
@@ -75,10 +88,10 @@ should make impossible rather than merely unlikely.
 | `references/catalog.json` | Source of truth: the complete rule set with thresholds, false-positive notes, currency, and evidence |
 | `references/web-build-defects.md` | Web pages that are broken rather than merely generic; act on these first |
 | `references/fiction-and-narrative-tells.md` | Story-level tells; the strongest in the catalog |
-| `references/*.md` | Generated per-dialect and per-medium views of the catalog |
+| the generated reference views | Generated per-dialect and per-medium views of the catalog |
 | `scripts/humanize_review.py` | Structural detector and report renderer |
 | `scripts/render_check.py` | Optional. Opens a page at 390/768/1280 and reports what breaks; needs Playwright |
-| `scripts/regenerate_references.py` | Regenerates `references/*.md`; fails on orphaned items |
+| `scripts/regenerate_references.py` | Regenerates the generated reference views; fails on orphaned items |
 | `templates/rewrite-checklist.md` | Checklist to run after every humanizing pass |
 | `templates/output-template.md` | Shape of a judge-pass finding and the delivery summary |
 | `examples/` | Before and after pairs for prose and a landing page, plus a rendered report |

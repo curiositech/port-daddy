@@ -2,7 +2,7 @@
 
 Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship — not how confident you should be about who wrote it.
 
-_39 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_37 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -27,19 +27,17 @@ flowchart TD
 
 ## What is in this file
 
-Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+Severity reflects the consequence for the intended reader, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |
 | [`definition-after-use`](#definition-after-use) | HIGH | form | yes |
 | [`escalating-compliment-sycophancy`](#escalating-compliment-sycophancy) | HIGH | form | n/a |
-| [`negation-contrast-frame`](#negation-contrast-frame) | HIGH | form | yes |
 | [`no-detail-only-you-could-know`](#no-detail-only-you-could-know) | HIGH | form | n/a |
 | [`no-worked-example`](#no-worked-example) | HIGH | form | n/a |
 | [`nothing-at-stake`](#nothing-at-stake) | HIGH | form | n/a |
 | [`participial-tail`](#participial-tail) | HIGH | form | yes |
 | [`significance-puffery-testament`](#significance-puffery-testament) | HIGH | form | n/a |
-| [`staccato-fragment-triplet`](#staccato-fragment-triplet) | HIGH | rhythm | yes |
 | [`stance-neutralization`](#stance-neutralization) | HIGH | form | n/a |
 | [`textureless-anecdote`](#textureless-anecdote) | HIGH | form | n/a |
 | [`unearned-prior-reference`](#unearned-prior-reference) | HIGH | form | yes |
@@ -124,27 +122,6 @@ The escalating-specificity compliment chain: 'you're the only PM who gets this, 
 
 > Agreed. Your point about distribution is the part most founders skip, and your churn data backs it up.
 
-<a id="negation-contrast-frame"></a>
-### `negation-contrast-frame`  ·  high · generic-llm · prose · llm-judge · family: form
-
-The negation-contrast family: 'It's not X, it's Y' / 'This isn't about X, it's about Y' and the parallel 'not only X but also Y' / 'not a mirror but a portal.' Mimics the shape of insight while usually setting up a strawman X just to knock it down.
-
-**Why it reads AI:** It manufactures a reframe-reveal cadence that feels profound but frequently promises a revelation and delivers a synonym. Readers clock the formula because the X is rarely real.
-
-**Detect:** llm-judge: 'Does this passage use a not-X-but-Y or not-only-but-also frame to inflate significance, where X is a position nobody actually held or merely a synonym of Y?'
-
-**Fix:** State Y directly. Only keep the negation if X is a genuinely held belief you're correcting; then name who holds it and why they're wrong.
-
-**False positive when:** Antithesis is one of the oldest figures in English and is correct when X is a belief the reader actually holds and the piece then earns Y. Positioning copy uses it legitimately when the contrast is real. Flag the strawman X invented only to be knocked down, not the construction.
-
-**Before**
-
-> It's not just a database — it's a paradigm shift. This isn't only about speed, but also about reimagining how teams collaborate.
-
-**After**
-
-> It's a fast database that changes how teams collaborate.
-
 <a id="no-detail-only-you-could-know"></a>
 ### `no-detail-only-you-could-know`  ·  high · generic-llm · prose · llm-judge · family: form
 
@@ -225,7 +202,7 @@ A sentence-final present-participial clause bolted onto an already complete sent
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_words` = 150, `cue_per_100w` = 0.7
 
-**Fix:** Delete the clause, or promote it to its own sentence with a subject and a claim someone could check. If it cannot survive being made a standalone assertion, it was filler.
+**Fix:** Delete the clause, or promote it to its own sentence with a subject and a claim someone could check. If it cannot survive being made a standalone assertion, it was filler. Do not invent voter approvals or another supporting fact absent from the source.
 
 **False positive when:** Academic and journalistic registers use participial clauses legitimately, and a single one is not a tell. Flag on rate, and never on one instance.
 
@@ -237,7 +214,7 @@ A sentence-final present-participial clause bolted onto an already complete sent
 
 **After**
 
-> The library reopened in 2019. Voters had approved the bond twice.
+> The library reopened in 2019.
 
 <a id="significance-puffery-testament"></a>
 ### `significance-puffery-testament`  ·  high · generic-llm · prose · llm-judge · family: form
@@ -259,31 +236,6 @@ Unearned emphasis on importance and legacy: 'stands as a testament to,' 'plays a
 **After**
 
 > The 1923 bridge carries 40,000 vehicles a day and was the longest steel span in the state when it opened.
-
-<a id="staccato-fragment-triplet"></a>
-### `staccato-fragment-triplet`  ·  high · generic-llm · prose · structural · family: rhythm
-
-**Automated here:** yes, these scripts implement it.
-
-A burst of ultra-short sentence fragments in sequence, usually three, used for false emphasis. Each is one to three words and ends in a period ('Tight. Controlled. Deliberate.'). Common in both prose gravitas and marketing copy ('Powerful. Intuitive. Built for scale.').
-
-**Why it reads AI:** Humans use the occasional fragment for rhythm, but models deploy them in mechanical triplet bursts at a paragraph's emotional peak to simulate gravitas. The regularity is the tell, not the fragment itself.
-
-**Detect:** structural: flag any run of 3+ consecutive period-terminated sentences each under 5 words; also flag when the ratio of sub-5-word sentences to total exceeds 0.15 in non-dialogue prose, or a paragraph's sentence-length variance spikes from adjacent fragments.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_sentences` = 8, `max_words` = 4, `cue` = 0.22
-
-**Fix:** Keep at most one fragment per passage and earn it. Fold the rest into a full sentence with real content; add a concrete detail instead of chopping.
-
-**False positive when:** Fragments are a legitimate rhetorical device and some of the best copywriters live on them. The tell is the triplet shape repeating across a document, not any single fragment.
-
-**Before**
-
-> The migration worked. Tight. Controlled. Deliberate. Nothing left to chance.
-
-**After**
-
-> The migration worked on the first try, which surprised everyone given how little we'd tested it.
 
 <a id="stance-neutralization"></a>
 ### `stance-neutralization`  ·  high · generic-llm · prose · llm-judge · family: form
@@ -691,7 +643,7 @@ Verbs converted into abstract nouns and propped up with a weak verb: 'the implem
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_words` = 150, `cue_per_100w` = 7.0
 
-**Fix:** Turn the noun back into a verb and give it a subject.
+**Fix:** Turn the noun back into a verb and give it a subject. Preserve the supported causal relation; add measurements or a mechanism only when verified.
 
 **False positive when:** Legal, academic, and specification writing are legitimately nominal; a standards document will exceed any threshold honestly. Scope this to prose meant to be read for pleasure or persuasion.
 
@@ -703,7 +655,7 @@ Verbs converted into abstract nouns and propped up with a weak verb: 'the implem
 
 **After**
 
-> We added a caching layer. Latency dropped.
+> Adding the cache reduced latency.
 
 <a id="parallel-overload-uniform-bullets"></a>
 ### `parallel-overload-uniform-bullets`  ·  medium · generic-llm · prose · structural · family: form
@@ -875,9 +827,9 @@ An italicized or block-quoted line dropped in as if it were a quotation or someo
 **Before**
 
 > The team shipped the feature.
-> 
+>
 > *Sometimes the bravest thing you can build is the thing you can't yet see.*
-> 
+>
 > And that changed everything.
 
 **After**
@@ -897,7 +849,7 @@ Parenthetical smoothing: every clause acquires an appositive, every sentence a m
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_words` = 200, `cue` = 9.0, `baseline_ratio` = 1.5
 
-**Fix:** Break the sentence in two instead of adding a clause to it.
+**Fix:** Remove needless parentheticals and put the actor near the verb. Split a sentence only where the resulting sentences still state the needed cause, condition or consequence. Keep useful subordinate clauses.
 
 **False positive when:** Plenty of excellent human prose is comma-rich. This is a cue only, and should never be reported above low severity without a baseline.
 
@@ -993,11 +945,11 @@ Every paragraph is roughly the same length, usually three to four sentences.
 
 **Why it reads AI:** People break a paragraph where the idea breaks, which is irregular. A model breaks on a rhythm. Unlike sentence-length variation, this has no published baseline behind it, so the threshold is a judgment call and the severity is capped to match what the evidence actually supports.
 
-**Detect:** Coefficient of variation of paragraph length in sentences. Human documents have a one-line paragraph somewhere, and a long one.
+**Detect:** Coefficient of variation of paragraph length in sentences is an advisory cue, not a requirement to manufacture unevenness.
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_paragraphs` = 8, `cue_cv` = 0.25
 
-**Fix:** Put a one-sentence paragraph where the argument turns. Let another run long.
+**Fix:** Start a paragraph when its subject, step or purpose changes. Keep each explanation together and preserve its link to the previous paragraph. Do not add one-line punchlines or stretch paragraphs to hit a length pattern.
 
 **False positive when:** News writing, house styles that cap paragraph length, and documentation all enforce evenness deliberately. A six-paragraph document has too few samples for a variance claim at all, which is why this needs eight.
 
@@ -1007,6 +959,6 @@ Every paragraph is roughly the same length, usually three to four sentences.
 
 **After**
 
-> Four sentences, then one, then seven, then two.
+> Paragraphs end where a step of the argument is complete; their lengths follow the material.
 
 <!-- humanize:ignore-end -->

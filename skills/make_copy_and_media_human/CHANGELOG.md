@@ -6,6 +6,31 @@
      false_positive_when in catalog.json). Marked rather than padded with prose.
      -->
 
+## 0.5.0 — 2026-11-22
+
+Moved detailed execution and evidence guidance into routed references, kept the
+entrypoint below 500 lines, and normalized the runtime name to
+`make-copy-and-media-human` while retaining the historical bundle directory.
+Added the existing-artifact workflow for documents, web/native apps and books.
+
+Added a required connected-prose drafting and review pass for all public copy,
+with judge rubrics for missing reasoning, comparisons, referents, rhetorical
+closers, compressed syntax and promises separated from material conditions.
+The dated research note corroborates the Claude audit and qualifies its claims
+by model, genre and evidence strength. Examples preserve clear short sentences,
+imperatives, labels, contrasts and parallel cases.
+
+Removed advice to manufacture fragments, alternate sentence lengths or force
+one-line paragraphs. Repaired examples that dropped causal relations or invented
+supporting facts. The staccato check now reports local runs and source lines,
+excluding common non-prose blocks and proof labels; findings remain low-severity
+candidates. Reference automation labels now use an AST inventory of literal
+finding emissions rather than quoted mentions. Regression checks cover chapter
+dilution, boundaries, TeX routing, line numbers and automation claims.
+
+Preserved the installed whole-composition deletion pass, its semantic-duplication
+catalog rule, the composed Team page example and the web UI rewrite checklist.
+
 ## 0.4.0 — 2026-09-19
 
 Added educational exposition, title-chrome and instructional-media review lanes,
@@ -130,7 +155,7 @@ structure; published stylometry catalogs — 66 cited sources).
 
 - `skills/make_copy_and_media_human/scripts/humanize_review.py`: structural detector layer + static HTML
   line-item fix-plan renderer, stdlib only, selftested.
-- `skills/make_copy_and_media_human/scripts/regenerate_references.py`: references/*.md derive from catalog.json.
+- `skills/make_copy_and_media_human/scripts/regenerate_references.py`: generated reference views derive from catalog.json.
 - Two-layer detection honors the no-keyword-NLP rule: scripts measure,
   the model judges.
 

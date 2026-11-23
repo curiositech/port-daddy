@@ -26,7 +26,7 @@ flowchart TD
 
 ## What is in this file
 
-Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+Severity reflects the consequence for the intended reader, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
 
 | item | severity | family | automated |
 | --- | --- | --- | --- |
@@ -120,7 +120,7 @@ A commit body enumerating, file by file, what the diff already shows, instead of
 **After**
 
 > Add password login
-> 
+>
 > Sessions were cookie-only, so the mobile client had no way in. Issues a 24h JWT; refresh comes in a follow-up.
 
 <a id="confident-wrong-security-finding"></a>
@@ -292,13 +292,13 @@ A 'How it works' section that describes what the system does rather than how or 
 **Before**
 
 > ## How it works
-> 
+>
 > Flowstate automatically syncs your data and keeps everything up to date in real time.
 
 **After**
 
 > ## How it works
-> 
+>
 > We hold a logical replication slot on your primary and stream the WAL. That means we see a row change about 200ms after your database does, and it also means we cannot see anything that never hits the WAL, like a truncate.
 
 <a id="idiom-drift-within-file"></a>

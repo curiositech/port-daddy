@@ -10,3 +10,6 @@ Imported supporting material. Load a listed file only when it serves the active 
 - [review_learning_structure.py](review_learning_structure.py) — imported supporting material.
 - [test_learning_structure.py](test_learning_structure.py) — imported supporting material.
 - [test_review_regressions.py](test_review_regressions.py) — imported supporting material.
+
+- [implemented_checks.py](implemented_checks.py) — source inventory of literal finding emissions.
+- [test_connected_prose.py](test_connected_prose.py) — cadence, exclusion, routing and inventory regressions.
