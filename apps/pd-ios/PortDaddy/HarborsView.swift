@@ -91,14 +91,20 @@ public struct ReachabilityChip: View {
         self.now = now
     }
 
+    private var caption: String {
+        let observation = reading.caption(now: now)
+        return reading.isCached ? "Stale · \(observation)" : observation
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: PD.Space.xs) {
             SignalChip(state: reading.verdict.coordinationState, text: reading.verdict.rawValue)
-            Text(reading.isCached ? "Stale · \(reading.caption(now: now))" : reading.caption(now: now))
+            Text(caption)
                 .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.tertiaryText)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(reading.verdict.rawValue). \(caption). Signal flag \(MaritimeSignals.phonetic(for: reading.verdict.coordinationState)).")
     }
 }
 

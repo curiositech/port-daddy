@@ -170,6 +170,7 @@ struct RelaySampleNotice: View {
             .padding(PD.Space.m)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(PD.Chrome.strong, in: RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous))
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel("Sample data, not your account")
             .accessibilityIdentifier("relay.sample-notice")
     }

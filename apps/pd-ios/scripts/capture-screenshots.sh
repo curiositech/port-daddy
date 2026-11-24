@@ -62,7 +62,12 @@ xcodebuild -quiet test \
   -scheme PortDaddy \
   -destination "platform=iOS Simulator,id=$UDID" \
   -resultBundlePath "$RESULT_BUNDLE" \
-  CODE_SIGNING_ALLOWED=NO
+  CODE_SIGNING_ALLOWED=NO || {
+    TEST_EXIT="$?"
+    echo "==> XCUITest failure summary (fixture-only)"
+    xcrun xcresulttool get test-results summary --path "$RESULT_BUNDLE" || true
+    exit "$TEST_EXIT"
+  }
 
 echo "==> Exporting screenshots from the result bundle"
 rm -rf "$OUT_DIR"

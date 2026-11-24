@@ -28,7 +28,7 @@ final class ScreenshotTests: XCTestCase {
         reveal(element("relay.open-harbors", in: app), in: app)
         tap("relay.explore-sample", in: app)
 
-        XCTAssertTrue(element("relay.sample-notice", in: app).waitForExistence(timeout: 10))
+        assertSampleNoticeIsVisible(in: app)
         tap("relay.sample-inbox", in: app)
         XCTAssertTrue(element("relay.sample-ask.critical", in: app).waitForExistence(timeout: 10))
         XCTAssertFalse(app.descendants(matching: .any).matching(
@@ -38,18 +38,19 @@ final class ScreenshotTests: XCTestCase {
 
         let expired = app.staticTexts["EXPIRED"].firstMatch
         reveal(expired, in: app, maxSwipes: 16)
-        XCTAssertTrue(element("relay.sample-notice", in: app).isHittable)
+        assertSampleNoticeIsVisible(in: app)
         shot("03-sample-expired-\(suffix)")
         app.navigationBars.buttons.firstMatch.tap()
         tap("relay.sample-harbors", in: app)
-        XCTAssertTrue(element("relay.sample-notice", in: app).waitForExistence(timeout: 10))
+        assertSampleNoticeIsVisible(in: app)
         shot("04-sample-harbors-\(suffix)")
 
         tap("relay.harbor.stale", in: app)
         let reading = element("relay.reachability-reading", in: app)
-        reveal(reading, in: app)
+        for _ in 0..<8 where !isVisible(reading, in: app) { app.swipeUp() }
+        XCTAssertTrue(isVisible(reading, in: app), "The stale reading must be on screen")
         XCTAssertTrue(reading.label.contains("Stale"), "The detail must expose the stale reading")
-        XCTAssertTrue(element("relay.sample-notice", in: app).isHittable)
+        assertSampleNoticeIsVisible(in: app)
         shot("05-sample-stale-\(suffix)")
     }
 
@@ -61,6 +62,17 @@ final class ScreenshotTests: XCTestCase {
         let target = element(id, in: app)
         reveal(target, in: app)
         target.tap()
+    }
+
+    private func assertSampleNoticeIsVisible(in app: XCUIApplication, line: UInt = #line) {
+        let notice = element("relay.sample-notice", in: app)
+        XCTAssertTrue(notice.waitForExistence(timeout: 10), "Missing sample label", line: line)
+        XCTAssertTrue(isVisible(notice, in: app), "Sample label is outside the viewport", line: line)
+        XCTAssertTrue(notice.label.contains("not your account"), "Wrong sample provenance label", line: line)
+    }
+
+    private func isVisible(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        element.exists && !element.frame.isEmpty && app.frame.contains(element.frame)
     }
 
     private func reveal(_ target: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) {
