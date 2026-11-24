@@ -33,6 +33,7 @@
         "createdAt": 1753200000,
         "role": "owner"
       },
+      "cachedSampleAgeSeconds": 480,
       "members": [
         { "kind": "user", "member": "erichowens", "role": "owner", "addedAt": 1753200000 },
         { "kind": "daemon", "member": "aa11cc22", "role": "member", "addedAt": 1753203600 },

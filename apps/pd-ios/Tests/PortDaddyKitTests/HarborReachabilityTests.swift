@@ -122,6 +122,15 @@ final class HarborReachabilityTests: XCTestCase {
         XCTAssertEqual(verdicts, Set(ReachabilityVerdict.allCases))
     }
 
+    func testSampleHasAStaleReadingDistinctFromAnUnknownReading() throws {
+        let readings = try PortDaddyFixtures.harbors().entries.map(\.reachability)
+        let stale = try XCTUnwrap(readings.first(where: \.isCached))
+        XCTAssertEqual(stale.verdict, .degraded)
+        XCTAssertGreaterThanOrEqual(stale.age(), 480)
+        let unknown = try XCTUnwrap(readings.first(where: { $0.verdict == .unknown }))
+        XCTAssertFalse(unknown.isCached)
+    }
+
     func testRelativeAgeFormatting() {
         XCTAssertEqual(RelativeAge.short(0), "0s")
         XCTAssertEqual(RelativeAge.short(59), "59s")

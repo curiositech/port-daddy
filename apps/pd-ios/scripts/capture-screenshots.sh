@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Boot the real PortDaddy iOS app in a simulator and capture one screenshot per
-# root tab. This is the automated visual-evidence mechanism for apps/pd-ios.
+# Boot the real Port Daddy iOS app in an approved hosted simulator and capture
+# its disconnected and sample states in light/dark at default size and AX5.
 #
 # WHY THIS EXISTS, AND WHY IT IS NOT THE SwiftPM GATE
 # ---------------------------------------------------
@@ -12,14 +12,13 @@
 # green" has never meant "the app runs". This script closes that gap: it
 # assembles a runnable app target with XcodeGen *ephemerally* (the generated
 # PortDaddy.xcodeproj is git-ignored, never committed — the repo's checked-in
-# contract stays "no .xcodeproj, no XcodeGen"), links the library, drives all
-# four RootTab cases through an XCUITest, and exports a named PNG per tab.
+# contract stays generated-project-free), links the library, and exports
+# fixture-only XCUITest attachments. Do not run this on an operator-halted Mac.
 #
-# Run locally:   apps/pd-ios/scripts/capture-screenshots.sh
-# Output:        apps/pd-ios/pd-ios-screenshots/{01-roadmap,02-harbors,03-asks,04-controls}.png
+# Hosted entry: apps/pd-ios/scripts/capture-screenshots.sh
+# Output:       apps/pd-ios/pd-ios-screenshots/{01-relay,02-sample-inbox,…}-<variant>.png
 #
-# It is deterministic and offline: RootView is fixture-backed by default, so a
-# cold launch renders real content with no network, pairing, or auth.
+# No network, pairing, or auth: the test never opens the browser handoff.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -70,17 +69,23 @@ manifest = os.path.join(out, "manifest.json")
 if not os.path.exists(manifest):
     print("error: no manifest.json produced by xcresulttool", file=sys.stderr)
     sys.exit(1)
-count = 0
+expected = {
+    f"{screen}-{variant}.png"
+    for screen in ("01-relay", "02-sample-inbox", "03-sample-expired", "04-sample-harbors", "05-sample-stale")
+    for variant in ("light", "dark", "light-ax5", "dark-ax5")
+}
+found = set()
 for entry in json.load(open(manifest)):
     for a in entry.get("attachments", []):
         src = os.path.join(out, a["exportedFileName"])
         human = a.get("suggestedHumanReadableName", a["exportedFileName"])
         base = re.sub(r"_\d+_[0-9A-Fa-f-]+\.png$", ".png", human)
-        if os.path.exists(src):
+        if base in expected and os.path.isfile(src):
             shutil.move(src, os.path.join(out, base))
-            count += 1
-print(f"    exported {count} screenshot(s) -> {out}")
-if count == 0:
+            found.add(base)
+print(f"    exported {len(found)} fixture screenshot(s) -> {out}")
+if expected != found:
+    print("error: missing fixture screenshots: " + ", ".join(sorted(expected - found)), file=sys.stderr)
     sys.exit(1)
 PY
 

@@ -33,16 +33,17 @@ public struct SignalChip: View {
     public var body: some View {
         HStack(spacing: PD.Space.xs) {
             Text(letter)
-                .font(PDFont.caption.weight(.bold))
+                .font(PDFont.subheadline.weight(.bold))
                 .frame(minWidth: 16)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
                 .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(PD.color(for: state).opacity(0.22)))
                 .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(PD.color(for: state), lineWidth: 1))
             Text(label)
-                .font(PDFont.caption.weight(.semibold))
+                .font(PDFont.subheadline.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .foregroundStyle(PD.color(for: state))
+        .foregroundStyle(PD.Chrome.primaryText)
         .padding(.horizontal, PD.Space.s)
         .padding(.vertical, PD.Space.xs)
         .background(RoundedRectangle(cornerRadius: PD.Radius.small, style: .continuous).fill(PD.color(for: state).opacity(0.10)))

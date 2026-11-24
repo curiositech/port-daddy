@@ -63,14 +63,11 @@ final class RelayClientTransportTests: XCTestCase {
         )
     }
 
-    /// Runs `registerPushDevice` and returns the error it threw, failing the
-    /// test if it did not throw. Every case below goes through a PUBLIC method
-    /// rather than `send` directly — `send` takes a private envelope type, and
-    /// testing the surface an app actually calls is the point anyway.
-    private func errorFromRegister(status: Int, body: String) async -> Error? {
+    /// Exercise the existing typed read, not a push- or device-registration route.
+    private func errorFromRead(status: Int, body: String) async -> Error? {
         let relay = client(status: status, body: body)
         do {
-            try await relay.registerPushDevice(deviceToken: "AABBCC", deviceID: "device-1")
+            _ = try await relay.fetchInterruptions()
             XCTFail("expected \(status) to throw")
             return nil
         } catch {
@@ -80,12 +77,9 @@ final class RelayClientTransportTests: XCTestCase {
 
     // MARK: - The mapping
 
-    /// The route ships in the relay's push module, which is not deployed yet,
-    /// so 404 is the answer the app really gets today. It must arrive as a
-    /// relay error carrying the relay's own code and message, not as a decode
-    /// failure and not as silence.
-    func testA404CarriesTheRelaysOwnCodeAndMessage() async throws {
-        let error = await errorFromRegister(
+    /// Keep the typed error and status, without reflecting the server's text.
+    func testA404CarriesTheRecognizedCodeNotTheServerMessage() async throws {
+        let error = await errorFromRead(
             status: 404, body: #"{"code":"NOT_FOUND","error":"no such route"}"#
         )
         let relayError = try XCTUnwrap(error as? RelayError, "expected a RelayError, got \(String(describing: error))")
@@ -94,20 +88,20 @@ final class RelayClientTransportTests: XCTestCase {
         }
         XCTAssertEqual(status, 404)
         XCTAssertEqual(code, "NOT_FOUND")
-        XCTAssertEqual(message, "no such route")
+        XCTAssertEqual(message, "the relay returned 404")
     }
 
     /// 401 is NOT a generic http error. The operator's next action differs —
     /// pair the phone again — and `.unauthenticated` is what the view keys on.
     func testA401IsUnauthenticatedNotAGenericHttpError() async throws {
-        let error = await errorFromRegister(
+        let error = await errorFromRead(
             status: 401, body: #"{"code":"UNAUTHENTICATED","error":"token expired"}"#
         )
         let unwrapped = try XCTUnwrap(error as? RelayError, "expected a RelayError, got \(String(describing: error))")
         guard case .unauthenticated(let message) = unwrapped else {
             return XCTFail("expected .unauthenticated, got \(unwrapped)")
         }
-        XCTAssertEqual(message, "token expired")
+        XCTAssertEqual(message, "the relay did not accept this credential")
         // No separate "must not also be .http" check here: `unwrapped` is a
         // `let` already proven `.unauthenticated` by the guard above, and a
         // Swift enum value is exactly one case at a time, so re-testing it
@@ -122,20 +116,20 @@ final class RelayClientTransportTests: XCTestCase {
     /// client sets no Origin header on purpose (RelayClient.swift:189-194); if
     /// this ever fires, a proxy is attaching one.
     func testCrossOriginIsKeyedOnTheCodeNotTheStatus() async throws {
-        let error = await errorFromRegister(
+        let error = await errorFromRead(
             status: 403, body: #"{"code":"CROSS_ORIGIN","error":"origin not allowed"}"#
         )
         let unwrapped = try XCTUnwrap(error as? RelayError, "expected a RelayError, got \(String(describing: error))")
         guard case .crossOriginRefused(let message) = unwrapped else {
             return XCTFail("expected .crossOriginRefused, got \(unwrapped)")
         }
-        XCTAssertEqual(message, "origin not allowed")
+        XCTAssertEqual(message, "the relay refused the request origin")
     }
 
     /// A 403 that is NOT cross-origin stays a plain http error — the pair above
     /// and below is what pins "keyed on the code", since both share a status.
     func testAPlain403StaysAGenericHttpError() async throws {
-        let error = await errorFromRegister(
+        let error = await errorFromRead(
             status: 403, body: #"{"code":"FORBIDDEN","error":"not yours"}"#
         )
         let relayError = try XCTUnwrap(error as? RelayError, "expected a RelayError, got \(String(describing: error))")
@@ -151,7 +145,7 @@ final class RelayClientTransportTests: XCTestCase {
     /// still the truth, and the fallback names it rather than reporting that
     /// the app could not read an answer it never got.
     func testANonJsonErrorBodyFallsBackToTheStatusRatherThanFailingToDecode() async throws {
-        let error = await errorFromRegister(status: 502, body: "<html>bad gateway</html>")
+        let error = await errorFromRead(status: 502, body: "<html>bad gateway</html>")
         let unwrapped = try XCTUnwrap(error as? RelayError, "expected a RelayError, got \(String(describing: error))")
         guard case .http(let status, let code, let message) = unwrapped else {
             return XCTFail("expected RelayError.http, got \(unwrapped)")
@@ -168,8 +162,33 @@ final class RelayClientTransportTests: XCTestCase {
     /// The success path, so the failures above are known to be failing for the
     /// right reason. Without this, a client broken enough to throw on every
     /// response would make all five tests above pass.
-    func testA200OnTheSameStubDoesNotThrow() async throws {
-        let relay = client(status: 200, body: #"{"code":"OK","error":null}"#)
-        try await relay.registerPushDevice(deviceToken: "AABBCC", deviceID: "device-1")
+    func testA200DecodesAnOpenCriticalInterruption() async throws {
+        let relay = client(status: 200, body: """
+        {"code":"OK","error":null,"openCount":1,"interruptions":[
+            {"id":"fixture-ask","title":"Review the deploy","urgency":"critical","state":"open","installationId":42}
+        ]}
+        """)
+        let inbox = try await relay.fetchInterruptions()
+        XCTAssertEqual(inbox.openCount, 1)
+        XCTAssertEqual(inbox.interruptions.first?.installationId, 42)
+        XCTAssertEqual(InterruptionInbox.blockingCritical(inbox.interruptions)?.id, "fixture-ask")
+    }
+
+    func testErrorAndDecodeFailuresDoNotEchoUntrustedFields() async throws {
+        let marker = "pdu_" + String(repeating: "f", count: 64)
+        let failures = [
+            (502, #"{"code":"\#(marker)","error":"\#(marker)"}"#),
+            (200, #"{"openCount":1,"interruptions":[{"id":"fixture-ask","\#(marker)":"bad"}]}"#),
+        ]
+        for (status, body) in failures {
+            let failure = await errorFromRead(status: status, body: body)
+            let error = try XCTUnwrap(failure as? RelayError)
+            XCTAssertFalse(String(describing: error).contains(marker))
+            if status == 200 {
+                guard case .decoding = error else { return XCTFail("expected a typed decode error") }
+            } else {
+                XCTAssertEqual(error, .http(status: 502, code: "HTTP_502", message: "the relay returned 502"))
+            }
+        }
     }
 }

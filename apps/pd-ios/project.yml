@@ -1,9 +1,6 @@
-# Ephemeral XcodeGen spec — NOT part of the checked-in repo contract.
-# apps/pd-ios ships as a SwiftPM library (Package.swift) whose CI gate builds
-# PortDaddyKit for the simulator. This spec exists to assemble a *runnable*
-# .app target that owns App/PortDaddyApp.swift and links the PortDaddyKit
-# library, so the SwiftUI UI can be booted in a simulator and screenshotted.
-# Generated .xcodeproj is untracked; regenerate with `xcodegen generate`.
+# Source spec for the single native app target. Generated Xcode projects are
+# not committed. CI and local compilation are unsigned; these defaults do not
+# select an App Store Connect record or reserve a build number.
 name: PortDaddy
 options:
   bundleIdPrefix: ai.portdaddy
@@ -27,6 +24,7 @@ targets:
       base:
         INFOPLIST_FILE: PortDaddy-Info.plist
         GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_NAME: PortDaddy
         PRODUCT_BUNDLE_IDENTIFIER: ai.portdaddy.PortDaddy
         TARGETED_DEVICE_FAMILY: "1,2"

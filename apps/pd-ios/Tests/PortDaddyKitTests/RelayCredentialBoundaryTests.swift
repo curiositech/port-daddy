@@ -69,7 +69,8 @@ final class RelayCredentialBoundaryTests: XCTestCase {
     func testMalformedCredentialsNeverReachTransport() async {
         for token in [nil, "", "pdu_testtoken", validToken + "\r\nX: injected",
                       "pdu_" + String(repeating: "g", count: 64), validToken + " ",
-                      String(validToken.dropLast()), "Bearer " + validToken] {
+                      String(validToken.dropLast()), "Bearer " + validToken,
+                      "pdr_" + String(repeating: "a", count: 64)] {
             Transport.reset()
             let store = CountingStore(token)
             let transport = session(); defer { transport.invalidateAndCancel() }
@@ -93,7 +94,24 @@ final class RelayCredentialBoundaryTests: XCTestCase {
         XCTAssertEqual(request.url?.absoluteString, "https://private-relay.example:9443/v1/harbors")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer " + validToken)
         XCTAssertFalse(request.httpShouldHandleCookies)
+        XCTAssertEqual(request.httpMethod, "GET")
+        XCTAssertNil(request.httpBody)
         XCTAssertEqual(store.reads, 1)
+    }
+
+    func testSendRefusesRequestsThatAreNotBodylessReads() async throws {
+        Transport.reset()
+        let transport = session(); defer { transport.invalidateAndCancel() }
+        let relay = RelayClient(baseURL: URL(string: "https://relay.example")!,
+            tokenStore: CountingStore(validToken), session: transport)
+        for method in ["POST", "PUT", "DELETE", "GET"] {
+            var request = try relay.makeRequest(path: RelayRoute.harbors)
+            request.httpMethod = method
+            if method == "GET" { request.httpBody = Data("unexpected body".utf8) }
+            do { let _: [String] = try await relay.send(request, as: [String].self); XCTFail("sent \(method) with mutation inputs") }
+            catch { guard case RelayError.transport = error else { return XCTFail("wrong error \(error)") } }
+        }
+        XCTAssertTrue(Transport.requests().isEmpty)
     }
 
     func testSendRejectsTamperedOriginBeforeTransport() async throws {
