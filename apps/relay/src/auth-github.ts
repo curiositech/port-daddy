@@ -714,6 +714,35 @@ export async function userCanReadRepo(
 }
 
 /**
+ * Read the name from the same authenticated GitHub response that grants read
+ * access. A cached boolean cannot witness identity, and following a rename or
+ * transfer redirect could choose another repository's key.
+ *
+ * @param session - The resolved browser session carrying the user's GitHub token.
+ * @param owner - The caller-validated repository owner.
+ * @param repo - The caller-validated repository name.
+ * @returns GitHub's reported full name for caller validation, or null on failure.
+ */
+export async function readGitHubRepoFullName(
+  session: ResolvedSession,
+  owner: string,
+  repo: string,
+): Promise<string | null> {
+  if (!session.ghToken) return null;
+  try {
+    const response = await fetch(`${GH_API}/repos/${owner}/${repo}`, {
+      headers: ghHeaders(session.ghToken),
+      redirect: 'error',
+    });
+    if (response.status !== 200) return null;
+    const body: unknown = await response.json();
+    return isRecord(body) && typeof body.full_name === 'string' ? body.full_name : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Does the session's user have ADMIN permission on `owner/repo`, per GitHub's
  * own judgment? Reads the same `GET /repos/:owner/:repo` response
  * `userCanReadRepo` already makes (its `permissions.admin` field reflects the

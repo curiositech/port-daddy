@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 448,
-    "distinctObjects": 413,
-    "bytes": 132849264,
-    "distinctBytes": 130172244
+    "assets": 454,
+    "distinctObjects": 419,
+    "bytes": 136085578,
+    "distinctBytes": 133408558
   },
   "assets": [
     {
@@ -322,6 +322,48 @@
       "bytes": 36679,
       "sha256": "1d9e0a9d45ba410adf2c206988e934830be0eed10ae86952fbfbc3b14bfdaedf",
       "key": "sha256/1d/1d9e0a9d45ba410adf2c206988e934830be0eed10ae86952fbfbc3b14bfdaedf.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/relay-work-register-navigation/account-dark.png",
+      "bytes": 399704,
+      "sha256": "c838fdad278b448141fac94d503f3c1c1a91a26fc4e854ad458911b5443add2d",
+      "key": "sha256/c8/c838fdad278b448141fac94d503f3c1c1a91a26fc4e854ad458911b5443add2d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/relay-work-register-navigation/board-light.png",
+      "bytes": 126727,
+      "sha256": "2f8b3de32630e684b93dcdba3583607ed204f3172520e4aedc1b73a975ae1930",
+      "key": "sha256/2f/2f8b3de32630e684b93dcdba3583607ed204f3172520e4aedc1b73a975ae1930.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/relay-work-register-navigation/chooser-mobile-dark.png",
+      "bytes": 20101,
+      "sha256": "112b4484d09ebdbe71de7264bb71ff7d172bdd161471f6c1e768834b35ea4b6c",
+      "key": "sha256/11/112b4484d09ebdbe71de7264bb71ff7d172bdd161471f6c1e768834b35ea4b6c.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/relay-work-register-navigation/journey.gif",
+      "bytes": 2139294,
+      "sha256": "80154aa3e6256020a0ad62fda737264e8ef05aa3068af706fe361f89beaef628",
+      "key": "sha256/80/80154aa3e6256020a0ad62fda737264e8ef05aa3068af706fe361f89beaef628.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": ".github/assets/relay-work-register-navigation/journey.webm",
+      "bytes": 413276,
+      "sha256": "84be9396b2e6cb636c82ff70a2dda132405fc87a8c1b15cf4c8d74932e73c406",
+      "key": "sha256/84/84be9396b2e6cb636c82ff70a2dda132405fc87a8c1b15cf4c8d74932e73c406.webm",
+      "contentType": "video/webm"
+    },
+    {
+      "path": ".github/assets/relay-work-register-navigation/login-light.png",
+      "bytes": 137212,
+      "sha256": "f80a91f13638c56d260d64c8756e1b71b20a5e6acf0ec9df5a08f34ab0d039f7",
+      "key": "sha256/f8/f80a91f13638c56d260d64c8756e1b71b20a5e6acf0ec9df5a08f34ab0d039f7.png",
       "contentType": "image/png"
     },
     {
