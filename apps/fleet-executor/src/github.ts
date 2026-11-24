@@ -491,6 +491,29 @@ function reconstructedFileMarker(file: PRFile): string {
   return 'patch omitted by GitHub (diff too large to include)';
 }
 
+/** Render one path token without leaving control characters or delimiters ambiguous. */
+function quoteGitPathToken(value: string): string {
+  let quoted = '"';
+  for (const character of value) {
+    const escaped = new Map<string, string>([
+      ['\\', '\\\\'], ['"', '\\"'], ['\u0007', '\\a'], ['\b', '\\b'],
+      ['\t', '\\t'], ['\n', '\\n'], ['\u000b', '\\v'], ['\f', '\\f'], ['\r', '\\r'],
+    ]).get(character);
+    if (escaped) {
+      quoted += escaped;
+      continue;
+    }
+    if (character.codePointAt(0)! < 0x20 || character.codePointAt(0) === 0x7f) {
+      quoted += [...new TextEncoder().encode(character)]
+        .map(byte => `\\${byte.toString(8).padStart(3, '0')}`)
+        .join('');
+      continue;
+    }
+    quoted += character;
+  }
+  return `${quoted}"`;
+}
+
 /**
  * One `diff --git` segment built from a single `/files` entry. GitHub's
  * `patch` field starts at the first `@@` hunk header with no `diff --git` /
@@ -500,15 +523,19 @@ function reconstructedFileMarker(file: PRFile): string {
  */
 function buildFileDiffSegment(file: PRFile): string {
   const before = file.status === 'renamed' && file.previous_filename ? file.previous_filename : file.filename;
-  const lines: string[] = [`diff --git a/${before} b/${file.filename}`];
+  const beforeToken = quoteGitPathToken(`a/${before}`);
+  const afterToken = quoteGitPathToken(`b/${file.filename}`);
+  const lines: string[] = [`diff --git ${beforeToken} ${afterToken}`];
   if (file.status === 'added') {
     lines.push('new file mode 100644');
   } else if (file.status === 'removed') {
     lines.push('deleted file mode 100644');
   } else if (file.status === 'renamed' && file.previous_filename) {
-    lines.push(`rename from ${file.previous_filename}`);
-    lines.push(`rename to ${file.filename}`);
+    lines.push(`rename from ${quoteGitPathToken(file.previous_filename)}`);
+    lines.push(`rename to ${quoteGitPathToken(file.filename)}`);
   }
+  lines.push(file.status === 'added' ? '--- /dev/null' : `--- ${beforeToken}`);
+  lines.push(file.status === 'removed' ? '+++ /dev/null' : `+++ ${afterToken}`);
   lines.push(file.patch ?? reconstructedFileMarker(file));
   return lines.join('\n');
 }
@@ -1100,7 +1127,7 @@ export class ShipCommentPublicationError extends Error {
  * with a marker, and the ship's machine tag is re-appended so edit-in-place
  * (which locates the comment by that tag) still works. Belt-and-suspenders: the
  * renderers already bound their output, but a pathological findings set (or the
- * raw-output fallback on a malformed block) must never fail the POST outright.
+ * raw-output fallback after findings admission fails) must never fail the POST.
  */
 function capBody(body: string, tag: string): string {
   if (body.length <= GITHUB_COMMENT_MAX) return body;

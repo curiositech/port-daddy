@@ -81,7 +81,7 @@ export function brokenReason(r: ShipResult): string {
   if (r.failureReason) return `errored — ${r.failureReason}`;
   return r.noUsableOutput === true
     ? 'no usable output — the model answered nothing its contract asked for'
-    : 'errored — crashed, or emitted a malformed block the fleet could not parse';
+    : 'errored — crashed, or emitted findings the fleet could not safely admit';
 }
 
 /**
