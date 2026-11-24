@@ -117,6 +117,10 @@ export interface ParleyFixture {
    *  (degraded-state tests). Gate reads (harbor + role lookups) still work,
    *  so member-gated pages reach their degraded render rather than a 404. */
   failReads: { value: boolean };
+  /** Every SQL string the handler asked the stub to prepare, in order.
+   *  Lets a test prove a write did NOT happen ("no audit row was inserted"),
+   *  which a status assertion alone cannot show. */
+  statements: string[];
 }
 
 /**
@@ -167,10 +171,12 @@ export function makeParleyDb(): ParleyFixture {
   const positions: FakePosition[] = [];
   const failReads = { value: false };
 
+  const statements: string[] = [];
   const ok = { success: true, meta: { changes: 1 } };
   const changes = (n: number) => ({ success: true, meta: { changes: n } });
 
   function prepare(sql: string) {
+    statements.push(sql);
     let args: unknown[] = [];
     const stmt = {
       bind(...v: unknown[]) {
@@ -384,7 +390,7 @@ export function makeParleyDb(): ParleyFixture {
       return out;
     },
   };
-  return { db: db as unknown as D1Database, users, harbors, memberships, parleys, positions, failReads };
+  return { db: db as unknown as D1Database, users, harbors, memberships, parleys, positions, failReads, statements };
 }
 
 /**
