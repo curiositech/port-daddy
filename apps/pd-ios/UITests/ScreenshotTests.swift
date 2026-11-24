@@ -38,16 +38,18 @@ final class ScreenshotTests: XCTestCase {
 
         let expired = app.staticTexts["EXPIRED"].firstMatch
         reveal(expired, in: app, maxSwipes: 16)
+        XCTAssertTrue(element("relay.sample-notice", in: app).isHittable)
         shot("03-sample-expired-\(suffix)")
         app.navigationBars.buttons.firstMatch.tap()
         tap("relay.sample-harbors", in: app)
         XCTAssertTrue(element("relay.sample-notice", in: app).waitForExistence(timeout: 10))
         shot("04-sample-harbors-\(suffix)")
 
-        let stale = app.descendants(matching: .any).matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "Stale · last known")
-        ).firstMatch
-        reveal(stale, in: app)
+        tap("relay.harbor.stale", in: app)
+        let reading = element("relay.reachability-reading", in: app)
+        reveal(reading, in: app)
+        XCTAssertTrue(reading.label.contains("Stale"), "The detail must expose the stale reading")
+        XCTAssertTrue(element("relay.sample-notice", in: app).isHittable)
         shot("05-sample-stale-\(suffix)")
     }
 

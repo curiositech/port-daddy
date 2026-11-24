@@ -11,12 +11,12 @@ public struct RelayBetaView: View {
         NavigationStack {
             page {
                 VStack(alignment: .leading, spacing: PD.Space.s) {
-                    Label("Not connected", systemImage: "link")
+                    Text("Not connected")
                         .font(PDFont.title2)
                         .foregroundStyle(PD.Chrome.primaryText)
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("relay.not-connected")
-                    Text("Live data is available in your browser. This beta doesn’t sign in to Relay directly.")
+                    Text("Live data opens in your browser.")
                         .font(PDFont.body)
                         .foregroundStyle(PD.Chrome.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -69,10 +69,10 @@ public struct RelayBetaView: View {
 
             VStack(spacing: 0) {
                 NavigationLink {
-                    InterruptionsView(inbox: RootView.fixtureInbox()).content
-                        .navigationTitle("Sample inbox")
+                    InterruptionsView(inbox: Self.sampleInbox()).content
+                        .navigationTitle("Inbox")
                 } label: {
-                    RelayEntry(title: "Sample inbox", detail: "See an interruption that needs a decision.",
+                    RelayEntry(title: "Inbox", detail: "See an open and an expired request.",
                                symbol: "bell", accessory: "chevron.forward")
                 }
                 .accessibilityIdentifier("relay.sample-inbox")
@@ -81,9 +81,9 @@ public struct RelayBetaView: View {
 
                 NavigationLink {
                     HarborsView().content
-                        .navigationTitle("Sample harbors")
+                        .navigationTitle("Harbors")
                 } label: {
-                    RelayEntry(title: "Sample harbors", detail: "Compare current, stale, and unknown readings.",
+                    RelayEntry(title: "Harbors", detail: "Compare new, stale, and unknown readings.",
                                symbol: "sailboat", accessory: "chevron.forward")
                 }
                 .accessibilityIdentifier("relay.sample-harbors")
@@ -91,7 +91,27 @@ public struct RelayBetaView: View {
             .buttonStyle(.plain)
             .background(PD.Chrome.cardRaised, in: RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous))
         }
-        .navigationTitle("Sample data")
+        .navigationTitle("Samples")
+    }
+
+    private static func sampleInbox(now: Date = Date()) -> Loadable<InterruptionListResponse> {
+        let open = OperatorInterruption(
+            id: "sample-report", sourceAgent: "report-check",
+            title: "Review the weekly report?",
+            body: "The report is ready to send after you confirm the totals.",
+            urgency: .critical, createdAt: now.timeIntervalSince1970 - 480
+        )
+        let expired = OperatorInterruption(
+            id: "sample-maintenance", sourceAgent: "maintenance",
+            title: "Confirm a maintenance window",
+            body: "The response window ended before a decision was made.",
+            urgency: .normal, state: .expired,
+            createdAt: now.timeIntervalSince1970 - 3600
+        )
+        return .loaded(
+            InterruptionListResponse(code: "OK", error: nil, openCount: 1, interruptions: [open, expired]),
+            provenance: .fixture(name: "Relay samples")
+        )
     }
 
     private func page<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -126,13 +146,16 @@ private struct RelayEntry: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: accessory)
-                .font(PDFont.subheadline.weight(.semibold))
-                .foregroundStyle(PD.Palette.cobalt)
-                .accessibilityHidden(true)
+            if !typeSize.isAccessibilitySize {
+                Image(systemName: accessory)
+                    .font(PDFont.subheadline.weight(.semibold))
+                    .foregroundStyle(PD.Palette.cobalt)
+                    .accessibilityHidden(true)
+            }
         }
         .frame(minHeight: PD.minimumTapTarget)
-        .padding(PD.Space.l)
+        .padding(.vertical, PD.Space.l)
+        .padding(.horizontal, typeSize.isAccessibilitySize ? PD.Space.m : PD.Space.l)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -140,13 +163,29 @@ private struct RelayEntry: View {
 
 struct RelaySampleNotice: View {
     var body: some View {
-        Label("Sample data · Not your account", systemImage: "shippingbox")
+        Label("Sample data", systemImage: "shippingbox")
             .font(PDFont.subheadline.weight(.semibold))
             .foregroundStyle(PD.Chrome.secondaryText)
             .fixedSize(horizontal: false, vertical: true)
             .padding(PD.Space.m)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(PD.Chrome.strong, in: RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous))
+            .accessibilityLabel("Sample data, not your account")
             .accessibilityIdentifier("relay.sample-notice")
+    }
+}
+
+extension View {
+    /// Keep the sample label visible after scrolling to an old interruption
+    /// or drilling into a harbor, where the view otherwise looks like a live read.
+    func relaySampleBanner(_ visible: Bool) -> some View {
+        safeAreaInset(edge: .top, spacing: 0) {
+            if visible {
+                RelaySampleNotice()
+                    .padding(.horizontal, PD.Space.l)
+                    .padding(.bottom, PD.Space.xs)
+                    .background(PD.Chrome.base)
+            }
+        }
     }
 }

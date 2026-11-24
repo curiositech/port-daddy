@@ -35,6 +35,11 @@ public struct HarborsView: View {
         }
     }
 
+    private var isSample: Bool {
+        if case .fixture = harbors.provenance { return true }
+        return false
+    }
+
     public var body: some View {
         NavigationStack {
             content.navigationTitle("Harbors")
@@ -48,9 +53,7 @@ public struct HarborsView: View {
                 case .unknown(let reason):
                     UnknownNotice(title: "Harbors unavailable", reason: reason)
                 case .loaded(let fixture, let provenance):
-                    if case .fixture = provenance {
-                        RelaySampleNotice()
-                    } else {
+                    if !isSample {
                         ProvenanceBar(provenance)
                     }
 
@@ -66,6 +69,7 @@ public struct HarborsView: View {
                                     HarborRow(entry: entry)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier(entry.reachability.isCached ? "relay.harbor.stale" : "relay.harbor.\(entry.harbor.id)")
                             }
                         }
                     }
@@ -73,6 +77,7 @@ public struct HarborsView: View {
             }
             .padding(PD.Space.l)
         }
+        .relaySampleBanner(isSample)
         .background(PD.Chrome.base)
     }
 }
@@ -140,17 +145,20 @@ public struct HarborDetailView: View {
     }
 
     private var reading: ReachabilityReading { entry.reachability }
+    private var isSample: Bool {
+        if case .fixture = provenance { return true }
+        return false
+    }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: PD.Space.l) {
-                if case .fixture = provenance {
-                    RelaySampleNotice()
-                } else {
+                if !isSample {
                     ProvenanceBar(provenance)
                 }
                 SectionCard(title: "Reachability", subtitle: reading.verdict.explanation) {
                     ReachabilityChip(reading: reading)
+                        .accessibilityIdentifier("relay.reachability-reading")
                 }
 
                 SectionCard(title: "Members", subtitle: "\(entry.daemonMemberCount) daemon members") {
@@ -163,6 +171,7 @@ public struct HarborDetailView: View {
             }
             .padding(PD.Space.l)
         }
+        .relaySampleBanner(isSample)
         .background(PD.Chrome.base)
         .navigationTitle(entry.harbor.name)
         .navigationBarTitleDisplayMode(.inline)

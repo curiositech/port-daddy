@@ -65,9 +65,7 @@ public struct InterruptionsView: View {
     var content: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: PD.Space.l) {
-                if isSample {
-                    RelaySampleNotice()
-                } else if let provenance = inbox.provenance {
+                if !isSample, let provenance = inbox.provenance {
                     ProvenanceBar(provenance)
                 }
 
@@ -80,6 +78,7 @@ public struct InterruptionsView: View {
             }
             .padding(PD.Space.l)
         }
+        .relaySampleBanner(isSample)
         .background(PD.Chrome.base)
     }
 

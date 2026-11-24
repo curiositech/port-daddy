@@ -28,12 +28,22 @@ OUT_DIR="${1:-$HERE/pd-ios-screenshots}"
 RESULT_BUNDLE="$HERE/.screenshots.xcresult"
 
 echo "==> Resolving newest available iPhone simulator"
-UDID="$(xcrun simctl list devices available --json | python3 scripts/resolve-simulator-destination.py | head -1)"
+SIMULATORS="$(xcrun simctl list devices available --json)"
+UDID="$(printf '%s' "$SIMULATORS" | python3 scripts/resolve-simulator-destination.py | head -1)"
 if [[ -z "${UDID:-}" ]]; then
   echo "error: no available iPhone simulator" >&2
   exit 1
 fi
 echo "    UDID=$UDID"
+printf '%s' "$SIMULATORS" | python3 -c '
+import json, sys
+for runtime, devices in json.load(sys.stdin)["devices"].items():
+    for device in devices:
+        if device["udid"] == sys.argv[1]:
+            print("    Device=%s runtime=%s" % (device["name"], runtime))
+            sys.exit(0)
+sys.exit("selected simulator not found in inventory")
+' "$UDID"
 
 echo "==> Generating the ephemeral Xcode app target (xcodegen)"
 if ! command -v xcodegen >/dev/null 2>&1; then
@@ -47,13 +57,12 @@ xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || true
 
 echo "==> Building app + UI test and running the capture (xcodebuild test)"
 rm -rf "$RESULT_BUNDLE"
-xcodebuild test \
+xcodebuild -quiet test \
   -project PortDaddy.xcodeproj \
   -scheme PortDaddy \
   -destination "platform=iOS Simulator,id=$UDID" \
   -resultBundlePath "$RESULT_BUNDLE" \
-  CODE_SIGNING_ALLOWED=NO \
-  >/dev/null
+  CODE_SIGNING_ALLOWED=NO
 
 echo "==> Exporting screenshots from the result bundle"
 rm -rf "$OUT_DIR"
