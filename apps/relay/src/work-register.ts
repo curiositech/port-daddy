@@ -1523,7 +1523,36 @@ export async function handleRegisterPageAction(request: Request, env: Env): Prom
 }
 
 /**
- * GET /account/register?repo=owner/name — the board, server-rendered.
+ * Render the repository chooser without echoing unvalidated input or listing repositories.
+ *
+ * @param status - Distinguishes initial entry, malformed input, and refused access.
+ * @returns A script-free GET form that also lets the operator retry.
+ */
+function registerRepoChooser(status: 200 | 400 | 403 = 200): Response {
+  const message = status === 400
+    ? 'Enter a GitHub repository as owner/repository, without the GitHub URL.'
+    : status === 403
+      ? 'No access. Check the repository name, or enter one your GitHub account can read.'
+      : '';
+  return shell(
+    'Harbor Work Register',
+    `<header class="h"><h1>The Harbor Work Register</h1>
+      <p class="lede">Choose a GitHub repository to open its board.</p></header>
+    <section class="grant">
+      ${message ? `<p id="repo-error" class="warn">${message}</p>` : ''}
+      <form method="get" action="/account/register">
+        <label for="register-repo">GitHub owner/repository
+          <input id="register-repo" name="repo" required spellcheck="false" autocapitalize="none"${message ? ' aria-describedby="repo-error"' : ''}${status === 400 ? ' aria-invalid="true"' : ''}>
+        </label>
+        <button type="submit">Open board</button>
+      </form>
+    </section>`,
+    status,
+  );
+}
+
+/**
+ * GET /account/register — the chooser or the exact repository's board.
  *
  * Opening the page records repository membership after a live GitHub ACL
  * check. It does not refresh the roadmap: that replica remains daemon-pushed,
@@ -1534,18 +1563,12 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
   if (!session) return new Response(null, { status: 302, headers: { Location: '/login' } });
 
   const url = new URL(request.url);
-  const repoFullName = url.searchParams.get('repo') ?? '';
+  const repoFullName = url.searchParams.get('repo');
+  if (repoFullName === null) return registerRepoChooser();
   const parts = splitRepo(repoFullName);
-  if (!parts) {
-    return shell(
-      'Harbor Work Register',
-      `<header class="h"><h1>The Harbor Work Register</h1>
-       <p class="lede">Name a repository to open its board.</p></header>
-       <p class="meta">Add <code>?repo=owner/name</code> to this URL.</p>`,
-    );
-  }
+  if (!parts) return registerRepoChooser(400);
   if (!(await userCanReadRepo(env, session, parts.owner, parts.repo))) {
-    return shell('Harbor Work Register', '<header class="h"><h1>No access</h1></header>', 403);
+    return registerRepoChooser(403);
   }
 
   // Reaching the page with live read access is what opens the board for this

@@ -42,6 +42,9 @@ describe('renderLoginPage', () => {
     expect(html).not.toContain('OIDC');
     expect(html).not.toContain('1-hour session');
   });
+  it('offers a direct GitHub sign-in path to the Harbor Work Register', () => {
+    expect(html).toContain('<a href="/auth/github/login?return_to=%2Faccount%2Fregister">Harbor Work Register</a>');
+  });
   it('is script-free (ships under a no-script CSP)', () => {
     expect(html).not.toContain('<script');
   });
@@ -65,6 +68,10 @@ describe('renderLoginPage', () => {
 });
 
 describe('renderAccountPage', () => {
+  it('links to the Harbor Work Register in the visible Account navigation', () => {
+    const nav = /<nav aria-label="Account">([\s\S]*?)<\/nav>/.exec(renderAccountPage(baseUser))?.[1];
+    expect(nav).toContain('<a href="/account/register">Harbor Work Register</a>');
+  });
   it('renders the real identity from the users row', () => {
     const html = renderAccountPage(baseUser);
     expect(html).toContain('Erich Owens');

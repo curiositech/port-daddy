@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyAllMigrations, makeDb, type TestDb } from './helpers/d1-sqlite.js';
+import { handleAccountPage, handleLoginPage } from '../src/account-page.js';
+import { handleGithubLogin } from '../src/auth-github.js';
 import { handleRegisterApi, handleRegisterPage, handleRegisterPageAction } from '../src/work-register.js';
 import { base64UrlEncode, fromHex, hashHex } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
 
 const BASE = 'https://relay.example';
-const REPO = 'curiositech/port-daddy';
+const REPO = 'Synthetic-Fixture/Harbor-Demo';
+const DENIED_REPO = 'Synthetic-Fixture/Denied';
+const USER_ID = 'u_synthetic';
 const COOKIE = 'register-browser-session';
 const WRAP_KEY = 'cc'.repeat(32);
 
@@ -42,30 +46,97 @@ function formRequest(action: 'authorize' | 'revoke', fields: Record<string, stri
   });
 }
 
+function openRegister(repo?: string): Promise<Response> {
+  const url = new URL('/account/register', BASE);
+  if (repo !== undefined) url.searchParams.set('repo', repo);
+  return handleRegisterPage(new Request(url, { headers: { Cookie: `__Host-pd_session=${COOKIE}` } }), env);
+}
+
+function memberships(): unknown[] {
+  return db.raw.prepare('SELECT repo_full_name, user_id FROM work_board_members').all();
+}
+
 beforeEach(async () => {
   db = makeDb(applyAllMigrations());
   const sealed = await seal('github-token');
   const at = Math.floor(Date.now() / 1000);
   db.raw
     .prepare('INSERT INTO users (id, github_user_id, login, created_at) VALUES (?, ?, ?, ?)')
-    .run('u_erich', 1, 'erich-owens', at);
+    .run(USER_ID, 1, 'synthetic-fixture', at);
   db.raw
     .prepare(
       `INSERT INTO web_sessions
          (token_hash, user_id, gh_token_enc, gh_token_iv, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
     )
-    .run(hashHex(COOKIE), 'u_erich', sealed.enc, sealed.iv, at, at + 3600);
+    .run(hashHex(COOKIE), USER_ID, sealed.enc, sealed.iv, at, at + 3600);
   env = {
     DB: db.DB,
     KV: kv(),
     PUBLIC_BASE_URL: BASE,
     USER_TOKEN_WRAPPING_KEY: WRAP_KEY,
   } as unknown as Env;
-  vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response('{}', {
+    status: url === `https://api.github.com/repos/${REPO}`
+      || url === 'https://api.github.com/user/installations?per_page=100' ? 200 : 404,
+  })));
 });
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('choosing a Register repository', () => {
+  it('requires a browser session even for the repository chooser', async () => {
+    const response = await handleRegisterPage(new Request(`${BASE}/account/register`), env);
+    expect(response.status).toBe(302);
+    expect(response.headers.get('Location')).toBe('/login');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('renders a labeled GET form without looking up or enrolling a repository', async () => {
+    const response = await openRegister();
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('<form method="get" action="/account/register">');
+    expect(html).toContain('<label for="register-repo">GitHub owner/repository');
+    expect(html).toContain('<input id="register-repo" name="repo" required');
+    expect(html).toContain('<button type="submit">Open board</button>');
+    expect(html).not.toContain('Authorize this task');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(memberships()).toEqual([]);
+  });
+
+  it.each(['', 'owner/repository/extra', '<b>invalid</b>'])('lets malformed repository input retry (%j)', async input => {
+    const response = await openRegister(input);
+    expect(response.status).toBe(400);
+    const html = await response.text();
+    expect(html).toContain('Enter a GitHub repository as owner/repository, without the GitHub URL.');
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).toContain('<form method="get" action="/account/register">');
+    if (input) expect(html).not.toContain(input);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(memberships()).toEqual([]);
+  });
+
+  it('offers a retry after an exact repo ACL refusal, then enrolls only the allowed repo', async () => {
+    const refused = await openRegister(DENIED_REPO);
+    expect(refused.status).toBe(403);
+    const retry = await refused.text();
+    expect(retry).toContain('No access. Check the repository name');
+    expect(retry).toContain('<form method="get" action="/account/register">');
+    expect(retry).not.toContain('Authorize this task');
+    expect(retry).not.toContain(DENIED_REPO);
+    expect(memberships()).toEqual([]);
+
+    const allowed = await openRegister(REPO);
+    expect(allowed.status).toBe(200);
+    const board = await allowed.text();
+    expect(board).toContain('Authorize this task');
+    expect(board).toContain(`name="repo" value="${REPO}"`);
+    expect(memberships()).toEqual([{ repo_full_name: REPO, user_id: USER_ID }]);
+    expect(vi.mocked(fetch).mock.calls.map(([url]) => url))
+      .toEqual([`https://api.github.com/repos/${DENIED_REPO}`, `https://api.github.com/repos/${REPO}`]);
+  });
+});
 
 describe('the browser approval surface', () => {
   it('shows a one-use code once and persists only its hash', async () => {
@@ -145,68 +216,115 @@ describe('the browser approval surface', () => {
   });
 });
 
-// Opt-in browser proof uses the real server-rendered handlers, migration chain,
-// session crypto and D1 fixture. GitHub ACL is the sole mocked boundary; no
-// deployed Relay, local Port Daddy process or paid model is involved.
+// Opt-in browser proof routes every request in-process. The session is seeded
+// instead of completing GitHub OAuth, and GitHub API responses are synthetic.
 it.skipIf(!process.env.REGISTER_TASK_PROOF_DIR)(
-  'records task approval and responsive Register proof',
+  'follows the synthetic login-to-Register journey on desktop and mobile',
   async () => {
     const { chromium } = await import('playwright');
-    const { createServer } = await import('node:http');
     const directory = process.env.REGISTER_TASK_PROOF_DIR!;
-    let base = '';
-    const server = createServer(async (incoming, outgoing) => {
-      try {
-        const chunks: Buffer[] = [];
-        for await (const chunk of incoming) chunks.push(Buffer.from(chunk));
-        const headers = new Headers(incoming.headers as Record<string, string>);
-        headers.set('Cookie', `__Host-pd_session=${COOKIE}`);
-        const request = new Request(`${base}${incoming.url}`, {
-          method: incoming.method,
-          headers,
-          ...(incoming.method === 'POST' ? { body: Buffer.concat(chunks) } : {}),
-        });
-        const response = incoming.method === 'POST'
-          ? await handleRegisterPageAction(request, env)
-          : await handleRegisterPage(request, env);
-        outgoing.writeHead(response.status, Object.fromEntries(response.headers));
-        outgoing.end(await response.text());
-      } catch {
-        outgoing.writeHead(500);
-        outgoing.end('Fixture request failed');
-      }
-    });
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(0, '127.0.0.1', resolve);
-    });
-    const address = server.address() as { port: number };
-    base = `http://127.0.0.1:${address.port}`;
-    env.PUBLIC_BASE_URL = base;
     const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     try {
-      await context.route('**/*', route =>
-        new URL(route.request().url()).origin === base ? route.continue() : route.abort());
-      const page = await context.newPage();
-      await page.goto(`${base}/account/register?repo=${encodeURIComponent(REPO)}`);
-      await page.getByLabel('Task name').fill('codex:register-recovery');
-      await page.getByRole('button', { name: 'Make one-use code' }).click();
-      await expect.poll(() => page.getByText('Task approved', { exact: true }).count()).toBe(1);
-      await page.getByRole('link', { name: 'Return to the board' }).click();
-      await expect.poll(() => page.getByText('codex:register-recovery', { exact: true }).count()).toBe(1);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      await page.screenshot({ path: `${directory}/register-task-light.png`, fullPage: true });
-      await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
-      await page.screenshot({ path: `${directory}/register-task-dark.png`, fullPage: true });
-      await page.setViewportSize({ width: 390, height: 844 });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      await page.screenshot({ path: `${directory}/register-task-mobile.png`, fullPage: true });
+      for (const [size, colorScheme] of [
+        ['desktop', 'light'], ['desktop', 'dark'], ['mobile', 'light'], ['mobile', 'dark'],
+      ] as const) {
+        const variant = `${size}-${colorScheme}`;
+        const recording = variant === 'desktop-light';
+        const viewport = size === 'desktop' ? { width: 1280, height: 900 } : { width: 390, height: 844 };
+        const context = await browser.newContext({
+          viewport, colorScheme, serviceWorkers: 'block',
+          ...(recording ? { recordVideo: { dir: directory, size: viewport } } : {}),
+        });
+        const page = await context.newPage();
+        const video = page.video();
+        try {
+          await context.route('**/*', async route => {
+            const incoming = route.request();
+            const url = new URL(incoming.url());
+            if (url.origin !== BASE) return route.abort();
+            const request = new Request(url, {
+              method: incoming.method(),
+              headers: await incoming.allHeaders(),
+              body: incoming.postDataBuffer(),
+            });
+            let response: Response;
+            if (url.pathname === '/login') response = handleLoginPage();
+            else if (url.pathname === '/account') response = await handleAccountPage(request, env);
+            else if (url.pathname === '/account/register') response = await handleRegisterPage(request, env);
+            else if (url.pathname === '/account/register/authorize') response = await handleRegisterPageAction(request, env);
+            else return route.abort();
+            await route.fulfill({
+              status: response.status,
+              headers: Object.fromEntries(response.headers),
+              body: await response.text(),
+            });
+          });
+          const capture = async (step: string) => {
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+            await page.screenshot({ path: `${directory}/synthetic-${variant}-${step}.png`, fullPage: true });
+            // Hold each recorded state long enough to read it in the motion proof.
+            if (recording) await page.waitForTimeout(750);
+          };
+
+          expect((await page.goto(`${BASE}/login`))?.status()).toBe(200);
+          const link = page.getByRole('link', { name: 'Harbor Work Register' });
+          expect(await link.isVisible()).toBe(true);
+          const authUrl = new URL((await link.getAttribute('href'))!, page.url());
+          expect(authUrl.href).toBe(`${BASE}/auth/github/login?return_to=%2Faccount%2Fregister`);
+          const oauth = await handleGithubLogin(new Request(authUrl), {
+            ...env, GITHUB_OAUTH_CLIENT_ID: 'synthetic-client', GITHUB_OAUTH_CLIENT_SECRET: 'synthetic-secret',
+          });
+          expect(oauth.status).toBe(302);
+          const authorize = new URL(oauth.headers.get('Location')!);
+          expect(authorize.searchParams.get('redirect_uri')).toBe(`${BASE}/auth/github/callback`);
+          expect(authorize.searchParams.has('scope')).toBe(false);
+          const state = await env.KV.get(`oauth_state:${authorize.searchParams.get('state')}`);
+          expect(JSON.parse(state!).returnTo).toBe('/account/register');
+          if (recording) await link.focus();
+          await capture('login');
+
+          await context.addCookies([{
+            name: '__Host-pd_session', value: COOKIE, url: BASE, secure: true, httpOnly: true, sameSite: 'Lax',
+          }]);
+          expect((await page.goto(`${BASE}/account`))?.status()).toBe(200);
+          await capture('account');
+          const navLink = page.getByRole('navigation', { name: 'Account', exact: true })
+            .getByRole('link', { name: 'Harbor Work Register' });
+          await navLink.click();
+          expect(page.url()).toBe(`${BASE}/account/register`);
+          const repo = page.getByRole('textbox', { name: 'GitHub owner/repository' });
+          await page.keyboard.press('Tab');
+          expect(await repo.evaluate(element => element === document.activeElement)).toBe(true);
+          await capture('chooser');
+          await repo.pressSequentially(REPO, { delay: recording ? 50 : 0 });
+          await page.keyboard.press('Tab');
+          const open = page.getByRole('button', { name: 'Open board' });
+          expect(await open.evaluate(element => element === document.activeElement)).toBe(true);
+          const boardResponse = page.waitForResponse(response => new URL(response.url()).searchParams.get('repo') === REPO);
+          await page.keyboard.press('Enter');
+          expect((await boardResponse).status()).toBe(200);
+          await page.getByRole('heading', { name: 'Authorize this task' }).waitFor();
+          expect(memberships()).toEqual([{ repo_full_name: REPO, user_id: USER_ID }]);
+          await capture('board');
+
+          if (variant === 'mobile-dark') {
+            // Keep the synthetic pairing-code screen out of the captured media.
+            await page.getByLabel('Task name').fill('codex:synthetic-fixture');
+            await page.getByRole('button', { name: 'Make one-use code' }).click();
+            await page.getByRole('heading', { name: 'Task approved' }).waitFor();
+            await page.getByRole('link', { name: 'Return to the board' }).click();
+            await page.getByText('codex:synthetic-fixture', { exact: true }).waitFor();
+          }
+        } finally {
+          await context.close();
+        }
+        if (video) {
+          await video.saveAs(`${directory}/synthetic-register-journey.webm`);
+          await video.delete();
+        }
+      }
     } finally {
-      await context.close();
       await browser.close();
-      await new Promise<void>((resolve, reject) =>
-        server.close(error => error ? reject(error) : resolve()));
     }
   },
   30_000,
