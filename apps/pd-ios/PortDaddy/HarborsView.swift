@@ -35,56 +35,50 @@ public struct HarborsView: View {
         }
     }
 
+    private var isSample: Bool {
+        if case .fixture = harbors.provenance { return true }
+        return false
+    }
+
     public var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: PD.Space.l) {
-                    if let provenance = harbors.provenance {
+            content.navigationTitle("Harbors")
+        }
+    }
+
+    var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: PD.Space.l) {
+                switch harbors {
+                case .unknown(let reason):
+                    UnknownNotice(title: "Harbors unavailable", reason: reason)
+                case .loaded(let fixture, let provenance):
+                    if !isSample {
                         ProvenanceBar(provenance)
                     }
-                    ProvenanceBar(.unbuilt(what: "the relay serves no reachability verdict; these are derived on-device from presence"))
 
-                    switch harbors {
-                    case .unknown(let reason):
-                        // Even here the law holds: this is "we could not read
-                        // your harbors", not "you have none".
-                        UnknownNotice(title: "Harbors could not be read", reason: reason)
-                    case .loaded(let fixture, _):
-                        if fixture.entries.isEmpty {
-                            EmptyStateView(
-                                systemImage: "sailboat",
-                                title: "No harbors",
-                                message: "This account belongs to no harbors yet."
-                            )
-                        } else {
-                            VStack(spacing: PD.Space.m) {
-                                ForEach(fixture.entries, id: \.harbor.id) { entry in
-                                    NavigationLink(value: entry.harbor) {
-                                        HarborRow(entry: entry)
-                                    }
-                                    .buttonStyle(.plain)
+                    if fixture.entries.isEmpty {
+                        Text("No harbors in this view.")
+                            .font(PDFont.body)
+                    } else {
+                        VStack(spacing: PD.Space.m) {
+                            ForEach(fixture.entries, id: \.harbor.id) { entry in
+                                NavigationLink {
+                                    HarborDetailView(entry: entry, provenance: provenance)
+                                } label: {
+                                    HarborRow(entry: entry)
                                 }
-                            }
-                            .navigationDestination(for: Harbor.self) { harbor in
-                                if let entry = fixture.entries.first(where: { $0.harbor.id == harbor.id }) {
-                                    HarborDetailView(entry: entry)
-                                } else {
-                                    UnknownNotice(
-                                        title: "No such harbor",
-                                        reason: "The relay answers the same 404 for a harbor that does not exist and one you are not a member of. This surface does not guess which."
-                                    )
-                                    .padding(PD.Space.l)
-                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier(entry.reachability.isCached ? "relay.harbor.stale" : "relay.harbor.\(entry.harbor.id)")
                             }
                         }
                     }
                 }
-                .padding(PD.Space.l)
             }
-            .scrollContentBackground(.hidden)
-            .background(PD.Chrome.base)
-            .navigationTitle("Harbors")
+            .padding(PD.Space.l)
         }
+        .relaySampleBanner(isSample)
+        .background(PD.Chrome.base)
     }
 }
 
@@ -97,18 +91,25 @@ public struct ReachabilityChip: View {
         self.now = now
     }
 
+    private var caption: String {
+        let observation = reading.caption(now: now)
+        return reading.isCached ? "Stale · \(observation)" : observation
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: PD.Space.xs) {
             SignalChip(state: reading.verdict.coordinationState, text: reading.verdict.rawValue)
-            Text(reading.caption(now: now))
+            Text(caption)
                 .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.tertiaryText)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(reading.verdict.rawValue). \(caption). Signal flag \(MaritimeSignals.phonetic(for: reading.verdict.coordinationState)).")
     }
 }
 
 public struct HarborRow: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let entry: HarborFixtureEntry
 
     public init(entry: HarborFixtureEntry) {
@@ -116,10 +117,14 @@ public struct HarborRow: View {
     }
 
     public var body: some View {
-        HStack(alignment: .top, spacing: PD.Space.m) {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: PD.Space.m))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: PD.Space.m))
+        layout {
             VStack(alignment: .leading, spacing: PD.Space.xs) {
                 Text(entry.harbor.slug)
                     .font(PDFont.body.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(entry.harbor.role)
                     .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.secondaryText)
@@ -131,77 +136,67 @@ public struct HarborRow: View {
         .frame(minHeight: PD.minimumTapTarget)
         .padding(PD.Space.m)
         .background(RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous).fill(PD.Chrome.cardRaised))
+        .accessibilityElement(children: .combine)
     }
 }
 
 public struct HarborDetailView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let entry: HarborFixtureEntry
+    let provenance: Provenance
 
-    public init(entry: HarborFixtureEntry) {
+    public init(entry: HarborFixtureEntry, provenance: Provenance = .fixture(name: "harbors.fixture.json")) {
         self.entry = entry
+        self.provenance = provenance
     }
 
     private var reading: ReachabilityReading { entry.reachability }
+    private var isSample: Bool {
+        if case .fixture = provenance { return true }
+        return false
+    }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: PD.Space.l) {
+                if !isSample {
+                    ProvenanceBar(provenance)
+                }
                 SectionCard(title: "Reachability", subtitle: reading.verdict.explanation) {
-                    VStack(alignment: .leading, spacing: PD.Space.m) {
-                        ReachabilityChip(reading: reading)
-
-                        // The per-capability gate. Note what is NOT here: the
-                        // page is not blocked, the member list is not hidden,
-                        // and nothing about `unknown` disables anything.
-                        remoteControlAvailability
-                    }
+                    ReachabilityChip(reading: reading)
+                        .accessibilityIdentifier("relay.reachability-reading")
                 }
 
                 SectionCard(title: "Members", subtitle: "\(entry.daemonMemberCount) daemon members") {
                     VStack(alignment: .leading, spacing: PD.Space.s) {
                         ForEach(entry.members, id: \.member) { member in
-                            HStack(spacing: PD.Space.s) {
-                                Image(systemName: member.isDaemon ? "desktopcomputer" : "person")
-                                    .foregroundStyle(PD.Chrome.secondaryText)
-                                Text(member.member)
-                                    .font(PDFont.body)
-                                Spacer(minLength: 0)
-                                Text(member.role)
-                                    .font(PDFont.subheadline)
-                                    .foregroundStyle(PD.Chrome.tertiaryText)
-                            }
-                            .frame(minHeight: PD.minimumTapTarget)
+                            memberRow(member)
                         }
                     }
                 }
             }
             .padding(PD.Space.l)
         }
+        .relaySampleBanner(isSample)
+        .background(PD.Chrome.base)
         .navigationTitle(entry.harbor.name)
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    @ViewBuilder
-    private var remoteControlAvailability: some View {
-        if reading.verdict.gatesRemoteCapability {
-            VStack(alignment: .leading, spacing: PD.Space.xs) {
-                SignalChip(state: .blocked, text: "remote control unavailable")
-                Text("No daemon in this harbor is heartbeating, so a control command has nowhere to be delivered. Everything else on this screen still works.")
-                    .font(PDFont.subheadline)
-                    .foregroundStyle(PD.Chrome.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        } else if reading.verdict == .unknown {
-            Text("Reachability is unknown, which is not the same as unreachable. Controls stay available; a command issued now may still be queued and acknowledged.")
+    private func memberRow(_ member: HarborMember) -> some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: PD.Space.xs))
+            : AnyLayout(HStackLayout(spacing: PD.Space.s))
+        return layout {
+            Label(member.member, systemImage: member.isDaemon ? "desktopcomputer" : "person")
+                .font(PDFont.body)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+            Text(member.role)
                 .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        } else if reading.verdict == .degraded {
-            Text("Some daemons are down. Commands aimed at a body on a live daemon still work; the rest will fail with a recorded reason rather than silently.")
-                .font(PDFont.subheadline)
-                .foregroundStyle(PD.Chrome.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
         }
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
     }
 }
 

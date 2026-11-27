@@ -8,16 +8,11 @@ import Foundation
 // read and no convention to extrapolate from. If a path is not below, the
 // relay does not serve it.
 //
-// AUTH: `Authorization: Bearer pdu_...`. resolveUserFromRequest (device-flow.ts)
-// takes a `pdu_` bearer first and falls back to the session cookie; a native
-// client has no cookie, so the bearer is the only credential here. The token
-// is minted by the device flow: POST /auth/device/start, then poll
-// POST /auth/device/token. `RelayRoute.deviceStart`/`.deviceToken` name those
-// paths, but THIS client deliberately implements no methods that call them —
-// initiating and polling the device flow is the iOS pairing surface's job
-// (WS-D slice D2: QR + 4-digit, WebAuthn device card), not this scaffold's.
-// D1 ships with no pairing UI at all, so there is nothing yet that would call
-// them; the constants exist so D2 does not have to rediscover these paths.
+// AUTH: The existing Relay read routes accept a pdu_ personal access token
+// or a browser session. The device flow issues unscoped account authority,
+// not the read-only phone credential this beta would need. This transport
+// remains fixture-tested but is not constructed by the beta's app entry.
+// There is no enrollment, cookie import, or token persistence in the beta.
 //
 // ── WHAT THIS CLIENT DOES NOT DO YET ─────────────────────────────────────────
 //
@@ -50,18 +45,16 @@ import Foundation
 //      deliberately has no answer method; see Interruptions.swift's header.
 //      InterruptionHandoff builds the web destination instead.
 //
-// APNs device registration (POST /v1/push/apns/devices) is real but ships in
-// the relay's push module, which is not on this branch yet. The method is
-// present and annotated, because the app cannot register for pushes it cannot
-// deliver, and a 404 from it means the relay half has not deployed.
-
-public struct RelayCredential: Equatable, Sendable {
-    /// A `pdu_`-prefixed bearer token from the device flow.
+public struct RelayCredential: Equatable, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
+    /// A pdu_ account bearer, not proof of a read-only device grant.
     public let token: String
 
     public init(token: String) {
         self.token = token
     }
+
+    public var description: String { "RelayCredential(redacted)" }
+    public var debugDescription: String { description }
 
     public var looksWellFormed: Bool {
         // Match readBearer in apps/relay/src/device-flow.ts, including its
@@ -76,12 +69,8 @@ public struct RelayCredential: Equatable, Sendable {
 
 /// Where the bearer token lives.
 ///
-/// Deliberately a protocol with an in-memory default and nothing else. A
-/// device token is control authority over an operator's fleet; it belongs in
-/// the Keychain with a real accessibility class, and writing a UserDefaults
-/// implementation here would leave a convincing insecure default for someone
-/// to ship. The Keychain-backed store lands with pairing (ADR-0125 §3), which
-/// mints the device membership record this token would attach to.
+/// In-memory fixtures only in this beta. Keychain custody protects a token at
+/// rest; it cannot narrow the authority Relay grants to that token.
 public protocol RelayTokenStore: AnyObject {
     var credential: RelayCredential? { get set }
 }
@@ -124,10 +113,17 @@ public enum RelayError: Error, Equatable, CustomStringConvertible {
     }
 }
 
-/// Envelope every relay JSON route wraps its payload in.
-private struct RelayEnvelope: Decodable {
-    let code: String?
-    let error: String?
+/// The server's free-form error text is not a display or logging contract.
+/// Recognize named codes for these reads and discard the rest of the body.
+private enum RelayFailureCode: String, Decodable {
+    case badRequest = "BAD_REQUEST"
+    case crossOrigin = "CROSS_ORIGIN"
+    case forbidden = "FORBIDDEN"
+    case notFound = "NOT_FOUND"
+}
+
+private struct RelayFailureEnvelope: Decodable {
+    let code: RelayFailureCode
 }
 
 /// The real routes, as string constants, so the tests can pin them and a
@@ -151,9 +147,7 @@ public enum RelayRoute {
 
     /// Session-gated HTML surface the app deep-links to for answer/ack.
     public static let accountInterruptions = "/account/interruptions"
-
-    /// Ships with the relay's push module.
-    public static let apnsDevices = "/v1/push/apns/devices"
+    public static let accountHarbors = "/account/harbors"
 
     /// The RFC 3986 path grammar is `path = *( pchar / "/" )`, so `/` is a MEMBER
     /// of `.urlPathAllowed` — encoding a path COMPONENT with that set leaves a
@@ -256,7 +250,7 @@ public struct RelayClient {
 
     // Named makeRequest, not request: `let request = try request(...)` at a
     // call site would shadow the method with the variable being declared.
-    func makeRequest(path: String, query: [URLQueryItem] = [], method: String = "GET") throws -> URLRequest {
+    func makeRequest(path: String, query: [URLQueryItem] = []) throws -> URLRequest {
         var components = try trustedOrigin()
         // percentEncodedPath, NOT path: the `path` setter takes a DECODED value and
         // re-encodes it, which turns the `%2F` that `RelayRoute.encode` just wrote
@@ -274,10 +268,10 @@ public struct RelayClient {
         var request = URLRequest(url: url)
         request.httpShouldHandleCookies = false
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.httpMethod = method
+        request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         guard let credential = tokenStore.credential, credential.looksWellFormed else {
-            throw RelayError.unauthenticated("no device token — pair this phone first")
+            throw RelayError.unauthenticated("no valid Relay credential is available")
         }
         request.setValue("Bearer \(credential.token)", forHTTPHeaderField: "Authorization")
         // No Origin header is set on purpose. isSameOrigin() treats a request
@@ -289,6 +283,9 @@ public struct RelayClient {
     }
 
     func send<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
+        guard request.httpMethod == "GET", request.httpBody == nil, request.httpBodyStream == nil else {
+            throw RelayError.transport("only bodyless Relay reads are supported")
+        }
         let origin = try trustedOrigin()
         guard let url = request.url,
               let destination = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -303,22 +300,30 @@ public struct RelayClient {
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: request, delegate: RelayRedirectRefusal())
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
         } catch {
-            throw RelayError.transport(error.localizedDescription)
+            throw RelayError.transport("the request did not complete")
         }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status < 200 || status >= 300 {
-            let envelope = try? decoder.decode(RelayEnvelope.self, from: data)
-            let code = envelope?.code ?? "HTTP_\(status)"
-            let message = envelope?.error ?? "the relay returned \(status)"
-            if status == 401 { throw RelayError.unauthenticated(message) }
-            if code == "CROSS_ORIGIN" { throw RelayError.crossOriginRefused(message) }
-            throw RelayError.http(status: status, code: code, message: message)
+            if status == 401 {
+                throw RelayError.unauthenticated("the relay did not accept this credential")
+            }
+            let code = (try? decoder.decode(RelayFailureEnvelope.self, from: data))?.code
+            if code == .crossOrigin {
+                throw RelayError.crossOriginRefused("the relay refused the request origin")
+            }
+            throw RelayError.http(
+                status: status, code: code?.rawValue ?? "HTTP_\(status)", message: "the relay returned \(status)"
+            )
         }
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw RelayError.decoding(String(describing: error))
+            throw RelayError.decoding("the response did not match the requested Relay data")
         }
     }
 
@@ -382,25 +387,6 @@ public struct RelayClient {
         )
     }
 
-    // MARK: - Push registration
-
-    /// POST /v1/push/apns/devices — registers this device's APNs token.
-    ///
-    /// The route is real but ships in the relay's push module, which is not on
-    /// this branch. Until it deploys, this returns a 404 through
-    /// `RelayError.http`, which is the honest answer: the app cannot register
-    /// for a delivery channel that is not listening.
-    public func registerPushDevice(deviceToken: String, deviceID: String) async throws {
-        var request = try makeRequest(path: RelayRoute.apnsDevices, method: "POST")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: String] = [
-            "device_token": deviceToken.lowercased(),
-            "device_id": deviceID,
-            "platform": "ios",
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        _ = try await send(request, as: RelayEnvelope.self)
-    }
 }
 
 /// A harbor member as `memberJson` returns it. `member` is a login for users

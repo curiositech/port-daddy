@@ -32,7 +32,17 @@ public struct InterruptionsView: View {
 
     /// The production relay origin. Kept here as a constant rather than
     /// scattered through the file so a staging build overrides one value.
-    public static let defaultRelayBaseURL = URL(string: "https://relay.portdaddy.dev")!
+    public static let defaultRelayBaseURL = RelayBrowserDestination.origin
+
+    private var isSample: Bool {
+        if case .fixture = inbox.provenance { return true }
+        return false
+    }
+
+    private var isLive: Bool {
+        if case .live = inbox.provenance { return true }
+        return false
+    }
 
     private var items: [OperatorInterruption] {
         InterruptionInbox.inContractOrder(inbox.value?.interruptions ?? [])
@@ -48,51 +58,56 @@ public struct InterruptionsView: View {
 
     public var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: PD.Space.l) {
-                    if let provenance = inbox.provenance {
-                        ProvenanceBar(provenance)
-                    }
-
-                    switch inbox {
-                    case .unknown(let reason):
-                        UnknownNotice(
-                            title: "Open asks are unknown",
-                            reason: "\(reason)\n\nThis is not 'no asks'. Until a poll succeeds this surface does not know whether anything is waiting on you."
-                        )
-                    case .loaded:
-                        loadedContent
-                    }
-                }
-                .padding(PD.Space.l)
-            }
-            .scrollContentBackground(.hidden)
-            .background(PD.Chrome.base)
-            .navigationTitle("Asks")
+            content.navigationTitle("Asks")
         }
+    }
+
+    var content: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: PD.Space.l) {
+                if !isSample, let provenance = inbox.provenance {
+                    ProvenanceBar(provenance)
+                }
+
+                switch inbox {
+                case .unknown(let reason):
+                    UnknownNotice(title: "Inbox unavailable", reason: reason)
+                case .loaded:
+                    loadedContent
+                }
+            }
+            .padding(PD.Space.l)
+        }
+        .relaySampleBanner(isSample)
+        .background(PD.Chrome.base)
     }
 
     @ViewBuilder
     private var loadedContent: some View {
-        if let critical = InterruptionInbox.blockingCritical(openItems) {
+        if !isSample, let critical = InterruptionInbox.blockingCritical(openItems) {
             criticalBlockBanner(critical)
         }
 
         SectionCard(
             title: "Open",
-            subtitle: openItems.isEmpty ? nil : "\(openItems.count) waiting on you"
+            subtitle: openItems.isEmpty || !isLive ? nil : "\(openItems.count) waiting on you"
         ) {
             if openItems.isEmpty {
-                // Earned: a successful read that returned nothing open.
-                EmptyStateView(
-                    systemImage: "checkmark.circle",
-                    title: "Nothing waiting on you",
-                    message: "The last poll succeeded and returned no open asks."
-                )
+                if isLive {
+                    EmptyStateView(
+                        systemImage: "checkmark.circle",
+                        title: "No open interruptions",
+                        message: "Nothing was waiting at the last successful read."
+                    )
+                } else {
+                    Text(isSample ? "No open interruptions in this sample." : "Current interruptions are unknown.")
+                        .font(PDFont.body)
+                }
             } else {
                 VStack(spacing: PD.Space.m) {
                     ForEach(openItems) { item in
-                        InterruptionRow(item: item, relayBaseURL: relayBaseURL)
+                        InterruptionRow(item: item, relayBaseURL: relayBaseURL, allowsHandoff: isLive)
+                            .accessibilityIdentifier("relay.sample-ask.\(item.urgency.rawValue)")
                     }
                 }
             }
@@ -112,17 +127,16 @@ public struct InterruptionsView: View {
     @ViewBuilder
     private func criticalBlockBanner(_ ask: OperatorInterruption) -> some View {
         VStack(alignment: .leading, spacing: PD.Space.s) {
-            SignalChip(state: .mayday, text: "dependent work blocked")
+            SignalChip(state: .mayday, text: isLive ? "Dependent work blocked" : "Last known critical ask")
             Text(ask.title)
                 .font(PDFont.body.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
-            // Contract point 3: the ask's title IS the stated reason. A
-            // control disabled without naming the ask that disabled it is a
-            // dead end for the operator.
-            Text("While this critical ask is open, dependent work stays blocked.")
-                .font(PDFont.subheadline)
-                .foregroundStyle(PD.Chrome.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            if isLive {
+                Text("While this critical ask is open, dependent work stays blocked.")
+                    .font(PDFont.subheadline)
+                    .foregroundStyle(PD.Chrome.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(PD.Space.l)
@@ -132,12 +146,15 @@ public struct InterruptionsView: View {
 }
 
 public struct InterruptionRow: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let item: OperatorInterruption
     let relayBaseURL: URL
+    let allowsHandoff: Bool
 
-    public init(item: OperatorInterruption, relayBaseURL: URL) {
+    public init(item: OperatorInterruption, relayBaseURL: URL, allowsHandoff: Bool = false) {
         self.item = item
         self.relayBaseURL = relayBaseURL
+        self.allowsHandoff = allowsHandoff
     }
 
     private var handoff: InterruptionHandoff {
@@ -145,15 +162,19 @@ public struct InterruptionRow: View {
     }
 
     public var body: some View {
+        let metadata = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: PD.Space.s))
+            : AnyLayout(HStackLayout(spacing: PD.Space.s))
+
         VStack(alignment: .leading, spacing: PD.Space.s) {
-            HStack(spacing: PD.Space.s) {
+            metadata {
                 SignalChip(state: item.urgency.coordinationState, text: item.urgency.rawValue)
                 if item.state.isClosed {
                     Text(item.state.label)
-                        .font(PDFont.caption.weight(.semibold))
+                        .font(PDFont.subheadline.weight(.semibold))
                         .foregroundStyle(PD.Chrome.tertiaryText)
                 }
-                Spacer(minLength: 0)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
                 Text(RelativeAge.short(item.age()))
                     .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
@@ -188,7 +209,7 @@ public struct InterruptionRow: View {
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
 
-            if item.state == .open {
+            if item.state == .open && allowsHandoff {
                 answerAction
             }
         }

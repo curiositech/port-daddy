@@ -15,26 +15,28 @@ import CoreText
 // default text-style metrics and scale with Dynamic Type via `relativeTo:`, so
 // the 14pt floor and large-type accessibility both hold.
 
+@MainActor
 public enum PDFonts {
-    // Idempotent one-time guard. Registration is only triggered from the
-    // main-actor root init, and CTFontManager registration is itself
-    // thread-safe, so the unchecked annotation is sound here.
-    nonisolated(unsafe) private static var registered = false
+    private static var registered = false
+    private static var configuredNavigationChrome = false
 
-    /// Register the bundled faces and stamp the nav-bar chrome. Idempotent;
-    /// call from the root before the first view renders.
-    public static func registerIfNeeded() {
-        guard !registered else { return }
-        registered = true
-
-        var urls = Set<URL>()
-        urls.formUnion(Bundle.module.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [])
-        urls.formUnion(Bundle.module.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts") ?? [])
-        for url in urls {
-            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+    /// Register the bundled faces. The Relay beta leaves navigation title
+    /// metrics to the system so the bar follows Dynamic Type.
+    public static func registerIfNeeded(applyNavigationChrome: Bool = true) {
+        if !registered {
+            registered = true
+            var urls = Set<URL>()
+            urls.formUnion(Bundle.module.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [])
+            urls.formUnion(Bundle.module.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts") ?? [])
+            for url in urls {
+                CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+            }
         }
 
-        applyNavBarChrome()
+        if applyNavigationChrome && !configuredNavigationChrome {
+            configuredNavigationChrome = true
+            applyNavBarChrome()
+        }
     }
 
     /// The large and inline navigation titles are UIKit-drawn, so they need a

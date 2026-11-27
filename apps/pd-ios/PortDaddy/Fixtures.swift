@@ -112,11 +112,17 @@ public struct HarborFixtureEntry: Codable, Sendable {
     public let harbor: Harbor
     public let members: [HarborMember]
     public let presence: PresenceSnapshot?
+    /// A simulated age for a cached observation in sample data, never a TTL or
+    /// a marker that this device has ever fetched a live reading.
+    public let cachedSampleAgeSeconds: Double?
 
     public var daemonMemberCount: Int { members.filter(\.isDaemon).count }
 
     public var reachability: ReachabilityReading {
-        Reachability.derive(totalDaemonMembers: daemonMemberCount, presence: presence)
+        let now = Date()
+        let observedAt = now.addingTimeInterval(-max(0, cachedSampleAgeSeconds ?? 0))
+        let reading = Reachability.derive(totalDaemonMembers: daemonMemberCount, presence: presence, now: observedAt)
+        return cachedSampleAgeSeconds != nil && presence != nil ? .cached(from: reading) : reading
     }
 }
 

@@ -23,7 +23,7 @@ final class RelayClientTests: XCTestCase {
         XCTAssertEqual(RelayRoute.harbors, "/v1/harbors")
         XCTAssertEqual(RelayRoute.interruptions, "/v1/interruptions")
         XCTAssertEqual(RelayRoute.accountInterruptions, "/account/interruptions")
-        XCTAssertEqual(RelayRoute.apnsDevices, "/v1/push/apns/devices")
+        XCTAssertEqual(RelayRoute.accountHarbors, "/account/harbors")
     }
 
     func testHarborRoutesAreBuiltFromNamespaceAndName() {
@@ -121,6 +121,12 @@ final class RelayClientTests: XCTestCase {
         XCTAssertTrue(RelayCredential(token: "pdu_" + String(repeating: "a", count: 64)).looksWellFormed)
         XCTAssertFalse(RelayCredential(token: "ghp_abcdefghij").looksWellFormed, "only pdu_ tokens are relay device tokens")
         XCTAssertFalse(RelayCredential(token: "pdu_").looksWellFormed)
+    }
+
+    func testCredentialIsRedactedWhenFormatted() {
+        let credential = RelayCredential(token: "pdu_" + String(repeating: "a", count: 64))
+        XCTAssertFalse(String(describing: credential).contains(credential.token))
+        XCTAssertFalse(String(reflecting: credential).contains(credential.token))
     }
 
     // MARK: - Unbuilt server pieces / not-yet-wired client pieces

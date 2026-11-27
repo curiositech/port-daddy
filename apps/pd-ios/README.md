@@ -1,160 +1,87 @@
-# Port Daddy iOS — the operator surface
+# Port Daddy iOS: Relay preview
 
-Slice D1 of ADR-0125: a native SwiftUI, HITL-first operator app. It renders
-what the daemon and relay own, and it holds no runtime state of its own.
+The native SwiftUI app has two ways to look around. Open **Interruptions** or
+**Harbors** in your browser to see your account, or choose **Explore sample
+data** to try the native inbox and harbor views without signing in. The samples
+are labeled in the list and detail views. A stale harbor observation is not a
+current reading, an unknown reading does not mean unreachable, and an expired
+sample interruption has no answer action.
 
-## What this is, and what it is not
+This preview is not the full [ADR-0125 operator surface](../../docs/adr/0125-ios-operator-surface.md).
+It does not sign in, poll, register for push, show live transcripts, or send
+commands. The existing roadmap and other design fixtures stay in the package
+for development, but they are not reachable from the preview’s app entry.
 
-**Is:** the human-in-the-loop surface. Roadmap home, harbors with reachability
-verdicts, the interruptions inbox, and an honest control-verb matrix.
+## Authority boundary
 
-**Is not:** a fleet manager. Intent composition, fleet spawning, budget
-management, and any editing are deferred by the ADR — deferred, not denied.
-Each returns through its own surface-authority decision rather than by
-accretion.
+The browser destinations are fixed HTTPS pages on `relay.portdaddy.dev`:
+`/account/interruptions` and `/account/harbors`. Relay handles sign-in in the
+browser; the app does not pass credentials, record IDs, or callback state in
+the URL. If Relay redirects to sign-in, use the requested account page again
+after signing in. Answering an interruption remains a browser-session action.
 
-## Credential transport boundary
+The JSON read routes accept browser sessions or a `pdu_` **account bearer**
+([`device-flow.ts`](../relay/src/device-flow.ts), an access token that grants
+account authority to whoever holds it). The existing device exchange mints a
+token without an expiry or a read-only scope. The same resolver is used for
+writes such as creating a harbor ([`harbors.ts`](../relay/src/harbors.ts)).
+Restricting client code to `GET` does not narrow the token's server-side
+authority. Nothing in the app initiates that exchange, accepts a pasted
+token, imports a cookie, or stores a credential.
 
-The caller must explicitly trust the configured Relay origin before constructing
-`RelayClient`; HTTPS syntax validation is not endpoint enrollment or certificate
-pinning. Self-hosted HTTPS origins and explicit ports are supported. The client
-rejects HTTP, URL user information, non-root base paths, query/fragment suffixes,
-and invalid ports before reading credentials. Device tokens must match the
-Relay's `pdu_` plus 64 hexadecimal character grammar before transport.
+The existing typed client is retained and exercised with intercepted fixture
+responses. It allows bodyless reads, refuses redirects, and uses no cookie,
+credential, or response cache. Errors do not repeat server response text or
+raw transport diagnostics. The app entry does not construct the client.
+Before enabling native reads, Relay must issue an expiring, revocable phone
+grant scoped to the intended read endpoints, with negative tests at mutation
+endpoints and a supported enrollment path. That is a separate Relay contract
+change. Keychain custody cannot replace it. The existing transport also needs
+bounded response accumulation before it handles untrusted data in the app.
 
-Every task refuses redirects, including same-origin redirects and test-injected
-transports. Public construction always uses an ephemeral session without cookie,
-credential, or cache stores, with 15-second request and 30-second resource
-timeouts. Tests use URLProtocol stubs and a simulated redirect-delegate handoff,
-not a live Relay or wire-level TLS/redirect proof. The redirect handoff regression
-fails when its delegate is removed. Response-body accumulation is not yet
-byte-bounded; that is a release blocker before reusing this client for large or
-untrusted media payloads, not a guarantee provided by the timeouts.
-These checks do not implement pairing, Keychain storage, issuer-bound credentials,
-Porthole media encryption, or control authorization. The UI remains fixture-backed.
-See the [cooperative native loop delivery checklist](../../docs/design/porthole-cooperative-native-loop.md).
+## Build and evidence
 
-## Layout
+`project.yml` defines the existing `ai.portdaddy.PortDaddy` app; it generates
+an untracked Xcode project with XcodeGen. `Package.swift` defines `PortDaddyKit`
+and its Swift tests. The test scheme does not own the app entry when built
+through Swift Package Manager, so a package build alone is not app proof.
+The icon in the app catalog is the opaque 1024 px raster of
+[the source anchor](Design/RelayAnchor.svg). No Apple team or export credential
+is configured in the project.
 
-```
-apps/pd-ios/
-  Package.swift                  SwiftPM, mirroring apps/FleetBar/Package.swift
-  PortDaddy-Info.plist           bundle metadata for the future Xcode app target
-  App/PortDaddyApp.swift         the @main entry — NOT compiled by SwiftPM
-  PortDaddy/                     the PortDaddyKit library target (all the logic)
-    Resources/                   fixtures, two of them generated
-  Tests/PortDaddyKitTests/       XCTest
-  scripts/                       CI helper
-```
+- For an unsigned device archive, stage a copy of the app and its adjacent
+  `PortholeMediaKit` dependency in the linked worktree's scratch directory.
+  Generate from `project.yml` in that copy, then archive the `PortDaddy` scheme
+  for `generic/platform=iOS` with signing disabled and scratch-local derived
+  data. An unsigned `.xcarchive` is not a TestFlight binary.
+- The existing CI job builds and tests `PortDaddyKit`. The separate hosted
+  capture job invokes [the app’s fixture harness](scripts/capture-screenshots.sh).
+  It checks the disconnected launch, sample inbox, expiration, harbor list
+  and stale reading at standard and largest accessibility text sizes in
+  light and dark mode. It never opens the live pages. Compile-only results
+  do not satisfy the rendered evidence gate. Do not launch the app locally
+  while the operator halt is in effect.
+- Maritime signals, the control contract and the interruption wire-shape
+  fixtures are generated. `npm run fixtures:pd-ios:check` checks their
+  parity without rewriting any of them.
 
-`swift build` cannot target iOS, so the compiled artifact is a **library**
-target and the compile proof is `xcodebuild` against an iOS Simulator
-destination. That is the one structural difference from FleetBar, and it is why
-the `@main` App struct sits outside the package: SwiftPM cannot produce an iOS
-`.app` bundle, and six lines of shim that CI does not compile is a smaller lie
-than a target that pretends it can.
+## Private TestFlight gate
 
-## Building
+Before any upload, require independent review of the exact source, accepted
+native visual evidence, and a readback of the dedicated `ai.portdaddy.PortDaddy`
+record on the Curiositech LLC team named by ADR-0125. Verify distribution signing
+and the next version/build against that record, not the local placeholders.
+Developer ID signing used by the Mac apps is not iOS distribution signing.
+[Apple upload requirements](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/)
+and [cloud-managed signing](https://developer.apple.com/help/account/certificates/cloud-managed-certificates/)
+describe separate checks. This preview is not evidence that the ADR’s pairing,
+revocation, command, push, or delivery gates pass.
 
-There is no Xcode project. Open `apps/pd-ios/Package.swift` in Xcode, or:
-
-```sh
-cd apps/pd-ios
-xcodebuild build -scheme PortDaddyKit -destination 'generic/platform=iOS Simulator'
-xcodebuild test  -scheme PortDaddyKit -destination 'platform=iOS Simulator,name=iPhone 16'
-```
-
-CI runs the same two commands against a simulator it resolves at runtime — see
-the `pd-ios` job in `.github/workflows/ci.yml`.
-
-## Running the real app + screenshots
-
-The `pd-ios` gate above proves `PortDaddyKit` compiles and its XCTests pass. It
-does **not** render the UI or compile `App/PortDaddyApp.swift` (the `@main`
-shim) — SwiftPM cannot emit an iOS `.app`. To actually boot the app in a
-simulator and capture what it draws:
-
-```sh
-brew install xcodegen        # one-time
-apps/pd-ios/scripts/capture-screenshots.sh
-open apps/pd-ios/pd-ios-screenshots   # 01-roadmap … 04-controls
-```
-
-The script assembles a runnable app target **ephemerally** with XcodeGen (spec:
-`project.yml`), links `PortDaddyKit`, drives all four `RootTab` cases through an
-XCUITest (`UITests/ScreenshotTests.swift`), and exports one PNG per tab. The
-generated `PortDaddy.xcodeproj` is git-ignored — the checked-in contract stays
-"no `.xcodeproj`, no XcodeGen output committed"; only the spec is tracked. The
-run is deterministic and offline: `RootView` is fixture-backed by default, so a
-cold launch renders real content with no network, pairing, or auth.
-
-To open it interactively instead: `cd apps/pd-ios && xcodegen generate && open
-PortDaddy.xcodeproj`, then Run the `PortDaddy` scheme on any iPhone simulator.
-
-## Generated fixtures — the drift gates
-
-Two files in `PortDaddy/Resources/` are generated and must not be hand-edited:
-
-| fixture | canonical source |
-| --- | --- |
-| `maritime-signals.fixture.json` | `lib/maritime-signals.ts` |
-| `control-contract.fixture.json` | `skills/agent-control-command-contract/examples/sample-input.json` |
-
-```sh
-npm run fixtures:pd-ios          # regenerate
-npm run fixtures:pd-ios:check    # verify (this is what CI runs)
-```
-
-`MaritimeSignals.swift` and `ControlVerbs.swift` are hand-written ports of those
-sources. The fixtures freeze the canonical answers; the XCTest suite asserts the
-Swift reproduces them. Edit the TypeScript without regenerating and the CI check
-fails; regenerate without updating the Swift and the tests fail. Neither side
-moves alone.
-
-## Honesty rules this app implements
-
-These are not style preferences. Each one exists because the alternative
-misleads an operator who is about to act.
-
-- **Never a fake LIVE.** A roadmap item's LIVE chip requires a dispatch, a
-  timestamp, and a timestamp inside the projection's own freshness window.
-  Anything else renders STALE or NO EVIDENCE, next to the projection's own
-  sentence about what it knows.
-- **`unknown` is not `impossible`.** A harbor whose presence read failed looks
-  different from a harbor whose daemons are all down. Only `impossible` gates a
-  capability, and only the capability that needs a live body.
-- **Never "all clear".** Before the first successful interruptions poll, and
-  after any failed one, the inbox is `unknown` and carries no badge. A zero
-  badge is a claim; an unread inbox has not earned it.
-- **Unsupported verbs stay on screen.** `pause` and `fork` are unsupported on
-  remote bodies. They render visible, disabled, and labelled with the reason,
-  never hidden and never silently substituted by `kill`.
-- **Fixture data says so.** Every screen driven by a fixture shows a provenance
-  bar naming it. There is no unlabelled path.
-
-## Known gaps
-
-| gap | state |
-| --- | --- |
-| Roadmap projection endpoint | The relay's route is real (`GET /roadmap/projection`, #9223) — this client just doesn't call it yet. D1 has no live network wiring for any tab; `RelayClient.fetchRoadmapProjection()` throws `.serverSideUnbuilt`, and the home screen runs on a fixture and says so. |
-| Reachability verdict endpoint | Deferred to v2+ by the relay's own harbors module. Verdicts are derived on-device from `GET /v1/harbors/:ns/:name/presence` and labelled as derived. |
-| Answer / ack from the app | Not possible, by design. The relay's `closeInterruption` requires a signed-in session and a same-origin check; a device bearer token cannot close an ask. The app deep-links to `/account/interruptions`. |
-| Pairing (ADR-0125 §3) | Not built. No control can be issued. The Keychain-backed token store lands with it. |
-| APNs registration | The route exists in the relay's push module; until that deploys, registration returns 404. |
-| TestFlight / App Store lane | **Not built, and blocked on credentials that do not exist.** See below. |
-
-## The distribution gap
-
-This repo's five `APPLE_*` secrets are a **macOS Developer ID + notarization**
-pair — the Gatekeeper path for FleetBar and pd-console. They do not cover iOS.
-Shipping this app to a device or to TestFlight needs, additionally:
-
-- an **Apple Distribution** certificate (not Developer ID),
-- an iOS **provisioning profile** for `ai.portdaddy.PortDaddy`,
-- App Store Connect app record + API key scoped for upload,
-- an APNs auth key already used by the relay's push module.
-
-None of that exists in this account today. It is a spend-and-credentials
-decision, not a coding task, and the CI job here deliberately passes
-`CODE_SIGNING_ALLOWED=NO` so nothing can start quietly depending on a
-certificate before that decision is made.
+For an already-eligible tester, use a one-person internal group with automatic
+distribution off. Otherwise use a private email-only external group and
+Apple’s beta review as required. Do not add any account role.
+[Internal testing](https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers/)
+and [external testing](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/)
+have different eligibility and build rules. Record the signed artifact hashes,
+Apple upload and processing states, exact group/build assignment, and invitation
+status independently. Do not include tester details in Git or pull requests.
