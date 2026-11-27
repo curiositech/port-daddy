@@ -40,7 +40,7 @@
 
 import type { Env } from './types.js';
 import type { UserRow } from './db.js';
-import { isSameOrigin, resolveSession, userCanReadRepo } from './auth-github.js';
+import { isSameOrigin, readGitHubRepoFullName, resolveSession, userCanReadRepo, type ResolvedSession } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
 import { hashHex, randomHex } from './crypto.js';
 import { HEAD, TOKENS } from './account-page.js';
@@ -308,7 +308,10 @@ export function applyBoardQuery(
 const now = (): number => Math.floor(Date.now() / 1000);
 
 /** A claim is salvageable when it is held and its holder stopped reporting. */
-export function isStale(claim: ClaimRow | null, at: number = now()): boolean {
+export function isStale(
+  claim: Pick<ClaimRow, 'state' | 'claimed_at' | 'heartbeat_at'> | null,
+  at: number = now(),
+): boolean {
   if (!claim || claim.state === 'open' || claim.state === 'done' || claim.state === 'abandoned') {
     return false;
   }
@@ -973,19 +976,33 @@ export async function createRegisterGrant(
   };
 }
 
+/**
+ * Show the operator's own grants for the verified repository, including legacy
+ * ASCII case variants. This folds names only for display; each row still
+ * carries the exact key that its revoke form and bearer must use.
+ *
+ * @param env - Worker bindings for the grant store.
+ * @param userId - The signed-in operator's account.
+ * @param repoFullName - The GitHub-witnessed, ASCII-only repository name.
+ * @param at - Current Unix time in seconds, for prioritizing revocable grants.
+ * @returns Up to 20 grants, with live grants before history.
+ */
 async function readRegisterGrants(
   env: Env,
   userId: string,
   repoFullName: string,
+  at: number,
 ): Promise<RegisterGrantRow[]> {
   const { results } = await env.DB.prepare(
     `SELECT id, user_id, repo_full_name, agent, owner, created_at,
             exchange_expires_at, exchanged_at, token_expires_at, last_used_at, revoked_at
        FROM work_register_grants
-      WHERE user_id = ? AND repo_full_name = ?
-      ORDER BY created_at DESC LIMIT 20`,
+      WHERE user_id = ? AND lower(repo_full_name) COLLATE BINARY = ?
+      ORDER BY (revoked_at IS NULL AND COALESCE(token_expires_at, exchange_expires_at) > ?) DESC,
+               created_at DESC, id DESC
+      LIMIT 20`,
   )
-    .bind(userId, repoFullName)
+    .bind(userId, repoFullName.toLowerCase(), at)
     .all<RegisterGrantRow>();
   return results ?? [];
 }
@@ -1469,6 +1486,23 @@ const grantStatus = (grant: RegisterGrantRow, at: number): string => {
   return `awaiting exchange · expires in ${Math.max(1, Math.ceil((grant.exchange_expires_at - at) / 60))} min`;
 };
 
+/**
+ * Use GitHub's spelling for browser storage keys so case variants cannot split
+ * the board. Require the same repo modulo ASCII case; do not remap other names.
+ *
+ * @param session - The signed-in browser session whose GitHub access is checked.
+ * @param parts - The requested repository, already validated by splitRepo.
+ * @returns The permission-witnessed exact key, or null if it cannot be verified.
+ */
+async function resolveBrowserRepo(
+  session: ResolvedSession,
+  parts: { owner: string; repo: string },
+): Promise<string | null> {
+  const fullName = await readGitHubRepoFullName(session, parts.owner, parts.repo);
+  if (!fullName || !splitRepo(fullName)) return null;
+  return fullName.toLowerCase() === `${parts.owner}/${parts.repo}`.toLowerCase() ? fullName : null;
+}
+
 /** Browser-only approval and revocation for repository-bound task grants. */
 export async function handleRegisterPageAction(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
@@ -1477,9 +1511,10 @@ export async function handleRegisterPageAction(request: Request, env: Env): Prom
   if (!session) return new Response(null, { status: 302, headers: { Location: '/login' } });
 
   const form = await request.formData();
-  const repoFullName = String(form.get('repo') ?? '');
-  const parts = splitRepo(repoFullName);
-  if (!parts || !(await userCanReadRepo(env, session, parts.owner, parts.repo))) {
+  const requestedRepo = String(form.get('repo') ?? '');
+  const parts = splitRepo(requestedRepo);
+  const repoFullName = parts && await resolveBrowserRepo(session, parts);
+  if (!repoFullName) {
     return shell('Harbor Work Register', '<header class="h"><h1>No access</h1></header>', 403);
   }
   await recordMembership(env, repoFullName, session.user.id);
@@ -1487,11 +1522,13 @@ export async function handleRegisterPageAction(request: Request, env: Env): Prom
   const action = new URL(request.url).pathname.replace(/^\/account\/register\/?/, '');
   if (action === 'revoke') {
     const grantId = String(form.get('grant_id') ?? '');
+    // The read above verifies repo identity; the form still has to name the
+    // exact stored key of this operator's grant, including legacy spelling.
     await env.DB.prepare(
       `UPDATE work_register_grants SET revoked_at = ?
         WHERE id = ? AND user_id = ? AND repo_full_name = ? AND revoked_at IS NULL`,
     )
-      .bind(now(), grantId, session.user.id, repoFullName)
+      .bind(now(), grantId, session.user.id, requestedRepo)
       .run();
     return new Response(null, {
       status: 303,
@@ -1523,7 +1560,62 @@ export async function handleRegisterPageAction(request: Request, env: Env): Prom
 }
 
 /**
- * GET /account/register?repo=owner/name — the board, server-rendered.
+ * Render the repository chooser without echoing unvalidated input or listing repositories.
+ *
+ * @param status - Distinguishes initial entry, malformed input, and refused access.
+ * @returns A script-free GET form that also lets the operator retry.
+ */
+function registerRepoChooser(status: 200 | 400 | 403 = 200): Response {
+  const message = status === 400
+    ? 'Enter a GitHub repository as owner/repository, without the GitHub URL.'
+    : status === 403
+      ? 'No access. Check the repository name, or enter one your GitHub account can read.'
+      : '';
+  return shell(
+    'Harbor Work Register',
+    `<header class="h"><h1>The Harbor Work Register</h1>
+      <p class="lede">Choose a GitHub repository to open its board.</p></header>
+    <section class="grant">
+      ${message ? `<p id="repo-error" class="warn">${message}</p>` : ''}
+      <form method="get" action="/account/register">
+        <label for="register-repo">GitHub owner/repository
+          <input id="register-repo" name="repo" required spellcheck="false" autocapitalize="none"${message ? ' aria-describedby="repo-error"' : ''}${status === 400 ? ' aria-invalid="true"' : ''}>
+        </label>
+        <button type="submit">Open board</button>
+      </form>
+    </section>`,
+    status,
+  );
+}
+
+const LEGACY_CLAIM_LIMIT = 20;
+type LegacyClaim = Pick<ClaimRow, 'slug' | 'state' | 'agent' | 'owner' | 'claimed_at' | 'heartbeat_at'>
+  & { repo_full_name: string };
+
+/**
+ * Surface active claims still stored under old case variants without widening
+ * either board's authority. SQLite folds ASCII for lookup only; the binary
+ * comparison excludes the exact canonical key.
+ *
+ * @param env - Worker bindings for the claim store.
+ * @param repoFullName - The ASCII repository name freshly verified by GitHub.
+ * @returns The newest legacy claims, plus one sentinel row if truncated.
+ */
+async function readLegacyClaims(env: Env, repoFullName: string): Promise<LegacyClaim[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT repo_full_name, slug, state, agent, owner, claimed_at, heartbeat_at
+       FROM work_claims
+      WHERE lower(repo_full_name) COLLATE BINARY = ?
+        AND repo_full_name COLLATE BINARY <> ?
+        AND state IN ('held', 'blocked', 'review')
+      ORDER BY updated_at DESC, repo_full_name, slug
+      LIMIT ?`,
+  ).bind(repoFullName.toLowerCase(), repoFullName, LEGACY_CLAIM_LIMIT + 1).all<LegacyClaim>();
+  return results ?? [];
+}
+
+/**
+ * GET /account/register — the chooser or the exact repository's board.
  *
  * Opening the page records repository membership after a live GitHub ACL
  * check. It does not refresh the roadmap: that replica remains daemon-pushed,
@@ -1534,18 +1626,13 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
   if (!session) return new Response(null, { status: 302, headers: { Location: '/login' } });
 
   const url = new URL(request.url);
-  const repoFullName = url.searchParams.get('repo') ?? '';
-  const parts = splitRepo(repoFullName);
-  if (!parts) {
-    return shell(
-      'Harbor Work Register',
-      `<header class="h"><h1>The Harbor Work Register</h1>
-       <p class="lede">Name a repository to open its board.</p></header>
-       <p class="meta">Add <code>?repo=owner/name</code> to this URL.</p>`,
-    );
-  }
-  if (!(await userCanReadRepo(env, session, parts.owner, parts.repo))) {
-    return shell('Harbor Work Register', '<header class="h"><h1>No access</h1></header>', 403);
+  const requestedRepo = url.searchParams.get('repo');
+  if (requestedRepo === null) return registerRepoChooser();
+  const parts = splitRepo(requestedRepo);
+  if (!parts) return registerRepoChooser(400);
+  const repoFullName = await resolveBrowserRepo(session, parts);
+  if (!repoFullName) {
+    return registerRepoChooser(403);
   }
 
   // Reaching the page with live read access is what opens the board for this
@@ -1600,12 +1687,19 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
   // and an agent reading /available never disagree about whether this list can
   // be trusted.
   const warning = registryWarning(meta);
-  const grants = await readRegisterGrants(env, session.user.id, repoFullName);
   const at = now();
+  const legacyClaims = await readLegacyClaims(env, repoFullName);
+  const legacyRows = legacyClaims.slice(0, LEGACY_CLAIM_LIMIT).map(claim => `<tr>
+    <td class="slug">${esc(claim.slug)}</td>
+    <td><span class="pill s-${esc(claim.state)}">${esc(claim.state)}</span>${isStale(claim, at) ? ' <span class="stale">stale</span>' : ''}</td>
+    <td>${esc(claim.agent ?? '—')}${claim.owner && claim.owner !== claim.agent ? `<div class="owner">for ${esc(claim.owner)}</div>` : ''}</td>
+    <td><code>${esc(claim.repo_full_name)}</code></td>
+  </tr>`).join('');
+  const grants = await readRegisterGrants(env, session.user.id, repoFullName, at);
   const grantRows = grants.map((grant) => `<div class="grant-row">
     <div><code>${esc(grant.agent)}</code><div class="owner">${esc(grantStatus(grant, at))}</div></div>
     ${grant.revoked_at ? '' : `<form method="post" action="/account/register/revoke">
-      <input type="hidden" name="repo" value="${esc(repoFullName)}">
+      <input type="hidden" name="repo" value="${esc(grant.repo_full_name)}">
       <input type="hidden" name="grant_id" value="${esc(grant.id)}">
       <button type="submit">Revoke</button></form>`}
   </div>`).join('');
@@ -1620,6 +1714,15 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
       roadmap made by the daemon ${meta ? `${esc(meta.age)} (${meta.item_count} rows in <code>${esc(meta.harbor)}</code>${meta.daemon_label ? `, from ${esc(meta.daemon_label)}` : ''}${meta.transit_seconds > 60 ? `, pushed here ${Math.round(meta.transit_seconds / 60)} min after that` : ''})` : 'never — nothing has been pushed'}</p>
     </header>
     ${warning ? `<div class="warn">${esc(warning)}</div>` : ''}
+    ${legacyRows ? `<section class="grant" aria-labelledby="legacy-claims-title">
+      <h2 id="legacy-claims-title">Claims under older repository spellings</h2>
+      <p>These claims are on separate boards and do not reserve work on this board. Coordinate with the holder before taking the same slug.</p>
+      ${legacyClaims.length > LEGACY_CLAIM_LIMIT ? `<p>Showing the ${LEGACY_CLAIM_LIMIT} most recently updated claims. More legacy claims exist.</p>` : ''}
+      <div class="wrap"><table>
+        <tr><th scope="col">Slug</th><th scope="col">State</th><th scope="col">Holder / owner</th><th scope="col">Exact repository key</th></tr>
+        ${legacyRows}
+      </table></div>
+    </section>` : ''}
     <section class="grant">
       <h2>Authorize this task</h2>
       <p>Give one task temporary access to this repository's Register without turning Port Daddy on. This does not grant access to any other Relay API.</p>

@@ -126,7 +126,8 @@ does not depend on the daemon.
 answers "what may I take" — every slug nothing holds, plus every slug whose
 holder has gone quiet past the salvage clock. `.../board` is the whole picture
 including who is on what. The human view is `/account/register?repo=...`, which
-is gated to the operator's own GitHub identity and is not linked from anywhere.
+is gated to the operator's own GitHub identity and reachable through **Harbor
+Work Register** on Relay sign-in or in signed-in Account navigation.
 When the local runtime is intentionally Off, the operator can use **Authorize
 this task** on that page to mint a one-use ten-minute pairing code. The task
 exchanges it at `POST /v1/register/exchange` for an eight-hour `pdr_` bearer.

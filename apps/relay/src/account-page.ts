@@ -214,6 +214,7 @@ export function renderLoginPage(): string {
         <div class="door-body">
           <a class="btn btn-primary" href="/auth/github/login">Continue with GitHub</a>
           <span class="sub-caption">GitHub App authorization · secure 7-day browser session</span>
+          <p class="sub-caption"><a href="/auth/github/login?return_to=%2Faccount%2Fregister">Harbor Work Register</a></p>
           <div class="pair">
             <div class="pair-mast" title="Quebec — I request free pratique; permission to enter">
               <span class="flag-name">Quebec — I request free pratique</span>
@@ -374,6 +375,7 @@ export function renderAccountPage(
     <nav aria-label="Account">
       <span class="eyebrow">Account</span>
       <a href="/account" aria-current="page">Overview</a>
+      <a href="/account/register">Harbor Work Register</a>
       <a href="/account/interruptions">Interruptions</a>
       <a href="/account/repos">Repo settings</a>
       <a href="/account/ships">Ship controls</a>
